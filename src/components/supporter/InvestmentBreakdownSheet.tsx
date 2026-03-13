@@ -33,21 +33,18 @@ interface InvestmentEntry {
 
 export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreakdownSheetProps) {
   const { user } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { formatAmountCompact } = useCurrency();
   const [entries, setEntries] = useState<InvestmentEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (open && user) {
-      fetchAll();
-    }
+    if (open && user) fetchAll();
   }, [open, user]);
 
   const fetchAll = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Check both investor_id and agent_id to catch self-invested portfolios
       const [{ data: byInvestor, error: e1 }, { data: byAgent, error: e2 }] = await Promise.all([
         supabase
           .from('investor_portfolios')
@@ -63,22 +60,14 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           .order('created_at', { ascending: false }),
       ]);
 
-      const error = e1 || e2;
-      const portfolios = [...(byInvestor || []), ...(byAgent || [])];
+      if (e1 || e2) { console.error(e1 || e2); setEntries([]); return; }
 
-      if (error) {
-        console.error('[InvestmentBreakdown] fetch error:', error);
-        setEntries([]);
-        return;
-      }
-
-      // Deduplicate by id (defensive)
       const seen = new Set<string>();
-      const entries: InvestmentEntry[] = [];
-      for (const p of (portfolios || [])) {
+      const result: InvestmentEntry[] = [];
+      for (const p of [...(byInvestor || []), ...(byAgent || [])]) {
         if (seen.has(p.id)) continue;
         seen.add(p.id);
-        entries.push({
+        result.push({
           id: p.id,
           code: p.portfolio_code,
           amount: Number(p.investment_amount),
@@ -94,10 +83,9 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           source: 'portfolio',
         });
       }
-
-      setEntries(entries);
+      setEntries(result);
     } catch (e) {
-      console.error('[InvestmentBreakdown] fetch error:', e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -109,343 +97,266 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
 
   const statusConfig = (status: string) => {
     switch (status) {
-      case 'active': return { label: 'Active', class: 'bg-success/15 text-success border-success/30', dot: 'bg-success' };
-      case 'pending': case 'pending_activation': return { label: 'Pending', class: 'bg-warning/15 text-warning border-warning/30', dot: 'bg-warning' };
-      case 'matured': return { label: 'Matured', class: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary' };
-      default: return { label: status, class: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' };
+      case 'active': return { label: 'Active', cls: 'bg-success/10 text-success border-success/20', dot: 'bg-success' };
+      case 'pending': case 'pending_activation': return { label: 'Pending', cls: 'bg-warning/10 text-warning border-warning/20', dot: 'bg-warning' };
+      case 'matured': return { label: 'Matured', cls: 'bg-primary/10 text-primary border-primary/20', dot: 'bg-primary' };
+      default: return { label: status, cls: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' };
     }
   };
 
-  const accentColors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#0891b2', '#8b5cf6', '#ea580c', '#0d9488', '#6d28d9', '#be185d', '#4f46e5'];
+  const colors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#0891b2', '#8b5cf6', '#ea580c'];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0">
-        <SheetHeader className="px-5 pt-5 pb-2">
-          <SheetTitle className="text-lg font-black flex items-center gap-2">
-            <PiggyBank className="h-5 w-5 text-primary" />
-            My Investments
+        {/* Header */}
+        <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/50">
+          <SheetTitle className="text-base font-bold flex items-center gap-2">
+            <PiggyBank className="h-4.5 w-4.5 text-primary" />
+            My Support Accounts
             {!loading && entries.length > 0 && (
-              <span className="text-xs font-bold text-muted-foreground ml-auto">{entries.length} account{entries.length !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] font-medium text-muted-foreground ml-auto">{entries.length}</span>
             )}
           </SheetTitle>
         </SheetHeader>
 
-        {/* Aggregate summary */}
-        <div className="mx-5 mb-3 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/15 p-4">
-          <div className="grid grid-cols-3 gap-3 text-center">
+        {/* Summary Row */}
+        <div className="mx-5 my-3 rounded-xl border border-border/50 p-3">
+          <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-              <CircleDollarSign className="h-4 w-4 text-primary mx-auto mb-1" />
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Total Capital</p>
-              <p className="text-sm font-black text-foreground mt-0.5 break-all">{formatAmount(totalInvested)}</p>
+              <CircleDollarSign className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-70" />
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Capital</p>
+              <p className="text-xs font-black text-foreground mt-0.5 truncate">{formatAmountCompact(totalInvested)}</p>
             </div>
             <div>
-              <ArrowUpRight className="h-4 w-4 text-success mx-auto mb-1" />
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Total Earned</p>
-              <p className="text-sm font-black text-success mt-0.5 break-all">{formatAmount(totalEarned)}</p>
+              <ArrowUpRight className="h-3.5 w-3.5 text-success mx-auto mb-1 opacity-70" />
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Earned</p>
+              <p className="text-xs font-black text-success mt-0.5 truncate">{formatAmountCompact(totalEarned)}</p>
             </div>
             <div>
-              <Target className="h-4 w-4 text-primary mx-auto mb-1" />
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Expected/mo</p>
-              <p className="text-sm font-black text-foreground mt-0.5 break-all">{formatAmount(expectedMonthly)}</p>
+              <Target className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-70" />
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Monthly</p>
+              <p className="text-xs font-black text-foreground mt-0.5 truncate">{formatAmountCompact(expectedMonthly)}</p>
             </div>
           </div>
         </div>
 
-        <ScrollArea className="h-[calc(90vh-200px)] px-5 pb-8">
+        <ScrollArea className="h-[calc(90vh-180px)] px-5 pb-8">
           {loading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-44 w-full rounded-2xl" />
-              ))}
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-36 w-full rounded-xl" />)}
             </div>
           ) : entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <PiggyBank className="h-12 w-12 text-muted-foreground/40 mb-3" />
-              <p className="text-sm font-semibold text-muted-foreground">No investment accounts yet</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Support a tenant to create your first account</p>
+              <PiggyBank className="h-10 w-10 text-muted-foreground/30 mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">No accounts yet</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Support a tenant to get started</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {entries.map((entry, idx) => {
                 const monthlyReturn = entry.amount * (entry.roi_percentage / 100);
                 const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
-                const color = accentColors[idx % accentColors.length];
+                const color = colors[idx % colors.length];
                 const sc = statusConfig(entry.status);
-                // Derive next payout: if COO set a payout_day, use calendar day; otherwise strict 30-day cycle
-                const nowCalc = new Date();
+
+                const now = new Date();
                 const investedDate = new Date(entry.invested_at);
                 let nextPayout: Date;
                 if (entry.payout_day) {
-                  // COO override: use specific calendar day
-                  nextPayout = new Date(nowCalc.getFullYear(), nowCalc.getMonth(), entry.payout_day);
-                  if (nextPayout <= nowCalc) {
-                    nextPayout = new Date(nowCalc.getFullYear(), nowCalc.getMonth() + 1, entry.payout_day);
-                  }
+                  nextPayout = new Date(now.getFullYear(), now.getMonth(), entry.payout_day);
+                  if (nextPayout <= now) nextPayout = new Date(now.getFullYear(), now.getMonth() + 1, entry.payout_day);
                 } else {
-                  // Default: strict 30-day cycle from investment date
-                  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-                  const investedMs = investedDate.getTime();
-                  const daysSinceInvest = Math.floor((nowCalc.getTime() - investedMs) / THIRTY_DAYS);
-                  const nextCycleNumber = daysSinceInvest + 1;
-                  nextPayout = new Date(investedMs + nextCycleNumber * THIRTY_DAYS);
+                  const THIRTY = 30 * 24 * 60 * 60 * 1000;
+                  const cycles = Math.floor((now.getTime() - investedDate.getTime()) / THIRTY);
+                  nextPayout = new Date(investedDate.getTime() + (cycles + 1) * THIRTY);
                 }
                 const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
-                const daysToNext = differenceInDays(nextPayout, nowCalc);
+                const daysToNext = differenceInDays(nextPayout, now);
+
+                // Compound projection rows
+                const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
+                if (isCompounding) {
+                  let bal = entry.amount;
+                  for (let m = 1; m <= entry.duration_months; m++) {
+                    const earned = bal * (entry.roi_percentage / 100);
+                    const payoutDate = entry.payout_day
+                      ? new Date(investedDate.getFullYear(), investedDate.getMonth() + m, entry.payout_day)
+                      : addDays(investedDate, m * 30);
+                    projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
+                    bal += earned;
+                  }
+                }
+                const finalValue = projectionRows.length > 0 ? projectionRows[projectionRows.length - 1].closing : 0;
+                const growthPct = entry.amount > 0 ? ((finalValue - entry.amount) / entry.amount * 100) : 0;
 
                 return (
-                  <div
-                    key={entry.id}
-                    className="rounded-2xl border bg-card overflow-hidden shadow-sm"
-                  >
-                    {/* Color accent bar + header */}
-                    <div className="flex items-center gap-3 p-4 pb-3" style={{ borderLeft: `4px solid ${color}` }}>
+                  <div key={entry.id} className="rounded-xl border border-border/50 bg-card overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center gap-3 p-3.5 pb-2.5">
                       <div
-                        className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0"
+                        className="h-9 w-9 rounded-lg flex items-center justify-center text-white text-xs font-black shrink-0"
                         style={{ backgroundColor: color }}
                       >
-                        {(idx + 1).toString().padStart(2, '0')}
+                        {String(idx + 1).padStart(2, '0')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-black text-foreground">{entry.code}</p>
-                          <Badge variant="outline" className={`text-[9px] font-bold ${sc.class}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${sc.dot} mr-1`} />
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-foreground truncate">{entry.code}</p>
+                          <Badge variant="outline" className={`text-[8px] px-1.5 py-0 ${sc.cls}`}>
+                            <span className={`h-1 w-1 rounded-full ${sc.dot} mr-0.5`} />
                             {sc.label}
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Invested {formatDistanceToNow(investedDate, { addSuffix: true })}
+                        <p className="text-[10px] text-muted-foreground">
+                          {formatDistanceToNow(investedDate, { addSuffix: true })}
                         </p>
                       </div>
                     </div>
 
-                    {/* Capital & Expected return + Compound Projection */}
-                    {(() => {
-                      const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
-                      if (isCompounding) {
-                        let bal = entry.amount;
-                        const invested = new Date(entry.invested_at);
-                        for (let m = 1; m <= entry.duration_months; m++) {
-                          const earned = bal * (entry.roi_percentage / 100);
-                          const payoutDate = entry.payout_day
-                            ? new Date(invested.getFullYear(), invested.getMonth() + m, entry.payout_day)
-                            : addDays(invested, m * 30);
-                          projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
-                          bal = bal + earned;
-                        }
-                      }
-                      const finalValue = projectionRows.length > 0 ? projectionRows[projectionRows.length - 1].closing : 0;
-                      const totalCompoundEarned = finalValue - entry.amount;
-                      const growthPct = entry.amount > 0 ? ((finalValue - entry.amount) / entry.amount * 100) : 0;
+                    {/* Capital + Return */}
+                    <div className="px-3.5 pb-2.5 grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-muted/40 p-2.5">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
+                        <p className="text-sm font-black text-foreground leading-tight truncate">{formatAmountCompact(entry.amount)}</p>
+                      </div>
+                      <div className="rounded-lg bg-success/5 border border-success/10 p-2.5">
+                        <p className="text-[9px] text-success uppercase tracking-wider font-medium mb-0.5">
+                          {isCompounding ? 'Month 1' : 'Per Month'}
+                        </p>
+                        <p className="text-sm font-black text-success leading-tight truncate flex items-center gap-0.5">
+                          <ArrowUpRight className="h-3 w-3 shrink-0" />
+                          {formatAmountCompact(monthlyReturn)}
+                        </p>
+                        {isCompounding && <p className="text-[8px] text-muted-foreground mt-0.5">Grows monthly</p>}
+                      </div>
+                    </div>
 
-                      return (
-                        <>
-                          <div className="px-4 pb-3 grid grid-cols-2 gap-3">
-                            <div className="rounded-xl bg-muted/50 p-3">
-                              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Capital</p>
-                              <p className="text-lg font-black text-foreground break-all">{formatAmount(entry.amount)}</p>
-                            </div>
-                            <div className="rounded-xl bg-success/5 border border-success/10 p-3">
-                              {isCompounding ? (
-                                <>
-                                  <p className="text-[10px] text-success font-semibold uppercase tracking-wider mb-0.5">Month 1 Return</p>
-                                  <p className="text-lg font-black text-success break-all flex items-center gap-1">
-                                    <ArrowUpRight className="h-4 w-4 shrink-0" />
-                                    {formatAmount(monthlyReturn)}
-                                  </p>
-                                  <p className="text-[9px] text-muted-foreground mt-0.5">Grows each month ↑</p>
-                                </>
-                              ) : (
-                                <>
-                                  <p className="text-[10px] text-success font-semibold uppercase tracking-wider mb-0.5">Expected / month</p>
-                                  <p className="text-lg font-black text-success break-all flex items-center gap-1">
-                                    <ArrowUpRight className="h-4 w-4 shrink-0" />
-                                    {formatAmount(monthlyReturn)}
-                                  </p>
-                                </>
-                              )}
-                            </div>
-                          </div>
+                    {/* Next Payout */}
+                    <div className="mx-3.5 mb-2.5 rounded-lg bg-primary/5 border border-primary/10 p-2.5 flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <CalendarCheck className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Next Payout</p>
+                        <p className="text-xs font-bold text-foreground">{format(nextPayout, 'dd MMM yyyy')}</p>
+                      </div>
+                      {daysToNext >= 0 ? (
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-black text-primary leading-none">{daysToNext}</p>
+                          <p className="text-[8px] text-muted-foreground font-medium uppercase">days</p>
+                        </div>
+                      ) : (
+                        <Badge className="bg-warning/10 text-warning border-warning/20 text-[8px] shrink-0">Overdue</Badge>
+                      )}
+                    </div>
 
-                          {/* Next payout highlight */}
-                          {nextPayout && (
-                            <div className="mx-4 mb-3 rounded-xl bg-primary/8 border border-primary/15 p-3 flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                                <CalendarCheck className="h-4 w-4 text-primary" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Next Payout</p>
-                                <p className="text-sm font-black text-foreground">
-                                  {format(nextPayout, 'dd MMM yyyy')}
-                                </p>
-                              </div>
-                              {daysToNext >= 0 && (
-                                <div className="text-right">
-                                  <p className="text-lg font-black text-primary">{daysToNext}</p>
-                                  <p className="text-[9px] text-muted-foreground font-bold uppercase">days</p>
+                    {/* Compound Projection */}
+                    {isCompounding && projectionRows.length > 0 && (
+                      <div className="mx-3.5 mb-2.5">
+                        <Accordion type="single" collapsible>
+                          <AccordionItem value="proj" className="border rounded-lg overflow-hidden bg-success/5 border-success/10">
+                            <AccordionTrigger className="px-2.5 py-2 hover:no-underline">
+                              <div className="flex items-center gap-2 flex-1">
+                                <Repeat className="h-3.5 w-3.5 text-success shrink-0" />
+                                <div className="text-left min-w-0">
+                                  <p className="text-[10px] font-bold text-foreground">Growth Projection</p>
+                                  <p className="text-[9px] text-muted-foreground truncate">
+                                    {formatAmountCompact(entry.amount)} → {formatAmountCompact(finalValue)} · +{growthPct.toFixed(0)}%
+                                  </p>
                                 </div>
-                              )}
-                              {daysToNext !== null && daysToNext < 0 && (
-                                <Badge className="bg-warning/15 text-warning border-warning/30 text-[9px] font-bold">
-                                  Overdue
-                                </Badge>
-                              )}
-                            </div>
-                          )}
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="px-2.5 pb-2.5 space-y-1.5">
+                                {/* Summary */}
+                                <div className="grid grid-cols-2 gap-1.5 mb-2">
+                                  <div className="rounded-md bg-background/80 border p-2 text-center">
+                                    <p className="text-[8px] text-muted-foreground uppercase">Earnings</p>
+                                    <p className="text-xs font-black text-success">{formatAmountCompact(finalValue - entry.amount)}</p>
+                                  </div>
+                                  <div className="rounded-md bg-background/80 border p-2 text-center">
+                                    <p className="text-[8px] text-muted-foreground uppercase">Final</p>
+                                    <p className="text-xs font-black text-foreground">{formatAmountCompact(finalValue)}</p>
+                                  </div>
+                                </div>
 
-                          {/* Compound Growth Projection */}
-                          {isCompounding && projectionRows.length > 0 && (
-                            <div className="mx-4 mb-3">
-                              <Accordion type="single" collapsible>
-                                <AccordionItem value="projection" className="border rounded-xl overflow-hidden bg-success/5 border-success/15">
-                                  <AccordionTrigger className="px-3 py-2.5 hover:no-underline">
-                                    <div className="flex items-center gap-2 flex-1">
-                                      <div className="h-7 w-7 rounded-lg bg-success/15 flex items-center justify-center shrink-0">
-                                        <Repeat className="h-3.5 w-3.5 text-success" />
+                                {/* Month rows */}
+                                {projectionRows.map((row) => {
+                                  const isLast = row.month === projectionRows.length;
+                                  const past = isPast(row.date);
+                                  return (
+                                    <div
+                                      key={row.month}
+                                      className={`rounded-md border p-2 ${isLast ? 'bg-success/10 border-success/15' : 'bg-background/80'}`}
+                                    >
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className={`text-[9px] font-bold ${isLast ? 'text-success' : 'text-muted-foreground'}`}>
+                                            M{row.month}
+                                          </span>
+                                          {past && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">PAID</span>}
+                                        </div>
+                                        <span className="text-[9px] text-muted-foreground">{format(row.date, 'dd MMM yy')}</span>
                                       </div>
-                                      <div className="text-left">
-                                        <p className="text-[11px] font-black text-foreground">Compound Growth Projection</p>
-                                        <p className="text-[9px] text-muted-foreground font-semibold">
-                                          {formatAmount(entry.amount)} → {formatAmount(finalValue)} · +{growthPct.toFixed(1)}%
-                                        </p>
+                                      <div className="grid grid-cols-3 gap-1">
+                                        <div>
+                                          <p className="text-[7px] text-muted-foreground uppercase">Open</p>
+                                          <p className="text-[10px] font-bold text-foreground truncate">{formatAmountCompact(row.opening)}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-[7px] text-muted-foreground uppercase">Reward</p>
+                                          <p className={`text-[10px] font-bold truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmountCompact(row.earned)}</p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-[7px] text-muted-foreground uppercase">Close</p>
+                                          <p className="text-[10px] font-black text-foreground truncate">{formatAmountCompact(row.closing)}</p>
+                                        </div>
                                       </div>
                                     </div>
-                                  </AccordionTrigger>
-                                  <AccordionContent>
-                                    <div className="px-3 pb-3">
-                                      <div className="grid grid-cols-2 gap-2 mb-3">
-                                        <div className="rounded-lg bg-background/80 border p-2 text-center">
-                                          <p className="text-[9px] text-muted-foreground font-semibold uppercase">Total Earnings</p>
-                                          <p className="text-sm font-black text-success">{formatAmount(totalCompoundEarned)}</p>
-                                        </div>
-                                        <div className="rounded-lg bg-background/80 border p-2 text-center">
-                                          <p className="text-[9px] text-muted-foreground font-semibold uppercase">Final Value</p>
-                                          <p className="text-sm font-black text-foreground">{formatAmount(finalValue)}</p>
-                                        </div>
-                                      </div>
-
-                                      {/* Responsive month-by-month breakdown */}
-                                      <div className="space-y-1.5">
-                                        {projectionRows.map((row) => {
-                                          const isLast = row.month === projectionRows.length;
-                                          const isPastMonth = isPast(row.date);
-                                          return (
-                                            <div
-                                              key={row.month}
-                                              className={`rounded-lg border p-2.5 ${isLast ? 'bg-success/10 border-success/20' : 'bg-background/80'}`}
-                                            >
-                                              <div className="flex items-center justify-between mb-1.5">
-                                                <div className="flex items-center gap-2">
-                                                  <span className={`text-[10px] font-black ${isLast ? 'text-success' : 'text-muted-foreground'}`}>
-                                                    Month {row.month}
-                                                  </span>
-                                                  {isPastMonth && (
-                                                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">PAID</span>
-                                                  )}
-                                                </div>
-                                                <span className="text-[10px] font-semibold text-muted-foreground">
-                                                  {format(row.date, 'dd MMM yyyy')}
-                                                </span>
-                                              </div>
-                                              <div className="grid grid-cols-3 gap-2">
-                                                <div>
-                                                  <p className="text-[8px] text-muted-foreground font-semibold uppercase">Opening</p>
-                                                  <p className={`text-[11px] font-bold text-foreground`}>{formatAmount(row.opening)}</p>
-                                                </div>
-                                                <div>
-                                                  <p className="text-[8px] text-muted-foreground font-semibold uppercase">ROI ({entry.roi_percentage}%)</p>
-                                                  <p className={`text-[11px] font-bold ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                  <p className="text-[8px] text-muted-foreground font-semibold uppercase">Closing</p>
-                                                  <p className={`text-[11px] font-black text-foreground`}>{formatAmount(row.closing)}</p>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  </AccordionContent>
-                                </AccordionItem>
-                              </Accordion>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
+                                  );
+                                })}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </div>
+                    )}
 
                     {/* Tags */}
-                    <div className="px-4 pb-3 flex flex-wrap gap-1.5">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                        <TrendingUp className="h-3 w-3" />
-                        {entry.roi_percentage}% ROI
+                    <div className="px-3.5 pb-2.5 flex flex-wrap gap-1">
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/8 text-[9px] font-bold text-primary">
+                        <TrendingUp className="h-2.5 w-2.5" />
+                        {entry.roi_percentage}%
                       </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
-                        {isCompounding ? <Repeat className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
-                        {isCompounding ? 'Compounding' : 'Simple'}
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[9px] font-bold text-muted-foreground">
+                        {isCompounding ? <Repeat className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
+                        {isCompounding ? 'Compound' : 'Simple'}
                       </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {entry.duration_months} months
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[9px] font-bold text-muted-foreground">
+                        <Calendar className="h-2.5 w-2.5" />
+                        {entry.duration_months}mo
                       </span>
                     </div>
 
-                    {/* Timeline footer */}
-                    <div className="bg-muted/30 border-t px-4 py-3 space-y-2">
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="h-2 w-2 rounded-full bg-primary" />
-                          <div className="w-0.5 h-5 bg-border" />
+                    {/* Timeline */}
+                    <div className="bg-muted/20 border-t border-border/30 px-3.5 py-2.5 space-y-1.5">
+                      {[
+                        { dot: 'bg-primary', label: 'Started', value: format(investedDate, 'dd MMM yyyy') },
+                        { dot: 'bg-primary/60', label: 'Cycle', value: entry.payout_day ? `${entry.payout_day}${['st','nd','rd'][entry.payout_day-1] || 'th'} monthly` : 'Every 30 days' },
+                        { dot: 'bg-success', label: 'Earned', value: formatAmountCompact(entry.total_earned), color: 'text-success font-black' },
+                      ].map((t, i) => (
+                        <div key={i} className="flex items-center gap-2.5">
+                          <div className={`h-1.5 w-1.5 rounded-full ${t.dot} shrink-0`} />
+                          <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{t.label}</span>
+                          <span className={`text-[10px] font-semibold text-foreground ${t.color || ''}`}>{t.value}</span>
                         </div>
-                        <div className="flex-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Invested on</span>
-                          <span className="text-[11px] font-bold text-foreground">
-                            {format(investedDate, 'dd MMM yyyy · hh:mm a')}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="h-2 w-2 rounded-full bg-primary/60" />
-                          <div className="w-0.5 h-5 bg-border" />
-                        </div>
-                        <div className="flex-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Payout Cycle</span>
-                          <span className="text-[11px] font-bold text-foreground">
-                            {entry.payout_day ? `${entry.payout_day}${entry.payout_day === 1 ? 'st' : entry.payout_day === 2 ? 'nd' : entry.payout_day === 3 ? 'rd' : 'th'} of every month` : 'Every 30 days'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="h-2 w-2 rounded-full bg-success" />
-                          <div className="w-0.5 h-5 bg-border" />
-                        </div>
-                        <div className="flex-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Total earned so far</span>
-                          <span className="text-[11px] font-black text-success">
-                            {formatAmount(entry.total_earned)}
-                          </span>
-                        </div>
-                      </div>
-
+                      ))}
                       {maturity && (
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col items-center">
-                            <div className={`h-2 w-2 rounded-full ${isPast(maturity) ? 'bg-warning' : 'bg-muted-foreground/40'}`} />
-                          </div>
-                          <div className="flex-1 flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground font-semibold">
-                              {isPast(maturity) ? 'Matured on' : 'Matures on'}
-                            </span>
-                            <span className="text-[11px] font-bold text-foreground">
-                              {format(maturity, 'dd MMM yyyy')}
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2.5">
+                          <div className={`h-1.5 w-1.5 rounded-full ${isPast(maturity) ? 'bg-warning' : 'bg-muted-foreground/40'} shrink-0`} />
+                          <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{isPast(maturity) ? 'Matured' : 'Matures'}</span>
+                          <span className="text-[10px] font-semibold text-foreground">{format(maturity, 'dd MMM yyyy')}</span>
                         </div>
                       )}
                     </div>

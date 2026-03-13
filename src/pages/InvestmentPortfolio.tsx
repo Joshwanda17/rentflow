@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
@@ -27,28 +26,23 @@ import {
   TrendingUp,
   Calendar,
   Wallet,
-  Clock,
   CheckCircle2,
-  Gift,
   Target,
   BarChart3,
-  PiggyBank,
-  Sparkles,
   ChevronRight,
   Users,
   Building2,
-  Eye,
   Coins,
   ArrowUpRight,
   History,
   Filter,
-  ArrowDownAZ,
   ArrowUpDown
 } from 'lucide-react';
-import { formatUGX } from '@/lib/rentCalculations';
-import { format, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { InvestmentTransactionHistory } from '@/components/investment/InvestmentTransactionHistory';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useCurrency } from '@/hooks/useCurrency';
 
 type SortOption = 'balance-desc' | 'balance-asc' | 'roi-desc' | 'roi-asc' | 'date-desc' | 'date-asc';
 type FilterOption = 'all' | 'approved' | 'pending' | 'pending_activation';
@@ -90,9 +84,19 @@ interface InvestmentAccount {
   roi_mode?: string;
 }
 
+/** Compact currency formatter that won't overflow on small screens */
+function compactAmount(amount: number, symbol = 'USh'): string {
+  if (amount >= 1_000_000_000) return `${symbol} ${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `${symbol} ${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 100_000) return `${symbol} ${(amount / 1_000).toFixed(0)}K`;
+  if (amount >= 1_000) return `${symbol} ${(amount / 1_000).toFixed(1)}K`;
+  return `${symbol} ${Math.round(amount).toLocaleString()}`;
+}
+
 export default function InvestmentPortfolio() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { formatAmount, formatAmountCompact } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccount | null>(null);
@@ -101,15 +105,12 @@ export default function InvestmentPortfolio() {
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
 
   useEffect(() => {
-    if (user) {
-      fetchPortfolioData();
-    }
+    if (user) fetchPortfolioData();
   }, [user]);
 
   const fetchPortfolioData = async () => {
     if (!user) return;
     setLoading(true);
-
     try {
       const { data: portfolios, error } = await supabase
         .from('investor_portfolios')
@@ -118,14 +119,10 @@ export default function InvestmentPortfolio() {
         .in('status', ['active', 'pending_approval'])
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching portfolios:', error);
-        setAccounts([]);
-        return;
-      }
+      if (error) { console.error(error); setAccounts([]); return; }
 
       const colors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#8b5cf6'];
-      const enrichedAccounts: InvestmentAccount[] = (portfolios || []).map((p: any, i: number) => ({
+      setAccounts((portfolios || []).map((p: any, i: number) => ({
         id: p.id,
         name: p.portfolio_code || `Portfolio ${i + 1}`,
         balance: p.investment_amount || 0,
@@ -140,62 +137,41 @@ export default function InvestmentPortfolio() {
         duration_months: p.duration_months,
         roi_percentage: p.roi_percentage,
         roi_mode: p.roi_mode,
-      }));
-      setAccounts(enrichedAccounts);
+      })));
     } catch (error) {
-      console.error('Error fetching portfolio data:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
-  const totalRoiEarned = accounts.reduce((sum, a) => sum + a.total_roi_earned, 0);
-  const totalFundings = accounts.reduce((sum, a) => sum + a.linked_fundings.length, 0);
+  const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
+  const totalRoiEarned = accounts.reduce((s, a) => s + a.total_roi_earned, 0);
+  const totalFundings = accounts.reduce((s, a) => s + a.linked_fundings.length, 0);
   const expectedMonthlyRoi = totalBalance * 0.15;
 
-  // Filter and sort accounts
   const filteredAndSortedAccounts = useMemo(() => {
     let result = [...accounts];
-    
-    // Apply filter
-    if (filterBy !== 'all') {
-      result = result.filter(a => a.status === filterBy);
-    }
-    
-    // Apply sort
+    if (filterBy !== 'all') result = result.filter(a => a.status === filterBy);
     result.sort((a, b) => {
       switch (sortBy) {
-        case 'balance-desc':
-          return b.balance - a.balance;
-        case 'balance-asc':
-          return a.balance - b.balance;
-        case 'roi-desc':
-          return b.total_roi_earned - a.total_roi_earned;
-        case 'roi-asc':
-          return a.total_roi_earned - b.total_roi_earned;
-        case 'date-desc':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'date-asc':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        default:
-          return 0;
+        case 'balance-desc': return b.balance - a.balance;
+        case 'balance-asc': return a.balance - b.balance;
+        case 'roi-desc': return b.total_roi_earned - a.total_roi_earned;
+        case 'roi-asc': return a.total_roi_earned - b.total_roi_earned;
+        case 'date-desc': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'date-asc': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default: return 0;
       }
     });
-    
     return result;
   }, [accounts, filterBy, sortBy]);
 
-  const handleViewDetails = (account: InvestmentAccount) => {
-    setSelectedAccount(account);
-    setDetailsOpen(true);
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved': return 'bg-success/10 text-success border-success/30';
-      case 'pending': case 'pending_activation': case 'pending_approval': return 'bg-warning/10 text-warning border-warning/30';
-      case 'rejected': return 'bg-destructive/10 text-destructive border-destructive/30';
+      case 'approved': return 'bg-success/10 text-success border-success/20';
+      case 'pending': case 'pending_activation': case 'pending_approval': return 'bg-warning/10 text-warning border-warning/20';
+      case 'rejected': return 'bg-destructive/10 text-destructive border-destructive/20';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -203,9 +179,8 @@ export default function InvestmentPortfolio() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'approved': return 'Active';
-      case 'pending_approval': return 'Awaiting Approval';
-      case 'pending_activation': return 'Pending';
-      case 'pending': return 'Pending';
+      case 'pending_approval': return 'Awaiting';
+      case 'pending_activation': case 'pending': return 'Pending';
       default: return status;
     }
   };
@@ -213,240 +188,193 @@ export default function InvestmentPortfolio() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-4 space-y-4">
-        <Skeleton className="h-12 w-48" />
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-10 w-40" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <div className="grid grid-cols-3 gap-2">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
+        </div>
+        <Skeleton className="h-48 w-full rounded-xl" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+    <div className="min-h-dvh bg-background pb-20">
+      {/* Minimal Header */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/50">
+        <div className="flex items-center gap-3 px-4 py-3 max-w-2xl mx-auto">
+          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4.5 w-4.5" />
           </Button>
-          <div className="flex-1">
-            <h1 className="font-bold flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" />
-              Investment Portfolio
-            </h1>
-            <p className="text-xs text-muted-foreground">Track your investments & returns</p>
-          </div>
+          <h1 className="text-base font-bold text-foreground truncate">Support Accounts</h1>
+          <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">
+            {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+          </Badge>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
-        {/* Portfolio Overview Card */}
+      <main className="max-w-2xl mx-auto px-4 py-5 space-y-5">
+        {/* Hero Balance */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-violet-600 p-5 text-white shadow-xl"
+          className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground"
         >
-          <div className="absolute top-0 right-0 opacity-10">
-            <PiggyBank className="h-28 w-28 -mt-4 -mr-4" />
-          </div>
-          
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-4 w-4 text-primary-foreground/70" />
-            <span className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wide">Total Portfolio Value</span>
-          </div>
-          <p className="text-3xl font-black">{formatUGX(totalBalance)}</p>
-          
-          <div className="flex flex-wrap items-center gap-2 mt-3">
-            <Badge className="bg-white/20 text-white border-0 text-xs">
-              {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
-            </Badge>
-            <Badge className="bg-white/20 text-white border-0 text-xs">
-              {totalFundings} {totalFundings === 1 ? 'funding' : 'fundings'}
-            </Badge>
+          <p className="text-xs font-medium opacity-70 uppercase tracking-wider mb-1">Total Value</p>
+          <p className="text-2xl xs:text-3xl font-black tracking-tight leading-none">
+            {formatAmountCompact(totalBalance)}
+          </p>
+          <div className="flex items-center gap-3 mt-3">
+            <span className="text-xs opacity-80">{totalFundings} fundings</span>
           </div>
         </motion.div>
 
-        {/* Quick Stats Grid */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        {/* Stats Row — 3 columns, compact numbers */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="grid grid-cols-3 gap-2"
+        >
+          {[
+            { label: 'Earned', value: totalRoiEarned, icon: TrendingUp, color: 'text-success' },
+            { label: 'Monthly', value: expectedMonthlyRoi, icon: Calendar, color: 'text-primary' },
+            { label: 'Rate', value: null, icon: Target, color: 'text-foreground' },
+          ].map((stat) => (
+            <Card key={stat.label} className="border border-border/50 shadow-none">
+              <CardContent className="p-3 text-center">
+                <stat.icon className={`h-4 w-4 mx-auto mb-1.5 ${stat.color} opacity-70`} />
+                <p className={`text-sm font-black ${stat.color} leading-tight truncate`}>
+                  {stat.value !== null ? formatAmountCompact(stat.value) : '15%'}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{stat.label}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </motion.div>
+
+        {/* Accounts List */}
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-3 gap-3"
-        >
-          <Card className="border-0 bg-gradient-to-br from-success/10 to-success/5">
-            <CardContent className="p-4 text-center">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-success/20 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-success" />
-              </div>
-              <p className="text-lg font-bold text-success">{formatUGX(totalRoiEarned)}</p>
-              <p className="text-xs text-muted-foreground">Total ROI Earned</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardContent className="p-4 text-center">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-primary/20 flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <p className="text-lg font-bold text-primary">{formatUGX(expectedMonthlyRoi)}</p>
-              <p className="text-xs text-muted-foreground">Monthly ROI</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 bg-gradient-to-br from-violet-500/10 to-violet-500/5">
-            <CardContent className="p-4 text-center">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-violet-500/20 flex items-center justify-center">
-                <Gift className="h-5 w-5 text-violet-500" />
-              </div>
-              <p className="text-lg font-bold text-violet-600">15%</p>
-              <p className="text-xs text-muted-foreground">ROI Rate</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Investment Accounts Section */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-4"
+          className="space-y-3"
         >
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-lg flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" />
-              My Accounts
-            </h2>
-            <Badge variant="secondary" className="font-medium">
+            <h2 className="text-sm font-bold text-foreground">Accounts</h2>
+            <span className="text-xs text-muted-foreground">
               {filteredAndSortedAccounts.length} of {accounts.length}
-            </Badge>
+            </span>
           </div>
 
-          {/* Filter and Sort Controls */}
+          {/* Filters */}
           {accounts.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2">
               <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterOption)}>
-                <SelectTrigger className="w-[130px] h-9 text-xs">
-                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                  <SelectValue placeholder="Filter" />
+                <SelectTrigger className="h-8 text-[11px] w-auto min-w-[100px] border-border/50">
+                  <Filter className="h-3 w-3 mr-1 text-muted-foreground" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="approved">Active</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="pending_activation">Awaiting Activation</SelectItem>
+                  <SelectItem value="pending_activation">Awaiting</SelectItem>
                 </SelectContent>
               </Select>
-              
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                <SelectTrigger className="w-[150px] h-9 text-xs">
-                  <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                  <SelectValue placeholder="Sort by" />
+                <SelectTrigger className="h-8 text-[11px] w-auto min-w-[110px] border-border/50">
+                  <ArrowUpDown className="h-3 w-3 mr-1 text-muted-foreground" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="date-desc">Newest First</SelectItem>
-                  <SelectItem value="date-asc">Oldest First</SelectItem>
-                  <SelectItem value="balance-desc">Highest Balance</SelectItem>
-                  <SelectItem value="balance-asc">Lowest Balance</SelectItem>
-                  <SelectItem value="roi-desc">Highest ROI</SelectItem>
-                  <SelectItem value="roi-asc">Lowest ROI</SelectItem>
+                  <SelectItem value="date-desc">Newest</SelectItem>
+                  <SelectItem value="date-asc">Oldest</SelectItem>
+                  <SelectItem value="balance-desc">Highest</SelectItem>
+                  <SelectItem value="balance-asc">Lowest</SelectItem>
+                  <SelectItem value="roi-desc">Top Rewards</SelectItem>
+                  <SelectItem value="roi-asc">Low Rewards</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           )}
 
           {accounts.length === 0 ? (
-            <Card className="border-dashed border-2">
+            <Card className="border-dashed">
               <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                  <Wallet className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="font-bold text-foreground mb-1">No Investment Accounts Yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Start funding rent requests to build your investment portfolio
-                </p>
-                <Button onClick={() => navigate('/dashboard')} className="gap-2">
-                  <Target className="h-4 w-4" />
-                  Browse Opportunities
+                <Wallet className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+                <p className="font-semibold text-foreground text-sm mb-1">No Accounts Yet</p>
+                <p className="text-xs text-muted-foreground mb-4">Support tenants to build your account</p>
+                <Button size="sm" onClick={() => navigate('/dashboard')} className="gap-1.5">
+                  <Target className="h-3.5 w-3.5" />
+                  Browse Requests
                 </Button>
               </CardContent>
             </Card>
           ) : filteredAndSortedAccounts.length === 0 ? (
-            <Card className="border-dashed border-2">
+            <Card className="border-dashed">
               <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
-                  <Filter className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">No Matching Accounts</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  No accounts match the current filter
-                </p>
-                <Button variant="outline" size="sm" onClick={() => setFilterBy('all')}>
-                  Clear Filter
-                </Button>
+                <Filter className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-sm font-medium text-foreground mb-2">No matches</p>
+                <Button variant="outline" size="sm" onClick={() => setFilterBy('all')}>Clear Filter</Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <AnimatePresence mode="popLayout">
                 {filteredAndSortedAccounts.map((account, index) => (
                   <motion.div
                     key={account.id}
                     layout
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ delay: index * 0.03 }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ delay: index * 0.02 }}
                   >
-                    <Card 
-                      className="border-0 bg-card shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-[0.98] overflow-hidden"
-                      onClick={() => handleViewDetails(account)}
+                    <Card
+                      className="border border-border/50 shadow-none hover:border-border transition-colors cursor-pointer active:scale-[0.99]"
+                      onClick={() => { setSelectedAccount(account); setDetailsOpen(true); }}
                     >
-                      <CardContent className="p-0">
-                        {/* Colored top border */}
-                        <div 
-                          className="h-1 w-full"
-                          style={{ backgroundColor: account.color }}
-                        />
-                        <div className="p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                              <div 
-                                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                                style={{ backgroundColor: `${account.color}15` }}
-                              >
-                                <Wallet className="h-6 w-6" style={{ color: account.color }} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <p className="font-bold text-foreground truncate">{account.name}</p>
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`text-[10px] shrink-0 ${getStatusColor(account.status)}`}
-                                  >
-                                    {getStatusLabel(account.status)}
-                                  </Badge>
-                                </div>
-                                <p className="text-2xl font-black text-foreground tracking-tight">
-                                  {formatUGX(account.balance)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                            </div>
+                      <CardContent className="p-3.5">
+                        <div className="flex items-center gap-3">
+                          {/* Icon */}
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: `${account.color}12` }}
+                          >
+                            <Wallet className="h-4.5 w-4.5" style={{ color: account.color }} />
                           </div>
-                          
-                          {/* Stats row */}
-                          <div className="flex items-center gap-4 mt-3 pt-3 border-t">
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Users className="h-3.5 w-3.5" />
-                              <span>{account.linked_fundings.length} fundings</span>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <p className="text-sm font-bold text-foreground truncate">{account.name}</p>
+                              <Badge variant="outline" className={`text-[9px] px-1.5 py-0 shrink-0 ${getStatusColor(account.status)}`}>
+                                {getStatusLabel(account.status)}
+                              </Badge>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-success font-medium">
-                              <ArrowUpRight className="h-3.5 w-3.5" />
-                              <span>+{formatUGX(account.total_roi_earned)} ROI</span>
-                            </div>
-                            <div className="flex-1 text-right text-xs text-muted-foreground">
-                              {format(new Date(account.created_at), 'MMM yyyy')}
-                            </div>
+                            <p className="text-base font-black text-foreground leading-tight">
+                              {formatAmountCompact(account.balance)}
+                            </p>
                           </div>
+
+                          {/* Arrow */}
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                        </div>
+
+                        {/* Bottom stats */}
+                        <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-border/30">
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {account.linked_fundings.length}
+                          </span>
+                          <span className="text-[11px] text-success font-medium flex items-center gap-1">
+                            <ArrowUpRight className="h-3 w-3" />
+                            +{formatAmountCompact(account.total_roi_earned)}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground ml-auto">
+                            {format(new Date(account.created_at), 'MMM yyyy')}
+                          </span>
                         </div>
                       </CardContent>
                     </Card>
@@ -460,35 +388,31 @@ export default function InvestmentPortfolio() {
         {/* Performance Summary */}
         {accounts.length > 0 && (
           <motion.section
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.15 }}
           >
-            <Card className="border-0 bg-muted/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                  Performance Summary
+            <Card className="border border-border/50 shadow-none">
+              <CardHeader className="pb-2 px-4 pt-4">
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Invested</span>
-                  <span className="font-bold">{formatUGX(totalBalance)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Returns</span>
-                  <span className="font-bold text-success">+{formatUGX(totalRoiEarned)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">ROI Percentage</span>
-                  <span className="font-bold text-primary">
-                    {totalBalance > 0 ? ((totalRoiEarned / totalBalance) * 100).toFixed(1) : 0}%
-                  </span>
-                </div>
-                <Progress 
-                  value={totalBalance > 0 ? Math.min((totalRoiEarned / totalBalance) * 100, 100) : 0} 
-                  className="h-2 mt-2"
+              <CardContent className="px-4 pb-4 space-y-2.5">
+                {[
+                  { label: 'Total Supported', value: formatAmountCompact(totalBalance), color: '' },
+                  { label: 'Total Rewards', value: `+${formatAmountCompact(totalRoiEarned)}`, color: 'text-success' },
+                  { label: 'Reward Rate', value: `${totalBalance > 0 ? ((totalRoiEarned / totalBalance) * 100).toFixed(1) : 0}%`, color: 'text-primary' },
+                ].map(row => (
+                  <div key={row.label} className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{row.label}</span>
+                    <span className={`text-sm font-bold ${row.color}`}>{row.value}</span>
+                  </div>
+                ))}
+                <Progress
+                  value={totalBalance > 0 ? Math.min((totalRoiEarned / totalBalance) * 100, 100) : 0}
+                  className="h-1.5 mt-1"
                 />
               </CardContent>
             </Card>
@@ -498,169 +422,128 @@ export default function InvestmentPortfolio() {
 
       {/* Account Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/50">
+            <DialogTitle className="flex items-center gap-2.5 text-sm">
               {selectedAccount && (
                 <>
-                  <div 
-                    className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${selectedAccount.color}20` }}
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${selectedAccount.color}15` }}
                   >
                     <Wallet className="h-4 w-4" style={{ color: selectedAccount.color }} />
                   </div>
-                  {selectedAccount.name}
+                  <span className="truncate">{selectedAccount.name}</span>
                 </>
               )}
             </DialogTitle>
           </DialogHeader>
 
           {selectedAccount && (
-            <ScrollArea className="flex-1 -mx-6 px-6">
-              <div className="space-y-4 pb-4">
-                {/* Account Summary */}
-                <div className="grid grid-cols-2 gap-3">
-                  <Card className="border-0 bg-primary/5">
-                    <CardContent className="p-3 text-center">
-                      <p className="text-xs text-muted-foreground">Balance</p>
-                      <p className="text-lg font-black text-primary">{formatUGX(selectedAccount.balance)}</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-0 bg-success/5">
-                    <CardContent className="p-3 text-center">
-                      <p className="text-xs text-muted-foreground">ROI Earned</p>
-                      <p className="text-lg font-black text-success">+{formatUGX(selectedAccount.total_roi_earned)}</p>
-                    </CardContent>
-                  </Card>
+            <ScrollArea className="flex-1 px-5 py-4">
+              <div className="space-y-4">
+                {/* Balance + Rewards */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-primary/5 p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Balance</p>
+                    <p className="text-base font-black text-primary leading-tight">{formatAmountCompact(selectedAccount.balance)}</p>
+                  </div>
+                  <div className="rounded-xl bg-success/5 p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Rewards</p>
+                    <p className="text-base font-black text-success leading-tight">+{formatAmountCompact(selectedAccount.total_roi_earned)}</p>
+                  </div>
                 </div>
 
                 <Tabs defaultValue="history" className="w-full">
-                  <TabsList className="w-full grid grid-cols-3">
-                    <TabsTrigger value="history" className="gap-1.5 text-xs">
-                      <History className="h-3 w-3" />
-                      History
+                  <TabsList className="w-full grid grid-cols-3 h-9">
+                    <TabsTrigger value="history" className="text-[11px] gap-1">
+                      <History className="h-3 w-3" /> History
                     </TabsTrigger>
-                    <TabsTrigger value="fundings" className="gap-1.5 text-xs">
-                      <Users className="h-3 w-3" />
-                      Fundings
+                    <TabsTrigger value="fundings" className="text-[11px] gap-1">
+                      <Users className="h-3 w-3" /> Fundings
                     </TabsTrigger>
-                    <TabsTrigger value="roi" className="gap-1.5 text-xs">
-                      <TrendingUp className="h-3 w-3" />
-                      ROI
+                    <TabsTrigger value="roi" className="text-[11px] gap-1">
+                      <TrendingUp className="h-3 w-3" /> Rewards
                     </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="history" className="mt-3">
-                    <InvestmentTransactionHistory 
-                      accountId={selectedAccount.id} 
-                      maxItems={20} 
-                      showHeader={false} 
+                    <InvestmentTransactionHistory
+                      accountId={selectedAccount.id}
+                      maxItems={20}
+                      showHeader={false}
                     />
                   </TabsContent>
 
                   <TabsContent value="fundings" className="mt-3 space-y-2">
                     {selectedAccount.linked_fundings.length === 0 ? (
-                      <div className="text-center py-6">
+                      <div className="text-center py-8">
                         <Users className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-                        <p className="text-sm text-muted-foreground">No linked fundings yet</p>
+                        <p className="text-xs text-muted-foreground">No linked fundings</p>
                       </div>
                     ) : (
-                      selectedAccount.linked_fundings.map((funding) => (
-                        <Card key={funding.id} className="border-0 bg-muted/30">
-                          <CardContent className="p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Badge 
-                                    variant="outline" 
-                                    className={`text-[10px] ${
-                                      funding.status === 'verified' 
-                                        ? 'bg-success/10 text-success border-success/30'
-                                        : 'bg-warning/10 text-warning border-warning/30'
-                                    }`}
-                                  >
-                                    {funding.status === 'verified' ? 'Verified' : 'Pending'}
-                                  </Badge>
-                                </div>
-                                <p className="font-medium text-foreground">{funding.tenant_name}</p>
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <Building2 className="h-3 w-3" />
-                                  {funding.landlord_name}
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {format(new Date(funding.funded_at), 'MMM d, yyyy')}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-bold text-foreground">{formatUGX(funding.rent_amount)}</p>
-                                {funding.roi_earned > 0 && (
-                                  <p className="text-xs text-success">+{formatUGX(funding.roi_earned)} earned</p>
-                                )}
-                                {funding.roi_pending > 0 && funding.status === 'verified' && (
-                                  <p className="text-xs text-primary">+{formatUGX(funding.roi_pending)}/mo</p>
-                                )}
-                              </div>
+                      selectedAccount.linked_fundings.map((f) => (
+                        <div key={f.id} className="rounded-xl bg-muted/30 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <Badge variant="outline" className={`text-[9px] mb-1 ${f.status === 'verified' ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+                                {f.status === 'verified' ? 'Verified' : 'Pending'}
+                              </Badge>
+                              <p className="text-sm font-medium text-foreground truncate">{f.tenant_name}</p>
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Building2 className="h-3 w-3" />{f.landlord_name}
+                              </p>
                             </div>
-                          </CardContent>
-                        </Card>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold">{formatAmountCompact(f.rent_amount)}</p>
+                              {f.roi_earned > 0 && <p className="text-[10px] text-success">+{formatAmountCompact(f.roi_earned)}</p>}
+                            </div>
+                          </div>
+                        </div>
                       ))
                     )}
                   </TabsContent>
 
                   <TabsContent value="roi" className="mt-3 space-y-2">
                     {selectedAccount.interest_payments.length === 0 ? (
-                      <div className="text-center py-6">
+                      <div className="text-center py-8">
                         <Coins className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-                        <p className="text-sm text-muted-foreground">No ROI payments yet</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          First payment arrives 30 days after verification
-                        </p>
+                        <p className="text-xs text-muted-foreground">No reward payments yet</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">First payment arrives 30 days after verification</p>
                       </div>
                     ) : (
-                      selectedAccount.interest_payments.map((payment) => (
-                        <Card key={payment.id} className="border-0 bg-success/5">
-                          <CardContent className="p-3">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-foreground">{payment.payment_month}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {format(new Date(payment.credited_at), 'MMM d, yyyy')}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {payment.interest_rate}% on {formatUGX(payment.principal_amount)}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-lg font-bold text-success">+{formatUGX(payment.interest_amount)}</p>
-                                <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/30">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Credited
-                                </Badge>
-                              </div>
+                      selectedAccount.interest_payments.map((p) => (
+                        <div key={p.id} className="rounded-xl bg-success/5 p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium">{p.payment_month}</p>
+                              <p className="text-[10px] text-muted-foreground">{format(new Date(p.credited_at), 'MMM d, yyyy')}</p>
                             </div>
-                          </CardContent>
-                        </Card>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-success">+{formatAmountCompact(p.interest_amount)}</p>
+                              <Badge variant="outline" className="text-[9px] bg-success/10 text-success border-success/20">
+                                <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Credited
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
                       ))
                     )}
                   </TabsContent>
                 </Tabs>
 
                 {/* Account Info */}
-                <div className="pt-4 border-t space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium">{format(new Date(selectedAccount.created_at), 'MMM d, yyyy')}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Status</span>
-                    <Badge variant="outline" className={getStatusColor(selectedAccount.status)}>
-                      {selectedAccount.status === 'approved' ? 'Active' : selectedAccount.status}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Monthly ROI Rate</span>
-                    <span className="font-medium text-success">15%</span>
-                  </div>
+                <div className="pt-3 border-t border-border/50 space-y-2">
+                  {[
+                    { l: 'Created', v: format(new Date(selectedAccount.created_at), 'MMM d, yyyy') },
+                    { l: 'Status', v: selectedAccount.status === 'approved' ? 'Active' : selectedAccount.status },
+                    { l: 'Monthly Reward Rate', v: '15%' },
+                  ].map(row => (
+                    <div key={row.l} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{row.l}</span>
+                      <span className="font-medium text-foreground">{row.v}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </ScrollArea>
