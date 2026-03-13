@@ -12,6 +12,8 @@ import {
   RefreshCw,
   BadgeCheck,
   MapPin,
+  ShoppingBag,
+  Loader2,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -116,6 +118,26 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [recordCollectionOpen, setRecordCollectionOpen] = useState(false);
   const [depositCashOpen, setDepositCashOpen] = useState(false);
+  const [applyingToSell, setApplyingToSell] = useState(false);
+
+  const handleApplyToSell = async () => {
+    setApplyingToSell(true);
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await supabase
+        .from('profiles')
+        .update({ seller_application_status: 'pending' })
+        .eq('id', user.id);
+      if (error) throw error;
+      const { toast } = await import('sonner');
+      toast.success('Application submitted! A manager will review your request.');
+    } catch (err) {
+      const { toast } = await import('sonner');
+      toast.error('Failed to submit application');
+    } finally {
+      setApplyingToSell(false);
+    }
+  };
 
   if (loading && isOnline && !hasLoadedOnce) {
     return <AgentDashboardSkeleton />;
@@ -184,11 +206,49 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   <span className="text-[10px] text-purple-500 font-medium">Verified</span>
                 </span>
               )}
+              {profile?.is_seller && (
+                <span className="flex items-center gap-0.5 ml-1">
+                  <ShoppingBag className="h-4 w-4 text-chart-4" />
+                  <span className="text-[10px] text-chart-4 font-semibold">Seller</span>
+                </span>
+              )}
             </h1>
             <p className="text-sm text-muted-foreground">Welile Agent</p>
           </div>
           <AiIdButton variant="compact" />
         </div>
+
+        {/* Apply to Sell CTA - only for non-sellers */}
+        {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => { hapticTap(); handleApplyToSell(); }}
+            disabled={applyingToSell}
+            className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-dashed border-chart-4/40 bg-chart-4/5 hover:bg-chart-4/10 transition-all touch-manipulation"
+          >
+            <div className="p-3 rounded-xl bg-chart-4/15 shrink-0">
+              <ShoppingBag className="h-7 w-7 text-chart-4" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-lg text-foreground">Start Selling on Welile</p>
+              <p className="text-xs text-muted-foreground">Apply to become a verified seller • Earn from product sales</p>
+            </div>
+            {applyingToSell && <Loader2 className="h-5 w-5 animate-spin text-chart-4" />}
+          </motion.button>
+        )}
+
+        {/* Pending Application Notice */}
+        {!profile?.is_seller && profile?.seller_application_status === 'pending' && (
+          <Card className="border-warning/30 bg-warning/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <ShoppingBag className="h-5 w-5 text-warning shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">Seller Application Pending</p>
+                <p className="text-xs text-muted-foreground">A manager will review your request soon</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Daily Operations Summary */}
         <AgentDailyOpsCard />

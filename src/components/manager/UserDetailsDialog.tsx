@@ -174,6 +174,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [freezeConfirmOpen, setFreezeConfirmOpen] = useState(false);
   const [operationsDepartments, setOperationsDepartments] = useState<string[]>([]);
   const [togglingDept, setTogglingDept] = useState<string | null>(null);
+  const [isSellerStatus, setIsSellerStatus] = useState(false);
+  const [togglingSellerStatus, setTogglingSellerStatus] = useState(false);
 
   const fetchReferrerInfo = async (userId: string) => {
     setReferrerLoading(true);
@@ -283,6 +285,54 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     }
   };
 
+  const fetchSellerStatus = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('is_seller')
+      .eq('id', user.id)
+      .single();
+    if (data) setIsSellerStatus(data.is_seller ?? false);
+  };
+
+  const handleToggleSellerStatus = async () => {
+    if (!user) return;
+    setTogglingSellerStatus(true);
+    try {
+      const newStatus = !isSellerStatus;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          is_seller: newStatus,
+          seller_application_status: newStatus ? 'approved' : null
+        })
+        .eq('id', user.id);
+      if (error) throw error;
+
+      // Notify the user
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: newStatus ? '🎉 Selling Rights Granted!' : '🚫 Selling Rights Removed',
+        message: newStatus 
+          ? 'You can now sell products and services on Welile! Go to your menu to start listing items.'
+          : 'Your selling rights have been removed. You can no longer list new products.',
+        type: newStatus ? 'success' : 'warning',
+      });
+
+      setIsSellerStatus(newStatus);
+      toast.success(newStatus 
+        ? `${user.full_name} can now sell on Welile` 
+        : `Selling rights removed from ${user.full_name}`
+      );
+      onUserUpdated?.();
+    } catch (err) {
+      console.error('Error toggling seller status:', err);
+      toast.error('Failed to update seller status');
+    } finally {
+      setTogglingSellerStatus(false);
+    }
+  };
+
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
@@ -291,6 +341,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       fetchFrozenStatus();
       fetchReferrerInfo(user.id);
       fetchOperationsDepartments();
+      fetchSellerStatus();
       // Fetch subagents if user is an agent
       if (user.roles.includes('agent')) {
         fetchSubAgents();
@@ -1045,7 +1096,44 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     </div>
   );
 
-  // Shared header component
+  // Seller Status Banner
+  const SellerBanner = () => (
+    <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl ${
+      isSellerStatus 
+        ? 'bg-chart-4/10 border border-chart-4/30' 
+        : 'bg-muted border border-border'
+    }`}>
+      <div className="flex items-center gap-2 min-w-0">
+        <ShoppingCart className="h-5 w-5 shrink-0" style={{ color: isSellerStatus ? 'hsl(var(--chart-4))' : 'hsl(var(--muted-foreground))' }} />
+        <span className={`text-sm font-semibold truncate ${isSellerStatus ? 'text-chart-4' : 'text-muted-foreground'}`}>
+          {isSellerStatus ? '🛒 Verified Seller' : 'Not a Seller'}
+        </span>
+      </div>
+      <Button
+        variant={isSellerStatus ? 'destructive' : 'default'}
+        size="sm"
+        onClick={handleToggleSellerStatus}
+        disabled={togglingSellerStatus}
+        className="shrink-0 min-h-[40px] min-w-[100px] font-bold"
+      >
+        {togglingSellerStatus ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : isSellerStatus ? (
+          <>
+            <ShieldOff className="h-4 w-4 mr-1" />
+            Revoke
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="h-4 w-4 mr-1" />
+            Grant Seller
+          </>
+        )}
+      </Button>
+    </div>
+  );
+
+
   const UserHeader = () => (
     <div className="flex items-center gap-3">
       <Avatar className={`${isMobile ? 'h-14 w-14' : 'h-12 w-12'}`}>
@@ -1134,9 +1222,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </div>
           </SheetHeader>
 
-          {/* Sticky Verification Banner */}
-          <div className="px-4 pt-2 shrink-0">
+          {/* Sticky Verification & Seller Banners */}
+          <div className="px-4 pt-2 shrink-0 space-y-2">
             <VerificationBanner />
+            <SellerBanner />
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -1698,9 +1787,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
           </DialogTitle>
         </DialogHeader>
 
-        {/* Sticky Verification Banner */}
-        <div className="px-6 pt-2 shrink-0">
+        {/* Sticky Verification & Seller Banners */}
+        <div className="px-6 pt-2 shrink-0 space-y-2">
           <VerificationBanner />
+          <SellerBanner />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
