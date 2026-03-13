@@ -298,7 +298,7 @@ Let's build a better future together! 🏡`;
                       <div className="space-y-2">
                         <div className="flex items-start gap-2">
                           <Wallet className="h-4 w-4 text-purple-600 mt-0.5" />
-                          <span className="text-sm">Pay rent through <strong>Welile Wallet</strong> to build savings</span>
+                          <span className="text-sm">Pay rent through <strong>Rent Money</strong> to build savings</span>
                         </div>
                         <div className="flex items-start gap-2">
                           <TrendingUp className="h-4 w-4 text-emerald-600 mt-0.5" />
