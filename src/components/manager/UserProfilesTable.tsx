@@ -781,9 +781,9 @@ export default function UserProfilesTable() {
             
             {/* Verification Filter Pills */}
             {[
-              { value: 'all' as VerificationFilter, label: 'All', count: users.length },
-              { value: 'verified' as VerificationFilter, label: '✓ OK', count: users.filter(u => u.verified).length },
-              { value: 'pending' as VerificationFilter, label: '⏳ Wait', count: users.filter(u => !u.verified).length },
+              { value: 'all' as VerificationFilter, label: 'All' },
+              { value: 'verified' as VerificationFilter, label: '✓ OK' },
+              { value: 'pending' as VerificationFilter, label: '⏳ Wait' },
             ].map((filter) => (
               <button
                 key={filter.value}
@@ -803,13 +803,6 @@ export default function UserProfilesTable() {
                 style={{ minHeight: '48px' }}
               >
                 {filter.label}
-                <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
-                  verificationFilter === filter.value 
-                    ? 'bg-background/20' 
-                    : 'bg-background/50'
-                }`}>
-                  {filter.count}
-                </span>
               </button>
             ))}
           </div>
