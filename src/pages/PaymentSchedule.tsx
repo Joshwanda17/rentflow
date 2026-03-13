@@ -297,7 +297,7 @@ export default function PaymentSchedule() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Interest Rate</span>
+                          <span className="text-muted-foreground">Service Fee</span>
                           <span>{event.loan.interest_rate}%</span>
                         </div>
                       </div>
