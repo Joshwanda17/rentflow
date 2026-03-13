@@ -511,7 +511,7 @@ export default function SupporterDashboard({
       />
 
       {/* Invite & Earn */}
-      <InviteAndEarnCard variant="supporter" />
+      <InviteAndEarnCard variant="supporter" compact />
 
       <PaymentPartnersDialog 
         open={showPaymentPartners} 
