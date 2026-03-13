@@ -2,11 +2,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { setCachedRoles } from '@/lib/sessionCache';
 import type { AppRole } from './types';
 
-export const DEFAULT_ROLE: AppRole = 'agent';
-export const DEFAULT_ROLES: AppRole[] = ['agent'];
+export const DEFAULT_ROLE: AppRole = 'supporter';
+export const DEFAULT_ROLES: AppRole[] = ['supporter'];
 
 /** Standard roles every user should have */
-const STANDARD_ROLES: AppRole[] = ['agent', 'tenant', 'landlord'];
+const STANDARD_ROLES: AppRole[] = ['supporter', 'agent', 'tenant', 'landlord'];
 
 /** Fetch roles from DB, always ensuring 'agent' is included. Auto-creates roles if missing. */
 export async function fetchUserRoles(
@@ -54,11 +54,11 @@ export async function fetchUserRoles(
       setRoles(userRoles);
       setCachedRoles(userRoles);
       
-      // Respect the role the user activated/signed up as (stored in user_metadata)
+      // Default to supporter (Funder) dashboard for all users
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
-      const defaultForUser = isSupporterOnly ? 'supporter'
-        : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : 'agent';
+      const defaultForUser = (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+        : userRoles.includes('supporter') ? 'supporter'
+        : userRoles[0];
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
       }

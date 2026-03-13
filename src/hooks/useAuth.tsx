@@ -27,12 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isCachedSupporterOnly = cachedRoles?.length === 1 && cachedRoles[0] === 'supporter';
   const initialRoles: AppRole[] =
     cachedRoles && cachedRoles.length > 0
-      ? (isCachedSupporterOnly || cachedRoles.includes('agent')) ? cachedRoles : ['agent', ...cachedRoles] as AppRole[]
+      ? cachedRoles.includes('supporter') ? cachedRoles : ['supporter', ...cachedRoles] as AppRole[]
       : DEFAULT_ROLES;
 
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<AppRole | null>(initialRoles.includes('agent') ? 'agent' : initialRoles[0]);
+  const [role, setRole] = useState<AppRole | null>(initialRoles.includes('supporter') ? 'supporter' : initialRoles[0]);
   const [roles, setRoles] = useState<AppRole[]>(initialRoles);
   const [loading, setLoading] = useState(true);
 
