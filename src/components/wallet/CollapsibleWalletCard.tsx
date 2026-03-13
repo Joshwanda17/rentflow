@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Info
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
