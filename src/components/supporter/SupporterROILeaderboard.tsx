@@ -221,7 +221,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
                     +{formatUGX(entry.total_roi_earned)}
                   </p>
                   {!compact && (
-                    <p className="text-[10px] text-muted-foreground">ROI earned</p>
+                    <p className="text-[10px] text-muted-foreground">Rewards earned</p>
                   )}
                 </div>
               </motion.div>
