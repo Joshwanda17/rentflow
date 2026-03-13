@@ -412,10 +412,10 @@ function EmptyState({ onAdd }: {onAdd: () => void;}) {
         <BarChart3 className="h-8 w-8 text-blue-500" />
       </div>
       <h4 className="text-lg font-black text-foreground tracking-tight mb-1.5">
-        No Investment Categories
+        No Support Categories
       </h4>
       <p className="text-sm text-muted-foreground font-medium text-center max-w-[260px] mb-6">
-        Start building your portfolio by adding your first investment category.
+        Start building your support account by adding your first category.
       </p>
       <Button
         onClick={() => {hapticTap();onAdd();}}
