@@ -566,7 +566,7 @@ export default function SupporterDashboard({
         onAcceptAndDeposit={() => setShowPaymentPartners(true)}
       />
 
-      
+      <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       
       <MobileBottomNav currentRole={currentRole} />
     </div>
