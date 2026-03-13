@@ -23,17 +23,17 @@ export default function PWAInstallPrompt() {
     const dismissedAt = localStorage.getItem('welile_install_dismissed_at');
     if (!dismissedAt) return false;
     const dismissedTime = parseInt(dismissedAt, 10);
-    // Only show again after 24 hours
-    return Date.now() - dismissedTime < 24 * 60 * 60 * 1000;
+    // Only show again after 2 hours
+    return Date.now() - dismissedTime < 2 * 60 * 60 * 1000;
   }, []);
 
   // Detect if this is a mobile device
   const isMobile = platform.device === 'mobile' || platform.device === 'tablet';
 
-  // Auto-trigger install on mobile devices
+  // Auto-trigger install on all devices (mobile + desktop)
   useEffect(() => {
-    // Skip if already installed or not on mobile
-    if (isInstalled || !isMobile) return;
+    // Skip if already installed
+    if (isInstalled) return;
     
     // Skip if user recently dismissed
     if (hasRecentlyDismissed()) return;
@@ -41,30 +41,27 @@ export default function PWAInstallPrompt() {
     // For iOS, show install guide immediately
     if (platform.os === 'ios') {
       setShowPrompt(true);
-      // Small delay then show full guide
       const timer = setTimeout(() => {
         setShowInstallGuide(true);
-      }, 500);
+      }, 300);
       return () => clearTimeout(timer);
     }
 
-    // For Android/other mobile with prompt support, show prompt immediately
-    if (platform.canInstallPWA || platform.installMethod === 'prompt') {
-      setShowPrompt(true);
-    }
-  }, [isInstalled, isMobile, platform, hasRecentlyDismissed]);
+    // For all devices with prompt support, show prompt immediately
+    setShowPrompt(true);
+  }, [isInstalled, platform, hasRecentlyDismissed]);
 
   // Auto-trigger the native install prompt on Android as soon as it's available
   useEffect(() => {
     if (autoInstallAttempted) return;
-    if (!isMobile || isInstalled) return;
+    if (isInstalled) return;
     if (hasRecentlyDismissed()) return;
     
     // When the install prompt becomes available, trigger it automatically
     if ((isInstallable || hasPrompt) && platform.installMethod === 'prompt') {
       setAutoInstallAttempted(true);
       
-      // Trigger after a brief moment to ensure page has loaded
+      // Trigger quickly
       const timer = setTimeout(async () => {
         console.log('[PWA] Auto-triggering install prompt for mobile...');
         const success = await promptInstall();
@@ -76,11 +73,11 @@ export default function PWAInstallPrompt() {
           // If user dismissed, still show the banner
           setShowPrompt(true);
         }
-      }, 800);
+      }, 400);
       
       return () => clearTimeout(timer);
     }
-  }, [isInstallable, hasPrompt, platform.installMethod, isMobile, isInstalled, autoInstallAttempted, promptInstall, navigate, hasRecentlyDismissed]);
+  }, [isInstallable, hasPrompt, platform.installMethod, isInstalled, autoInstallAttempted, promptInstall, navigate, hasRecentlyDismissed]);
 
   const handleInstall = async () => {
     // Prevent double-clicks
