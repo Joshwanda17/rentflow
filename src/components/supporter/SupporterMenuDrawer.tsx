@@ -15,11 +15,13 @@ import {
   Store,
   Wallet,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Separator } from '@/components/ui/separator';
+import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 
 interface SupporterMenuDrawerProps {
   open: boolean;
