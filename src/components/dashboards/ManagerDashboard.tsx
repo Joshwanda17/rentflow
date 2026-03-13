@@ -59,6 +59,8 @@ import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { PendingRentRequestsWidget } from '@/components/manager/PendingRentRequestsWidget';
+import { PendingSellerApplicationsWidget } from '@/components/manager/PendingSellerApplicationsWidget';
+import { CollapsibleRentRequests } from '@/components/agent/CollapsibleRentRequests';
 import { RentDueReceivablesWidget } from '@/components/rent/RentDueReceivablesWidget';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
@@ -971,6 +973,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
+
+        {/* Agent Rent Requests */}
+        <CollapsibleRentRequests />
+
+        {/* Pending Seller Applications */}
+        <PendingSellerApplicationsWidget />
         </>
         ) : activeHub === 'wallets' ? (
         <>
