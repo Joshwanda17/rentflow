@@ -40,6 +40,12 @@ export function WalletDetailsSheet({ open, onOpenChange, walletBalance }: Wallet
         .order('created_at', { ascending: false })
         .limit(50);
 
+      // Filter out pool deployment transactions (admin-only)
+      const ADMIN_ONLY_DESCRIPTIONS = ['pool deployment'];
+      const filtered = (data || []).filter(t => 
+        !ADMIN_ONLY_DESCRIPTIONS.some(term => t.description?.toLowerCase().startsWith(term))
+      );
+
       if (error || !data) {
         setTransactions([]);
         return;

@@ -134,7 +134,12 @@ export function useWallet() {
       }
 
       if (data && data.length > 0) {
-        const userIds = [...new Set([...data.map(t => t.sender_id), ...data.map(t => t.recipient_id)])];
+        // Filter out pool deployment transactions (admin-only visibility)
+        const ADMIN_ONLY_DESCRIPTIONS = ['pool deployment'];
+        const filteredData = data.filter(t =>
+          !ADMIN_ONLY_DESCRIPTIONS.some(term => t.description?.toLowerCase().startsWith(term))
+        );
+        const userIds = [...new Set([...filteredData.map(t => t.sender_id), ...filteredData.map(t => t.recipient_id)])];
         
         const { data: profiles } = await supabase
           .from('profiles')
