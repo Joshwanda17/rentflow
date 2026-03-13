@@ -4707,6 +4707,14 @@ export type Database = {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
       }
+      find_duplicate_phones: {
+        Args: never
+        Returns: {
+          normalized_phone: string
+          user_count: number
+          user_ids: string[]
+        }[]
+      }
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
       generate_portfolio_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
