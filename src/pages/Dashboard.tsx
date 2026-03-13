@@ -1,8 +1,9 @@
-import { useEffect, useState, Suspense, lazy, memo } from 'react';
+import { useEffect, useState, useCallback, Suspense, lazy, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import AddRoleDialog from '@/components/AddRoleDialog';
+import BottomRoleSwitcher from '@/components/BottomRoleSwitcher';
 // FloatingChatButton removed — chat accessible only via nav
 
 import { ISOLATED_ROLES, roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
