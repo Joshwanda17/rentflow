@@ -315,7 +315,7 @@ Let's build a better future together! 🏡`;
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
                         <p className="text-xs text-amber-700">
-                          <strong>Important:</strong> Your savings only grow when your landlord is registered on Welile and you pay rent via Welile Wallet.
+                          <strong>Important:</strong> Your savings only grow when your landlord is registered on Welile and you pay rent via Rent Money.
                         </p>
                       </div>
                     </div>
