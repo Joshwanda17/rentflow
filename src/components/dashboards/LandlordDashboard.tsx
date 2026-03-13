@@ -31,6 +31,7 @@ import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
+import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 
 interface LandlordDashboardProps {
   user: User;
