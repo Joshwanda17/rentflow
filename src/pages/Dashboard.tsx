@@ -1,8 +1,9 @@
-import { useEffect, useState, Suspense, lazy, memo } from 'react';
+import { useEffect, useState, useCallback, Suspense, lazy, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import AddRoleDialog from '@/components/AddRoleDialog';
+import BottomRoleSwitcher from '@/components/BottomRoleSwitcher';
 // FloatingChatButton removed — chat accessible only via nav
 
 import { ISOLATED_ROLES, roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
@@ -57,6 +58,15 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 
 function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
+  const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
+
+  // Seamless role switch: auto-add public roles if not yet assigned
+  const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
+    if (PUBLIC_ROLES.includes(newRole) && !roles.includes(newRole)) {
+      await addRole(newRole);
+    }
+    switchRole(newRole);
+  }, [roles, switchRole, addRole]);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -266,12 +276,14 @@ function DashboardContent() {
     return <DashboardLoadingFallback />;
   }
 
+  const isPublicRole = ['tenant', 'agent', 'landlord', 'supporter'].includes(displayRole);
+
   const dashboardProps = { 
     user, 
     signOut, 
     currentRole: displayRole, 
     availableRoles: displayRoles, 
-    onRoleChange: switchRole,
+    onRoleChange: handlePublicRoleSwitch,
     addRoleComponent: <AddRoleDialog availableRoles={displayRoles} onAddRole={addRole} />
   };
 
@@ -301,7 +313,9 @@ function DashboardContent() {
       <Suspense fallback={<DashboardLoadingFallback />}>
         {renderDashboard()}
       </Suspense>
-      
+      {isPublicRole && (
+        <BottomRoleSwitcher currentRole={displayRole} onRoleChange={handlePublicRoleSwitch} />
+      )}
     </>
   );
 }
