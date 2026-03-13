@@ -43,6 +43,7 @@ export function CollapsibleWalletCard() {
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
