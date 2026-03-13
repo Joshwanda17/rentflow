@@ -160,10 +160,28 @@ export function useWallet() {
     }
   }, [user]);
 
-  const sendMoney = useCallback(async (_recipientPhone: string, _amount: number, _description?: string) => {
-    // FRAUD PREVENTION: All wallet transfers suspended
-    return { error: new Error('Wallet transfers are temporarily suspended for security review. Contact support for assistance.') };
-  }, []);
+  const sendMoney = useCallback(async (recipientPhone: string, amount: number, description?: string) => {
+    if (!user) return { error: new Error('Please log in first') };
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('wallet-transfer', {
+        body: {
+          recipient_phone: recipientPhone,
+          amount,
+          description: description || 'Wallet transfer',
+        },
+      });
+
+      if (error) return { error: new Error(error.message || 'Transfer failed') };
+      if (data?.error) return { error: new Error(data.error) };
+
+      // Refresh wallet after successful transfer
+      await fetchWallet(true);
+      return { error: null };
+    } catch (e: any) {
+      return { error: new Error(e.message || 'Transfer failed') };
+    }
+  }, [user, fetchWallet]);
 
   const depositMoney = useCallback(async (_amount: number) => {
     // Direct client-side wallet updates are not allowed for security.

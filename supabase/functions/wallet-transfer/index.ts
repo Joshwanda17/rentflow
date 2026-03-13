@@ -3,26 +3,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // FRAUD PREVENTION: All wallet-to-wallet transfers are suspended
-    return new Response(
-      JSON.stringify({ error: 'Wallet transfers are temporarily suspended for security review. Contact support for assistance.' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    // Get auth token from request
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -31,7 +23,6 @@ serve(async (req) => {
       );
     }
 
-    // Create client with user's token to get user info
     const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -47,13 +38,51 @@ serve(async (req) => {
 
     const senderId = user.id;
     const body = await req.json().catch(() => ({}));
-    const { recipient_id, amount, description } = body as { recipient_id?: string; amount?: number; description?: string };
+    const { recipient_id, recipient_phone, amount, description } = body as { 
+      recipient_id?: string; 
+      recipient_phone?: string;
+      amount?: number; 
+      description?: string 
+    };
 
     // UUID validation
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!recipient_id || typeof recipient_id !== 'string' || !UUID_REGEX.test(recipient_id)) {
+    
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Resolve recipient by ID or phone number
+    let resolvedRecipientId = recipient_id;
+    
+    if (!resolvedRecipientId && recipient_phone) {
+      // Normalize phone to last 9 digits
+      const cleaned = recipient_phone.replace(/\D/g, '');
+      const last9 = cleaned.slice(-9);
+      
+      if (last9.length < 9) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid phone number' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: profiles, error: lookupError } = await adminClient
+        .from('profiles')
+        .select('id, full_name')
+        .ilike('phone', `%${last9}`)
+        .limit(1);
+
+      if (lookupError || !profiles || profiles.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'Recipient not found. They must have a Welile account.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      resolvedRecipientId = profiles[0].id;
+    }
+
+    if (!resolvedRecipientId || !UUID_REGEX.test(resolvedRecipientId)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid recipient ID' }),
+        JSON.stringify({ error: 'Invalid recipient' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -65,20 +94,16 @@ serve(async (req) => {
       );
     }
 
-    // Sanitize description
     const safeDescription = typeof description === 'string' ? description.trim().slice(0, 500) : 'Wallet transfer';
 
-    console.log(`Processing transfer: ${senderId} -> ${recipient_id}, amount: ${amount}`);
+    console.log(`Processing transfer: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
 
-    if (senderId === recipient_id) {
+    if (senderId === resolvedRecipientId) {
       return new Response(
         JSON.stringify({ error: 'Cannot transfer to yourself' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Use service role client for database operations
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get sender's wallet
     const { data: senderWallet, error: senderError } = await adminClient
@@ -88,7 +113,6 @@ serve(async (req) => {
       .single();
 
     if (senderError || !senderWallet) {
-      console.error('Sender wallet error:', senderError);
       return new Response(
         JSON.stringify({ error: 'Sender wallet not found' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -106,19 +130,17 @@ serve(async (req) => {
     let { data: recipientWallet, error: recipientError } = await adminClient
       .from('wallets')
       .select('*')
-      .eq('user_id', recipient_id)
+      .eq('user_id', resolvedRecipientId)
       .single();
 
     if (recipientError || !recipientWallet) {
-      // Create wallet for recipient
       const { data: newWallet, error: createError } = await adminClient
         .from('wallets')
-        .insert({ user_id: recipient_id, balance: 0 })
+        .insert({ user_id: resolvedRecipientId, balance: 0 })
         .select()
         .single();
 
       if (createError) {
-        console.error('Create recipient wallet error:', createError);
         return new Response(
           JSON.stringify({ error: 'Failed to create recipient wallet' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -127,44 +149,33 @@ serve(async (req) => {
       recipientWallet = newWallet;
     }
 
-    // Update sender balance using optimistic locking to prevent race conditions
+    // Optimistic lock — debit sender
     const { data: senderUpdateResult, error: updateSenderError } = await adminClient
       .from('wallets')
       .update({ balance: senderWallet.balance - amount, updated_at: new Date().toISOString() })
       .eq('user_id', senderId)
-      .eq('balance', senderWallet.balance) // Optimistic lock - only update if balance unchanged
+      .eq('balance', senderWallet.balance)
       .select()
       .maybeSingle();
 
-    if (updateSenderError) {
-      console.error('Update sender error:', updateSenderError);
+    if (updateSenderError || !senderUpdateResult) {
       return new Response(
-        JSON.stringify({ error: 'Failed to debit sender' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: updateSenderError ? 'Failed to debit sender' : 'Transaction conflict. Please try again.' }),
+        { status: updateSenderError ? 500 : 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // If no rows were updated, balance changed during transaction (race condition)
-    if (!senderUpdateResult) {
-      console.error('Race condition detected: sender balance changed during transaction');
-      return new Response(
-        JSON.stringify({ error: 'Transaction conflict. Please try again.' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Update recipient balance using optimistic locking
+    // Optimistic lock — credit recipient
     const { data: recipientUpdateResult, error: updateRecipientError } = await adminClient
       .from('wallets')
       .update({ balance: recipientWallet.balance + amount, updated_at: new Date().toISOString() })
-      .eq('user_id', recipient_id)
+      .eq('user_id', resolvedRecipientId)
       .eq('balance', recipientWallet.balance)
       .select()
       .maybeSingle();
 
     if (updateRecipientError || !recipientUpdateResult) {
-      console.error('Update recipient error:', updateRecipientError || 'Race condition');
-      // Rollback sender update to original balance
+      // Rollback sender
       await adminClient
         .from('wallets')
         .update({ balance: senderWallet.balance, updated_at: new Date().toISOString() })
@@ -181,17 +192,39 @@ serve(async (req) => {
       .from('wallet_transactions')
       .insert({
         sender_id: senderId,
-        recipient_id: recipient_id,
+        recipient_id: resolvedRecipientId,
         amount: amount,
         description: safeDescription,
       });
 
     if (txError) {
       console.error('Transaction record error:', txError);
-      // Note: Transfer already completed, just log the error
     }
 
-    console.log(`Transfer successful: ${senderId} -> ${recipient_id}, amount: ${amount}`);
+    // Record in general ledger
+    const refId = crypto.randomUUID();
+    await adminClient.from('general_ledger').insert([
+      {
+        user_id: senderId,
+        amount,
+        direction: 'out',
+        category: 'wallet_transfer',
+        source_table: 'wallet_transactions',
+        description: `Transfer to user: ${safeDescription}`,
+        reference_id: refId,
+      },
+      {
+        user_id: resolvedRecipientId,
+        amount,
+        direction: 'in',
+        category: 'wallet_transfer',
+        source_table: 'wallet_transactions',
+        description: `Transfer from user: ${safeDescription}`,
+        reference_id: refId,
+      },
+    ]);
+
+    console.log(`Transfer successful: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Transfer completed successfully' }),
