@@ -126,11 +126,36 @@ export function CollapsibleWalletCard() {
                     </Badge>
                   )}
                 </div>
-                {profile?.phone && (
-                  <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[160px]">
-                    {profile.phone}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {profile?.phone && (
+                    <>
+                      {(() => {
+                        const phone = profile.phone;
+                        const isMTN = phone.startsWith('+25677') || phone.startsWith('+25678') || phone.startsWith('077') || phone.startsWith('078') || phone.startsWith('+25676') || phone.startsWith('076');
+                        const isAirtel = phone.startsWith('+25675') || phone.startsWith('+25670') || phone.startsWith('075') || phone.startsWith('070') || phone.startsWith('+25674') || phone.startsWith('074');
+                        return (
+                          <>
+                            {isMTN && (
+                              <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-[hsl(48,100%,50%)] text-[7px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
+                            )}
+                            {isAirtel && (
+                              <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-[hsl(0,85%,50%)] text-[7px] font-black text-white leading-none">A</span>
+                            )}
+                            {!isMTN && !isAirtel && (
+                              <span className="inline-flex items-center justify-center h-3.5 w-3.5 rounded-full bg-muted text-[7px] font-black text-muted-foreground leading-none">📱</span>
+                            )}
+                          </>
+                        );
+                      })()}
+                      <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[160px]">
+                        {profile.phone}
+                      </span>
+                    </>
+                  )}
+                  {!profile?.phone && (
+                    <span className="text-[10px] text-muted-foreground/60 italic">No number linked</span>
+                  )}
+                </div>
               </div>
             </div>
             {isOpen ? (
