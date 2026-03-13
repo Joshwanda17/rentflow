@@ -230,9 +230,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 <ShoppingBag className="h-3 w-3" />
                 Seller Application Pending
               </span>
-            )}
+          </div>
+          <AiIdButton variant="compact" />
+        </div>
 
-        {/* Daily Operations Summary */}
         <AgentDailyOpsCard />
 
         {/* Visit Tenant Card */}
