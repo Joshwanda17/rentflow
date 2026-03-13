@@ -879,24 +879,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     onFund(opportunity.id, opportunity.rent_amount);
   };
 
-  const handleStartChat = async (tenantId: string) => {
-    setStartingChat(true);
-    try {
-      const { data, error } = await supabase.rpc('create_direct_conversation', {
-        other_user_id: tenantId
-      });
-
-      if (error) throw error;
-
-      toast.success('Chat started!');
-      navigate(`/chat?conversation=${data}`);
-    } catch (error: any) {
-      console.error('Error starting chat:', error);
-      toast.error('Failed to start chat');
-    } finally {
-      setStartingChat(false);
-    }
-  };
 
   const handleViewLandlord = () => {
     setShowDetails(false);
