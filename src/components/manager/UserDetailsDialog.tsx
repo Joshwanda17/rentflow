@@ -285,6 +285,54 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     }
   };
 
+  const fetchSellerStatus = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('is_seller')
+      .eq('id', user.id)
+      .single();
+    if (data) setIsSellerStatus(data.is_seller ?? false);
+  };
+
+  const handleToggleSellerStatus = async () => {
+    if (!user) return;
+    setTogglingSellerStatus(true);
+    try {
+      const newStatus = !isSellerStatus;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          is_seller: newStatus,
+          seller_application_status: newStatus ? 'approved' : null
+        })
+        .eq('id', user.id);
+      if (error) throw error;
+
+      // Notify the user
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: newStatus ? '🎉 Selling Rights Granted!' : '🚫 Selling Rights Removed',
+        message: newStatus 
+          ? 'You can now sell products and services on Welile! Go to your menu to start listing items.'
+          : 'Your selling rights have been removed. You can no longer list new products.',
+        type: newStatus ? 'success' : 'warning',
+      });
+
+      setIsSellerStatus(newStatus);
+      toast.success(newStatus 
+        ? `${user.full_name} can now sell on Welile` 
+        : `Selling rights removed from ${user.full_name}`
+      );
+      onUserUpdated?.();
+    } catch (err) {
+      console.error('Error toggling seller status:', err);
+      toast.error('Failed to update seller status');
+    } finally {
+      setTogglingSellerStatus(false);
+    }
+  };
+
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
@@ -293,6 +341,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       fetchFrozenStatus();
       fetchReferrerInfo(user.id);
       fetchOperationsDepartments();
+      fetchSellerStatus();
       // Fetch subagents if user is an agent
       if (user.roles.includes('agent')) {
         fetchSubAgents();
