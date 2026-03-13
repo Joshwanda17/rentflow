@@ -60,8 +60,7 @@ const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
 const Install = lazy(() => import('./pages/Install'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
-const Chat = lazy(() => import('./pages/Chat'));
-// ChatInvite removed — public chat links disabled
+// Chat feature removed
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
 const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const Join = lazy(() => import('./pages/Join'));
