@@ -151,7 +151,7 @@ export default function ShopEntry() {
                       <div>
                         <h2 className="text-xl font-bold mb-1">Start Shopping</h2>
                         <p className="text-sm text-muted-foreground">
-                          Browse products and grow your shopping loan limit
+                          Browse products and grow your shopping access
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-xs text-success border-success/30">
