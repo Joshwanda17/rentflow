@@ -941,3 +941,104 @@ input, textarea, select, button {
 .dark .house-health-badge-red {
   color: hsl(0 72% 60%);
 }
+
+/* ==========================================
+   AFRICAN SMARTPHONE OPTIMIZATIONS
+   Targets: Tecno, Itel, Infinix, Samsung A-series,
+   Xiaomi Redmi, Nokia, KaiOS feature phones
+   ========================================== */
+
+/* Ultra-small screens (240-320px) — Feature phones & KaiOS */
+@media (max-width: 320px) {
+  html { font-size: 13px; }
+  .text-2xl { font-size: 1.125rem; }
+  .text-3xl { font-size: 1.25rem; }
+  .p-4 { padding: 0.625rem; }
+  .p-6 { padding: 0.75rem; }
+  .gap-4 { gap: 0.5rem; }
+  .gap-6 { gap: 0.625rem; }
+}
+
+/* Small Android screens (321-375px) — budget Tecno/Itel */
+@media (min-width: 321px) and (max-width: 375px) {
+  html { font-size: 14px; }
+}
+
+/* Ensure all interactive elements meet 44px touch target */
+button, a, [role="button"], input, select, textarea, [tabindex] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+input[type="checkbox"], input[type="radio"] {
+  min-height: 20px;
+  min-width: 20px;
+}
+
+/* Prevent text overflow on small screens with UGX amounts */
+.truncate-amount {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* GPU compositing hints for smoother scrolling on low-RAM devices */
+.scroll-container {
+  will-change: scroll-position;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Reduce paint on low-end GPUs */
+@media (max-resolution: 1.5dppx) {
+  * {
+    box-shadow: none !important;
+  }
+  .glass-card, [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Data-saver: hide decorative elements */
+@media (prefers-reduced-data: reduce) {
+  [data-decorative], .decorative, [save-data-hidden] {
+    display: none !important;
+  }
+  img:not([data-essential]) {
+    image-rendering: pixelated;
+  }
+}
+
+/* Safe area insets for notched phones (Tecno Spark, Infinix Note) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-left { padding-left: env(safe-area-inset-left); }
+  .safe-right { padding-right: env(safe-area-inset-right); }
+}
+
+/* RTL support for North/East African markets */
+[dir="rtl"] .flex-row { flex-direction: row-reverse; }
+[dir="rtl"] .text-left { text-align: right; }
+[dir="rtl"] .text-right { text-align: left; }
+
+/* High contrast mode for outdoor visibility (bright African sun) */
+@media (prefers-contrast: more) {
+  :root {
+    --border: 220 20% 70%;
+    --muted-foreground: 220 15% 30%;
+  }
+  button, a {
+    text-decoration: underline;
+    font-weight: 600;
+  }
+}
+
+/* Print styles for receipt screenshots */
+@media print {
+  nav, header, footer, .no-print { display: none !important; }
+  body { background: white !important; }
+  * { color: black !important; box-shadow: none !important; }
+}
