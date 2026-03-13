@@ -381,7 +381,7 @@ export default function SupporterDashboard({
           </div>
           <MerchantCodePills />
           <div className="flex items-center justify-center gap-2 px-1">
-            <AiIdButton variant="compact" />
+            
             {effectiveHasAccepted ? (
               <AgreementAcceptedBadge 
                 acceptedAt={acceptance?.accepted_at}
