@@ -77,7 +77,7 @@ export default function PWAInstallPrompt() {
       
       return () => clearTimeout(timer);
     }
-  }, [isInstallable, hasPrompt, platform.installMethod, isMobile, isInstalled, autoInstallAttempted, promptInstall, navigate, hasRecentlyDismissed]);
+  }, [isInstallable, hasPrompt, platform.installMethod, isInstalled, autoInstallAttempted, promptInstall, navigate, hasRecentlyDismissed]);
 
   const handleInstall = async () => {
     // Prevent double-clicks
