@@ -174,9 +174,9 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
                 <p className="font-semibold text-foreground mb-1">What happens next:</p>
                 <ul className="space-y-1 list-disc pl-4">
                   <li>Manager receives your request</li>
-                  <li>They create your investment account</li>
+                  <li>They create your support account</li>
                   <li>They fund tenants on your behalf</li>
-                  <li>You receive 15% monthly ROI</li>
+                  <li>You receive 15% monthly platform rewards</li>
                 </ul>
               </div>
 
