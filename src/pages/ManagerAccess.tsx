@@ -619,7 +619,7 @@ export default function ManagerAccess() {
               </TabsTrigger>
               <TabsTrigger value="loans" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
                 <Banknote className="h-4 w-4" />
-                Loans
+                Rent Plans
               </TabsTrigger>
               <TabsTrigger value="orders" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
                 <ShoppingCart className="h-4 w-4" />
