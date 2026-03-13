@@ -341,7 +341,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 onRepaymentSuccess={fetchData}
               />
             </div>
-          )}
+           )}
+
+          {/* Invite & Earn */}
+          <InviteAndEarnCard variant="tenant" />
         </main>
       </PullToRefresh>
 

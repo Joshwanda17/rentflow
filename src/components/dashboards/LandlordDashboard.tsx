@@ -179,7 +179,10 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
                 <p className="text-sm text-muted-foreground">Tenants, receipts, loans & more</p>
               </div>
             </motion.button>
-          </div>
+           </div>
+
+          {/* Invite & Earn */}
+          <InviteAndEarnCard variant="landlord" />
 
         </main>
       </PullToRefresh>
