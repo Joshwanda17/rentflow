@@ -80,7 +80,6 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
         cat.label.toLowerCase().includes(description.toLowerCase())
       )
     : categories.slice(0, 8); // show top 8 by default
-  const [isFirstTx, setIsFirstTx] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
