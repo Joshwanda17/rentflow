@@ -510,6 +510,11 @@ export default function UserProfilesTable() {
   // Server-side handles sorting/filtering — just use users directly
   const filteredUsers = users;
 
+  // Reset to page 0 when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [roleFilter, verificationFilter, sortBy]);
+
   const handleApproveUser = async (userId: string, userName: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setApprovingUserId(userId);
