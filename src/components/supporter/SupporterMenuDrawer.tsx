@@ -62,6 +62,8 @@ export function SupporterMenuDrawer({
   showCreditRequests,
   isLocked,
   onLockedClick,
+  onFundCategory,
+  onRefreshRef,
 }: SupporterMenuDrawerProps) {
   const navigate = useNavigate();
 
