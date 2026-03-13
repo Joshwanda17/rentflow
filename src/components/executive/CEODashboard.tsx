@@ -66,6 +66,37 @@ export function CEODashboard() {
     staleTime: 600000,
   });
 
+  const { data: growthMetrics, isLoading: loadingGrowth } = useQuery({
+    queryKey: ['exec-ceo-growth-metrics'],
+    queryFn: async () => {
+      const todayStart = startOfDay(new Date()).toISOString();
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+
+      const [totalRes, newTodayRes, activeRes, referralRes, txnRes] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('updated_at', thirtyDaysAgo),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).not('referred_by', 'is', null),
+        supabase.from('general_ledger').select('amount').gte('transaction_date', todayStart).limit(1000),
+      ]);
+
+      const total = totalRes.count || 1;
+      const active = activeRes.count || 0;
+      const retention = Math.round((active / total) * 100);
+      const referralPct = Math.round(((referralRes.count || 0) / total) * 100);
+      const dailyTxn = (txnRes.data || []).reduce((s, r) => s + (r.amount || 0), 0);
+
+      return {
+        activeUsers: active,
+        newUsersToday: newTodayRes.count || 0,
+        retention,
+        referralPct,
+        dailyTxn,
+      };
+    },
+    staleTime: 600000,
+  });
+
   const { data: monthlyGrowth } = useQuery({
     queryKey: ['exec-growth-chart'],
     queryFn: async () => {
