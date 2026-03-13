@@ -159,7 +159,7 @@ export default function WelileHomesDashboard() {
   const progressPercent = Math.min((enrolledMonths / targetMonths) * 100, 100);
 
   const paymentSteps = [
-    { step: 1, title: 'Pay Rent via Welile Wallet', description: 'Make your monthly rent payment through the Welile Wallet system.' },
+    { step: 1, title: 'Pay Rent via Rent Money', description: 'Make your monthly rent payment through the Rent Money system.' },
     { step: 2, title: 'Landlord Receives Rent', description: 'Your landlord receives the rent payment (minus 10% Welile fee).' },
     { step: 3, title: '10% Added to Home Savings', description: 'The 10% fee is deposited into your Welile Homes Savings Account.' },
     { step: 4, title: 'Savings Grow Monthly', description: 'Your savings earn 5% compound interest every month automatically.' },
