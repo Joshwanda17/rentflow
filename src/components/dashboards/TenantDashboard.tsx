@@ -277,6 +277,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 </div>
               </div>
             </motion.button>
+            <WalletDisclaimer />
 
             {/* Subscription Status - days ahead / debt indicator */}
             <SubscriptionStatusCard userId={user.id} />

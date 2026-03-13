@@ -26,6 +26,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
+import { WalletDisclaimer } from './WalletDisclaimer';
 
 export function CollapsibleWalletCard() {
   const navigate = useNavigate();

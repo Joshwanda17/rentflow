@@ -282,6 +282,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <RecentAutoCharges />
           </div>
         </motion.button>
+        <WalletDisclaimer />
 
         {/* Menu Button */}
         <motion.button

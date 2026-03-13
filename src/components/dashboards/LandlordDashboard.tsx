@@ -166,6 +166,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
                 </div>
               </div>
             </motion.button>
+            <WalletDisclaimer />
 
             <motion.button
               whileTap={{ scale: 0.97 }}
