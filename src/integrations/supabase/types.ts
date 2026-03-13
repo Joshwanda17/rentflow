@@ -1495,6 +1495,7 @@ export type Database = {
           agent_id: string
           bank_name: string | null
           created_at: string
+          display_currency: string
           duration_months: number
           id: string
           investment_amount: number
@@ -1520,6 +1521,7 @@ export type Database = {
           agent_id: string
           bank_name?: string | null
           created_at?: string
+          display_currency?: string
           duration_months: number
           id?: string
           investment_amount: number
@@ -1545,6 +1547,7 @@ export type Database = {
           agent_id?: string
           bank_name?: string | null
           created_at?: string
+          display_currency?: string
           duration_months?: number
           id?: string
           investment_amount?: number

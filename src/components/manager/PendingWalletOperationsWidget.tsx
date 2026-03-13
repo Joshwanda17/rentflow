@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, XCircle, ChevronDown, Clock, ArrowDownToLine, ArrowUpFromLine, Loader2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -36,6 +37,9 @@ export function PendingWalletOperationsWidget() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isOpen, setIsOpen] = useState(true);
+  const [currencyOverrides, setCurrencyOverrides] = useState<Record<string, string>>({});
+
+  const SUPPORTED_CURRENCIES = ['UGX', 'USD', 'KES', 'TZS', 'RWF', 'GBP', 'EUR'];
 
   const fetchOperations = useCallback(async () => {
     if (!user) return;
@@ -104,6 +108,7 @@ export function PendingWalletOperationsWidget() {
           operation_id: opId,
           action,
           rejection_reason: action === 'reject' ? rejectionReason : undefined,
+          display_currency: action === 'approve' ? (currencyOverrides[opId] || 'UGX') : undefined,
         },
       });
 
@@ -307,6 +312,26 @@ export function PendingWalletOperationsWidget() {
                       {op.direction === 'cash_in' ? '+' : '-'}{formatUGX(op.amount)}
                     </span>
                   </div>
+
+                  {/* Currency selector for partner investments */}
+                  {op.category === 'supporter_facilitation_capital' && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Partner sees:</span>
+                      <Select
+                        value={currencyOverrides[op.id] || 'UGX'}
+                        onValueChange={(val) => setCurrencyOverrides(prev => ({ ...prev, [op.id]: val }))}
+                      >
+                        <SelectTrigger className="h-8 w-24 text-xs font-bold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_CURRENCIES.map(c => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     <Button
