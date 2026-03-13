@@ -2808,6 +2808,7 @@ export type Database = {
           full_name: string
           id: string
           is_frozen: boolean
+          is_seller: boolean
           last_active_at: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
@@ -2816,6 +2817,7 @@ export type Database = {
           phone: string
           referrer_id: string | null
           rent_discount_active: boolean
+          seller_application_status: string | null
           territory: string | null
           updated_at: string
           verified: boolean
@@ -2835,6 +2837,7 @@ export type Database = {
           full_name: string
           id: string
           is_frozen?: boolean
+          is_seller?: boolean
           last_active_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
@@ -2843,6 +2846,7 @@ export type Database = {
           phone: string
           referrer_id?: string | null
           rent_discount_active?: boolean
+          seller_application_status?: string | null
           territory?: string | null
           updated_at?: string
           verified?: boolean
@@ -2862,6 +2866,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_frozen?: boolean
+          is_seller?: boolean
           last_active_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
@@ -2870,6 +2875,7 @@ export type Database = {
           phone?: string
           referrer_id?: string | null
           rent_discount_active?: boolean
+          seller_application_status?: string | null
           territory?: string | null
           updated_at?: string
           verified?: boolean
