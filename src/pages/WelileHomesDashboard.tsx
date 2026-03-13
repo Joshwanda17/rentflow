@@ -170,7 +170,7 @@ export default function WelileHomesDashboard() {
   };
 
   const handleInviteLandlord = () => {
-    const message = `Hello! I'm a tenant using Welile to build my future home savings. When you receive rent through Welile Wallet, 10% of the platform fee goes into my Welile Homes Savings Account which grows at 5% monthly compound interest.
+    const message = `Hello! I'm a tenant using Welile to build my future home savings. When you receive rent through Rent Money, 10% of the platform fee goes into my Welile Homes Savings Account which grows at 5% monthly compound interest.
 
 🏠 Benefits for landlords:
 ✅ Receive rent 1 month upfront
