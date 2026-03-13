@@ -16,7 +16,11 @@ import { useWallet } from '@/hooks/useWallet';
 import { useFirstTransactionCelebration } from '@/hooks/useFirstTransactionCelebration';
 import { useConfetti } from '@/components/Confetti';
 import { toast } from 'sonner';
-import { Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles } from 'lucide-react';
+import { 
+  Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles,
+  UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
+  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike
+} from 'lucide-react';
 
 interface SendMoneyDialogProps {
   open: boolean;
