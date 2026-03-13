@@ -34,7 +34,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
           >
             <p className="wallet-label-text text-[10px] uppercase tracking-[0.15em] font-semibold mb-1 flex items-center gap-1.5">
               <Wallet className="h-3 w-3 opacity-70" />
-              Wallet Balance
+              Rent Money
             </p>
             <p className="wallet-balance-text text-[clamp(1.1rem,5.5vw,1.75rem)] font-extrabold tracking-tight leading-none">
               {formatAmount(walletBalance)}
