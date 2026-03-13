@@ -70,7 +70,7 @@ export default function ShopEntry() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold">Shopping Loan Access</h3>
+                    <h3 className="font-semibold">Shopping Credit Access</h3>
                     <Badge className="bg-success/20 text-success border-success/30 text-xs">
                       <Sparkles className="h-3 w-3 mr-1" />
                       Earn as you shop
