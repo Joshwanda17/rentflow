@@ -441,7 +441,7 @@ export default function MyReceipts() {
                             <TrendingUp className="h-3.5 w-3.5 text-primary" />
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Loan Limit</p>
+                            <p className="text-xs text-muted-foreground">Rent Access</p>
                             <p className="text-sm font-semibold text-primary">
                               +{claimedAmount ? formatUGX(Math.round(parseFloat(claimedAmount) * 0.2)) : 'UGX 0'}
                             </p>
