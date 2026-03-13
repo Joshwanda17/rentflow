@@ -139,7 +139,7 @@ function DepositInstructionsDialog({
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
-                <span><strong className="text-foreground">Multiple Accounts</strong> — Create up to <strong>12 different investment accounts</strong> across categories</span>
+                <span><strong className="text-foreground">Multiple Accounts</strong> — Create up to <strong>12 different support accounts</strong> across categories</span>
               </li>
             </ul>
           </div>
