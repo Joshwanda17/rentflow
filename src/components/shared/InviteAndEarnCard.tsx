@@ -11,6 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 
 interface InviteAndEarnCardProps {
   variant?: 'tenant' | 'landlord' | 'supporter' | 'default';
+  compact?: boolean;
 }
 
 export function InviteAndEarnCard({ variant = 'default' }: InviteAndEarnCardProps) {
