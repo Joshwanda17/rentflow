@@ -29,6 +29,9 @@ interface SupporterMenuDrawerProps {
   onAddInvestment: () => void;
   onOpenCalculator: () => void;
   onViewAgreement: () => void;
+  showCreditRequests?: boolean;
+  isLocked?: boolean;
+  onLockedClick?: () => void;
 }
 
 interface MenuItem {
