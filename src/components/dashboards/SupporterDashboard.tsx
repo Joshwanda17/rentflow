@@ -509,6 +509,8 @@ export default function SupporterDashboard({
         onRefreshRef={opportunitiesRefreshRef}
       />
 
+      {/* Invite & Earn */}
+      <InviteAndEarnCard variant="supporter" />
 
       <PaymentPartnersDialog 
         open={showPaymentPartners} 
