@@ -44,7 +44,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
     setLoading(true);
     try {
       // loan_products table removed
-      toast.error('Loan products feature is currently unavailable');
+      toast.error('Rent plans feature is currently unavailable');
       setLoading(false);
       return;
 
