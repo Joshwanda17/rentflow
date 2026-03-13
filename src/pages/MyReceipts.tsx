@@ -266,7 +266,7 @@ export default function MyReceipts() {
               <div className="p-2 rounded-lg bg-primary/20">
                 <Wallet className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-xs font-medium text-muted-foreground">Loan Limit</span>
+              <span className="text-xs font-medium text-muted-foreground">Rent Fee Available</span>
             </div>
             <p className="text-2xl font-bold text-primary">{formatUGX(loanLimit?.available_limit || 0)}</p>
             <p className="text-xs text-muted-foreground mt-1">Available to borrow</p>
