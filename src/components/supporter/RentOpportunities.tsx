@@ -1936,20 +1936,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                         <Phone className="h-4 w-4" />
                                       </a>
                                     )}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (opportunity.postingAgent?.id) {
-                                          handleStartChat(opportunity.postingAgent.id);
-                                        }
-                                      }}
-                                      disabled={startingChat}
-                                      className="h-8 px-2 text-xs"
-                                    >
-                                      Chat
-                                    </Button>
                                   </div>
                                 </div>
                               )}
