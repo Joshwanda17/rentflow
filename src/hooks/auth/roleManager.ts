@@ -6,7 +6,7 @@ export const DEFAULT_ROLE: AppRole = 'supporter';
 export const DEFAULT_ROLES: AppRole[] = ['supporter'];
 
 /** Standard roles every user should have */
-const STANDARD_ROLES: AppRole[] = ['agent', 'tenant', 'landlord'];
+const STANDARD_ROLES: AppRole[] = ['supporter', 'agent', 'tenant', 'landlord'];
 
 /** Fetch roles from DB, always ensuring 'agent' is included. Auto-creates roles if missing. */
 export async function fetchUserRoles(
