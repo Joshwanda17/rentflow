@@ -2098,14 +2098,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     Contact Tenant
                   </p>
                   <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleStartChat(selectedOpportunity.tenant_id)}
-                      disabled={startingChat}
-                      className="flex-1 h-14 gap-3 bg-primary hover:bg-primary/90 text-base font-bold touch-manipulation active:scale-95"
-                    >
-                      <MessageCircle className="h-6 w-6" />
-                      Chat in App
-                    </Button>
                     {selectedOpportunity.tenant?.phone && (
                       <>
                         <Button
