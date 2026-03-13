@@ -24,6 +24,7 @@ import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeleto
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';

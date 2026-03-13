@@ -23,6 +23,7 @@ import { LandlordMenuDrawer } from '@/components/landlord/LandlordMenuDrawer';
 import RegisterPropertyDialog from '@/components/landlord/RegisterPropertyDialog';
 import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { MyPropertiesSheet } from '@/components/landlord/MyPropertiesSheet';
 import { useWallet } from '@/hooks/useWallet';
 import { useLandlordStats } from '@/hooks/useLandlordStats';
