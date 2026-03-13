@@ -158,7 +158,7 @@ export function InvestmentWithdrawButton() {
                 <p className="text-sm font-bold text-amber-700 dark:text-amber-400">90-Day Notice Period</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Investment withdrawals require a <span className="font-bold">90-day advance notice</span>. 
+                Capital withdrawals require a <span className="font-bold">90-day advance notice</span>. 
                 Your request will be processed after the notice period ends.
               </p>
             </div>
