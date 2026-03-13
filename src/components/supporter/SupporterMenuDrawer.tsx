@@ -55,6 +55,9 @@ export function SupporterMenuDrawer({
   onAddInvestment,
   onOpenCalculator,
   onViewAgreement,
+  showCreditRequests,
+  isLocked,
+  onLockedClick,
 }: SupporterMenuDrawerProps) {
   const navigate = useNavigate();
 
