@@ -148,7 +148,7 @@ export function useWallet() {
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
-        const enrichedTransactions = data.map(t => ({
+        const enrichedTransactions = filteredData.map(t => ({
           ...t,
           sender_name: profileMap.get(t.sender_id)?.full_name || 'Unknown',
           recipient_name: profileMap.get(t.recipient_id)?.full_name || 'Unknown',

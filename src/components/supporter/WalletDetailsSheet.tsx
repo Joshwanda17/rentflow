@@ -46,12 +46,12 @@ export function WalletDetailsSheet({ open, onOpenChange, walletBalance }: Wallet
         !ADMIN_ONLY_DESCRIPTIONS.some(term => t.description?.toLowerCase().startsWith(term))
       );
 
-      if (error || !data) {
+      if (error || !filtered.length) {
         setTransactions([]);
         return;
       }
 
-      const userIds = [...new Set([...data.map(t => t.sender_id), ...data.map(t => t.recipient_id)])];
+      const userIds = [...new Set([...filtered.map(t => t.sender_id), ...filtered.map(t => t.recipient_id)])];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name')
@@ -59,7 +59,7 @@ export function WalletDetailsSheet({ open, onOpenChange, walletBalance }: Wallet
 
       const profileMap = new Map(profiles?.map(p => [p.id, p.full_name || 'Unknown']) || []);
 
-      setTransactions(data.map(t => ({
+      setTransactions(filtered.map(t => ({
         ...t,
         sender_name: profileMap.get(t.sender_id) || 'Unknown',
         recipient_name: profileMap.get(t.recipient_id) || 'Unknown',
