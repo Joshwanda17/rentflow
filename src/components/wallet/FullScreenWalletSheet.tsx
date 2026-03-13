@@ -117,7 +117,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   <div className="p-2 rounded-xl bg-primary-foreground/15 backdrop-blur-sm">
                     <Wallet className="h-5 w-5" />
                   </div>
-                  <span>Welile Wallet</span>
+                  <span>Rent Money</span>
                 </SheetTitle>
                 <div className="flex items-center gap-2">
                   <Button 

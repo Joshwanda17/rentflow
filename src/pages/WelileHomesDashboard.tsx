@@ -159,7 +159,7 @@ export default function WelileHomesDashboard() {
   const progressPercent = Math.min((enrolledMonths / targetMonths) * 100, 100);
 
   const paymentSteps = [
-    { step: 1, title: 'Pay Rent via Welile Wallet', description: 'Make your monthly rent payment through the Welile Wallet system.' },
+    { step: 1, title: 'Pay Rent via Rent Money', description: 'Make your monthly rent payment through the Rent Money system.' },
     { step: 2, title: 'Landlord Receives Rent', description: 'Your landlord receives the rent payment (minus 10% Welile fee).' },
     { step: 3, title: '10% Added to Home Savings', description: 'The 10% fee is deposited into your Welile Homes Savings Account.' },
     { step: 4, title: 'Savings Grow Monthly', description: 'Your savings earn 5% compound interest every month automatically.' },
@@ -170,7 +170,7 @@ export default function WelileHomesDashboard() {
   };
 
   const handleInviteLandlord = () => {
-    const message = `Hello! I'm a tenant using Welile to build my future home savings. When you receive rent through Welile Wallet, 10% of the platform fee goes into my Welile Homes Savings Account which grows at 5% monthly compound interest.
+    const message = `Hello! I'm a tenant using Welile to build my future home savings. When you receive rent through Rent Money, 10% of the platform fee goes into my Welile Homes Savings Account which grows at 5% monthly compound interest.
 
 🏠 Benefits for landlords:
 ✅ Receive rent 1 month upfront
@@ -298,7 +298,7 @@ Let's build a better future together! 🏡`;
                       <div className="space-y-2">
                         <div className="flex items-start gap-2">
                           <Wallet className="h-4 w-4 text-purple-600 mt-0.5" />
-                          <span className="text-sm">Pay rent through <strong>Welile Wallet</strong> to build savings</span>
+                          <span className="text-sm">Pay rent through <strong>Rent Money</strong> to build savings</span>
                         </div>
                         <div className="flex items-start gap-2">
                           <TrendingUp className="h-4 w-4 text-emerald-600 mt-0.5" />
@@ -315,7 +315,7 @@ Let's build a better future together! 🏡`;
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
                         <p className="text-xs text-amber-700">
-                          <strong>Important:</strong> Your savings only grow when your landlord is registered on Welile and you pay rent via Welile Wallet.
+                          <strong>Important:</strong> Your savings only grow when your landlord is registered on Welile and you pay rent via Rent Money.
                         </p>
                       </div>
                     </div>
@@ -378,9 +378,9 @@ Let's build a better future together! 🏡`;
                     <Wallet className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-emerald-800">Pay Rent with Welile Wallet</h3>
+                    <h3 className="font-semibold text-emerald-800">Pay Rent with Rent Money</h3>
                     <p className="text-sm text-emerald-700 mt-1">
-                      Every rent payment through Welile Wallet adds to your home savings. Start building your future today!
+                      Every rent payment through Rent Money adds to your home savings. Start building your future today!
                     </p>
                   </div>
                 </div>
@@ -390,7 +390,7 @@ Let's build a better future together! 🏡`;
                   className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 h-12"
                 >
                   <Wallet className="h-4 w-4 mr-2" />
-                  Go to Wallet
+                  Go to Rent Money
                 </Button>
               </CardContent>
             </Card>

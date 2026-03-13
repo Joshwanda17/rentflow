@@ -27,14 +27,14 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
         <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/[0.06] pointer-events-none" />
 
         <div className="relative z-10 space-y-4">
-          {/* Wallet Balance — Hero */}
+          {/* Rent Money — Hero */}
           <button
             onClick={() => { hapticTap(); setShowWallet(true); }}
             className="w-full text-left min-h-[44px] group"
           >
             <p className="wallet-label-text text-[10px] uppercase tracking-[0.15em] font-semibold mb-1 flex items-center gap-1.5">
               <Wallet className="h-3 w-3 opacity-70" />
-              Wallet Balance
+              Rent Money
             </p>
             <p className="wallet-balance-text text-[clamp(1.1rem,5.5vw,1.75rem)] font-extrabold tracking-tight leading-none">
               {formatAmount(walletBalance)}

@@ -51,7 +51,7 @@ export function FloatingWalletButton() {
         whileTap={{ scale: 0.95 }}
         onClick={handleClick}
         className="fixed bottom-24 sm:bottom-28 left-4 z-40 flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
-        aria-label="Open Wallet"
+        aria-label="Open Rent Money"
       >
         <Wallet className="h-4 w-4" />
         {!loading && wallet && (
