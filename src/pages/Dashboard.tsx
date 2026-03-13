@@ -184,11 +184,9 @@ function DashboardContent() {
   // Use cached role for instant display while loading
   const getDefaultRole = (availableRoles: AppRole[]): AppRole | null => {
     if (availableRoles.length === 0) return null;
-    // Supporter-only accounts default to supporter, not agent
-    const isSupporterOnly = availableRoles.length === 1 && availableRoles[0] === 'supporter';
-    if (isSupporterOnly) return 'supporter';
-    // Default to agent for multi-role users (intended_role handles supporter preference in roleManager)
-    return availableRoles.includes('agent') ? 'agent' : availableRoles[0];
+    // Default to supporter (Funder) dashboard for all users
+    if (availableRoles.includes('supporter')) return 'supporter';
+    return availableRoles[0];
   };
   
   const displayRole = role || (showCachedUI && cachedRoles.length > 0 ? getDefaultRole(cachedRoles) : null);
