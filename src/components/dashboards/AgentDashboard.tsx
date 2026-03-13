@@ -20,6 +20,7 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -282,6 +283,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <RecentAutoCharges />
           </div>
         </motion.button>
+        <WalletDisclaimer />
 
         {/* Menu Button */}
         <motion.button

@@ -24,6 +24,7 @@ import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeleto
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
@@ -277,6 +278,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 </div>
               </div>
             </motion.button>
+            <WalletDisclaimer />
 
             {/* Subscription Status - days ahead / debt indicator */}
             <SubscriptionStatusCard userId={user.id} />

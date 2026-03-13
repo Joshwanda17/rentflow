@@ -30,6 +30,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
+import { WalletDisclaimer } from './WalletDisclaimer';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -196,6 +197,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   </div>
                 </div>
               )}
+              <WalletDisclaimer variant="dark" />
             </div>
           </div>
 

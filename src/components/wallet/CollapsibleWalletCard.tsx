@@ -26,6 +26,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
+import { WalletDisclaimer } from './WalletDisclaimer';
 
 export function CollapsibleWalletCard() {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export function CollapsibleWalletCard() {
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
-  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
@@ -166,34 +167,7 @@ export function CollapsibleWalletCard() {
           </Button>
         </CollapsibleTrigger>
 
-        {/* Clickable regulatory disclaimer */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDisclaimer(!showDisclaimer);
-          }}
-          className="w-full flex items-center justify-center gap-1 mt-1 py-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Info className="h-3 w-3" />
-          <span className="underline underline-offset-2">Licensed & Regulated</span>
-        </button>
-        <AnimatePresence>
-          {showDisclaimer && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="mx-1 mt-1 p-3 rounded-xl bg-muted/50 border border-border/50 text-[10px] text-muted-foreground leading-relaxed space-y-1">
-                <p>📱 <strong>MTN</strong> and <strong>Airtel</strong> are licensed by the <strong>Bank of Uganda</strong> to process payments.</p>
-                <p>🏠 <strong>Welile</strong> is a rent facilitation platform — Welile Technologies helps tenants pay daily rent to their landlord.</p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <WalletDisclaimer />
 
         <CollapsibleContent>
           <AnimatePresence>
