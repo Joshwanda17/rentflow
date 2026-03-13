@@ -128,7 +128,7 @@ export function HouseOpportunities({ onFund, isLocked, onLockedClick, onRefreshR
         </Badge>
       </div>
 
-      <p className="text-center text-sm font-semibold italic bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+      <p className="text-center text-sm font-semibold italic text-purple-600 dark:text-purple-400">
         ✨ Welile is turning rent into an asset
       </p>
 
