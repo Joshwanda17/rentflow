@@ -77,7 +77,7 @@ export default function ShopEntry() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    The more you buy from Welile Shops, the higher your loan limit grows — from <span className="font-semibold text-foreground">UGX 30,000</span> up to <span className="font-semibold text-success">UGX 30,000,000</span>!
+                    The more you buy from Welile Shops, the higher your shopping access grows — from <span className="font-semibold text-foreground">UGX 30,000</span> up to <span className="font-semibold text-success">UGX 30,000,000</span>!
                   </p>
                 </div>
               </div>
