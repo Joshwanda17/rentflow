@@ -16,7 +16,11 @@ import { useWallet } from '@/hooks/useWallet';
 import { useFirstTransactionCelebration } from '@/hooks/useFirstTransactionCelebration';
 import { useConfetti } from '@/components/Confetti';
 import { toast } from 'sonner';
-import { Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles } from 'lucide-react';
+import { 
+  Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles,
+  UtensilsCrossed, ShoppingCart, Fuel, Car, Hotel, Stethoscope, 
+  Wrench, Coffee, Zap, Droplets, Scissors, BookOpen, Baby, Shirt, PawPrint, Bike
+} from 'lucide-react';
 
 interface SendMoneyDialogProps {
   open: boolean;
@@ -51,6 +55,31 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [isFirstTx, setIsFirstTx] = useState(false);
+
+  const categories = [
+    { icon: UtensilsCrossed, label: 'Food', keywords: ['food', 'eat', 'lunch', 'dinner', 'breakfast', 'meal', 'chakula'] },
+    { icon: ShoppingCart, label: 'Groceries', keywords: ['groc', 'shop', 'market', 'buy', 'sugar', 'rice', 'soap'] },
+    { icon: Fuel, label: 'Fuel', keywords: ['fuel', 'petrol', 'diesel', 'gas', 'station'] },
+    { icon: Car, label: 'Transport', keywords: ['transport', 'taxi', 'fare', 'travel', 'trip', 'matatu'] },
+    { icon: Bike, label: 'Boda Boda', keywords: ['boda', 'bike', 'motorcycle', 'pikipiki', 'ride'] },
+    { icon: Hotel, label: 'Hotel', keywords: ['hotel', 'lodge', 'room', 'stay', 'accommodation', 'guest'] },
+    { icon: Stethoscope, label: 'Clinic', keywords: ['clinic', 'hospital', 'doctor', 'medical', 'health', 'medicine', 'drug'] },
+    { icon: Wrench, label: 'Mechanic', keywords: ['mechanic', 'repair', 'fix', 'garage', 'service', 'car'] },
+    { icon: Coffee, label: 'Restaurant', keywords: ['restaurant', 'cafe', 'coffee', 'drink', 'bar'] },
+    { icon: Zap, label: 'Electricity', keywords: ['electric', 'power', 'yaka', 'umeme', 'light', 'token'] },
+    { icon: Droplets, label: 'Water', keywords: ['water', 'nwsc', 'bill'] },
+    { icon: Scissors, label: 'Salon', keywords: ['salon', 'hair', 'barber', 'cut', 'beauty', 'nails'] },
+    { icon: BookOpen, label: 'School', keywords: ['school', 'fees', 'tuition', 'education', 'books', 'uniform'] },
+    { icon: Baby, label: 'Kids', keywords: ['kid', 'child', 'baby', 'diaper', 'milk'] },
+    { icon: Shirt, label: 'Clothes', keywords: ['cloth', 'shirt', 'dress', 'wear', 'shoes'] },
+  ];
+
+  const filteredCategories = description.trim()
+    ? categories.filter(cat => 
+        cat.keywords.some(kw => description.toLowerCase().includes(kw)) ||
+        cat.label.toLowerCase().includes(description.toLowerCase())
+      )
+    : categories.slice(0, 8); // show top 8 by default
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -230,16 +259,40 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 <motion.div variants={itemVariants} className="space-y-2">
                   <Label htmlFor="description" className="flex items-center gap-2">
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    Description (Optional)
+                    What's this payment for?
                   </Label>
                   <Textarea
                     id="description"
-                    placeholder="What's this for?"
+                    placeholder="Type e.g. food, boda, school fees..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="bg-background/50 border-border/50 focus:border-primary/50 transition-all resize-none"
                     rows={2}
                   />
+                  <AnimatePresence mode="popLayout">
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {filteredCategories.map((cat) => (
+                        <motion.button
+                          key={cat.label}
+                          type="button"
+                          layout
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                          onClick={() => setDescription(cat.label)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 ${
+                            description.toLowerCase() === cat.label.toLowerCase()
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-muted/50 text-foreground border-border/50 hover:bg-muted'
+                          }`}
+                        >
+                          <cat.icon className="h-3.5 w-3.5" />
+                          {cat.label}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </AnimatePresence>
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
