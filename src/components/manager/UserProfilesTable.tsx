@@ -1111,6 +1111,33 @@ export default function UserProfilesTable() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 py-4">
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={currentPage === 0}
+                onClick={() => { hapticTap(); setCurrentPage(p => Math.max(0, p - 1)); }}
+                className="h-12 px-6 rounded-xl font-bold touch-manipulation"
+              >
+                ← Previous
+              </Button>
+              <span className="text-base font-bold text-muted-foreground px-3">
+                Page {currentPage + 1} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={currentPage >= totalPages - 1}
+                onClick={() => { hapticTap(); setCurrentPage(p => p + 1); }}
+                className="h-12 px-6 rounded-xl font-bold touch-manipulation"
+              >
+                Next →
+              </Button>
+            </div>
+          )}
         </PullToRefresh>
       </div>
 
