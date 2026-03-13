@@ -656,8 +656,8 @@ export default function MyReceipts() {
                     <CreditCard className="h-5 w-5 text-warning" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Active Loans</CardTitle>
-                    <CardDescription>Your current outstanding loans</CardDescription>
+                    <CardTitle className="text-lg">Active Rent Plans</CardTitle>
+                    <CardDescription>Your current outstanding rent facilitations</CardDescription>
                   </div>
                 </div>
               </CardHeader>
