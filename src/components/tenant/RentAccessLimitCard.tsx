@@ -119,7 +119,7 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
             {/* Main Info */}
             <div className="flex-1 min-w-0">
               <p className="text-white/70 text-xs font-medium uppercase tracking-wide mb-1">
-                Available to Use
+                Rent Fee Available
               </p>
               <p className="text-white text-2xl font-bold leading-tight mb-2">
                 UGX {formatShort(remainingLimit)}
