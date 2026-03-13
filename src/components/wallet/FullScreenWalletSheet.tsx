@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  X, ShoppingCart, Receipt
+  X, ShoppingCart, Receipt, UtensilsCrossed, Fuel, Car, Hotel,
+  Stethoscope, Wrench, Coffee, Scissors, BookOpen, Zap, Droplets,
+  Baby, PawPrint, Shirt
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
