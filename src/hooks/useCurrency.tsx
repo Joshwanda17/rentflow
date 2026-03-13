@@ -339,6 +339,41 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
   }, [fetchLiveRates]);
 
+  // Auto-set currency based on user's phone number after login
+  useEffect(() => {
+    const checkPhoneCurrency = async () => {
+      if (localStorage.getItem(PHONE_CURRENCY_SET_KEY)) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (!profile?.phone) return;
+
+      const phone = profile.phone.replace(/\s/g, '');
+      const normalizedPhone = phone.startsWith('0') ? '+256' + phone.slice(1) : phone;
+
+      for (const [prefix, code] of Object.entries(phonePrefixToCurrency)) {
+        if (normalizedPhone.startsWith(prefix)) {
+          if (!localStorage.getItem(STORAGE_KEY)) {
+            const matchedCurrency = currencies.find(c => c.code === code);
+            if (matchedCurrency) setCurrency(matchedCurrency);
+          }
+          localStorage.setItem(PHONE_CURRENCY_SET_KEY, 'true');
+          return;
+        }
+      }
+      localStorage.setItem(PHONE_CURRENCY_SET_KEY, 'true');
+    };
+
+    checkPhoneCurrency();
+  }, []);
+
   const setCurrency = (newCurrency: Currency) => {
     // Get the currency with live rate
     const currencyWithLiveRate = {
