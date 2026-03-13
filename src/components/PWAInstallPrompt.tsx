@@ -54,14 +54,14 @@ export default function PWAInstallPrompt() {
   // Auto-trigger the native install prompt on Android as soon as it's available
   useEffect(() => {
     if (autoInstallAttempted) return;
-    if (!isMobile || isInstalled) return;
+    if (isInstalled) return;
     if (hasRecentlyDismissed()) return;
     
     // When the install prompt becomes available, trigger it automatically
     if ((isInstallable || hasPrompt) && platform.installMethod === 'prompt') {
       setAutoInstallAttempted(true);
       
-      // Trigger after a brief moment to ensure page has loaded
+      // Trigger quickly
       const timer = setTimeout(async () => {
         console.log('[PWA] Auto-triggering install prompt for mobile...');
         const success = await promptInstall();
