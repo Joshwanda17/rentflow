@@ -245,7 +245,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
                 <p className="text-lg font-bold">
                   {formatUGX(leaders.reduce((sum, l) => sum + l.total_invested, 0))}
                 </p>
-                <p className="text-[10px] text-muted-foreground">Total Invested</p>
+                <p className="text-[10px] text-muted-foreground">Total Contributed</p>
               </div>
               <div>
                 <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
