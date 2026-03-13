@@ -42,8 +42,8 @@ export function OpportunitySummaryCard() {
               <TrendingUp className="h-4.5 w-4.5 text-primary" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground text-sm tracking-tight">Capital Opportunity</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">Live market demand</p>
+              <h3 className="font-black text-foreground text-sm tracking-tight">Rent Requests</h3>
+              <p className="text-[10px] text-muted-foreground font-medium leading-tight">Rent demand from our agent network in the field</p>
             </div>
           </div>
           <Badge variant="outline" className="text-[9px] px-2 py-0.5 border-success/40 text-success bg-success/5 font-bold uppercase tracking-wider">
