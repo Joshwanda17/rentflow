@@ -106,6 +106,7 @@ export default function ExecutiveDashboardLayout({
             currentRole={role as AppRole}
             availableRoles={roles}
             onRoleChange={handleRoleChange}
+            onAddRole={addRole}
             variant="header"
           />
         </div>
