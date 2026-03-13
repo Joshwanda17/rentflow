@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  X
+  X, Receipt
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
@@ -26,6 +26,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
 import { WalletLedgerStatement } from './WalletLedgerStatement';
+import { BillPaymentDialog } from './BillPaymentDialog';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -42,6 +43,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [requestOpen, setRequestOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [billsOpen, setBillsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [pendingDeposits, setPendingDeposits] = useState(0);
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
@@ -203,49 +205,45 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
             }}
           >
             {/* Action buttons - larger for full screen */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-2">
               <Button 
-                onClick={() => {
-                  hapticTap();
-                  setSendOpen(true);
-                }} 
+                onClick={() => { hapticTap(); setSendOpen(true); }} 
                 className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all shadow-md hover:shadow-lg"
               >
-                <Send className="h-6 w-6" />
-                <span className="text-xs font-semibold">Send</span>
+                <Send className="h-5 w-5" />
+                <span className="text-[11px] font-semibold">Send</span>
               </Button>
               <Button 
-                onClick={() => {
-                  hapticTap();
-                  setRequestOpen(true);
-                }} 
+                onClick={() => { hapticTap(); setRequestOpen(true); }} 
                 variant="secondary"
                 className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all"
               >
-                <HandCoins className="h-6 w-6" />
-                <span className="text-xs font-semibold">Request</span>
+                <HandCoins className="h-5 w-5" />
+                <span className="text-[11px] font-semibold">Request</span>
               </Button>
               <Button 
-                onClick={() => {
-                  hapticTap();
-                  setDepositOpen(true);
-                }} 
+                onClick={() => { hapticTap(); setDepositOpen(true); }} 
                 variant="outline" 
                 className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-border"
               >
-                <Plus className="h-6 w-6" />
-                <span className="text-xs font-semibold">Add</span>
+                <Plus className="h-5 w-5" />
+                <span className="text-[11px] font-semibold">Deposit</span>
               </Button>
               <Button 
-                onClick={() => {
-                  hapticTap();
-                  setWithdrawOpen(true);
-                }} 
+                onClick={() => { hapticTap(); setBillsOpen(true); }} 
+                variant="outline" 
+                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-accent/50 text-accent-foreground hover:bg-accent/10"
+              >
+                <Receipt className="h-5 w-5" />
+                <span className="text-[11px] font-semibold">Bills</span>
+              </Button>
+              <Button 
+                onClick={() => { hapticTap(); setWithdrawOpen(true); }} 
                 variant="outline" 
                 className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-warning/50 text-warning hover:bg-warning/10"
               >
-                <ArrowDownToLine className="h-6 w-6" />
-                <span className="text-xs font-semibold">Withdraw</span>
+                <ArrowDownToLine className="h-5 w-5" />
+                <span className="text-[11px] font-semibold">Withdraw</span>
               </Button>
             </div>
 
@@ -350,6 +348,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
         transaction={selectedTransaction}
         currentUserId={user?.id || ''}
       />
+      <BillPaymentDialog open={billsOpen} onOpenChange={setBillsOpen} />
     </>
   );
 }

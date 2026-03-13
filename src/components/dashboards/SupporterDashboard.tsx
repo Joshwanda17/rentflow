@@ -21,8 +21,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useWallet } from '@/hooks/useWallet';
-// FloatingShareButton moved to global FloatingToolbar
-// FloatingWalletButton removed — wallet accessed via PortfolioSummaryCards
+import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -87,6 +86,7 @@ export default function SupporterDashboard({
   const [showHouseDetails, setShowHouseDetails] = useState(false);
   const [selectedPackageCategory, setSelectedPackageCategory] = useState<RentCategory | null>(null);
   const [showPackageSheet, setShowPackageSheet] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
@@ -566,7 +566,7 @@ export default function SupporterDashboard({
         onAcceptAndDeposit={() => setShowPaymentPartners(true)}
       />
 
-      
+      <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       
       <MobileBottomNav currentRole={currentRole} />
     </div>
