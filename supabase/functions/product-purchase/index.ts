@@ -195,16 +195,73 @@ Deno.serve(async (req) => {
       console.error('Failed to record platform transaction:', transactionError);
     }
 
-    // 7. Create notifications
+    // 7. Check if agent is verified and award 4% cashback to buyer
+    let cashbackAmount = 0;
+    const { data: agentRoleData } = await supabaseAdmin
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', product.agent_id)
+      .eq('role', 'agent')
+      .maybeSingle();
+
+    if (agentRoleData) {
+      cashbackAmount = Math.round(totalPrice * 0.04); // 4% cashback
+      
+      if (cashbackAmount > 0) {
+        // Credit cashback to buyer's wallet
+        const { data: updatedBuyerWallet } = await supabaseAdmin
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', user.id)
+          .single();
+
+        if (updatedBuyerWallet) {
+          await supabaseAdmin
+            .from('wallets')
+            .update({ balance: updatedBuyerWallet.balance + cashbackAmount })
+            .eq('user_id', user.id);
+        }
+
+        // Record cashback as platform expense
+        await supabaseAdmin
+          .from('platform_transactions')
+          .insert({
+            user_id: user.id,
+            amount: cashbackAmount,
+            direction: 'cash_out',
+            transaction_type: 'cashback_reward',
+            description: `4% cashback on purchase of ${product.name} from verified agent`
+          });
+
+        // Record in agent_earnings for buyer visibility (as a reward)
+        await supabaseAdmin
+          .from('agent_earnings')
+          .insert({
+            agent_id: user.id,
+            amount: cashbackAmount,
+            earning_type: 'cashback',
+            description: `4% cashback on ${product.name} purchase (UGX ${totalPrice.toLocaleString()})`,
+            source_user_id: product.agent_id
+          });
+
+        console.log(`Cashback of ${cashbackAmount} credited to buyer ${user.id}`);
+      }
+    }
+
+    // 8. Create notifications
+    const cashbackMsg = cashbackAmount > 0 
+      ? ` You earned UGX ${cashbackAmount.toLocaleString()} cashback!` 
+      : '';
+
     // Notify buyer
     await supabaseAdmin
       .from('notifications')
       .insert({
         user_id: user.id,
-        title: 'Purchase Successful',
-        message: `You purchased ${quantity}x ${product.name} for UGX ${totalPrice.toLocaleString()}`,
+        title: cashbackAmount > 0 ? '🎉 Purchase + Cashback!' : 'Purchase Successful',
+        message: `You purchased ${quantity}x ${product.name} for UGX ${totalPrice.toLocaleString()}.${cashbackMsg}`,
         type: 'success',
-        metadata: { order_id: order?.id, product_id: productId }
+        metadata: { order_id: order?.id, product_id: productId, cashback: cashbackAmount }
       });
 
     // Notify agent
