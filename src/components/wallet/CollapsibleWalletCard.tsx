@@ -104,27 +104,34 @@ export function CollapsibleWalletCard() {
             onClick={handleToggle}
             className="w-full justify-between h-12 px-4 rounded-xl border-primary/30 bg-primary/5 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="p-1.5 rounded-lg bg-primary/20">
                 <Wallet className="h-4 w-4 text-primary" />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground">Rent Money</span>
-                {!loading && wallet && (
-                  <span className="text-sm font-bold text-primary">
-                    {wallet.balance >= 1000000 
-                      ? `${(wallet.balance / 1000000).toFixed(1)}M` 
-                      : wallet.balance >= 1000 
-                        ? `${(wallet.balance / 1000).toFixed(0)}K` 
-                        : formatCurrency(wallet.balance)}
+              <div className="flex flex-col items-start min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">Rent Money</span>
+                  {!loading && wallet && (
+                    <span className="text-sm font-bold text-primary">
+                      {wallet.balance >= 1000000 
+                        ? `${(wallet.balance / 1000000).toFixed(1)}M` 
+                        : wallet.balance >= 1000 
+                          ? `${(wallet.balance / 1000).toFixed(0)}K` 
+                          : formatCurrency(wallet.balance)}
+                    </span>
+                  )}
+                  {totalPending > 0 && (
+                    <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-warning/20 text-warning">
+                      {totalPending}
+                    </Badge>
+                  )}
+                </div>
+                {profile?.phone && (
+                  <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[160px]">
+                    {profile.phone}
                   </span>
                 )}
               </div>
-              {totalPending > 0 && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-warning/20 text-warning">
-                  {totalPending}
-                </Badge>
-              )}
             </div>
             {isOpen ? (
               <ChevronUp className="h-4 w-4 text-muted-foreground" />
