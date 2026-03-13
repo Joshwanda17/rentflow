@@ -59,7 +59,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                 <TrendingUp className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Available Loan</p>
+                <p className="text-xs text-muted-foreground">Rent Fee Available</p>
                 <p className="font-bold text-sm text-primary">
                   {formatCreditAmount(limit.totalLimit, currency)}
                 </p>
