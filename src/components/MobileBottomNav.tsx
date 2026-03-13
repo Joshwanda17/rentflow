@@ -106,10 +106,12 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
     if (currentRole === 'supporter') {
       return [...baseItems,
         { href: '/marketplace', icon: Store, label: 'Shop', active: currentPath === '/marketplace' },
+        { href: '/chat', icon: MessageCircle, label: 'Chat', active: currentPath === '/chat' },
       ];
     }
     return [...baseItems,
       { href: '/marketplace', icon: Store, label: 'Shop', active: currentPath === '/marketplace' },
+      { href: '/chat', icon: MessageCircle, label: 'Chat', active: currentPath === '/chat' },
       { href: '/referrals', icon: Users, label: 'Invite', active: currentPath === '/referrals' },
     ];
   };
