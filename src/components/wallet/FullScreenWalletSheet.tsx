@@ -361,6 +361,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
         currentUserId={user?.id || ''}
       />
       <BillPaymentDialog open={billsOpen} onOpenChange={setBillsOpen} />
+      <FoodMarketDialog open={foodMarketOpen} onOpenChange={setFoodMarketOpen} />
     </>
   );
 }
