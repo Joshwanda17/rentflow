@@ -62,7 +62,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
       onCreated?.();
     } catch (error: any) {
       console.error('Create error:', error);
-      toast.error(error.message || 'Failed to create loan product');
+      toast.error(error.message || 'Failed to create rent plan');
     } finally {
       setLoading(false);
     }
