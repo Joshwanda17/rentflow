@@ -37,6 +37,9 @@ export function PendingWalletOperationsWidget() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isOpen, setIsOpen] = useState(true);
+  const [currencyOverrides, setCurrencyOverrides] = useState<Record<string, string>>({});
+
+  const SUPPORTED_CURRENCIES = ['UGX', 'USD', 'KES', 'TZS', 'RWF', 'GBP', 'EUR'];
 
   const fetchOperations = useCallback(async () => {
     if (!user) return;
