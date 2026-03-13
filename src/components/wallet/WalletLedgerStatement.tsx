@@ -100,6 +100,7 @@ export function WalletLedgerStatement() {
       .from('general_ledger')
       .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table')
       .eq('user_id', user.id)
+      .in('ledger_scope', ['wallet', 'bridge'])
       .order('transaction_date', { ascending: false });
 
     if (error) {
