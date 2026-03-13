@@ -108,6 +108,7 @@ export function PendingWalletOperationsWidget() {
           operation_id: opId,
           action,
           rejection_reason: action === 'reject' ? rejectionReason : undefined,
+          display_currency: action === 'approve' ? (currencyOverrides[opId] || 'UGX') : undefined,
         },
       });
 
