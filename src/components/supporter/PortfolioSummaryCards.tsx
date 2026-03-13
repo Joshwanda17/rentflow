@@ -3,6 +3,7 @@ import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreak
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
+import { formatUGX } from '@/lib/rentCalculations';
 import { Wallet, ChevronRight } from 'lucide-react';
 
 interface PortfolioSummaryCardsProps {
