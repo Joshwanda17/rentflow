@@ -773,13 +773,6 @@ export default function UserProfilesTable() {
                 style={{ minHeight: '48px' }}
               >
                 {filter.label}
-                <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
-                  roleFilter === filter.value 
-                    ? 'bg-primary-foreground/20' 
-                    : 'bg-background/50'
-                }`}>
-                  {filter.count}
-                </span>
               </button>
             ))}
             
