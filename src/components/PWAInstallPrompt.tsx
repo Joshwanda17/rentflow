@@ -30,10 +30,10 @@ export default function PWAInstallPrompt() {
   // Detect if this is a mobile device
   const isMobile = platform.device === 'mobile' || platform.device === 'tablet';
 
-  // Auto-trigger install on mobile devices
+  // Auto-trigger install on all devices (mobile + desktop)
   useEffect(() => {
-    // Skip if already installed or not on mobile
-    if (isInstalled || !isMobile) return;
+    // Skip if already installed
+    if (isInstalled) return;
     
     // Skip if user recently dismissed
     if (hasRecentlyDismissed()) return;
@@ -41,18 +41,15 @@ export default function PWAInstallPrompt() {
     // For iOS, show install guide immediately
     if (platform.os === 'ios') {
       setShowPrompt(true);
-      // Small delay then show full guide
       const timer = setTimeout(() => {
         setShowInstallGuide(true);
-      }, 500);
+      }, 300);
       return () => clearTimeout(timer);
     }
 
-    // For Android/other mobile with prompt support, show prompt immediately
-    if (platform.canInstallPWA || platform.installMethod === 'prompt') {
-      setShowPrompt(true);
-    }
-  }, [isInstalled, isMobile, platform, hasRecentlyDismissed]);
+    // For all devices with prompt support, show prompt immediately
+    setShowPrompt(true);
+  }, [isInstalled, platform, hasRecentlyDismissed]);
 
   // Auto-trigger the native install prompt on Android as soon as it's available
   useEffect(() => {
