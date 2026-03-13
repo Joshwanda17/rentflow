@@ -36,7 +36,7 @@ export function CreateAccountDialog({ open, onOpenChange, onCreateAccount }: Cre
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Investment Account</DialogTitle>
+          <DialogTitle>Create Support Account</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
