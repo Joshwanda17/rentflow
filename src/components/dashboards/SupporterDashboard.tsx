@@ -448,11 +448,7 @@ export default function SupporterDashboard({
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
 
-            {/* ═══ WELILE AI CREDIT REQUESTS ═══ */}
-            <CreditRequestsFeed
-              isLocked={!effectiveHasAccepted}
-              onLockedClick={() => setShowAgreementModal(true)}
-            />
+            {/* Credit Requests moved to More menu */}
 
             {/* ═══ CAPITAL OPPORTUNITY CARD ═══ */}
             <OpportunitySummaryCard />
