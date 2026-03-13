@@ -276,12 +276,14 @@ function DashboardContent() {
     return <DashboardLoadingFallback />;
   }
 
+  const isPublicRole = ['tenant', 'agent', 'landlord', 'supporter'].includes(displayRole);
+
   const dashboardProps = { 
     user, 
     signOut, 
     currentRole: displayRole, 
     availableRoles: displayRoles, 
-    onRoleChange: switchRole,
+    onRoleChange: handlePublicRoleSwitch,
     addRoleComponent: <AddRoleDialog availableRoles={displayRoles} onAddRole={addRole} />
   };
 
