@@ -1124,6 +1124,48 @@ export type Database = {
           },
         ]
       }
+      daily_platform_stats: {
+        Row: {
+          active_users_30d: number
+          created_at: string
+          daily_transaction_volume: number
+          id: string
+          new_users_today: number
+          referral_pct: number
+          retention_pct: number
+          stat_date: string
+          total_users: number
+          updated_at: string
+          users_by_role: Json | null
+        }
+        Insert: {
+          active_users_30d?: number
+          created_at?: string
+          daily_transaction_volume?: number
+          id?: string
+          new_users_today?: number
+          referral_pct?: number
+          retention_pct?: number
+          stat_date?: string
+          total_users?: number
+          updated_at?: string
+          users_by_role?: Json | null
+        }
+        Update: {
+          active_users_30d?: number
+          created_at?: string
+          daily_transaction_volume?: number
+          id?: string
+          new_users_today?: number
+          referral_pct?: number
+          retention_pct?: number
+          stat_date?: string
+          total_users?: number
+          updated_at?: string
+          users_by_role?: Json | null
+        }
+        Relationships: []
+      }
       deposit_requests: {
         Row: {
           agent_id: string | null
@@ -4699,6 +4741,7 @@ export type Database = {
       }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       cleanup_old_system_events: { Args: never; Returns: undefined }
+      compute_daily_stats: { Args: never; Returns: undefined }
       create_direct_conversation: {
         Args: { other_user_id: string }
         Returns: string
@@ -4718,6 +4761,7 @@ export type Database = {
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
       generate_portfolio_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_approximate_user_count: { Args: never; Returns: number }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
       get_deposits_paginated: {
@@ -4876,6 +4920,32 @@ export type Database = {
           full_name: string
           id: string
           phone: string
+        }[]
+      }
+      search_users_paginated: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_role?: string
+          p_search?: string
+          p_sort?: string
+          p_verified?: string
+        }
+        Returns: {
+          avatar_url: string
+          city: string
+          country: string
+          country_code: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          monthly_rent: number
+          phone: string
+          rent_discount_active: boolean
+          total_count: number
+          verified: boolean
+          whatsapp_verified: boolean
         }[]
       }
       show_limit: { Args: never; Returns: number }
