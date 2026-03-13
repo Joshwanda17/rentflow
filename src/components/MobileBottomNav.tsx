@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, MessageCircle, Settings, Store, Users, FileText, Wallet, Shield, Menu } from 'lucide-react';
+import { Home, Settings, Store, Users, FileText, Wallet, Shield, Menu } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
