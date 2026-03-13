@@ -27,6 +27,7 @@ import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { BillPaymentDialog } from './BillPaymentDialog';
+import { FoodMarketDialog } from './FoodMarketDialog';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
