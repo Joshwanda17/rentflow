@@ -111,7 +111,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
             <div className="p-2 rounded-lg bg-success/10">
               <TrendingUp className="h-5 w-5 text-success" />
             </div>
-            <CardTitle className="text-lg">Top ROI Earners</CardTitle>
+            <CardTitle className="text-lg">Top Reward Earners</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
