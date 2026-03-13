@@ -20,7 +20,7 @@ export default function ExecutiveDashboardLayout({
   onTabChange,
   children,
 }: ExecutiveDashboardLayoutProps) {
-  const { user, roles, signOut, switchRole } = useAuth();
+  const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -106,6 +106,7 @@ export default function ExecutiveDashboardLayout({
             currentRole={role as AppRole}
             availableRoles={roles}
             onRoleChange={handleRoleChange}
+            onAddRole={addRole}
             variant="header"
           />
         </div>
