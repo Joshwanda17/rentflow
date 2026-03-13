@@ -7,7 +7,7 @@ export function LoanApplicationsManager() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Loan Applications
+          Rent Plan Applications
         </CardTitle>
       </CardHeader>
       <CardContent>
