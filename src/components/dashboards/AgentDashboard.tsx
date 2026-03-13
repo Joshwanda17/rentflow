@@ -118,6 +118,26 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [recordCollectionOpen, setRecordCollectionOpen] = useState(false);
   const [depositCashOpen, setDepositCashOpen] = useState(false);
+  const [applyingToSell, setApplyingToSell] = useState(false);
+
+  const handleApplyToSell = async () => {
+    setApplyingToSell(true);
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await supabase
+        .from('profiles')
+        .update({ seller_application_status: 'pending' })
+        .eq('id', user.id);
+      if (error) throw error;
+      const { toast } = await import('sonner');
+      toast.success('Application submitted! A manager will review your request.');
+    } catch (err) {
+      const { toast } = await import('sonner');
+      toast.error('Failed to submit application');
+    } finally {
+      setApplyingToSell(false);
+    }
+  };
 
   if (loading && isOnline && !hasLoadedOnce) {
     return <AgentDashboardSkeleton />;
