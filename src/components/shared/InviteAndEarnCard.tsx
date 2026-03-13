@@ -14,7 +14,7 @@ interface InviteAndEarnCardProps {
   compact?: boolean;
 }
 
-export function InviteAndEarnCard({ variant = 'default' }: InviteAndEarnCardProps) {
+export function InviteAndEarnCard({ variant = 'default', compact = false }: InviteAndEarnCardProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
