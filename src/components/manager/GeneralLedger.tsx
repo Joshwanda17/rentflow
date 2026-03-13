@@ -53,7 +53,7 @@ const PAGE_SIZE = 50;
 
 const categoryOptions: { value: CategoryFilter; label: string }[] = [
   { value: 'all', label: 'All Categories' },
-  { value: 'deposit', label: 'Deposits' },
+  { value: 'deposit', label: 'Wallet Top-ups' },
   { value: 'wallet_deposit', label: 'Wallet Deposits' },
   { value: 'wallet_withdrawal', label: 'Withdrawals' },
   { value: 'wallet_transfer', label: 'Transfers' },
