@@ -1222,9 +1222,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </div>
           </SheetHeader>
 
-          {/* Sticky Verification Banner */}
-          <div className="px-4 pt-2 shrink-0">
+          {/* Sticky Verification & Seller Banners */}
+          <div className="px-4 pt-2 shrink-0 space-y-2">
             <VerificationBanner />
+            <SellerBanner />
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
