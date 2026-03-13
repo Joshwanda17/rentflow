@@ -155,6 +155,34 @@ export function CEODashboard() {
         <KPICard title="Active Agents" value={fmt(activeAgentCount || 0)} icon={Building2} loading={loading} color="bg-rose-500/10 text-rose-600" />
       </div>
 
+      {/* Growth Metrics */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h3 className="text-sm font-semibold mb-3">Growth Metrics</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: 'Active Users', value: growthMetrics?.activeUsers ?? '—', icon: Activity, color: 'bg-primary/10 text-primary' },
+            { label: 'New Users Today', value: growthMetrics?.newUsersToday ?? '—', icon: UserPlus, color: 'bg-green-500/10 text-green-600' },
+            { label: 'Retention', value: growthMetrics ? `${growthMetrics.retention}%` : '—', icon: RefreshCw, color: 'bg-blue-500/10 text-blue-600' },
+            { label: 'Referrals', value: growthMetrics ? `${growthMetrics.referralPct}%` : '—', icon: Share2, color: 'bg-purple-500/10 text-purple-600' },
+            { label: 'Daily Transactions', value: growthMetrics ? fmt(growthMetrics.dailyTxn) : '—', icon: ArrowRightLeft, color: 'bg-orange-500/10 text-orange-600' },
+          ].map((m) => (
+            <div key={m.label} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3">
+              <div className={`p-2 rounded-lg shrink-0 ${m.color}`}>
+                <m.icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">{m.label}</p>
+                {loadingGrowth ? (
+                  <div className="h-5 w-12 bg-muted animate-pulse rounded mt-0.5" />
+                ) : (
+                  <p className="text-lg font-bold truncate">{m.value}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-border bg-card p-4">
