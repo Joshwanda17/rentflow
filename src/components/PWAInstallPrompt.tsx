@@ -73,7 +73,7 @@ export default function PWAInstallPrompt() {
           // If user dismissed, still show the banner
           setShowPrompt(true);
         }
-      }, 800);
+      }, 400);
       
       return () => clearTimeout(timer);
     }
