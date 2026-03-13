@@ -691,7 +691,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
             <Building2 className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="font-black text-foreground text-base tracking-tight">Investment Categories</h3>
+            <h3 className="font-black text-foreground text-base tracking-tight">Support Categories</h3>
             <p className="text-[11px] text-muted-foreground font-medium">
               {hasCategories ?
               `${totalHouses} houses across ${categories.length} tiers` :
