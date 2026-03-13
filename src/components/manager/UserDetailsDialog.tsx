@@ -1096,7 +1096,44 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     </div>
   );
 
-  // Shared header component
+  // Seller Status Banner
+  const SellerBanner = () => (
+    <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl ${
+      isSellerStatus 
+        ? 'bg-chart-4/10 border border-chart-4/30' 
+        : 'bg-muted border border-border'
+    }`}>
+      <div className="flex items-center gap-2 min-w-0">
+        <ShoppingCart className="h-5 w-5 shrink-0" style={{ color: isSellerStatus ? 'hsl(var(--chart-4))' : 'hsl(var(--muted-foreground))' }} />
+        <span className={`text-sm font-semibold truncate ${isSellerStatus ? 'text-chart-4' : 'text-muted-foreground'}`}>
+          {isSellerStatus ? '🛒 Verified Seller' : 'Not a Seller'}
+        </span>
+      </div>
+      <Button
+        variant={isSellerStatus ? 'destructive' : 'default'}
+        size="sm"
+        onClick={handleToggleSellerStatus}
+        disabled={togglingSellerStatus}
+        className="shrink-0 min-h-[40px] min-w-[100px] font-bold"
+      >
+        {togglingSellerStatus ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : isSellerStatus ? (
+          <>
+            <ShieldOff className="h-4 w-4 mr-1" />
+            Revoke
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="h-4 w-4 mr-1" />
+            Grant Seller
+          </>
+        )}
+      </Button>
+    </div>
+  );
+
+
   const UserHeader = () => (
     <div className="flex items-center gap-3">
       <Avatar className={`${isMobile ? 'h-14 w-14' : 'h-12 w-12'}`}>
