@@ -1759,7 +1759,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
               </TabsContent>
 
               <TabsContent value="activity" className="mt-0">
-                <div className="p-4">
+                <div className="p-4 space-y-6">
+                  <FundEditHistory userId={user.id} userName={user.full_name} />
+                  <Separator />
                   <UserActivityTimeline userId={user.id} userName={user.full_name} />
                 </div>
               </TabsContent>
