@@ -21,9 +21,10 @@ interface MobileBottomNavProps {
   onManagerHubChange?: (hub: 'home' | 'wallets' | 'rent-investments' | 'buffer') => void;
   activeManagerHub?: string;
   onScrollToProductivity?: () => void;
+  onOpenMenu?: () => void;
 }
 
-export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub, onScrollToProductivity }: MobileBottomNavProps) {
+export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub, onScrollToProductivity, onOpenMenu }: MobileBottomNavProps) {
   const location = useLocation();
   const currentPath = location.pathname;
   const currentSearch = location.search;
