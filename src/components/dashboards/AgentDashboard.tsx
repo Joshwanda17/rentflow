@@ -12,6 +12,8 @@ import {
   RefreshCw,
   BadgeCheck,
   MapPin,
+  ShoppingBag,
+  Loader2,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
