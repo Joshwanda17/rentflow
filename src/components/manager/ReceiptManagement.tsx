@@ -1052,7 +1052,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
                                     
                                     toast({ 
                                       title: 'Receipt Verified!', 
-                                      description: `+${formatUGX(contribution)} added to loan limit` 
+                                      description: `+${formatUGX(contribution)} added to rent access limit` 
                                     });
                                     fetchData();
                                   }

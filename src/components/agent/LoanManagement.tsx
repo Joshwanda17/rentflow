@@ -312,7 +312,7 @@ export function LoanManagement({ agentId }: LoanManagementProps) {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
-            Users with Loan Limits
+            Users with Rent Access Limits
           </CardTitle>
           <CardDescription>Users who have verified shopping receipts</CardDescription>
         </CardHeader>
