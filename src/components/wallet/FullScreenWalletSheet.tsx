@@ -348,6 +348,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
         transaction={selectedTransaction}
         currentUserId={user?.id || ''}
       />
+      <BillPaymentDialog open={billsOpen} onOpenChange={setBillsOpen} />
     </>
   );
 }
