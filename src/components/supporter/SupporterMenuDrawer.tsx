@@ -34,6 +34,8 @@ interface SupporterMenuDrawerProps {
   showCreditRequests?: boolean;
   isLocked?: boolean;
   onLockedClick?: () => void;
+  onFundCategory?: (category: RentCategory) => void;
+  onRefreshRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 interface MenuItem {
