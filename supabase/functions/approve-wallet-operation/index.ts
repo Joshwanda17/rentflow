@@ -170,9 +170,14 @@ Deno.serve(async (req) => {
 
           portfolioInvestorId = portfolioData?.investor_id || null;
 
+          const updatePayload: Record<string, any> = { status: "active" };
+          if (display_currency) {
+            updatePayload.display_currency = display_currency;
+          }
+
           const { error: portfolioActivateErr } = await adminClient
             .from("investor_portfolios")
-            .update({ status: "active" })
+            .update(updatePayload)
             .eq("id", op.source_id)
             .eq("status", "pending_approval");
           if (portfolioActivateErr) {
