@@ -498,6 +498,15 @@ export default function SupporterDashboard({
         showCreditRequests
         isLocked={!effectiveHasAccepted}
         onLockedClick={() => setShowAgreementModal(true)}
+        onFundCategory={(cat) => {
+          if (!effectiveHasAccepted) {
+            setShowAgreementModal(true);
+            return;
+          }
+          setSelectedPackageCategory(cat);
+          setShowPackageSheet(true);
+        }}
+        onRefreshRef={opportunitiesRefreshRef}
       />
 
 
