@@ -269,7 +269,7 @@ export default function MyReceipts() {
               <span className="text-xs font-medium text-muted-foreground">Rent Fee Available</span>
             </div>
             <p className="text-2xl font-bold text-primary">{formatUGX(loanLimit?.available_limit || 0)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Available to borrow</p>
+            <p className="text-xs text-muted-foreground mt-1">Available for rent access</p>
           </motion.div>
 
           <motion.div
