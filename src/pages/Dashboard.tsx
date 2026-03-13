@@ -58,6 +58,15 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 
 function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
+  const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
+
+  // Seamless role switch: auto-add public roles if not yet assigned
+  const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
+    if (PUBLIC_ROLES.includes(newRole) && !roles.includes(newRole)) {
+      await addRole(newRole);
+    }
+    switchRole(newRole);
+  }, [roles, switchRole, addRole]);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
