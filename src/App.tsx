@@ -60,8 +60,7 @@ const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
 const Install = lazy(() => import('./pages/Install'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
-const Chat = lazy(() => import('./pages/Chat'));
-// ChatInvite removed — public chat links disabled
+// Chat removed — user chat disabled
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
 const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const Join = lazy(() => import('./pages/Join'));
@@ -224,8 +223,7 @@ function AppRoutes() {
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
           <Route path="/activate-supporter" element={<ActivateSupporter />} />
-          <Route path="/chat" element={<Chat />} />
-          {/* Public chat invite route removed */}
+          {/* Chat route removed */}
           <Route path="/agent-registrations" element={<AgentRegistrations />} />
           <Route path="/sub-agents" element={<SubAgentAnalytics />} />
           <Route path="/join" element={<Join />} />
