@@ -117,7 +117,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
         <CardContent>
           <div className="text-center py-6">
             <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">No ROI earnings yet. Be the first investor!</p>
+            <p className="text-sm text-muted-foreground">No rewards earned yet. Be the first supporter!</p>
           </div>
         </CardContent>
       </Card>
