@@ -56,7 +56,7 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
     setLoading(true);
     try {
       // loan_applications table removed
-      toast.error('Loan applications feature is currently unavailable');
+      toast.error('Rent plan applications feature is currently unavailable');
       setLoading(false);
       return;
 
