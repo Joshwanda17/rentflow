@@ -2130,15 +2130,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     </p>
                     <div className="flex gap-2">
                       {selectedOpportunity.landlord.user_id ? (
-                        <Button
-                          onClick={() => handleStartChat(selectedOpportunity.landlord!.user_id!)}
-                          disabled={startingChat}
-                          variant="secondary"
-                          className="flex-1 h-14 gap-3 text-base font-bold touch-manipulation active:scale-95"
-                        >
-                          <MessageCircle className="h-6 w-6" />
-                          Chat in App
-                        </Button>
+                        <div className="flex-1 h-14 flex items-center justify-center text-sm text-muted-foreground bg-muted/50 rounded-md">
+                          On platform
+                        </div>
                       ) : (
                         <div className="flex-1 h-14 flex items-center justify-center text-sm text-muted-foreground bg-muted/50 rounded-md">
                           No app account
