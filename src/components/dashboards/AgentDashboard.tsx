@@ -214,43 +214,27 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               )}
             </h1>
             <p className="text-sm text-muted-foreground">Welile Agent</p>
+            {/* Compact Sell CTA or Pending notice */}
+            {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
+              <button
+                onClick={() => { hapticTap(); handleApplyToSell(); }}
+                disabled={applyingToSell}
+                className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-chart-4/40 bg-chart-4/10 text-chart-4 text-xs font-semibold hover:bg-chart-4/20 transition-all touch-manipulation"
+              >
+                <ShoppingBag className="h-3 w-3" />
+                {applyingToSell ? 'Applying…' : 'Start Selling on Welile'}
+              </button>
+            )}
+            {!profile?.is_seller && profile?.seller_application_status === 'pending' && (
+              <span className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/10 text-warning text-xs font-medium">
+                <ShoppingBag className="h-3 w-3" />
+                Seller Application Pending
+              </span>
+            )}
           </div>
           <AiIdButton variant="compact" />
         </div>
 
-        {/* Apply to Sell CTA - only for non-sellers */}
-        {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => { hapticTap(); handleApplyToSell(); }}
-            disabled={applyingToSell}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-dashed border-chart-4/40 bg-chart-4/5 hover:bg-chart-4/10 transition-all touch-manipulation"
-          >
-            <div className="p-3 rounded-xl bg-chart-4/15 shrink-0">
-              <ShoppingBag className="h-7 w-7 text-chart-4" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-lg text-foreground">Start Selling on Welile</p>
-              <p className="text-xs text-muted-foreground">Apply to become a verified seller • Earn from product sales</p>
-            </div>
-            {applyingToSell && <Loader2 className="h-5 w-5 animate-spin text-chart-4" />}
-          </motion.button>
-        )}
-
-        {/* Pending Application Notice */}
-        {!profile?.is_seller && profile?.seller_application_status === 'pending' && (
-          <Card className="border-warning/30 bg-warning/5">
-            <CardContent className="p-4 flex items-center gap-3">
-              <ShoppingBag className="h-5 w-5 text-warning shrink-0" />
-              <div>
-                <p className="font-semibold text-sm">Seller Application Pending</p>
-                <p className="text-xs text-muted-foreground">A manager will review your request soon</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Daily Operations Summary */}
         <AgentDailyOpsCard />
 
         {/* Visit Tenant Card */}
