@@ -74,6 +74,7 @@ import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
 import { AgentEarningsOverview } from '@/components/manager/AgentEarningsOverview';
 import { AgentCollectionsWidget } from '@/components/manager/AgentCollectionsWidget';
 import { DesktopManagerSidebar } from '@/components/manager/DesktopManagerSidebar';
+import { QuickUserLookup } from '@/components/manager/QuickUserLookup';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ManagerDashboardProps {
@@ -874,6 +875,24 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           pendingActions={pendingRequests + withdrawalStats.pending}
           rentDueTotal={rentDueTotal}
           onNavigate={(hub) => { hapticTap(); setActiveHub(hub as any); }}
+        />
+
+        {/* Quick User Lookup by Phone */}
+        <QuickUserLookup
+          onUserFound={(user) => {
+            setSelectedUser({
+              id: user.id,
+              full_name: user.full_name,
+              email: user.email,
+              phone: user.phone,
+              avatar_url: user.avatar_url,
+              rent_discount_active: user.rent_discount_active,
+              monthly_rent: user.monthly_rent,
+              roles: user.roles,
+              average_rating: user.average_rating,
+              rating_count: user.rating_count,
+            });
+          }}
         />
 
         {/* Opportunity Summary Button */}
