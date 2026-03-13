@@ -294,6 +294,17 @@ export default function Settings() {
               Manage your account settings
             </p>
           </div>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className="rounded-xl gap-2"
+            >
+              <Home className="h-4 w-4" />
+              Dashboard
+            </Button>
+          </motion.div>
         </motion.div>
 
         {/* Profile Card */}
