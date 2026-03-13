@@ -2,8 +2,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { setCachedRoles } from '@/lib/sessionCache';
 import type { AppRole } from './types';
 
-export const DEFAULT_ROLE: AppRole = 'agent';
-export const DEFAULT_ROLES: AppRole[] = ['agent'];
+export const DEFAULT_ROLE: AppRole = 'supporter';
+export const DEFAULT_ROLES: AppRole[] = ['supporter'];
 
 /** Standard roles every user should have */
 const STANDARD_ROLES: AppRole[] = ['agent', 'tenant', 'landlord'];
