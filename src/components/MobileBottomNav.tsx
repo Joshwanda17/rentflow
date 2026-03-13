@@ -98,9 +98,7 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
     }
     if (currentRole === 'agent') {
       return [...baseItems,
-        { href: '/agent-registrations', icon: Users, label: 'Users', active: currentPath === '/agent-registrations' },
         { href: '/marketplace', icon: Store, label: 'Shop', active: currentPath === '/marketplace' },
-        { href: '/referrals', icon: Users, label: 'Invite', active: currentPath === '/referrals' },
       ];
     }
     if (currentRole === 'supporter') {

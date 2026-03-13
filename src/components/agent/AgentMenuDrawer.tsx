@@ -121,6 +121,14 @@ export function AgentMenuDrawer({
     {
       title: 'Agent Actions',
       items: [
+        {
+          icon: Share2,
+          label: 'Invite & Refer',
+          description: 'Share your referral link & grow your network',
+          path: '/referrals',
+          color: 'text-primary',
+          badge: 'Priority'
+        },
         ...(onInvestForPartner ? [{ 
           icon: HandCoins, 
           label: 'Invest for Partner', 
