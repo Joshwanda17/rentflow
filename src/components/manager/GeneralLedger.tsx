@@ -58,7 +58,7 @@ const categoryOptions: { value: CategoryFilter; label: string }[] = [
   { value: 'wallet_withdrawal', label: 'Withdrawals' },
   { value: 'wallet_transfer', label: 'Transfers' },
   { value: 'rent_repayment', label: 'Rent Repayments' },
-  { value: 'loan_repayment', label: 'Loan Repayments' },
+  { value: 'loan_repayment', label: 'Rent Paybacks' },
   { value: 'agent_commission', label: 'Agent Commissions' },
   { value: 'agent_payout', label: 'Agent Payouts' },
   { value: 'landlord_payout', label: 'Landlord Payouts' },

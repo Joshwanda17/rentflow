@@ -82,12 +82,12 @@ const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
   ],
   supporter: [
     { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
-    { icon: PiggyBank, label: 'Invest', path: '/dashboard', color: 'bg-green-500', description: 'My investments' },
+    { icon: PiggyBank, label: 'Support', path: '/dashboard', color: 'bg-green-500', description: 'My contributions' },
     { icon: Heart, label: 'Fund', path: '/dashboard', color: 'bg-pink-500', description: 'Fund tenants' },
     { icon: History, label: 'History', path: '/transaction-history', color: 'bg-teal-500', description: 'Transactions' },
     { icon: Store, label: 'Shop', path: '/marketplace', color: 'bg-purple-500', description: 'Marketplace' },
     { icon: Gift, label: 'Referrals', path: '/referrals', color: 'bg-amber-500', description: 'Earn rewards' },
-    { icon: Calculator, label: 'Calculator', path: '/calculator', color: 'bg-orange-500', description: 'Interest calculator' },
+    { icon: Calculator, label: 'Calculator', path: '/calculator', color: 'bg-orange-500', description: 'Fee calculator' },
     { icon: Settings, label: 'Settings', path: '/settings', color: 'bg-slate-500', description: 'Account settings' },
   ],
   landlord: [

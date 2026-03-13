@@ -675,7 +675,7 @@ export default function MyReceipts() {
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Repay: {formatUGX(loan.total_repayment)}</span>
-                      <span>From: {loan.lender?.full_name || 'Unknown'}</span>
+                      <span>Supported by: {loan.lender?.full_name || 'Unknown'}</span>
                     </div>
                   </div>
                 ))}

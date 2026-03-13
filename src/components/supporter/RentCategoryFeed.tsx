@@ -768,10 +768,10 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
               <div className="p-2 rounded-xl bg-blue-500/10">
                 <PlusCircle className="h-5 w-5 text-blue-500" />
               </div>
-              <DialogTitle className="text-lg font-black tracking-tight">Add Investment Category</DialogTitle>
+              <DialogTitle className="text-lg font-black tracking-tight">Add Support Category</DialogTitle>
             </div>
             <p className="text-sm text-muted-foreground font-medium pl-12">
-              Configure a new tier for your investment portfolio.
+              Configure a new tier for your support account.
             </p>
           </DialogHeader>
           <div className="py-8 flex flex-col items-center justify-center text-center">

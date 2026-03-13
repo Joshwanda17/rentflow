@@ -191,7 +191,7 @@ export default function ShopEntry() {
             </div>
             <div className="p-3 rounded-xl bg-muted/50">
               <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-success/20 flex items-center justify-center text-success font-bold text-sm">3</div>
-              <p className="text-xs text-muted-foreground">Access loans</p>
+              <p className="text-xs text-muted-foreground">Unlock access</p>
             </div>
           </div>
         </motion.div>

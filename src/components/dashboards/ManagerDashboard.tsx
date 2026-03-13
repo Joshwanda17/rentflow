@@ -1163,7 +1163,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             },
             {
               icon: Banknote,
-              label: 'Loan Applications',
+              label: 'Rent Plans',
               onClick: () => navigate('/manager-access?tab=loans'),
             },
             {
