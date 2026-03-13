@@ -37,9 +37,20 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    target: 'es2020',
+    // es2017 supports Android 5+ (Chrome 58+), Samsung Internet 7+, KaiOS
+    target: 'es2017',
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1500,
     sourcemap: false,
+    // Smaller chunks for slow 2G/3G networks
+    assetsInlineLimit: 4096,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        passes: 2,
+      },
+    },
   },
 }));

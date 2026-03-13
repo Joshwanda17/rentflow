@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, user-scalable=yes" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="color-scheme" content="light dark" />
     <title>Welile.com - Africa's Rent Facilitation Platform</title>
     <meta name="description" content="Welile.com - Africa's leading rent facilitation platform. Access rent today, pay back over time." />
     <link rel="icon" type="image/png" href="/welile-logo.png" />
@@ -13,9 +15,9 @@
     <link rel="preconnect" href="https://wirntoujqoyjobfhyelc.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://api.exchangerate-api.com">
     
-    <!-- Fonts - Non-blocking async load -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Chewy&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Chewy&display=swap" rel="stylesheet"></noscript>
+    <!-- Fonts - Non-blocking async load with subset for smaller payload -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Chewy&display=swap&subset=latin" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Chewy&display=swap&subset=latin" rel="stylesheet"></noscript>
     
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -31,9 +33,17 @@
     <link rel="apple-touch-icon" href="/welile-logo.png" />
     <link rel="apple-touch-startup-image" href="/welile-logo.png" />
     
-    <!-- Android PWA -->
+    <!-- Android / Samsung / Transsion / Xiaomi PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="HandheldFriendly" content="true" />
+    <meta name="MobileOptimized" content="320" />
+    
+    <!-- KaiOS & Feature phones -->
+    <meta name="full-screen" content="yes" />
+    <meta name="browsermode" content="application" />
+
+    <!-- Network awareness -->
+    <meta http-equiv="Accept-CH" content="DPR, Width, Viewport-Width, Downlink, ECT, Save-Data" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="Welile.com - Rent Facilitation" />
@@ -44,10 +54,14 @@
     <!-- Minimal critical CSS -->
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      html{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;background:#f8fafc;-webkit-font-smoothing:antialiased}
-      body{min-height:100vh;min-height:100dvh}
+      html{font-family:'Plus Jakarta Sans',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#f8fafc;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+      body{min-height:100vh;min-height:100dvh;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
       #root{min-height:100vh;min-height:100dvh}
       @media(prefers-color-scheme:dark){html{background:#0f172a}}
+      /* Reduce motion for low-end devices */
+      @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;scroll-behavior:auto!important}}
+      /* Data saver mode */
+      @media(prefers-reduced-data:reduce){img[save-data-hidden],video,.decorative{display:none!important}}
     </style>
   </head>
 
