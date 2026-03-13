@@ -105,7 +105,7 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount to Invest (UGX)</Label>
+                <Label htmlFor="amount">Support Amount (UGX)</Label>
                 <Input
                   id="amount"
                   type="number"
