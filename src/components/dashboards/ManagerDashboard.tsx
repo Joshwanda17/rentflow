@@ -973,6 +973,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
+
+        {/* Agent Rent Requests */}
+        <CollapsibleRentRequests />
+
+        {/* Pending Seller Applications */}
+        <PendingSellerApplicationsWidget />
         </>
         ) : activeHub === 'wallets' ? (
         <>
