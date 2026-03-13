@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  X
+  X, Receipt
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
