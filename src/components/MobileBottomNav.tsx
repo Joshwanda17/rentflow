@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Settings, Store, Users, FileText, Wallet, Shield, Menu } from 'lucide-react';
+import { Home, Menu, Settings, Store, Users, FileText, Wallet, Shield } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -21,9 +21,10 @@ interface MobileBottomNavProps {
   onManagerHubChange?: (hub: 'home' | 'wallets' | 'rent-investments' | 'buffer') => void;
   activeManagerHub?: string;
   onScrollToProductivity?: () => void;
+  onOpenMenu?: () => void;
 }
 
-export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub, onScrollToProductivity }: MobileBottomNavProps) {
+export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub, onScrollToProductivity, onOpenMenu }: MobileBottomNavProps) {
   const location = useLocation();
   const currentPath = location.pathname;
   const currentSearch = location.search;
@@ -140,18 +141,31 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
             <div className="relative p-1 rounded-xl bg-primary/15"><GeminiSparkle size={20} /></div>
             <span className="text-[9px] font-bold tracking-wide leading-tight text-primary">AI</span>
           </button>
-          <Link to="/settings" onClick={handleTap}
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] relative touch-manipulation",
-              isSettingsActive ? "text-primary bg-primary/12 scale-105" : "text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95"
-            )}
-          >
-            <div className={cn("relative p-1.5 rounded-xl transition-all", isSettingsActive && "bg-primary/15")}>
-              <Settings className={cn("h-6 w-6 transition-transform", isSettingsActive && "scale-110")} strokeWidth={isSettingsActive ? 2.5 : 2} />
-            </div>
-            <span className={cn("text-[9px] font-bold tracking-wide leading-tight", isSettingsActive ? "text-primary" : "text-muted-foreground")}>Menu</span>
-            {isSettingsActive && <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />}
-          </Link>
+          {onOpenMenu ? (
+            <button onClick={() => { handleTap(); onOpenMenu(); }}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95 touch-manipulation"
+            >
+              <div className="relative p-1.5 rounded-xl">
+                <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md">
+                  <Menu className="h-4 w-4" />
+                </div>
+              </div>
+              <span className="text-[9px] font-bold tracking-wide leading-tight text-muted-foreground">Menu</span>
+            </button>
+          ) : (
+            <Link to="/settings" onClick={handleTap}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] relative touch-manipulation",
+                isSettingsActive ? "text-primary bg-primary/12 scale-105" : "text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95"
+              )}
+            >
+              <div className={cn("relative p-1.5 rounded-xl transition-all", isSettingsActive && "bg-primary/15")}>
+                <Settings className={cn("h-6 w-6 transition-transform", isSettingsActive && "scale-110")} strokeWidth={isSettingsActive ? 2.5 : 2} />
+              </div>
+              <span className={cn("text-[9px] font-bold tracking-wide leading-tight", isSettingsActive ? "text-primary" : "text-muted-foreground")}>Menu</span>
+              {isSettingsActive && <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />}
+            </Link>
+          )}
         </div>
       </nav>
       <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />

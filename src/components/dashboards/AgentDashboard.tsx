@@ -310,7 +310,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <RecordAgentCollectionDialog open={recordCollectionOpen} onOpenChange={setRecordCollectionOpen} />
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
 
-      <MobileBottomNav currentRole={currentRole} />
+      <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
     </div>
   );
 }
