@@ -117,7 +117,7 @@ export function AgentLoanProducts() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
-                    UGX {product.min_amount.toLocaleString()} - {product.max_amount.toLocaleString()} | {product.interest_rate}% interest | {product.min_duration_days}-{product.max_duration_days} days
+                    UGX {product.min_amount.toLocaleString()} - {product.max_amount.toLocaleString()} | {product.interest_rate}% service fee | {product.min_duration_days}-{product.max_duration_days} days
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

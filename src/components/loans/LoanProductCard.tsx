@@ -60,7 +60,7 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
       setLoading(false);
       return;
 
-      toast.success('Loan application submitted! Waiting for manager approval.');
+      toast.success('Rent plan application submitted! Waiting for manager approval.');
       setOpen(false);
       onApply?.();
     } catch (error: any) {

@@ -187,7 +187,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
           </div>
 
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? 'Creating...' : 'Create Loan Product'}
+            {loading ? 'Creating...' : 'Create Rent Plan'}
           </Button>
         </form>
       </DialogContent>

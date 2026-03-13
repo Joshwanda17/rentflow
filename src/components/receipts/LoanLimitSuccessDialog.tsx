@@ -133,7 +133,7 @@ export function LoanLimitSuccessDialog({
 
             <div className="flex items-center justify-center gap-2 mb-3">
               <CreditCard className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">Your Loan Limit</span>
+              <span className="text-sm font-medium text-muted-foreground">Your Rent Access Limit</span>
             </div>
 
             {/* Animated Amount */}

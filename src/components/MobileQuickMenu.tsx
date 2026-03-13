@@ -53,7 +53,7 @@ const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
   manager: [
     { icon: Users, label: 'Users', path: '/users', color: 'bg-blue-500', description: 'Manage all users' },
     { icon: FileText, label: 'Rent', path: '/manager-access', color: 'bg-green-500', description: 'Rent requests' },
-    { icon: Banknote, label: 'Loans', path: '/manager-access?tab=loans', color: 'bg-orange-500', description: 'Loan applications' },
+    { icon: Banknote, label: 'Rent Plans', path: '/manager-access?tab=loans', color: 'bg-orange-500', description: 'Rent facilitations' },
     { icon: ShoppingCart, label: 'Orders', path: '/manager-access?tab=orders', color: 'bg-purple-500', description: 'Product orders' },
     { icon: CreditCard, label: 'Payments', path: '/manager-access?tab=payments', color: 'bg-pink-500', description: 'Payment confirmations' },
     { icon: Receipt, label: 'Receipts', path: '/manager-access?tab=receipts', color: 'bg-teal-500', description: 'User receipts' },

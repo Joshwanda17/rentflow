@@ -163,7 +163,7 @@ export function FoodReceiptPromoCard({ userId }: FoodReceiptPromoCardProps) {
                     <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
                       <div className="flex items-center gap-2 mb-1">
                         <TrendingUp className="h-4 w-4 text-primary" />
-                        <span className="text-xs font-medium text-primary">Loan Limit</span>
+                        <span className="text-xs font-medium text-primary">Rent Access</span>
                       </div>
                       <p className="text-xl font-bold">{formatUGX(loanLimit)}</p>
                       <p className="text-xs text-muted-foreground">available</p>
