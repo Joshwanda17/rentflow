@@ -51,7 +51,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
 
             {/* Monthly Return */}
             <div className="portfolio-stat-cell rounded-xl px-1.5 py-2.5 text-center overflow-hidden">
-              <p className="wallet-balance-text text-[clamp(0.6rem,3vw,0.8rem)] font-extrabold leading-none truncate">
+              <p className="wallet-balance-text text-sm font-extrabold leading-none truncate" title={formatAmount(totalReturn)}>
                 {formatAmount(totalReturn)}
               </p>
               <p className="wallet-label-text text-[8px] uppercase tracking-[0.12em] font-semibold mt-1">Return/mo</p>
@@ -62,7 +62,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
               onClick={() => { hapticTap(); setShowBreakdown(true); }}
               className="portfolio-stat-cell rounded-xl px-1.5 py-2.5 text-center overflow-hidden hover:bg-white/25 active:scale-95 transition-all cursor-pointer"
             >
-              <p className="wallet-balance-text text-[clamp(0.6rem,3vw,0.8rem)] font-extrabold leading-none truncate">
+              <p className="wallet-balance-text text-sm font-extrabold leading-none truncate" title={formatAmount(rentSecured)}>
                 {formatAmount(rentSecured)}
               </p>
               <p className="wallet-label-text text-[8px] uppercase tracking-[0.12em] font-semibold mt-1 flex items-center justify-center gap-0.5">
