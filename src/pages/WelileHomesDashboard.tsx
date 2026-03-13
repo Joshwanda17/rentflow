@@ -390,7 +390,7 @@ Let's build a better future together! 🏡`;
                   className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 h-12"
                 >
                   <Wallet className="h-4 w-4 mr-2" />
-                  Go to Wallet
+                  Go to Rent Money
                 </Button>
               </CardContent>
             </Card>
