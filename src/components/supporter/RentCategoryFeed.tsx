@@ -394,7 +394,7 @@ function ShareDialog({
             Share PDF via Link
           </Button>
           <p className="text-[10px] text-muted-foreground text-center">
-            Share your investment category details securely with partners.
+            Share your support category details securely with partners.
           </p>
         </div>
       </DialogContent>
