@@ -164,7 +164,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', -apple-system, sans-serif;
+    font-family: 'DM Sans', 'Plus Jakarta Sans', 'Segoe UI', 'Roboto', -apple-system, sans-serif;
     font-size: 1rem;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
