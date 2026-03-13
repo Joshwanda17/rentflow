@@ -91,6 +91,34 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
     }
   };
 
+  if (compact) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <Card className="overflow-hidden border border-primary/20 bg-primary/5">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0">
+              <Gift className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-xs leading-tight">Invite & Earn 500/=</p>
+              {referralCount > 0 && (
+                <p className="text-[10px] text-muted-foreground">{referralCount} friends joined • {formatUGX(totalEarned)} earned</p>
+              )}
+            </div>
+            <Button
+              onClick={handleWhatsAppShare}
+              size="sm"
+              className="bg-[#25D366] hover:bg-[#20BD5A] text-white gap-1.5 font-semibold text-xs rounded-lg h-8 px-3 shrink-0"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Share
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
