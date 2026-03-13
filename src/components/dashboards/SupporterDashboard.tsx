@@ -54,6 +54,7 @@ import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummar
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
+import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 
 
 interface SupporterDashboardProps {
@@ -509,6 +510,8 @@ export default function SupporterDashboard({
         onRefreshRef={opportunitiesRefreshRef}
       />
 
+      {/* Invite & Earn */}
+      <InviteAndEarnCard variant="supporter" />
 
       <PaymentPartnersDialog 
         open={showPaymentPartners} 

@@ -28,6 +28,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
+import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { SubscriptionStatusCard } from '@/components/tenant/SubscriptionStatusCard';
 
 import { RentRequestButton } from '@/components/tenant/RentRequestButton';
@@ -341,7 +342,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 onRepaymentSuccess={fetchData}
               />
             </div>
-          )}
+           )}
+
+          {/* Invite & Earn */}
+          <InviteAndEarnCard variant="tenant" />
         </main>
       </PullToRefresh>
 
