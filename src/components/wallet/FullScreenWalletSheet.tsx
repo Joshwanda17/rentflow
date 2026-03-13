@@ -207,7 +207,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
             }}
           >
             {/* Action buttons - larger for full screen */}
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Button 
                 onClick={() => { hapticTap(); setSendOpen(true); }} 
                 className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all shadow-md hover:shadow-lg"
@@ -216,12 +216,12 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 <span className="text-[11px] font-semibold">Send</span>
               </Button>
               <Button 
-                onClick={() => { hapticTap(); setRequestOpen(true); }} 
+                onClick={() => { hapticTap(); setFoodMarketOpen(true); }} 
                 variant="secondary"
-                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all"
+                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all bg-success/10 text-success border border-success/20 hover:bg-success/20"
               >
-                <HandCoins className="h-5 w-5" />
-                <span className="text-[11px] font-semibold">Request</span>
+                <ShoppingCart className="h-5 w-5" />
+                <span className="text-[11px] font-semibold">Shop</span>
               </Button>
               <Button 
                 onClick={() => { hapticTap(); setDepositOpen(true); }} 
@@ -231,21 +231,31 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 <Plus className="h-5 w-5" />
                 <span className="text-[11px] font-semibold">Deposit</span>
               </Button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Button 
+                onClick={() => { hapticTap(); setRequestOpen(true); }} 
+                variant="outline"
+                className="flex-col gap-2 h-auto py-3 rounded-2xl active:scale-95 transition-all"
+              >
+                <HandCoins className="h-4 w-4" />
+                <span className="text-[10px] font-semibold">Request</span>
+              </Button>
               <Button 
                 onClick={() => { hapticTap(); setBillsOpen(true); }} 
                 variant="outline" 
-                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-accent/50 text-accent-foreground hover:bg-accent/10"
+                className="flex-col gap-2 h-auto py-3 rounded-2xl active:scale-95 transition-all"
               >
-                <Receipt className="h-5 w-5" />
-                <span className="text-[11px] font-semibold">Bills</span>
+                <Receipt className="h-4 w-4" />
+                <span className="text-[10px] font-semibold">Bills</span>
               </Button>
               <Button 
                 onClick={() => { hapticTap(); setWithdrawOpen(true); }} 
                 variant="outline" 
-                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-warning/50 text-warning hover:bg-warning/10"
+                className="flex-col gap-2 h-auto py-3 rounded-2xl active:scale-95 transition-all border-warning/50 text-warning hover:bg-warning/10"
               >
-                <ArrowDownToLine className="h-5 w-5" />
-                <span className="text-[11px] font-semibold">Withdraw</span>
+                <ArrowDownToLine className="h-4 w-4" />
+                <span className="text-[10px] font-semibold">Withdraw</span>
               </Button>
             </div>
 
