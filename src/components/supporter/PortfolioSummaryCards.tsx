@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreakdownSheet';
-import { WalletDetailsSheet } from '@/components/supporter/WalletDetailsSheet';
+import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { hapticTap } from '@/lib/haptics';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Wallet } from 'lucide-react';
@@ -73,7 +73,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
       </div>
 
       {showBreakdown && <InvestmentBreakdownSheet open={showBreakdown} onOpenChange={setShowBreakdown} />}
-      {showWallet && <WalletDetailsSheet open={showWallet} onOpenChange={setShowWallet} walletBalance={walletBalance} />}
+      {showWallet && <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />}
     </>);
 
 }
