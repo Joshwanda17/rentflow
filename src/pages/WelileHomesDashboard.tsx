@@ -378,9 +378,9 @@ Let's build a better future together! 🏡`;
                     <Wallet className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-emerald-800">Pay Rent with Welile Wallet</h3>
+                    <h3 className="font-semibold text-emerald-800">Pay Rent with Rent Money</h3>
                     <p className="text-sm text-emerald-700 mt-1">
-                      Every rent payment through Welile Wallet adds to your home savings. Start building your future today!
+                      Every rent payment through Rent Money adds to your home savings. Start building your future today!
                     </p>
                   </div>
                 </div>
