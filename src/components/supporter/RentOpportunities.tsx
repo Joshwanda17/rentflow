@@ -176,7 +176,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [newOpportunityId, setNewOpportunityId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [filterBy, setFilterBy] = useState<FilterOption>('all_users');
-  const [startingChat, setStartingChat] = useState(false);
+  
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [watchingId, setWatchingId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<Date | null>(getLastSeenAt());
@@ -879,24 +879,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     onFund(opportunity.id, opportunity.rent_amount);
   };
 
-  const handleStartChat = async (tenantId: string) => {
-    setStartingChat(true);
-    try {
-      const { data, error } = await supabase.rpc('create_direct_conversation', {
-        other_user_id: tenantId
-      });
-
-      if (error) throw error;
-
-      toast.success('Chat started!');
-      navigate(`/chat?conversation=${data}`);
-    } catch (error: any) {
-      console.error('Error starting chat:', error);
-      toast.error('Failed to start chat');
-    } finally {
-      setStartingChat(false);
-    }
-  };
 
   const handleViewLandlord = () => {
     setShowDetails(false);
@@ -1954,20 +1936,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                         <Phone className="h-4 w-4" />
                                       </a>
                                     )}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (opportunity.postingAgent?.id) {
-                                          handleStartChat(opportunity.postingAgent.id);
-                                        }
-                                      }}
-                                      disabled={startingChat}
-                                      className="h-8 px-2 text-xs"
-                                    >
-                                      Chat
-                                    </Button>
                                   </div>
                                 </div>
                               )}
@@ -2130,14 +2098,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     Contact Tenant
                   </p>
                   <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleStartChat(selectedOpportunity.tenant_id)}
-                      disabled={startingChat}
-                      className="flex-1 h-14 gap-3 bg-primary hover:bg-primary/90 text-base font-bold touch-manipulation active:scale-95"
-                    >
-                      <MessageCircle className="h-6 w-6" />
-                      Chat in App
-                    </Button>
                     {selectedOpportunity.tenant?.phone && (
                       <>
                         <Button
@@ -2170,15 +2130,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     </p>
                     <div className="flex gap-2">
                       {selectedOpportunity.landlord.user_id ? (
-                        <Button
-                          onClick={() => handleStartChat(selectedOpportunity.landlord!.user_id!)}
-                          disabled={startingChat}
-                          variant="secondary"
-                          className="flex-1 h-14 gap-3 text-base font-bold touch-manipulation active:scale-95"
-                        >
-                          <MessageCircle className="h-6 w-6" />
-                          Chat in App
-                        </Button>
+                        <div className="flex-1 h-14 flex items-center justify-center text-sm text-muted-foreground bg-muted/50 rounded-md">
+                          On platform
+                        </div>
                       ) : (
                         <div className="flex-1 h-14 flex items-center justify-center text-sm text-muted-foreground bg-muted/50 rounded-md">
                           No app account
@@ -2552,14 +2506,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                 <p className="text-sm font-bold text-muted-foreground">Contact Landlord</p>
                 <div className="flex gap-2">
                   {selectedOpportunity.landlord.user_id ? (
-                    <Button
-                      onClick={() => handleStartChat(selectedOpportunity.landlord!.user_id!)}
-                      disabled={startingChat}
-                      className="flex-1 h-14 gap-3 bg-primary hover:bg-primary/90 text-base font-bold touch-manipulation active:scale-95"
-                    >
-                      <MessageCircle className="h-6 w-6" />
-                      Chat in App
-                    </Button>
+                    <div className="flex-1 h-14 flex items-center justify-center text-sm text-muted-foreground bg-muted/50 rounded-md">
+                      On platform
+                    </div>
                   ) : (
                     <div className="flex-1 h-14 flex items-center justify-center text-sm text-muted-foreground bg-muted/50 rounded-md">
                       No app account

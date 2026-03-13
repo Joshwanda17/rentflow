@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, MessageCircle, Settings, Store, Users, FileText, Wallet, Shield, Menu } from 'lucide-react';
+import { Home, Settings, Store, Users, FileText, Wallet, Shield, Menu } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -106,12 +106,10 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
     if (currentRole === 'supporter') {
       return [...baseItems,
         { href: '/marketplace', icon: Store, label: 'Shop', active: currentPath === '/marketplace' },
-        { href: '/chat', icon: MessageCircle, label: 'Chat', active: currentPath === '/chat' },
       ];
     }
     return [...baseItems,
       { href: '/marketplace', icon: Store, label: 'Shop', active: currentPath === '/marketplace' },
-      { href: '/chat', icon: MessageCircle, label: 'Chat', active: currentPath === '/chat' },
       { href: '/referrals', icon: Users, label: 'Invite', active: currentPath === '/referrals' },
     ];
   };
