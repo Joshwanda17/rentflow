@@ -663,14 +663,16 @@ export default function UserProfilesTable() {
     }
   };
 
-  const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
-    { value: 'all', label: 'All', count: users.length },
-    { value: 'tenant', label: 'Tenants', count: users.filter(u => u.roles.includes('tenant')).length },
-    { value: 'agent', label: 'Agents', count: users.filter(u => u.roles.includes('agent')).length },
-    { value: 'supporter', label: 'Supporters', count: users.filter(u => u.roles.includes('supporter')).length },
-    { value: 'landlord', label: 'Landlords', count: users.filter(u => u.roles.includes('landlord')).length },
-    { value: 'manager', label: 'Managers', count: users.filter(u => u.roles.includes('manager')).length },
+  const roleFilters: { value: RoleFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'tenant', label: 'Tenants' },
+    { value: 'agent', label: 'Agents' },
+    { value: 'supporter', label: 'Supporters' },
+    { value: 'landlord', label: 'Landlords' },
+    { value: 'manager', label: 'Managers' },
   ];
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   if (loading) {
     return (
