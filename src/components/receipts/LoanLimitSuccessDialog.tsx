@@ -102,7 +102,7 @@ export function LoanLimitSuccessDialog({
           <div className="space-y-1">
             <h2 className="text-xl font-bold">Receipt Submitted!</h2>
             <p className="text-sm text-muted-foreground">
-              Your loan limit is increasing
+              Your rent access limit is increasing
             </p>
           </div>
 
