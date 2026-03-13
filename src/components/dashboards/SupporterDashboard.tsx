@@ -448,11 +448,7 @@ export default function SupporterDashboard({
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
 
-            {/* ═══ WELILE AI CREDIT REQUESTS ═══ */}
-            <CreditRequestsFeed
-              isLocked={!effectiveHasAccepted}
-              onLockedClick={() => setShowAgreementModal(true)}
-            />
+            {/* Credit Requests moved to More menu */}
 
             {/* ═══ CAPITAL OPPORTUNITY CARD ═══ */}
             <OpportunitySummaryCard />
@@ -515,6 +511,9 @@ export default function SupporterDashboard({
         onAddInvestment={() => setShowPaymentPartners(true)}
         onOpenCalculator={() => setShowCalculator(true)}
         onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
+        showCreditRequests
+        isLocked={!effectiveHasAccepted}
+        onLockedClick={() => setShowAgreementModal(true)}
       />
 
 

@@ -15,11 +15,13 @@ import {
   Store,
   Wallet,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Separator } from '@/components/ui/separator';
+import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 
 interface SupporterMenuDrawerProps {
   open: boolean;
@@ -27,6 +29,9 @@ interface SupporterMenuDrawerProps {
   onAddInvestment: () => void;
   onOpenCalculator: () => void;
   onViewAgreement: () => void;
+  showCreditRequests?: boolean;
+  isLocked?: boolean;
+  onLockedClick?: () => void;
 }
 
 interface MenuItem {
@@ -50,6 +55,9 @@ export function SupporterMenuDrawer({
   onAddInvestment,
   onOpenCalculator,
   onViewAgreement,
+  showCreditRequests,
+  isLocked,
+  onLockedClick,
 }: SupporterMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -220,6 +228,20 @@ export function SupporterMenuDrawer({
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
               <div className="p-4 space-y-6">
+                {/* Welile AI Credit Requests */}
+                {showCreditRequests && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-1.5">
+                      <Zap className="h-3.5 w-3.5 text-primary" />
+                      Welile AI Credit Requests
+                    </h3>
+                    <CreditRequestsFeed
+                      isLocked={isLocked}
+                      onLockedClick={onLockedClick}
+                    />
+                    <Separator className="mt-4" />
+                  </div>
+                )}
                 {menuSections.map((section, sectionIndex) => (
                   <div key={section.title}>
                     <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
