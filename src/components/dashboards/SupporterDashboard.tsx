@@ -511,6 +511,9 @@ export default function SupporterDashboard({
         onAddInvestment={() => setShowPaymentPartners(true)}
         onOpenCalculator={() => setShowCalculator(true)}
         onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
+        showCreditRequests
+        isLocked={!effectiveHasAccepted}
+        onLockedClick={() => setShowAgreementModal(true)}
       />
 
 
