@@ -47,7 +47,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
-import StartChatButton from '@/components/chat/StartChatButton';
+// Chat feature removed
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import UserRentSection from './user-details/UserRentSection';
