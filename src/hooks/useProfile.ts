@@ -13,6 +13,8 @@ interface Profile {
   is_frozen?: boolean;
   frozen_reason?: string | null;
   territory?: string | null;
+  is_seller?: boolean;
+  seller_application_status?: string | null;
 }
 // Module-level cache to deduplicate across component instances
 let profileCache: { data: Profile; userId: string; timestamp: number } | null = null;
