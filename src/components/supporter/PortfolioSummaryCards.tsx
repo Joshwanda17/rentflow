@@ -17,7 +17,7 @@ interface PortfolioSummaryCardsProps {
 export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance = 0, totalReturn = 0 }: PortfolioSummaryCardsProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
-  const { formatAmount } = useCurrency();
+  const { formatAmount, formatAmountCompact } = useCurrency();
 
   const investmentBasedHouses = rentSecured > 0 ? Math.max(1, Math.floor(rentSecured / 300000)) : 0;
   const displayHouses = Math.max(housesFunded, investmentBasedHouses);
