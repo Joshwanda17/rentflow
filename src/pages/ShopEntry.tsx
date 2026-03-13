@@ -179,7 +179,7 @@ export default function ShopEntry() {
           transition={{ delay: 0.4 }}
           className="space-y-4"
         >
-          <h3 className="font-semibold text-center text-muted-foreground">How Shopping Loans Work</h3>
+          <h3 className="font-semibold text-center text-muted-foreground">How Shopping Access Works</h3>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="p-3 rounded-xl bg-muted/50">
               <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">1</div>
