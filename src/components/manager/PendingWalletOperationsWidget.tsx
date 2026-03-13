@@ -313,6 +313,26 @@ export function PendingWalletOperationsWidget() {
                     </span>
                   </div>
 
+                  {/* Currency selector for partner investments */}
+                  {op.category === 'supporter_facilitation_capital' && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Partner sees:</span>
+                      <Select
+                        value={currencyOverrides[op.id] || 'UGX'}
+                        onValueChange={(val) => setCurrencyOverrides(prev => ({ ...prev, [op.id]: val }))}
+                      >
+                        <SelectTrigger className="h-8 w-24 text-xs font-bold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_CURRENCIES.map(c => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
                     <Button
                       size="sm"
