@@ -9,12 +9,6 @@ interface DuplicatePhoneData {
   refetch: () => Promise<void>;
 }
 
-// Normalize phone to last 9 digits for comparison
-const normalizePhone = (phone: string): string => {
-  const digits = phone.replace(/\D/g, '');
-  return digits.slice(-9);
-};
-
 export function useDuplicatePhoneUsers(): DuplicatePhoneData {
   const [duplicateUserIds, setDuplicateUserIds] = useState<Set<string>>(new Set());
   const [duplicateCount, setDuplicateCount] = useState(0);
@@ -24,52 +18,34 @@ export function useDuplicatePhoneUsers(): DuplicatePhoneData {
   const fetchDuplicates = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, phone');
+      // Use server-side function — scales to millions of users
+      const { data, error } = await supabase.rpc('find_duplicate_phones');
 
       if (error) {
-        console.error('Error fetching profiles for duplicate check:', error);
+        console.error('Error detecting duplicate phones:', error);
         return;
       }
 
-      if (!profiles || profiles.length === 0) {
+      if (!data || data.length === 0) {
         setDuplicateUserIds(new Set());
         setDuplicateCount(0);
         setDuplicateGroups(new Map());
         return;
       }
 
-      // Group users by normalized phone number
-      const phoneGroups = new Map<string, string[]>();
-      
-      profiles.forEach(profile => {
-        if (!profile.phone) return;
-        
-        const normalized = normalizePhone(profile.phone);
-        if (normalized.length < 9) return; // Skip invalid phones
-        
-        const existing = phoneGroups.get(normalized) || [];
-        existing.push(profile.id);
-        phoneGroups.set(normalized, existing);
-      });
-
-      // Find duplicates (groups with more than 1 user)
       const duplicates = new Set<string>();
-      const duplicateGroupsMap = new Map<string, string[]>();
+      const groupsMap = new Map<string, string[]>();
       let count = 0;
 
-      phoneGroups.forEach((userIds, phone) => {
-        if (userIds.length > 1) {
-          userIds.forEach(id => duplicates.add(id));
-          duplicateGroupsMap.set(phone, userIds);
-          count += userIds.length;
-        }
+      data.forEach((row: { normalized_phone: string; user_ids: string[]; user_count: number }) => {
+        row.user_ids.forEach(id => duplicates.add(id));
+        groupsMap.set(row.normalized_phone, row.user_ids);
+        count += row.user_count;
       });
 
       setDuplicateUserIds(duplicates);
       setDuplicateCount(count);
-      setDuplicateGroups(duplicateGroupsMap);
+      setDuplicateGroups(groupsMap);
     } catch (err) {
       console.error('Error detecting duplicate phones:', err);
     } finally {
