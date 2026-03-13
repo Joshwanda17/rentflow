@@ -507,42 +507,8 @@ export default function UserProfilesTable() {
     }
   };
 
-  const sortUsers = (usersToSort: UserWithRating[]): UserWithRating[] => {
-    return [...usersToSort].sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'oldest':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'name_asc':
-          return a.full_name.localeCompare(b.full_name);
-        case 'name_desc':
-          return b.full_name.localeCompare(a.full_name);
-        case 'rating_high':
-          return (b.average_rating || 0) - (a.average_rating || 0);
-        case 'rating_low':
-          return (a.average_rating || 0) - (b.average_rating || 0);
-        default:
-          return 0;
-      }
-    });
-  };
-
-  const filteredUsers = sortUsers(users.filter(u => {
-    const matchesSearch = 
-      u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phone.includes(searchTerm);
-    
-    const matchesRole = roleFilter === 'all' || u.roles.includes(roleFilter);
-    
-    const matchesVerification = 
-      verificationFilter === 'all' || 
-      (verificationFilter === 'verified' && u.verified) ||
-      (verificationFilter === 'pending' && !u.verified);
-    
-    return matchesSearch && matchesRole && matchesVerification;
-  }));
+  // Server-side handles sorting/filtering — just use users directly
+  const filteredUsers = users;
 
   const handleApproveUser = async (userId: string, userName: string, e: React.MouseEvent) => {
     e.stopPropagation();
