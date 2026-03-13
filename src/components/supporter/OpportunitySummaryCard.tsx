@@ -58,6 +58,9 @@ export function OpportunitySummaryCard() {
           <p className="text-xl sm:text-3xl font-black text-foreground tracking-tight leading-none truncate">
             {formatAmount(summary.total_rent_requested)}
           </p>
+          <p className="mt-2 text-[11px] font-semibold italic bg-gradient-to-r from-[hsl(270,80%,60%)] to-[hsl(300,70%,55%)] bg-clip-text text-transparent tracking-wide">
+            ✨ Welile is turning rent into an asset
+          </p>
         </div>
 
         {/* Key metrics row */}
