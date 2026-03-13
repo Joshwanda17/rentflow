@@ -1,10 +1,6 @@
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Phone } from 'lucide-react';
-import { useChat } from '@/hooks/useChat';
+import { Phone } from 'lucide-react';
 import { WhatsAppRequestButton } from './WhatsAppRequestButton';
-import { hapticTap } from '@/lib/haptics';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface ContactActionsBarProps {
@@ -24,37 +20,10 @@ export function ContactActionsBar({
   className,
   compact = false
 }: ContactActionsBarProps) {
-  const navigate = useNavigate();
-  const { startConversation } = useChat();
-  const [startingChat, setStartingChat] = useState(false);
-
-  const handleStartChat = async () => {
-    hapticTap();
-    setStartingChat(true);
-    
-    const conversationId = await startConversation(userId);
-    if (conversationId) {
-      navigate(`/chat?conversation=${conversationId}`);
-    }
-    
-    setStartingChat(false);
-  };
 
   if (compact) {
     return (
       <div className={cn("flex items-center gap-1", className)}>
-        {/* In-App Chat - Primary Action */}
-        <Button
-          variant="default"
-          size="icon"
-          onClick={handleStartChat}
-          disabled={startingChat}
-          className="h-9 w-9 bg-primary hover:bg-primary/90"
-          title="Chat in app"
-        >
-          <MessageCircle className="h-4 w-4" />
-        </Button>
-
         {/* WhatsApp Request */}
         <WhatsAppRequestButton
           targetUserId={userId}
@@ -83,19 +52,6 @@ export function ContactActionsBar({
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      {/* In-App Chat - Primary Action */}
-      <Button
-        variant="default"
-        size={showLabels ? "default" : "icon"}
-        onClick={handleStartChat}
-        disabled={startingChat}
-        className="bg-primary hover:bg-primary/90"
-        title="Chat in app"
-      >
-        <MessageCircle className="h-4 w-4" />
-        {showLabels && <span className="ml-2">{startingChat ? 'Starting...' : 'Chat'}</span>}
-      </Button>
-
       {/* WhatsApp Request */}
       <WhatsAppRequestButton
         targetUserId={userId}

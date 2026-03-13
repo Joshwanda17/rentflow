@@ -1731,7 +1731,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       <WhatsAppPhoneLink phone={user.phone} />
                     </div>
                     <div className="flex items-center gap-3 md:col-span-2">
-                      <StartChatButton userId={user.id} userName={user.full_name} variant="default" className="w-full md:w-auto" />
+                      
                     </div>
                   </CardContent>
                 </Card>
