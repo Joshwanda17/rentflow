@@ -30,7 +30,7 @@ export default function PartnerWalletWidget({
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Wallet className="w-5 h-5 text-emerald-600" />
-              Wallet Overview
+              Rent Money
             </CardTitle>
             <WelileAITrigger />
           </div>

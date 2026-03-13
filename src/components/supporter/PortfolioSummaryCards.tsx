@@ -27,7 +27,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
         <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/[0.06] pointer-events-none" />
 
         <div className="relative z-10 space-y-4">
-          {/* Wallet Balance — Hero */}
+          {/* Rent Money — Hero */}
           <button
             onClick={() => { hapticTap(); setShowWallet(true); }}
             className="w-full text-left min-h-[44px] group"

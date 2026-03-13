@@ -34,7 +34,7 @@ export default function TenantPaymentsWidget({
           {/* Balances */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-background/50 rounded-lg">
-              <p className="text-xs text-muted-foreground">Wallet Balance</p>
+              <p className="text-xs text-muted-foreground">Rent Money</p>
               <p className="text-lg font-bold">{formatCurrency(walletBalance, 'UGX')}</p>
             </div>
             <div className="p-3 bg-background/50 rounded-lg">

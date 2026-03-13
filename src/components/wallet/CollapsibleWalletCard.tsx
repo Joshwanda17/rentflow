@@ -108,7 +108,7 @@ export function CollapsibleWalletCard() {
                 <Wallet className="h-4 w-4 text-primary" />
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground">Wallet Balance</span>
+                <span className="font-semibold text-foreground">Rent Money</span>
                 {!loading && wallet && (
                   <span className="text-sm font-bold text-primary">
                     {wallet.balance >= 1000000 

@@ -149,7 +149,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               </div>
               <div className="flex-1 text-left min-w-0">
                 <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-                <p className="text-sm text-muted-foreground">Wallet Balance</p>
+                <p className="text-sm text-muted-foreground">Rent Money</p>
               </div>
             </motion.button>
 
