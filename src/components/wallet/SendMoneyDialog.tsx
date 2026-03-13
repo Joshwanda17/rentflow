@@ -259,16 +259,40 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 <motion.div variants={itemVariants} className="space-y-2">
                   <Label htmlFor="description" className="flex items-center gap-2">
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    Description (Optional)
+                    What's this payment for?
                   </Label>
                   <Textarea
                     id="description"
-                    placeholder="What's this for?"
+                    placeholder="Type e.g. food, boda, school fees..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="bg-background/50 border-border/50 focus:border-primary/50 transition-all resize-none"
                     rows={2}
                   />
+                  <AnimatePresence mode="popLayout">
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {filteredCategories.map((cat) => (
+                        <motion.button
+                          key={cat.label}
+                          type="button"
+                          layout
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                          onClick={() => setDescription(cat.label)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all active:scale-95 ${
+                            description.toLowerCase() === cat.label.toLowerCase()
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-muted/50 text-foreground border-border/50 hover:bg-muted'
+                          }`}
+                        >
+                          <cat.icon className="h-3.5 w-3.5" />
+                          {cat.label}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </AnimatePresence>
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
