@@ -117,7 +117,33 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   <div className="p-2 rounded-xl bg-primary-foreground/15 backdrop-blur-sm">
                     <Wallet className="h-5 w-5" />
                   </div>
-                  <span>Rent Money</span>
+                  <div className="flex flex-col items-start">
+                    <span>Rent Money</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {profile?.phone ? (
+                        <>
+                          {(() => {
+                            const phone = profile.phone;
+                            const isMTN = /^(\+?256)?0?(77|78|76)/.test(phone);
+                            const isAirtel = /^(\+?256)?0?(75|70|74)/.test(phone);
+                            return (
+                              <>
+                                {isMTN && (
+                                  <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[8px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
+                                )}
+                                {isAirtel && (
+                                  <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[8px] font-black text-white leading-none">A</span>
+                                )}
+                              </>
+                            );
+                          })()}
+                          <span className="text-[11px] font-medium opacity-80">{profile.phone}</span>
+                        </>
+                      ) : (
+                        <span className="text-[11px] font-medium opacity-60 italic">No number linked</span>
+                      )}
+                    </div>
+                  </div>
                 </SheetTitle>
                 <div className="flex items-center gap-2">
                   <Button 
