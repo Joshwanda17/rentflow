@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Separator } from '@/components/ui/separator';
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
+import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
+import React from 'react';
 
 interface SupporterMenuDrawerProps {
   open: boolean;
