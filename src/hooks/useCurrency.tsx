@@ -108,6 +108,19 @@ interface CurrencyContextType {
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'welile-currency';
+const PHONE_CURRENCY_SET_KEY = 'welile-phone-currency-set';
+
+// Map phone prefixes to currency codes
+const phonePrefixToCurrency: Record<string, string> = {
+  '+256': 'UGX', // Uganda
+  '+254': 'KES', // Kenya
+  '+255': 'TZS', // Tanzania
+  '+250': 'RWF', // Rwanda
+  '+251': 'ETB', // Ethiopia
+  '+234': 'NGN', // Nigeria
+  '+233': 'GHS', // Ghana
+  '+27': 'ZAR',  // South Africa
+};
 
 // Detect currency based on browser locale/timezone
 const detectUserCurrency = (): Currency => {
