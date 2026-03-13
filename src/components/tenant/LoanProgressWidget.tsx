@@ -165,10 +165,10 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
                 <div className="flex items-start justify-between mb-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-foreground">
-                      From {loan.lender_name}
+                      Supported by {loan.lender_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {loan.interest_rate}% interest
+                      {loan.interest_rate}% service fee
                     </p>
                   </div>
                   <Badge variant={dueDateStatus.variant}>
