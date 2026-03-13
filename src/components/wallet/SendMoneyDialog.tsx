@@ -56,6 +56,32 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const [success, setSuccess] = useState(false);
   const [isFirstTx, setIsFirstTx] = useState(false);
 
+  const categories = [
+    { icon: UtensilsCrossed, label: 'Food', keywords: ['food', 'eat', 'lunch', 'dinner', 'breakfast', 'meal', 'chakula'] },
+    { icon: ShoppingCart, label: 'Groceries', keywords: ['groc', 'shop', 'market', 'buy', 'sugar', 'rice', 'soap'] },
+    { icon: Fuel, label: 'Fuel', keywords: ['fuel', 'petrol', 'diesel', 'gas', 'station'] },
+    { icon: Car, label: 'Transport', keywords: ['transport', 'taxi', 'fare', 'travel', 'trip', 'matatu'] },
+    { icon: Bike, label: 'Boda Boda', keywords: ['boda', 'bike', 'motorcycle', 'pikipiki', 'ride'] },
+    { icon: Hotel, label: 'Hotel', keywords: ['hotel', 'lodge', 'room', 'stay', 'accommodation', 'guest'] },
+    { icon: Stethoscope, label: 'Clinic', keywords: ['clinic', 'hospital', 'doctor', 'medical', 'health', 'medicine', 'drug'] },
+    { icon: Wrench, label: 'Mechanic', keywords: ['mechanic', 'repair', 'fix', 'garage', 'service', 'car'] },
+    { icon: Coffee, label: 'Restaurant', keywords: ['restaurant', 'cafe', 'coffee', 'drink', 'bar'] },
+    { icon: Zap, label: 'Electricity', keywords: ['electric', 'power', 'yaka', 'umeme', 'light', 'token'] },
+    { icon: Droplets, label: 'Water', keywords: ['water', 'nwsc', 'bill'] },
+    { icon: Scissors, label: 'Salon', keywords: ['salon', 'hair', 'barber', 'cut', 'beauty', 'nails'] },
+    { icon: BookOpen, label: 'School', keywords: ['school', 'fees', 'tuition', 'education', 'books', 'uniform'] },
+    { icon: Baby, label: 'Kids', keywords: ['kid', 'child', 'baby', 'diaper', 'milk'] },
+    { icon: Shirt, label: 'Clothes', keywords: ['cloth', 'shirt', 'dress', 'wear', 'shoes'] },
+  ];
+
+  const filteredCategories = description.trim()
+    ? categories.filter(cat => 
+        cat.keywords.some(kw => description.toLowerCase().includes(kw)) ||
+        cat.label.toLowerCase().includes(description.toLowerCase())
+      )
+    : categories.slice(0, 8); // show top 8 by default
+  const [isFirstTx, setIsFirstTx] = useState(false);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
