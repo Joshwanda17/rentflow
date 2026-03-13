@@ -444,28 +444,12 @@ export default function SupporterDashboard({
 
           {/* Credit Access moved to menu drawer */}
 
-          {/* ═══ RENT CATEGORIES ═══ */}
+          {/* Rent Categories & Credit Requests moved to More menu */}
+
+          {/* ═══ CAPITAL OPPORTUNITY CARD ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-
-            {/* Credit Requests moved to More menu */}
-
-            {/* ═══ CAPITAL OPPORTUNITY CARD ═══ */}
             <OpportunitySummaryCard />
-
-            <RentCategoryFeed
-              onFundCategory={(cat) => {
-                if (!effectiveHasAccepted) {
-                  setShowAgreementModal(true);
-                  return;
-                }
-                setSelectedPackageCategory(cat);
-                setShowPackageSheet(true);
-              }}
-              isLocked={!effectiveHasAccepted}
-              onLockedClick={() => setShowAgreementModal(true)}
-              onRefreshRef={opportunitiesRefreshRef}
-            />
           </div>
 
           {/* ═══ MY FUNDED HOUSES (collapsible) ═══ */}
@@ -514,6 +498,15 @@ export default function SupporterDashboard({
         showCreditRequests
         isLocked={!effectiveHasAccepted}
         onLockedClick={() => setShowAgreementModal(true)}
+        onFundCategory={(cat) => {
+          if (!effectiveHasAccepted) {
+            setShowAgreementModal(true);
+            return;
+          }
+          setSelectedPackageCategory(cat);
+          setShowPackageSheet(true);
+        }}
+        onRefreshRef={opportunitiesRefreshRef}
       />
 
 

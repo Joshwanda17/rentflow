@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Separator } from '@/components/ui/separator';
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
+import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
+import React from 'react';
 
 interface SupporterMenuDrawerProps {
   open: boolean;
@@ -32,6 +34,8 @@ interface SupporterMenuDrawerProps {
   showCreditRequests?: boolean;
   isLocked?: boolean;
   onLockedClick?: () => void;
+  onFundCategory?: (category: RentCategory) => void;
+  onRefreshRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
 interface MenuItem {
@@ -58,6 +62,8 @@ export function SupporterMenuDrawer({
   showCreditRequests,
   isLocked,
   onLockedClick,
+  onFundCategory,
+  onRefreshRef,
 }: SupporterMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -238,6 +244,21 @@ export function SupporterMenuDrawer({
                     <CreditRequestsFeed
                       isLocked={isLocked}
                       onLockedClick={onLockedClick}
+                    />
+                    <Separator className="mt-4" />
+                  </div>
+                )}
+                {/* Investment Categories */}
+                {onFundCategory && (
+                  <div>
+                    <RentCategoryFeed
+                      onFundCategory={(cat) => {
+                        onOpenChange(false);
+                        onFundCategory(cat);
+                      }}
+                      isLocked={isLocked}
+                      onLockedClick={onLockedClick}
+                      onRefreshRef={onRefreshRef}
                     />
                     <Separator className="mt-4" />
                   </div>
