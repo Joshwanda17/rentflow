@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  X, ShoppingCart, Receipt
+  X, ShoppingCart, Receipt, UtensilsCrossed, Fuel, Car, Hotel,
+  Stethoscope, Wrench, Coffee, Scissors, BookOpen, Zap, Droplets,
+  Baby, PawPrint, Shirt
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
@@ -146,54 +148,27 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               </div>
             </SheetHeader>
 
-            {/* Balance section */}
-            <div className="p-4 pt-6">
-              <div className="flex items-center gap-4">
-                <UserAvatar 
-                  avatarUrl={profile?.avatar_url} 
-                  fullName={profile?.full_name} 
-                  size="lg" 
-                />
-                <div className="flex-1">
-                  <p className="text-sm opacity-80 font-medium">{profile?.full_name || 'User'}</p>
-                  <AnimatedBalance 
-                    value={wallet?.balance || 0} 
-                    className="text-4xl font-bold tracking-tight mt-1 block"
-                  />
-                </div>
-              </div>
-
-              {/* Stats Row */}
+            {/* Balance section — BIG & BOLD */}
+            <div className="p-5 pt-6 pb-8 text-center">
+              <p className="text-sm opacity-70 font-medium mb-1">{profile?.full_name || 'My Balance'}</p>
+              <AnimatedBalance 
+                value={wallet?.balance || 0} 
+                className="text-[clamp(2.2rem,10vw,3.5rem)] font-black tracking-tight block leading-none"
+              />
+              <p className="text-xs opacity-60 mt-2 uppercase tracking-widest font-semibold">Uganda Shillings</p>
+              
+              {/* Mini stats */}
               {transactions.length > 0 && (
-                <motion.div 
-                  className="flex gap-4 mt-6 pt-4 border-t border-primary-foreground/20"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <div className="flex items-center gap-3 flex-1 bg-primary-foreground/10 rounded-xl p-3">
-                    <div className="p-2 rounded-full bg-success/20">
-                      <TrendingUp className="h-4 w-4 text-success" />
-                    </div>
-                    <div>
-                      <p className="text-xs opacity-70 uppercase tracking-wide">Money In</p>
-                      <p className="text-lg font-bold">
-                        {formatCurrency(recentStats.received)}
-                      </p>
-                    </div>
+                <div className="flex gap-3 mt-5 justify-center">
+                  <div className="flex items-center gap-1.5 bg-primary-foreground/10 rounded-full px-3 py-1.5">
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-300" />
+                    <span className="text-xs font-bold">{formatCurrency(recentStats.received)}</span>
                   </div>
-                  <div className="flex items-center gap-3 flex-1 bg-primary-foreground/10 rounded-xl p-3">
-                    <div className="p-2 rounded-full bg-destructive/20">
-                      <TrendingDown className="h-4 w-4 text-destructive" />
-                    </div>
-                    <div>
-                      <p className="text-xs opacity-70 uppercase tracking-wide">Money Out</p>
-                      <p className="text-lg font-bold">
-                        {formatCurrency(recentStats.sent)}
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-1.5 bg-primary-foreground/10 rounded-full px-3 py-1.5">
+                    <TrendingDown className="h-3.5 w-3.5 text-red-300" />
+                    <span className="text-xs font-bold">{formatCurrency(recentStats.sent)}</span>
                   </div>
-                </motion.div>
+                </div>
               )}
             </div>
           </div>
@@ -206,57 +181,74 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               WebkitOverflowScrolling: 'touch'
             }}
           >
-            {/* Action buttons - larger for full screen */}
-            <div className="grid grid-cols-3 gap-2">
-              <Button 
-                onClick={() => { hapticTap(); setSendOpen(true); }} 
-                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all shadow-md hover:shadow-lg"
-              >
-                <Send className="h-5 w-5" />
-                <span className="text-[11px] font-semibold">Send</span>
-              </Button>
-              <Button 
-                onClick={() => { hapticTap(); setFoodMarketOpen(true); }} 
-                variant="secondary"
-                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all bg-success/10 text-success border border-success/20 hover:bg-success/20"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                <span className="text-[11px] font-semibold">Shop</span>
-              </Button>
-              <Button 
-                onClick={() => { hapticTap(); setDepositOpen(true); }} 
-                variant="outline" 
-                className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-border"
-              >
-                <Plus className="h-5 w-5" />
-                <span className="text-[11px] font-semibold">Deposit</span>
-              </Button>
+            {/* === PAY FOR ANYTHING — Big category grid === */}
+            <div>
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Pay for Anything</h3>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { icon: UtensilsCrossed, label: 'Food', color: 'bg-orange-500/15 text-orange-600', action: () => setFoodMarketOpen(true) },
+                  { icon: ShoppingCart, label: 'Groceries', color: 'bg-green-500/15 text-green-600', action: () => setFoodMarketOpen(true) },
+                  { icon: Fuel, label: 'Fuel', color: 'bg-amber-500/15 text-amber-700', action: () => setBillsOpen(true) },
+                  { icon: Car, label: 'Transport', color: 'bg-blue-500/15 text-blue-600', action: () => setSendOpen(true) },
+                  { icon: Hotel, label: 'Hotel', color: 'bg-purple-500/15 text-purple-600', action: () => setSendOpen(true) },
+                  { icon: Stethoscope, label: 'Clinic', color: 'bg-red-500/15 text-red-600', action: () => setSendOpen(true) },
+                  { icon: Wrench, label: 'Mechanic', color: 'bg-slate-500/15 text-slate-600', action: () => setSendOpen(true) },
+                  { icon: Coffee, label: 'Restaurant', color: 'bg-rose-500/15 text-rose-600', action: () => setSendOpen(true) },
+                  { icon: Zap, label: 'Electricity', color: 'bg-yellow-500/15 text-yellow-700', action: () => setBillsOpen(true) },
+                  { icon: Droplets, label: 'Water', color: 'bg-cyan-500/15 text-cyan-600', action: () => setBillsOpen(true) },
+                  { icon: Scissors, label: 'Salon', color: 'bg-pink-500/15 text-pink-600', action: () => setSendOpen(true) },
+                  { icon: BookOpen, label: 'School', color: 'bg-indigo-500/15 text-indigo-600', action: () => setSendOpen(true) },
+                ].map((cat) => (
+                  <button
+                    key={cat.label}
+                    onClick={() => { hapticTap(); cat.action(); }}
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border/50 bg-card hover:shadow-md active:scale-95 transition-all min-h-[72px]"
+                  >
+                    <div className={`p-2.5 rounded-full ${cat.color}`}>
+                      <cat.icon className="h-5 w-5" />
+                    </div>
+                    <span className="text-[10px] font-semibold text-foreground leading-tight">{cat.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Button 
-                onClick={() => { hapticTap(); setRequestOpen(true); }} 
-                variant="outline"
-                className="flex-col gap-2 h-auto py-3 rounded-2xl active:scale-95 transition-all"
-              >
-                <HandCoins className="h-4 w-4" />
-                <span className="text-[10px] font-semibold">Request</span>
-              </Button>
-              <Button 
-                onClick={() => { hapticTap(); setBillsOpen(true); }} 
-                variant="outline" 
-                className="flex-col gap-2 h-auto py-3 rounded-2xl active:scale-95 transition-all"
-              >
-                <Receipt className="h-4 w-4" />
-                <span className="text-[10px] font-semibold">Bills</span>
-              </Button>
-              <Button 
-                onClick={() => { hapticTap(); setWithdrawOpen(true); }} 
-                variant="outline" 
-                className="flex-col gap-2 h-auto py-3 rounded-2xl active:scale-95 transition-all border-warning/50 text-warning hover:bg-warning/10"
-              >
-                <ArrowDownToLine className="h-4 w-4" />
-                <span className="text-[10px] font-semibold">Withdraw</span>
-              </Button>
+
+            {/* Quick wallet actions */}
+            <div>
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Wallet</h3>
+              <div className="grid grid-cols-4 gap-2">
+                <Button 
+                  onClick={() => { hapticTap(); setSendOpen(true); }} 
+                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all shadow-sm"
+                >
+                  <Send className="h-4 w-4" />
+                  <span className="text-[10px] font-semibold">Send</span>
+                </Button>
+                <Button 
+                  onClick={() => { hapticTap(); setDepositOpen(true); }} 
+                  variant="outline" 
+                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="text-[10px] font-semibold">Deposit</span>
+                </Button>
+                <Button 
+                  onClick={() => { hapticTap(); setRequestOpen(true); }} 
+                  variant="outline"
+                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all"
+                >
+                  <HandCoins className="h-4 w-4" />
+                  <span className="text-[10px] font-semibold">Request</span>
+                </Button>
+                <Button 
+                  onClick={() => { hapticTap(); setWithdrawOpen(true); }} 
+                  variant="outline" 
+                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all border-warning/50 text-warning hover:bg-warning/10"
+                >
+                  <ArrowDownToLine className="h-4 w-4" />
+                  <span className="text-[10px] font-semibold">Withdraw</span>
+                </Button>
+              </div>
             </div>
 
             {/* Ledger-based wallet statement */}
