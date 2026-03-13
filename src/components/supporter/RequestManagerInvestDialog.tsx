@@ -119,8 +119,8 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
               {parseFloat(amount) > 0 && (
                 <div className="p-4 rounded-xl bg-success/10 border border-success/20 animate-fade-in">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Expected Monthly Return</span>
-                    <Badge className="bg-success/20 text-success border-0">15% ROI</Badge>
+                    <span className="text-sm text-muted-foreground">Expected Monthly Reward</span>
+                    <Badge className="bg-success/20 text-success border-0">15% Reward</Badge>
                   </div>
                   <p className="text-2xl font-black text-success mt-1">
                     +{formatUGX(estimatedReturn)}
