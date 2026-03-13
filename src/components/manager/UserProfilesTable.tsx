@@ -64,11 +64,16 @@ type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high'
 type VerificationFilter = 'all' | 'verified' | 'pending';
 
 
+const PAGE_SIZE = 50;
+
 export default function UserProfilesTable() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Clear search param from URL after reading it
   useEffect(() => {
@@ -78,6 +83,16 @@ export default function UserProfilesTable() {
       setSearchParams(newParams, { replace: true });
     }
   }, []);
+
+  // Debounce search term for server-side search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(0); // Reset to first page on new search
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
@@ -102,9 +117,10 @@ export default function UserProfilesTable() {
   // Hook to detect duplicate phone numbers
   const { duplicateUserIds, duplicateCount, refetch: refetchDuplicates } = useDuplicatePhoneUsers();
 
+  // Fetch users whenever filters/pagination change
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [debouncedSearch, roleFilter, verificationFilter, sortBy, currentPage]);
 
   // Realtime: instantly show new users when an agent registers a tenant
   useEffect(() => {
