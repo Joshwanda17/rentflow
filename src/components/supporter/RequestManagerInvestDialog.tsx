@@ -215,7 +215,7 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
             <div>
               <h3 className="text-xl font-bold">Request Submitted!</h3>
               <p className="text-muted-foreground mt-1">
-                A manager will process your investment of {formatUGX(parseFloat(amount))} soon.
+                A manager will process your support contribution of {formatUGX(parseFloat(amount))} soon.
               </p>
             </div>
             <p className="text-sm text-success font-semibold">
