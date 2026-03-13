@@ -149,7 +149,21 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               </div>
               <div className="flex-1 text-left min-w-0">
                 <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-                <p className="text-sm text-muted-foreground">Rent Money</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm text-muted-foreground">Rent Money</span>
+                  {profile?.phone && (
+                    <>
+                      <span className="text-muted-foreground/40">·</span>
+                      {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
+                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[7px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
+                      )}
+                      {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
+                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[7px] font-black text-white leading-none">A</span>
+                      )}
+                      <span className="text-xs text-muted-foreground">{profile.phone}</span>
+                    </>
+                  )}
+                </div>
               </div>
             </motion.button>
 
