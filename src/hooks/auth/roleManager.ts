@@ -54,11 +54,11 @@ export async function fetchUserRoles(
       setRoles(userRoles);
       setCachedRoles(userRoles);
       
-      // Respect the role the user activated/signed up as (stored in user_metadata)
+      // Default to supporter (Funder) dashboard for all users
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
-      const defaultForUser = isSupporterOnly ? 'supporter'
-        : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : 'agent';
+      const defaultForUser = (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+        : userRoles.includes('supporter') ? 'supporter'
+        : userRoles[0];
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
       }
