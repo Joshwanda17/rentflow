@@ -125,6 +125,10 @@ export function HouseOpportunities({ onFund, isLocked, onLockedClick, onRefreshR
         </Badge>
       </div>
 
+      <p className="text-center text-sm font-semibold italic bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+        ✨ Welile is turning rent into an asset
+      </p>
+
       <div className="space-y-2">
         {opportunities.map((house, i) => (
           <motion.div
