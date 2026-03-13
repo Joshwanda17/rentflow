@@ -4,7 +4,8 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { Users, Building2, Banknote, TrendingUp, Home, DollarSign, UserCheck, Shield } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, LineChart, Line } from 'recharts';
-import { format, subMonths, startOfMonth } from 'date-fns';
+import { format, subMonths, startOfMonth, startOfDay } from 'date-fns';
+import { Activity, UserPlus, RefreshCw, Share2, ArrowRightLeft } from 'lucide-react';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
