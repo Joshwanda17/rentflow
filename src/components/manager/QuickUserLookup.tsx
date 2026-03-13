@@ -108,6 +108,11 @@ export function QuickUserLookup({ onUserFound }: QuickUserLookupProps) {
       });
 
       setResults(users);
+
+      // Auto-open details if exactly one result
+      if (users.length === 1) {
+        onUserFound(users[0]);
+      }
     } catch (err) {
       console.error('User lookup error:', err);
       toast.error('Search failed');
