@@ -146,7 +146,7 @@ export function InvestmentWithdrawButton() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LogOut className="h-5 w-5 text-primary" />
-              Investment Withdrawal
+              Capital Withdrawal
             </DialogTitle>
           </DialogHeader>
 
