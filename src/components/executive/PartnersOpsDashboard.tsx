@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank } from 'lucide-react';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 
 export function PartnersOpsDashboard() {
   const { data: portfolios, isLoading } = useQuery({
@@ -20,6 +21,7 @@ export function PartnersOpsDashboard() {
   const totalInvested = rows.reduce((s, p) => s + (p.investment_amount || 0), 0);
   const totalROI = rows.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
   const activePortfolios = rows.filter(p => p.status === 'active').length;
+  const pendingApproval = rows.filter(p => p.status === 'pending_approval').length;
 
   const columns: Column<any>[] = [
     { key: 'portfolio_code', label: 'Code' },
@@ -27,7 +29,11 @@ export function PartnersOpsDashboard() {
     { key: 'roi_percentage', label: 'ROI %', render: (v) => `${v}%` },
     { key: 'total_roi_earned', label: 'ROI Earned', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'status', label: 'Status', render: (v) => (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${v === 'active' ? 'bg-green-100 text-green-700' : 'bg-muted'}`}>{String(v)}</span>
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+        v === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 
+        v === 'pending_approval' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-bold animate-pulse' : 
+        'bg-muted'
+      }`}>{String(v === 'pending_approval' ? '⏳ Pending Approval' : v)}</span>
     )},
     { key: 'maturity_date', label: 'Maturity', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
   ];
@@ -36,7 +42,13 @@ export function PartnersOpsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* ═══ PENDING APPROVALS — TOP PRIORITY ═══ */}
+      <PendingWalletOperationsWidget />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {pendingApproval > 0 && (
+          <KPICard title="⚠️ Pending Approval" value={pendingApproval} icon={AlertCircle} loading={isLoading} color="bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-2 ring-amber-500/40" />
+        )}
         <KPICard title="Total Partners" value={rows.length} icon={Shield} loading={isLoading} />
         <KPICard title="Active Portfolios" value={activePortfolios} icon={Wallet} loading={isLoading} color="bg-green-500/10 text-green-600" />
         <KPICard title="Total Invested" value={fmt(totalInvested)} icon={PiggyBank} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
@@ -55,8 +67,10 @@ export function PartnersOpsDashboard() {
           label: 'Status',
           options: [
             { value: 'active', label: 'Active' },
+            { value: 'pending_approval', label: '⏳ Pending Approval' },
             { value: 'pending', label: 'Pending' },
             { value: 'matured', label: 'Matured' },
+            { value: 'cancelled', label: 'Cancelled' },
           ],
         }]}
       />
