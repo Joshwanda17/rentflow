@@ -57,6 +57,7 @@ import UserReferralsSection from './user-details/UserReferralsSection';
 import UserActivityTimeline from './user-details/UserActivityTimeline';
 import UserEcosystemSection from './user-details/UserEcosystemSection';
 import AddBalanceDialog from './AddBalanceDialog';
+import FundEditHistory from './FundEditHistory';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'super_admin' | 'employee' | 'operations' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm';
 
