@@ -238,7 +238,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <p className="text-sm text-muted-foreground">Welile Tenant</p>
               <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
             </div>
-            <AiIdButton variant="compact" />
+            
           </div>
 
           {/* Credit Access Limit */}

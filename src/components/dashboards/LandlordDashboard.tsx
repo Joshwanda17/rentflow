@@ -96,7 +96,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               </div>
               <p className="text-xs text-muted-foreground">Property Owner</p>
             </div>
-            <AiIdButton variant="compact" />
+            
           </div>
 
           {/* Property Stats Row — large touch targets */}
