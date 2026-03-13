@@ -994,7 +994,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
                           <div>
                             {receipt.loan_contribution ? (
                               <p className="text-sm text-success font-medium">
-                                +{formatUGX(receipt.loan_contribution)} loan limit
+                                +{formatUGX(receipt.loan_contribution)} rent access
                               </p>
                             ) : (
                               <p className="text-xs text-muted-foreground">
@@ -1052,7 +1052,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
                                     
                                     toast({ 
                                       title: 'Receipt Verified!', 
-                                      description: `+${formatUGX(contribution)} added to loan limit` 
+                                      description: `+${formatUGX(contribution)} added to rent access limit` 
                                     });
                                     fetchData();
                                   }

@@ -49,18 +49,18 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
     }
 
     if (user.id === product.agent_id) {
-      toast.error('You cannot apply for your own loan product');
+      toast.error('You cannot apply for your own rent plan');
       return;
     }
 
     setLoading(true);
     try {
       // loan_applications table removed
-      toast.error('Loan applications feature is currently unavailable');
+      toast.error('Rent plan applications feature is currently unavailable');
       setLoading(false);
       return;
 
-      toast.success('Loan application submitted! Waiting for manager approval.');
+      toast.success('Rent plan application submitted! Waiting for manager approval.');
       setOpen(false);
       onApply?.();
     } catch (error: any) {

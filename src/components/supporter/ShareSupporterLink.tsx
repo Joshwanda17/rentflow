@@ -24,14 +24,14 @@ export function ShareSupporterLink({ className, variant = 'outline', size = 'def
     ? `${origin}/join?s=${user.id}`
     : `${origin}/become-supporter`;
   
-  const shareMessage = `🎉 Join Welile as a Tenant Supporter and earn 15% monthly returns! 
+  const shareMessage = `🎉 Join Welile as a Tenant Supporter and earn up to 15% monthly platform rewards! 
 
-💰 Help tenants pay rent while growing your investment
-📈 Guaranteed monthly interest payments
+💰 Help tenants pay rent while growing your contribution
+📈 Monthly platform reward payouts
 🔒 Secure and flexible withdrawals
 🎁 Sign up using my link and I earn a bonus!
 
-Start investing today: ${shareLink}`;
+Start supporting tenants today: ${shareLink}`;
 
   const handleShare = async () => {
     if (navigator.share) {

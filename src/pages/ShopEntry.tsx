@@ -52,7 +52,7 @@ export default function ShopEntry() {
           </div>
           <h1 className="text-3xl font-bold">Welile Shop</h1>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Buy, sell, and unlock shopping loans up to <span className="text-primary font-semibold">UGX 30M</span>
+            Buy, sell, and unlock shopping access up to <span className="text-primary font-semibold">UGX 30M</span>
           </p>
         </motion.div>
 
@@ -70,14 +70,14 @@ export default function ShopEntry() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold">Shopping Loan Access</h3>
+                    <h3 className="font-semibold">Shopping Credit Access</h3>
                     <Badge className="bg-success/20 text-success border-success/30 text-xs">
                       <Sparkles className="h-3 w-3 mr-1" />
                       Earn as you shop
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    The more you buy from Welile Shops, the higher your loan limit grows — from <span className="font-semibold text-foreground">UGX 30,000</span> up to <span className="font-semibold text-success">UGX 30,000,000</span>!
+                    The more you buy from Welile Shops, the higher your shopping access grows — from <span className="font-semibold text-foreground">UGX 30,000</span> up to <span className="font-semibold text-success">UGX 30,000,000</span>!
                   </p>
                 </div>
               </div>
@@ -151,12 +151,12 @@ export default function ShopEntry() {
                       <div>
                         <h2 className="text-xl font-bold mb-1">Start Shopping</h2>
                         <p className="text-sm text-muted-foreground">
-                          Browse products and grow your shopping loan limit
+                          Browse products and grow your shopping access
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-xs text-success border-success/30">
                             <TrendingUp className="h-3 w-3 mr-1" />
-                            Build loan access
+                            Build access
                           </Badge>
                           <Badge variant="outline" className="text-xs">
                             UGX 30K - 30M
@@ -179,7 +179,7 @@ export default function ShopEntry() {
           transition={{ delay: 0.4 }}
           className="space-y-4"
         >
-          <h3 className="font-semibold text-center text-muted-foreground">How Shopping Loans Work</h3>
+          <h3 className="font-semibold text-center text-muted-foreground">How Shopping Access Works</h3>
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="p-3 rounded-xl bg-muted/50">
               <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">1</div>
@@ -191,7 +191,7 @@ export default function ShopEntry() {
             </div>
             <div className="p-3 rounded-xl bg-muted/50">
               <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-success/20 flex items-center justify-center text-success font-bold text-sm">3</div>
-              <p className="text-xs text-muted-foreground">Access loans</p>
+              <p className="text-xs text-muted-foreground">Unlock access</p>
             </div>
           </div>
         </motion.div>

@@ -278,7 +278,7 @@ export default function PaymentSchedule() {
                         <div className="flex items-center gap-2">
                           {getStatusIcon(event.type)}
                           <span className="font-medium">
-                            Loan from {event.loan.lender?.full_name || 'Agent'}
+                            Rent facilitation by {event.loan.lender?.full_name || 'Agent'}
                           </span>
                         </div>
                         {getStatusBadge(event.type)}
@@ -297,7 +297,7 @@ export default function PaymentSchedule() {
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Interest Rate</span>
+                          <span className="text-muted-foreground">Service Fee</span>
                           <span>{event.loan.interest_rate}%</span>
                         </div>
                       </div>
@@ -325,7 +325,7 @@ export default function PaymentSchedule() {
             {loans.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No active loans</p>
+                <p>No active rent plans</p>
                 <p className="text-sm">You're all caught up!</p>
               </div>
             ) : (

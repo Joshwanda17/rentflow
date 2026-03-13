@@ -112,7 +112,7 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
             <div className="p-2 rounded-lg bg-gradient-to-br from-warning/20 to-warning/5">
               <Banknote className="h-4 w-4 text-warning" />
             </div>
-            <CardTitle className="text-lg font-semibold">Loan Repayments</CardTitle>
+            <CardTitle className="text-lg font-semibold">Rent Payback</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             {urgentLoans.length > 0 && (
@@ -141,7 +141,7 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
             <p className="text-lg font-bold text-foreground">{formatUGX(totalOwed)}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground font-medium">Active Loans</p>
+            <p className="text-xs text-muted-foreground font-medium">Active Rent Plans</p>
             <p className="text-lg font-bold text-foreground">{loans.length}</p>
           </div>
         </div>
@@ -165,10 +165,10 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
                 <div className="flex items-start justify-between mb-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-foreground">
-                      From {loan.lender_name}
+                      Supported by {loan.lender_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {loan.interest_rate}% interest
+                      {loan.interest_rate}% service fee
                     </p>
                   </div>
                   <Badge variant={dueDateStatus.variant}>
@@ -204,7 +204,7 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
             className="w-full gap-2"
             onClick={() => navigate('/my-loans')}
           >
-            View {loans.length - 3} more loans
+            View {loans.length - 3} more plans
             <ArrowRight className="h-4 w-4" />
           </Button>
         )}

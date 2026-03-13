@@ -44,7 +44,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
     setLoading(true);
     try {
       // loan_products table removed
-      toast.error('Loan products feature is currently unavailable');
+      toast.error('Rent plans feature is currently unavailable');
       setLoading(false);
       return;
 
@@ -62,7 +62,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
       onCreated?.();
     } catch (error: any) {
       console.error('Create error:', error);
-      toast.error(error.message || 'Failed to create loan product');
+      toast.error(error.message || 'Failed to create rent plan');
     } finally {
       setLoading(false);
     }
@@ -187,7 +187,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
           </div>
 
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? 'Creating...' : 'Create Loan Product'}
+            {loading ? 'Creating...' : 'Create Rent Plan'}
           </Button>
         </form>
       </DialogContent>

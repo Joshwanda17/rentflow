@@ -139,7 +139,7 @@ function DepositInstructionsDialog({
               </li>
               <li className="flex items-start gap-2">
                 <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
-                <span><strong className="text-foreground">Multiple Accounts</strong> — Create up to <strong>12 different investment accounts</strong> across categories</span>
+                <span><strong className="text-foreground">Multiple Accounts</strong> — Create up to <strong>12 different support accounts</strong> across categories</span>
               </li>
             </ul>
           </div>
@@ -148,7 +148,7 @@ function DepositInstructionsDialog({
           <div className="rounded-xl border border-border/40 bg-muted/20 p-3 flex items-start gap-2.5">
             <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              All facilitations are verified by a <strong className="text-foreground">Welile Manager</strong> before your portfolio is activated. You'll be notified once approved.
+              All facilitations are verified by a <strong className="text-foreground">Welile Manager</strong> before your support account is activated. You'll be notified once approved.
             </p>
           </div>
 
@@ -394,7 +394,7 @@ function ShareDialog({
             Share PDF via Link
           </Button>
           <p className="text-[10px] text-muted-foreground text-center">
-            Share your investment category details securely with partners.
+            Share your support category details securely with partners.
           </p>
         </div>
       </DialogContent>
@@ -412,10 +412,10 @@ function EmptyState({ onAdd }: {onAdd: () => void;}) {
         <BarChart3 className="h-8 w-8 text-blue-500" />
       </div>
       <h4 className="text-lg font-black text-foreground tracking-tight mb-1.5">
-        No Investment Categories
+        No Support Categories
       </h4>
       <p className="text-sm text-muted-foreground font-medium text-center max-w-[260px] mb-6">
-        Start building your portfolio by adding your first investment category.
+        Start building your support account by adding your first category.
       </p>
       <Button
         onClick={() => {hapticTap();onAdd();}}
@@ -691,7 +691,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
             <Building2 className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="font-black text-foreground text-base tracking-tight">Investment Categories</h3>
+            <h3 className="font-black text-foreground text-base tracking-tight">Support Categories</h3>
             <p className="text-[11px] text-muted-foreground font-medium">
               {hasCategories ?
               `${totalHouses} houses across ${categories.length} tiers` :
@@ -768,10 +768,10 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
               <div className="p-2 rounded-xl bg-blue-500/10">
                 <PlusCircle className="h-5 w-5 text-blue-500" />
               </div>
-              <DialogTitle className="text-lg font-black tracking-tight">Add Investment Category</DialogTitle>
+              <DialogTitle className="text-lg font-black tracking-tight">Add Support Category</DialogTitle>
             </div>
             <p className="text-sm text-muted-foreground font-medium pl-12">
-              Configure a new tier for your investment portfolio.
+              Configure a new tier for your support account.
             </p>
           </DialogHeader>
           <div className="py-8 flex flex-col items-center justify-center text-center">

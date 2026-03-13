@@ -82,7 +82,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
             <div className="p-2 rounded-lg bg-success/10">
               <TrendingUp className="h-5 w-5 text-success" />
             </div>
-            <CardTitle className="text-lg">Top ROI Earners</CardTitle>
+            <CardTitle className="text-lg">Top Reward Earners</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
@@ -111,13 +111,13 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
             <div className="p-2 rounded-lg bg-success/10">
               <TrendingUp className="h-5 w-5 text-success" />
             </div>
-            <CardTitle className="text-lg">Top ROI Earners</CardTitle>
+            <CardTitle className="text-lg">Top Reward Earners</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6">
             <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">No ROI earnings yet. Be the first investor!</p>
+            <p className="text-sm text-muted-foreground">No rewards earned yet. Be the first supporter!</p>
           </div>
         </CardContent>
       </Card>
@@ -133,8 +133,8 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
               <TrendingUp className="h-5 w-5 text-success" />
             </div>
             <div>
-              <CardTitle className="text-lg">Top ROI Earners</CardTitle>
-              <p className="text-xs text-muted-foreground">Ranked by total returns earned</p>
+              <CardTitle className="text-lg">Top Reward Earners</CardTitle>
+              <p className="text-xs text-muted-foreground">Ranked by total rewards earned</p>
             </div>
           </div>
           <Badge variant="outline" className="font-mono text-xs bg-success/10 text-success border-success/30">
@@ -221,7 +221,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
                     +{formatUGX(entry.total_roi_earned)}
                   </p>
                   {!compact && (
-                    <p className="text-[10px] text-muted-foreground">ROI earned</p>
+                    <p className="text-[10px] text-muted-foreground">Rewards earned</p>
                   )}
                 </div>
               </motion.div>
@@ -238,19 +238,19 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
                 <p className="text-lg font-bold">
                   {formatUGX(leaders.reduce((sum, l) => sum + l.total_roi_earned, 0))}
                 </p>
-                <p className="text-[10px] text-muted-foreground">Total ROI Paid</p>
+                <p className="text-[10px] text-muted-foreground">Total Rewards Paid</p>
               </div>
               <div>
                 <Wallet className="h-4 w-4 mx-auto mb-1 text-primary" />
                 <p className="text-lg font-bold">
                   {formatUGX(leaders.reduce((sum, l) => sum + l.total_invested, 0))}
                 </p>
-                <p className="text-[10px] text-muted-foreground">Total Invested</p>
+                <p className="text-[10px] text-muted-foreground">Total Contributed</p>
               </div>
               <div>
                 <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
                 <p className="text-lg font-bold">{leaders.length}</p>
-                <p className="text-[10px] text-muted-foreground">Active Investors</p>
+                <p className="text-[10px] text-muted-foreground">Active Supporters</p>
               </div>
             </div>
           </div>

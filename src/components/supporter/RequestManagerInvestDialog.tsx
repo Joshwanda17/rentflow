@@ -57,7 +57,7 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
         .single();
 
       // manager_investment_requests table removed
-      toast({ title: 'Not Available', description: 'Investment requests feature is currently disabled.', variant: 'destructive' });
+      toast({ title: 'Not Available', description: 'Support requests feature is currently disabled.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -82,7 +82,7 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                Let Manager Invest For You
+                Let Manager Support Tenants For You
               </DialogTitle>
               <DialogDescription>
                 Deposit to Welile's merchant codes and we'll handle everything for you.
@@ -105,7 +105,7 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount to Invest (UGX)</Label>
+                <Label htmlFor="amount">Support Amount (UGX)</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -119,8 +119,8 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
               {parseFloat(amount) > 0 && (
                 <div className="p-4 rounded-xl bg-success/10 border border-success/20 animate-fade-in">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Expected Monthly Return</span>
-                    <Badge className="bg-success/20 text-success border-0">15% ROI</Badge>
+                    <span className="text-sm text-muted-foreground">Expected Monthly Reward</span>
+                    <Badge className="bg-success/20 text-success border-0">15% Reward</Badge>
                   </div>
                   <p className="text-2xl font-black text-success mt-1">
                     +{formatUGX(estimatedReturn)}
@@ -174,9 +174,9 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
                 <p className="font-semibold text-foreground mb-1">What happens next:</p>
                 <ul className="space-y-1 list-disc pl-4">
                   <li>Manager receives your request</li>
-                  <li>They create your investment account</li>
+                  <li>They create your support account</li>
                   <li>They fund tenants on your behalf</li>
-                  <li>You receive 15% monthly ROI</li>
+                  <li>You receive 15% monthly platform rewards</li>
                 </ul>
               </div>
 
@@ -215,11 +215,11 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
             <div>
               <h3 className="text-xl font-bold">Request Submitted!</h3>
               <p className="text-muted-foreground mt-1">
-                A manager will process your investment of {formatUGX(parseFloat(amount))} soon.
+                A manager will process your support contribution of {formatUGX(parseFloat(amount))} soon.
               </p>
             </div>
             <p className="text-sm text-success font-semibold">
-              Expected return: +{formatUGX(estimatedReturn)}/month
+              Expected reward: +{formatUGX(estimatedReturn)}/month
             </p>
             <Button onClick={handleClose} className="w-full h-12 font-bold">
               Done

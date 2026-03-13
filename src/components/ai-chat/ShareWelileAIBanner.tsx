@@ -6,12 +6,12 @@ const SHARE_URL = `${getPublicOrigin()}/ai`;
 
 export default function ShareWelileAIBanner() {
   const handleShare = async () => {
-    const text = `💰 Earn 15% monthly passive income by helping tenants pay rent in Africa!
+    const text = `💰 Earn up to 15% monthly platform rewards by helping tenants pay rent in Africa!
 
 🏠 How it works:
-• You fund a tenant's rent cycle (30-90 days)
-• Welile manages collection & tenant replacement
-• You earn 15% monthly platform rewards
+• You support a tenant's rent cycle (30-90 days)
+• Welile manages collection & tenant placement
+• You earn up to 15% monthly platform rewards
 
 🔒 Your capital is secured by Welile's Operational Assurance — if a tenant defaults, Welile replaces them.
 

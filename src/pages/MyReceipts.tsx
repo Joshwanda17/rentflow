@@ -266,10 +266,10 @@ export default function MyReceipts() {
               <div className="p-2 rounded-lg bg-primary/20">
                 <Wallet className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-xs font-medium text-muted-foreground">Loan Limit</span>
+              <span className="text-xs font-medium text-muted-foreground">Rent Fee Available</span>
             </div>
             <p className="text-2xl font-bold text-primary">{formatUGX(loanLimit?.available_limit || 0)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Available to borrow</p>
+            <p className="text-xs text-muted-foreground mt-1">Available for rent access</p>
           </motion.div>
 
           <motion.div
@@ -345,7 +345,7 @@ export default function MyReceipts() {
                     <div className="flex-1">
                       <CardTitle className="text-xl">Submit Shopping Receipt</CardTitle>
                       <CardDescription className="text-sm mt-1">
-                        Enter your Welile receipt code to grow your loan limit
+                        Enter your Welile receipt code to grow your rent access limit
                       </CardDescription>
                     </div>
                   </div>
@@ -441,7 +441,7 @@ export default function MyReceipts() {
                             <TrendingUp className="h-3.5 w-3.5 text-primary" />
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Loan Limit</p>
+                            <p className="text-xs text-muted-foreground">Rent Access</p>
                             <p className="text-sm font-semibold text-primary">
                               +{claimedAmount ? formatUGX(Math.round(parseFloat(claimedAmount) * 0.2)) : 'UGX 0'}
                             </p>
@@ -496,7 +496,7 @@ export default function MyReceipts() {
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">3</span>
-                      Earn 1% rent discount + grow loan limit
+                      Earn 1% rent discount + grow rent access
                     </li>
                   </ul>
                 </div>
@@ -656,8 +656,8 @@ export default function MyReceipts() {
                     <CreditCard className="h-5 w-5 text-warning" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Active Loans</CardTitle>
-                    <CardDescription>Your current outstanding loans</CardDescription>
+                    <CardTitle className="text-lg">Active Rent Plans</CardTitle>
+                    <CardDescription>Your current outstanding rent facilitations</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -675,7 +675,7 @@ export default function MyReceipts() {
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Repay: {formatUGX(loan.total_repayment)}</span>
-                      <span>From: {loan.lender?.full_name || 'Unknown'}</span>
+                      <span>Supported by: {loan.lender?.full_name || 'Unknown'}</span>
                     </div>
                   </div>
                 ))}

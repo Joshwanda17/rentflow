@@ -321,7 +321,7 @@ export default function RepaymentSection({
             <Card className="glass-card overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Active Loan Progress</CardTitle>
+                  <CardTitle className="text-base">Rent Payback Progress</CardTitle>
                   <Badge variant={paymentStatus === 'on-track' ? 'default' : 'destructive'} className="text-xs">
                     {paymentStatus === 'on-track' ? '✓ On Track' : '⚠ Behind'}
                   </Badge>

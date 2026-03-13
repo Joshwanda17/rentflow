@@ -36,7 +36,7 @@ export function CreateAccountDialog({ open, onOpenChange, onCreateAccount }: Cre
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Investment Account</DialogTitle>
+          <DialogTitle>Create Support Account</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
@@ -46,7 +46,7 @@ export function CreateAccountDialog({ open, onOpenChange, onCreateAccount }: Cre
               id="account-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Rent Portfolio, High Yield..."
+              placeholder="e.g., Rent Support, Monthly Rewards..."
               className="bg-secondary/50"
             />
           </div>
