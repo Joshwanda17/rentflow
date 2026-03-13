@@ -639,7 +639,7 @@ export default function ManagerAccess() {
               </TabsTrigger>
               <TabsTrigger value="deposits" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
                 <Wallet className="h-4 w-4" />
-                Deposits
+                Top-ups
               </TabsTrigger>
               <TabsTrigger value="investments" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
                 <Wallet className="h-4 w-4" />
