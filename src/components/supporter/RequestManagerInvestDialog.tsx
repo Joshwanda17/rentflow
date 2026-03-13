@@ -219,7 +219,7 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
               </p>
             </div>
             <p className="text-sm text-success font-semibold">
-              Expected return: +{formatUGX(estimatedReturn)}/month
+              Expected reward: +{formatUGX(estimatedReturn)}/month
             </p>
             <Button onClick={handleClose} className="w-full h-12 font-bold">
               Done

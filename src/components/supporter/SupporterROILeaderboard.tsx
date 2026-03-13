@@ -250,7 +250,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
               <div>
                 <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
                 <p className="text-lg font-bold">{leaders.length}</p>
-                <p className="text-[10px] text-muted-foreground">Active Investors</p>
+                <p className="text-[10px] text-muted-foreground">Active Supporters</p>
               </div>
             </div>
           </div>

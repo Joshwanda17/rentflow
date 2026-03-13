@@ -204,7 +204,7 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
             className="w-full gap-2"
             onClick={() => navigate('/my-loans')}
           >
-            View {loans.length - 3} more loans
+            View {loans.length - 3} more plans
             <ArrowRight className="h-4 w-4" />
           </Button>
         )}
