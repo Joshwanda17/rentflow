@@ -57,6 +57,7 @@ import UserReferralsSection from './user-details/UserReferralsSection';
 import UserActivityTimeline from './user-details/UserActivityTimeline';
 import UserEcosystemSection from './user-details/UserEcosystemSection';
 import AddBalanceDialog from './AddBalanceDialog';
+import FundEditHistory from './FundEditHistory';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'super_admin' | 'employee' | 'operations' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm';
 
@@ -1758,7 +1759,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
               </TabsContent>
 
               <TabsContent value="activity" className="mt-0">
-                <div className="p-4">
+                <div className="p-4 space-y-6">
+                  <FundEditHistory userId={user.id} userName={user.full_name} />
+                  <Separator />
                   <UserActivityTimeline userId={user.id} userName={user.full_name} />
                 </div>
               </TabsContent>
@@ -2169,7 +2172,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </TabsContent>
 
             <TabsContent value="activity" className="mt-0">
-              <div className="p-6 pt-4">
+              <div className="p-6 pt-4 space-y-6">
+                <FundEditHistory userId={user.id} userName={user.full_name} />
+                <Separator />
                 <UserActivityTimeline userId={user.id} userName={user.full_name} />
               </div>
             </TabsContent>

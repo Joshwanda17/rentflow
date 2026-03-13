@@ -106,6 +106,23 @@ export default function AddBalanceDialog({
 
       if (queueError) throw queueError;
 
+      // Log to audit_logs for manager edit tracking
+      await supabase.from('audit_logs').insert({
+        action_type: 'manager_fund_edit',
+        user_id: user.id,
+        record_id: userId,
+        table_name: 'wallets',
+        metadata: {
+          target_user_name: userName,
+          adjustment_type: type,
+          amount: amountNum,
+          reason: reason.trim(),
+          previous_balance: currentBalance,
+          reference_id: referenceId,
+          manager_email: user.email,
+        },
+      });
+
       toast.success(`Balance adjustment queued for approval (${formatUGX(amountNum)} ${type})`);
       setAmount('');
       setReason('');
