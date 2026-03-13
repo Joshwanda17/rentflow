@@ -56,11 +56,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { operation_id, action, rejection_reason, bulk_ids } = body as {
+    const { operation_id, action, rejection_reason, bulk_ids, display_currency } = body as {
       operation_id?: string;
       action: "approve" | "reject";
       rejection_reason?: string;
       bulk_ids?: string[];
+      display_currency?: string;
     };
 
     // Validate action
