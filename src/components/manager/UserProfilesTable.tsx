@@ -165,67 +165,56 @@ export default function UserProfilesTable() {
     setLoading(true);
 
     try {
-      // Fetch ALL profiles using pagination to bypass 1000-row limit
-      const allProfiles: any[] = [];
-      let offset = 0;
-      const batchSize = 1000;
-      let hasMore = true;
+      // Server-side paginated search — scales to 40M+ users
+      const { data: results, error } = await supabase.rpc('search_users_paginated', {
+        p_search: debouncedSearch,
+        p_role: roleFilter,
+        p_verified: verificationFilter,
+        p_sort: sortBy,
+        p_limit: PAGE_SIZE,
+        p_offset: currentPage * PAGE_SIZE,
+      });
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified, whatsapp_verified')
-          .order('created_at', { ascending: false })
-          .range(offset, offset + batchSize - 1);
-
-        if (error) {
-          console.error('Error fetching profiles:', error);
-          setLoading(false);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          allProfiles.push(...data);
-          offset += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
+      if (error) {
+        console.error('Error fetching users:', error);
+        setLoading(false);
+        return;
       }
 
-      // Fetch ALL roles using pagination (also can exceed 1000)
-      const allRoles: any[] = [];
-      offset = 0;
-      hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('user_id, role, enabled')
-          .range(offset, offset + batchSize - 1);
-
-        if (error) {
-          console.error('Error fetching roles:', error);
-          break;
-        }
-
-        if (data && data.length > 0) {
-          allRoles.push(...data);
-          offset += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
+      if (!results || results.length === 0) {
+        setUsers([]);
+        setTotalCount(0);
+        setLoading(false);
+        return;
       }
 
-      // Fetch ratings
+      // Extract total count from first row
+      setTotalCount(Number(results[0]?.total_count || 0));
+
+      // Fetch roles for this page of users only
+      const userIds = results.map((p: any) => p.id);
+      const { data: roleRows } = await supabase
+        .from('user_roles')
+        .select('user_id, role, enabled')
+        .in('user_id', userIds);
+
+      // Fetch ratings for this page of users only
       const { data: ratingsData } = await supabase
         .from('tenant_ratings')
-        .select('tenant_id, rating');
+        .select('tenant_id, rating')
+        .in('tenant_id', userIds);
+
+      // Build roles lookup map
+      const rolesMap = new Map<string, { role: string; enabled: boolean }[]>();
+      (roleRows || []).forEach((r: any) => {
+        const existing = rolesMap.get(r.user_id) || [];
+        existing.push({ role: r.role, enabled: r.enabled });
+        rolesMap.set(r.user_id, existing);
+      });
 
       // Calculate average ratings per tenant
       const ratingsByTenant = new Map<string, { sum: number; count: number }>();
-      (ratingsData || []).forEach(r => {
+      (ratingsData || []).forEach((r: any) => {
         const current = ratingsByTenant.get(r.tenant_id) || { sum: 0, count: 0 };
         ratingsByTenant.set(r.tenant_id, {
           sum: current.sum + r.rating,
@@ -233,16 +222,8 @@ export default function UserProfilesTable() {
         });
       });
 
-      // Build roles lookup map for performance
-      const rolesMap = new Map<string, { role: string; enabled: boolean }[]>();
-      allRoles.forEach(r => {
-        const existing = rolesMap.get(r.user_id) || [];
-        existing.push({ role: r.role, enabled: r.enabled });
-        rolesMap.set(r.user_id, existing);
-      });
-
       // Combine data
-      const usersWithRatings: UserWithRating[] = allProfiles.map(p => {
+      const usersWithRatings: UserWithRating[] = results.map((p: any) => {
         const userRolesData = rolesMap.get(p.id) || [];
         const userRoles = userRolesData.map(r => r.role);
         const roleEnabledStatus: Record<string, boolean> = {};
@@ -257,10 +238,6 @@ export default function UserProfilesTable() {
           roleEnabledStatus,
           average_rating: ratingInfo ? ratingInfo.sum / ratingInfo.count : null,
           rating_count: ratingInfo?.count || 0,
-          created_at: p.created_at,
-          country: p.country || null,
-          city: p.city || null,
-          country_code: p.country_code || null,
           verified: p.verified || false,
           whatsapp_verified: p.whatsapp_verified || false
         };
