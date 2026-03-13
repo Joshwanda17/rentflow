@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Currency {
   code: string;
@@ -107,6 +108,19 @@ interface CurrencyContextType {
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'welile-currency';
+const PHONE_CURRENCY_SET_KEY = 'welile-phone-currency-set';
+
+// Map phone prefixes to currency codes
+const phonePrefixToCurrency: Record<string, string> = {
+  '+256': 'UGX', // Uganda
+  '+254': 'KES', // Kenya
+  '+255': 'TZS', // Tanzania
+  '+250': 'RWF', // Rwanda
+  '+251': 'ETB', // Ethiopia
+  '+234': 'NGN', // Nigeria
+  '+233': 'GHS', // Ghana
+  '+27': 'ZAR',  // South Africa
+};
 
 // Detect currency based on browser locale/timezone
 const detectUserCurrency = (): Currency => {
@@ -324,6 +338,41 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
       clearInterval(interval);
     };
   }, [fetchLiveRates]);
+
+  // Auto-set currency based on user's phone number after login
+  useEffect(() => {
+    const checkPhoneCurrency = async () => {
+      if (localStorage.getItem(PHONE_CURRENCY_SET_KEY)) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (!profile?.phone) return;
+
+      const phone = profile.phone.replace(/\s/g, '');
+      const normalizedPhone = phone.startsWith('0') ? '+256' + phone.slice(1) : phone;
+
+      for (const [prefix, code] of Object.entries(phonePrefixToCurrency)) {
+        if (normalizedPhone.startsWith(prefix)) {
+          if (!localStorage.getItem(STORAGE_KEY)) {
+            const matchedCurrency = currencies.find(c => c.code === code);
+            if (matchedCurrency) setCurrency(matchedCurrency);
+          }
+          localStorage.setItem(PHONE_CURRENCY_SET_KEY, 'true');
+          return;
+        }
+      }
+      localStorage.setItem(PHONE_CURRENCY_SET_KEY, 'true');
+    };
+
+    checkPhoneCurrency();
+  }, []);
 
   const setCurrency = (newCurrency: Currency) => {
     // Get the currency with live rate
