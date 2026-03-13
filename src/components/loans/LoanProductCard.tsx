@@ -49,7 +49,7 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
     }
 
     if (user.id === product.agent_id) {
-      toast.error('You cannot apply for your own loan product');
+      toast.error('You cannot apply for your own rent plan');
       return;
     }
 
