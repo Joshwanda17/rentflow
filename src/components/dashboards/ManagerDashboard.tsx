@@ -828,7 +828,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const menuItems = [
     { icon: Award, label: 'Productivity', onClick: scrollToProductivity },
     { icon: FileText, label: 'Rent Requests', onClick: () => navigate('/manager-access') },
-    { icon: Banknote, label: 'Loan Applications', onClick: () => navigate('/manager-access?tab=loans') },
+    { icon: Banknote, label: 'Rent Plans', onClick: () => navigate('/manager-access?tab=loans') },
     { icon: ShoppingCart, label: 'Product Orders', onClick: () => navigate('/manager-access?tab=orders') },
     { icon: Users, label: 'User Management', onClick: () => navigate('/manager-access?tab=users'), separator: true },
     { icon: Receipt, label: 'Receipt Management', onClick: () => navigate('/manager-access?tab=receipts') },
