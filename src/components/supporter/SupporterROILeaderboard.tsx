@@ -133,8 +133,8 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
               <TrendingUp className="h-5 w-5 text-success" />
             </div>
             <div>
-              <CardTitle className="text-lg">Top ROI Earners</CardTitle>
-              <p className="text-xs text-muted-foreground">Ranked by total returns earned</p>
+              <CardTitle className="text-lg">Top Reward Earners</CardTitle>
+              <p className="text-xs text-muted-foreground">Ranked by total rewards earned</p>
             </div>
           </div>
           <Badge variant="outline" className="font-mono text-xs bg-success/10 text-success border-success/30">
