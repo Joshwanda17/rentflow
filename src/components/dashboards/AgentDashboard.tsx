@@ -250,6 +250,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </Card>
         )}
 
+        {/* Daily Operations Summary */}
+        <AgentDailyOpsCard />
+
         {/* Visit Tenant Card */}
         <motion.button
           whileTap={{ scale: 0.97 }}
