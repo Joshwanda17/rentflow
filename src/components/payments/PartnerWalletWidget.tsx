@@ -43,7 +43,7 @@ export default function PartnerWalletWidget({
               <p className="text-sm font-bold">{formatCurrency(availableBalance, 'UGX')}</p>
             </div>
             <div className="p-3 bg-background/50 rounded-lg text-center">
-              <p className="text-xs text-muted-foreground">Invested</p>
+              <p className="text-xs text-muted-foreground">Contributed</p>
               <p className="text-sm font-bold text-blue-600">{formatCurrency(lockedBalance, 'UGX')}</p>
             </div>
             <div className="p-3 bg-background/50 rounded-lg text-center">
