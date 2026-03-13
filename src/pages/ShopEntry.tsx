@@ -156,7 +156,7 @@ export default function ShopEntry() {
                         <div className="flex items-center gap-2 mt-2">
                           <Badge variant="outline" className="text-xs text-success border-success/30">
                             <TrendingUp className="h-3 w-3 mr-1" />
-                            Build loan access
+                            Build access
                           </Badge>
                           <Badge variant="outline" className="text-xs">
                             UGX 30K - 30M
