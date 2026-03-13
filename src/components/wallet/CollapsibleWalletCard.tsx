@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Info
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
@@ -43,6 +43,7 @@ export function CollapsibleWalletCard() {
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
@@ -103,27 +104,34 @@ export function CollapsibleWalletCard() {
             onClick={handleToggle}
             className="w-full justify-between h-12 px-4 rounded-xl border-primary/30 bg-primary/5 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="p-1.5 rounded-lg bg-primary/20">
                 <Wallet className="h-4 w-4 text-primary" />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground">Rent Money</span>
-                {!loading && wallet && (
-                  <span className="text-sm font-bold text-primary">
-                    {wallet.balance >= 1000000 
-                      ? `${(wallet.balance / 1000000).toFixed(1)}M` 
-                      : wallet.balance >= 1000 
-                        ? `${(wallet.balance / 1000).toFixed(0)}K` 
-                        : formatCurrency(wallet.balance)}
+              <div className="flex flex-col items-start min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">Rent Money</span>
+                  {!loading && wallet && (
+                    <span className="text-sm font-bold text-primary">
+                      {wallet.balance >= 1000000 
+                        ? `${(wallet.balance / 1000000).toFixed(1)}M` 
+                        : wallet.balance >= 1000 
+                          ? `${(wallet.balance / 1000).toFixed(0)}K` 
+                          : formatCurrency(wallet.balance)}
+                    </span>
+                  )}
+                  {totalPending > 0 && (
+                    <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-warning/20 text-warning">
+                      {totalPending}
+                    </Badge>
+                  )}
+                </div>
+                {profile?.phone && (
+                  <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[160px]">
+                    {profile.phone}
                   </span>
                 )}
               </div>
-              {totalPending > 0 && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-xs bg-warning/20 text-warning">
-                  {totalPending}
-                </Badge>
-              )}
             </div>
             {isOpen ? (
               <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -132,6 +140,35 @@ export function CollapsibleWalletCard() {
             )}
           </Button>
         </CollapsibleTrigger>
+
+        {/* Clickable regulatory disclaimer */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowDisclaimer(!showDisclaimer);
+          }}
+          className="w-full flex items-center justify-center gap-1 mt-1 py-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Info className="h-3 w-3" />
+          <span className="underline underline-offset-2">Licensed & Regulated</span>
+        </button>
+        <AnimatePresence>
+          {showDisclaimer && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="mx-1 mt-1 p-3 rounded-xl bg-muted/50 border border-border/50 text-[10px] text-muted-foreground leading-relaxed space-y-1">
+                <p>📱 <strong>MTN</strong> and <strong>Airtel</strong> are licensed by the <strong>Bank of Uganda</strong> to process payments.</p>
+                <p>🏠 <strong>Welile</strong> is a rent facilitation platform — Welile Technologies helps tenants pay daily rent to their landlord.</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <CollapsibleContent>
           <AnimatePresence>
