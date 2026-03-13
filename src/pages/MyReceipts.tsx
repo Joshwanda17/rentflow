@@ -496,7 +496,7 @@ export default function MyReceipts() {
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">3</span>
-                      Earn 1% rent discount + grow loan limit
+                      Earn 1% rent discount + grow rent access
                     </li>
                   </ul>
                 </div>
