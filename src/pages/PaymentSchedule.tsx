@@ -278,7 +278,7 @@ export default function PaymentSchedule() {
                         <div className="flex items-center gap-2">
                           {getStatusIcon(event.type)}
                           <span className="font-medium">
-                            Loan from {event.loan.lender?.full_name || 'Agent'}
+                            Rent facilitation by {event.loan.lender?.full_name || 'Agent'}
                           </span>
                         </div>
                         {getStatusBadge(event.type)}
