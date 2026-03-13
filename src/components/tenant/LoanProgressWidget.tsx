@@ -141,7 +141,7 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
             <p className="text-lg font-bold text-foreground">{formatUGX(totalOwed)}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground font-medium">Active Loans</p>
+            <p className="text-xs text-muted-foreground font-medium">Active Rent Plans</p>
             <p className="text-lg font-bold text-foreground">{loans.length}</p>
           </div>
         </div>
