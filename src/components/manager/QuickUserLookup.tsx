@@ -58,11 +58,13 @@ export function QuickUserLookup({ onUserFound }: QuickUserLookupProps) {
     setResults([]);
 
     try {
-      // Use the phone normalization pattern — search by last 9 digits
+      // Use exact-match IN query — uses btree index, no full-table scan
+      const phoneFormats = [normalized, `0${normalized}`, `256${normalized}`, `+256${normalized}`];
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, avatar_url, verified, created_at, last_active_at')
-        .or(`phone.ilike.%${normalized}%`);
+        .in('phone', phoneFormats)
+        .limit(20);
 
       if (error) throw error;
 

@@ -69,22 +69,40 @@ export function CEODashboard() {
   const { data: growthMetrics, isLoading: loadingGrowth } = useQuery({
     queryKey: ['exec-ceo-growth-metrics'],
     queryFn: async () => {
+      // Try pre-computed daily stats first (instant, scales to 40M+)
+      const { data: stats } = await supabase
+        .from('daily_platform_stats')
+        .select('*')
+        .eq('stat_date', new Date().toISOString().split('T')[0])
+        .maybeSingle();
+
+      if (stats) {
+        return {
+          activeUsers: stats.active_users_30d,
+          newUsersToday: stats.new_users_today,
+          retention: Number(stats.retention_pct),
+          referralPct: Number(stats.referral_pct),
+          dailyTxn: Number(stats.daily_transaction_volume),
+        };
+      }
+
+      // Fallback: use approximate count for total + exact counts for small queries
       const todayStart = startOfDay(new Date()).toISOString();
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
-      const [totalRes, newTodayRes, activeRes, referralRes, txnRes] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      const [approxTotal, newTodayRes, activeRes, referralRes, txnRes] = await Promise.all([
+        supabase.rpc('get_approximate_user_count'),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('updated_at', thirtyDaysAgo),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).not('referred_by', 'is', null),
         supabase.from('general_ledger').select('amount').gte('transaction_date', todayStart).limit(1000),
       ]);
 
-      const total = totalRes.count || 1;
+      const total = (approxTotal.data as number) || 1;
       const active = activeRes.count || 0;
       const retention = Math.round((active / total) * 100);
       const referralPct = Math.round(((referralRes.count || 0) / total) * 100);
-      const dailyTxn = (txnRes.data || []).reduce((s, r) => s + (r.amount || 0), 0);
+      const dailyTxn = (txnRes.data || []).reduce((s: number, r: any) => s + (r.amount || 0), 0);
 
       return {
         activeUsers: active,

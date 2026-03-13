@@ -64,11 +64,16 @@ type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high'
 type VerificationFilter = 'all' | 'verified' | 'pending';
 
 
+const PAGE_SIZE = 50;
+
 export default function UserProfilesTable() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Clear search param from URL after reading it
   useEffect(() => {
@@ -78,6 +83,16 @@ export default function UserProfilesTable() {
       setSearchParams(newParams, { replace: true });
     }
   }, []);
+
+  // Debounce search term for server-side search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(0); // Reset to first page on new search
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
@@ -102,9 +117,10 @@ export default function UserProfilesTable() {
   // Hook to detect duplicate phone numbers
   const { duplicateUserIds, duplicateCount, refetch: refetchDuplicates } = useDuplicatePhoneUsers();
 
+  // Fetch users whenever filters/pagination change
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [debouncedSearch, roleFilter, verificationFilter, sortBy, currentPage]);
 
   // Realtime: instantly show new users when an agent registers a tenant
   useEffect(() => {
@@ -149,67 +165,56 @@ export default function UserProfilesTable() {
     setLoading(true);
 
     try {
-      // Fetch ALL profiles using pagination to bypass 1000-row limit
-      const allProfiles: any[] = [];
-      let offset = 0;
-      const batchSize = 1000;
-      let hasMore = true;
+      // Server-side paginated search — scales to 40M+ users
+      const { data: results, error } = await supabase.rpc('search_users_paginated', {
+        p_search: debouncedSearch,
+        p_role: roleFilter,
+        p_verified: verificationFilter,
+        p_sort: sortBy,
+        p_limit: PAGE_SIZE,
+        p_offset: currentPage * PAGE_SIZE,
+      });
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified, whatsapp_verified')
-          .order('created_at', { ascending: false })
-          .range(offset, offset + batchSize - 1);
-
-        if (error) {
-          console.error('Error fetching profiles:', error);
-          setLoading(false);
-          return;
-        }
-
-        if (data && data.length > 0) {
-          allProfiles.push(...data);
-          offset += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
+      if (error) {
+        console.error('Error fetching users:', error);
+        setLoading(false);
+        return;
       }
 
-      // Fetch ALL roles using pagination (also can exceed 1000)
-      const allRoles: any[] = [];
-      offset = 0;
-      hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('user_id, role, enabled')
-          .range(offset, offset + batchSize - 1);
-
-        if (error) {
-          console.error('Error fetching roles:', error);
-          break;
-        }
-
-        if (data && data.length > 0) {
-          allRoles.push(...data);
-          offset += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
+      if (!results || results.length === 0) {
+        setUsers([]);
+        setTotalCount(0);
+        setLoading(false);
+        return;
       }
 
-      // Fetch ratings
+      // Extract total count from first row
+      setTotalCount(Number(results[0]?.total_count || 0));
+
+      // Fetch roles for this page of users only
+      const userIds = results.map((p: any) => p.id);
+      const { data: roleRows } = await supabase
+        .from('user_roles')
+        .select('user_id, role, enabled')
+        .in('user_id', userIds);
+
+      // Fetch ratings for this page of users only
       const { data: ratingsData } = await supabase
         .from('tenant_ratings')
-        .select('tenant_id, rating');
+        .select('tenant_id, rating')
+        .in('tenant_id', userIds);
+
+      // Build roles lookup map
+      const rolesMap = new Map<string, { role: string; enabled: boolean }[]>();
+      (roleRows || []).forEach((r: any) => {
+        const existing = rolesMap.get(r.user_id) || [];
+        existing.push({ role: r.role, enabled: r.enabled });
+        rolesMap.set(r.user_id, existing);
+      });
 
       // Calculate average ratings per tenant
       const ratingsByTenant = new Map<string, { sum: number; count: number }>();
-      (ratingsData || []).forEach(r => {
+      (ratingsData || []).forEach((r: any) => {
         const current = ratingsByTenant.get(r.tenant_id) || { sum: 0, count: 0 };
         ratingsByTenant.set(r.tenant_id, {
           sum: current.sum + r.rating,
@@ -217,16 +222,8 @@ export default function UserProfilesTable() {
         });
       });
 
-      // Build roles lookup map for performance
-      const rolesMap = new Map<string, { role: string; enabled: boolean }[]>();
-      allRoles.forEach(r => {
-        const existing = rolesMap.get(r.user_id) || [];
-        existing.push({ role: r.role, enabled: r.enabled });
-        rolesMap.set(r.user_id, existing);
-      });
-
       // Combine data
-      const usersWithRatings: UserWithRating[] = allProfiles.map(p => {
+      const usersWithRatings: UserWithRating[] = results.map((p: any) => {
         const userRolesData = rolesMap.get(p.id) || [];
         const userRoles = userRolesData.map(r => r.role);
         const roleEnabledStatus: Record<string, boolean> = {};
@@ -241,10 +238,6 @@ export default function UserProfilesTable() {
           roleEnabledStatus,
           average_rating: ratingInfo ? ratingInfo.sum / ratingInfo.count : null,
           rating_count: ratingInfo?.count || 0,
-          created_at: p.created_at,
-          country: p.country || null,
-          city: p.city || null,
-          country_code: p.country_code || null,
           verified: p.verified || false,
           whatsapp_verified: p.whatsapp_verified || false
         };
@@ -514,42 +507,13 @@ export default function UserProfilesTable() {
     }
   };
 
-  const sortUsers = (usersToSort: UserWithRating[]): UserWithRating[] => {
-    return [...usersToSort].sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'oldest':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case 'name_asc':
-          return a.full_name.localeCompare(b.full_name);
-        case 'name_desc':
-          return b.full_name.localeCompare(a.full_name);
-        case 'rating_high':
-          return (b.average_rating || 0) - (a.average_rating || 0);
-        case 'rating_low':
-          return (a.average_rating || 0) - (b.average_rating || 0);
-        default:
-          return 0;
-      }
-    });
-  };
+  // Server-side handles sorting/filtering — just use users directly
+  const filteredUsers = users;
 
-  const filteredUsers = sortUsers(users.filter(u => {
-    const matchesSearch = 
-      u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phone.includes(searchTerm);
-    
-    const matchesRole = roleFilter === 'all' || u.roles.includes(roleFilter);
-    
-    const matchesVerification = 
-      verificationFilter === 'all' || 
-      (verificationFilter === 'verified' && u.verified) ||
-      (verificationFilter === 'pending' && !u.verified);
-    
-    return matchesSearch && matchesRole && matchesVerification;
-  }));
+  // Reset to page 0 when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [roleFilter, verificationFilter, sortBy]);
 
   const handleApproveUser = async (userId: string, userName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -699,14 +663,16 @@ export default function UserProfilesTable() {
     }
   };
 
-  const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
-    { value: 'all', label: 'All', count: users.length },
-    { value: 'tenant', label: 'Tenants', count: users.filter(u => u.roles.includes('tenant')).length },
-    { value: 'agent', label: 'Agents', count: users.filter(u => u.roles.includes('agent')).length },
-    { value: 'supporter', label: 'Supporters', count: users.filter(u => u.roles.includes('supporter')).length },
-    { value: 'landlord', label: 'Landlords', count: users.filter(u => u.roles.includes('landlord')).length },
-    { value: 'manager', label: 'Managers', count: users.filter(u => u.roles.includes('manager')).length },
+  const roleFilters: { value: RoleFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'tenant', label: 'Tenants' },
+    { value: 'agent', label: 'Agents' },
+    { value: 'supporter', label: 'Supporters' },
+    { value: 'landlord', label: 'Landlords' },
+    { value: 'manager', label: 'Managers' },
   ];
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   if (loading) {
     return (
@@ -807,13 +773,6 @@ export default function UserProfilesTable() {
                 style={{ minHeight: '48px' }}
               >
                 {filter.label}
-                <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
-                  roleFilter === filter.value 
-                    ? 'bg-primary-foreground/20' 
-                    : 'bg-background/50'
-                }`}>
-                  {filter.count}
-                </span>
               </button>
             ))}
             
@@ -822,9 +781,9 @@ export default function UserProfilesTable() {
             
             {/* Verification Filter Pills */}
             {[
-              { value: 'all' as VerificationFilter, label: 'All', count: users.length },
-              { value: 'verified' as VerificationFilter, label: '✓ OK', count: users.filter(u => u.verified).length },
-              { value: 'pending' as VerificationFilter, label: '⏳ Wait', count: users.filter(u => !u.verified).length },
+              { value: 'all' as VerificationFilter, label: 'All' },
+              { value: 'verified' as VerificationFilter, label: '✓ OK' },
+              { value: 'pending' as VerificationFilter, label: '⏳ Wait' },
             ].map((filter) => (
               <button
                 key={filter.value}
@@ -844,13 +803,6 @@ export default function UserProfilesTable() {
                 style={{ minHeight: '48px' }}
               >
                 {filter.label}
-                <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
-                  verificationFilter === filter.value 
-                    ? 'bg-background/20' 
-                    : 'bg-background/50'
-                }`}>
-                  {filter.count}
-                </span>
               </button>
             ))}
           </div>
@@ -877,7 +829,7 @@ export default function UserProfilesTable() {
 
             <div className="flex items-center gap-3">
               <span className="text-base text-muted-foreground font-bold">
-                {filteredUsers.length}
+                {totalCount > 0 ? `${currentPage * PAGE_SIZE + 1}-${Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} of ${totalCount}` : '0'}
               </span>
               
               {/* Sort Dropdown */}
@@ -1159,6 +1111,33 @@ export default function UserProfilesTable() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 py-4">
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={currentPage === 0}
+                onClick={() => { hapticTap(); setCurrentPage(p => Math.max(0, p - 1)); }}
+                className="h-12 px-6 rounded-xl font-bold touch-manipulation"
+              >
+                ← Previous
+              </Button>
+              <span className="text-base font-bold text-muted-foreground px-3">
+                Page {currentPage + 1} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={currentPage >= totalPages - 1}
+                onClick={() => { hapticTap(); setCurrentPage(p => p + 1); }}
+                className="h-12 px-6 rounded-xl font-bold touch-manipulation"
+              >
+                Next →
+              </Button>
+            </div>
+          )}
         </PullToRefresh>
       </div>
 
