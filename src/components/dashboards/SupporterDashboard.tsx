@@ -21,8 +21,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useWallet } from '@/hooks/useWallet';
-// FloatingShareButton moved to global FloatingToolbar
-// FloatingWalletButton removed — wallet accessed via PortfolioSummaryCards
+import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
