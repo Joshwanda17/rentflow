@@ -196,6 +196,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   </div>
                 </div>
               )}
+              <WalletDisclaimer variant="dark" />
             </div>
           </div>
 
