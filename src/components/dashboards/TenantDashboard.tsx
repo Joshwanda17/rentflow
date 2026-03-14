@@ -11,6 +11,7 @@ import {
   RefreshCw,
   BadgeCheck,
   ArrowDownCircle,
+  Search,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
