@@ -448,6 +448,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               />
             </div>
+            <div>
+              <Label className="text-xs">Village / Zone *</Label>
+              <Input
+                placeholder="e.g. Kikaya Zone B"
+                value={form.village}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => ({ ...f, village: val, lc1_village: val }));
+                  if (val.trim().length >= 3) fetchLc1ForVillage(val);
+                }}
+              />
+            </div>
             <Button
               type="button"
               variant="outline"
