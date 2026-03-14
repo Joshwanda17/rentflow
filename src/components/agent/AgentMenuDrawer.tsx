@@ -37,7 +37,7 @@ import {
   Zap,
   Droplets,
   Phone,
-  CheckCircle2,
+  RefreshCw,
   ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
