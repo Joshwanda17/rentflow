@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { useState as useGeoState } from 'react';
 
 interface ListEmptyHouseDialogProps {
   open: boolean;
