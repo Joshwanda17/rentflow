@@ -50,6 +50,7 @@ export function LandlordMenuDrawer({
   open, 
   onOpenChange, 
   onAddTenant,
+  onViewListedHouses,
 }: LandlordMenuDrawerProps) {
   const navigate = useNavigate();
 
