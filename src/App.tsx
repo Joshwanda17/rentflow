@@ -1,6 +1,7 @@
 // Realtime: enabled
 
 import { lazy, Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -107,6 +108,7 @@ const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const ShareLocation = lazy(() => import('./pages/ShareLocation'));
 const InvestorPortfolioPublic = lazy(() => import('./pages/InvestorPortfolioPublic'));
+const RentMoney = lazy(() => import('./pages/RentMoney'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
@@ -274,6 +276,7 @@ function AppRoutes() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/share-location" element={<ShareLocation />} />
           <Route path="/investor/portfolio/:token" element={<InvestorPortfolioPublic />} />
+          <Route path="/rent-money" element={<RentMoney />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -326,6 +329,7 @@ function DeferredProviders({ children }: { children: ReactNode }) {
 }
 
 const App = () => (
+  <HelmetProvider>
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
@@ -353,5 +357,6 @@ const App = () => (
       </QueryClientProvider>
     </ThemeProvider>
   </ChunkErrorBoundary>
+  </HelmetProvider>
 );
 export default App;
