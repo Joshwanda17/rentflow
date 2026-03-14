@@ -236,25 +236,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <AiIdButton variant="compact" />
         </div>
 
-        <AgentDailyOpsCard />
-
-        {/* Visit Tenant Card */}
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() => { hapticTap(); setVisitDialogOpen(true); }}
-          className="w-full flex items-center gap-4 p-5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all touch-manipulation"
-          style={{ boxShadow: '0 1px 3px 0 hsl(var(--primary) / 0.08)' }}
-        >
-          <div className="p-3 rounded-xl bg-primary/10 shrink-0">
-            <MapPin className="h-7 w-7 text-primary" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-bold text-lg text-foreground">Visit Tenant</p>
-            <p className="text-xs text-muted-foreground">Check in, collect payment & send SMS receipt</p>
-          </div>
-        </motion.button>
-
-        {/* Wallet Button */}
+        {/* Wallet Button — Priority 1 */}
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={handleViewWallet}
@@ -284,6 +266,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         </motion.button>
         <WalletDisclaimer />
+
+        {/* Visit Tenant Card — Priority 2 */}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => { hapticTap(); setVisitDialogOpen(true); }}
+          className="w-full flex items-center gap-4 p-5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all touch-manipulation"
+          style={{ boxShadow: '0 1px 3px 0 hsl(var(--primary) / 0.08)' }}
+        >
+          <div className="p-3 rounded-xl bg-primary/10 shrink-0">
+            <MapPin className="h-7 w-7 text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-lg text-foreground">Visit Tenant</p>
+            <p className="text-xs text-muted-foreground">Check in, collect payment & send SMS receipt</p>
+          </div>
+        </motion.button>
+
+        {/* Daily Ops Report — Priority 3 */}
+        <AgentDailyOpsCard />
 
         {/* Menu Button */}
         <motion.button
