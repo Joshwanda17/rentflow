@@ -291,6 +291,22 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <RentRequestButton userId={user.id} onSuccess={fetchData} />
             </LockedActionTooltip>
 
+            {/* 2.5 AVAILABLE HOUSES — prominent CTA */}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => { hapticTap(); setHousesOpen(true); }}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/10 to-blue-500/10 border-2 border-primary/30 hover:border-primary/50 transition-all touch-manipulation min-h-[72px]"
+            >
+              <div className="p-3 rounded-xl bg-primary/20 shrink-0">
+                <Search className="h-7 w-7 text-primary" />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-bold text-lg">Find a House — Daily Rent</p>
+                <p className="text-sm text-muted-foreground">Browse affordable homes, pay daily</p>
+              </div>
+              <span className="px-2 py-1 text-[10px] font-bold bg-success/20 text-success rounded-full shrink-0">NEW</span>
+            </motion.button>
+
             {/* 3. MENU BUTTON */}
             <motion.button
               whileTap={{ scale: 0.98 }}
