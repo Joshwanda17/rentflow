@@ -184,6 +184,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
 
       if (error) throw error;
 
+      // Save LC1 chairperson to lookup table if new
+      const { error: lc1Error } = await supabase
+        .from('lc1_chairpersons')
+        .upsert(
+          { name: form.lc1_name.trim(), phone: form.lc1_phone.trim(), village: form.lc1_village.trim() },
+          { onConflict: 'phone,village', ignoreDuplicates: true }
+        );
+
+      if (lc1Error) console.warn('LC1 save warning:', lc1Error);
+
       // Upload images if any
       if (houseImages.length > 0 && listing) {
         const urls = await uploadHouseImages(
