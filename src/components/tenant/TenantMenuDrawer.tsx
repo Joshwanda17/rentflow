@@ -57,6 +57,7 @@ export function TenantMenuDrawer({
   onPayWelile,
   onRepaymentSchedule,
   onRentCalculator,
+  onBrowseHouses,
 }: TenantMenuDrawerProps) {
   const navigate = useNavigate();
 
