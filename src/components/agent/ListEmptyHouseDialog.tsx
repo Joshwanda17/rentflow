@@ -93,7 +93,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
         landlordId = landlord?.id || null;
       }
 
-      const { error } = await supabase
+      const { data: listing, error } = await supabase
         .from('house_listings')
         .insert({
           agent_id: user.id,
@@ -117,9 +117,26 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
           has_security: form.has_security,
           has_parking: form.has_parking,
           is_furnished: form.is_furnished,
-        } as any);
+        } as any)
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Upload images if any
+      if (houseImages.length > 0 && listing) {
+        const urls = await uploadHouseImages(
+          user.id,
+          listing.id,
+          houseImages.map(i => i.file)
+        );
+        if (urls.length > 0) {
+          await supabase
+            .from('house_listings')
+            .update({ image_urls: urls } as any)
+            .eq('id', listing.id);
+        }
+      }
 
       toast.success('House listed successfully!', {
         description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day`,
