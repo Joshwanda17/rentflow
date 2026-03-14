@@ -14,6 +14,7 @@ import {
   MapPin,
   ShoppingBag,
   Loader2,
+  Home,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
