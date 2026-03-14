@@ -229,6 +229,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         open={addTenantOpen}
         onOpenChange={setAddTenantOpen}
       />
+      <AvailableHousesSheet open={showListedHouses} onOpenChange={setShowListedHouses} />
 
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} />
