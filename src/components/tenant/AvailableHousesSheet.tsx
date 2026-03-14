@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen } from 'lucide-react';
-import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
+import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
@@ -34,18 +34,9 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
-function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function HouseCard({ listing, distance }: { listing: HouseListing; distance?: number }) {
+function HouseCard({ listing }: { listing: HouseListing }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
+  const dist = listing.distance_km;
 
   return (
     <motion.div
@@ -66,9 +57,9 @@ function HouseCard({ listing, distance }: { listing: HouseListing; distance?: nu
         </div>
         <div className="flex flex-col items-end gap-1">
           <Badge variant="secondary" className="shrink-0 text-[10px]">{categoryLabel}</Badge>
-          {distance !== undefined && distance < 9999 && (
+          {dist !== undefined && dist < 9999 && (
             <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-              ~{distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}
+              ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
             </span>
           )}
         </div>
@@ -122,59 +113,42 @@ function HouseCard({ listing, distance }: { listing: HouseListing; distance?: nu
 
 export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesSheetProps) {
   const geo = useGeolocation(true);
-  const [searchRegion, setSearchRegion] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
 
-  // Auto-detect region from geo city when available
+  // Auto-detect region from geo city
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
       const matched = REGIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
-      if (matched) {
-        setSelectedRegion(matched);
-      }
+      if (matched) setSelectedRegion(matched);
       setGeoDefaultApplied(true);
     }
   }, [geo.city, geo.loading, geoDefaultApplied]);
 
-  const { listings, loading } = useHouseListings({
-    region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
+  // Use PostGIS spatial RPC
+  const { listings, loading } = useNearbyHouses({
+    latitude: geo.latitude,
+    longitude: geo.longitude,
+    radiusKm: selectedRegion !== 'All Regions' ? 200 : 50,
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
-    status: 'available',
+    region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
     limit: 100,
+    enabled: open && !geo.loading,
   });
 
-  // Sort by distance if GPS available, then apply text search
+  // Client-side text filter on already-sorted results
   const filtered = useMemo(() => {
-    let results = listings;
-
-    // Text filter
-    if (searchRegion.trim()) {
-      const q = searchRegion.toLowerCase();
-      results = results.filter(l =>
-        l.region.toLowerCase().includes(q) ||
-        l.address.toLowerCase().includes(q) ||
-        (l.district || '').toLowerCase().includes(q) ||
-        (l.village || '').toLowerCase().includes(q) ||
-        l.title.toLowerCase().includes(q)
-      );
-    }
-
-    // Add distance and sort
-    if (geo.latitude && geo.longitude) {
-      return results
-        .map(l => ({
-          ...l,
-          _dist: l.latitude && l.longitude
-            ? distanceKm(geo.latitude!, geo.longitude!, l.latitude, l.longitude)
-            : 9999,
-        }))
-        .sort((a, b) => a._dist - b._dist);
-    }
-
-    return results.map(l => ({ ...l, _dist: undefined as number | undefined }));
-  }, [listings, searchRegion, geo.latitude, geo.longitude]);
+    if (!searchText.trim()) return listings;
+    const q = searchText.toLowerCase();
+    return listings.filter(l =>
+      l.region.toLowerCase().includes(q) ||
+      l.address.toLowerCase().includes(q) ||
+      (l.district || '').toLowerCase().includes(q) ||
+      l.title.toLowerCase().includes(q)
+    );
+  }, [listings, searchText]);
 
   const hasGPS = !!(geo.latitude && geo.longitude);
 
@@ -189,18 +163,16 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
               : 'Available Houses — Daily Rent'}
           </SheetTitle>
 
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by region, district, or address..."
-              value={searchRegion}
-              onChange={e => setSearchRegion(e.target.value)}
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
               className="pl-10"
             />
           </div>
 
-          {/* Filters */}
           <div className="flex gap-2">
             <Select value={selectedRegion} onValueChange={setSelectedRegion}>
               <SelectTrigger className="flex-1 h-9 text-xs">
@@ -245,11 +217,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 {hasGPS ? ' · sorted by distance' : ''}
               </p>
               {filtered.map(listing => (
-                <HouseCard
-                  key={listing.id}
-                  listing={listing}
-                  distance={hasGPS ? listing._dist : undefined}
-                />
+                <HouseCard key={listing.id} listing={listing} />
               ))}
             </>
           )}
