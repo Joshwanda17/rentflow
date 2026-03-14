@@ -275,6 +275,7 @@ function AppRoutes() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/share-location" element={<ShareLocation />} />
           <Route path="/investor/portfolio/:token" element={<InvestorPortfolioPublic />} />
+          <Route path="/rent-money" element={<RentMoney />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
