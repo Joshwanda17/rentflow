@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen } from 'lucide-react';
 import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
+import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 
@@ -33,7 +34,17 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
-function HouseCard({ listing }: { listing: HouseListing }) {
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function HouseCard({ listing, distance }: { listing: HouseListing; distance?: number }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
 
   return (
@@ -53,7 +64,14 @@ function HouseCard({ listing }: { listing: HouseListing }) {
             </p>
           </div>
         </div>
-        <Badge variant="secondary" className="shrink-0 text-[10px]">{categoryLabel}</Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant="secondary" className="shrink-0 text-[10px]">{categoryLabel}</Badge>
+          {distance !== undefined && distance < 9999 && (
+            <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+              ~{distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Daily Rate — primary price only */}
@@ -69,27 +87,27 @@ function HouseCard({ listing }: { listing: HouseListing }) {
           <DoorOpen className="h-3 w-3" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
         </span>
         {listing.has_water && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 text-xs">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
             <Droplets className="h-3 w-3" /> Water
           </span>
         )}
         {listing.has_electricity && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-xs">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs">
             <Zap className="h-3 w-3" /> Power
           </span>
         )}
         {listing.has_security && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs">
             <ShieldCheck className="h-3 w-3" /> Security
           </span>
         )}
         {listing.has_parking && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 text-xs">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">
             <Car className="h-3 w-3" /> Parking
           </span>
         )}
         {listing.is_furnished && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-600 text-xs">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs">
             <Sofa className="h-3 w-3" /> Furnished
           </span>
         )}
@@ -103,9 +121,22 @@ function HouseCard({ listing }: { listing: HouseListing }) {
 }
 
 export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesSheetProps) {
+  const geo = useGeolocation(true);
   const [searchRegion, setSearchRegion] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
+
+  // Auto-detect region from geo city when available
+  useEffect(() => {
+    if (!geoDefaultApplied && geo.city && !geo.loading) {
+      const matched = REGIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
+      if (matched) {
+        setSelectedRegion(matched);
+      }
+      setGeoDefaultApplied(true);
+    }
+  }, [geo.city, geo.loading, geoDefaultApplied]);
 
   const { listings, loading } = useHouseListings({
     region: selectedRegion !== 'All Regions' ? selectedRegion : undefined,
@@ -114,17 +145,38 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     limit: 100,
   });
 
+  // Sort by distance if GPS available, then apply text search
   const filtered = useMemo(() => {
-    if (!searchRegion.trim()) return listings;
-    const q = searchRegion.toLowerCase();
-    return listings.filter(l => 
-      l.region.toLowerCase().includes(q) ||
-      l.address.toLowerCase().includes(q) ||
-      (l.district || '').toLowerCase().includes(q) ||
-      (l.village || '').toLowerCase().includes(q) ||
-      l.title.toLowerCase().includes(q)
-    );
-  }, [listings, searchRegion]);
+    let results = listings;
+
+    // Text filter
+    if (searchRegion.trim()) {
+      const q = searchRegion.toLowerCase();
+      results = results.filter(l =>
+        l.region.toLowerCase().includes(q) ||
+        l.address.toLowerCase().includes(q) ||
+        (l.district || '').toLowerCase().includes(q) ||
+        (l.village || '').toLowerCase().includes(q) ||
+        l.title.toLowerCase().includes(q)
+      );
+    }
+
+    // Add distance and sort
+    if (geo.latitude && geo.longitude) {
+      return results
+        .map(l => ({
+          ...l,
+          _dist: l.latitude && l.longitude
+            ? distanceKm(geo.latitude!, geo.longitude!, l.latitude, l.longitude)
+            : 9999,
+        }))
+        .sort((a, b) => a._dist - b._dist);
+    }
+
+    return results.map(l => ({ ...l, _dist: undefined as number | undefined }));
+  }, [listings, searchRegion, geo.latitude, geo.longitude]);
+
+  const hasGPS = !!(geo.latitude && geo.longitude);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -132,9 +184,11 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
         <SheetHeader className="px-5 pt-5 pb-3 border-b border-border space-y-3">
           <SheetTitle className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" />
-            Available Houses — Daily Rent
+            {hasGPS && geo.city
+              ? `Houses Near ${geo.city}`
+              : 'Available Houses — Daily Rent'}
           </SheetTitle>
-          
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -188,9 +242,14 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             <>
               <p className="text-xs text-muted-foreground">
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
+                {hasGPS ? ' · sorted by distance' : ''}
               </p>
               {filtered.map(listing => (
-                <HouseCard key={listing.id} listing={listing} />
+                <HouseCard
+                  key={listing.id}
+                  listing={listing}
+                  distance={hasGPS ? listing._dist : undefined}
+                />
               ))}
             </>
           )}

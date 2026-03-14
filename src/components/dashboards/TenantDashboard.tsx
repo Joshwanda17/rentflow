@@ -49,6 +49,7 @@ import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
+import { NearbyHousesPreview } from '@/components/tenant/NearbyHousesPreview';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -248,6 +249,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Credit Access Limit */}
           <CreditAccessCard userId={user.id} />
+
+          {/* Nearby Houses — auto-detected */}
+          <NearbyHousesPreview onViewAll={() => setHousesOpen(true)} />
 
           {/* ═══════════════════════════════════════════════════════════════════
               THREE MAIN ACTION BUTTONS
