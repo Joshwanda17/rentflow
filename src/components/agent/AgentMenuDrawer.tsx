@@ -62,6 +62,8 @@ interface AgentMenuDrawerProps {
   onIssueReceipt?: () => void;
   onViewLandlordMap?: () => void;
   onFindRentals?: () => void;
+  onListEmptyHouse?: () => void;
+  onViewMyListings?: () => void;
 }
 
 interface MenuSection {
