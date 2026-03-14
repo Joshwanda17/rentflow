@@ -80,6 +80,14 @@ export function LandlordMenuDrawer({
           onClick: onAddTenant,
           color: 'text-primary'
         },
+        ...(onViewListedHouses ? [{ 
+          icon: DoorOpen, 
+          label: 'Daily Rent Listings', 
+          description: 'View houses listed for daily rent',
+          onClick: onViewListedHouses,
+          color: 'text-success',
+          badge: 'Daily Rent'
+        } as MenuItem] : []),
         { 
           icon: Users, 
           label: 'My Tenants', 
