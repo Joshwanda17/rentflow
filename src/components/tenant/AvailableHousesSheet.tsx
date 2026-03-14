@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -34,6 +34,46 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
+function HouseImageCarousel({ images, title }: { images: string[] | null; title: string }) {
+  const [idx, setIdx] = useState(0);
+  if (!images || images.length === 0) {
+    return (
+      <div className="w-full h-44 rounded-xl bg-muted flex items-center justify-center">
+        <Home className="h-10 w-10 text-muted-foreground/30" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-44 rounded-xl overflow-hidden bg-muted">
+      <img src={images[idx]} alt={title} className="w-full h-full object-cover" loading="lazy" />
+      {images.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
+            className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
+            className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+            {images.map((_, i) => (
+              <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-white' : 'bg-white/50'}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function HouseCard({ listing }: { listing: HouseListing }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
@@ -42,9 +82,20 @@ function HouseCard({ listing }: { listing: HouseListing }) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm"
+      className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
     >
-      <div className="flex items-start justify-between gap-2">
+      {/* Photo carousel — Booking.com style */}
+      <div className="relative">
+        <HouseImageCarousel images={listing.image_urls} title={listing.title} />
+        {dist !== undefined && dist < 9999 && (
+          <span className="absolute top-2 left-2 text-[10px] font-medium text-white bg-primary/80 px-2 py-0.5 rounded-full">
+            ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
+          </span>
+        )}
+        <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">{categoryLabel}</Badge>
+      </div>
+
+      <div className="p-4 space-y-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-base truncate">{listing.title}</h3>
           <div className="flex items-center gap-1 mt-0.5">
@@ -55,58 +106,50 @@ function HouseCard({ listing }: { listing: HouseListing }) {
             </p>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <Badge variant="secondary" className="shrink-0 text-[10px]">{categoryLabel}</Badge>
-          {dist !== undefined && dist < 9999 && (
-            <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-              ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
+
+        {/* Daily Rate — primary price only */}
+        <div className="p-4 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30">
+          <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Daily Rent</p>
+          <p className="text-3xl font-black text-success leading-none mb-1">{formatUGX(listing.daily_rate)}</p>
+          <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
+        </div>
+
+        {/* Specs */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs">
+            <DoorOpen className="h-3 w-3" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
+          </span>
+          {listing.has_water && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+              <Droplets className="h-3 w-3" /> Water
+            </span>
+          )}
+          {listing.has_electricity && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs">
+              <Zap className="h-3 w-3" /> Power
+            </span>
+          )}
+          {listing.has_security && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs">
+              <ShieldCheck className="h-3 w-3" /> Security
+            </span>
+          )}
+          {listing.has_parking && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">
+              <Car className="h-3 w-3" /> Parking
+            </span>
+          )}
+          {listing.is_furnished && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs">
+              <Sofa className="h-3 w-3" /> Furnished
             </span>
           )}
         </div>
-      </div>
 
-      {/* Daily Rate — primary price only */}
-      <div className="p-4 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30">
-        <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Daily Rent</p>
-        <p className="text-3xl font-black text-success leading-none mb-1">{formatUGX(listing.daily_rate)}</p>
-        <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
-      </div>
-
-      {/* Specs */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs">
-          <DoorOpen className="h-3 w-3" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
-        </span>
-        {listing.has_water && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
-            <Droplets className="h-3 w-3" /> Water
-          </span>
-        )}
-        {listing.has_electricity && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs">
-            <Zap className="h-3 w-3" /> Power
-          </span>
-        )}
-        {listing.has_security && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs">
-            <ShieldCheck className="h-3 w-3" /> Security
-          </span>
-        )}
-        {listing.has_parking && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-xs">
-            <Car className="h-3 w-3" /> Parking
-          </span>
-        )}
-        {listing.is_furnished && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs">
-            <Sofa className="h-3 w-3" /> Furnished
-          </span>
+        {listing.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2">{listing.description}</p>
         )}
       </div>
-
-      {listing.description && (
-        <p className="text-xs text-muted-foreground line-clamp-2">{listing.description}</p>
-      )}
     </motion.div>
   );
 }

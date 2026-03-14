@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 
 interface ListEmptyHouseDialogProps {
   open: boolean;
@@ -43,7 +44,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
   const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
   const getPosition = geo.requestGPSPermission;
   const [submitting, setSubmitting] = useState(false);
-  
+  const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -92,7 +93,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
         landlordId = landlord?.id || null;
       }
 
-      const { error } = await supabase
+      const { data: listing, error } = await supabase
         .from('house_listings')
         .insert({
           agent_id: user.id,
@@ -116,15 +117,35 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
           has_security: form.has_security,
           has_parking: form.has_parking,
           is_furnished: form.is_furnished,
-        } as any);
+        } as any)
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Upload images if any
+      if (houseImages.length > 0 && listing) {
+        const urls = await uploadHouseImages(
+          user.id,
+          listing.id,
+          houseImages.map(i => i.file)
+        );
+        if (urls.length > 0) {
+          await supabase
+            .from('house_listings')
+            .update({ image_urls: urls } as any)
+            .eq('id', listing.id);
+        }
+      }
 
       toast.success('House listed successfully!', {
         description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day`,
       });
       onSuccess?.();
       onOpenChange(false);
+      // Cleanup previews
+      houseImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
+      setHouseImages([]);
       // Reset form
       setForm({
         title: '', description: '', house_category: 'single_room',
@@ -252,6 +273,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
               />
             </div>
           </div>
+
+          {/* Photos — Booking.com style */}
+          <HouseImageUploader images={houseImages} onChange={setHouseImages} maxImages={5} />
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
