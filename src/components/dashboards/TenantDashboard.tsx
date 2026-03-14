@@ -49,6 +49,7 @@ import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
+import { NearbyHousesPreview } from '@/components/tenant/NearbyHousesPreview';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
