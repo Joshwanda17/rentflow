@@ -378,6 +378,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
         onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
         onRentCalculator={() => setShowCalculator(true)}
+        onBrowseHouses={() => { setMenuOpen(false); setHousesOpen(true); }}
       />
 
       {/* Dialogs */}
