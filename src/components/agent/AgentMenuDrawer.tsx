@@ -252,6 +252,21 @@ export function AgentMenuDrawer({
           color: 'text-violet-500',
           badge: 'Directory'
         } as MenuItem] : []),
+        ...(onListEmptyHouse ? [{ 
+          icon: Home, 
+          label: 'List Empty House', 
+          description: 'Register available rental for daily tenants',
+          onClick: onListEmptyHouse,
+          color: 'text-emerald-600',
+          badge: 'Daily Rent'
+        } as MenuItem] : []),
+        ...(onViewMyListings ? [{ 
+          icon: Home, 
+          label: 'My Listed Houses', 
+          description: 'View houses you listed & their status',
+          onClick: onViewMyListings,
+          color: 'text-teal-500',
+        } as MenuItem] : []),
       ]
     },
     {
