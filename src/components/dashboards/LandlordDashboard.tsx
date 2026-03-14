@@ -54,6 +54,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   const [addTenantOpen, setAddTenantOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
+  const [showListedHouses, setShowListedHouses] = useState(false);
 
   const handleRefresh = async () => {
     await Promise.all([refreshWallet(), refreshStats()]);
