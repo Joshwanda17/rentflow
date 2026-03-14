@@ -1439,6 +1439,125 @@ export type Database = {
         }
         Relationships: []
       }
+      house_listings: {
+        Row: {
+          access_fee: number
+          address: string
+          agent_id: string
+          amenities: string[] | null
+          created_at: string
+          daily_rate: number
+          description: string | null
+          district: string | null
+          has_electricity: boolean | null
+          has_parking: boolean | null
+          has_security: boolean | null
+          has_water: boolean | null
+          house_category: string
+          id: string
+          image_urls: string[] | null
+          is_furnished: boolean | null
+          landlord_accepted: boolean | null
+          landlord_id: string | null
+          latitude: number | null
+          longitude: number | null
+          monthly_rent: number
+          number_of_rooms: number
+          platform_fee: number
+          region: string
+          status: string
+          sub_county: string | null
+          tenant_id: string | null
+          title: string
+          total_monthly_cost: number
+          updated_at: string
+          verified: boolean | null
+          verified_at: string | null
+          verified_by: string | null
+          village: string | null
+        }
+        Insert: {
+          access_fee?: number
+          address: string
+          agent_id: string
+          amenities?: string[] | null
+          created_at?: string
+          daily_rate?: number
+          description?: string | null
+          district?: string | null
+          has_electricity?: boolean | null
+          has_parking?: boolean | null
+          has_security?: boolean | null
+          has_water?: boolean | null
+          house_category?: string
+          id?: string
+          image_urls?: string[] | null
+          is_furnished?: boolean | null
+          landlord_accepted?: boolean | null
+          landlord_id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          monthly_rent: number
+          number_of_rooms?: number
+          platform_fee?: number
+          region: string
+          status?: string
+          sub_county?: string | null
+          tenant_id?: string | null
+          title: string
+          total_monthly_cost?: number
+          updated_at?: string
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+          village?: string | null
+        }
+        Update: {
+          access_fee?: number
+          address?: string
+          agent_id?: string
+          amenities?: string[] | null
+          created_at?: string
+          daily_rate?: number
+          description?: string | null
+          district?: string | null
+          has_electricity?: boolean | null
+          has_parking?: boolean | null
+          has_security?: boolean | null
+          has_water?: boolean | null
+          house_category?: string
+          id?: string
+          image_urls?: string[] | null
+          is_furnished?: boolean | null
+          landlord_accepted?: boolean | null
+          landlord_id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          monthly_rent?: number
+          number_of_rooms?: number
+          platform_fee?: number
+          region?: string
+          status?: string
+          sub_county?: string | null
+          tenant_id?: string | null
+          title?: string
+          total_monthly_cost?: number
+          updated_at?: string
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+          village?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "house_listings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investment_withdrawal_requests: {
         Row: {
           amount: number
