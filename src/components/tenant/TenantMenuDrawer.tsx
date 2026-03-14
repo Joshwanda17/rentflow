@@ -32,6 +32,7 @@ interface TenantMenuDrawerProps {
   onPayWelile: () => void;
   onRepaymentSchedule: () => void;
   onRentCalculator: () => void;
+  onBrowseHouses?: () => void;
 }
 
 interface MenuSection {
