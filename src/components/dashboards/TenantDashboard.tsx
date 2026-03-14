@@ -105,6 +105,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
+  const [housesOpen, setHousesOpen] = useState(false);
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
