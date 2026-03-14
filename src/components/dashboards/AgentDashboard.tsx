@@ -114,6 +114,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [landlordMapOpen, setLandlordMapOpen] = useState(false);
   const [rentalFinderOpen, setRentalFinderOpen] = useState(false);
+  const [listHouseOpen, setListHouseOpen] = useState(false);
+  const [myListingsOpen, setMyListingsOpen] = useState(false);
 
   // Phase 1: Agent Operations dialogs
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
