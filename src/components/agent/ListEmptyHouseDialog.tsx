@@ -143,6 +143,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       });
       onSuccess?.();
       onOpenChange(false);
+      // Cleanup previews
+      houseImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
+      setHouseImages([]);
       // Reset form
       setForm({
         title: '', description: '', house_category: 'single_room',
