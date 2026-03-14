@@ -333,6 +333,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
         onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
+        onListEmptyHouse={() => { setMenuOpen(false); setListHouseOpen(true); }}
+        onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
       />
 
       {/* Existing Dialogs */}
