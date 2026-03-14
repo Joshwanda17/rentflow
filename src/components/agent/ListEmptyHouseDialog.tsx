@@ -219,13 +219,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       setForm({
         title: '', description: '', house_category: 'single_room',
         number_of_rooms: 1, monthly_rent: '', region: '', district: '',
-        address: '', landlord_name: '', landlord_phone: '',
+        address: '', village: '', landlord_name: '', landlord_phone: '',
         landlord_has_smartphone: true,
         has_water: false, has_electricity: false, has_security: false,
         has_parking: false, is_furnished: false,
         caretaker_type: 'none', caretaker_name: '', caretaker_phone: '',
         lc1_name: '', lc1_phone: '', lc1_village: '',
       });
+      setExistingLc1Options([]);
     } catch (err: any) {
       toast.error(err.message || 'Failed to list house');
     } finally {
