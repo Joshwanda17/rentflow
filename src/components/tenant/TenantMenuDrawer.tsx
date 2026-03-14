@@ -78,6 +78,19 @@ export function TenantMenuDrawer({
 
   const menuSections: MenuSection[] = [
     {
+      title: 'Find a Home',
+      items: [
+        ...(onBrowseHouses ? [{ 
+          icon: Search, 
+          label: 'Available Houses — Daily Rent', 
+          description: 'Browse affordable houses, pay daily',
+          onClick: onBrowseHouses,
+          color: 'text-success',
+          badge: 'New'
+        } as MenuItem] : []),
+      ]
+    },
+    {
       title: 'Payments',
       items: [
         { 
