@@ -13,8 +13,10 @@ import {
   BadgeCheck,
   MapPin,
   ShoppingBag,
-  Loader2,
   Home,
+  Receipt,
+  Share2,
+  TrendingUp,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
