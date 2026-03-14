@@ -56,17 +56,11 @@ function HouseCard({ listing }: { listing: HouseListing }) {
         <Badge variant="secondary" className="shrink-0 text-[10px]">{categoryLabel}</Badge>
       </div>
 
-      {/* Daily Rate — hero number */}
-      <div className="flex items-end justify-between p-3 rounded-xl bg-success/10 border border-success/20">
-        <div>
-          <p className="text-[10px] text-muted-foreground uppercase font-medium">Daily Rent</p>
-          <p className="text-2xl font-black text-success leading-tight">{formatUGX(listing.daily_rate)}</p>
-          <p className="text-[10px] text-muted-foreground">per day · pay as you stay</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] text-muted-foreground">Landlord gets</p>
-          <p className="text-sm font-semibold text-foreground">{formatUGX(listing.monthly_rent)}/mo</p>
-        </div>
+      {/* Daily Rate — primary price only */}
+      <div className="p-4 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30">
+        <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Daily Rent</p>
+        <p className="text-3xl font-black text-success leading-none mb-1">{formatUGX(listing.daily_rate)}</p>
+        <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
       </div>
 
       {/* Specs */}
