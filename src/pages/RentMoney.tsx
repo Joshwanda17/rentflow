@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { 
   Wallet, Shield, Clock, ArrowRight, Share2, 
   Smartphone, CreditCard, Send, PiggyBank, 
-  CheckCircle2, Star, Users, TrendingUp 
+  Star, Users, TrendingUp 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
