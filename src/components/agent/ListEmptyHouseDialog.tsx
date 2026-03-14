@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 
 interface ListEmptyHouseDialogProps {
   open: boolean;
