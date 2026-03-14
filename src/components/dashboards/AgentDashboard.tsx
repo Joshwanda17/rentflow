@@ -13,9 +13,12 @@ import {
   BadgeCheck,
   MapPin,
   ShoppingBag,
-  Loader2,
   Home,
+  Receipt,
+  Share2,
+  TrendingUp,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -271,55 +274,60 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </motion.button>
         <WalletDisclaimer />
 
-        {/* Visit Tenant Card — Priority 2 */}
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() => { hapticTap(); setVisitDialogOpen(true); }}
-          className="w-full flex items-center gap-4 p-5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all touch-manipulation"
-          style={{ boxShadow: '0 1px 3px 0 hsl(var(--primary) / 0.08)' }}
-        >
-          <div className="p-3 rounded-xl bg-primary/10 shrink-0">
-            <MapPin className="h-7 w-7 text-primary" />
+        {/* Quick Action Grid — Priority 2 */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Quick Actions</h3>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: MapPin, label: 'Visit', color: 'bg-primary/15 text-primary', onClick: () => setVisitDialogOpen(true) },
+              { icon: Home, label: 'List House', color: 'bg-chart-4/15 text-chart-4', onClick: () => setListHouseOpen(true) },
+              { icon: UserPlus, label: 'Register', color: 'bg-blue-500/15 text-blue-500', onClick: handleRegisterUser },
+              { icon: Menu, label: 'All Tools', color: 'bg-muted text-foreground', onClick: handleOpenMenu },
+            ].map((action, i) => (
+              <motion.button
+                key={action.label}
+                whileTap={{ scale: 0.93 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                onClick={() => { hapticTap(); action.onClick(); }}
+                className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-card border border-border/50 hover:bg-muted/40 active:scale-95 transition-all touch-manipulation"
+              >
+                <div className={cn("p-2.5 rounded-xl", action.color.split(' ')[0])}>
+                  <action.icon className={cn("h-5 w-5", action.color.split(' ')[1])} />
+                </div>
+                <span className="text-[10px] font-semibold">{action.label}</span>
+              </motion.button>
+            ))}
           </div>
-          <div className="flex-1 text-left">
-            <p className="font-bold text-lg text-foreground">Visit Tenant</p>
-            <p className="text-xs text-muted-foreground">Check in, collect payment & send SMS receipt</p>
+          {/* Secondary row */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: Receipt, label: 'Receipt', color: 'bg-amber-500/15 text-amber-500', onClick: () => setReceiptOpen(true) },
+              { icon: Wallet, label: 'Deposit', color: 'bg-success/15 text-success', onClick: handleDeposit },
+              { icon: Share2, label: 'Refer', color: 'bg-pink-500/15 text-pink-500', onClick: () => navigate('/referrals') },
+              { icon: TrendingUp, label: 'Earnings', color: 'bg-emerald-500/15 text-emerald-500', onClick: () => navigate('/earnings') },
+            ].map((action, i) => (
+              <motion.button
+                key={action.label}
+                whileTap={{ scale: 0.93 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + i * 0.05 }}
+                onClick={() => { hapticTap(); action.onClick(); }}
+                className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-card border border-border/50 hover:bg-muted/40 active:scale-95 transition-all touch-manipulation"
+              >
+                <div className={cn("p-2.5 rounded-xl", action.color.split(' ')[0])}>
+                  <action.icon className={cn("h-5 w-5", action.color.split(' ')[1])} />
+                </div>
+                <span className="text-[10px] font-semibold">{action.label}</span>
+              </motion.button>
+            ))}
           </div>
-        </motion.button>
+        </div>
 
-        {/* Daily Ops Report — Priority 3 */}
+        {/* Daily Ops Report */}
         <AgentDailyOpsCard />
-
-        {/* Menu Button */}
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={handleOpenMenu}
-          className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border hover:border-primary/30 transition-all touch-manipulation"
-        >
-          <div className="p-2.5 rounded-xl bg-muted">
-            <Menu className="h-6 w-6 text-foreground" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-semibold">All Features & Tools</p>
-            <p className="text-xs text-muted-foreground">Registrations, earnings, shop & more</p>
-          </div>
-        </motion.button>
-
-        {/* List Empty House — Prominent CTA */}
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() => { hapticTap(); setListHouseOpen(true); }}
-          className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-chart-4/30 bg-chart-4/5 hover:bg-chart-4/10 transition-all touch-manipulation"
-          style={{ boxShadow: '0 1px 3px 0 hsl(var(--chart-4) / 0.08)' }}
-        >
-          <div className="p-3 rounded-xl bg-chart-4/15 shrink-0">
-            <Home className="h-7 w-7 text-chart-4" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-bold text-lg text-foreground">List Empty House</p>
-            <p className="text-xs text-muted-foreground">Earn UGX 5,000 per verified listing</p>
-          </div>
-        </motion.button>
 
         {/* Credit Access */}
         <CreditAccessCard userId={user.id} compact />

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Menu, 
   X, 
   UserPlus, 
   ArrowDownCircle,
@@ -20,7 +19,6 @@ import {
   Target,
   FileText,
   Handshake,
-  ChevronRight,
   ChevronDown,
   Calculator,
   Home,
@@ -39,10 +37,13 @@ import {
   Phone,
   RefreshCw,
   ClipboardList,
+  Briefcase,
+  Heart,
+  BookOpen,
+  LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
-import { Separator } from '@/components/ui/separator';
 
 interface AgentMenuDrawerProps {
   open: boolean;
@@ -66,19 +67,21 @@ interface AgentMenuDrawerProps {
   onViewMyListings?: () => void;
 }
 
-interface MenuSection {
-  title: string;
-  items: MenuItem[];
-}
-
 interface MenuItem {
-  icon: typeof Menu;
+  icon: LucideIcon;
   label: string;
   description?: string;
   path?: string;
   onClick?: () => void;
   badge?: string;
-  color?: string;
+  accent: string; // tailwind color key like 'primary', 'success', 'blue-500'
+}
+
+interface Category {
+  id: string;
+  icon: LucideIcon;
+  label: string;
+  items: MenuItem[];
 }
 
 export function AgentMenuDrawer({ 
@@ -103,9 +106,8 @@ export function AgentMenuDrawer({
   onViewMyListings,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
-  const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
-  const [landlordGuideOpen, setLandlordGuideOpen] = useState(false);
-  const [rentPaymentGuideOpen, setRentPaymentGuideOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('actions');
+  const [guideOpen, setGuideOpen] = useState<string | null>(null);
 
   const handleClose = () => {
     hapticTap();
@@ -122,301 +124,110 @@ export function AgentMenuDrawer({
     }
   };
 
-  const menuSections: MenuSection[] = [
+  const categories: Category[] = [
     {
-      title: 'Agent Actions',
+      id: 'actions',
+      icon: Briefcase,
+      label: 'Actions',
       items: [
-        {
-          icon: Share2,
-          label: 'Invite & Refer',
-          description: 'Share your referral link & grow your network',
-          path: '/referrals',
-          color: 'text-primary',
-          badge: 'Priority'
-        },
-        ...(onInvestForPartner ? [{ 
-          icon: HandCoins, 
-          label: 'Invest for Partner', 
-          description: 'Fund rent pool on behalf of a partner',
-          onClick: onInvestForPartner,
-          color: 'text-emerald-600',
-          badge: 'Proxy'
-        } as MenuItem] : []),
-        { 
-          icon: ClipboardList, 
-          label: 'My Registrations', 
-          description: 'View invite status & share links',
-          path: '/agent-registrations',
-          color: 'text-blue-600',
-        },
-        ...(onViewProxyHistory ? [{ 
-          icon: History, 
-          label: 'Proxy Investment History', 
-          description: 'View all investments made for partners',
-          onClick: onViewProxyHistory,
-          color: 'text-emerald-500',
-        } as MenuItem] : []),
-        ...(onViewTenants ? [{ 
-          icon: Users, 
-          label: 'My Tenants', 
-          description: 'Tap a tenant to see repayment schedule',
-          onClick: onViewTenants,
-          color: 'text-primary',
-          badge: 'Priority'
-        } as MenuItem] : []),
-        { 
-          icon: UserPlus, 
-          label: 'Register New User', 
-          description: 'Onboard tenants, landlords & more',
-          onClick: onRegisterUser,
-          color: 'text-primary'
-        },
-        { 
-          icon: ArrowDownCircle, 
-          label: 'Deposit for User', 
-          description: 'Add funds to user wallet',
-          onClick: onDeposit,
-          color: 'text-success'
-        },
-        ...(onIssueReceipt ? [{ 
-          icon: Receipt, 
-          label: 'Issue Cash Receipt', 
-          description: 'Record & share payment receipt',
-          onClick: onIssueReceipt,
-          color: 'text-amber-600',
-          badge: 'New'
-        } as MenuItem] : []),
-        ...(onTopUpTenant ? [{ 
-          icon: Wallet, 
-          label: 'Top Up Tenant Wallet', 
-          description: 'Help tenant deposit to their wallet',
-          onClick: onTopUpTenant,
-          color: 'text-emerald-500'
-        } as MenuItem] : []),
-        { 
-          icon: FileText, 
-          label: 'Post Rent Request', 
-          description: 'On behalf of tenant',
-          onClick: onPostRentRequest,
-          color: 'text-blue-500'
-        },
-        ...(onViewMyRentRequests ? [{ 
-          icon: ScrollText, 
-          label: 'My Rent Requests', 
-          description: 'View & verify your posted requests',
-          onClick: onViewMyRentRequests,
-          color: 'text-indigo-500'
-        }, {
-          icon: Calendar, 
-          label: 'Tenant Repayment Schedules', 
-          description: 'View, download & share PDF / WhatsApp',
-          onClick: onViewMyRentRequests,
-          color: 'text-primary',
-          badge: 'PDF & WhatsApp'
-        }] : []),
-        { 
-          icon: Handshake, 
-          label: 'Register Sub-Agent', 
-          description: 'Grow your team',
-          onClick: onInviteSubAgent,
-          color: 'text-amber-500'
-        },
-        ...(onManageProperty ? [{ 
-          icon: Building2, 
-          label: 'Manage Property for Landlord', 
-          description: 'For landlords without smartphones',
-          onClick: onManageProperty,
-          color: 'text-orange-500',
-          badge: '2% fee'
-        }] : []),
-        ...(onViewManagedProperties ? [{ 
-          icon: Home, 
-          label: 'My Managed Properties', 
-          description: 'Properties you manage & payouts',
-          onClick: onViewManagedProperties,
-          color: 'text-teal-500'
-        }] : []),
-        ...(onViewLandlordMap ? [{ 
-          icon: MapPin, 
-          label: 'My Landlords Map', 
-          description: 'View & navigate to landlord locations',
-          onClick: onViewLandlordMap,
-          color: 'text-emerald-500',
-          badge: 'GPS'
-        } as MenuItem] : []),
-        ...(onFindRentals ? [{ 
-          icon: Search, 
-          label: 'Find Rentals', 
-          description: 'Browse all registered rentals by location',
-          onClick: onFindRentals,
-          color: 'text-violet-500',
-          badge: 'Directory'
-        } as MenuItem] : []),
-        ...(onListEmptyHouse ? [{ 
-          icon: Home, 
-          label: 'List Empty House', 
-          description: 'Register available rental for daily tenants',
-          onClick: onListEmptyHouse,
-          color: 'text-emerald-600',
-          badge: 'Daily Rent'
-        } as MenuItem] : []),
-        ...(onViewMyListings ? [{ 
-          icon: Home, 
-          label: 'My Listed Houses', 
-          description: 'View houses you listed & their status',
-          onClick: onViewMyListings,
-          color: 'text-teal-500',
-        } as MenuItem] : []),
-      ]
+        { icon: UserPlus, label: 'Register User', description: 'Onboard tenants & landlords', onClick: onRegisterUser, accent: 'primary' },
+        { icon: ArrowDownCircle, label: 'Deposit', description: 'Add funds to user wallet', onClick: onDeposit, accent: 'success' },
+        { icon: FileText, label: 'Post Rent', description: 'Request on behalf of tenant', onClick: onPostRentRequest, accent: 'blue-500' },
+        { icon: Receipt, label: 'Issue Receipt', description: 'Record cash payment', onClick: onIssueReceipt, accent: 'amber-500', badge: 'New' },
+        { icon: Wallet, label: 'Top Up Tenant', description: 'Deposit to tenant wallet', onClick: onTopUpTenant, accent: 'emerald-500' },
+        { icon: HandCoins, label: 'Invest for Partner', description: 'Proxy investment', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
+        { icon: Handshake, label: 'Sub-Agent', description: 'Register sub-agent', onClick: onInviteSubAgent, accent: 'amber-500' },
+        { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
+      ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
-      title: 'Earnings & Growth',
+      id: 'property',
+      icon: Home,
+      label: 'Property',
       items: [
-        { 
-          icon: Trophy, 
-          label: 'Earnings & Rank System', 
-          description: 'See how you earn & level up',
-          onClick: onOpenEarningsRank,
-          color: 'text-amber-500'
-        },
-        { 
-          icon: TrendingUp, 
-          label: 'My Earnings', 
-          description: 'View detailed earnings',
-          path: '/earnings',
-          color: 'text-success'
-        },
-        { 
-          icon: Target, 
-          label: 'Goals & Progress', 
-          description: 'Track your targets',
-          path: '/agent-analytics',
-          color: 'text-primary'
-        },
-        { 
-          icon: Users, 
-          label: 'My Referrals', 
-          description: 'Users you brought in',
-          path: '/referrals',
-          color: 'text-purple-500'
-        },
-        { 
-          icon: Share2, 
-          label: 'Share & Earn', 
-          description: 'Invite others for rewards',
-          path: '/benefits',
-          color: 'text-pink-500'
-        },
-      ]
+        { icon: Home, label: 'List House', description: 'Earn UGX 5,000', onClick: onListEmptyHouse, accent: 'chart-4', badge: '5K' },
+        { icon: ClipboardList, label: 'My Listings', description: 'View listed houses', onClick: onViewMyListings, accent: 'teal-500' },
+        { icon: Building2, label: 'Manage Property', description: 'For landlords', onClick: onManageProperty, accent: 'orange-500', badge: '2%' },
+        { icon: Home, label: 'Managed Props', description: 'Properties & payouts', onClick: onViewManagedProperties, accent: 'teal-500' },
+        { icon: Search, label: 'Find Rentals', description: 'Browse by location', onClick: onFindRentals, accent: 'violet-500' },
+        { icon: MapPin, label: 'Landlord Map', description: 'Navigate to landlords', onClick: onViewLandlordMap, accent: 'emerald-500', badge: 'GPS' },
+      ].filter(i => i.onClick !== undefined),
     },
     {
-      title: 'Business Tools',
+      id: 'people',
+      icon: Users,
+      label: 'People',
       items: [
-        { 
-          icon: Store, 
-          label: 'Welile Shop', 
-          description: 'Buy, sell & earn loan access',
-          path: '/shop',
-          color: 'text-orange-500',
-          badge: 'Loans up to 30M'
-        },
-        { 
-          icon: Receipt, 
-          label: 'My Receipts', 
-          description: 'Scan receipts to earn',
-          path: '/my-receipts',
-          color: 'text-teal-500'
-        },
-        { 
-          icon: Banknote, 
-          label: 'My Loans', 
-          description: 'View & manage loans',
-          path: '/my-loans',
-          color: 'text-green-500'
-        },
-        { 
-          icon: History, 
-          label: 'Transactions', 
-          description: 'Payment history',
-          path: '/transactions',
-          color: 'text-blue-500'
-        },
-        { 
-          icon: FileText, 
-          label: 'Financial Statement', 
-          description: 'Download your statement',
-          path: '/financial-statement',
-          color: 'text-indigo-500'
-        },
-        { 
-          icon: Calculator, 
-          label: 'Calculator', 
-          description: 'Rent & interest calculator',
-          path: '/calculator',
-          color: 'text-indigo-500'
-        },
-      ]
+        { icon: Users, label: 'My Tenants', description: 'Repayment schedules', onClick: onViewTenants, accent: 'primary' },
+        { icon: ClipboardList, label: 'Registrations', description: 'Invite status & links', path: '/agent-registrations', accent: 'blue-600' },
+        { icon: ScrollText, label: 'Rent Requests', description: 'Verify your posted requests', onClick: onViewMyRentRequests, accent: 'indigo-500' },
+        { icon: Calendar, label: 'Schedules', description: 'PDF & WhatsApp', onClick: onViewMyRentRequests, accent: 'primary', badge: 'PDF' },
+        { icon: History, label: 'Proxy History', description: 'Partner investments', onClick: onViewProxyHistory, accent: 'emerald-500' },
+        { icon: Users, label: 'Sub-Agents', description: 'Manage your team', path: '/sub-agents', accent: 'blue-500' },
+      ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
-      title: 'Management',
+      id: 'earnings',
+      icon: TrendingUp,
+      label: 'Earnings',
       items: [
-        { 
-          icon: BarChart3, 
-          label: 'Agent Analytics', 
-          description: 'Performance metrics',
-          path: '/agent-analytics',
-          color: 'text-purple-500'
-        },
-        { 
-          icon: Users, 
-          label: 'My Sub-Agents', 
-          description: 'Manage your team',
-          path: '/sub-agents',
-          color: 'text-blue-500'
-        },
-        { 
-          icon: PiggyBank, 
-          label: 'My Withdrawals', 
-          description: 'Commission payouts & wallet withdrawals',
-          path: '/earnings',
-          color: 'text-success'
-        },
-      ]
+        { icon: Trophy, label: 'Rank System', description: 'Levels & badges', onClick: onOpenEarningsRank, accent: 'amber-500' },
+        { icon: TrendingUp, label: 'My Earnings', description: 'Detailed breakdown', path: '/earnings', accent: 'success' },
+        { icon: Target, label: 'Goals', description: 'Track targets', path: '/agent-analytics', accent: 'primary' },
+        { icon: BarChart3, label: 'Analytics', description: 'Performance metrics', path: '/agent-analytics', accent: 'purple-500' },
+        { icon: PiggyBank, label: 'Withdrawals', description: 'Commission payouts', path: '/earnings', accent: 'success' },
+        { icon: Users, label: 'Referrals', description: 'Users you brought in', path: '/referrals', accent: 'purple-500' },
+      ],
     },
     {
-      title: 'More',
+      id: 'tools',
+      icon: Calculator,
+      label: 'Tools',
       items: [
-        { 
-          icon: Download, 
-          label: 'Share App', 
-          description: 'Invite friends to Welile',
-          path: '/install',
-          color: 'text-primary'
-        },
-        { 
-          icon: ScrollText, 
-          label: 'Agent Agreement', 
-          description: 'Terms & conditions',
-          path: '/agent-agreement',
-          color: 'text-muted-foreground'
-        },
-        { 
-          icon: Settings, 
-          label: 'Settings', 
-          description: 'Account preferences',
-          path: '/settings',
-          color: 'text-muted-foreground'
-        },
-        { 
-          icon: HelpCircle, 
-          label: 'Help & Support', 
-          description: 'Get assistance',
-          path: '/help',
-          color: 'text-muted-foreground'
-        },
-      ]
+        { icon: Store, label: 'Shop', description: 'Buy & sell', path: '/shop', accent: 'orange-500' },
+        { icon: Receipt, label: 'Receipts', description: 'Scan to earn', path: '/my-receipts', accent: 'teal-500' },
+        { icon: Banknote, label: 'My Loans', description: 'View & manage', path: '/my-loans', accent: 'green-500' },
+        { icon: History, label: 'Transactions', description: 'Payment history', path: '/transactions', accent: 'blue-500' },
+        { icon: FileText, label: 'Statement', description: 'Financial statement', path: '/financial-statement', accent: 'indigo-500' },
+        { icon: Calculator, label: 'Calculator', description: 'Rent & interest', path: '/calculator', accent: 'indigo-500' },
+      ],
+    },
+    {
+      id: 'more',
+      icon: Settings,
+      label: 'More',
+      items: [
+        { icon: Download, label: 'Share App', path: '/install', accent: 'primary' },
+        { icon: ScrollText, label: 'Agreement', path: '/agent-agreement', accent: 'muted-foreground' },
+        { icon: Settings, label: 'Settings', path: '/settings', accent: 'muted-foreground' },
+        { icon: HelpCircle, label: 'Help', path: '/help', accent: 'muted-foreground' },
+      ],
     },
   ];
+
+  const activeCat = categories.find(c => c.id === activeCategory) || categories[0];
+
+  const getAccentClasses = (accent: string) => {
+    const map: Record<string, { bg: string; text: string; ring: string }> = {
+      'primary': { bg: 'bg-primary/15', text: 'text-primary', ring: 'ring-primary/20' },
+      'success': { bg: 'bg-success/15', text: 'text-success', ring: 'ring-success/20' },
+      'chart-4': { bg: 'bg-chart-4/15', text: 'text-chart-4', ring: 'ring-chart-4/20' },
+      'blue-500': { bg: 'bg-blue-500/15', text: 'text-blue-500', ring: 'ring-blue-500/20' },
+      'blue-600': { bg: 'bg-blue-600/15', text: 'text-blue-600', ring: 'ring-blue-600/20' },
+      'amber-500': { bg: 'bg-amber-500/15', text: 'text-amber-500', ring: 'ring-amber-500/20' },
+      'emerald-500': { bg: 'bg-emerald-500/15', text: 'text-emerald-500', ring: 'ring-emerald-500/20' },
+      'emerald-600': { bg: 'bg-emerald-600/15', text: 'text-emerald-600', ring: 'ring-emerald-600/20' },
+      'teal-500': { bg: 'bg-teal-500/15', text: 'text-teal-500', ring: 'ring-teal-500/20' },
+      'orange-500': { bg: 'bg-orange-500/15', text: 'text-orange-500', ring: 'ring-orange-500/20' },
+      'violet-500': { bg: 'bg-violet-500/15', text: 'text-violet-500', ring: 'ring-violet-500/20' },
+      'pink-500': { bg: 'bg-pink-500/15', text: 'text-pink-500', ring: 'ring-pink-500/20' },
+      'purple-500': { bg: 'bg-purple-500/15', text: 'text-purple-500', ring: 'ring-purple-500/20' },
+      'indigo-500': { bg: 'bg-indigo-500/15', text: 'text-indigo-500', ring: 'ring-indigo-500/20' },
+      'green-500': { bg: 'bg-green-500/15', text: 'text-green-500', ring: 'ring-green-500/20' },
+      'muted-foreground': { bg: 'bg-muted', text: 'text-muted-foreground', ring: 'ring-border' },
+    };
+    return map[accent] || map['primary'];
+  };
 
   return (
     <AnimatePresence>
@@ -431,283 +242,257 @@ export function AgentMenuDrawer({
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
           />
 
-          {/* Drawer */}
+          {/* Bottom Sheet */}
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            className="fixed inset-x-0 bottom-0 z-[101] bg-background rounded-t-3xl shadow-2xl flex flex-col"
+            style={{ maxHeight: '88vh' }}
           >
+            {/* Drag Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-              <div>
-                <h2 className="font-bold text-lg">Menu</h2>
-                <p className="text-xs text-muted-foreground">All agent features</p>
-              </div>
+            <div className="flex items-center justify-between px-5 pb-3">
+              <h2 className="font-bold text-lg">Agent Hub</h2>
               <button
                 onClick={handleClose}
                 className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
-              <div className="p-4 space-y-6">
-                {menuSections.map((section, sectionIndex) => (
-                  <div key={section.title}>
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-                      {section.title}
-                    </h3>
-                    <div className="space-y-1">
-                      {section.items.map((item, itemIndex) => (
+            {/* Category Tabs — Horizontal Scroll */}
+            <div className="px-3 pb-3">
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                {categories.map((cat) => {
+                  const isActive = cat.id === activeCategory;
+                  const CatIcon = cat.icon;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => { hapticTap(); setActiveCategory(cat.id); }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-md"
+                          : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      <CatIcon className="h-3.5 w-3.5" />
+                      {cat.label}
+                      {cat.items.some(i => i.badge) && !isActive && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Content Grid */}
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeCategory}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {/* Icon Grid */}
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {activeCat.items.map((item, idx) => {
+                      const colors = getAccentClasses(item.accent);
+                      const Icon = item.icon;
+                      return (
                         <motion.button
-                          key={item.label}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: (sectionIndex * 0.05) + (itemIndex * 0.02) }}
+                          key={item.label + idx}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: idx * 0.03 }}
                           onClick={() => handleItemClick(item)}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
+                          className={cn(
+                            "relative flex flex-col items-center gap-2 p-4 rounded-2xl border border-border/50 bg-card hover:bg-muted/40 active:scale-95 transition-all touch-manipulation",
+                          )}
                         >
-                          <div className={cn(
-                            "p-2 rounded-lg bg-muted/80",
-                            item.color
-                          )}>
-                            <item.icon className="h-5 w-5" />
+                          {item.badge && (
+                            <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[9px] font-bold bg-success/20 text-success rounded-full leading-none">
+                              {item.badge}
+                            </span>
+                          )}
+                          <div className={cn("p-2.5 rounded-xl", colors.bg)}>
+                            <Icon className={cn("h-5 w-5", colors.text)} />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm truncate">{item.label}</p>
-                              {item.badge && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-success/20 text-success rounded-full">
-                                  {item.badge}
-                                </span>
-                              )}
-                            </div>
+                          <div className="text-center">
+                            <p className="text-[11px] font-semibold leading-tight">{item.label}</p>
                             {item.description && (
-                              <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                              <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{item.description}</p>
                             )}
                           </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         </motion.button>
-                      ))}
+                      );
+                    })}
+                  </div>
+
+                  {/* Guides Section — only in "more" tab */}
+                  {activeCategory === 'more' && (
+                    <div className="mt-6 space-y-2">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-3">
+                        How It Works
+                      </h4>
+                      <GuideAccordion
+                        id="rent-payment"
+                        icon={Wallet}
+                        title="Rent Payments & Auto-Deductions"
+                        subtitle="Learn the rent payment process"
+                        accentClass="bg-success/10 text-success border-success/10"
+                        isOpen={guideOpen === 'rent-payment'}
+                        onToggle={() => setGuideOpen(guideOpen === 'rent-payment' ? null : 'rent-payment')}
+                      >
+                        <RentPaymentGuideContent />
+                      </GuideAccordion>
+                      <GuideAccordion
+                        id="tenant-verify"
+                        icon={ShieldCheck}
+                        title="How to Verify a Tenant"
+                        subtitle="Step-by-step field guide"
+                        accentClass="bg-primary/5 text-primary border-primary/10"
+                        isOpen={guideOpen === 'tenant-verify'}
+                        onToggle={() => setGuideOpen(guideOpen === 'tenant-verify' ? null : 'tenant-verify')}
+                      >
+                        <TenantVerifyGuideContent />
+                      </GuideAccordion>
+                      <GuideAccordion
+                        id="landlord-verify"
+                        icon={Building2}
+                        title="How to Verify a Landlord"
+                        subtitle="Registration & verification steps"
+                        accentClass="bg-amber-500/5 text-amber-500 border-amber-500/10"
+                        isOpen={guideOpen === 'landlord-verify'}
+                        onToggle={() => setGuideOpen(guideOpen === 'landlord-verify' ? null : 'landlord-verify')}
+                      >
+                        <LandlordVerifyGuideContent />
+                      </GuideAccordion>
                     </div>
-                    {sectionIndex < menuSections.length - 1 && (
-                      <Separator className="mt-4" />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-
-              {/* Verification Guides */}
-              <div className="px-4 pb-2">
-                <Separator className="mb-4" />
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-                  How It Works
-                </h3>
-
-                {/* Rent Payment & Auto-Deduction Guide */}
-                <button
-                  onClick={() => { hapticTap(); setRentPaymentGuideOpen(!rentPaymentGuideOpen); }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-success/5 border border-success/10 mb-2 text-left touch-manipulation"
-                >
-                  <div className="p-2 rounded-lg bg-success/10 text-success">
-                    <Wallet className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">How Rent Payments & Auto-Deductions Work</p>
-                    <p className="text-xs text-muted-foreground">Learn the rent payment process</p>
-                  </div>
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", rentPaymentGuideOpen && "rotate-180")} />
-                </button>
-                <AnimatePresence>
-                  {rentPaymentGuideOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden mb-3"
-                    >
-                      <div className="space-y-3 px-2 py-3 rounded-xl bg-muted/40 border border-border/60 text-xs">
-                        {/* Pay Rent Steps */}
-                        <div>
-                          <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">
-                            Paying Rent for a Tenant
-                          </p>
-                          <div className="space-y-2">
-                            <div className="flex gap-2">
-                              <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">1</span>
-                              <div><p className="font-medium">Search Tenant</p><p className="text-muted-foreground">Tap "Pay Rent for Tenant" from the menu. Search by name or phone number.</p></div>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">2</span>
-                              <div><p className="font-medium">Enter Amount</p><p className="text-muted-foreground">See the tenant's outstanding balance and your wallet balance. Enter amount to pay.</p></div>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">3</span>
-                              <div><p className="font-medium">Instant Processing</p><p className="text-muted-foreground">Money is deducted from your wallet, credited to tenant, and auto-applied to their rent. You earn 5% commission.</p></div>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="shrink-0 h-5 w-5 rounded-full bg-success text-success-foreground flex items-center justify-center text-[10px] font-bold">✓</span>
-                              <div><p className="font-medium text-success">Receivables Updated</p><p className="text-muted-foreground">The Receivables Statement updates immediately — "Collected" increases and "Net Outstanding" decreases.</p></div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Auto-Deduction Section */}
-                        <div className="rounded-lg border border-warning/30 bg-warning/5 p-2 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <RefreshCw className="h-3 w-3 text-warning" />
-                            <p className="text-[10px] font-bold text-warning uppercase tracking-wider">Auto-Deduction System</p>
-                          </div>
-                          <div className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
-                            <p>When a tenant's rent is facilitated, a <span className="font-semibold text-foreground">repayment schedule</span> is created with daily/weekly installments.</p>
-                            <div className="space-y-1 pl-1">
-                              <div className="flex gap-1.5">
-                                <span className="text-success font-bold shrink-0">1.</span>
-                                <span>System deducts from <span className="font-semibold text-foreground">tenant's wallet</span> first</span>
-                              </div>
-                              <div className="flex gap-1.5">
-                                <span className="text-warning font-bold shrink-0">2.</span>
-                                <span>If tenant funds are low → <span className="font-semibold text-foreground">agent's wallet</span> covers shortfall</span>
-                              </div>
-                              <div className="flex gap-1.5">
-                                <span className="text-destructive font-bold shrink-0">3.</span>
-                                <span>If agent also low → shortfall recorded as <span className="font-semibold text-foreground">accumulated debt</span></span>
-                              </div>
-                            </div>
-                            <p className="pt-1 border-t border-warning/20 text-[10px]">
-                              <span className="font-semibold text-foreground">No Smartphone tenants:</span> Auto-charge skips tenant wallet entirely — agent is charged directly.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
                   )}
-                </AnimatePresence>
-
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1 mt-4">
-                  Verification Guides
-                </h3>
-
-                {/* Tenant Verification Guide */}
-                <button
-                  onClick={() => { hapticTap(); setTenantGuideOpen(!tenantGuideOpen); }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10 mb-2 text-left touch-manipulation"
-                >
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <ShieldCheck className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">How to Verify a Tenant</p>
-                    <p className="text-xs text-muted-foreground">Step-by-step field guide</p>
-                  </div>
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", tenantGuideOpen && "rotate-180")} />
-                </button>
-                <AnimatePresence>
-                  {tenantGuideOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden mb-3"
-                    >
-                      <div className="space-y-2 px-2 py-3 rounded-xl bg-muted/40 border border-border/60 text-xs">
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">1</span>
-                          <div><p className="font-medium">Visit the Tenant's Residence</p><p className="text-muted-foreground">Go to the tenant's actual home address to confirm they live there.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">2</span>
-                          <div><p className="font-medium flex items-center gap-1"><Zap className="h-3 w-3" /> Verify Electricity Meter</p><p className="text-muted-foreground">Check the UMEME/UEDCL meter number and confirm it's in the landlord's name.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">3</span>
-                          <div><p className="font-medium flex items-center gap-1"><Droplets className="h-3 w-3" /> Verify Water Meter</p><p className="text-muted-foreground">Check the NWSC water meter number and confirm it's in the landlord's name.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">4</span>
-                          <div><p className="font-medium flex items-center gap-1"><Phone className="h-3 w-3" /> Confirm Mobile Money Details</p><p className="text-muted-foreground">Verify the tenant's MM registered name matches their phone number.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">5</span>
-                          <div><p className="font-medium flex items-center gap-1"><MapPin className="h-3 w-3" /> Capture GPS Location</p><p className="text-muted-foreground">Use the "Capture GPS" button to pin the tenant's residence on Google Maps.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-success text-success-foreground flex items-center justify-center text-[10px] font-bold">✓</span>
-                          <div><p className="font-medium text-success">Tap "Verify" to Confirm</p><p className="text-muted-foreground">Once all checks pass, tap the Verify button on the rent request. You earn <strong>UGX 10,000</strong> + <strong>5%</strong> ongoing commission!</p></div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Landlord Verification Guide */}
-                <button
-                  onClick={() => { hapticTap(); setLandlordGuideOpen(!landlordGuideOpen); }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 mb-2 text-left touch-manipulation"
-                >
-                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">How to Verify a Landlord</p>
-                    <p className="text-xs text-muted-foreground">Registration & verification steps</p>
-                  </div>
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", landlordGuideOpen && "rotate-180")} />
-                </button>
-                <AnimatePresence>
-                  {landlordGuideOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden mb-3"
-                    >
-                      <div className="space-y-2 px-2 py-3 rounded-xl bg-muted/40 border border-border/60 text-xs">
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">1</span>
-                          <div><p className="font-medium">Visit the Landlord's Property</p><p className="text-muted-foreground">Travel to the property to verify it exists and matches the description.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">2</span>
-                          <div><p className="font-medium">Collect Landlord's MM Details</p><p className="text-muted-foreground">Record their Mobile Money registered name and number. Verify the name matches the phone.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">3</span>
-                          <div><p className="font-medium flex items-center gap-1"><Zap className="h-3 w-3" /> Record Utility Meters</p><p className="text-muted-foreground">Note the UMEME/UEDCL electricity and NWSC water meter numbers. Confirm they are in the landlord's name.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">4</span>
-                          <div><p className="font-medium">Get LC1 Chairperson Details</p><p className="text-muted-foreground">Record the Local Council 1 Chairperson's name, phone number, and village/cell. This is mandatory.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">5</span>
-                          <div><p className="font-medium flex items-center gap-1"><MapPin className="h-3 w-3" /> Capture GPS Location</p><p className="text-muted-foreground">Tap "Capture GPS" at the property or enter the address manually. Both work.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-bold">6</span>
-                          <div><p className="font-medium">Register & Share Activation Link</p><p className="text-muted-foreground">Submit the registration. Share the WhatsApp activation link so the landlord can accept and create a password.</p></div>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="shrink-0 h-5 w-5 rounded-full bg-success text-success-foreground flex items-center justify-center text-[10px] font-bold">✓</span>
-                          <div><p className="font-medium text-success">Landlord Verified!</p><p className="text-muted-foreground">Once the landlord accepts via the /join link, they are verified and can receive rent payments through Welile.</p></div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Footer Padding */}
-              <div className="h-8" />
+                </motion.div>
+              </AnimatePresence>
             </div>
           </motion.div>
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+// --- Sub-components for guides ---
+
+function GuideAccordion({ id, icon: Icon, title, subtitle, accentClass, isOpen, onToggle, children }: {
+  id: string; icon: LucideIcon; title: string; subtitle: string; accentClass: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        onClick={() => { hapticTap(); onToggle(); }}
+        className={cn("w-full flex items-center gap-3 p-3 rounded-xl border text-left touch-manipulation", accentClass)}
+      >
+        <div className={cn("p-2 rounded-lg", accentClass.split(' ').slice(0, 1).join(' '))}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm truncate">{title}</p>
+          <p className="text-[10px] text-muted-foreground">{subtitle}</p>
+        </div>
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", isOpen && "rotate-180")} />
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 px-2 py-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-2">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function StepItem({ num, color = 'primary', children }: { num: string; color?: string; children: React.ReactNode }) {
+  const bgMap: Record<string, string> = {
+    primary: 'bg-primary text-primary-foreground',
+    success: 'bg-success text-success-foreground',
+    'amber-500': 'bg-amber-500 text-white',
+    warning: 'bg-warning text-warning-foreground',
+    destructive: 'bg-destructive text-destructive-foreground',
+  };
+  return (
+    <div className="flex gap-2">
+      <span className={cn("shrink-0 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold", bgMap[color] || bgMap.primary)}>
+        {num}
+      </span>
+      <div className="text-xs">{children}</div>
+    </div>
+  );
+}
+
+function RentPaymentGuideContent() {
+  return (
+    <>
+      <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Paying Rent for a Tenant</p>
+      <StepItem num="1"><p className="font-medium">Search Tenant</p><p className="text-muted-foreground">Search by name or phone number.</p></StepItem>
+      <StepItem num="2"><p className="font-medium">Enter Amount</p><p className="text-muted-foreground">See outstanding balance and your wallet balance.</p></StepItem>
+      <StepItem num="3"><p className="font-medium">Instant Processing</p><p className="text-muted-foreground">Money deducted from your wallet. You earn 5% commission.</p></StepItem>
+      <StepItem num="✓" color="success"><p className="font-medium text-success">Receivables Updated</p><p className="text-muted-foreground">Statement updates immediately.</p></StepItem>
+      <div className="rounded-lg border border-warning/30 bg-warning/5 p-2 space-y-1.5 mt-2">
+        <div className="flex items-center gap-2">
+          <RefreshCw className="h-3 w-3 text-warning" />
+          <p className="text-[10px] font-bold text-warning uppercase tracking-wider">Auto-Deduction System</p>
+        </div>
+        <div className="text-[11px] text-muted-foreground leading-relaxed space-y-1">
+          <p>1. System deducts from <strong className="text-foreground">tenant's wallet</strong> first</p>
+          <p>2. If low → <strong className="text-foreground">agent's wallet</strong> covers shortfall</p>
+          <p>3. If both low → recorded as <strong className="text-foreground">accumulated debt</strong></p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TenantVerifyGuideContent() {
+  return (
+    <>
+      <StepItem num="1"><p className="font-medium">Visit Tenant's Residence</p><p className="text-muted-foreground">Confirm they live at the address.</p></StepItem>
+      <StepItem num="2"><p className="font-medium flex items-center gap-1"><Zap className="h-3 w-3" /> Verify Electricity Meter</p><p className="text-muted-foreground">Check UMEME/UEDCL meter number.</p></StepItem>
+      <StepItem num="3"><p className="font-medium flex items-center gap-1"><Droplets className="h-3 w-3" /> Verify Water Meter</p><p className="text-muted-foreground">Check NWSC water meter.</p></StepItem>
+      <StepItem num="4"><p className="font-medium flex items-center gap-1"><Phone className="h-3 w-3" /> Confirm MM Details</p><p className="text-muted-foreground">Verify MM name matches phone.</p></StepItem>
+      <StepItem num="5"><p className="font-medium flex items-center gap-1"><MapPin className="h-3 w-3" /> Capture GPS</p><p className="text-muted-foreground">Pin the tenant's residence location.</p></StepItem>
+      <StepItem num="✓" color="success"><p className="font-medium text-success">Tap "Verify"</p><p className="text-muted-foreground">Earn <strong>UGX 10,000</strong> + <strong>5%</strong> ongoing commission!</p></StepItem>
+    </>
+  );
+}
+
+function LandlordVerifyGuideContent() {
+  return (
+    <>
+      <StepItem num="1" color="amber-500"><p className="font-medium">Visit Landlord's Property</p><p className="text-muted-foreground">Verify property exists and matches description.</p></StepItem>
+      <StepItem num="2" color="amber-500"><p className="font-medium">Collect MM Details</p><p className="text-muted-foreground">Record Mobile Money name and number.</p></StepItem>
+      <StepItem num="3" color="amber-500"><p className="font-medium flex items-center gap-1"><Zap className="h-3 w-3" /> Record Utility Meters</p><p className="text-muted-foreground">Note electricity and water meter numbers.</p></StepItem>
+      <StepItem num="4" color="amber-500"><p className="font-medium">Get LC1 Details</p><p className="text-muted-foreground">Record LC1 Chairperson's name, phone & village.</p></StepItem>
+      <StepItem num="5" color="amber-500"><p className="font-medium flex items-center gap-1"><MapPin className="h-3 w-3" /> Capture GPS</p><p className="text-muted-foreground">Tap "Capture GPS" at the property.</p></StepItem>
+      <StepItem num="6" color="amber-500"><p className="font-medium">Register & Share Link</p><p className="text-muted-foreground">Share WhatsApp activation link.</p></StepItem>
+      <StepItem num="✓" color="success"><p className="font-medium text-success">Landlord Verified!</p><p className="text-muted-foreground">They can now receive rent via Welile.</p></StepItem>
+    </>
   );
 }
