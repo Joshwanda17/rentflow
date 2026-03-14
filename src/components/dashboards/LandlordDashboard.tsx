@@ -25,6 +25,7 @@ import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDial
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { MyPropertiesSheet } from '@/components/landlord/MyPropertiesSheet';
+import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 import { useWallet } from '@/hooks/useWallet';
 import { useLandlordStats } from '@/hooks/useLandlordStats';
 import { formatUGX } from '@/lib/rentCalculations';
