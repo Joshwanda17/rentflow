@@ -28,6 +28,7 @@ interface LandlordMenuDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddTenant: () => void;
+  onViewListedHouses?: () => void;
 }
 
 interface MenuSection {
