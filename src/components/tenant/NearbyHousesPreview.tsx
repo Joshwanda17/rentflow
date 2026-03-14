@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, DoorOpen, Home, ChevronRight } from 'lucide-react';
-import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
+import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,20 +10,9 @@ interface NearbyHousesPreviewProps {
   onViewAll: () => void;
 }
 
-/**
- * Haversine distance in km between two GPS points
- */
-function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+function MiniHouseCard({ listing }: { listing: HouseListing }) {
+  const dist = listing.distance_km;
 
-function MiniHouseCard({ listing, distance }: { listing: HouseListing; distance?: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -35,9 +24,9 @@ function MiniHouseCard({ listing, distance }: { listing: HouseListing; distance?
         <MapPin className="h-3 w-3 shrink-0" />
         <span className="truncate">{listing.region}{listing.district ? `, ${listing.district}` : ''}</span>
       </div>
-      {distance !== undefined && (
+      {dist !== undefined && dist < 9999 && (
         <span className="inline-block text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-          ~{distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`} away
+          ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`} away
         </span>
       )}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -54,29 +43,15 @@ function MiniHouseCard({ listing, distance }: { listing: HouseListing; distance?
 
 export function NearbyHousesPreview({ onViewAll }: NearbyHousesPreviewProps) {
   const geo = useGeolocation(true);
-  const { listings, loading } = useHouseListings({ status: 'available', limit: 50 });
+  const { listings, loading } = useNearbyHouses({
+    latitude: geo.latitude,
+    longitude: geo.longitude,
+    radiusKm: 50,
+    limit: 10,
+    enabled: !geo.loading,
+  });
 
-  // Sort by distance if we have GPS, otherwise show most recent
-  const sorted = useMemo(() => {
-    if (!listings.length) return [];
-
-    if (geo.latitude && geo.longitude) {
-      return listings
-        .map(l => ({
-          ...l,
-          _dist: l.latitude && l.longitude
-            ? distanceKm(geo.latitude!, geo.longitude!, l.latitude, l.longitude)
-            : 9999,
-        }))
-        .sort((a, b) => a._dist - b._dist)
-        .slice(0, 10);
-    }
-
-    // No GPS — show most recent
-    return listings.slice(0, 10).map(l => ({ ...l, _dist: undefined as number | undefined }));
-  }, [listings, geo.latitude, geo.longitude]);
-
-  if (loading) {
+  if (loading || geo.loading) {
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -90,7 +65,7 @@ export function NearbyHousesPreview({ onViewAll }: NearbyHousesPreviewProps) {
     );
   }
 
-  if (!sorted.length) return null;
+  if (!listings.length) return null;
 
   const hasGPS = !!(geo.latitude && geo.longitude);
   const nearbyCity = geo.city;
@@ -113,12 +88,8 @@ export function NearbyHousesPreview({ onViewAll }: NearbyHousesPreviewProps) {
       </div>
 
       <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scrollbar-hide">
-        {sorted.map(listing => (
-          <MiniHouseCard
-            key={listing.id}
-            listing={listing}
-            distance={hasGPS ? listing._dist : undefined}
-          />
+        {listings.map(listing => (
+          <MiniHouseCard key={listing.id} listing={listing} />
         ))}
       </div>
     </div>
