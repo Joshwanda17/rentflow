@@ -1445,6 +1445,9 @@ export type Database = {
           address: string
           agent_id: string
           amenities: string[] | null
+          caretaker_name: string | null
+          caretaker_phone: string | null
+          caretaker_user_id: string | null
           created_at: string
           daily_rate: number
           description: string | null
@@ -1457,10 +1460,17 @@ export type Database = {
           house_category: string
           id: string
           image_urls: string[] | null
+          is_agent_caretaker: boolean | null
           is_furnished: boolean | null
           landlord_accepted: boolean | null
+          landlord_has_smartphone: boolean | null
           landlord_id: string | null
           latitude: number | null
+          lc1_chairperson_name: string | null
+          lc1_chairperson_phone: string | null
+          lc1_chairperson_village: string | null
+          listing_bonus_paid: boolean | null
+          listing_bonus_paid_at: string | null
           longitude: number | null
           monthly_rent: number
           number_of_rooms: number
@@ -1482,6 +1492,9 @@ export type Database = {
           address: string
           agent_id: string
           amenities?: string[] | null
+          caretaker_name?: string | null
+          caretaker_phone?: string | null
+          caretaker_user_id?: string | null
           created_at?: string
           daily_rate?: number
           description?: string | null
@@ -1494,10 +1507,17 @@ export type Database = {
           house_category?: string
           id?: string
           image_urls?: string[] | null
+          is_agent_caretaker?: boolean | null
           is_furnished?: boolean | null
           landlord_accepted?: boolean | null
+          landlord_has_smartphone?: boolean | null
           landlord_id?: string | null
           latitude?: number | null
+          lc1_chairperson_name?: string | null
+          lc1_chairperson_phone?: string | null
+          lc1_chairperson_village?: string | null
+          listing_bonus_paid?: boolean | null
+          listing_bonus_paid_at?: string | null
           longitude?: number | null
           monthly_rent: number
           number_of_rooms?: number
@@ -1519,6 +1539,9 @@ export type Database = {
           address?: string
           agent_id?: string
           amenities?: string[] | null
+          caretaker_name?: string | null
+          caretaker_phone?: string | null
+          caretaker_user_id?: string | null
           created_at?: string
           daily_rate?: number
           description?: string | null
@@ -1531,10 +1554,17 @@ export type Database = {
           house_category?: string
           id?: string
           image_urls?: string[] | null
+          is_agent_caretaker?: boolean | null
           is_furnished?: boolean | null
           landlord_accepted?: boolean | null
+          landlord_has_smartphone?: boolean | null
           landlord_id?: string | null
           latitude?: number | null
+          lc1_chairperson_name?: string | null
+          lc1_chairperson_phone?: string | null
+          lc1_chairperson_village?: string | null
+          listing_bonus_paid?: boolean | null
+          listing_bonus_paid_at?: string | null
           longitude?: number | null
           monthly_rent?: number
           number_of_rooms?: number
