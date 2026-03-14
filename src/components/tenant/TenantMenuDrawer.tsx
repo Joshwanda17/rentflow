@@ -19,6 +19,7 @@ import {
   ScrollText,
   PiggyBank,
   FileText,
+  Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
