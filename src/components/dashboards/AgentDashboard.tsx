@@ -368,6 +368,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
+      <ListEmptyHouseDialog open={listHouseOpen} onOpenChange={setListHouseOpen} onSuccess={refreshOfflineData} />
+      <AgentListingsSheet open={myListingsOpen} onOpenChange={setMyListingsOpen} />
 
       {/* Phase 1: Agent Operations Dialogs */}
       <AgentVisitPaymentWizard open={visitDialogOpen} onOpenChange={setVisitDialogOpen} onSuccess={refreshOfflineData} />
