@@ -396,6 +396,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         isAccepting={isAcceptingAgreement}
       />
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+      <AvailableHousesSheet open={housesOpen} onOpenChange={setHousesOpen} />
 
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} />
