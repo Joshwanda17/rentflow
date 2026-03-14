@@ -101,6 +101,7 @@ export function AgentMenuDrawer({
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
   const [landlordGuideOpen, setLandlordGuideOpen] = useState(false);
+  const [rentPaymentGuideOpen, setRentPaymentGuideOpen] = useState(false);
 
   const handleClose = () => {
     hapticTap();
