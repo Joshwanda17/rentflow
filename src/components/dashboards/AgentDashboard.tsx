@@ -14,6 +14,7 @@ import {
   MapPin,
   ShoppingBag,
   Loader2,
+  Home,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -301,6 +302,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className="flex-1 text-left">
             <p className="font-semibold">All Features & Tools</p>
             <p className="text-xs text-muted-foreground">Registrations, earnings, shop & more</p>
+          </div>
+        </motion.button>
+
+        {/* List Empty House — Prominent CTA */}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => { hapticTap(); setListHouseOpen(true); }}
+          className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-chart-4/30 bg-chart-4/5 hover:bg-chart-4/10 transition-all touch-manipulation"
+          style={{ boxShadow: '0 1px 3px 0 hsl(var(--chart-4) / 0.08)' }}
+        >
+          <div className="p-3 rounded-xl bg-chart-4/15 shrink-0">
+            <Home className="h-7 w-7 text-chart-4" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-lg text-foreground">List Empty House</p>
+            <p className="text-xs text-muted-foreground">Earn UGX 5,000 per verified listing</p>
           </div>
         </motion.button>
 
