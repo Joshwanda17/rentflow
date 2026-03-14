@@ -555,7 +555,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
             <p className="text-xs text-chart-4 font-semibold">💰 You earn UGX 5,000 when this landlord is verified</p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting || !monthlyRent || !form.region || !form.address || !form.lc1_name || !form.lc1_phone}>
+          <Button type="submit" className="w-full" disabled={submitting || !monthlyRent || !form.region || !form.address || !form.village || !form.lc1_name || !form.lc1_phone}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Home className="h-4 w-4 mr-2" />}
             List House at {monthlyRent > 0 ? `${formatUGX(pricing.dailyRate)}/day` : '...'}
           </Button>
