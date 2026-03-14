@@ -250,6 +250,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {/* Credit Access Limit */}
           <CreditAccessCard userId={user.id} />
 
+          {/* Nearby Houses — auto-detected */}
+          <NearbyHousesPreview onViewAll={() => setHousesOpen(true)} />
+
           {/* ═══════════════════════════════════════════════════════════════════
               THREE MAIN ACTION BUTTONS
           ═══════════════════════════════════════════════════════════════════ */}
