@@ -58,7 +58,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
-import { AgentRentPaymentGuide } from '@/components/agent/AgentRentPaymentGuide';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 
 // New Phase 1 components
@@ -304,7 +303,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Credit Access */}
         <CreditAccessCard userId={user.id} compact />
 
-        <AgentRentPaymentGuide />
         <ApprovedRentRequestsWidget mode="agent" />
 
 

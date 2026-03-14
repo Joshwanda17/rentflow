@@ -37,7 +37,7 @@ import {
   Zap,
   Droplets,
   Phone,
-  CheckCircle2,
+  RefreshCw,
   ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -101,6 +101,7 @@ export function AgentMenuDrawer({
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
   const [landlordGuideOpen, setLandlordGuideOpen] = useState(false);
+  const [rentPaymentGuideOpen, setRentPaymentGuideOpen] = useState(false);
 
   const handleClose = () => {
     hapticTap();
@@ -486,6 +487,90 @@ export function AgentMenuDrawer({
               <div className="px-4 pb-2">
                 <Separator className="mb-4" />
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
+                  How It Works
+                </h3>
+
+                {/* Rent Payment & Auto-Deduction Guide */}
+                <button
+                  onClick={() => { hapticTap(); setRentPaymentGuideOpen(!rentPaymentGuideOpen); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-success/5 border border-success/10 mb-2 text-left touch-manipulation"
+                >
+                  <div className="p-2 rounded-lg bg-success/10 text-success">
+                    <Wallet className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">How Rent Payments & Auto-Deductions Work</p>
+                    <p className="text-xs text-muted-foreground">Learn the rent payment process</p>
+                  </div>
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", rentPaymentGuideOpen && "rotate-180")} />
+                </button>
+                <AnimatePresence>
+                  {rentPaymentGuideOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden mb-3"
+                    >
+                      <div className="space-y-3 px-2 py-3 rounded-xl bg-muted/40 border border-border/60 text-xs">
+                        {/* Pay Rent Steps */}
+                        <div>
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">
+                            Paying Rent for a Tenant
+                          </p>
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">1</span>
+                              <div><p className="font-medium">Search Tenant</p><p className="text-muted-foreground">Tap "Pay Rent for Tenant" from the menu. Search by name or phone number.</p></div>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">2</span>
+                              <div><p className="font-medium">Enter Amount</p><p className="text-muted-foreground">See the tenant's outstanding balance and your wallet balance. Enter amount to pay.</p></div>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="shrink-0 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">3</span>
+                              <div><p className="font-medium">Instant Processing</p><p className="text-muted-foreground">Money is deducted from your wallet, credited to tenant, and auto-applied to their rent. You earn 5% commission.</p></div>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="shrink-0 h-5 w-5 rounded-full bg-success text-success-foreground flex items-center justify-center text-[10px] font-bold">✓</span>
+                              <div><p className="font-medium text-success">Receivables Updated</p><p className="text-muted-foreground">The Receivables Statement updates immediately — "Collected" increases and "Net Outstanding" decreases.</p></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Auto-Deduction Section */}
+                        <div className="rounded-lg border border-warning/30 bg-warning/5 p-2 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <RefreshCw className="h-3 w-3 text-warning" />
+                            <p className="text-[10px] font-bold text-warning uppercase tracking-wider">Auto-Deduction System</p>
+                          </div>
+                          <div className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                            <p>When a tenant's rent is facilitated, a <span className="font-semibold text-foreground">repayment schedule</span> is created with daily/weekly installments.</p>
+                            <div className="space-y-1 pl-1">
+                              <div className="flex gap-1.5">
+                                <span className="text-success font-bold shrink-0">1.</span>
+                                <span>System deducts from <span className="font-semibold text-foreground">tenant's wallet</span> first</span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <span className="text-warning font-bold shrink-0">2.</span>
+                                <span>If tenant funds are low → <span className="font-semibold text-foreground">agent's wallet</span> covers shortfall</span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <span className="text-destructive font-bold shrink-0">3.</span>
+                                <span>If agent also low → shortfall recorded as <span className="font-semibold text-foreground">accumulated debt</span></span>
+                              </div>
+                            </div>
+                            <p className="pt-1 border-t border-warning/20 text-[10px]">
+                              <span className="font-semibold text-foreground">No Smartphone tenants:</span> Auto-charge skips tenant wallet entirely — agent is charged directly.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1 mt-4">
                   Verification Guides
                 </h3>
 
