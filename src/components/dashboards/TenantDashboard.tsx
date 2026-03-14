@@ -47,6 +47,7 @@ import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
+import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
