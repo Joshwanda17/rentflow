@@ -499,12 +499,32 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
               </div>
             </div>
             <div>
-              <Label className="text-xs">Village / Zone</Label>
+              <Label className="text-xs">Village / Zone (auto-filled from property address)</Label>
               <Input
-                placeholder="e.g. Kikaya Zone B"
                 value={form.lc1_village}
-                onChange={e => setForm(f => ({ ...f, lc1_village: e.target.value }))}
+                disabled
+                className="bg-muted/50"
               />
+              {existingLc1Options.length > 0 && (
+                <div className="mt-2 p-2 bg-primary/5 border border-primary/20 rounded-lg text-xs">
+                  <p className="font-semibold text-primary mb-1.5">✅ Existing LC1 Chairpersons in {form.village}:</p>
+                  <div className="space-y-1">
+                    {existingLc1Options.map((lc1, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setForm(f => ({ ...f, lc1_name: lc1.name, lc1_phone: lc1.phone }));
+                          toast.success('LC1 details auto-filled');
+                        }}
+                        className="block w-full text-left px-2 py-1.5 hover:bg-primary/10 rounded transition-colors"
+                      >
+                        <span className="font-medium">{lc1.name}</span> · <span className="text-muted-foreground">{lc1.phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
