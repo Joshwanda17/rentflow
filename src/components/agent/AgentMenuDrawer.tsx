@@ -99,6 +99,8 @@ export function AgentMenuDrawer({
   onIssueReceipt,
   onViewLandlordMap,
   onFindRentals,
+  onListEmptyHouse,
+  onViewMyListings,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
