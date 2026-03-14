@@ -1449,6 +1449,7 @@ export type Database = {
           daily_rate: number
           description: string | null
           district: string | null
+          geo_point: unknown
           has_electricity: boolean | null
           has_parking: boolean | null
           has_security: boolean | null
@@ -1485,6 +1486,7 @@ export type Database = {
           daily_rate?: number
           description?: string | null
           district?: string | null
+          geo_point?: unknown
           has_electricity?: boolean | null
           has_parking?: boolean | null
           has_security?: boolean | null
@@ -1521,6 +1523,7 @@ export type Database = {
           daily_rate?: number
           description?: string | null
           district?: string | null
+          geo_point?: unknown
           has_electricity?: boolean | null
           has_parking?: boolean | null
           has_security?: boolean | null
@@ -4884,6 +4887,42 @@ export type Database = {
           normalized_phone: string
           user_count: number
           user_ids: string[]
+        }[]
+      }
+      find_nearby_houses: {
+        Args: {
+          category_filter?: string
+          radius_km?: number
+          region_filter?: string
+          result_limit?: number
+          user_lat: number
+          user_lng: number
+        }
+        Returns: {
+          access_fee: number
+          address: string
+          created_at: string
+          daily_rate: number
+          description: string
+          distance_km: number
+          district: string
+          has_electricity: boolean
+          has_parking: boolean
+          has_security: boolean
+          has_water: boolean
+          house_category: string
+          id: string
+          image_urls: string[]
+          is_furnished: boolean
+          latitude: number
+          longitude: number
+          monthly_rent: number
+          number_of_rooms: number
+          platform_fee: number
+          region: string
+          status: string
+          title: string
+          total_monthly_cost: number
         }[]
       }
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
