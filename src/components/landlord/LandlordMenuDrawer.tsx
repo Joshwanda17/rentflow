@@ -18,6 +18,7 @@ import {
   UserPlus,
   MessageSquare,
   FileText,
+  DoorOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
