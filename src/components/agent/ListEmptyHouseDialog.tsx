@@ -274,6 +274,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
             </div>
           </div>
 
+          {/* Photos — Booking.com style */}
+          <HouseImageUploader images={houseImages} onChange={setHouseImages} maxImages={5} />
+
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
