@@ -38,7 +38,10 @@ const REGIONS = [
 ];
 
 export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmptyHouseDialogProps) {
-  const { position, getPosition, loading: geoLoading } = useGeolocation();
+  const geo = useGeolocation(true);
+  const geoLoading = geo.loading;
+  const position = geo.latitude && geo.longitude ? { latitude: geo.latitude, longitude: geo.longitude } : null;
+  const getPosition = geo.requestGPSPermission;
   const [submitting, setSubmitting] = useState(false);
   
   const [form, setForm] = useState({
