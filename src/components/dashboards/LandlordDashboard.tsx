@@ -217,6 +217,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         open={menuOpen}
         onOpenChange={setMenuOpen}
         onAddTenant={() => setAddTenantOpen(true)}
+        onViewListedHouses={() => { setMenuOpen(false); setShowListedHouses(true); }}
       />
 
       {/* Dialogs */}
