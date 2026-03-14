@@ -45,6 +45,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
   const getPosition = geo.requestGPSPermission;
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
+  const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -54,6 +55,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
     region: '',
     district: '',
     address: '',
+    village: '',
     landlord_name: '',
     landlord_phone: '',
     landlord_has_smartphone: true,
@@ -75,6 +77,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
 
+  // Auto-populate LC1 village from property village and fetch existing LC1 chairpersons
+  const fetchLc1ForVillage = async (villageQuery: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lc1_chairpersons')
+        .select('name, phone, village')
+        .ilike('village', `%${villageQuery.trim()}%`)
+        .limit(5);
+      
+      if (error) throw error;
+      setExistingLc1Options(data || []);
+      
+      // Auto-fill if exact match exists
+      if (data && data.length === 1 && data[0].village.toLowerCase() === villageQuery.toLowerCase()) {
+        setForm(f => ({ ...f, lc1_name: data[0].name, lc1_phone: data[0].phone }));
+      }
+    } catch (error) {
+      console.error('Error fetching LC1 chairpersons:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!monthlyRent || monthlyRent < 10000) {
@@ -85,8 +108,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       toast.error('Region and address are required');
       return;
     }
+    if (!form.village.trim()) {
+      toast.error('Village/Zone is required to verify LC1 Chairperson');
+      return;
+    }
     if (!form.lc1_name || !form.lc1_phone) {
       toast.error('LC1 Chairperson details are required');
+      return;
+    }
+    // Validate LC1 village matches property village
+    if (form.lc1_village.toLowerCase() !== form.village.toLowerCase()) {
+      toast.error('LC1 Chairperson village must match property village');
       return;
     }
 
@@ -152,6 +184,16 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
 
       if (error) throw error;
 
+      // Save LC1 chairperson to lookup table if new
+      const { error: lc1Error } = await supabase
+        .from('lc1_chairpersons')
+        .upsert(
+          { name: form.lc1_name.trim(), phone: form.lc1_phone.trim(), village: form.lc1_village.trim() },
+          { onConflict: 'phone,village', ignoreDuplicates: true }
+        );
+
+      if (lc1Error) console.warn('LC1 save warning:', lc1Error);
+
       // Upload images if any
       if (houseImages.length > 0 && listing) {
         const urls = await uploadHouseImages(
@@ -177,13 +219,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       setForm({
         title: '', description: '', house_category: 'single_room',
         number_of_rooms: 1, monthly_rent: '', region: '', district: '',
-        address: '', landlord_name: '', landlord_phone: '',
+        address: '', village: '', landlord_name: '', landlord_phone: '',
         landlord_has_smartphone: true,
         has_water: false, has_electricity: false, has_security: false,
         has_parking: false, is_furnished: false,
         caretaker_type: 'none', caretaker_name: '', caretaker_phone: '',
         lc1_name: '', lc1_phone: '', lc1_village: '',
       });
+      setExistingLc1Options([]);
     } catch (err: any) {
       toast.error(err.message || 'Failed to list house');
     } finally {
@@ -405,6 +448,18 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               />
             </div>
+            <div>
+              <Label className="text-xs">Village / Zone *</Label>
+              <Input
+                placeholder="e.g. Kikaya Zone B"
+                value={form.village}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => ({ ...f, village: val, lc1_village: val }));
+                  if (val.trim().length >= 3) fetchLc1ForVillage(val);
+                }}
+              />
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -444,12 +499,32 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
               </div>
             </div>
             <div>
-              <Label className="text-xs">Village / Zone</Label>
+              <Label className="text-xs">Village / Zone (auto-filled from property address)</Label>
               <Input
-                placeholder="e.g. Kikaya Zone B"
                 value={form.lc1_village}
-                onChange={e => setForm(f => ({ ...f, lc1_village: e.target.value }))}
+                disabled
+                className="bg-muted/50"
               />
+              {existingLc1Options.length > 0 && (
+                <div className="mt-2 p-2 bg-primary/5 border border-primary/20 rounded-lg text-xs">
+                  <p className="font-semibold text-primary mb-1.5">✅ Existing LC1 Chairpersons in {form.village}:</p>
+                  <div className="space-y-1">
+                    {existingLc1Options.map((lc1, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setForm(f => ({ ...f, lc1_name: lc1.name, lc1_phone: lc1.phone }));
+                          toast.success('LC1 details auto-filled');
+                        }}
+                        className="block w-full text-left px-2 py-1.5 hover:bg-primary/10 rounded transition-colors"
+                      >
+                        <span className="font-medium">{lc1.name}</span> · <span className="text-muted-foreground">{lc1.phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -480,7 +555,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
             <p className="text-xs text-chart-4 font-semibold">💰 You earn UGX 5,000 when this landlord is verified</p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting || !monthlyRent || !form.region || !form.address || !form.lc1_name || !form.lc1_phone}>
+          <Button type="submit" className="w-full" disabled={submitting || !monthlyRent || !form.region || !form.address || !form.village || !form.lc1_name || !form.lc1_phone}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Home className="h-4 w-4 mr-2" />}
             List House at {monthlyRent > 0 ? `${formatUGX(pricing.dailyRate)}/day` : '...'}
           </Button>
