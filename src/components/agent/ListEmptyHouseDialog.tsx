@@ -77,6 +77,27 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
   const monthlyRent = parseInt(form.monthly_rent) || 0;
   const pricing = calculateDailyRentalRate(monthlyRent);
 
+  // Auto-populate LC1 village from property village and fetch existing LC1 chairpersons
+  const fetchLc1ForVillage = async (villageQuery: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lc1_chairpersons')
+        .select('name, phone, village')
+        .ilike('village', `%${villageQuery.trim()}%`)
+        .limit(5);
+      
+      if (error) throw error;
+      setExistingLc1Options(data || []);
+      
+      // Auto-fill if exact match exists
+      if (data && data.length === 1 && data[0].village.toLowerCase() === villageQuery.toLowerCase()) {
+        setForm(f => ({ ...f, lc1_name: data[0].name, lc1_phone: data[0].phone }));
+      }
+    } catch (error) {
+      console.error('Error fetching LC1 chairpersons:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!monthlyRent || monthlyRent < 10000) {
@@ -87,8 +108,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       toast.error('Region and address are required');
       return;
     }
+    if (!form.village.trim()) {
+      toast.error('Village/Zone is required to verify LC1 Chairperson');
+      return;
+    }
     if (!form.lc1_name || !form.lc1_phone) {
       toast.error('LC1 Chairperson details are required');
+      return;
+    }
+    // Validate LC1 village matches property village
+    if (form.lc1_village.toLowerCase() !== form.village.toLowerCase()) {
+      toast.error('LC1 Chairperson village must match property village');
       return;
     }
 
