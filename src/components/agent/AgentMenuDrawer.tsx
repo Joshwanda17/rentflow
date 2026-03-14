@@ -62,6 +62,8 @@ interface AgentMenuDrawerProps {
   onIssueReceipt?: () => void;
   onViewLandlordMap?: () => void;
   onFindRentals?: () => void;
+  onListEmptyHouse?: () => void;
+  onViewMyListings?: () => void;
 }
 
 interface MenuSection {
@@ -97,6 +99,8 @@ export function AgentMenuDrawer({
   onIssueReceipt,
   onViewLandlordMap,
   onFindRentals,
+  onListEmptyHouse,
+  onViewMyListings,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
@@ -247,6 +251,21 @@ export function AgentMenuDrawer({
           onClick: onFindRentals,
           color: 'text-violet-500',
           badge: 'Directory'
+        } as MenuItem] : []),
+        ...(onListEmptyHouse ? [{ 
+          icon: Home, 
+          label: 'List Empty House', 
+          description: 'Register available rental for daily tenants',
+          onClick: onListEmptyHouse,
+          color: 'text-emerald-600',
+          badge: 'Daily Rent'
+        } as MenuItem] : []),
+        ...(onViewMyListings ? [{ 
+          icon: Home, 
+          label: 'My Listed Houses', 
+          description: 'View houses you listed & their status',
+          onClick: onViewMyListings,
+          color: 'text-teal-500',
         } as MenuItem] : []),
       ]
     },

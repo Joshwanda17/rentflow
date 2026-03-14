@@ -18,6 +18,7 @@ import {
   UserPlus,
   MessageSquare,
   FileText,
+  DoorOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -27,6 +28,7 @@ interface LandlordMenuDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddTenant: () => void;
+  onViewListedHouses?: () => void;
 }
 
 interface MenuSection {
@@ -48,6 +50,7 @@ export function LandlordMenuDrawer({
   open, 
   onOpenChange, 
   onAddTenant,
+  onViewListedHouses,
 }: LandlordMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -77,6 +80,14 @@ export function LandlordMenuDrawer({
           onClick: onAddTenant,
           color: 'text-primary'
         },
+        ...(onViewListedHouses ? [{ 
+          icon: DoorOpen, 
+          label: 'Daily Rent Listings', 
+          description: 'View houses listed for daily rent',
+          onClick: onViewListedHouses,
+          color: 'text-success',
+          badge: 'Daily Rent'
+        } as MenuItem] : []),
         { 
           icon: Users, 
           label: 'My Tenants', 

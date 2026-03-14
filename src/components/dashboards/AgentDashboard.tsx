@@ -54,6 +54,8 @@ import { ProxyInvestmentHistorySheet } from '@/components/agent/ProxyInvestmentH
 import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
 import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
 import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
+import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
+import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
@@ -112,6 +114,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [landlordMapOpen, setLandlordMapOpen] = useState(false);
   const [rentalFinderOpen, setRentalFinderOpen] = useState(false);
+  const [listHouseOpen, setListHouseOpen] = useState(false);
+  const [myListingsOpen, setMyListingsOpen] = useState(false);
 
   // Phase 1: Agent Operations dialogs
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
@@ -329,6 +333,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
         onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
+        onListEmptyHouse={() => { setMenuOpen(false); setListHouseOpen(true); }}
+        onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
       />
 
       {/* Existing Dialogs */}
@@ -362,6 +368,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
+      <ListEmptyHouseDialog open={listHouseOpen} onOpenChange={setListHouseOpen} onSuccess={refreshOfflineData} />
+      <AgentListingsSheet open={myListingsOpen} onOpenChange={setMyListingsOpen} />
 
       {/* Phase 1: Agent Operations Dialogs */}
       <AgentVisitPaymentWizard open={visitDialogOpen} onOpenChange={setVisitDialogOpen} onSuccess={refreshOfflineData} />

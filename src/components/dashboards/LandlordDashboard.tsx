@@ -25,6 +25,7 @@ import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDial
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { MyPropertiesSheet } from '@/components/landlord/MyPropertiesSheet';
+import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 import { useWallet } from '@/hooks/useWallet';
 import { useLandlordStats } from '@/hooks/useLandlordStats';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -53,6 +54,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   const [addTenantOpen, setAddTenantOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showProperties, setShowProperties] = useState(false);
+  const [showListedHouses, setShowListedHouses] = useState(false);
 
   const handleRefresh = async () => {
     await Promise.all([refreshWallet(), refreshStats()]);
@@ -215,6 +217,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         open={menuOpen}
         onOpenChange={setMenuOpen}
         onAddTenant={() => setAddTenantOpen(true)}
+        onViewListedHouses={() => { setMenuOpen(false); setShowListedHouses(true); }}
       />
 
       {/* Dialogs */}
@@ -226,6 +229,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         open={addTenantOpen}
         onOpenChange={setAddTenantOpen}
       />
+      <AvailableHousesSheet open={showListedHouses} onOpenChange={setShowListedHouses} />
 
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} />
