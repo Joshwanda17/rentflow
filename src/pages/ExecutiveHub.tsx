@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { CEODashboard } from '@/components/executive/CEODashboard';
 import { CTODashboard } from '@/components/executive/CTODashboard';
 import { CMODashboard } from '@/components/executive/CMODashboard';
