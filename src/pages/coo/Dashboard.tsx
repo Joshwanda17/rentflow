@@ -9,6 +9,7 @@ import PaymentModeAnalytics from '@/components/coo/PaymentModeAnalytics';
 import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
+import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 
 export default function COODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -61,6 +62,8 @@ export default function COODashboardPage() {
         return <COOWithdrawalApprovals />;
       case 'partners':
         return <COOPartnersPage />;
+      case 'staff-performance':
+        return <StaffPerformancePanel />;
       default:
         return (
           <div className="space-y-6">
