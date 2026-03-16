@@ -4776,6 +4776,7 @@ export type Database = {
           rejection_reason: string | null
           status: string
           transaction_id: string | null
+          transaction_time: string | null
           updated_at: string
           user_id: string
         }
@@ -4797,6 +4798,7 @@ export type Database = {
           rejection_reason?: string | null
           status?: string
           transaction_id?: string | null
+          transaction_time?: string | null
           updated_at?: string
           user_id: string
         }
@@ -4818,6 +4820,7 @@ export type Database = {
           rejection_reason?: string | null
           status?: string
           transaction_id?: string | null
+          transaction_time?: string | null
           updated_at?: string
           user_id?: string
         }
