@@ -51,6 +51,7 @@ export default function FundTenantsFlow({
   const [coverageType, setCoverageType] = useState<'full' | 'partial' | 'daily'>('full');
   const [fundingDays, setFundingDays] = useState(30);
   const [transactionId, setTransactionId] = useState('');
+  const [transactionTime, setTransactionTime] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -144,6 +145,7 @@ export default function FundTenantsFlow({
     setCoverageType('full');
     setFundingDays(30);
     setTransactionId('');
+    setTransactionTime('');
     setConfirmed(false);
     setIsProcessing(false);
     setIsComplete(false);
@@ -160,7 +162,7 @@ export default function FundTenantsFlow({
       case 0: return fundingMode !== 'auto';
       case 1: return selectedIds.length > 0;
       case 2: return fundingAmount > 0 && fundingAmount <= walletBalance;
-      case 3: return confirmed && transactionId.replace(/\D/g, '').length >= 5;
+      case 3: return confirmed && transactionId.replace(/\D/g, '').length >= 5 && transactionTime.trim().length > 0;
       default: return false;
     }
   };
@@ -177,6 +179,7 @@ export default function FundTenantsFlow({
             coverage_type: coverageType,
             funding_days: coverageType === 'daily' ? fundingDays : 30,
             transaction_id: `TID${transactionId.replace(/\D/g, '')}`,
+            transaction_time: transactionTime.trim(),
           },
         });
 
@@ -463,6 +466,23 @@ export default function FundTenantsFlow({
               {transactionId.length > 0 && transactionId.length < 5 && (
                 <p className="text-xs text-destructive">Transaction ID must be at least 5 digits</p>
               )}
+            </div>
+
+            {/* Transaction Time — required */}
+            <div className="space-y-2">
+              <Label htmlFor="fund-time" className="text-sm font-semibold flex items-center gap-1">
+                Transaction Time <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="fund-time"
+                type="datetime-local"
+                value={transactionTime}
+                onChange={(e) => setTransactionTime(e.target.value)}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the exact time shown on the MoMo payment SMS
+              </p>
             </div>
 
             <div className="space-y-3">
