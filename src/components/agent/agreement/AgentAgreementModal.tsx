@@ -162,16 +162,22 @@ export default function AgentAgreementModal({
             {!viewOnly ? (
               <>
                 {/* Checkbox */}
-                <label className="flex items-start gap-3 p-3 rounded-lg bg-background border cursor-pointer hover:bg-muted/50 transition-colors">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setIsAgreed(!isAgreed)}
+                  onKeyDown={(e) => e.key === ' ' && setIsAgreed(!isAgreed)}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-background border cursor-pointer hover:bg-muted/50 transition-colors"
+                >
                   <Checkbox
                     checked={isAgreed}
                     onCheckedChange={(checked) => setIsAgreed(checked === true)}
-                    className="mt-0.5"
+                    className="mt-0.5 h-5 w-5"
                   />
-                  <span className="text-sm">
+                  <span className="text-sm select-none">
                     I have read, understood, and agree to the Agent Terms & Conditions. I confirm I am an independent platform partner, not an employee.
                   </span>
-                </label>
+                </div>
 
                 {/* Accept button */}
                 <Button
