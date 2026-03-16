@@ -357,50 +357,47 @@ export default function SupporterDashboard({
       />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 min-h-0 overflow-y-auto pb-28 md:pb-4 overscroll-contain -webkit-overflow-scrolling-touch">
-        <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-4 xs:space-y-5 max-w-lg mx-auto pb-8">
+        <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-5 max-w-lg mx-auto pb-8">
           
-          {/* ═══ GREETING + QUICK ACTIONS ═══ */}
-          <div className="flex flex-col items-center text-center">
-            <button onClick={() => navigate('/settings')} className="shrink-0 mb-2 min-h-[44px] min-w-[44px]">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+          {/* ═══ INLINE GREETING BAR ═══ */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
             </button>
-            <p className="text-xs xs:text-sm text-muted-foreground font-medium">Welcome back 👋</p>
-            <h1 className="font-black text-lg xs:text-xl leading-tight flex items-center justify-center gap-1">
-              {profile?.full_name?.split(' ')[0] || 'Supporter'}
-              {profile?.verified ? (
-                <span className="flex items-center gap-0.5">
-                  <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20" />
-                  <span className="text-[9px] text-purple-500 font-medium">Verified</span>
-                </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Welcome back</p>
+              <h1 className="font-black text-base leading-tight flex items-center gap-1.5 truncate">
+                {profile?.full_name?.split(' ')[0] || 'Supporter'}
+                {profile?.verified ? (
+                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                ) : (
+                  <BadgeCheck className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                )}
+              </h1>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <AiIdButton variant="compact" />
+              {effectiveHasAccepted ? (
+                <AgreementAcceptedBadge 
+                  acceptedAt={acceptance?.accepted_at}
+                  showCelebration={justAccepted}
+                  variant="compact"
+                />
               ) : (
-                <span className="flex items-center gap-0.5">
-                  <BadgeCheck className="h-4 w-4 text-muted-foreground/40" />
-                  <span className="text-[9px] text-muted-foreground font-medium">Unverified</span>
-                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAgreementModal(true)}
+                  className="text-[10px] border-2 border-warning/50 text-warning hover:bg-warning/10 gap-1 rounded-xl h-8 px-2 font-bold min-h-[36px]"
+                >
+                  <FileText className="h-3 w-3" />
+                  Terms
+                </Button>
               )}
-            </h1>
+            </div>
           </div>
+
           <MerchantCodePills />
-          <div className="flex items-center justify-center gap-2 px-1">
-            <AiIdButton variant="compact" />
-            {effectiveHasAccepted ? (
-              <AgreementAcceptedBadge 
-                acceptedAt={acceptance?.accepted_at}
-                showCelebration={justAccepted}
-                variant="compact"
-              />
-            ) : (
-              <Button
-                variant="outline"
-                size="default"
-                onClick={() => setShowAgreementModal(true)}
-                className="text-sm border-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl h-10 px-3 font-bold min-h-[44px]"
-              >
-                <FileText className="h-4 w-4" />
-                Accept Terms
-              </Button>
-            )}
-          </div>
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
           <PortfolioSummaryCards
@@ -411,80 +408,84 @@ export default function SupporterDashboard({
             totalReturn={totalRoiEarned}
           />
 
-
-          {/* ═══ QUICK ACTION BUTTONS - BIG & BOLD ═══ */}
-          <div className="grid grid-cols-3 gap-2 xs:gap-3">
+          {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
+          <div className="flex gap-2">
             <button
               onClick={() => {
                 hapticTap();
                 if (!effectiveHasAccepted) { setShowAgreementModal(true); return; }
                 setShowPaymentPartners(true);
               }}
-              className="flex flex-col items-center gap-1.5 xs:gap-2 p-3.5 xs:p-5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-[0.95] transition-transform touch-manipulation min-h-[80px] xs:min-h-[90px]"
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation"
             >
-              <CreditCard className="h-6 w-6 xs:h-8 xs:w-8" />
-              <span className="text-xs xs:text-sm font-black">Add Funds</span>
+              <CreditCard className="h-4.5 w-4.5" />
+              Add Funds
             </button>
 
             <button
               onClick={() => { hapticTap(); setShowCalculator(true); }}
-              className="flex flex-col items-center gap-1.5 xs:gap-2 p-3.5 xs:p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[80px] xs:min-h-[90px]"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-foreground font-bold text-sm shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
             >
-              <Calculator className="h-6 w-6 xs:h-8 xs:w-8 text-primary" />
-              <span className="text-xs xs:text-sm font-black">Calculator</span>
+              <Calculator className="h-4.5 w-4.5 text-primary" />
+              ROI
             </button>
 
             <button
               onClick={handleOpenMenu}
-              className="flex flex-col items-center gap-1.5 xs:gap-2 p-3.5 xs:p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[80px] xs:min-h-[90px]"
+              className="flex items-center justify-center px-4 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-muted-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
             >
-              <Menu className="h-6 w-6 xs:h-8 xs:w-8 text-muted-foreground" />
-              <span className="text-xs xs:text-sm font-black">More</span>
+              <Menu className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Credit Access moved to menu drawer */}
-
-          {/* Rent Categories & Credit Requests moved to More menu */}
-
-          {/* ═══ CAPITAL OPPORTUNITY CARD ═══ */}
+          {/* ═══ SECTION: OPPORTUNITIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1 h-5 rounded-full bg-primary" />
+              <h2 className="text-sm font-black text-foreground tracking-tight">Capital Opportunities</h2>
+            </div>
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
             <OpportunitySummaryCard />
           </div>
 
           {/* ═══ MY FUNDED HOUSES (collapsible) ═══ */}
           {virtualHouses.length > 0 && (
-            <Collapsible>
-              <CollapsibleTrigger asChild>
-                <button className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border/60 shadow-sm hover:bg-accent/30 transition-colors touch-manipulation active:scale-[0.98]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <span className="text-lg">🏘️</span>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1 h-5 rounded-full bg-success" />
+                <h2 className="text-sm font-black text-foreground tracking-tight">My Houses</h2>
+              </div>
+              <Collapsible defaultOpen>
+                <CollapsibleTrigger asChild>
+                  <button className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border/60 shadow-sm hover:bg-accent/30 transition-colors touch-manipulation active:scale-[0.98]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <span className="text-lg">🏘️</span>
+                      </div>
+                      <div className="text-left">
+                        <span className="font-bold text-sm text-foreground">{virtualHouses.length} Properties</span>
+                        <p className="text-[10px] text-muted-foreground">Your funded portfolio</p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <span className="font-bold text-sm text-foreground">My Houses</span>
-                      <p className="text-[10px] text-muted-foreground">{virtualHouses.length} funded properties</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                        {virtualHouses.length}
+                      </Badge>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
                     </div>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="pt-3">
+                    <VirtualHousesFeed
+                      houses={virtualHouses}
+                      loading={loading}
+                      onHouseTap={handleHouseTap}
+                    />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                      {virtualHouses.length}
-                    </Badge>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
-                  </div>
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="pt-3">
-                  <VirtualHousesFeed
-                    houses={virtualHouses}
-                    loading={loading}
-                    onHouseTap={handleHouseTap}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
           )}
 
 
