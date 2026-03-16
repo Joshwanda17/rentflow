@@ -200,9 +200,15 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Table */}
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 print-area">
+        {/* Print-only header */}
+        <div className="hidden print-header">
+          <h1>Welile Technologies — Company Staff List</h1>
+          <p>Printed on {format(new Date(), 'dd MMMM yyyy, HH:mm')} · {filtered.length} staff members</p>
+        </div>
+
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-3 no-print">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full rounded-xl" />
             ))}
