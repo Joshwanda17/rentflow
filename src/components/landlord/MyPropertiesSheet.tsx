@@ -79,8 +79,28 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
   };
 
-  const occupied = properties.filter(p => p.tenant_id);
-  const empty = properties.filter(p => !p.tenant_id);
+  const toggleOccupancy = async (property: Property) => {
+    hapticTap();
+    const newValue = !property.is_occupied;
+    // Optimistic update
+    setProperties(prev => prev.map(p => p.id === property.id ? { ...p, is_occupied: newValue } : p));
+
+    const { error } = await supabase
+      .from('landlords')
+      .update({ is_occupied: newValue } as any)
+      .eq('id', property.id);
+
+    if (error) {
+      // Revert on error
+      setProperties(prev => prev.map(p => p.id === property.id ? { ...p, is_occupied: !newValue } : p));
+      toast.error('Failed to update status');
+    } else {
+      toast.success(newValue ? 'Marked as Occupied' : 'Marked as Empty');
+    }
+  };
+
+  const occupied = properties.filter(p => p.is_occupied || p.tenant_id);
+  const empty = properties.filter(p => !p.is_occupied && !p.tenant_id);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
