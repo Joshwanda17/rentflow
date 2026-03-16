@@ -62,6 +62,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Alerts', icon: AlertTriangle, id: 'alerts' },
         { label: 'Withdrawal Approvals', icon: Banknote, id: 'withdrawals' },
         { label: 'Partners', icon: Handshake, id: 'partners' },
+        { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
       ],
     },
   ],
