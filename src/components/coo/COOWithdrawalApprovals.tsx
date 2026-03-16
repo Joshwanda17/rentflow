@@ -257,13 +257,27 @@ export function COOWithdrawalApprovals() {
               This will trigger the wallet deduction and confirm payment.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label>Transaction ID (from MoMo)</Label>
-            <Input
-              placeholder="e.g. TXN123456789"
-              value={transactionId}
-              onChange={e => setTransactionId(e.target.value)}
-            />
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Transaction ID (from MoMo) <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="e.g. TXN123456789"
+                value={transactionId}
+                onChange={e => setTransactionId(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Transaction Time <span className="text-destructive">*</span></Label>
+              <Input
+                type="datetime-local"
+                value={transactionTime}
+                onChange={e => setTransactionTime(e.target.value)}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the exact time from the MoMo payment SMS
+              </p>
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
