@@ -195,7 +195,7 @@ export function StaffPerformancePanel() {
     return Object.values(memberMap).sort((a, b) => b.actions - a.actions);
   })();
 
-  const totalActions = staffMembers.reduce((s, m) => s + m.actions, 0);
+  const _totalActions = staffMembers.reduce((s, m) => s + m.actions, 0);
   const activeStaff = staffMembers.filter(m => m.actions > 0).length;
   const idleStaff = staffMembers.filter(m => {
     if (!m.lastActive) return true;
