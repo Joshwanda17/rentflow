@@ -178,7 +178,6 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
                         className="data-[state=checked]:bg-success"
                       />
                     </div>
-                    </div>
 
                     {/* Description */}
                     {p.description && (
