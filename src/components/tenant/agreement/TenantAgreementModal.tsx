@@ -179,17 +179,27 @@ const TenantAgreementModal = forwardRef<HTMLDivElement, TenantAgreementModalProp
           {/* Acceptance controls - only show if not view only */}
           {!viewOnly && (
             <>
-              <label className="flex items-start gap-3 cursor-pointer">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => hasScrolledToBottom && setIsAgreed(!isAgreed)}
+                onKeyDown={(e) => e.key === ' ' && hasScrolledToBottom && setIsAgreed(!isAgreed)}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  hasScrolledToBottom
+                    ? 'bg-background hover:bg-muted/50 border-border'
+                    : 'bg-muted/30 border-border/50 cursor-not-allowed'
+                }`}
+              >
                 <Checkbox
                   checked={isAgreed}
                   onCheckedChange={(checked) => setIsAgreed(checked === true)}
                   disabled={!hasScrolledToBottom}
-                  className="mt-0.5"
+                  className="mt-0.5 h-5 w-5"
                 />
-                <span className={`text-sm ${!hasScrolledToBottom ? 'text-muted-foreground' : ''}`}>
-                  I agree to the Welile Tenant Agreement.
+                <span className={`text-sm select-none ${!hasScrolledToBottom ? 'text-muted-foreground' : ''}`}>
+                  I have read, understood, and agree to the Welile Tenant Terms & Conditions. I accept full responsibility for my rent obligations.
                 </span>
-              </label>
+              </div>
 
               <Button
                 onClick={handleAccept}
