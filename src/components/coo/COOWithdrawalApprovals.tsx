@@ -114,6 +114,7 @@ export function COOWithdrawalApprovals() {
       toast.success('Withdrawal approved & payment confirmed!');
       setApproveOpen(false);
       setTransactionId('');
+      setTransactionTime('');
       setSelected(null);
       fetchRequests();
     } catch (e: any) {
