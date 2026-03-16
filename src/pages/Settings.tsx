@@ -35,6 +35,7 @@ import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { AgentAgreementModal } from '@/components/agent/agreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { SupporterAgreementModal } from '@/components/supporter/agreement';
+import { MyPerformanceCard } from '@/components/manager/MyPerformanceCard';
 
 interface Profile {
   id: string;
