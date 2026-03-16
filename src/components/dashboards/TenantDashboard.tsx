@@ -199,20 +199,18 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
       {/* Scrollable content area */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-4 py-6 space-y-8 animate-fade-in max-w-lg mx-auto">
+        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
           {/* Offline Notice */}
           <AnimatePresence>
             {!isOnline && (
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <Card className="border-warning/50 bg-warning/10">
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <WifiOff className="h-4 w-4 text-warning shrink-0" />
-                    <p className="text-sm flex-1">Offline mode</p>
-                    <Button size="sm" variant="ghost" onClick={() => window.location.reload()}>
-                      <RefreshCw className="h-3 w-3" />
-                    </Button>
-                  </CardContent>
-                </Card>
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
+                  <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
+                  <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
+                    <RefreshCw className="h-3 w-3" />
+                  </Button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -220,112 +218,101 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {/* Terms Acceptance Notice */}
           <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
 
-
-          {/* Profile Section - Minimal */}
-          <div className="text-center space-y-3">
-            <button onClick={() => navigate('/settings')} className="mx-auto block">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-            </button>
-            <div>
-              <h1 className="font-bold text-2xl flex items-center justify-center gap-1.5">
-                {profile?.full_name || 'Welcome'}
-                {profile?.verified ? (
-                  <span className="flex items-center gap-0.5">
-                    <BadgeCheck className="h-5 w-5 text-purple-500 fill-purple-500/20" />
-                    <span className="text-[10px] text-purple-500 font-medium">Verified</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-0.5">
-                    <BadgeCheck className="h-5 w-5 text-muted-foreground/40" />
-                    <span className="text-[10px] text-muted-foreground font-medium">Unverified</span>
-                  </span>
-                )}
-              </h1>
-              <p className="text-sm text-muted-foreground">Welile Tenant</p>
-              <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
+          {/* Profile + Wallet Hero Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-border/60 bg-card overflow-hidden"
+          >
+            {/* Profile row */}
+            <div className="flex items-center gap-3 p-4 pb-3">
+              <button onClick={() => navigate('/settings')} className="shrink-0">
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="font-semibold text-base truncate">{profile?.full_name || 'Welcome'}</h1>
+                  {profile?.verified ? (
+                    <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                  ) : (
+                    <BadgeCheck className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Welile Tenant</p>
+              </div>
+              <AiIdButton variant="compact" />
             </div>
-            <AiIdButton variant="compact" />
-          </div>
+
+            {/* Wallet strip */}
+            <button
+              onClick={handleViewWallet}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 border-t border-border/40 hover:bg-muted/50 transition-colors touch-manipulation"
+            >
+              <Wallet className="h-5 w-5 text-success shrink-0" />
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-bold text-lg text-foreground truncate">{formatUGX(wallet?.balance ?? 0)}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {profile?.phone && (
+                  <>
+                    {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
+                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[6px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
+                    )}
+                    {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
+                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[6px] font-black text-white leading-none">A</span>
+                    )}
+                  </>
+                )}
+                <span className="text-xs text-muted-foreground">→</span>
+              </div>
+            </button>
+            <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
+          </motion.div>
+
+          {/* Subscription Status */}
+          <SubscriptionStatusCard userId={user.id} />
 
           {/* Credit Access Limit */}
           <CreditAccessCard userId={user.id} />
 
-          {/* Nearby Houses — auto-detected */}
-          <NearbyHousesPreview onViewAll={() => setHousesOpen(true)} />
-
-          {/* ═══════════════════════════════════════════════════════════════════
-              THREE MAIN ACTION BUTTONS
-          ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-3">
-            {/* 1. WALLET BUTTON - Primary */}
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={handleViewWallet}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation"
-            >
-              <div className="p-3 rounded-xl bg-success/20">
-                <Wallet className="h-7 w-7 text-success" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="font-bold text-xl text-success">{formatUGX(wallet?.balance ?? 0)}</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-muted-foreground">Rent Money</span>
-                  {profile?.phone && (
-                    <>
-                      <span className="text-muted-foreground/40">·</span>
-                      {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
-                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[7px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
-                      )}
-                      {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
-                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[7px] font-black text-white leading-none">A</span>
-                      )}
-                      <span className="text-xs text-muted-foreground">{profile.phone}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.button>
-            <WalletDisclaimer />
-
-            {/* Subscription Status - days ahead / debt indicator */}
-            <SubscriptionStatusCard userId={user.id} />
-
-            {/* 2. REQUEST RENT BUTTON */}
+          {/* Action Buttons — Clean & Minimal */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
+            
+            {/* Request Rent */}
             <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
               <RentRequestButton userId={user.id} onSuccess={fetchData} />
             </LockedActionTooltip>
 
-            {/* 2.5 AVAILABLE HOUSES — prominent CTA */}
-            <motion.button
-              whileTap={{ scale: 0.97 }}
+            {/* Find a House */}
+            <button
               onClick={() => { hapticTap(); setHousesOpen(true); }}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/10 to-blue-500/10 border-2 border-primary/30 hover:border-primary/50 transition-all touch-manipulation min-h-[72px]"
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
             >
-              <div className="p-3 rounded-xl bg-primary/20 shrink-0">
-                <Search className="h-7 w-7 text-primary" />
-              </div>
+              <Search className="h-5 w-5 text-primary shrink-0" />
               <div className="flex-1 text-left min-w-0">
-                <p className="font-bold text-lg">Find a House — Daily Rent</p>
-                <p className="text-sm text-muted-foreground">Browse affordable homes, pay daily</p>
+                <p className="font-medium text-sm">Find a House — Daily Rent</p>
+                <p className="text-xs text-muted-foreground">Browse affordable homes nearby</p>
               </div>
-              <span className="px-2 py-1 text-[10px] font-bold bg-success/20 text-success rounded-full shrink-0">NEW</span>
-            </motion.button>
+              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-success/15 text-success rounded-full shrink-0">NEW</span>
+            </button>
 
-            {/* 3. MENU BUTTON */}
-            <motion.button
-              whileTap={{ scale: 0.98 }}
+            {/* Menu */}
+            <button
               onClick={handleOpenMenu}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation"
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
             >
-              <div className="p-3 rounded-xl bg-muted">
-                <Menu className="h-7 w-7 text-foreground" />
-              </div>
+              <Menu className="h-5 w-5 text-foreground/70 shrink-0" />
               <div className="flex-1 text-left">
-                <p className="font-bold text-lg">Menu</p>
-                <p className="text-sm text-muted-foreground">Payments, tools & more</p>
+                <p className="font-medium text-sm">Menu</p>
+                <p className="text-xs text-muted-foreground">Payments, tools & more</p>
               </div>
-            </motion.button>
+              <span className="text-xs text-muted-foreground">→</span>
+            </button>
           </div>
+
+          {/* Nearby Houses — auto-detected */}
+          <NearbyHousesPreview onViewAll={() => setHousesOpen(true)} />
 
           {/* Rent Process Tracker - Show for active requests */}
           {rentRequests.length > 0 && (
@@ -339,7 +326,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               fundRoutedAt={(rentRequests[0] as any).fund_routed_at}
             />
           )}
-
 
           {/* Rent Calculator - Only when triggered from menu */}
           {showCalculator && (
@@ -381,10 +367,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 onRepaymentSuccess={fetchData}
               />
             </div>
-           )}
+          )}
 
           {/* Invite & Earn */}
           <InviteAndEarnCard variant="tenant" />
+
+          <WalletDisclaimer />
         </main>
       </PullToRefresh>
 
