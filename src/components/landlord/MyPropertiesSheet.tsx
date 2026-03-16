@@ -24,6 +24,7 @@ interface Property {
   desired_rent_from_welile: number | null;
   tenant_id: string | null;
   verified: boolean | null;
+  is_occupied: boolean;
   tenant_name?: string | null;
 }
 
