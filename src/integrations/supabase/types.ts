@@ -4959,6 +4959,7 @@ export type Database = {
           status: string
           title: string
           total_monthly_cost: number
+          verified: boolean
         }[]
       }
       generate_employee_id: { Args: { _full_name: string }; Returns: string }

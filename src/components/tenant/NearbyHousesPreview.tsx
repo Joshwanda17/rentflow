@@ -1,26 +1,58 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, DoorOpen, Home, ChevronRight } from 'lucide-react';
+import { MapPin, DoorOpen, Home, ChevronRight, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 interface NearbyHousesPreviewProps {
   onViewAll: () => void;
 }
 
+function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
+  if (!lat || !lng) return null;
+  
+  const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+  const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+  return (
+    <a
+      href={linkUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="block relative w-full h-20 rounded-lg overflow-hidden bg-muted border border-border group"
+    >
+      <iframe
+        src={mapUrl}
+        className="w-full h-full pointer-events-none"
+        title={`Map: ${title}`}
+        loading="lazy"
+        style={{ border: 0 }}
+      />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+          <ExternalLink className="h-3 w-3" /> Open Map
+        </span>
+      </div>
+    </a>
+  );
+}
+
 function MiniHouseCard({ listing }: { listing: HouseListing }) {
   const dist = listing.distance_km;
   const coverImage = listing.image_urls?.[0];
+  const isPending = !listing.verified || listing.status === 'pending';
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="min-w-[220px] max-w-[220px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
+      className="min-w-[240px] max-w-[240px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
     >
-      {/* Cover image — Booking.com style */}
+      {/* Cover image */}
       <div className="relative w-full h-28 bg-muted">
         {coverImage ? (
           <img src={coverImage} alt={listing.title} className="w-full h-full object-cover" loading="lazy" />
@@ -39,6 +71,16 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
             ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
           </span>
         )}
+        {/* Verification badge */}
+        {isPending ? (
+          <Badge variant="outline" className="absolute top-1 right-1 text-[9px] bg-warning/90 text-warning-foreground border-warning/50 gap-0.5 px-1.5 py-0.5">
+            <Clock className="h-2.5 w-2.5" /> Pending
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="absolute top-1 right-1 text-[9px] bg-success/90 text-white border-success/50 gap-0.5 px-1.5 py-0.5">
+            <ShieldCheck className="h-2.5 w-2.5" /> Verified
+          </Badge>
+        )}
       </div>
 
       <div className="p-3 space-y-1.5">
@@ -51,10 +93,15 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
           <DoorOpen className="h-3 w-3" />
           <span>{listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}</span>
         </div>
+        
+        {/* Daily rate */}
         <div className="p-2 rounded-lg bg-success/10 border border-success/20">
           <p className="text-lg font-black text-success leading-none">{formatUGX(listing.daily_rate)}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">per day</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">per day · pay as you stay</p>
         </div>
+
+        {/* Mini map */}
+        <MiniMapThumb lat={listing.latitude} lng={listing.longitude} title={listing.title} />
       </div>
     </motion.div>
   );
@@ -78,7 +125,7 @@ export function NearbyHousesPreview({ onViewAll }: NearbyHousesPreviewProps) {
           <Skeleton className="h-4 w-16" />
         </div>
         <div className="flex gap-3 overflow-x-auto">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="min-w-[220px] h-36 rounded-2xl" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="min-w-[240px] h-48 rounded-2xl" />)}
         </div>
       </div>
     );

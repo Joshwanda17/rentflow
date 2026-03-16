@@ -31,7 +31,7 @@ export interface HouseListing {
   status: string;
   tenant_id?: string | null;
   landlord_accepted?: boolean;
-  verified?: boolean;
+  verified?: boolean | null;
   created_at: string;
   updated_at?: string;
   // Distance from spatial query
@@ -150,7 +150,7 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         let query = supabase
           .from('house_listings')
           .select('*')
-          .eq('status', 'available')
+          .in('status', ['available', 'pending'])
           .order('created_at', { ascending: false })
           .limit(options.limit || 50);
 

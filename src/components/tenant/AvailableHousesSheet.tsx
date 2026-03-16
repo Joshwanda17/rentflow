@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink } from 'lucide-react';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -74,6 +74,53 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
   );
 }
 
+function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
+  if (!lat || !lng) return null;
+
+  const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+  const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+  return (
+    <div className="space-y-1">
+      <a
+        href={linkUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border border-border group"
+      >
+        <iframe
+          src={mapUrl}
+          className="w-full h-full pointer-events-none"
+          title={`Map: ${title}`}
+          loading="lazy"
+          style={{ border: 0 }}
+        />
+        <div className="absolute bottom-2 right-2 bg-card/90 backdrop-blur-sm text-foreground text-[10px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 border border-border shadow-sm group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+          <ExternalLink className="h-3 w-3" /> Open in Maps
+        </div>
+      </a>
+    </div>
+  );
+}
+
+function VerificationBadge({ verified, status }: { verified?: boolean; status: string }) {
+  const isPending = !verified || status === 'pending';
+  
+  if (isPending) {
+    return (
+      <Badge variant="outline" className="text-[10px] bg-warning/15 text-warning border-warning/30 gap-1">
+        <Clock className="h-3 w-3" /> Pending Verification
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="text-[10px] bg-success/15 text-success border-success/30 gap-1">
+      <ShieldCheck className="h-3 w-3" /> Verified
+    </Badge>
+  );
+}
+
 function HouseCard({ listing }: { listing: HouseListing }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
@@ -84,7 +131,6 @@ function HouseCard({ listing }: { listing: HouseListing }) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
     >
-      {/* Photo carousel — Booking.com style */}
       <div className="relative">
         <HouseImageCarousel images={listing.image_urls} title={listing.title} />
         {dist !== undefined && dist < 9999 && (
@@ -96,18 +142,21 @@ function HouseCard({ listing }: { listing: HouseListing }) {
       </div>
 
       <div className="p-4 space-y-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-base truncate">{listing.title}</h3>
-          <div className="flex items-center gap-1 mt-0.5">
-            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-            <p className="text-xs text-muted-foreground truncate">
-              {listing.address}, {listing.region}
-              {listing.district ? `, ${listing.district}` : ''}
-            </p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-base truncate">{listing.title}</h3>
+            <div className="flex items-center gap-1 mt-0.5">
+              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+              <p className="text-xs text-muted-foreground truncate">
+                {listing.address}, {listing.region}
+                {listing.district ? `, ${listing.district}` : ''}
+              </p>
+            </div>
           </div>
+          <VerificationBadge verified={listing.verified} status={listing.status} />
         </div>
 
-        {/* Daily Rate — primary price only */}
+        {/* Daily Rate */}
         <div className="p-4 rounded-xl bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30">
           <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Daily Rent</p>
           <p className="text-3xl font-black text-success leading-none mb-1">{formatUGX(listing.daily_rate)}</p>
@@ -149,6 +198,9 @@ function HouseCard({ listing }: { listing: HouseListing }) {
         {listing.description && (
           <p className="text-xs text-muted-foreground line-clamp-2">{listing.description}</p>
         )}
+
+        {/* Google Maps embed */}
+        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
       </div>
     </motion.div>
   );
@@ -161,7 +213,6 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [geoDefaultApplied, setGeoDefaultApplied] = useState(false);
 
-  // Auto-detect region from geo city
   useEffect(() => {
     if (!geoDefaultApplied && geo.city && !geo.loading) {
       const matched = REGIONS.find(r => r.toLowerCase() === geo.city!.toLowerCase());
@@ -170,7 +221,6 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     }
   }, [geo.city, geo.loading, geoDefaultApplied]);
 
-  // Use PostGIS spatial RPC
   const { listings, loading } = useNearbyHouses({
     latitude: geo.latitude,
     longitude: geo.longitude,
@@ -181,7 +231,6 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
     enabled: open && !geo.loading,
   });
 
-  // Client-side text filter on already-sorted results
   const filtered = useMemo(() => {
     if (!searchText.trim()) return listings;
     const q = searchText.toLowerCase();
