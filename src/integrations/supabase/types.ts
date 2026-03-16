@@ -1842,6 +1842,7 @@ export type Database = {
           house_number: string | null
           id: string
           is_agent_managed: boolean | null
+          is_occupied: boolean
           latitude: number | null
           location_captured_at: string | null
           location_captured_by: string | null
@@ -1892,6 +1893,7 @@ export type Database = {
           house_number?: string | null
           id?: string
           is_agent_managed?: boolean | null
+          is_occupied?: boolean
           latitude?: number | null
           location_captured_at?: string | null
           location_captured_by?: string | null
@@ -1942,6 +1944,7 @@ export type Database = {
           house_number?: string | null
           id?: string
           is_agent_managed?: boolean | null
+          is_occupied?: boolean
           latitude?: number | null
           location_captured_at?: string | null
           location_captured_by?: string | null
