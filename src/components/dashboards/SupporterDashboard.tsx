@@ -360,23 +360,22 @@ export default function SupporterDashboard({
         <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-5 max-w-lg mx-auto pb-8">
           
           {/* ═══ INLINE GREETING BAR ═══ */}
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground font-medium">Welcome back</p>
-               <h1 className="font-black text-base leading-tight flex items-center gap-1.5 flex-wrap">
-                <span className="break-words">{profile?.full_name?.split(' ')[0] || 'Supporter'}</span>
-                {profile?.verified ? (
-                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
-                ) : (
-                  <BadgeCheck className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-                )}
-              </h1>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <AiIdButton variant="compact" />
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
+                <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5">
+                  <span className="break-words">{profile?.full_name?.split(' ')[0] || 'Supporter'}</span>
+                  {profile?.verified ? (
+                    <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                  ) : (
+                    <BadgeCheck className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+                  )}
+                </h1>
+              </div>
               {effectiveHasAccepted ? (
                 <AgreementAcceptedBadge 
                   acceptedAt={acceptance?.accepted_at}
@@ -395,6 +394,8 @@ export default function SupporterDashboard({
                 </Button>
               )}
             </div>
+            {/* AI ID on its own row */}
+            <AiIdButton variant="compact" />
           </div>
 
           <MerchantCodePills />
