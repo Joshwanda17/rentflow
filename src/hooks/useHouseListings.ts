@@ -31,7 +31,7 @@ export interface HouseListing {
   status: string;
   tenant_id?: string | null;
   landlord_accepted?: boolean;
-  verified?: boolean;
+  verified?: boolean | null;
   created_at: string;
   updated_at?: string;
   // Distance from spatial query
