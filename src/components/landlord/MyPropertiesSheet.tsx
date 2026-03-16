@@ -3,9 +3,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { MapPin, User, Home, DoorOpen, Navigation, BedDouble, Banknote, Star } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import TenantRating from '@/components/landlord/TenantRating';
+import { toast } from 'sonner';
+import { hapticTap } from '@/lib/haptics';
 
 interface Property {
   id: string;
@@ -21,6 +24,7 @@ interface Property {
   desired_rent_from_welile: number | null;
   tenant_id: string | null;
   verified: boolean | null;
+  is_occupied: boolean;
   tenant_name?: string | null;
 }
 
@@ -40,7 +44,7 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
       setLoading(true);
       const { data, error } = await supabase
         .from('landlords')
-        .select('id, name, phone, property_address, latitude, longitude, number_of_houses, number_of_rooms, description, monthly_rent, desired_rent_from_welile, tenant_id, verified')
+        .select('id, name, phone, property_address, latitude, longitude, number_of_houses, number_of_rooms, description, monthly_rent, desired_rent_from_welile, tenant_id, verified, is_occupied')
         .eq('registered_by', userId)
         .order('created_at', { ascending: false });
 
@@ -75,8 +79,28 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
   };
 
-  const occupied = properties.filter(p => p.tenant_id);
-  const empty = properties.filter(p => !p.tenant_id);
+  const toggleOccupancy = async (property: Property) => {
+    hapticTap();
+    const newValue = !property.is_occupied;
+    // Optimistic update
+    setProperties(prev => prev.map(p => p.id === property.id ? { ...p, is_occupied: newValue } : p));
+
+    const { error } = await supabase
+      .from('landlords')
+      .update({ is_occupied: newValue } as any)
+      .eq('id', property.id);
+
+    if (error) {
+      // Revert on error
+      setProperties(prev => prev.map(p => p.id === property.id ? { ...p, is_occupied: !newValue } : p));
+      toast.error('Failed to update status');
+    } else {
+      toast.success(newValue ? 'Marked as Occupied' : 'Marked as Empty');
+    }
+  };
+
+  const occupied = properties.filter(p => p.is_occupied || p.tenant_id);
+  const empty = properties.filter(p => !p.is_occupied && !p.tenant_id);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -112,7 +136,7 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
 
               {properties.map((p) => {
                 const rent = p.desired_rent_from_welile || p.monthly_rent || 0;
-                const isOccupied = !!p.tenant_id;
+                const isOccupied = p.is_occupied || !!p.tenant_id;
 
                 return (
                   <div
@@ -134,6 +158,25 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
                       >
                         {isOccupied ? 'Occupied' : 'Empty'}
                       </Badge>
+                    </div>
+
+                    {/* Occupancy toggle */}
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border border-border/50">
+                      <div className="flex items-center gap-2">
+                        {isOccupied ? (
+                          <Home className="h-4 w-4 text-success" />
+                        ) : (
+                          <DoorOpen className="h-4 w-4 text-warning" />
+                        )}
+                        <span className="text-xs font-medium">
+                          {isOccupied ? 'House is occupied' : 'House is empty'}
+                        </span>
+                      </div>
+                      <Switch
+                        checked={isOccupied}
+                        onCheckedChange={() => toggleOccupancy(p)}
+                        className="data-[state=checked]:bg-success"
+                      />
                     </div>
 
                     {/* Description */}
