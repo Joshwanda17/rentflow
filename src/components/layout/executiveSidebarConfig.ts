@@ -97,6 +97,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Revenue & Growth', icon: TrendingUp, id: 'revenue' },
         { label: 'Users & Coverage', icon: Globe, id: 'users' },
         { label: 'Financial Health', icon: Shield, id: 'financial' },
+        { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
       ],
     },
   ],
