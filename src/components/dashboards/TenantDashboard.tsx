@@ -231,14 +231,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </button>
               <div className="flex-1 min-w-0">
               <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
-              <div className="flex items-center gap-1.5">
-                <h1 className="font-bold text-lg leading-tight truncate">{profile?.full_name || 'Welcome'}</h1>
+              <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5 flex-wrap">
+                <span className="break-words">{profile?.full_name || 'Welcome'}</span>
                   {profile?.verified ? (
                     <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
                   ) : (
                     <BadgeCheck className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                   )}
-                </div>
+              </h1>
                 <p className="text-xs text-muted-foreground">Welile Tenant</p>
               </div>
               <AiIdButton variant="compact" />
@@ -247,11 +247,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             {/* Wallet strip */}
             <button
               onClick={handleViewWallet}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 border-t border-border/40 hover:bg-muted/50 transition-colors touch-manipulation"
+              className="group w-full flex items-center gap-3 px-4 py-3.5 bg-success/5 border-t border-border/40 hover:bg-success/10 transition-all touch-manipulation"
             >
-              <Wallet className="h-5 w-5 text-success shrink-0" />
+              <div className="p-2 rounded-lg bg-success/15 group-hover:bg-success/25 transition-colors shrink-0">
+                <Wallet className="h-4 w-4 text-success" />
+              </div>
               <div className="flex-1 text-left min-w-0">
                 <p className="font-bold text-lg text-foreground truncate">{formatUGX(wallet?.balance ?? 0)}</p>
+                <p className="text-[10px] text-muted-foreground">Tap to open wallet</p>
               </div>
               <div className="flex items-center gap-1.5">
                 {profile?.phone && (
@@ -264,7 +267,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                     )}
                   </>
                 )}
-                <span className="text-xs text-muted-foreground">→</span>
+                <span className="text-muted-foreground group-hover:text-foreground transition-colors">›</span>
               </div>
             </button>
             <MerchantCodePills onDeposit={() => setDepositOpen(true)} />

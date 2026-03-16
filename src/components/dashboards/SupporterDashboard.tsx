@@ -366,8 +366,8 @@ export default function SupporterDashboard({
             </button>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Welcome back</p>
-              <h1 className="font-black text-base leading-tight flex items-center gap-1.5 truncate">
-                {profile?.full_name?.split(' ')[0] || 'Supporter'}
+               <h1 className="font-black text-base leading-tight flex items-center gap-1.5 flex-wrap">
+                <span className="break-words">{profile?.full_name?.split(' ')[0] || 'Supporter'}</span>
                 {profile?.verified ? (
                   <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
                 ) : (
