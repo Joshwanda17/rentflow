@@ -35,6 +35,7 @@ import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { AgentAgreementModal } from '@/components/agent/agreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { SupporterAgreementModal } from '@/components/supporter/agreement';
+import { MyPerformanceCard } from '@/components/manager/MyPerformanceCard';
 
 interface Profile {
   id: string;
@@ -563,6 +564,12 @@ export default function Settings() {
           <WalletCard />
         </motion.div>
 
+        {/* Manager Performance Stats */}
+        {roles.includes('manager') && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <MyPerformanceCard />
+          </motion.div>
+        )}
         {/* COO Dashboard Quick Link */}
         {roles.includes('manager') && (
           <motion.div variants={itemVariants} className="mb-6">
