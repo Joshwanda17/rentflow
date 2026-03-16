@@ -49,7 +49,7 @@ export function StaffPerformancePanel() {
         .from('user_roles')
         .select('user_id, role')
         .eq('enabled', true)
-        .in('role', staffRoles);
+        .in('role', staffRoles as any);
       const ids = [...new Set((data || []).map(r => r.user_id))];
       return ids;
     },
