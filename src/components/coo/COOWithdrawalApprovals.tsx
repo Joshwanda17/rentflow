@@ -283,7 +283,7 @@ export function COOWithdrawalApprovals() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
-              disabled={!transactionId.trim() || !!processing}
+              disabled={!transactionId.trim() || !transactionTime.trim() || !!processing}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               {processing ? 'Processing...' : 'Approve & Confirm Payment'}

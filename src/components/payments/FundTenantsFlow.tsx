@@ -468,6 +468,23 @@ export default function FundTenantsFlow({
               )}
             </div>
 
+            {/* Transaction Time — required */}
+            <div className="space-y-2">
+              <Label htmlFor="fund-time" className="text-sm font-semibold flex items-center gap-1">
+                Transaction Time <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="fund-time"
+                type="datetime-local"
+                value={transactionTime}
+                onChange={(e) => setTransactionTime(e.target.value)}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the exact time shown on the MoMo payment SMS
+              </p>
+            </div>
+
             <div className="space-y-3">
               <h4 className="text-sm font-medium">Selected Tenants:</h4>
               {selectedRequests.map(rr => (
