@@ -539,7 +539,7 @@ export default function SupporterDashboard({
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               <Calculator className="h-5 w-5 text-primary" />
-              Investment Calculator & ROI Projections
+              Earnings Calculator & Projections
             </DialogTitle>
           </DialogHeader>
           <div className="p-4 pt-0">
