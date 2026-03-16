@@ -288,17 +288,19 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <RentRequestButton userId={user.id} onSuccess={fetchData} />
             </LockedActionTooltip>
 
-            {/* Find a House */}
+            {/* Find a House — Hero CTA */}
             <button
               onClick={() => { hapticTap(); setHousesOpen(true); }}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
+              className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.01] active:scale-[0.98] transition-all touch-manipulation"
             >
-              <Search className="h-5 w-5 text-primary shrink-0" />
-              <div className="flex-1 text-left min-w-0">
-                <p className="font-medium text-sm">Find a House — Daily Rent</p>
-                <p className="text-xs text-muted-foreground">Browse affordable homes nearby</p>
+              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Search className="h-6 w-6" />
               </div>
-              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-success/15 text-success rounded-full shrink-0">NEW</span>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-bold text-base">Find a House Nearby</p>
+                <p className="text-sm opacity-80">Daily rent · Pay as you stay</p>
+              </div>
+              <span className="text-2xl">→</span>
             </button>
 
             {/* Menu */}
