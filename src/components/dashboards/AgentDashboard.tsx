@@ -180,147 +180,119 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
+        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
         {/* Offline Notice */}
         <AnimatePresence>
           {!isOnline && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <Card className="border-warning/50 bg-warning/10">
-                <CardContent className="p-3 flex items-center gap-3">
-                  <WifiOff className="h-4 w-4 text-warning shrink-0" />
-                  <p className="text-sm flex-1">Offline mode</p>
-                  <Button size="sm" variant="ghost" onClick={() => window.location.reload()}>
-                    <RefreshCw className="h-3 w-3" />
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
+                <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
+                <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         <AgentAgreementBanner />
 
-        {/* Profile Section */}
-        <div className="text-center space-y-3">
-          <button onClick={() => navigate('/settings')} className="mx-auto block">
-            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-          </button>
-          <div>
-            <h1 className="font-bold text-2xl flex items-center justify-center gap-1.5">
-              {profile?.full_name || 'Agent'}
-              {profile?.verified && (
-                <span className="flex items-center gap-0.5">
-                  <BadgeCheck className="h-5 w-5 text-purple-500 fill-purple-500/20" />
-                  <span className="text-[10px] text-purple-500 font-medium">Verified</span>
-                </span>
-              )}
-              {profile?.is_seller && (
-                <span className="flex items-center gap-0.5 ml-1">
-                  <ShoppingBag className="h-4 w-4 text-chart-4" />
-                  <span className="text-[10px] text-chart-4 font-semibold">Seller</span>
-                </span>
-              )}
-            </h1>
-            <p className="text-sm text-muted-foreground">Welile Agent</p>
-            {/* Compact Sell CTA or Pending notice */}
-            {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
-              <button
-                onClick={() => { hapticTap(); handleApplyToSell(); }}
-                disabled={applyingToSell}
-                className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-chart-4/40 bg-chart-4/10 text-chart-4 text-xs font-semibold hover:bg-chart-4/20 transition-all touch-manipulation"
-              >
-                <ShoppingBag className="h-3 w-3" />
-                {applyingToSell ? 'Applying…' : 'Start Selling on Welile'}
-              </button>
-            )}
-            {!profile?.is_seller && profile?.seller_application_status === 'pending' && (
-              <span className="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/10 text-warning text-xs font-medium">
-                <ShoppingBag className="h-3 w-3" />
-                Seller Application Pending
-              </span>
-            )}
-          </div>
-          <AiIdButton variant="compact" />
-        </div>
-
-        {/* Wallet Button — Priority 1 */}
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={handleViewWallet}
-          className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation overflow-hidden"
+        {/* Profile + Wallet Hero */}
+        <motion.div 
+          initial={{ opacity: 0, y: 8 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-border/60 bg-card overflow-hidden"
         >
-          <div className="p-3 rounded-xl bg-success/20 shrink-0">
-            <Wallet className="h-7 w-7 text-success" />
+          {/* Profile row */}
+          <div className="flex items-center gap-3 p-4 pb-3">
+            <button onClick={() => navigate('/settings')} className="shrink-0">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-semibold text-base truncate">{profile?.full_name || 'Agent'}</h1>
+                {profile?.verified && (
+                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                )}
+                {profile?.is_seller && (
+                  <ShoppingBag className="h-3.5 w-3.5 text-chart-4 shrink-0" />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
+            </div>
+            <AiIdButton variant="compact" />
           </div>
-          <div className="flex-1 text-left min-w-0">
-            <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
+
+          {/* Wallet strip */}
+          <button
+            onClick={handleViewWallet}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 border-t border-border/40 hover:bg-muted/50 transition-colors touch-manipulation"
+          >
+            <Wallet className="h-5 w-5 text-success shrink-0" />
+            <div className="flex-1 text-left min-w-0">
+              <p className="font-bold text-lg text-foreground truncate">{formatUGX(wallet?.balance ?? 0)}</p>
+            </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-sm text-muted-foreground">Rent Money</span>
               {profile?.phone && (
                 <>
-                  <span className="text-muted-foreground/40">·</span>
                   {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
-                    <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[7px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
+                    <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[6px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
                   )}
                   {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
-                    <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[7px] font-black text-white leading-none">A</span>
+                    <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[6px] font-black text-white leading-none">A</span>
                   )}
-                  <span className="text-xs text-muted-foreground">{profile.phone}</span>
                 </>
               )}
+              <span className="text-xs text-muted-foreground">→</span>
             </div>
-            <RecentAutoCharges />
-          </div>
-        </motion.button>
-        <WalletDisclaimer />
+          </button>
+          <RecentAutoCharges />
+        </motion.div>
 
-        {/* Quick Action Grid — Priority 2 */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Quick Actions</h3>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { icon: MapPin, label: 'Visit', color: 'bg-primary/15 text-primary', onClick: () => setVisitDialogOpen(true) },
-              { icon: Home, label: 'List House', color: 'bg-chart-4/15 text-chart-4', onClick: () => setListHouseOpen(true) },
-              { icon: UserPlus, label: 'Register', color: 'bg-blue-500/15 text-blue-500', onClick: handleRegisterUser },
-              { icon: Menu, label: 'All Tools', color: 'bg-muted text-foreground', onClick: handleOpenMenu },
-            ].map((action, i) => (
-              <motion.button
-                key={action.label}
-                whileTap={{ scale: 0.93 }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                onClick={() => { hapticTap(); action.onClick(); }}
-                className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-card border border-border/50 hover:bg-muted/40 active:scale-95 transition-all touch-manipulation"
-              >
-                <div className={cn("p-2.5 rounded-xl", action.color.split(' ')[0])}>
-                  <action.icon className={cn("h-5 w-5", action.color.split(' ')[1])} />
-                </div>
-                <span className="text-[10px] font-semibold">{action.label}</span>
-              </motion.button>
-            ))}
+        {/* Seller CTA */}
+        {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
+          <button
+            onClick={() => { hapticTap(); handleApplyToSell(); }}
+            disabled={applyingToSell}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-chart-4/40 text-chart-4 text-xs font-medium hover:bg-chart-4/5 transition-colors touch-manipulation"
+          >
+            <ShoppingBag className="h-3.5 w-3.5" />
+            {applyingToSell ? 'Applying…' : 'Start Selling on Welile'}
+          </button>
+        )}
+        {!profile?.is_seller && profile?.seller_application_status === 'pending' && (
+          <div className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-warning/5 border border-warning/20 text-warning text-xs font-medium">
+            <ShoppingBag className="h-3.5 w-3.5" />
+            Seller Application Pending
           </div>
-          {/* Secondary row */}
-          <div className="grid grid-cols-4 gap-2">
+        )}
+
+        {/* Quick Actions — Clean 2×4 Grid */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
+          <div className="grid grid-cols-4 gap-1.5">
             {[
-              { icon: Receipt, label: 'Receipt', color: 'bg-amber-500/15 text-amber-500', onClick: () => setReceiptOpen(true) },
-              { icon: Wallet, label: 'Deposit', color: 'bg-success/15 text-success', onClick: handleDeposit },
-              { icon: Share2, label: 'Refer', color: 'bg-pink-500/15 text-pink-500', onClick: () => navigate('/referrals') },
-              { icon: TrendingUp, label: 'Earnings', color: 'bg-emerald-500/15 text-emerald-500', onClick: () => navigate('/earnings') },
+              { icon: MapPin, label: 'Visit', onClick: () => setVisitDialogOpen(true) },
+              { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
+              { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
+              { icon: Receipt, label: 'Receipt', onClick: () => setReceiptOpen(true) },
+              { icon: Wallet, label: 'Deposit', onClick: handleDeposit },
+              { icon: Share2, label: 'Refer', onClick: () => navigate('/referrals') },
+              { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
+              { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
               <motion.button
                 key={action.label}
-                whileTap={{ scale: 0.93 }}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + i * 0.05 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.03 }}
                 onClick={() => { hapticTap(); action.onClick(); }}
-                className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-card border border-border/50 hover:bg-muted/40 active:scale-95 transition-all touch-manipulation"
+                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-card border border-border/40 hover:bg-muted/40 active:bg-muted/60 transition-all touch-manipulation"
               >
-                <div className={cn("p-2.5 rounded-xl", action.color.split(' ')[0])}>
-                  <action.icon className={cn("h-5 w-5", action.color.split(' ')[1])} />
-                </div>
-                <span className="text-[10px] font-semibold">{action.label}</span>
+                <action.icon className="h-[18px] w-[18px] text-foreground/70" />
+                <span className="text-[10px] font-medium text-foreground/80">{action.label}</span>
               </motion.button>
             ))}
           </div>
@@ -334,6 +306,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         <ApprovedRentRequestsWidget mode="agent" />
 
+        <WalletDisclaimer />
 
         </main>
       </PullToRefresh>
