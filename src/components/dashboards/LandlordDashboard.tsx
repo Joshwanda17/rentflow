@@ -79,130 +79,127 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-5 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
-          {/* Profile Section */}
-          <div className="text-center space-y-2">
-            <button onClick={() => navigate('/settings')} className="mx-auto block active:scale-95 transition-transform">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-            </button>
-            <div>
-              <div className="flex items-center justify-center gap-2">
-                <h1 className="font-bold text-xl flex items-center gap-1.5">
-                  {profile?.full_name || 'Property Owner'}
-                  {profile?.verified && (
-                    <span className="flex items-center gap-0.5">
-                      <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20" />
-                      <span className="text-[10px] text-purple-500 font-medium">Verified</span>
-                    </span>
-                  )}
-                </h1>
-                <WelileHomesLandlordBadge userId={user.id} variant="compact" />
-              </div>
-              <p className="text-xs text-muted-foreground">Property Owner</p>
-            </div>
-            <AiIdButton variant="compact" />
-          </div>
+        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
 
-          {/* Property Stats Row — large touch targets */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Profile + Wallet Hero Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-border/60 bg-card overflow-hidden"
+          >
+            {/* Profile row */}
+            <div className="flex items-center gap-3 p-4 pb-3">
+              <button onClick={() => navigate('/settings')} className="shrink-0">
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="font-semibold text-base truncate">{profile?.full_name || 'Property Owner'}</h1>
+                  {profile?.verified && (
+                    <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                  )}
+                  <WelileHomesLandlordBadge userId={user.id} variant="compact" />
+                </div>
+                <p className="text-xs text-muted-foreground">Property Owner</p>
+              </div>
+              <AiIdButton variant="compact" />
+            </div>
+
+            {/* Wallet strip */}
+            <button
+              onClick={handleViewWallet}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 border-t border-border/40 hover:bg-muted/50 transition-colors touch-manipulation"
+            >
+              <Wallet className="h-5 w-5 text-success shrink-0" />
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-bold text-lg text-foreground truncate">{formatUGX(wallet?.balance ?? 0)}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {profile?.phone && (
+                  <>
+                    {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
+                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[6px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
+                    )}
+                    {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
+                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[6px] font-black text-white leading-none">A</span>
+                    )}
+                  </>
+                )}
+                <span className="text-xs text-muted-foreground">→</span>
+              </div>
+            </button>
+          </motion.div>
+
+          {/* Property Stats Row */}
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => { hapticTap(); setShowProperties(true); }}
-              className="rounded-2xl bg-card border border-border/60 p-4 text-center shadow-sm hover:border-primary/40 transition-colors active:scale-95 min-h-[88px] flex flex-col items-center justify-center"
+              className="rounded-xl bg-card border border-border/50 p-3 text-center hover:bg-muted/40 transition-colors active:scale-95 touch-manipulation"
             >
-              <Home className="h-5 w-5 text-primary mb-1" />
+              <Home className="h-4 w-4 text-primary mx-auto mb-1" />
               {statsLoading ? (
-                <Skeleton className="h-7 w-10 mx-auto mb-1" />
+                <Skeleton className="h-6 w-8 mx-auto mb-0.5" />
               ) : (
-                <p className="text-2xl font-bold leading-tight">{landlordStats.totalProperties}</p>
+                <p className="text-xl font-bold leading-tight">{landlordStats.totalProperties}</p>
               )}
-              <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Properties</p>
+              <p className="text-[10px] font-medium text-muted-foreground">Properties</p>
             </button>
-            <div className="rounded-2xl bg-card border border-border/60 p-4 text-center shadow-sm min-h-[88px] flex flex-col items-center justify-center">
-              <DoorOpen className="h-5 w-5 text-warning mb-1" />
+            <div className="rounded-xl bg-card border border-border/50 p-3 text-center">
+              <DoorOpen className="h-4 w-4 text-warning mx-auto mb-1" />
               {statsLoading ? (
-                <Skeleton className="h-7 w-10 mx-auto mb-1" />
+                <Skeleton className="h-6 w-8 mx-auto mb-0.5" />
               ) : (
-                <p className="text-2xl font-bold leading-tight">{landlordStats.emptyHouses}</p>
+                <p className="text-xl font-bold leading-tight">{landlordStats.emptyHouses}</p>
               )}
-              <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Empty</p>
+              <p className="text-[10px] font-medium text-muted-foreground">Empty</p>
             </div>
-            <div className="rounded-2xl bg-card border border-border/60 p-4 text-center shadow-sm min-h-[88px] flex flex-col items-center justify-center">
-              <Banknote className="h-5 w-5 text-success mb-1" />
+            <div className="rounded-xl bg-card border border-border/50 p-3 text-center">
+              <Banknote className="h-4 w-4 text-success mx-auto mb-1" />
               {statsLoading ? (
-                <Skeleton className="h-7 w-8 mx-auto mb-1" />
+                <Skeleton className="h-6 w-6 mx-auto mb-0.5" />
               ) : (
-                <p className="text-base font-bold leading-tight">{formatUGX(landlordStats.totalRentReceivable)}</p>
+                <p className="text-sm font-bold leading-tight">{formatUGX(landlordStats.totalRentReceivable)}</p>
               )}
-              <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Rent/Month</p>
+              <p className="text-[10px] font-medium text-muted-foreground">Rent/Month</p>
             </div>
           </div>
 
-          {/* Credit Access Limit — based on rent collected */}
+          {/* Credit Access */}
           <CreditAccessCard userId={user.id} />
 
-          {/* THREE MAIN ACTION BUTTONS — tall, finger-friendly */}
-          <div className="space-y-3">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={handleViewWallet}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation min-h-[72px]"
-            >
-              <div className="p-3 rounded-xl bg-success/20 shrink-0">
-                <Wallet className="h-7 w-7 text-success" />
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-muted-foreground">Rent Money</span>
-                  {profile?.phone && (
-                    <>
-                      <span className="text-muted-foreground/40">·</span>
-                      {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
-                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[7px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
-                      )}
-                      {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
-                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[7px] font-black text-white leading-none">A</span>
-                      )}
-                      <span className="text-xs text-muted-foreground">{profile.phone}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.button>
-            <WalletDisclaimer />
+          {/* Action Buttons — Clean & Minimal */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
 
-            <motion.button
-              whileTap={{ scale: 0.97 }}
+            <button
               onClick={handleOpenRegisterProperty}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/10 to-blue-500/10 border-2 border-primary/30 hover:border-primary/50 transition-all touch-manipulation min-h-[72px]"
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
             >
-              <div className="p-3 rounded-xl bg-primary/20 shrink-0">
-                <Building2 className="h-7 w-7 text-primary" />
-              </div>
+              <Building2 className="h-5 w-5 text-primary shrink-0" />
               <div className="flex-1 text-left min-w-0">
-                <p className="font-bold text-lg">Guaranteed Monthly Rent</p>
-                <p className="text-sm text-muted-foreground">Register property to start earning</p>
+                <p className="font-medium text-sm">Register Property</p>
+                <p className="text-xs text-muted-foreground">Start earning guaranteed monthly rent</p>
               </div>
-            </motion.button>
+              <span className="text-xs text-muted-foreground">→</span>
+            </button>
 
-            <motion.button
-              whileTap={{ scale: 0.97 }}
+            <button
               onClick={handleOpenMenu}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation min-h-[72px]"
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
             >
-              <div className="p-3 rounded-xl bg-muted shrink-0">
-                <Menu className="h-7 w-7 text-foreground" />
+              <Menu className="h-5 w-5 text-foreground/70 shrink-0" />
+              <div className="flex-1 text-left">
+                <p className="font-medium text-sm">Menu</p>
+                <p className="text-xs text-muted-foreground">Tenants, receipts, loans & more</p>
               </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="font-bold text-lg">Menu</p>
-                <p className="text-sm text-muted-foreground">Tenants, receipts, loans & more</p>
-              </div>
-            </motion.button>
-           </div>
+              <span className="text-xs text-muted-foreground">→</span>
+            </button>
+          </div>
 
           {/* Invite & Earn */}
           <InviteAndEarnCard variant="landlord" />
 
+          <WalletDisclaimer />
         </main>
       </PullToRefresh>
 
