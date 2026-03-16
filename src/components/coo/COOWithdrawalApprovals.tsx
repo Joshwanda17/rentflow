@@ -91,6 +91,10 @@ export function COOWithdrawalApprovals() {
       toast.error('Please enter the transaction ID');
       return;
     }
+    if (!transactionTime.trim()) {
+      toast.error('Please enter the transaction time');
+      return;
+    }
     setProcessing(selected.id);
     try {
       // COO final approval — sets status to 'approved' which triggers wallet deduction
