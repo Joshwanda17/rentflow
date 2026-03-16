@@ -230,8 +230,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
               </button>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="font-semibold text-base truncate">{profile?.full_name || 'Welcome'}</h1>
+              <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-bold text-lg leading-tight truncate">{profile?.full_name || 'Welcome'}</h1>
                   {profile?.verified ? (
                     <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
                   ) : (
