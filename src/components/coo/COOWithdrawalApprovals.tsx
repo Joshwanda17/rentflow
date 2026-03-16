@@ -107,6 +107,7 @@ export function COOWithdrawalApprovals() {
           processed_by: user.id,
           processed_at: new Date().toISOString(),
           transaction_id: transactionId.trim(),
+          transaction_time: transactionTime.trim(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
