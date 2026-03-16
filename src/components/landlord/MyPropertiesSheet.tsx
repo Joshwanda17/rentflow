@@ -44,7 +44,7 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
       setLoading(true);
       const { data, error } = await supabase
         .from('landlords')
-        .select('id, name, phone, property_address, latitude, longitude, number_of_houses, number_of_rooms, description, monthly_rent, desired_rent_from_welile, tenant_id, verified')
+        .select('id, name, phone, property_address, latitude, longitude, number_of_houses, number_of_rooms, description, monthly_rent, desired_rent_from_welile, tenant_id, verified, is_occupied')
         .eq('registered_by', userId)
         .order('created_at', { ascending: false });
 
