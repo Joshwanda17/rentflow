@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
-import { Shield } from 'lucide-react';
+import { Shield, Home, MapPin, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import {
@@ -16,6 +16,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { VerifyTenantButton } from '@/components/verification';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface UnverifiedRequest {
   id: string;
@@ -26,46 +29,104 @@ interface UnverifiedRequest {
   landlord?: { name: string; property_address: string } | null;
 }
 
+interface UnverifiedHouse {
+  id: string;
+  title: string;
+  address: string;
+  region: string;
+  monthly_rent: number;
+  daily_rate: number;
+  number_of_rooms: number;
+  house_category: string;
+  status: string;
+  created_at: string;
+  verified: boolean | null;
+}
+
 export function VerificationOpportunitiesButton() {
   const { user } = useAuth();
-  const [count, setCount] = useState(0);
+  const [rentCount, setRentCount] = useState(0);
+  const [houseCount, setHouseCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [requests, setRequests] = useState<UnverifiedRequest[]>([]);
+  const [houses, setHouses] = useState<UnverifiedHouse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [verifyingHouse, setVerifyingHouse] = useState<string | null>(null);
+
+  const totalCount = rentCount + houseCount;
 
   useEffect(() => {
-    fetchCount();
-    // Realtime removed — rent_requests not in realtime whitelist
+    fetchCounts();
   }, [open]);
 
-  const fetchCount = async () => {
-    const { count } = await supabase
-      .from('rent_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('agent_verified', false)
-      .in('status', ['pending', 'approved']);
-    setCount(count || 0);
+  const fetchCounts = async () => {
+    const [rentRes, houseRes] = await Promise.all([
+      supabase
+        .from('rent_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('agent_verified', false)
+        .in('status', ['pending', 'approved']),
+      supabase
+        .from('house_listings')
+        .select('*', { count: 'exact', head: true })
+        .or('verified.is.null,verified.eq.false')
+        .in('status', ['pending', 'available']),
+    ]);
+    setRentCount(rentRes.count || 0);
+    setHouseCount(houseRes.count || 0);
   };
 
-  const fetchRequests = async () => {
+  const fetchAll = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('rent_requests')
-      .select('id, rent_amount, created_at, landlord_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address)')
-      .eq('agent_verified', false)
-      .in('status', ['pending', 'approved'])
-      .order('created_at', { ascending: false });
-    setRequests((data as any) || []);
+    const [rentRes, houseRes] = await Promise.all([
+      supabase
+        .from('rent_requests')
+        .select('id, rent_amount, created_at, landlord_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address)')
+        .eq('agent_verified', false)
+        .in('status', ['pending', 'approved'])
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('house_listings')
+        .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified')
+        .or('verified.is.null,verified.eq.false')
+        .in('status', ['pending', 'available'])
+        .order('created_at', { ascending: false }),
+    ]);
+    setRequests((rentRes.data as any) || []);
+    setHouses((houseRes.data as any) || []);
     setLoading(false);
   };
 
   const handleOpen = () => {
     hapticTap();
     setOpen(true);
-    fetchRequests();
+    fetchAll();
   };
 
-  if (count === 0) return null;
+  const handleVerifyHouse = async (houseId: string) => {
+    if (!user) return;
+    setVerifyingHouse(houseId);
+    const { error } = await supabase
+      .from('house_listings')
+      .update({
+        verified: true,
+        verified_at: new Date().toISOString(),
+        verified_by: user.id,
+        status: 'available',
+      })
+      .eq('id', houseId);
+
+    if (error) {
+      toast.error('Verification failed');
+    } else {
+      toast.success('House verified! It is now visible to tenants.');
+      fetchCounts();
+      fetchAll();
+    }
+    setVerifyingHouse(null);
+  };
+
+  if (totalCount === 0) return null;
 
   return (
     <>
@@ -77,7 +138,7 @@ export function VerificationOpportunitiesButton() {
         <Shield className="h-3.5 w-3.5" />
         <span className="font-bold">Verify & Earn</span>
         <Badge variant="outline" className="bg-white/20 border-white/30 text-primary-foreground text-[10px] px-1 py-0">
-          {count}
+          {totalCount}
         </Badge>
       </motion.button>
 
@@ -89,54 +150,121 @@ export function VerificationOpportunitiesButton() {
               Verification Opportunities
             </SheetTitle>
             <p className="text-sm text-muted-foreground">
-              Verify tenants to earn <span className="font-bold text-success">UGX 10,000</span> + <span className="font-bold text-success">5%</span> of every repayment
+              Verify houses & tenants to earn <span className="font-bold text-success">UGX 5,000–10,000</span> bonuses
             </p>
           </SheetHeader>
 
-          <ScrollArea className="flex-1 h-[calc(85vh-100px)] px-4 pb-4">
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
-              </div>
-            ) : requests.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No requests to verify right now</p>
-            ) : (
-              <div className="space-y-3">
-                {requests.map(req => (
-                  <Card key={req.id} className="border-border/60">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold">{req.tenant?.full_name || 'Unknown Tenant'}</p>
-                          <p className="text-xs text-muted-foreground">{req.tenant?.city || 'No location'}</p>
-                        </div>
-                        <p className="font-bold text-primary">{formatUGX(req.rent_amount)}</p>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        <p>Landlord: {req.landlord?.name || 'Unknown'}</p>
-                        <p>Property: {req.landlord?.property_address || 'N/A'}</p>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="text-xs space-y-0.5">
-                          <p className="text-success font-medium">💰 UGX 10,000 bonus</p>
-                          <p className="text-success font-medium">📈 5% ongoing commission</p>
-                        </div>
-                        <VerifyTenantButton
-                          requestId={req.id}
-                          landlordId={req.landlord_id}
-                          variant="agent"
-                          onVerified={() => {
-                            fetchCount();
-                            fetchRequests();
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+          <Tabs defaultValue="houses" className="flex-1">
+            <TabsList className="mx-4 mb-2 w-[calc(100%-2rem)]">
+              <TabsTrigger value="houses" className="flex-1 gap-1 text-xs">
+                <Home className="h-3 w-3" /> Houses {houseCount > 0 && <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">{houseCount}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="tenants" className="flex-1 gap-1 text-xs">
+                <Shield className="h-3 w-3" /> Tenants {rentCount > 0 && <Badge variant="secondary" className="text-[9px] px-1 py-0 ml-1">{rentCount}</Badge>}
+              </TabsTrigger>
+            </TabsList>
+
+            <ScrollArea className="h-[calc(85vh-160px)] px-4 pb-4">
+              <TabsContent value="houses" className="mt-0">
+                {loading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+                  </div>
+                ) : houses.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No houses to verify right now</p>
+                ) : (
+                  <div className="space-y-3">
+                    {houses.map(house => (
+                      <Card key={house.id} className="border-border/60">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm truncate">{house.title}</p>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{house.address}, {house.region}</span>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30 shrink-0">
+                              Pending
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="font-bold">{formatUGX(house.monthly_rent)}/mo</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-primary font-medium">{formatUGX(house.daily_rate)}/day</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground">{house.number_of_rooms} rooms</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <p className="text-xs text-success font-medium">💰 UGX 5,000 listing bonus</p>
+                            <Button
+                              onClick={() => handleVerifyHouse(house.id)}
+                              disabled={verifyingHouse === house.id}
+                              size="sm"
+                              className="gap-1.5 text-xs h-8"
+                            >
+                              {verifyingHouse === house.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+                              Verify House
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="tenants" className="mt-0">
+                {loading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}
+                  </div>
+                ) : requests.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No tenant requests to verify right now</p>
+                ) : (
+                  <div className="space-y-3">
+                    {requests.map(req => (
+                      <Card key={req.id} className="border-border/60">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-semibold">{req.tenant?.full_name || 'Unknown Tenant'}</p>
+                              <p className="text-xs text-muted-foreground">{req.tenant?.city || 'No location'}</p>
+                            </div>
+                            <p className="font-bold text-primary">{formatUGX(req.rent_amount)}</p>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            <p>Landlord: {req.landlord?.name || 'Unknown'}</p>
+                            <p>Property: {req.landlord?.property_address || 'N/A'}</p>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs space-y-0.5">
+                              <p className="text-success font-medium">💰 UGX 10,000 bonus</p>
+                              <p className="text-success font-medium">📈 5% ongoing commission</p>
+                            </div>
+                            <VerifyTenantButton
+                              requestId={req.id}
+                              landlordId={req.landlord_id}
+                              variant="agent"
+                              onVerified={() => {
+                                fetchCounts();
+                                fetchAll();
+                              }}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </ScrollArea>
+          </Tabs>
         </SheetContent>
       </Sheet>
     </>
