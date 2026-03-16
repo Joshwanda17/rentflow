@@ -562,7 +562,14 @@ export default function Settings() {
         {/* Wallet Card */}
         <motion.div variants={itemVariants} className="mb-6">
           <WalletCard />
-        </motion.div>
+          </motion.div>
+        )}
+
+        {/* Manager Performance Stats */}
+        {roles.includes('manager') && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <MyPerformanceCard />
+          </motion.div>
 
         {/* COO Dashboard Quick Link */}
         {roles.includes('manager') && (
