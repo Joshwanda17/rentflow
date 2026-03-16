@@ -146,16 +146,36 @@ export default function AdminUsersPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .print-area, .print-area * { visibility: visible; }
+          .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          table { border-collapse: collapse; width: 100%; font-size: 11px; }
+          th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+          th { background: #f5f5f5; font-weight: 600; }
+          .print-header { display: block !important; text-align: center; margin-bottom: 16px; }
+          .print-header h1 { font-size: 18px; font-weight: bold; }
+          .print-header p { font-size: 12px; color: #666; }
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-card border-b border-border safe-area-top">
+      <div className="sticky top-0 z-40 bg-card border-b border-border safe-area-top no-print">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+          <button onClick={() => navigate('/dashboard')} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+            <Home className="h-5 w-5 text-muted-foreground" />
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-foreground">Company Staff</h1>
             <p className="text-xs text-muted-foreground">{staff.length} staff member{staff.length !== 1 ? 's' : ''}</p>
           </div>
+          <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-1.5 h-9">
+            <Printer className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Print</span>
+          </Button>
           <Button size="sm" onClick={() => setRegisterOpen(true)} className="gap-1.5 h-9">
             <UserPlus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Register</span>
