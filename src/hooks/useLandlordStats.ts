@@ -21,7 +21,7 @@ export function useLandlordStats(userId: string | undefined) {
     try {
       const { data, error } = await supabase
         .from('landlords')
-        .select('id, tenant_id, monthly_rent, desired_rent_from_welile, verified')
+        .select('id, tenant_id, monthly_rent, desired_rent_from_welile, verified, is_occupied')
         .eq('registered_by', userId);
 
       if (error) {
@@ -31,7 +31,7 @@ export function useLandlordStats(userId: string | undefined) {
 
       const properties = data || [];
       const totalProperties = properties.length;
-      const emptyHouses = properties.filter(p => !p.tenant_id).length;
+      const emptyHouses = properties.filter(p => !p.tenant_id && !(p as any).is_occupied).length;
       const totalRentReceivable = properties.reduce((sum, p) => {
         const rent = p.desired_rent_from_welile || p.monthly_rent || 0;
         return sum + rent;
