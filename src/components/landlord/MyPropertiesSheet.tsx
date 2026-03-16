@@ -136,7 +136,7 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
 
               {properties.map((p) => {
                 const rent = p.desired_rent_from_welile || p.monthly_rent || 0;
-                const isOccupied = !!p.tenant_id;
+                const isOccupied = p.is_occupied || !!p.tenant_id;
 
                 return (
                   <div
@@ -158,6 +158,26 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
                       >
                         {isOccupied ? 'Occupied' : 'Empty'}
                       </Badge>
+                    </div>
+
+                    {/* Occupancy toggle */}
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border border-border/50">
+                      <div className="flex items-center gap-2">
+                        {isOccupied ? (
+                          <Home className="h-4 w-4 text-success" />
+                        ) : (
+                          <DoorOpen className="h-4 w-4 text-warning" />
+                        )}
+                        <span className="text-xs font-medium">
+                          {isOccupied ? 'House is occupied' : 'House is empty'}
+                        </span>
+                      </div>
+                      <Switch
+                        checked={isOccupied}
+                        onCheckedChange={() => toggleOccupancy(p)}
+                        className="data-[state=checked]:bg-success"
+                      />
+                    </div>
                     </div>
 
                     {/* Description */}
