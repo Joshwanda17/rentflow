@@ -3,9 +3,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { MapPin, User, Home, DoorOpen, Navigation, BedDouble, Banknote, Star } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import TenantRating from '@/components/landlord/TenantRating';
+import { toast } from 'sonner';
+import { hapticTap } from '@/lib/haptics';
 
 interface Property {
   id: string;
