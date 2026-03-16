@@ -873,17 +873,34 @@ input, textarea, select, button {
 
 /* ===== SUPPORTER DASHBOARD — PERFORMANCE-OPTIMIZED CSS ===== */
 
-/* Portfolio hero card */
-.portfolio-summary-card {
-  background: linear-gradient(135deg, hsl(271 81% 56%), hsl(271 81% 50% / 0.95), hsl(271 81% 46% / 0.85));
+/* Portfolio hero card — Premium fintech style */
+.portfolio-hero-card {
+  background: linear-gradient(145deg, hsl(271 81% 52%), hsl(271 81% 44%), hsl(260 70% 38%));
   color: hsl(var(--primary-foreground));
-  box-shadow: 0 10px 30px -10px hsl(271 81% 56% / 0.25);
+  box-shadow: 
+    0 20px 40px -15px hsl(271 81% 40% / 0.35),
+    0 0 0 1px hsl(271 81% 60% / 0.15) inset;
   will-change: auto;
   contain: layout style;
 }
 
+/* Legacy fallback */
+.portfolio-summary-card {
+  background: linear-gradient(145deg, hsl(271 81% 52%), hsl(271 81% 44%), hsl(260 70% 38%));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 20px 40px -15px hsl(271 81% 40% / 0.35);
+  will-change: auto;
+  contain: layout style;
+}
+
+.portfolio-stat-cell-v2 {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(4px);
+}
+
 .portfolio-stat-cell {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .wallet-balance-text {
