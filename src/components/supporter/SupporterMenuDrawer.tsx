@@ -16,11 +16,11 @@ import {
   Wallet,
   FileText,
   ChevronRight,
-  Zap
+  Zap,
+  type LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
-import { Separator } from '@/components/ui/separator';
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
 import React from 'react';
@@ -39,18 +39,42 @@ interface SupporterMenuDrawerProps {
 }
 
 interface MenuItem {
-  icon: typeof X;
+  icon: LucideIcon;
   label: string;
   description?: string;
   path?: string;
   onClick?: () => void;
   badge?: string;
-  color?: string;
 }
 
 interface MenuSection {
   title: string;
   items: MenuItem[];
+}
+
+function MenuItemRow({ item, onClick }: { item: MenuItem; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/60 active:scale-[0.98] transition-all text-left group"
+    >
+      <div className="w-9 h-9 rounded-lg bg-muted/80 flex items-center justify-center shrink-0">
+        <item.icon className="h-[18px] w-[18px] text-foreground/70" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-[13px] text-foreground truncate">{item.label}</p>
+        {item.description && (
+          <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
+        )}
+      </div>
+      {item.badge && (
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary rounded-full">
+          {item.badge}
+        </span>
+      )}
+      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 group-hover:text-muted-foreground transition-colors" />
+    </button>
+  );
 }
 
 export function SupporterMenuDrawer({ 
@@ -86,112 +110,34 @@ export function SupporterMenuDrawer({
     {
       title: 'Investments',
       items: [
-        { 
-          icon: CreditCard, 
-          label: 'Add Investment', 
-          description: 'Fund via Mobile Money',
-          onClick: onAddInvestment,
-          color: 'text-primary'
-        },
-        { 
-          icon: TrendingUp, 
-          label: 'ROI Analytics', 
-          description: 'Earnings & projections',
-          path: '/supporter-earnings',
-          color: 'text-success'
-        },
-        { 
-          icon: Calculator, 
-          label: 'ROI Calculator', 
-          description: 'Project your returns',
-          onClick: onOpenCalculator,
-          color: 'text-indigo-500'
-        },
+        { icon: CreditCard, label: 'Add Investment', description: 'Fund via Mobile Money', onClick: onAddInvestment },
+        { icon: TrendingUp, label: 'ROI Analytics', description: 'Earnings & projections', path: '/supporter-earnings' },
+        { icon: Calculator, label: 'ROI Calculator', description: 'Project your returns', onClick: onOpenCalculator },
       ]
     },
     {
-      title: 'Financial Activity',
+      title: 'Finances',
       items: [
-        { 
-          icon: Wallet, 
-          label: 'My Wallet', 
-          description: 'Balance & transactions',
-          path: '/transactions',
-          color: 'text-success'
-        },
-        { 
-          icon: History, 
-          label: 'Transaction History', 
-          description: 'All payment activity',
-          path: '/transactions',
-          color: 'text-blue-500'
-        },
-        { 
-          icon: FileText, 
-          label: 'Financial Statement', 
-          description: 'Download your statement',
-          path: '/financial-statement',
-          color: 'text-indigo-500'
-        },
-        { 
-          icon: Receipt, 
-          label: 'My Receipts', 
-          description: 'Payment records',
-          path: '/my-receipts',
-          color: 'text-teal-500'
-        },
+        { icon: Wallet, label: 'My Wallet', description: 'Balance & transactions', path: '/transactions' },
+        { icon: History, label: 'History', description: 'All payment activity', path: '/transactions' },
+        { icon: FileText, label: 'Statement', description: 'Download financial statement', path: '/financial-statement' },
+        { icon: Receipt, label: 'Receipts', description: 'Payment records', path: '/my-receipts' },
       ]
     },
     {
       title: 'Community',
       items: [
-        { 
-          icon: Share2, 
-          label: 'Referrals', 
-          description: 'Invite & earn rewards',
-          path: '/referrals',
-          color: 'text-purple-500'
-        },
-        { 
-          icon: Store, 
-          label: 'Marketplace', 
-          description: 'Shop products',
-          path: '/marketplace',
-          color: 'text-orange-500'
-        },
-        { 
-          icon: Download, 
-          label: 'Share App', 
-          description: 'Invite friends to Welile',
-          path: '/install',
-          color: 'text-primary'
-        },
+        { icon: Share2, label: 'Referrals', description: 'Invite & earn rewards', path: '/referrals' },
+        { icon: Store, label: 'Marketplace', description: 'Shop products', path: '/marketplace' },
+        { icon: Download, label: 'Share App', description: 'Invite friends to Welile', path: '/install' },
       ]
     },
     {
-      title: 'More',
+      title: 'Account',
       items: [
-        { 
-          icon: ScrollText, 
-          label: 'Supporter Agreement', 
-          description: 'Terms & conditions',
-          onClick: onViewAgreement,
-          color: 'text-muted-foreground'
-        },
-        { 
-          icon: Settings, 
-          label: 'Settings', 
-          description: 'Account preferences',
-          path: '/settings',
-          color: 'text-muted-foreground'
-        },
-        { 
-          icon: HelpCircle, 
-          label: 'Help & Support', 
-          description: 'Get assistance',
-          path: '/settings',
-          color: 'text-muted-foreground'
-        },
+        { icon: ScrollText, label: 'Agreement', description: 'Terms & conditions', onClick: onViewAgreement },
+        { icon: Settings, label: 'Settings', description: 'Account preferences', path: '/settings' },
+        { icon: HelpCircle, label: 'Help', description: 'Get assistance', path: '/settings' },
       ]
     },
   ];
@@ -206,7 +152,7 @@ export function SupporterMenuDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[100]"
           />
 
           {/* Drawer */}
@@ -214,102 +160,64 @@ export function SupporterMenuDrawer({
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            className="fixed right-0 top-0 bottom-0 w-[82%] max-w-xs bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-              <div>
-                <h2 className="font-bold text-lg">Menu</h2>
-                <p className="text-xs text-muted-foreground">All supporter features</p>
-              </div>
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/60">
+              <h2 className="font-bold text-base tracking-tight">Menu</h2>
               <button
                 onClick={handleClose}
-                className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
-              <div className="p-4 space-y-6">
+              <div className="py-3 space-y-1">
                 {/* Welile AI Credit Requests */}
                 {showCreditRequests && (
-                  <div>
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1 flex items-center gap-1.5">
-                      <Zap className="h-3.5 w-3.5 text-primary" />
-                      Welile AI Credit Requests
-                    </h3>
-                    <CreditRequestsFeed
-                      isLocked={isLocked}
-                      onLockedClick={onLockedClick}
-                    />
-                    <Separator className="mt-4" />
+                  <div className="px-4 pb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Zap className="h-3 w-3 text-primary" />
+                      AI Credit Requests
+                    </p>
+                    <CreditRequestsFeed isLocked={isLocked} onLockedClick={onLockedClick} />
                   </div>
                 )}
+
                 {/* Investment Categories */}
                 {onFundCategory && (
-                  <div>
+                  <div className="px-4 pb-2">
                     <RentCategoryFeed
-                      onFundCategory={(cat) => {
-                        onOpenChange(false);
-                        onFundCategory(cat);
-                      }}
+                      onFundCategory={(cat) => { onOpenChange(false); onFundCategory(cat); }}
                       isLocked={isLocked}
                       onLockedClick={onLockedClick}
                       onRefreshRef={onRefreshRef}
                     />
-                    <Separator className="mt-4" />
                   </div>
                 )}
-                {menuSections.map((section, sectionIndex) => (
-                  <div key={section.title}>
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
+
+                {/* Menu Sections */}
+                {menuSections.map((section) => (
+                  <div key={section.title} className="px-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-1.5">
                       {section.title}
-                    </h3>
-                    <div className="space-y-1">
-                      {section.items.map((item, itemIndex) => (
-                        <motion.button
-                          key={item.label}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: (sectionIndex * 0.05) + (itemIndex * 0.02) }}
-                          onClick={() => handleItemClick(item)}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
-                        >
-                          <div className={cn(
-                            "p-2 rounded-lg bg-muted/80",
-                            item.color
-                          )}>
-                            <item.icon className="h-5 w-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm truncate">{item.label}</p>
-                              {item.badge && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-success/20 text-success rounded-full">
-                                  {item.badge}
-                                </span>
-                              )}
-                            </div>
-                            {item.description && (
-                              <p className="text-xs text-muted-foreground truncate">{item.description}</p>
-                            )}
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </motion.button>
-                      ))}
-                    </div>
-                    {sectionIndex < menuSections.length - 1 && (
-                      <Separator className="mt-4" />
-                    )}
+                    </p>
+                    {section.items.map((item) => (
+                      <MenuItemRow
+                        key={item.label}
+                        item={item}
+                        onClick={() => handleItemClick(item)}
+                      />
+                    ))}
                   </div>
                 ))}
               </div>
 
-              {/* Footer Padding */}
-              <div className="h-8" />
+              <div className="h-6" />
             </div>
           </motion.div>
         </>
