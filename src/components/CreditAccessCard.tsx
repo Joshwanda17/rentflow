@@ -51,47 +51,34 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
 
   if (compact) {
     return (
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <TrendingUp className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Rent Fee Available</p>
-                <p className="font-bold text-sm text-primary">
-                  {formatCreditAmount(limit.totalLimit, currency)}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-1">
-              {currencyOptions.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${
-                    currency === c 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-          <Progress value={progressPercentage} className="h-1 mt-2" />
-          <button
-            onClick={handleRequestCredit}
-            disabled={limit.totalLimit <= 0}
-            className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation"
-          >
-            <Send className="h-3 w-3" /> Apply Now
-          </button>
-          <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-primary/15 bg-primary/[0.04]">
+        <TrendingUp className="h-3 w-3 text-primary shrink-0" />
+        <p className="text-[10px] text-muted-foreground">Rent Fee:</p>
+        <p className="text-[11px] font-bold text-primary">{formatCreditAmount(limit.totalLimit, currency)}</p>
+        <div className="flex gap-0.5 ml-auto">
+          {currencyOptions.map(c => (
+            <button
+              key={c}
+              onClick={() => setCurrency(c)}
+              className={`text-[8px] px-1 py-0.5 rounded-full font-medium transition-colors ${
+                currency === c 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'text-muted-foreground'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={handleRequestCredit}
+          disabled={limit.totalLimit <= 0}
+          className="text-[9px] font-bold text-primary-foreground bg-primary px-2 py-0.5 rounded-lg active:scale-95 transition-transform disabled:opacity-50 shrink-0"
+        >
+          Apply
+        </button>
+        <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
+      </div>
     );
   }
 
