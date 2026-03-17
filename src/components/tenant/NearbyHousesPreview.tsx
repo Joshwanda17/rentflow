@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, DoorOpen, Home, ChevronRight, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
+import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -102,6 +103,9 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
 
         {/* Mini map */}
         <MiniMapThumb lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+
+        {/* WhatsApp Agent */}
+        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
       </div>
     </motion.div>
   );

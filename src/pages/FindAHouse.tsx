@@ -10,6 +10,7 @@ import {
   Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check
 } from 'lucide-react';
+import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -158,6 +159,9 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
         <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+
+        {/* WhatsApp Agent */}
+        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
       </div>
     </motion.article>
   );

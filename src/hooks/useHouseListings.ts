@@ -36,6 +36,25 @@ export interface HouseListing {
   updated_at?: string;
   // Distance from spatial query
   distance_km?: number;
+  // Agent contact (enriched client-side)
+  agent_phone?: string | null;
+  agent_name?: string | null;
+}
+
+/** Enrich listings with agent phone/name from profiles */
+async function enrichWithAgentInfo(listings: HouseListing[]): Promise<HouseListing[]> {
+  const agentIds = [...new Set(listings.map(l => l.agent_id).filter(Boolean))] as string[];
+  if (!agentIds.length) return listings;
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, phone, full_name')
+    .in('id', agentIds);
+  if (!profiles) return listings;
+  const map = new Map(profiles.map(p => [p.id, p]));
+  return listings.map(l => {
+    const agent = l.agent_id ? map.get(l.agent_id) : null;
+    return { ...l, agent_phone: agent?.phone ?? null, agent_name: agent?.full_name ?? null };
+  });
 }
 
 interface UseHouseListingsOptions {
@@ -88,7 +107,8 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
-      setListings((data as any[]) || []);
+      const enriched = await enrichWithAgentInfo((data as any[]) || []);
+      setListings(enriched);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -146,7 +166,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         });
 
         if (!rpcError && data) {
-          setListings((data as any[]) || []);
+          const enriched = await enrichWithAgentInfo((data as any[]) || []);
+          setListings(enriched);
           usedRpc = true;
         }
         // If RPC fails (e.g. PostGIS not available), fall through to regular query
@@ -170,7 +191,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
 
         const { data, error: fetchError } = await query;
         if (fetchError) throw fetchError;
-        setListings((data as any[]) || []);
+        const enriched = await enrichWithAgentInfo((data as any[]) || []);
+        setListings(enriched);
       }
     } catch (err: any) {
       setError(err.message);
