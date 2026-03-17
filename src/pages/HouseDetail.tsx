@@ -304,6 +304,12 @@ export default function HouseDetail() {
             </a>
           )}
 
+          {/* Nearby Amenities */}
+          <NearbyAmenities latitude={listing.latitude} longitude={listing.longitude} />
+
+          {/* Q&A */}
+          <HouseQASection houseId={listing.id} agentId={listing.agent_id} />
+
           {/* Reviews Section */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
