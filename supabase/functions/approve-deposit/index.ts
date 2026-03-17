@@ -206,6 +206,61 @@ Deno.serve(async (req) => {
                 });
 
                 availableBalance -= repaymentApplied;
+
+                // ── Credit 5% agent commission on rent repayment ──
+                if (depositRequest.agent_id) {
+                  const AGENT_COMMISSION_RATE = 0.05;
+                  const agentCommission = Math.round(repaymentApplied * AGENT_COMMISSION_RATE);
+
+                  if (agentCommission > 0) {
+                    // Record earning
+                    await supabaseAdmin.from("agent_earnings").insert({
+                      agent_id: depositRequest.agent_id,
+                      amount: agentCommission,
+                      earning_type: "commission",
+                      source_user_id: depositRequest.user_id,
+                      rent_request_id: rentRequestId,
+                      description: `5% commission on UGX ${repaymentApplied.toLocaleString()} repayment (deposit approved)`,
+                    });
+
+                    // Credit agent wallet
+                    const { data: agentWallet } = await supabaseAdmin
+                      .from("wallets")
+                      .select("balance")
+                      .eq("user_id", depositRequest.agent_id)
+                      .maybeSingle();
+
+                    if (agentWallet) {
+                      await supabaseAdmin
+                        .from("wallets")
+                        .update({ balance: agentWallet.balance + agentCommission, updated_at: new Date().toISOString() })
+                        .eq("user_id", depositRequest.agent_id);
+                    }
+
+                    // Ledger entry for agent commission
+                    await supabaseAdmin.from("general_ledger").insert({
+                      user_id: depositRequest.agent_id,
+                      amount: agentCommission,
+                      direction: "cash_in",
+                      category: "agent_commission",
+                      source_table: "deposit_requests",
+                      source_id: depositRequest.id,
+                      reference_id: depositRequest.transaction_id || depositRequest.id,
+                      description: `5% commission on tenant rent repayment (UGX ${repaymentApplied.toLocaleString()})`,
+                      linked_party: depositRequest.user_id,
+                      transaction_date: new Date().toISOString(),
+                    });
+
+                    // Notify agent
+                    await supabaseAdmin.from("notifications").insert({
+                      user_id: depositRequest.agent_id,
+                      title: "Commission Earned! 💰",
+                      message: `You earned UGX ${agentCommission.toLocaleString()} (5%) from tenant rent repayment of UGX ${repaymentApplied.toLocaleString()}.`,
+                      type: "earning",
+                      metadata: { amount: agentCommission, type: "commission", rent_request_id: rentRequestId, deposit_request_id: depositRequest.id },
+                    });
+                  }
+                }
               }
             }
           }
@@ -268,6 +323,41 @@ Deno.serve(async (req) => {
                   p_tenant_id: depositRequest.user_id,
                   p_amount: debtCleared,
                 });
+
+                // Credit agent commission on debt clearance
+                if (depositRequest.agent_id) {
+                  const debtCommission = Math.round(debtCleared * 0.05);
+                  if (debtCommission > 0) {
+                    await supabaseAdmin.from("agent_earnings").insert({
+                      agent_id: depositRequest.agent_id,
+                      amount: debtCommission,
+                      earning_type: "commission",
+                      source_user_id: depositRequest.user_id,
+                      rent_request_id: activeSub.rent_request_id,
+                      description: `5% commission on UGX ${debtCleared.toLocaleString()} debt clearance`,
+                    });
+
+                    const { data: aw } = await supabaseAdmin
+                      .from("wallets").select("balance").eq("user_id", depositRequest.agent_id).maybeSingle();
+                    if (aw) {
+                      await supabaseAdmin.from("wallets")
+                        .update({ balance: aw.balance + debtCommission, updated_at: new Date().toISOString() })
+                        .eq("user_id", depositRequest.agent_id);
+                    }
+
+                    await supabaseAdmin.from("general_ledger").insert({
+                      user_id: depositRequest.agent_id,
+                      amount: debtCommission,
+                      direction: "cash_in",
+                      category: "agent_commission",
+                      source_table: "subscription_charges",
+                      source_id: activeSub.id,
+                      description: `5% commission on tenant debt clearance (UGX ${debtCleared.toLocaleString()})`,
+                      linked_party: depositRequest.user_id,
+                      transaction_date: new Date().toISOString(),
+                    });
+                  }
+                }
               }
             }
 
@@ -325,6 +415,41 @@ Deno.serve(async (req) => {
                   p_tenant_id: depositRequest.user_id,
                   p_amount: prepaidAmount,
                 });
+
+                // Credit agent commission on pre-payment
+                if (depositRequest.agent_id) {
+                  const prepayCommission = Math.round(prepaidAmount * 0.05);
+                  if (prepayCommission > 0) {
+                    await supabaseAdmin.from("agent_earnings").insert({
+                      agent_id: depositRequest.agent_id,
+                      amount: prepayCommission,
+                      earning_type: "commission",
+                      source_user_id: depositRequest.user_id,
+                      rent_request_id: activeSub.rent_request_id,
+                      description: `5% commission on UGX ${prepaidAmount.toLocaleString()} pre-payment (${daysPrepaid} days)`,
+                    });
+
+                    const { data: aw2 } = await supabaseAdmin
+                      .from("wallets").select("balance").eq("user_id", depositRequest.agent_id).maybeSingle();
+                    if (aw2) {
+                      await supabaseAdmin.from("wallets")
+                        .update({ balance: aw2.balance + prepayCommission, updated_at: new Date().toISOString() })
+                        .eq("user_id", depositRequest.agent_id);
+                    }
+
+                    await supabaseAdmin.from("general_ledger").insert({
+                      user_id: depositRequest.agent_id,
+                      amount: prepayCommission,
+                      direction: "cash_in",
+                      category: "agent_commission",
+                      source_table: "subscription_charges",
+                      source_id: activeSub.id,
+                      description: `5% commission on tenant pre-payment (UGX ${prepaidAmount.toLocaleString()})`,
+                      linked_party: depositRequest.user_id,
+                      transaction_date: new Date().toISOString(),
+                    });
+                  }
+                }
               }
             }
 
