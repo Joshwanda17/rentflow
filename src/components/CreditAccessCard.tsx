@@ -203,7 +203,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
             disabled={limit.totalLimit <= 0}
             className="w-full relative overflow-hidden flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 rounded-2xl bg-primary text-primary-foreground text-xs sm:text-sm font-black tracking-wide disabled:opacity-50 touch-manipulation shadow-lg shadow-primary/20 active:scale-[0.97] transition-transform"
           >
-            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
             <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="sm:hidden">⚡ Apply Now</span>
             <span className="hidden sm:inline">⚡ Apply Now — Instant Decision</span>
