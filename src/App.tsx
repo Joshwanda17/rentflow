@@ -79,6 +79,7 @@ const LandlordWelileHomesPage = lazy(() => import('./pages/LandlordWelileHomesPa
 const TryCalculator = lazy(() => import('./pages/TryCalculator'));
 const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
 const TVDashboard = lazy(() => import('./pages/TVDashboard'));
+const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
@@ -245,6 +246,7 @@ function AppRoutes() {
           <Route path="/try-calculator" element={<TryCalculator />} />
           <Route path="/rent-calculator" element={<PublicRentCalculator />} />
           <Route path="/find-a-house" element={<FindAHouse />} />
+          <Route path="/house/:id" element={<HouseDetail />} />
           <Route path="/tv-dashboard" element={<TVDashboard />} />
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
