@@ -159,8 +159,22 @@ export default function LandlordRegistrationForm({
         insertData.tenant_id = user.id;
       }
 
-      const { error } = await supabase.from('landlords').insert(insertData as any);
+      const { data: newLandlord, error } = await supabase.from('landlords').insert(insertData as any).select('id').single();
       if (error) throw error;
+
+      // Credit 5,000 UGX registration bonus to the registering user's wallet
+      try {
+        const { data: bonusResult, error: bonusError } = await supabase.functions.invoke('credit-landlord-registration-bonus', {
+          body: { landlord_id: newLandlord.id },
+        });
+        if (bonusError) {
+          console.warn('[LandlordRegistration] Bonus credit failed:', bonusError);
+        } else if (bonusResult?.success) {
+          toastFn({ title: '💰 UGX 5,000 Bonus Credited!', description: 'Registration bonus added to your wallet.' });
+        }
+      } catch (bonusErr) {
+        console.warn('[LandlordRegistration] Bonus credit error:', bonusErr);
+      }
 
       // Create activation invite
       const placeholderEmail = `${landlordPhone.trim().replace(/[^0-9]/g, '')}@welile.user`;
