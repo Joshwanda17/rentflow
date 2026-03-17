@@ -10,6 +10,7 @@ import {
   Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check
 } from 'lucide-react';
+import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
