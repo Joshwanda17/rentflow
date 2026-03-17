@@ -290,6 +290,28 @@ export default function HouseDetail() {
             </a>
           )}
 
+          {/* Reviews Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+              <h2 className="font-bold text-base">
+                Reviews
+                {summary.totalReviews > 0 && (
+                  <span className="text-muted-foreground font-normal text-sm ml-1.5">
+                    {summary.averageRating.toFixed(1)} · {summary.totalReviews} review{summary.totalReviews !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </h2>
+            </div>
+            <WriteHouseReviewForm
+              houseId={listing.id}
+              houseTitle={listing.title}
+              existingReview={myReview}
+              onSuccess={refetchReviews}
+            />
+            <HouseReviewsList reviews={reviews} summary={summary} loading={reviewsLoading} />
+          </div>
+
           {/* WhatsApp Agent */}
           <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
         </main>
