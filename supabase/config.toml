@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.fix-supporter-metadata]
 verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = false

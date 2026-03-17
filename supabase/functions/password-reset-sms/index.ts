@@ -140,7 +140,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Admin-only: delete an orphaned auth user (no profile)
+    // Admin-only: reset a user's password
+    if (action === "admin_reset_password") {
+      const userId = (body.user_id as string || "").trim();
+      const newPassword = (body.new_password as string || "").trim();
+
+      if (!userId || !newPassword) {
+        return new Response(JSON.stringify({ error: "user_id and new_password required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: resetError } = await adminClient.auth.admin.updateUserById(userId, { password: newPassword });
+      if (resetError) {
+        console.error("[password-reset-sms] Admin reset error:", resetError);
+        return new Response(JSON.stringify({ error: "Failed to reset password: " + resetError.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`[password-reset-sms] Admin reset password for user ${userId}`);
+      return new Response(JSON.stringify({ success: true, message: "Password reset successfully" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "admin_delete_user") {
       const userId = (body.user_id as string || "").trim();
       const authHeader = req.headers.get("authorization") || "";
