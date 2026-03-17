@@ -46,8 +46,15 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
 
 function MiniHouseCard({ listing }: { listing: HouseListing }) {
   const dist = listing.distance_km;
-  const coverImage = listing.image_urls?.[0];
   const isPending = !listing.verified || listing.status === 'pending';
+  const [imgIdx, setImgIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const images = listing.image_urls || [];
+
+  const lightboxImages = useMemo(() =>
+    images.map((url, i) => ({ id: `nearby-${listing.id}-${i}`, image_url: url })),
+    [images, listing.id]
+  );
 
   return (
     <motion.div
@@ -55,19 +62,37 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
       animate={{ opacity: 1, scale: 1 }}
       className="min-w-[240px] max-w-[240px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
     >
-      {/* Cover image */}
+      {/* Cover image with carousel */}
       <div className="relative w-full h-28 bg-muted">
-        {coverImage ? (
-          <img src={coverImage} alt={listing.title} className="w-full h-full object-cover" loading="lazy" />
+        {images.length > 0 ? (
+          <>
+            <img
+              src={images[imgIdx]}
+              alt={listing.title}
+              className="w-full h-full object-cover cursor-pointer"
+              loading="lazy"
+              onClick={() => setLightboxOpen(true)}
+            />
+            {images.length > 1 && (
+              <>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setImgIdx(i => (i - 1 + images.length) % images.length); }}
+                  className="absolute left-0.5 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-0.5">
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setImgIdx(i => (i + 1) % images.length); }}
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-0.5">
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+                <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                  {imgIdx + 1}/{images.length}
+                </span>
+              </>
+            )}
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Home className="h-8 w-8 text-muted-foreground/30" />
           </div>
-        )}
-        {listing.image_urls && listing.image_urls.length > 1 && (
-          <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-            1/{listing.image_urls.length}
-          </span>
         )}
         {/* Share button */}
         <div className="absolute bottom-1 left-1">
@@ -87,6 +112,14 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
           <Badge variant="outline" className="absolute top-1 right-1 text-[9px] bg-success/90 text-white border-success/50 gap-0.5 px-1.5 py-0.5">
             <ShieldCheck className="h-2.5 w-2.5" /> Verified
           </Badge>
+        )}
+        {/* Dots */}
+        {images.length > 1 && (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+            {images.map((_, i) => (
+              <span key={i} className={`w-1 h-1 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
+            ))}
+          </div>
         )}
       </div>
 
@@ -113,6 +146,15 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
         {/* WhatsApp Agent */}
         <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
       </div>
+
+      {/* Fullscreen Lightbox */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={imgIdx}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        productName={listing.title}
+      />
     </motion.div>
   );
 }

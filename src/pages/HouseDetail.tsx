@@ -168,27 +168,60 @@ export default function HouseDetail() {
         <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
           {/* Image carousel */}
           {images.length > 0 ? (
-            <div className="relative w-full h-56 rounded-2xl overflow-hidden bg-muted">
-              <img src={images[imgIdx]} alt={listing.title} className="w-full h-full object-cover" />
+            <>
+              <div className="relative w-full h-56 rounded-2xl overflow-hidden bg-muted">
+                <img
+                  src={images[imgIdx]}
+                  alt={listing.title}
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={() => setLightboxOpen(true)}
+                />
+                {images.length > 1 && (
+                  <>
+                    <button type="button" onClick={() => setImgIdx(i => (i - 1 + images.length) % images.length)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5">
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button type="button" onClick={() => setImgIdx(i => (i + 1) % images.length)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5">
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {images.map((_, i) => (
+                        <span key={i} className={`w-2 h-2 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
+                      ))}
+                    </div>
+                    <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
+                      {imgIdx + 1}/{images.length} · Tap to view
+                    </span>
+                  </>
+                )}
+                <Badge variant="secondary" className="absolute top-3 right-3">{categoryLabel}</Badge>
+              </div>
+
+              {/* Thumbnail strip */}
               {images.length > 1 && (
-                <>
-                  <button type="button" onClick={() => setImgIdx(i => (i - 1 + images.length) % images.length)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5">
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button type="button" onClick={() => setImgIdx(i => (i + 1) % images.length)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5">
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                    {images.map((_, i) => (
-                      <span key={i} className={`w-2 h-2 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
-                    ))}
-                  </div>
-                </>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {images.map((url, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setImgIdx(i); setLightboxOpen(true); }}
+                      className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${i === imgIdx ? 'border-primary' : 'border-transparent hover:border-primary/50'}`}
+                    >
+                      <img src={url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                    </button>
+                  ))}
+                </div>
               )}
-              <Badge variant="secondary" className="absolute top-3 right-3">{categoryLabel}</Badge>
-            </div>
+
+              <ImageLightbox
+                images={lightboxImages}
+                initialIndex={imgIdx}
+                open={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+                productName={listing.title}
+              />
+            </>
           ) : (
             <div className="w-full h-40 rounded-2xl bg-muted flex items-center justify-center">
               <Home className="h-12 w-12 text-muted-foreground/30" />

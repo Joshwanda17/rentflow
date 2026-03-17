@@ -118,6 +118,18 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
 function PublicHouseCard({ listing }: { listing: HouseListing }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+
+  const lightboxImages = useMemo(() =>
+    (listing.image_urls || []).map((url, i) => ({ id: `${listing.id}-${i}`, image_url: url })),
+    [listing.image_urls, listing.id]
+  );
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIdx(index);
+    setLightboxOpen(true);
+  }, []);
 
   return (
     <motion.article
@@ -127,7 +139,7 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
       itemScope itemType="https://schema.org/Accommodation"
     >
       <div className="relative">
-        <HouseImageCarousel images={listing.image_urls} title={listing.title} />
+        <HouseImageCarousel images={listing.image_urls} title={listing.title} onImageClick={openLightbox} />
         {dist !== undefined && dist < 9999 && (
           <span className="absolute top-2 left-2 text-[10px] font-medium text-white bg-primary/80 px-2 py-0.5 rounded-full">
             ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
@@ -157,6 +169,21 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
           <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
         </div>
 
+        {/* Thumbnail strip — tap any to open fullscreen */}
+        {lightboxImages.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+            {lightboxImages.map((img, i) => (
+              <button
+                key={img.id}
+                onClick={() => openLightbox(i)}
+                className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-colors"
+              >
+                <img src={img.image_url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs">
             <DoorOpen className="h-3 w-3" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
@@ -178,6 +205,15 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
         {/* Share */}
         <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} variant="full" />
       </div>
+
+      {/* Fullscreen Lightbox */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIdx}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        productName={listing.title}
+      />
     </motion.article>
   );
 }
