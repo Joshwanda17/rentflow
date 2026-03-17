@@ -244,7 +244,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </button>
           <RecentAutoCharges />
-        </motion.div>
+        </div>
 
         {/* Seller CTA */}
         {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
