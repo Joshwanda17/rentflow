@@ -297,11 +297,14 @@ function BreakdownRow({
   );
 }
 
-function CompactBreakdownRow({ icon, label, value, currency }: { icon: React.ReactNode; label: string; value: number; currency: string }) {
+function CompactBreakdownRow({ icon, label, value, currency, tip }: { icon: React.ReactNode; label: string; value: number; currency: string; tip?: string }) {
   return (
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/40">
       {icon}
-      <p className="text-[10px] font-medium flex-1 truncate">{label}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-medium truncate">{label}</p>
+        {tip && <p className="text-[8px] text-muted-foreground">{tip}</p>}
+      </div>
       <span className={`text-[10px] font-bold shrink-0 ${value > 0 ? 'text-success' : 'text-muted-foreground'}`}>
         +{formatCreditAmount(value, currency)}
       </span>
