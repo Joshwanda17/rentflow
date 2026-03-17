@@ -41,8 +41,11 @@ export function OpportunityHeroButton({ onClick }: OpportunityHeroButtonProps) {
         ) : summary ? (
           <>
             <p className="text-xs opacity-70 mb-0.5">Active Rent Demand</p>
-            <p className="text-3xl font-black tracking-tight mb-3">
+            <p className="text-3xl font-black tracking-tight mb-1">
               {formatAmount(Number(summary.total_rent_requested))}
+            </p>
+            <p className="text-[10px] opacity-60 mb-2">
+              Last updated {new Date(summary.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
             </p>
 
             <div className="flex items-center gap-4 text-[11px] opacity-80">
