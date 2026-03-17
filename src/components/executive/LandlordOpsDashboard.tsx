@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { Home, Building2, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck, Phone, MessageCircle, Image, MapPinned, Users } from 'lucide-react';
+import { Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck, Phone, MessageCircle, Image, MapPinned } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
