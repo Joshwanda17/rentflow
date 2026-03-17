@@ -330,6 +330,8 @@ export default function HouseDetail() {
               houseId={listing.id}
               houseTitle={listing.title}
               existingReview={myReview}
+              houseLat={listing.latitude}
+              houseLng={listing.longitude}
               onSuccess={refetchReviews}
             />
             <HouseReviewsList reviews={reviews} summary={summary} loading={reviewsLoading} />
