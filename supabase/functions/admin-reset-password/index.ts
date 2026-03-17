@@ -92,7 +92,7 @@ serve(async (req) => {
       throw error;
     }
 
-    console.log(`Password reset by manager ${user.id} for user: ${user_id}`);
+    console.log(`Password reset by ${callerId} for user: ${user_id}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Password reset successfully" }),
