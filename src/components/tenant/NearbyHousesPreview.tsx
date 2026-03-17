@@ -1,7 +1,7 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { MapPin, DoorOpen, Home, ChevronRight, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
+import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
