@@ -1591,6 +1591,50 @@ export type Database = {
           },
         ]
       }
+      house_questions: {
+        Row: {
+          answer_text: string | null
+          answered_at: string | null
+          answered_by: string | null
+          asker_id: string
+          created_at: string
+          house_id: string
+          id: string
+          question_text: string
+          updated_at: string
+        }
+        Insert: {
+          answer_text?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          asker_id: string
+          created_at?: string
+          house_id: string
+          id?: string
+          question_text: string
+          updated_at?: string
+        }
+        Update: {
+          answer_text?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          asker_id?: string
+          created_at?: string
+          house_id?: string
+          id?: string
+          question_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "house_questions_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       house_reviews: {
         Row: {
           accuracy: number | null
@@ -3631,6 +3675,35 @@ export type Database = {
             columns: ["review_id"]
             isOneToOne: false
             referencedRelation: "product_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_houses: {
+        Row: {
+          created_at: string
+          house_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          house_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          house_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_houses_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
             referencedColumns: ["id"]
           },
         ]
