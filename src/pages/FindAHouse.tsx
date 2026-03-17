@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,7 +41,7 @@ const CATEGORIES = [
 
 const SITE_URL = 'https://welilereceipts.com';
 
-function HouseImageCarousel({ images, title }: { images: string[] | null; title: string }) {
+function HouseImageCarousel({ images, title, onImageClick }: { images: string[] | null; title: string; onImageClick?: (index: number) => void }) {
   const [idx, setIdx] = useState(0);
   if (!images || images.length === 0) {
     return (
@@ -51,7 +52,13 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
   }
   return (
     <div className="relative w-full h-48 rounded-xl overflow-hidden bg-muted">
-      <img src={images[idx]} alt={title} className="w-full h-full object-cover" loading="lazy" />
+      <img
+        src={images[idx]}
+        alt={title}
+        className="w-full h-full object-cover cursor-pointer"
+        loading="lazy"
+        onClick={() => onImageClick?.(idx)}
+      />
       {images.length > 1 && (
         <>
           <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
@@ -67,6 +74,10 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
               <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-white' : 'bg-white/50'}`} />
             ))}
           </div>
+          {/* Photo count badge */}
+          <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
+            {idx + 1}/{images.length}
+          </span>
         </>
       )}
     </div>
@@ -107,6 +118,18 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
 function PublicHouseCard({ listing }: { listing: HouseListing }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
+
+  const lightboxImages = useMemo(() =>
+    (listing.image_urls || []).map((url, i) => ({ id: `${listing.id}-${i}`, image_url: url })),
+    [listing.image_urls, listing.id]
+  );
+
+  const openLightbox = useCallback((index: number) => {
+    setLightboxIdx(index);
+    setLightboxOpen(true);
+  }, []);
 
   return (
     <motion.article
@@ -116,7 +139,7 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
       itemScope itemType="https://schema.org/Accommodation"
     >
       <div className="relative">
-        <HouseImageCarousel images={listing.image_urls} title={listing.title} />
+        <HouseImageCarousel images={listing.image_urls} title={listing.title} onImageClick={openLightbox} />
         {dist !== undefined && dist < 9999 && (
           <span className="absolute top-2 left-2 text-[10px] font-medium text-white bg-primary/80 px-2 py-0.5 rounded-full">
             ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
@@ -146,6 +169,21 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
           <p className="text-xs text-muted-foreground font-medium">per day · pay as you stay</p>
         </div>
 
+        {/* Thumbnail strip — tap any to open fullscreen */}
+        {lightboxImages.length > 1 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+            {lightboxImages.map((img, i) => (
+              <button
+                key={img.id}
+                onClick={() => openLightbox(i)}
+                className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-colors"
+              >
+                <img src={img.image_url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs">
             <DoorOpen className="h-3 w-3" /> {listing.number_of_rooms} room{listing.number_of_rooms > 1 ? 's' : ''}
@@ -167,6 +205,15 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
         {/* Share */}
         <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} variant="full" />
       </div>
+
+      {/* Fullscreen Lightbox */}
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIdx}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        productName={listing.title}
+      />
     </motion.article>
   );
 }
