@@ -1591,6 +1591,53 @@ export type Database = {
           },
         ]
       }
+      house_reviews: {
+        Row: {
+          accuracy: number | null
+          created_at: string
+          house_id: string
+          id: string
+          latitude: number
+          longitude: number
+          rating: number
+          review_text: string | null
+          reviewer_id: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          created_at?: string
+          house_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          rating: number
+          review_text?: string | null
+          reviewer_id: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          created_at?: string
+          house_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          rating?: number
+          review_text?: string | null
+          reviewer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "house_reviews_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investment_withdrawal_requests: {
         Row: {
           amount: number
