@@ -182,19 +182,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
         {/* Offline Notice */}
-        <AnimatePresence>
-          {!isOnline && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
-                <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
-                <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
-                  <RefreshCw className="h-3 w-3" />
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {!isOnline && (
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20 animate-fade-in">
+            <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
+            <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
 
         <AgentAgreementBanner />
 
