@@ -36,6 +36,9 @@ export interface HouseListing {
   updated_at?: string;
   // Distance from spatial query
   distance_km?: number;
+  // Agent contact (enriched client-side)
+  agent_phone?: string | null;
+  agent_name?: string | null;
 }
 
 interface UseHouseListingsOptions {
