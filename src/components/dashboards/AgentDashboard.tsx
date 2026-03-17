@@ -195,11 +195,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentAgreementBanner />
 
         {/* Profile + Wallet Hero */}
-        <motion.div 
-          initial={{ opacity: 0, y: 8 }} 
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-border/60 bg-card overflow-hidden"
-        >
+        <div className="rounded-2xl border border-border/60 bg-card overflow-hidden animate-fade-in">
           {/* Profile row */}
           <div className="flex items-center gap-3 p-4 pb-3">
             <button onClick={() => navigate('/settings')} className="shrink-0">
