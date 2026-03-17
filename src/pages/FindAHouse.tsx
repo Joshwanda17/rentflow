@@ -41,7 +41,7 @@ const CATEGORIES = [
 
 const SITE_URL = 'https://welilereceipts.com';
 
-function HouseImageCarousel({ images, title }: { images: string[] | null; title: string }) {
+function HouseImageCarousel({ images, title, onImageClick }: { images: string[] | null; title: string; onImageClick?: (index: number) => void }) {
   const [idx, setIdx] = useState(0);
   if (!images || images.length === 0) {
     return (
@@ -52,7 +52,13 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
   }
   return (
     <div className="relative w-full h-48 rounded-xl overflow-hidden bg-muted">
-      <img src={images[idx]} alt={title} className="w-full h-full object-cover" loading="lazy" />
+      <img
+        src={images[idx]}
+        alt={title}
+        className="w-full h-full object-cover cursor-pointer"
+        loading="lazy"
+        onClick={() => onImageClick?.(idx)}
+      />
       {images.length > 1 && (
         <>
           <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
@@ -68,6 +74,10 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
               <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-white' : 'bg-white/50'}`} />
             ))}
           </div>
+          {/* Photo count badge */}
+          <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
+            {idx + 1}/{images.length}
+          </span>
         </>
       )}
     </div>
