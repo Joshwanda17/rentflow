@@ -28,10 +28,8 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
   }
 
   return (
-    <button className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold active:scale-95 transition-transform">
-      <Wallet className="h-3.5 w-3.5" />
-      <span>UGX {formatShort(remainingLimit)}</span>
-      <ChevronRight className="h-3 w-3 opacity-50" />
-    </button>
+    <p className="text-xs text-primary font-medium cursor-pointer active:opacity-70">
+      💰 Tap to check your rent fee limit
+    </p>
   );
 }
