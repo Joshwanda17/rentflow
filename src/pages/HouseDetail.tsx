@@ -14,7 +14,7 @@ import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
 import HouseReviewsList from '@/components/reviews/HouseReviewsList';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ArrowLeft, Star,
+  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
