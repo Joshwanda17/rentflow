@@ -68,6 +68,12 @@ export default function HouseDetail() {
   }, [id]);
 
   const shareUrl = `${SITE_URL}/house/${id}`;
+  const images = listing?.image_urls || [];
+  const lightboxImages = useMemo(() =>
+    images.map((url, i) => ({ id: `detail-${i}`, image_url: url })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listing?.id, images.length]
+  );
 
   const handleShare = async () => {
     const shareData = {
@@ -108,13 +114,7 @@ export default function HouseDetail() {
     );
   }
 
-  const categoryLabel = CATEGORIES.find(c => c.value === listing?.house_category)?.label || listing?.house_category;
-  const images = listing?.image_urls || [];
-  const lightboxImages = useMemo(() =>
-    images.map((url, i) => ({ id: `detail-${i}`, image_url: url })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [listing?.id, images.length]
-  );
+  const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const isPending = !listing.verified || listing.status === 'pending';
   const mapLink = listing.latitude && listing.longitude
     ? `https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`
