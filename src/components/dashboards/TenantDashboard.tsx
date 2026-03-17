@@ -10,9 +10,8 @@ import {
   WifiOff,
   RefreshCw,
   BadgeCheck,
-  ArrowDownCircle,
-  Search,
 } from 'lucide-react';
+import { FindAHouseCTA } from '@/components/tenant/FindAHouseCTA';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
