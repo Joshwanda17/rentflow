@@ -107,7 +107,8 @@ export function useHouseListings(options: UseHouseListingsOptions = {}) {
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
-      setListings((data as any[]) || []);
+      const enriched = await enrichWithAgentInfo((data as any[]) || []);
+      setListings(enriched);
     } catch (err: any) {
       setError(err.message);
     } finally {
