@@ -44,24 +44,26 @@ serve(async (req) => {
       callerId = user.id;
     }
 
-    // 2. Verify caller is a manager
+    // 2. Verify caller is a manager (skip for service-role)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: roleData, error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "manager")
-      .eq("enabled", true)
-      .maybeSingle();
+    if (!isServiceRole) {
+      const { data: roleData, error: roleError } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", callerId)
+        .eq("role", "manager")
+        .eq("enabled", true)
+        .maybeSingle();
 
-    if (roleError || !roleData) {
-      return new Response(JSON.stringify({ error: "Only managers can reset passwords" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (roleError || !roleData) {
+        return new Response(JSON.stringify({ error: "Only managers can reset passwords" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // 3. Validate input
