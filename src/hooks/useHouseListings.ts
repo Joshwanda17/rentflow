@@ -166,7 +166,8 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         });
 
         if (!rpcError && data) {
-          setListings((data as any[]) || []);
+          const enriched = await enrichWithAgentInfo((data as any[]) || []);
+          setListings(enriched);
           usedRpc = true;
         }
         // If RPC fails (e.g. PostGIS not available), fall through to regular query
