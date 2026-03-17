@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Wallet } from 'lucide-react';
-import { Wallet, Bell } from 'lucide-react';
+
 import { useWallet } from '@/hooks/useWallet';
 import { useAuth } from '@/hooks/useAuth';
 import { hapticTap } from '@/lib/haptics';
