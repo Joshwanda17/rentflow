@@ -12,6 +12,11 @@ import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { useHouseReviews } from '@/hooks/useHouseReviews';
 import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
 import HouseReviewsList from '@/components/reviews/HouseReviewsList';
+import SaveHouseButton from '@/components/house/SaveHouseButton';
+import HouseQASection from '@/components/house/HouseQASection';
+import PriceComparison from '@/components/house/PriceComparison';
+import VisitBadge from '@/components/house/VisitBadge';
+import NearbyAmenities from '@/components/house/NearbyAmenities';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
@@ -163,10 +168,13 @@ export default function HouseDetail() {
             <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
-              {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-              {copied ? 'Copied' : 'Share'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <SaveHouseButton houseId={listing.id} variant="full" />
+              <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
+                {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                {copied ? 'Copied' : 'Share'}
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -201,7 +209,10 @@ export default function HouseDetail() {
                     </span>
                   </>
                 )}
-                <Badge variant="secondary" className="absolute top-3 right-3">{categoryLabel}</Badge>
+                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                  <SaveHouseButton houseId={listing.id} variant="icon" />
+                  <Badge variant="secondary">{categoryLabel}</Badge>
+                </div>
               </div>
 
               {/* Thumbnail strip */}
@@ -262,6 +273,12 @@ export default function HouseDetail() {
             <p className="text-sm text-muted-foreground font-medium">per day · pay as you stay</p>
           </div>
 
+          {/* Visit badge + Price comparison */}
+          <div className="flex flex-wrap items-center gap-2">
+            <VisitBadge reviewCount={summary.totalReviews} />
+            <PriceComparison region={listing.region} category={listing.house_category} dailyRate={listing.daily_rate} houseId={listing.id} />
+          </div>
+
           {/* Specs */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-sm">
@@ -289,6 +306,12 @@ export default function HouseDetail() {
               </div>
             </a>
           )}
+
+          {/* Nearby Amenities */}
+          <NearbyAmenities latitude={listing.latitude} longitude={listing.longitude} />
+
+          {/* Q&A */}
+          <HouseQASection houseId={listing.id} agentId={listing.agent_id} />
 
           {/* Reviews Section */}
           <div className="space-y-3">
