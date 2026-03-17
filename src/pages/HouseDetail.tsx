@@ -9,9 +9,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { useHouseReviews } from '@/hooks/useHouseReviews';
+import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
+import HouseReviewsList from '@/components/reviews/HouseReviewsList';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ArrowLeft,
+  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ArrowLeft, Star,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
