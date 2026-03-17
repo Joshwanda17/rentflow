@@ -12,6 +12,11 @@ import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { useHouseReviews } from '@/hooks/useHouseReviews';
 import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
 import HouseReviewsList from '@/components/reviews/HouseReviewsList';
+import SaveHouseButton from '@/components/house/SaveHouseButton';
+import HouseQASection from '@/components/house/HouseQASection';
+import PriceComparison from '@/components/house/PriceComparison';
+import VisitBadge from '@/components/house/VisitBadge';
+import NearbyAmenities from '@/components/house/NearbyAmenities';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
