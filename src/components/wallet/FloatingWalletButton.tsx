@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, Bell } from 'lucide-react';
+import { Wallet } from 'lucide-react';
+
 import { useWallet } from '@/hooks/useWallet';
 import { useAuth } from '@/hooks/useAuth';
 import { hapticTap } from '@/lib/haptics';
@@ -43,14 +43,9 @@ export function FloatingWalletButton() {
 
   return (
     <>
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+      <button
         onClick={handleClick}
-        className="fixed bottom-24 sm:bottom-28 left-4 z-40 flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-shadow"
+        className="fixed bottom-24 sm:bottom-28 left-4 z-40 flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all animate-scale-in"
         aria-label="Open Rent Money"
       >
         <Wallet className="h-4 w-4" />
@@ -67,7 +62,7 @@ export function FloatingWalletButton() {
             {pendingCount}
           </Badge>
         )}
-      </motion.button>
+      </button>
 
       <FullScreenWalletSheet 
         open={showWallet} 

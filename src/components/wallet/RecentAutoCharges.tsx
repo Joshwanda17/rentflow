@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { ArrowDownRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -92,41 +92,33 @@ export function RecentAutoCharges() {
       </button>
 
       {/* Expanded details */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-1.5 space-y-1 px-1">
-              {charges.map((charge) => (
-                <div
-                  key={charge.id}
-                  className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-muted/50"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold text-foreground truncate">
-                      {categoryLabel(charge.category)}
-                    </p>
-                    {charge.description && (
-                      <p className="text-[9px] text-muted-foreground truncate">{charge.description}</p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[10px] font-bold text-destructive tabular-nums">
-                      -{formatUGX(charge.amount)}
-                    </p>
-                    <p className="text-[8px] text-muted-foreground">{timeAgo(charge.transaction_date)}</p>
-                  </div>
+      {expanded && (
+        <div className="overflow-hidden animate-fade-in">
+          <div className="mt-1.5 space-y-1 px-1">
+            {charges.map((charge) => (
+              <div
+                key={charge.id}
+                className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-muted/50"
+              >
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold text-foreground truncate">
+                    {categoryLabel(charge.category)}
+                  </p>
+                  {charge.description && (
+                    <p className="text-[9px] text-muted-foreground truncate">{charge.description}</p>
+                  )}
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <div className="text-right shrink-0">
+                  <p className="text-[10px] font-bold text-destructive tabular-nums">
+                    -{formatUGX(charge.amount)}
+                  </p>
+                  <p className="text-[8px] text-muted-foreground">{timeAgo(charge.transaction_date)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

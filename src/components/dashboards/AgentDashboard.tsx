@@ -60,8 +60,8 @@ import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet'
 import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
+import { staggerDelay } from '@/lib/cssAnimations';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
@@ -182,28 +182,20 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
         {/* Offline Notice */}
-        <AnimatePresence>
-          {!isOnline && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
-                <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
-                <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
-                  <RefreshCw className="h-3 w-3" />
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {!isOnline && (
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20 animate-fade-in">
+            <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
+            <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
 
         <AgentAgreementBanner />
 
         {/* Profile + Wallet Hero */}
-        <motion.div 
-          initial={{ opacity: 0, y: 8 }} 
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-border/60 bg-card overflow-hidden"
-        >
+        <div className="rounded-2xl border border-border/60 bg-card overflow-hidden animate-fade-in">
           {/* Profile row */}
           <div className="flex items-center gap-3 p-4 pb-3">
             <button onClick={() => navigate('/settings')} className="shrink-0">
@@ -252,7 +244,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </button>
           <RecentAutoCharges />
-        </motion.div>
+        </div>
 
         {/* Seller CTA */}
         {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
@@ -286,18 +278,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
               { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
-              <motion.button
+              <button
                 key={action.label}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: i * 0.03 }}
                 onClick={() => { hapticTap(); action.onClick(); }}
-                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-card border border-border/40 hover:bg-muted/40 active:bg-muted/60 transition-all touch-manipulation"
+                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-card border border-border/40 hover:bg-muted/40 active:scale-95 active:bg-muted/60 transition-all touch-manipulation animate-fade-in"
+                style={staggerDelay(i, 30)}
               >
                 <action.icon className="h-[18px] w-[18px] text-foreground/70" />
                 <span className="text-[10px] font-medium text-foreground/80">{action.label}</span>
-              </motion.button>
+              </button>
             ))}
           </div>
         </div>
