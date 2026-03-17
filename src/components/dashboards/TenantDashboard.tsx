@@ -276,7 +276,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           <SubscriptionStatusCard userId={user.id} />
 
           {/* Credit Access Limit */}
-          <CreditAccessCard userId={user.id} />
+          <CreditAccessCard userId={user.id} compact />
 
           {/* Action Buttons — Clean & Minimal */}
           <div className="space-y-2">
