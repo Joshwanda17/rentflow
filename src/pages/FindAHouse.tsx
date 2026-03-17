@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
+import HouseRatingBadge from '@/components/house/HouseRatingBadge';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
