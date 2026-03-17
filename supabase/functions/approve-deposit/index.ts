@@ -323,6 +323,41 @@ Deno.serve(async (req) => {
                   p_tenant_id: depositRequest.user_id,
                   p_amount: debtCleared,
                 });
+
+                // Credit agent commission on debt clearance
+                if (depositRequest.agent_id) {
+                  const debtCommission = Math.round(debtCleared * 0.05);
+                  if (debtCommission > 0) {
+                    await supabaseAdmin.from("agent_earnings").insert({
+                      agent_id: depositRequest.agent_id,
+                      amount: debtCommission,
+                      earning_type: "commission",
+                      source_user_id: depositRequest.user_id,
+                      rent_request_id: activeSub.rent_request_id,
+                      description: `5% commission on UGX ${debtCleared.toLocaleString()} debt clearance`,
+                    });
+
+                    const { data: aw } = await supabaseAdmin
+                      .from("wallets").select("balance").eq("user_id", depositRequest.agent_id).maybeSingle();
+                    if (aw) {
+                      await supabaseAdmin.from("wallets")
+                        .update({ balance: aw.balance + debtCommission, updated_at: new Date().toISOString() })
+                        .eq("user_id", depositRequest.agent_id);
+                    }
+
+                    await supabaseAdmin.from("general_ledger").insert({
+                      user_id: depositRequest.agent_id,
+                      amount: debtCommission,
+                      direction: "cash_in",
+                      category: "agent_commission",
+                      source_table: "subscription_charges",
+                      source_id: activeSub.id,
+                      description: `5% commission on tenant debt clearance (UGX ${debtCleared.toLocaleString()})`,
+                      linked_party: depositRequest.user_id,
+                      transaction_date: new Date().toISOString(),
+                    });
+                  }
+                }
               }
             }
 
