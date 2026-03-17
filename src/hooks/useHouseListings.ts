@@ -172,10 +172,6 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
         if (fetchError) throw fetchError;
         setListings((data as any[]) || []);
       }
-        const { data, error: fetchError } = await query;
-        if (fetchError) throw fetchError;
-        setListings((data as any[]) || []);
-      }
     } catch (err: any) {
       setError(err.message);
     } finally {
