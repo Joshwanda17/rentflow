@@ -168,10 +168,13 @@ export default function HouseDetail() {
             <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
-              {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-              {copied ? 'Copied' : 'Share'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <SaveHouseButton houseId={listing.id} variant="full" />
+              <Button variant="outline" size="sm" onClick={handleShare} className="gap-1.5">
+                {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                {copied ? 'Copied' : 'Share'}
+              </Button>
+            </div>
           </div>
         </header>
 
