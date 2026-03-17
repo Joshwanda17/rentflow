@@ -9,9 +9,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { useHouseReviews } from '@/hooks/useHouseReviews';
+import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
+import HouseReviewsList from '@/components/reviews/HouseReviewsList';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ArrowLeft,
+  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,6 +40,7 @@ export default function HouseDetail() {
   const [imgIdx, setImgIdx] = useState(0);
   const [copied, setCopied] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const { reviews, summary, myReview, loading: reviewsLoading, refetch: refetchReviews } = useHouseReviews(id);
 
   useEffect(() => {
     if (!id) return;
@@ -285,6 +289,28 @@ export default function HouseDetail() {
               </div>
             </a>
           )}
+
+          {/* Reviews Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+              <h2 className="font-bold text-base">
+                Reviews
+                {summary.totalReviews > 0 && (
+                  <span className="text-muted-foreground font-normal text-sm ml-1.5">
+                    {summary.averageRating.toFixed(1)} · {summary.totalReviews} review{summary.totalReviews !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </h2>
+            </div>
+            <WriteHouseReviewForm
+              houseId={listing.id}
+              houseTitle={listing.title}
+              existingReview={myReview}
+              onSuccess={refetchReviews}
+            />
+            <HouseReviewsList reviews={reviews} summary={summary} loading={reviewsLoading} />
+          </div>
 
           {/* WhatsApp Agent */}
           <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
