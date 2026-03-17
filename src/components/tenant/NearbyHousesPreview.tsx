@@ -115,7 +115,7 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
           </Badge>
         )}
         {/* Rating badge */}
-        <HouseRatingBadge houseId={listing.id} className="absolute bottom-1 left-1" />
+        <HouseRatingBadge houseId={listing.id} houseLat={listing.latitude} houseLng={listing.longitude} className="absolute bottom-1 left-1" />
         {/* Dots */}
         {images.length > 1 && (
           <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">

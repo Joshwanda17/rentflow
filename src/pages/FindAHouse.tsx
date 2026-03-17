@@ -147,7 +147,7 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
           </span>
         )}
         <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">{categoryLabel}</Badge>
-        <HouseRatingBadge houseId={listing.id} className="absolute bottom-2 left-2" />
+        <HouseRatingBadge houseId={listing.id} houseLat={listing.latitude} houseLng={listing.longitude} className="absolute bottom-2 left-2" />
       </div>
 
       <div className="p-4 space-y-3">
