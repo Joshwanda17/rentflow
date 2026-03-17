@@ -50,6 +50,9 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
   const currencyOptions = ['UGX', 'USD', 'EUR', 'GBP'];
 
   if (compact) {
+    const unlockPercent = Math.round(progressPercentage);
+    const remainingToMax = MAX_LIMIT - limit.totalLimit;
+
     return (
       <div className="rounded-xl border border-primary/15 bg-primary/[0.04] overflow-hidden">
         <button
@@ -59,6 +62,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
           <TrendingUp className="h-3 w-3 text-primary shrink-0" />
           <p className="text-[10px] text-muted-foreground">Rent Fee:</p>
           <p className="text-[11px] font-bold text-primary">{formatCreditAmount(limit.totalLimit, currency)}</p>
+          <span className="text-[9px] text-muted-foreground">/ <span className="font-bold text-success">30M</span></span>
           <ChevronDown className={`h-3 w-3 text-muted-foreground ml-auto transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
 
@@ -70,7 +74,34 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="px-3 pb-3 space-y-2">
+              <div className="px-3 pb-3 space-y-2.5">
+                {/* Motivational goal banner */}
+                <div className="rounded-lg bg-success/10 border border-success/20 px-2.5 py-2 text-center">
+                  <p className="text-[10px] text-muted-foreground">🎯 Your goal</p>
+                  <p className="text-lg font-black text-success leading-tight">UGX 30,000,000</p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">
+                    {remainingToMax > 0 
+                      ? `${formatCreditAmount(remainingToMax, 'UGX')} more to unlock — pay on time!`
+                      : '🎉 Maximum limit reached!'}
+                  </p>
+                </div>
+
+                {/* Progress toward 30M */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[9px]">
+                    <span className="text-muted-foreground">{unlockPercent}% unlocked</span>
+                    <span className="font-bold text-success">UGX 30M</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <motion.div 
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-success"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.max(unlockPercent, 2)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+
                 {/* Currency switcher */}
                 <div className="flex gap-1">
                   {currencyOptions.map(c => (
@@ -88,32 +119,31 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                   ))}
                 </div>
 
-                {/* Progress */}
-                <div className="space-y-1">
-                  <Progress value={progressPercentage} className="h-1.5 rounded-full" />
-                  <div className="flex justify-between text-[9px] text-muted-foreground">
-                    <span>{formatCreditAmount(MIN_LIMIT, currency)}</span>
-                    <span>Max: {formatCreditAmount(MAX_LIMIT, currency)}</span>
-                  </div>
-                </div>
-
                 {/* How to increase */}
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">How to increase your limit</p>
+                <p className="text-[10px] font-semibold text-foreground">🚀 Pay on time → Unlock more rent fees</p>
                 <div className="space-y-1.5">
-                  <CompactBreakdownRow icon={<Star className="h-3 w-3 text-yellow-500" />} label="Landlord Ratings" value={limit.bonusFromRatings} currency={currency} />
-                  <CompactBreakdownRow icon={<Receipt className="h-3 w-3 text-blue-500" />} label="Rent Receipts Posted" value={limit.bonusFromReceipts} currency={currency} />
-                  <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-green-500" />} label="Rent Access History" value={limit.bonusFromRentHistory} currency={currency} />
-                  <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="Landlord Rent Collected" value={limit.bonusFromLandlordRent} currency={currency} />
+                  <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-success" />} label="✅ Repay rent on time" value={limit.bonusFromRentHistory} currency={currency} tip="Biggest boost" />
+                  <CompactBreakdownRow icon={<Receipt className="h-3 w-3 text-blue-500" />} label="📸 Post rent receipts" value={limit.bonusFromReceipts} currency={currency} tip="Proves history" />
+                  <CompactBreakdownRow icon={<Star className="h-3 w-3 text-yellow-500" />} label="⭐ Earn landlord ratings" value={limit.bonusFromRatings} currency={currency} tip="Trust score" />
+                  <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="🏠 Register as landlord" value={limit.bonusFromLandlordRent} currency={currency} tip="Dual role bonus" />
                 </div>
 
                 {/* Apply button */}
                 <button
                   onClick={handleRequestCredit}
                   disabled={limit.totalLimit <= 0}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation"
                 >
-                  <Send className="h-3 w-3" /> ⚡ Apply Now
+                  <Send className="h-3.5 w-3.5" />
+                  {limit.totalLimit > 0 
+                    ? `⚡ Access ${formatCreditAmount(limit.totalLimit, currency)} Now`
+                    : '🔒 Start repaying to unlock'}
                 </button>
+                {limit.totalLimit > 0 && (
+                  <p className="text-[9px] text-center text-muted-foreground">
+                    Keep repaying → your limit grows automatically
+                  </p>
+                )}
               </div>
             </motion.div>
           )}
