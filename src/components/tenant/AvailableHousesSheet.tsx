@@ -206,6 +206,9 @@ function HouseCard({ listing }: { listing: HouseListing }) {
 
         {/* WhatsApp Agent */}
         <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
+
+        {/* Share */}
+        <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} variant="full" />
       </div>
     </motion.div>
   );

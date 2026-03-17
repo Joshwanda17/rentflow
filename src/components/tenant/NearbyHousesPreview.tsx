@@ -68,6 +68,10 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
             1/{listing.image_urls.length}
           </span>
         )}
+        {/* Share button */}
+        <div className="absolute bottom-1 left-1">
+          <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} />
+        </div>
         {dist !== undefined && dist < 9999 && (
           <span className="absolute top-1 left-1 text-[10px] font-medium text-white bg-primary/80 px-1.5 py-0.5 rounded-full">
             ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
