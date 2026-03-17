@@ -10,9 +10,8 @@ import {
   WifiOff,
   RefreshCw,
   BadgeCheck,
-  ArrowDownCircle,
-  Search,
 } from 'lucide-react';
+import { FindAHouseCTA } from '@/components/tenant/FindAHouseCTA';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
@@ -289,19 +288,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </LockedActionTooltip>
 
             {/* Find a House — Hero CTA */}
-            <button
-              onClick={() => { hapticTap(); setHousesOpen(true); }}
-              className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.01] active:scale-[0.98] transition-all touch-manipulation"
-            >
-              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                <Search className="h-6 w-6" />
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="font-bold text-base">Find a House Nearby</p>
-                <p className="text-sm opacity-80">Daily rent · Pay as you stay</p>
-              </div>
-              <span className="text-2xl">→</span>
-            </button>
+            <FindAHouseCTA onClick={() => { hapticTap(); setHousesOpen(true); }} />
 
             {/* Menu */}
             <button
