@@ -209,7 +209,10 @@ export default function HouseDetail() {
                     </span>
                   </>
                 )}
-                <Badge variant="secondary" className="absolute top-3 right-3">{categoryLabel}</Badge>
+                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                  <SaveHouseButton houseId={listing.id} variant="icon" />
+                  <Badge variant="secondary">{categoryLabel}</Badge>
+                </div>
               </div>
 
               {/* Thumbnail strip */}
