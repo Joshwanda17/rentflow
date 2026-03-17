@@ -132,7 +132,9 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
     setError(null);
 
     try {
-      // If we have GPS, use the spatial RPC
+      let usedRpc = false;
+
+      // If we have GPS, try the spatial RPC first
       if (options.latitude && options.longitude) {
         const { data, error: rpcError } = await supabase.rpc('find_nearby_houses', {
           user_lat: options.latitude,
@@ -143,10 +145,15 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           result_limit: options.limit || 50,
         });
 
-        if (rpcError) throw rpcError;
-        setListings((data as any[]) || []);
-      } else {
-        // No GPS — fall back to regular query
+        if (!rpcError && data) {
+          setListings((data as any[]) || []);
+          usedRpc = true;
+        }
+        // If RPC fails (e.g. PostGIS not available), fall through to regular query
+      }
+
+      if (!usedRpc) {
+        // Fallback: regular query
         let query = supabase
           .from('house_listings')
           .select('*')
@@ -161,6 +168,10 @@ export function useNearbyHouses(options: UseNearbyHousesOptions) {
           query = query.eq('house_category', options.category);
         }
 
+        const { data, error: fetchError } = await query;
+        if (fetchError) throw fetchError;
+        setListings((data as any[]) || []);
+      }
         const { data, error: fetchError } = await query;
         if (fetchError) throw fetchError;
         setListings((data as any[]) || []);
