@@ -278,18 +278,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
               { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
-              <motion.button
+              <button
                 key={action.label}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: i * 0.03 }}
                 onClick={() => { hapticTap(); action.onClick(); }}
-                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-card border border-border/40 hover:bg-muted/40 active:bg-muted/60 transition-all touch-manipulation"
+                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-card border border-border/40 hover:bg-muted/40 active:scale-95 active:bg-muted/60 transition-all touch-manipulation animate-fade-in"
+                style={staggerDelay(i, 30)}
               >
                 <action.icon className="h-[18px] w-[18px] text-foreground/70" />
                 <span className="text-[10px] font-medium text-foreground/80">{action.label}</span>
-              </motion.button>
+              </button>
             ))}
           </div>
         </div>
