@@ -51,32 +51,73 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-primary/15 bg-primary/[0.04]">
-        <TrendingUp className="h-3 w-3 text-primary shrink-0" />
-        <p className="text-[10px] text-muted-foreground">Rent Fee:</p>
-        <p className="text-[11px] font-bold text-primary">{formatCreditAmount(limit.totalLimit, currency)}</p>
-        <div className="flex gap-0.5 ml-auto">
-          {currencyOptions.map(c => (
-            <button
-              key={c}
-              onClick={() => setCurrency(c)}
-              className={`text-[8px] px-1 py-0.5 rounded-full font-medium transition-colors ${
-                currency === c 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'text-muted-foreground'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
+      <div className="rounded-xl border border-primary/15 bg-primary/[0.04] overflow-hidden">
         <button
-          onClick={handleRequestCredit}
-          disabled={limit.totalLimit <= 0}
-          className="text-[9px] font-bold text-primary-foreground bg-primary px-2 py-0.5 rounded-lg active:scale-95 transition-transform disabled:opacity-50 shrink-0"
+          onClick={() => { hapticTap(); setExpanded(!expanded); }}
+          className="w-full flex items-center gap-2 px-3 py-1.5 active:bg-primary/[0.08] transition-colors"
         >
-          Apply
+          <TrendingUp className="h-3 w-3 text-primary shrink-0" />
+          <p className="text-[10px] text-muted-foreground">Rent Fee:</p>
+          <p className="text-[11px] font-bold text-primary">{formatCreditAmount(limit.totalLimit, currency)}</p>
+          <ChevronDown className={`h-3 w-3 text-muted-foreground ml-auto transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
+
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="px-3 pb-3 space-y-2">
+                {/* Currency switcher */}
+                <div className="flex gap-1">
+                  {currencyOptions.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setCurrency(c)}
+                      className={`text-[8px] px-1.5 py-0.5 rounded-full font-medium transition-colors ${
+                        currency === c 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Progress */}
+                <div className="space-y-1">
+                  <Progress value={progressPercentage} className="h-1.5 rounded-full" />
+                  <div className="flex justify-between text-[9px] text-muted-foreground">
+                    <span>{formatCreditAmount(MIN_LIMIT, currency)}</span>
+                    <span>Max: {formatCreditAmount(MAX_LIMIT, currency)}</span>
+                  </div>
+                </div>
+
+                {/* How to increase */}
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">How to increase your limit</p>
+                <div className="space-y-1.5">
+                  <CompactBreakdownRow icon={<Star className="h-3 w-3 text-yellow-500" />} label="Landlord Ratings" value={limit.bonusFromRatings} currency={currency} />
+                  <CompactBreakdownRow icon={<Receipt className="h-3 w-3 text-blue-500" />} label="Rent Receipts Posted" value={limit.bonusFromReceipts} currency={currency} />
+                  <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-green-500" />} label="Rent Access History" value={limit.bonusFromRentHistory} currency={currency} />
+                  <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="Landlord Rent Collected" value={limit.bonusFromLandlordRent} currency={currency} />
+                </div>
+
+                {/* Apply button */}
+                <button
+                  onClick={handleRequestCredit}
+                  disabled={limit.totalLimit <= 0}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation"
+                >
+                  <Send className="h-3 w-3" /> ⚡ Apply Now
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
       </div>
     );
