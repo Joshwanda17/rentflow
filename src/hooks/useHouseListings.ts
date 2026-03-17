@@ -41,6 +41,22 @@ export interface HouseListing {
   agent_name?: string | null;
 }
 
+/** Enrich listings with agent phone/name from profiles */
+async function enrichWithAgentInfo(listings: HouseListing[]): Promise<HouseListing[]> {
+  const agentIds = [...new Set(listings.map(l => l.agent_id).filter(Boolean))] as string[];
+  if (!agentIds.length) return listings;
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, phone, full_name')
+    .in('id', agentIds);
+  if (!profiles) return listings;
+  const map = new Map(profiles.map(p => [p.id, p]));
+  return listings.map(l => {
+    const agent = l.agent_id ? map.get(l.agent_id) : null;
+    return { ...l, agent_phone: agent?.phone ?? null, agent_name: agent?.full_name ?? null };
+  });
+}
+
 interface UseHouseListingsOptions {
   region?: string;
   category?: string;
