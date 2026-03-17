@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
+import HouseRatingBadge from '@/components/house/HouseRatingBadge';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -146,6 +147,7 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
           </span>
         )}
         <Badge variant="secondary" className="absolute top-2 right-2 text-[10px]">{categoryLabel}</Badge>
+        <HouseRatingBadge houseId={listing.id} className="absolute bottom-2 left-2" />
       </div>
 
       <div className="p-4 space-y-3">
