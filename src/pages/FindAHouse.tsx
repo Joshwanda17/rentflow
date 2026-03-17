@@ -159,6 +159,9 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
         <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+
+        {/* WhatsApp Agent */}
+        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
       </div>
     </motion.article>
   );

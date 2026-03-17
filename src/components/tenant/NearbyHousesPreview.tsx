@@ -103,6 +103,9 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
 
         {/* Mini map */}
         <MiniMapThumb lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+
+        {/* WhatsApp Agent */}
+        <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
       </div>
     </motion.div>
   );
