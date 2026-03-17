@@ -270,6 +270,12 @@ export default function HouseDetail() {
             <p className="text-sm text-muted-foreground font-medium">per day · pay as you stay</p>
           </div>
 
+          {/* Visit badge + Price comparison */}
+          <div className="flex flex-wrap items-center gap-2">
+            <VisitBadge reviewCount={summary.totalReviews} />
+            <PriceComparison region={listing.region} category={listing.house_category} dailyRate={listing.daily_rate} houseId={listing.id} />
+          </div>
+
           {/* Specs */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-sm">
