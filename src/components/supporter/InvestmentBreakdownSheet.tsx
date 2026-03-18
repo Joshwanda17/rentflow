@@ -344,6 +344,28 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           )}
         </ScrollArea>
       </SheetContent>
+
+      {topUpTarget && (
+        <FundAccountDialog
+          open={!!topUpTarget}
+          onOpenChange={(open) => { if (!open) setTopUpTarget(null); }}
+          accountName={topUpTarget.name}
+          accountId={topUpTarget.id}
+          walletBalance={wallet?.balance || 0}
+          onFund={async (portfolioId, amt) => {
+            const { data, error } = await supabase.functions.invoke('portfolio-topup', {
+              body: { portfolio_id: portfolioId, amount: amt },
+            });
+            if (error || data?.error) {
+              toast.error(data?.error || error?.message || 'Top-up failed');
+              throw new Error(data?.error || 'Failed');
+            }
+            toast.success(`Successfully topped up ${topUpTarget.name}`);
+            refreshWallet();
+            fetchAll();
+          }}
+        />
+      )}
     </Sheet>
   );
 }
