@@ -77,8 +77,12 @@ export function SupporterROITrigger() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Process monthly ROI payments for supporters who have funded tenant rent. Each supporter receives 15% of their facilitated rent amount monthly.
+            ROI is <strong>automatically paid daily at 6:00 AM</strong> to supporter wallets via the platform ledger. Use the button below to manually trigger processing if needed.
           </p>
+          <Badge variant="secondary" className="text-xs gap-1">
+            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+            Auto-pay enabled — runs daily at 6:00 AM UTC
+          </Badge>
           
           <div className="flex flex-wrap gap-2 text-xs">
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
