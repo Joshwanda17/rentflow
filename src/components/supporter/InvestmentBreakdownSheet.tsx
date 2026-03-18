@@ -36,10 +36,10 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
     try {
       const [{ data: byInvestor, error: e1 }, { data: byAgent, error: e2 }] = await Promise.all([
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
           .eq('investor_id', user.id).neq('status', 'cancelled').order('created_at', { ascending: false }),
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
           .eq('agent_id', user.id).neq('status', 'cancelled').order('created_at', { ascending: false }),
       ]);
       if (e1 || e2) { console.error(e1 || e2); setEntries([]); return; }
