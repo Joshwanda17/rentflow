@@ -425,6 +425,18 @@ export default function COOPartnersPage() {
       const portfolios = (portfolioRes.data || []) as PortfolioRow[];
       const totalROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
 
+      // Fetch renewal counts for these portfolios
+      const portfolioIds = portfolios.map(p => p.id);
+      if (portfolioIds.length > 0) {
+        const { data: renewals } = await supabase
+          .from('portfolio_renewals')
+          .select('portfolio_id')
+          .in('portfolio_id', portfolioIds);
+        const counts: Record<string, number> = {};
+        (renewals || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
+        setRenewalCounts(counts);
+      }
+
       // For imported partners with no ledger entries, derive totals from portfolio records
       const portfolioFunded = portfolios.reduce((s, p) => s + (p.investment_amount || 0), 0);
       const totalFunded = ledgerFunded > 0 ? ledgerFunded : portfolioFunded;
