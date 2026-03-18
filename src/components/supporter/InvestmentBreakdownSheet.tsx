@@ -29,8 +29,10 @@ interface InvestmentEntry {
 export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreakdownSheetProps) {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
+  const { wallet, refreshWallet } = useWallet();
   const [entries, setEntries] = useState<InvestmentEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => { if (open && user) fetchAll(); }, [open, user]);
 
