@@ -149,62 +149,69 @@ export function InvestmentAccountsManager() {
           ) : filtered.length === 0 ? (
             <p className="text-center py-8 text-sm text-muted-foreground">No accounts found</p>
           ) : (
-            <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
+             <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
               {filtered.map(p => (
-                <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    {editingId === p.id ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          className="h-8 text-sm"
-                          autoFocus
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') handleSave(p.id);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                        />
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-success" onClick={() => handleSave(p.id)} disabled={saving}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(null)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm text-foreground truncate">{p.account_name || p.portfolio_code}</p>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 text-muted-foreground hover:text-primary"
-                          onClick={() => { setEditingId(p.id); setEditName(p.portfolio_code); }}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {p.investor_name || p.agent_name} · {formatUGX(p.investment_amount)} · {p.roi_percentage}% ROI
-                    </p>
+                <div key={p.id} className="px-4 py-3 hover:bg-muted/30 transition-colors space-y-2">
+                  {/* Name row */}
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      {editingId === p.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            className="h-9 text-sm flex-1 min-w-0"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSave(p.id);
+                              if (e.key === 'Escape') setEditingId(null);
+                            }}
+                          />
+                          <Button size="icon" variant="ghost" className="h-9 w-9 text-success shrink-0" onClick={() => handleSave(p.id)} disabled={saving}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => setEditingId(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm text-foreground truncate">{p.account_name || p.portfolio_code}</p>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0"
+                            onClick={() => { setEditingId(p.id); setEditName(p.portfolio_code); }}
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {p.investor_name || p.agent_name} · {formatUGX(p.investment_amount)} · {p.roi_percentage}% ROI
+                      </p>
+                    </div>
+                    <Badge variant="outline" className={`text-[10px] shrink-0 ${statusColor(p.status)}`}>
+                      {p.status === 'active' ? 'Active' : p.status === 'pending_approval' ? 'Pending' : p.status}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Action buttons - mobile grid */}
+                  <div className="flex flex-wrap gap-1.5">
                     {p.status === 'active' && (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs font-medium border-primary/30 text-primary hover:bg-primary/10"
+                        className="h-9 text-xs font-medium border-primary/30 text-primary hover:bg-primary/10 min-h-[36px]"
                         onClick={() => handleTopUpClick(p)}
                       >
-                        <ArrowRightLeft className="h-3 w-3 mr-1" />
+                        <ArrowRightLeft className="h-3.5 w-3.5 mr-1" />
                         Top Up
                       </Button>
                     )}
                     <Button
                       size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
+                      variant="outline"
+                      className="h-9 text-xs gap-1.5 min-h-[36px] border-border/40"
                       title="Download PDF"
                       onClick={() => downloadPortfolioPdf({
                         portfolioCode: p.portfolio_code, accountName: p.account_name,
@@ -214,12 +221,12 @@ export function InvestmentAccountsManager() {
                         durationMonths: 12, ownerName: p.investor_name || p.agent_name,
                       })}
                     >
-                      <FileText className="h-3.5 w-3.5" />
+                      <FileText className="h-3.5 w-3.5" /> PDF
                     </Button>
                     <Button
                       size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0 text-success hover:text-success"
+                      variant="outline"
+                      className="h-9 text-xs gap-1.5 min-h-[36px] border-success/30 text-success hover:bg-success/5"
                       title="Share via WhatsApp"
                       onClick={() => sharePortfolioViaWhatsApp({
                         portfolioCode: p.portfolio_code, accountName: p.account_name,
@@ -229,11 +236,8 @@ export function InvestmentAccountsManager() {
                         durationMonths: 12, ownerName: p.investor_name || p.agent_name,
                       })}
                     >
-                      <Share2 className="h-3.5 w-3.5" />
+                      <Share2 className="h-3.5 w-3.5" /> WhatsApp
                     </Button>
-                    <Badge variant="outline" className={`text-[10px] ${statusColor(p.status)}`}>
-                      {p.status === 'active' ? 'Active' : p.status === 'pending_approval' ? 'Pending' : p.status}
-                    </Badge>
                   </div>
                 </div>
               ))}

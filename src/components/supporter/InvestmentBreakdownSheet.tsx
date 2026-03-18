@@ -304,21 +304,21 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
 
                     {/* Top Up & Share Buttons */}
                     {entry.status !== 'cancelled' && (
-                      <div className="px-3.5 pb-2.5 space-y-1.5">
+                      <div className="px-3.5 pb-2.5 space-y-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="w-full gap-2 text-xs border-primary/20 text-primary hover:bg-primary/5"
+                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 font-semibold"
                           onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          <Plus className="h-4 w-4" />
                           Top Up This Account
                         </Button>
-                        <div className="flex gap-1.5">
+                        <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1 gap-1.5 text-[10px] h-7 border-border/40"
+                            className="gap-1.5 text-xs h-10 min-h-[44px] border-border/40"
                             onClick={() => downloadPortfolioPdf({
                               portfolioCode: entry.code, accountName: entry.account_name,
                               investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
@@ -328,12 +328,12 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
                             })}
                           >
-                            <FileText className="h-3 w-3" /> PDF
+                            <FileText className="h-4 w-4" /> Download PDF
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-1 gap-1.5 text-[10px] h-7 border-success/30 text-success hover:bg-success/5"
+                            className="gap-1.5 text-xs h-10 min-h-[44px] border-success/30 text-success hover:bg-success/5"
                             onClick={() => sharePortfolioViaWhatsApp({
                               portfolioCode: entry.code, accountName: entry.account_name,
                               investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
@@ -343,7 +343,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
                             })}
                           >
-                            <Share2 className="h-3 w-3" /> WhatsApp
+                            <Share2 className="h-4 w-4" /> WhatsApp
                           </Button>
                         </div>
                       </div>
