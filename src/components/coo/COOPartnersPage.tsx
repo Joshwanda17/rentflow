@@ -695,19 +695,25 @@ export default function COOPartnersPage() {
             roi_mode: { from: editPortfolio.roi_mode, to: editPortfolioRoiMode },
             duration_months: { from: editPortfolio.duration_months, to: duration },
             status: { from: editPortfolio.status, to: editPortfolioStatus },
+            created_at: { from: editPortfolio.created_at, to: editPortfolioDate ? new Date(editPortfolioDate).toISOString() : editPortfolio.created_at },
           },
         },
       });
 
+      const updatePayload: Record<string, any> = {
+        investment_amount: amount,
+        roi_percentage: roi,
+        roi_mode: editPortfolioRoiMode,
+        duration_months: duration,
+        status: editPortfolioStatus,
+      };
+      if (editPortfolioDate) {
+        updatePayload.created_at = new Date(editPortfolioDate).toISOString();
+      }
+
       const { error } = await supabase
         .from('investor_portfolios')
-        .update({
-          investment_amount: amount,
-          roi_percentage: roi,
-          roi_mode: editPortfolioRoiMode,
-          duration_months: duration,
-          status: editPortfolioStatus,
-        })
+        .update(updatePayload)
         .eq('id', editPortfolio.id);
       if (error) throw error;
 
