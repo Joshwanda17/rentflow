@@ -722,7 +722,7 @@ export default function COOPartnersPage() {
       // Update local state
       const updated = detailPartner.portfolios.map(p =>
         p.id === editPortfolio.id
-          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus }
+          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus, created_at: editPortfolioDate ? new Date(editPortfolioDate).toISOString() : p.created_at }
           : p
       );
       setDetailPartner({ ...detailPartner, portfolios: updated });
