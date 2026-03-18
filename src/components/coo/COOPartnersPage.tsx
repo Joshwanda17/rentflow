@@ -1593,6 +1593,24 @@ export default function COOPartnersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Wallet → Portfolio Top-Up Dialog */}
+      <FundInvestmentAccountDialog
+        open={topUpOpen}
+        onOpenChange={setTopUpOpen}
+        account={topUpPortfolio ? {
+          id: topUpPortfolio.id,
+          portfolio_code: topUpPortfolio.portfolio_code,
+          account_name: topUpPortfolio.account_name,
+          investment_amount: topUpPortfolio.investment_amount,
+          investor_id: topUpPortfolio.investor_id,
+          agent_id: topUpPortfolio.agent_id,
+          investor_name: detailPartner?.name,
+        } : null}
+        onSuccess={() => {
+          if (detailPartner) openDetail(detailPartner.id);
+        }}
+      />
     </div>
   );
 }
