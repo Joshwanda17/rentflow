@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
+import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 
 /* ─── Types ─── */
 interface PartnerRow {
@@ -52,6 +53,7 @@ interface PartnerRow {
 interface PortfolioRow {
   id: string;
   portfolio_code: string;
+  account_name: string | null;
   investment_amount: number;
   roi_percentage: number;
   payout_day: number;
@@ -62,6 +64,8 @@ interface PortfolioRow {
   total_roi_earned: number;
   duration_months: number;
   next_roi_date: string | null;
+  investor_id: string | null;
+  agent_id: string;
 }
 
 interface PartnerDetail {
@@ -194,6 +198,10 @@ export default function COOPartnersPage() {
   const [activatingAll, setActivatingAll] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
+
+  // Wallet top-up dialog
+  const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
+  const [topUpOpen, setTopUpOpen] = useState(false);
 
   // Add portfolio dialog
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
@@ -348,7 +356,7 @@ export default function COOPartnersPage() {
         supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at, frozen_reason').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id')
           .or(`investor_id.eq.${partnerId},agent_id.eq.${partnerId}`)
           .order('created_at', { ascending: false }),
         supabase.from('general_ledger')
@@ -1170,8 +1178,8 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
-                              {/* Edit & Delete Portfolio Buttons */}
-                              <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50">
+                              {/* Edit, Top Up & Delete Portfolio Buttons */}
+                              <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50 flex-wrap">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1180,6 +1188,19 @@ export default function COOPartnersPage() {
                                 >
                                   <Pencil className="h-3 w-3" /> Edit Investment
                                 </Button>
+                                {p.status === 'active' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 gap-1"
+                                    onClick={() => {
+                                      setTopUpPortfolio(p);
+                                      setTopUpOpen(true);
+                                    }}
+                                  >
+                                    <Wallet className="h-3 w-3" /> Top Up
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1575,6 +1596,24 @@ export default function COOPartnersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Wallet → Portfolio Top-Up Dialog */}
+      <FundInvestmentAccountDialog
+        open={topUpOpen}
+        onOpenChange={setTopUpOpen}
+        account={topUpPortfolio ? {
+          id: topUpPortfolio.id,
+          portfolio_code: topUpPortfolio.portfolio_code,
+          account_name: topUpPortfolio.account_name,
+          investment_amount: topUpPortfolio.investment_amount,
+          investor_id: topUpPortfolio.investor_id,
+          agent_id: topUpPortfolio.agent_id,
+          investor_name: detailPartner?.profile?.full_name,
+        } : null}
+        onSuccess={() => {
+          if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+        }}
+      />
     </div>
   );
 }
