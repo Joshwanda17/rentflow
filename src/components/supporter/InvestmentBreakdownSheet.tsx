@@ -49,7 +49,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
         if (seen.has(p.id)) continue;
         seen.add(p.id);
         result.push({
-          id: p.id, code: p.portfolio_code, amount: Number(p.investment_amount),
+          id: p.id, code: p.portfolio_code, account_name: (p as any).account_name || null, amount: Number(p.investment_amount),
           roi_percentage: Number(p.roi_percentage), roi_mode: p.roi_mode,
           total_earned: Number(p.total_roi_earned), status: p.status,
           invested_at: p.created_at, duration_months: p.duration_months,
