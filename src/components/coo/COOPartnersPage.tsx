@@ -196,6 +196,11 @@ export default function COOPartnersPage() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Renew portfolio dialog
+  const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
+  const [renewReason, setRenewReason] = useState('');
+  const [renewing, setRenewing] = useState(false);
+
   // Bulk activate
   const [activatingAll, setActivatingAll] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
