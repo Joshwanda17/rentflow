@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { Loader2, ArrowRightLeft, Wallet, AlertTriangle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface FundInvestmentAccountDialogProps {
@@ -30,6 +30,32 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [loadingWallet, setLoadingWallet] = useState(false);
+
+  // Fetch partner wallet balance when dialog opens
+  const fetchWalletBalance = async () => {
+    if (!account) return;
+    const partnerId = account.investor_id || account.agent_id;
+    setLoadingWallet(true);
+    const { data } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', partnerId)
+      .single();
+    setWalletBalance(data?.balance ?? 0);
+    setLoadingWallet(false);
+  };
+
+  // Fetch on open
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen && account) {
+      fetchWalletBalance();
+      setAmount('');
+      setNotes('');
+    }
+    onOpenChange(isOpen);
+  };
 
   const handleTopUp = async () => {
     if (!account || !amount) return;
@@ -38,56 +64,32 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       toast({ title: 'Enter a valid amount', variant: 'destructive' });
       return;
     }
+    if (topUpAmount < 1000) {
+      toast({ title: 'Minimum top-up is UGX 1,000', variant: 'destructive' });
+      return;
+    }
+    if (notes.trim().length < 10) {
+      toast({ title: 'Please add a reason (min 10 characters)', variant: 'destructive' });
+      return;
+    }
 
     setSaving(true);
     try {
-      const newTotal = account.investment_amount + topUpAmount;
-
-      const { error } = await supabase.from('investor_portfolios')
-        .update({ investment_amount: newTotal })
-        .eq('id', account.id);
-      if (error) throw error;
-
-      // Double-entry ledger: record the top-up
-      const groupId = crypto.randomUUID();
-      const userId = account.investor_id || account.agent_id;
-
-      await supabase.from('general_ledger').insert([
-        {
-          user_id: userId,
+      const { data, error } = await supabase.functions.invoke('manager-portfolio-topup', {
+        body: {
+          portfolio_id: account.id,
           amount: topUpAmount,
-          direction: 'cash_in',
-          category: 'investment_topup',
-          source_table: 'investor_portfolios',
-          source_id: account.id,
-          description: `Top-up: ${account.account_name || account.portfolio_code}`,
-          ledger_scope: 'platform',
-          transaction_group_id: groupId,
-          transaction_date: new Date().toISOString(),
+          notes: notes.trim(),
         },
-        {
-          user_id: null,
-          amount: topUpAmount,
-          direction: 'cash_out',
-          category: 'investment_topup',
-          source_table: 'investor_portfolios',
-          source_id: account.id,
-          description: `Top-up to portfolio: ${account.portfolio_code}`,
-          ledger_scope: 'platform',
-          transaction_group_id: groupId,
-          transaction_date: new Date().toISOString(),
-        },
-      ]);
-
-      await supabase.from('audit_logs').insert({
-        user_id: user?.id,
-        action_type: 'topup_portfolio',
-        table_name: 'investor_portfolios',
-        record_id: account.id,
-        metadata: { amount: topUpAmount, new_total: newTotal, notes },
       });
 
-      toast({ title: `${formatUGX(topUpAmount)} added to ${account.account_name || account.portfolio_code}` });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: `${formatUGX(topUpAmount)} moved to ${account.account_name || account.portfolio_code}`,
+        description: `New capital: ${formatUGX(data.new_investment_total)}`,
+      });
       setAmount('');
       setNotes('');
       onSuccess();
@@ -99,45 +101,79 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
     }
   };
 
+  const parsedAmount = parseFloat(amount) || 0;
+  const insufficientFunds = walletBalance !== null && parsedAmount > walletBalance;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <PlusCircle className="h-4 w-4 text-success" />
-            Top Up Portfolio
+            <ArrowRightLeft className="h-4 w-4 text-primary" />
+            Wallet → Portfolio Top-Up
           </DialogTitle>
         </DialogHeader>
 
         {account && (
           <div className="space-y-4 py-2">
-            <div className="rounded-lg border border-border p-3 bg-muted/30">
+            {/* Partner wallet balance */}
+            <div className="rounded-lg border border-border p-3 bg-muted/30 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Partner Wallet</p>
+                <p className="text-sm font-semibold text-foreground">{account.investor_name || 'Partner'}</p>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
+                  {loadingWallet ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <p className="font-bold text-sm text-foreground">{formatUGX(walletBalance ?? 0)}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Portfolio info */}
+            <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
               <p className="text-sm font-semibold text-foreground">{account.account_name || account.portfolio_code}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Current: {formatUGX(account.investment_amount)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Current Capital: {formatUGX(account.investment_amount)}</p>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs">Top-Up Amount (UGX)</Label>
               <Input
                 type="number"
-                min={1}
+                min={1000}
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 placeholder="e.g. 5000000"
                 className="h-9"
                 autoFocus
               />
+              {insufficientFunds && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Exceeds partner's wallet balance
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs">Notes (optional)</Label>
-              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason for top-up" className="h-9" />
+              <Label className="text-xs">Reason (required, min 10 chars)</Label>
+              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason for this wallet-to-portfolio transfer" className="h-9" />
             </div>
 
-            {amount && parseFloat(amount) > 0 && (
-              <div className="rounded-lg bg-success/10 border border-success/20 p-2.5 text-center">
-                <p className="text-xs text-muted-foreground">New Total</p>
-                <p className="text-lg font-bold text-success">{formatUGX(account.investment_amount + parseFloat(amount))}</p>
+            {parsedAmount > 0 && !insufficientFunds && (
+              <div className="rounded-lg bg-success/10 border border-success/20 p-3 space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Wallet after</span>
+                  <span className="font-medium text-foreground">{formatUGX((walletBalance ?? 0) - parsedAmount)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>New Capital</span>
+                  <span className="font-bold text-success">{formatUGX(account.investment_amount + parsedAmount)}</span>
+                </div>
               </div>
             )}
           </div>
@@ -145,9 +181,12 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleTopUp} disabled={saving || !amount || parseFloat(amount) <= 0}>
+          <Button
+            onClick={handleTopUp}
+            disabled={saving || !amount || parsedAmount <= 0 || parsedAmount < 1000 || insufficientFunds || notes.trim().length < 10}
+          >
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            Confirm Top-Up
+            Confirm Transfer
           </Button>
         </DialogFooter>
       </DialogContent>

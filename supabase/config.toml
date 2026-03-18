@@ -113,3 +113,6 @@ verify_jwt = false
 
 [functions.admin-reset-password]
 verify_jwt = false
+
+[functions.manager-portfolio-topup]
+verify_jwt = false
