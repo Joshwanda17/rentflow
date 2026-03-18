@@ -198,8 +198,8 @@ export default function COOPartnersPage() {
 
   // Renew portfolio dialog
   const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
-  const [renewReason, setRenewReason] = useState('');
-  const [renewing, setRenewing] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
 
   // Bulk activate
   const [activatingAll, setActivatingAll] = useState(false);
