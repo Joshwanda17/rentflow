@@ -434,6 +434,38 @@ export default function COOPartnersPage() {
     finally { setDetailLoading(false); }
   }
 
+  /* ─── Save portfolio account name ─── */
+  async function handleSavePortfolioName(portfolioId: string) {
+    const trimmed = editingNameValue.trim();
+    setSavingName(true);
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ account_name: trimmed || null })
+        .eq('id', portfolioId);
+      if (error) throw error;
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        user_id: currentUser?.id,
+        action_type: 'edit_portfolio_name',
+        table_name: 'investor_portfolios',
+        record_id: portfolioId,
+        metadata: { new_name: trimmed },
+      });
+
+      toast.success(trimmed ? 'Portfolio name updated' : 'Portfolio name removed');
+      setEditingNameId(null);
+      if (detailPartner) {
+        const updated = detailPartner.portfolios.map(p =>
+          p.id === portfolioId ? { ...p, account_name: trimmed || null } : p
+        );
+        setDetailPartner({ ...detailPartner, portfolios: updated });
+      }
+    } catch (e: any) { toast.error(e.message || 'Failed to update name'); }
+    finally { setSavingName(false); }
+  }
+
   /* ─── Save portfolio payout day ─── */
   async function handleSavePortfolioPayoutDay(portfolioId: string) {
     const day = Number(editingPayoutDay);
