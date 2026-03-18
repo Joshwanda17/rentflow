@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, FileText, Share2, RefreshCw } from 'lucide-react';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
-import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
