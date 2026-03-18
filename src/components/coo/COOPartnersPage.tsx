@@ -1277,9 +1277,9 @@ export default function COOPartnersPage() {
                               </div>
 
                               {/* Payout Day Row */}
-                              <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-border/50">
-                                <div className="flex items-center gap-2 text-xs">
-                                  <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mt-2.5 pt-2.5 border-t border-border/50">
+                                <div className="flex items-center gap-2 text-xs flex-wrap">
+                                  <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                   <span className="text-muted-foreground">Payout Day:</span>
                                   {isEditing ? (
                                     <div className="flex items-center gap-1.5">
@@ -1310,7 +1310,7 @@ export default function COOPartnersPage() {
                                   )}
                                 </div>
                                 {p.next_roi_date && (
-                                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 pl-5 sm:pl-0">
                                     <Clock className="h-3 w-3" /> Next: {formatDate(p.next_roi_date)}
                                   </span>
                                 )}
