@@ -19,7 +19,7 @@ interface InvestmentEntry {
   id: string; code: string; account_name: string | null; amount: number; roi_percentage: number;
   roi_mode: string; total_earned: number; status: string; invested_at: string;
   duration_months: number; next_roi_date: string | null; maturity_date: string | null;
-  payout_day: number | null; source: 'portfolio' | 'ledger';
+  payout_day: number | null; auto_reinvest: boolean; source: 'portfolio' | 'ledger';
 }
 
 export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreakdownSheetProps) {
