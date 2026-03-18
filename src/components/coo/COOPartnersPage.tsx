@@ -1175,57 +1175,56 @@ export default function COOPartnersPage() {
                               <Card key={p.id} className={cn('overflow-hidden transition-all', isEditing && 'ring-2 ring-primary/30')}>
                             <div className="p-3.5">
                               {/* Portfolio header row */}
-                              <div className="flex items-start justify-between gap-2 mb-2.5">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-black text-primary">
-                                    #{idx + 1}
-                                  </div>
-                                  <div>
-                                    {/* Account name above ID */}
-                                    {p.account_name && editingNameId !== p.id && (
-                                      <p className="text-xs font-semibold text-foreground leading-tight">{p.account_name}</p>
-                                    )}
-                                    <div className="flex items-center gap-1.5">
-                                      <p className={cn('text-sm font-bold', p.account_name ? 'text-muted-foreground text-xs' : '')}>{p.portfolio_code}</p>
-                                      <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase', statusColor)}>
-                                        {p.status}
-                                      </span>
-                                    </div>
-                                    {/* Inline name edit */}
-                                    {editingNameId === p.id ? (
-                                      <div className="flex items-center gap-1.5 mt-1.5 w-full">
-                                        <Input
-                                          value={editingNameValue}
-                                          onChange={e => setEditingNameValue(e.target.value)}
-                                          placeholder="Enter portfolio name..."
-                                          className="h-9 flex-1 min-w-0 text-sm"
-                                          autoFocus
-                                          onKeyDown={e => {
-                                            if (e.key === 'Enter') handleSavePortfolioName(p.id);
-                                            if (e.key === 'Escape') setEditingNameId(null);
-                                          }}
-                                        />
-                                        <Button size="sm" className="h-9 px-3 text-xs min-w-[44px]" onClick={() => handleSavePortfolioName(p.id)} disabled={savingName}>
-                                          {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                                        </Button>
-                                        <Button size="sm" variant="ghost" className="h-9 px-3 text-xs min-w-[44px]" onClick={() => setEditingNameId(null)}>
-                                          <X className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        onClick={() => { setEditingNameId(p.id); setEditingNameValue(p.account_name || ''); }}
-                                        className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-                                      >
-                                        <Pencil className="h-2.5 w-2.5" />
-                                        {p.account_name ? 'Edit Name' : 'Add Name'}
-                                      </button>
-                                    )}
-                                    <p className="text-[10px] text-muted-foreground">{timeSince(p.created_at)} · {p.duration_months}mo term</p>
-                                  </div>
+                              <div className="flex items-start gap-2 mb-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-black text-primary shrink-0">
+                                  #{idx + 1}
                                 </div>
-                                <p className="text-base font-black tabular-nums text-right">{formatUGX(p.investment_amount)}</p>
+                                <div className="flex-1 min-w-0">
+                                  {/* Account name above ID */}
+                                  {p.account_name && editingNameId !== p.id && (
+                                    <p className="text-xs font-semibold text-foreground leading-tight truncate">{p.account_name}</p>
+                                  )}
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className={cn('text-sm font-bold truncate', p.account_name ? 'text-muted-foreground text-xs' : '')}>{p.portfolio_code}</p>
+                                    <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase whitespace-nowrap shrink-0', statusColor)}>
+                                      {p.status}
+                                    </span>
+                                  </div>
+                                  {/* Inline name edit */}
+                                  {editingNameId === p.id ? (
+                                    <div className="flex items-center gap-1.5 mt-1.5 w-full">
+                                      <Input
+                                        value={editingNameValue}
+                                        onChange={e => setEditingNameValue(e.target.value)}
+                                        placeholder="Enter portfolio name..."
+                                        className="h-9 flex-1 min-w-0 text-sm"
+                                        autoFocus
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter') handleSavePortfolioName(p.id);
+                                          if (e.key === 'Escape') setEditingNameId(null);
+                                        }}
+                                      />
+                                      <Button size="sm" className="h-9 px-3 text-xs min-w-[44px]" onClick={() => handleSavePortfolioName(p.id)} disabled={savingName}>
+                                        {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="h-9 px-3 text-xs min-w-[44px]" onClick={() => setEditingNameId(null)}>
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setEditingNameId(p.id); setEditingNameValue(p.account_name || ''); }}
+                                      className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                                    >
+                                      <Pencil className="h-2.5 w-2.5" />
+                                      {p.account_name ? 'Edit Name' : 'Add Name'}
+                                    </button>
+                                  )}
+                                  <p className="text-[10px] text-muted-foreground">{timeSince(p.created_at)} · {p.duration_months}mo term</p>
+                                </div>
                               </div>
+                              {/* Investment amount - full width on mobile */}
+                              <p className="text-lg font-black tabular-nums mb-2.5">{formatUGX(p.investment_amount)}</p>
 
                               {/* Details grid */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs bg-muted/30 rounded-lg p-2.5">
