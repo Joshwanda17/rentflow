@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
     const results = {
       processed: 0,
       credited: 0,
+      reinvested: 0,
       skipped: 0,
       totalAmount: 0,
       errors: [] as string[],
@@ -43,6 +44,20 @@ Deno.serve(async (req) => {
       (pausedWithdrawals || []).map((w: any) => w.user_id)
     );
 
+    // Get auto-reinvest preferences from portfolios
+    const { data: reinvestPortfolios } = await supabase
+      .from('investor_portfolios')
+      .select('investor_id, id, auto_reinvest, investment_amount')
+      .eq('auto_reinvest', true)
+      .eq('status', 'active');
+
+    const autoReinvestMap = new Map<string, { portfolio_id: string; current_amount: number }>();
+    (reinvestPortfolios || []).forEach((p: any) => {
+      if (p.investor_id && !autoReinvestMap.has(p.investor_id)) {
+        autoReinvestMap.set(p.investor_id, { portfolio_id: p.id, current_amount: p.investment_amount });
+      }
+    });
+
     if (fetchError) {
       throw new Error(`Failed to fetch funded requests: ${fetchError.message}`);
     }
@@ -51,38 +66,33 @@ Deno.serve(async (req) => {
 
     for (const rr of fundedRequests || []) {
       try {
-        // Skip supporters with active withdrawal requests (rewards paused)
         if (pausedSupporterIds.has(rr.supporter_id)) {
-          console.log(`[process-supporter-roi] Skipping ${rr.supporter_id} — rewards paused (withdrawal requested)`);
+          console.log(`[process-supporter-roi] Skipping ${rr.supporter_id} — rewards paused`);
           results.skipped++;
           continue;
         }
 
         const fundedDate = new Date(rr.funded_at);
 
-        // Strict 30-day cycle: check if payout is due
+        // Strict 30-day cycle
         if (rr.next_roi_due_date) {
           const dueDate = new Date(rr.next_roi_due_date);
-          if (dueDate > now) {
-            results.skipped++;
-            continue;
-          }
+          if (dueDate > now) { results.skipped++; continue; }
         } else {
-          // First ROI: check if at least 30 days have passed since funding
           const firstDue = new Date(fundedDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-          if (firstDue > now) {
-            results.skipped++;
-            continue;
-          }
+          if (firstDue > now) { results.skipped++; continue; }
         }
 
         results.processed++;
 
-        // 15% of the rent amount funded
         const roiAmount = Math.round(Number(rr.rent_amount) * 0.15);
         const paymentNumber = (rr.roi_payments_count || 0) + 1;
 
-        // Insert ROI payment record (unique constraint prevents duplicates)
+        // Check auto-reinvest preference
+        const reinvestInfo = autoReinvestMap.get(rr.supporter_id);
+        const shouldReinvest = !!reinvestInfo;
+
+        // Insert ROI payment record
         const { error: roiInsertError } = await supabase
           .from('supporter_roi_payments')
           .insert({
@@ -93,7 +103,7 @@ Deno.serve(async (req) => {
             payment_number: paymentNumber,
             due_date: now.toISOString(),
             paid_at: now.toISOString(),
-            status: 'paid',
+            status: shouldReinvest ? 'reinvested' : 'paid',
           });
 
         if (roiInsertError) {
@@ -104,68 +114,112 @@ Deno.serve(async (req) => {
           throw roiInsertError;
         }
 
-        // === DIRECT LEDGER CREDIT — auto-triggers sync_wallet_from_ledger ===
         const txGroupId = crypto.randomUUID();
 
-        // Debit: Platform rewards expense account
-        await supabase.from('general_ledger').insert({
-          user_id: null,
-          amount: roiAmount,
-          direction: 'cash_out',
-          category: 'supporter_platform_rewards',
-          source_table: 'supporter_roi_payments',
-          source_id: rr.id,
-          transaction_group_id: txGroupId,
-          description: `Platform ROI payout #${paymentNumber} to supporter for rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
-          linked_party: 'platform',
-          ledger_scope: 'platform',
-          transaction_date: now.toISOString(),
-        });
+        if (shouldReinvest) {
+          // ═══ AUTO-REINVEST: Add ROI to portfolio instead of wallet ═══
+          const newAmount = reinvestInfo.current_amount + roiAmount;
 
-        // Credit: Supporter wallet (triggers sync_wallet_from_ledger)
-        await supabase.from('general_ledger').insert({
-          user_id: rr.supporter_id,
-          amount: roiAmount,
-          direction: 'cash_in',
-          category: 'supporter_platform_rewards',
-          source_table: 'supporter_roi_payments',
-          source_id: rr.id,
-          transaction_group_id: txGroupId,
-          description: `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
-          linked_party: 'platform',
-          ledger_scope: 'wallet',
-          transaction_date: now.toISOString(),
-        });
+          // Update portfolio balance
+          await supabase.from('investor_portfolios')
+            .update({ investment_amount: newAmount })
+            .eq('id', reinvestInfo.portfolio_id);
+
+          // Ledger: platform expense for ROI
+          await supabase.from('general_ledger').insert({
+            user_id: null,
+            amount: roiAmount,
+            direction: 'cash_out',
+            category: 'supporter_platform_rewards',
+            source_table: 'supporter_roi_payments',
+            source_id: rr.id,
+            transaction_group_id: txGroupId,
+            description: `ROI payout #${paymentNumber} auto-reinvested into portfolio`,
+            linked_party: 'platform',
+            ledger_scope: 'platform',
+            transaction_date: now.toISOString(),
+          });
+
+          // Ledger: reinvestment credit (platform scope - not wallet)
+          await supabase.from('general_ledger').insert({
+            user_id: rr.supporter_id,
+            amount: roiAmount,
+            direction: 'cash_in',
+            category: 'investment_reinvestment',
+            source_table: 'investor_portfolios',
+            source_id: reinvestInfo.portfolio_id,
+            transaction_group_id: txGroupId,
+            description: `Auto-reinvested ROI #${paymentNumber} (${roiAmount.toLocaleString()}) into portfolio`,
+            linked_party: 'platform',
+            ledger_scope: 'platform',
+            transaction_date: now.toISOString(),
+          });
+
+          // Notify supporter
+          await supabase.from('notifications').insert({
+            user_id: rr.supporter_id,
+            title: '🔄 ROI Auto-Reinvested!',
+            message: `Your reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) has been automatically added to your portfolio. New balance: UGX ${newAmount.toLocaleString()}.`,
+            type: 'earning',
+            metadata: { portfolio_id: reinvestInfo.portfolio_id, roi_amount: roiAmount, payment_number: paymentNumber },
+          });
+
+          // Update the cached amount for subsequent iterations
+          reinvestInfo.current_amount = newAmount;
+          results.reinvested++;
+        } else {
+          // ═══ STANDARD WALLET CREDIT ═══
+          // Debit: Platform expense
+          await supabase.from('general_ledger').insert({
+            user_id: null,
+            amount: roiAmount,
+            direction: 'cash_out',
+            category: 'supporter_platform_rewards',
+            source_table: 'supporter_roi_payments',
+            source_id: rr.id,
+            transaction_group_id: txGroupId,
+            description: `Platform ROI payout #${paymentNumber} to supporter for rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
+            linked_party: 'platform',
+            ledger_scope: 'platform',
+            transaction_date: now.toISOString(),
+          });
+
+          // Credit: Supporter wallet (triggers sync_wallet_from_ledger)
+          await supabase.from('general_ledger').insert({
+            user_id: rr.supporter_id,
+            amount: roiAmount,
+            direction: 'cash_in',
+            category: 'supporter_platform_rewards',
+            source_table: 'supporter_roi_payments',
+            source_id: rr.id,
+            transaction_group_id: txGroupId,
+            description: `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
+            linked_party: 'platform',
+            ledger_scope: 'wallet',
+            transaction_date: now.toISOString(),
+          });
+
+          await supabase.from('notifications').insert({
+            user_id: rr.supporter_id,
+            title: '💰 Monthly Reward Paid!',
+            message: `Your 15% monthly reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) has been credited to your wallet.`,
+            type: 'earning',
+            metadata: { rent_request_id: rr.id, roi_amount: roiAmount, payment_number: paymentNumber },
+          });
+
+          results.credited++;
+        }
 
         // Update rent request ROI tracking
         const nextDueDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        await supabase.from('rent_requests').update({
+          next_roi_due_date: nextDueDate.toISOString(),
+          total_roi_paid: (rr.total_roi_paid || 0) + roiAmount,
+          roi_payments_count: paymentNumber,
+        }).eq('id', rr.id);
 
-        await supabase
-          .from('rent_requests')
-          .update({
-            next_roi_due_date: nextDueDate.toISOString(),
-            total_roi_paid: (rr.total_roi_paid || 0) + roiAmount,
-            roi_payments_count: paymentNumber,
-          })
-          .eq('id', rr.id);
-
-        // Notify supporter
-        await supabase.from('notifications').insert({
-          user_id: rr.supporter_id,
-          title: '💰 Monthly Reward Paid!',
-          message: `Your 15% monthly reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) has been credited to your wallet.`,
-          type: 'earning',
-          metadata: {
-            rent_request_id: rr.id,
-            roi_amount: roiAmount,
-            payment_number: paymentNumber,
-          },
-        });
-
-        results.credited++;
         results.totalAmount += roiAmount;
-
-        console.log(`[process-supporter-roi] Paid ${roiAmount} to supporter ${rr.supporter_id} wallet (payment #${paymentNumber})`);
+        console.log(`[process-supporter-roi] ${shouldReinvest ? 'Reinvested' : 'Paid'} ${roiAmount} for supporter ${rr.supporter_id} (payment #${paymentNumber})`);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[process-supporter-roi] Error on ${rr.id}:`, msg);
@@ -173,12 +227,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[process-supporter-roi] Done: ${results.credited} paid directly, total: ${results.totalAmount}`);
+    console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, total: ${results.totalAmount}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${results.processed}, paid ${results.credited}, skipped ${results.skipped} (not yet due)`,
+        message: `Processed ${results.processed}: ${results.credited} wallet, ${results.reinvested} reinvested, ${results.skipped} skipped`,
         results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
