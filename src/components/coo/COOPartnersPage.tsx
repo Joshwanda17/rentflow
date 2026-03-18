@@ -661,6 +661,7 @@ export default function COOPartnersPage() {
     setEditPortfolioRoiMode(p.roi_mode || 'monthly_payout');
     setEditPortfolioDuration(String(p.duration_months));
     setEditPortfolioStatus(p.status);
+    setEditPortfolioDate(p.created_at ? p.created_at.slice(0, 10) : '');
   }
 
   /* ─── Save Edit Portfolio ─── */
