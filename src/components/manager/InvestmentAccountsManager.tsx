@@ -38,8 +38,8 @@ export function InvestmentAccountsManager() {
   const [topUpAccount, setTopUpAccount] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
-  const [renewReason, setRenewReason] = useState('');
-  const [renewing, setRenewing] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
 
   const fetchPortfolios = useCallback(async () => {
     setLoading(true);
