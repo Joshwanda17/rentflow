@@ -25,7 +25,6 @@ Deno.serve(async (req) => {
     };
 
     // Get all funded rent requests that have a supporter tagged
-    // and are eligible for ROI (funded_at is set)
     const { data: fundedRequests, error: fetchError } = await supabase
       .from('rent_requests')
       .select('id, rent_amount, supporter_id, funded_at, next_roi_due_date, total_roi_paid, roi_payments_count')
@@ -105,9 +104,26 @@ Deno.serve(async (req) => {
           throw roiInsertError;
         }
 
-        // Credit supporter wallet via ledger (pending_wallet_operations for manager approval)
+        // === DIRECT LEDGER CREDIT — auto-triggers sync_wallet_from_ledger ===
         const txGroupId = crypto.randomUUID();
-        await supabase.from('pending_wallet_operations').insert({
+
+        // Debit: Platform rewards expense account
+        await supabase.from('general_ledger').insert({
+          user_id: null,
+          amount: roiAmount,
+          direction: 'cash_out',
+          category: 'supporter_platform_rewards',
+          source_table: 'supporter_roi_payments',
+          source_id: rr.id,
+          transaction_group_id: txGroupId,
+          description: `Platform ROI payout #${paymentNumber} to supporter for rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
+          linked_party: 'platform',
+          ledger_scope: 'platform',
+          transaction_date: now.toISOString(),
+        });
+
+        // Credit: Supporter wallet (triggers sync_wallet_from_ledger)
+        await supabase.from('general_ledger').insert({
           user_id: rr.supporter_id,
           amount: roiAmount,
           direction: 'cash_in',
@@ -117,10 +133,11 @@ Deno.serve(async (req) => {
           transaction_group_id: txGroupId,
           description: `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
           linked_party: 'platform',
-          status: 'pending',
+          ledger_scope: 'wallet',
+          transaction_date: now.toISOString(),
         });
 
-        // Update rent request ROI tracking - next due is exactly 30 days from now
+        // Update rent request ROI tracking
         const nextDueDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
         await supabase
@@ -135,8 +152,8 @@ Deno.serve(async (req) => {
         // Notify supporter
         await supabase.from('notifications').insert({
           user_id: rr.supporter_id,
-          title: '💰 Monthly Reward Credited!',
-          message: `Your 15% monthly reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) is pending manager approval.`,
+          title: '💰 Monthly Reward Paid!',
+          message: `Your 15% monthly reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) has been credited to your wallet.`,
           type: 'earning',
           metadata: {
             rent_request_id: rr.id,
@@ -148,7 +165,7 @@ Deno.serve(async (req) => {
         results.credited++;
         results.totalAmount += roiAmount;
 
-        console.log(`[process-supporter-roi] Queued ${roiAmount} for supporter ${rr.supporter_id} (payment #${paymentNumber})`);
+        console.log(`[process-supporter-roi] Paid ${roiAmount} to supporter ${rr.supporter_id} wallet (payment #${paymentNumber})`);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[process-supporter-roi] Error on ${rr.id}:`, msg);
@@ -156,12 +173,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[process-supporter-roi] Done: ${results.credited} credited, total: ${results.totalAmount}`);
+    console.log(`[process-supporter-roi] Done: ${results.credited} paid directly, total: ${results.totalAmount}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${results.processed}, credited ${results.credited}, skipped ${results.skipped} (not yet due)`,
+        message: `Processed ${results.processed}, paid ${results.credited}, skipped ${results.skipped} (not yet due)`,
         results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
