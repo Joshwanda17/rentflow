@@ -1608,10 +1608,10 @@ export default function COOPartnersPage() {
           investment_amount: topUpPortfolio.investment_amount,
           investor_id: topUpPortfolio.investor_id,
           agent_id: topUpPortfolio.agent_id,
-          investor_name: detailPartner?.name,
+          investor_name: detailPartner?.profile?.full_name,
         } : null}
         onSuccess={() => {
-          if (detailPartner) openDetail(detailPartner.id);
+          if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
         }}
       />
     </div>
