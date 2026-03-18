@@ -1745,6 +1745,13 @@ export default function COOPartnersPage() {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /> Invested On Date</Label>
+                <Input type="date" value={editPortfolioDate} onChange={e => setEditPortfolioDate(e.target.value)} className="h-10 text-sm" />
+                {editPortfolio.created_at && (
+                  <p className="text-[10px] text-muted-foreground">Current: {formatDate(editPortfolio.created_at)}</p>
+                )}
+              </div>
               {editPortfolioAmount && Number(editPortfolioAmount) >= MIN_INVEST && editPortfolioRoi && (
                 <div className="text-xs bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
                   <p>Monthly ROI ({editPortfolioRoi}%): <strong className="text-primary">{formatUGX(Math.round(Number(editPortfolioAmount) * (Number(editPortfolioRoi) / 100)))}</strong></p>
