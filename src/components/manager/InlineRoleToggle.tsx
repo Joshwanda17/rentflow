@@ -239,8 +239,18 @@ export function InlineRoleToggle({
   }>({ open: false, action: 'add', role: null });
 
   const logRoleChange = async (actionType: string, role: string) => {
-    // audit_logs table removed - skip logging
-    console.log('Role change:', actionType, role);
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        action_type: actionType,
+        user_id: currentUser?.id,
+        record_id: userId,
+        table_name: 'user_roles',
+        metadata: { role, ...(actionType.includes('added') || actionType.includes('enabled') ? { new_values: { role } } : { old_values: { role } }) },
+      });
+    } catch (error) {
+      console.error('Failed to log role change:', error);
+    }
   };
 
   const executeAddRole = async (role: AppRole) => {

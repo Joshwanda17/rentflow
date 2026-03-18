@@ -40,8 +40,23 @@ export function RoleHistoryViewer({ userId, userName }: RoleHistoryViewerProps) 
   const { data: history, isLoading } = useQuery({
     queryKey: ["role-history", userId],
     queryFn: async () => {
-      // audit_logs table removed - return empty array
-      return [] as RoleHistoryEntry[];
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('id, user_id, action_type, metadata, created_at')
+        .eq('record_id', userId)
+        .in('action_type', ['role_added', 'role_removed', 'role_enabled', 'role_disabled'])
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data || []).map((log: any) => ({
+        id: log.id,
+        action_type: log.action_type,
+        old_values: (log.metadata as any)?.old_values || null,
+        new_values: (log.metadata as any)?.new_values || null,
+        performed_by: log.user_id || '',
+        reason: (log.metadata as any)?.reason || null,
+        created_at: log.created_at,
+      })) as RoleHistoryEntry[];
     },
   });
 
