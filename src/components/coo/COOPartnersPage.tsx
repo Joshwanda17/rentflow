@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
+import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 
 /* ─── Types ─── */
@@ -198,8 +199,8 @@ export default function COOPartnersPage() {
 
   // Renew portfolio dialog
   const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
-  const [renewReason, setRenewReason] = useState('');
-  const [renewing, setRenewing] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
 
   // Bulk activate
   const [activatingAll, setActivatingAll] = useState(false);
@@ -423,6 +424,18 @@ export default function COOPartnersPage() {
       const ledgerDeals = ledgerData.filter(e => e.direction === 'cash_out').length;
       const portfolios = (portfolioRes.data || []) as PortfolioRow[];
       const totalROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
+
+      // Fetch renewal counts for these portfolios
+      const portfolioIds = portfolios.map(p => p.id);
+      if (portfolioIds.length > 0) {
+        const { data: renewals } = await supabase
+          .from('portfolio_renewals')
+          .select('portfolio_id')
+          .in('portfolio_id', portfolioIds);
+        const counts: Record<string, number> = {};
+        (renewals || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
+        setRenewalCounts(counts);
+      }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
       const portfolioFunded = portfolios.reduce((s, p) => s + (p.investment_amount || 0), 0);
@@ -1343,9 +1356,14 @@ export default function COOPartnersPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 min-h-[44px]"
-                                  onClick={() => { setRenewPortfolio(p); setRenewReason(''); }}
+                                  onClick={() => { setRenewPortfolio(p); setRenewOpen(true); }}
                                 >
                                   <RefreshCw className="h-3.5 w-3.5" /> Renew
+                                  {(renewalCounts[p.id] || 0) > 0 && (
+                                    <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600">
+                                      ×{renewalCounts[p.id]}
+                                    </Badge>
+                                  )}
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -1783,83 +1801,18 @@ export default function COOPartnersPage() {
       </Dialog>
 
       {/* Renew Portfolio Dialog */}
-      <AlertDialog open={!!renewPortfolio} onOpenChange={open => { if (!open) setRenewPortfolio(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-amber-600" /> Renew Portfolio
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will renew <strong>{renewPortfolio?.account_name || renewPortfolio?.portfolio_code}</strong> by resetting the start date to today, recalculating the maturity date, and resetting ROI earned to zero. The investment amount and ROI rate remain unchanged.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label className="text-xs font-medium">Audit Reason (min 10 chars)</Label>
-            <Textarea
-              value={renewReason}
-              onChange={e => setRenewReason(e.target.value)}
-              placeholder="e.g. Partner requested renewal for another cycle..."
-              className="min-h-[60px] text-sm"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={renewing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={renewing || renewReason.trim().length < 10}
-              className="bg-amber-600 hover:bg-amber-700"
-              onClick={async (e) => {
-                e.preventDefault();
-                if (!renewPortfolio) return;
-                setRenewing(true);
-                try {
-                  const now = new Date();
-                  const maturity = new Date(now);
-                  maturity.setMonth(maturity.getMonth() + (renewPortfolio.duration_months || 12));
-                  const nextRoi = new Date(now);
-                  nextRoi.setMonth(nextRoi.getMonth() + 1);
-                  if (renewPortfolio.payout_day) nextRoi.setDate(renewPortfolio.payout_day);
-
-                  const { error } = await supabase.from('investor_portfolios').update({
-                    created_at: now.toISOString(),
-                    maturity_date: maturity.toISOString().split('T')[0],
-                    next_roi_date: nextRoi.toISOString().split('T')[0],
-                    total_roi_earned: 0,
-                    status: 'active',
-                  }).eq('id', renewPortfolio.id);
-
-                  if (error) throw error;
-
-                  const { data: { user } } = await supabase.auth.getUser();
-                  await supabase.from('audit_logs').insert({
-                    user_id: user?.id,
-                    action_type: 'renew_portfolio',
-                    table_name: 'investor_portfolios',
-                    record_id: renewPortfolio.id,
-                    metadata: {
-                      reason: renewReason.trim(),
-                      old_created_at: renewPortfolio.created_at,
-                      old_maturity_date: renewPortfolio.maturity_date,
-                      new_created_at: now.toISOString(),
-                      new_maturity_date: maturity.toISOString().split('T')[0],
-                      portfolio_code: renewPortfolio.portfolio_code,
-                    },
-                  });
-
-                  toast.success('Portfolio renewed successfully');
-                  setRenewPortfolio(null);
-                  if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
-                } catch (err: any) {
-                  toast.error('Renewal failed', { description: err.message });
-                } finally {
-                  setRenewing(false);
-                }
-              }}
-            >
-              {renewing && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Confirm Renewal
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <RenewPortfolioDialog
+        open={renewOpen}
+        onOpenChange={setRenewOpen}
+        portfolio={renewPortfolio}
+        onSuccess={() => {
+          if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+          // Refresh renewal counts
+          if (renewPortfolio) {
+            setRenewalCounts(prev => ({ ...prev, [renewPortfolio.id]: (prev[renewPortfolio.id] || 0) + 1 }));
+          }
+        }}
+      />
 
       {/* Wallet → Portfolio Top-Up Dialog */}
       <FundInvestmentAccountDialog

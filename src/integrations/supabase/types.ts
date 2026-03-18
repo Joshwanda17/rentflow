@@ -2885,6 +2885,65 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_renewals: {
+        Row: {
+          created_at: string
+          id: string
+          new_created_at: string
+          new_duration_months: number
+          new_maturity_date: string | null
+          new_roi_percentage: number
+          old_created_at: string
+          old_duration_months: number
+          old_maturity_date: string | null
+          old_roi_percentage: number
+          portfolio_id: string
+          reason: string
+          renewed_by: string
+          top_up_amount: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_created_at: string
+          new_duration_months: number
+          new_maturity_date?: string | null
+          new_roi_percentage: number
+          old_created_at: string
+          old_duration_months: number
+          old_maturity_date?: string | null
+          old_roi_percentage: number
+          portfolio_id: string
+          reason: string
+          renewed_by: string
+          top_up_amount?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_created_at?: string
+          new_duration_months?: number
+          new_maturity_date?: string | null
+          new_roi_percentage?: number
+          old_created_at?: string
+          old_duration_months?: number
+          old_maturity_date?: string | null
+          old_roi_percentage?: number
+          portfolio_id?: string
+          reason?: string
+          renewed_by?: string
+          top_up_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_renewals_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           agent_id: string
