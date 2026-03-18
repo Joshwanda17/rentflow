@@ -235,6 +235,15 @@ export function InvestmentAccountsManager() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="h-9 text-xs gap-1.5 min-h-[36px] border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                      title="Renew Portfolio"
+                      onClick={() => { setRenewPortfolio(p); setRenewReason(''); }}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Renew
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="h-9 text-xs gap-1.5 min-h-[36px] border-success/30 text-success hover:bg-success/5"
                       title="Share via WhatsApp"
                       onClick={() => sharePortfolioViaWhatsApp({
