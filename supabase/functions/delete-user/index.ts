@@ -48,8 +48,35 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // STEP 1: Kill the auth user FIRST to invalidate all sessions immediately.
-    // This prevents the roleManager from re-provisioning roles during cleanup.
+    // PRE-STEP: remove/null references that can block auth/profile deletion.
+    // NOTE: auth delete cascades to profiles, so blocking FK rows must be handled first.
+    const preCleanupResults = await Promise.all([
+      // profile FK blockers
+      supabaseAdmin.from('investor_portfolios').delete().eq('agent_id', user_id),
+      supabaseAdmin.from('investor_portfolios').update({ investor_id: null, status: 'cancelled' }).eq('investor_id', user_id),
+      supabaseAdmin.from('agent_float_limits').update({ assigned_by: null }).eq('assigned_by', user_id),
+      supabaseAdmin.from('agent_rebalance_records').update({ approved_by: null }).eq('approved_by', user_id),
+      supabaseAdmin.from('float_requests').update({ approved_by: null }).eq('approved_by', user_id),
+      supabaseAdmin.from('landlords').update({ verified_by: null }).eq('verified_by', user_id),
+      supabaseAdmin.from('liquidity_alerts').update({ resolved_by: null }).eq('resolved_by', user_id),
+      supabaseAdmin.from('rent_requests').update({ agent_verified_by: null }).eq('agent_verified_by', user_id),
+      supabaseAdmin.from('rent_requests').update({ manager_verified_by: null }).eq('manager_verified_by', user_id),
+      supabaseAdmin.from('agent_advance_topups').delete().eq('topped_up_by', user_id),
+      supabaseAdmin.from('agent_advances').delete().eq('issued_by', user_id),
+
+      // auth FK blockers (columns are non-null in these tables)
+      supabaseAdmin.from('wallet_transactions').delete().or(`sender_id.eq.${user_id},recipient_id.eq.${user_id}`),
+      supabaseAdmin.from('money_requests').delete().or(`requester_id.eq.${user_id},recipient_id.eq.${user_id}`),
+      supabaseAdmin.from('voided_ledger_entries').delete().eq('voided_by', user_id),
+    ]);
+
+    const preCleanupError = preCleanupResults.find((result) => result.error)?.error;
+    if (preCleanupError) {
+      console.error('Pre-delete cleanup failed:', preCleanupError);
+      return new Response(JSON.stringify({ error: 'Failed to prepare account deletion: ' + preCleanupError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // STEP 1: Kill auth user to invalidate all sessions immediately.
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
     if (deleteError) {
       console.error('Error deleting auth user:', deleteError);
@@ -74,10 +101,11 @@ Deno.serve(async (req) => {
       supabaseAdmin.from('cart_items').delete().eq('user_id', user_id),
     ]);
 
-    // Unlink investor portfolios (preserve records for audit)
-    await supabaseAdmin.from('investor_portfolios').update({ investor_id: null, status: 'cancelled' }).eq('investor_id', user_id);
-    // Cancel supporter invites
-    await supabaseAdmin.from('supporter_invites').update({ status: 'cancelled' }).eq('supporter_id', user_id);
+    // Cancel linked supporter invites
+    await supabaseAdmin
+      .from('supporter_invites')
+      .update({ status: 'cancelled' })
+      .or(`activated_user_id.eq.${user_id},created_by.eq.${user_id},parent_agent_id.eq.${user_id}`);
 
     // Delete profile last (other FKs reference it)
     await supabaseAdmin.from('profiles').delete().eq('id', user_id);
