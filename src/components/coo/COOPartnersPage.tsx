@@ -1342,6 +1342,14 @@ export default function COOPartnersPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 min-h-[44px]"
+                                  onClick={() => { setRenewPortfolio(p); setRenewReason(''); }}
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" /> Renew
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   className="h-9 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 min-h-[44px]"
                                   onClick={() => { setDeletePortfolio(p); setDeleteReason(''); }}
                                 >
