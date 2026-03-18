@@ -232,9 +232,14 @@ export function InvestmentAccountsManager() {
                       variant="outline"
                       className="h-9 text-xs gap-1.5 min-h-[36px] border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
                       title="Renew Portfolio"
-                      onClick={() => { setRenewPortfolio(p); setRenewReason(''); }}
+                      onClick={() => { setRenewPortfolio(p); setRenewOpen(true); }}
                     >
                       <RefreshCw className="h-3.5 w-3.5" /> Renew
+                      {(renewalCounts[p.id] || 0) > 0 && (
+                        <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600">
+                          ×{renewalCounts[p.id]}
+                        </Badge>
+                      )}
                     </Button>
                     <Button
                       size="sm"
