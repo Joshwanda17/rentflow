@@ -185,6 +185,7 @@ export default function COOPartnersPage() {
   const [editPortfolioRoiMode, setEditPortfolioRoiMode] = useState('monthly_payout');
   const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
   const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
+  const [editPortfolioDate, setEditPortfolioDate] = useState('');
   const [savingEditPortfolio, setSavingEditPortfolio] = useState(false);
 
   // Import dialog
