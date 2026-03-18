@@ -1175,8 +1175,8 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
-                              {/* Edit & Delete Portfolio Buttons */}
-                              <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50">
+                              {/* Edit, Top Up & Delete Portfolio Buttons */}
+                              <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50 flex-wrap">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1185,6 +1185,19 @@ export default function COOPartnersPage() {
                                 >
                                   <Pencil className="h-3 w-3" /> Edit Investment
                                 </Button>
+                                {p.status === 'active' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 gap-1"
+                                    onClick={() => {
+                                      setTopUpPortfolio(p);
+                                      setTopUpOpen(true);
+                                    }}
+                                  >
+                                    <Wallet className="h-3 w-3" /> Top Up
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
