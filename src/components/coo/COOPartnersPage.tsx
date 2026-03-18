@@ -345,8 +345,9 @@ export default function COOPartnersPage() {
         .eq('status', 'pending');
 
       // Audit log
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       await supabase.from('audit_logs').insert({
-        user_id: user?.id,
+        user_id: currentUser?.id,
         action_type: 'approve_portfolio',
         table_name: 'investor_portfolios',
         record_id: portfolioId,
