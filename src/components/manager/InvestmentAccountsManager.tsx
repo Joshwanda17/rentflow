@@ -42,6 +42,9 @@ export function InvestmentAccountsManager() {
   const [saving, setSaving] = useState(false);
   const [topUpAccount, setTopUpAccount] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
+  const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
+  const [renewReason, setRenewReason] = useState('');
+  const [renewing, setRenewing] = useState(false);
 
   const fetchPortfolios = useCallback(async () => {
     setLoading(true);
