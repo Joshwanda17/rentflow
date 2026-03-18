@@ -288,6 +288,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[9px] font-bold text-muted-foreground">
                         <Calendar className="h-2.5 w-2.5" />{entry.duration_months}mo
                       </span>
+                      {entry.auto_reinvest && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-success/10 text-[9px] font-bold text-success border border-success/20">
+                          <Repeat className="h-2.5 w-2.5" />Auto-Reinvest
+                        </span>
+                      )}
                     </div>
 
                     {/* Timeline */}
