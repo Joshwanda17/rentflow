@@ -76,6 +76,11 @@ export function PartnersOpsDashboard() {
           ],
         }]}
       />
+
+      <Separator className="my-2" />
+
+      {/* ═══ ROI AUTO-PAYOUT HISTORY ═══ */}
+      <ROIPaymentHistory />
     </div>
   );
 }

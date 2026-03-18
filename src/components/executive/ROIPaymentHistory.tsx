@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { TrendingUp, CheckCircle2, Clock, Calendar, Banknote, Users, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
