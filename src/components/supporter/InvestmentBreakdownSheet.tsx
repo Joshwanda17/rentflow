@@ -302,9 +302,9 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       )}
                     </div>
 
-                    {/* Top Up Button */}
+                    {/* Top Up & Share Buttons */}
                     {entry.status !== 'cancelled' && (
-                      <div className="px-3.5 pb-2.5">
+                      <div className="px-3.5 pb-2.5 space-y-1.5">
                         <Button
                           size="sm"
                           variant="outline"
@@ -314,6 +314,38 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <Plus className="h-3.5 w-3.5" />
                           Top Up This Account
                         </Button>
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 gap-1.5 text-[10px] h-7 border-border/40"
+                            onClick={() => downloadPortfolioPdf({
+                              portfolioCode: entry.code, accountName: entry.account_name,
+                              investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
+                              roiMode: entry.roi_mode, totalRoiEarned: entry.total_earned,
+                              status: entry.status, createdAt: entry.invested_at,
+                              durationMonths: entry.duration_months, payoutDay: entry.payout_day,
+                              nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
+                            })}
+                          >
+                            <FileText className="h-3 w-3" /> PDF
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 gap-1.5 text-[10px] h-7 border-success/30 text-success hover:bg-success/5"
+                            onClick={() => sharePortfolioViaWhatsApp({
+                              portfolioCode: entry.code, accountName: entry.account_name,
+                              investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
+                              roiMode: entry.roi_mode, totalRoiEarned: entry.total_earned,
+                              status: entry.status, createdAt: entry.invested_at,
+                              durationMonths: entry.duration_months, payoutDay: entry.payout_day,
+                              nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
+                            })}
+                          >
+                            <Share2 className="h-3 w-3" /> WhatsApp
+                          </Button>
+                        </div>
                       </div>
                     )}
 
