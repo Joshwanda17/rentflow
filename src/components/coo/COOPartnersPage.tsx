@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
+import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 
 /* ─── Types ─── */
 interface PartnerRow {
