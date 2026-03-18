@@ -8,8 +8,9 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar,
   CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload, Trash2,
-  Plus
+  Plus, FileText, Share2
 } from 'lucide-react';
+import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
