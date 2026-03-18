@@ -3,12 +3,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useWallet } from '@/hooks/useWallet';
 import { supabase } from '@/integrations/supabase/client';
-import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target } from 'lucide-react';
+import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target, Plus } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, formatDistanceToNow, differenceInDays, isPast, addDays } from 'date-fns';
+import { FundAccountDialog } from './FundAccountDialog';
+import { toast } from 'sonner';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
@@ -25,8 +29,10 @@ interface InvestmentEntry {
 export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreakdownSheetProps) {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
+  const { wallet, refreshWallet } = useWallet();
   const [entries, setEntries] = useState<InvestmentEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => { if (open && user) fetchAll(); }, [open, user]);
 
@@ -295,6 +301,21 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       )}
                     </div>
 
+                    {/* Top Up Button */}
+                    {entry.status !== 'cancelled' && (
+                      <div className="px-3.5 pb-2.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2 text-xs border-primary/20 text-primary hover:bg-primary/5"
+                          onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Top Up This Account
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Timeline */}
                     <div className="bg-muted/20 border-t border-border/30 px-3.5 py-2.5 space-y-1.5">
                       {[
@@ -323,6 +344,28 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           )}
         </ScrollArea>
       </SheetContent>
+
+      {topUpTarget && (
+        <FundAccountDialog
+          open={!!topUpTarget}
+          onOpenChange={(open) => { if (!open) setTopUpTarget(null); }}
+          accountName={topUpTarget.name}
+          accountId={topUpTarget.id}
+          walletBalance={wallet?.balance || 0}
+          onFund={async (portfolioId, amt) => {
+            const { data, error } = await supabase.functions.invoke('portfolio-topup', {
+              body: { portfolio_id: portfolioId, amount: amt },
+            });
+            if (error || data?.error) {
+              toast.error(data?.error || error?.message || 'Top-up failed');
+              throw new Error(data?.error || 'Failed');
+            }
+            toast.success(`Successfully topped up ${topUpTarget.name}`);
+            refreshWallet();
+            fetchAll();
+          }}
+        />
+      )}
     </Sheet>
   );
 }
