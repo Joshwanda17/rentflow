@@ -324,6 +324,46 @@ export default function COOPartnersPage() {
 
   useEffect(() => { fetchData(); fetchPendingCount(); }, [fetchData, fetchPendingCount]);
 
+  // Single portfolio approve
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const handleApprovePortfolio = async (portfolioId: string) => {
+    setApprovingId(portfolioId);
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ status: 'active' })
+        .eq('id', portfolioId)
+        .eq('status', 'pending_approval');
+
+      if (error) throw error;
+
+      // Also approve any linked pending_wallet_operations
+      await supabase
+        .from('pending_wallet_operations')
+        .update({ status: 'approved' })
+        .eq('source_id', portfolioId)
+        .eq('status', 'pending');
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'approve_portfolio',
+        table_name: 'investor_portfolios',
+        record_id: portfolioId,
+        metadata: { approved_individually: true },
+      });
+
+      toast.success('Portfolio approved and activated');
+      // Refresh detail view
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      fetchPendingCount();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to approve portfolio');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
   // Bulk activate all pending_approval portfolios
   const handleBulkActivate = async () => {
     setActivatingAll(true);
