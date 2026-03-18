@@ -3,10 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ClipboardList, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ClipboardList } from "lucide-react";
+import { AuditLogViewer } from "@/components/manager/AuditLogViewer";
 
-// audit_logs table removed - show placeholder
 export default function AuditLog() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -19,9 +18,9 @@ export default function AuditLog() {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "manager")
-        .single();
-      return !!data;
+        .in("role", ["manager", "super_admin", "coo", "ceo", "cto"] as any)
+        .limit(1);
+      return (data || []).length > 0;
     },
     enabled: !!user?.id,
   });
@@ -56,21 +55,13 @@ export default function AuditLog() {
               <ClipboardList className="h-5 w-5 text-primary" />
               Audit Log
             </h1>
-            <p className="text-xs text-muted-foreground">Track all system changes</p>
+            <p className="text-xs text-muted-foreground">Track all manager activities</p>
           </div>
         </div>
       </div>
 
       <div className="p-4">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold text-lg">Audit Log Unavailable</h3>
-            <p className="text-muted-foreground mt-2">
-              The audit log feature is currently being restructured.
-            </p>
-          </CardContent>
-        </Card>
+        <AuditLogViewer />
       </div>
     </div>
   );

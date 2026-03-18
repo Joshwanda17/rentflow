@@ -69,8 +69,13 @@ export default function BulkAssignRoleDialog({
     if (!user?.id) return;
     
     try {
-      // audit_logs table removed - skip logging
-      console.log('Role added:', { userId, role, userName });
+      await supabase.from('audit_logs').insert({
+        action_type: 'role_added',
+        user_id: user.id,
+        record_id: userId,
+        table_name: 'user_roles',
+        metadata: { role, user_name: userName, new_values: { role } },
+      });
     } catch (error) {
       console.error('Failed to log role change:', error);
     }

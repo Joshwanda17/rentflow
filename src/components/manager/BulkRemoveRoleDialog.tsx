@@ -51,8 +51,13 @@ export default function BulkRemoveRoleDialog({
     if (!user?.id) return;
     
     try {
-      // audit_logs table removed - skip logging
-      console.log('Role removed:', { userId, role, userName });
+      await supabase.from('audit_logs').insert({
+        action_type: 'role_removed',
+        user_id: user.id,
+        record_id: userId,
+        table_name: 'user_roles',
+        metadata: { role, user_name: userName, old_values: { role } },
+      });
     } catch (error) {
       console.error('Failed to log role change:', error);
     }
