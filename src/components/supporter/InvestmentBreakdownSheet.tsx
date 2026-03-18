@@ -16,7 +16,7 @@ interface InvestmentBreakdownSheetProps {
 }
 
 interface InvestmentEntry {
-  id: string; code: string; amount: number; roi_percentage: number;
+  id: string; code: string; account_name: string | null; amount: number; roi_percentage: number;
   roi_mode: string; total_earned: number; status: string; invested_at: string;
   duration_months: number; next_roi_date: string | null; maturity_date: string | null;
   payout_day: number | null; source: 'portfolio' | 'ledger';
@@ -36,10 +36,10 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
     try {
       const [{ data: byInvestor, error: e1 }, { data: byAgent, error: e2 }] = await Promise.all([
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
           .eq('investor_id', user.id).neq('status', 'cancelled').order('created_at', { ascending: false }),
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
           .eq('agent_id', user.id).neq('status', 'cancelled').order('created_at', { ascending: false }),
       ]);
       if (e1 || e2) { console.error(e1 || e2); setEntries([]); return; }
@@ -49,7 +49,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
         if (seen.has(p.id)) continue;
         seen.add(p.id);
         result.push({
-          id: p.id, code: p.portfolio_code, amount: Number(p.investment_amount),
+          id: p.id, code: p.portfolio_code, account_name: (p as any).account_name || null, amount: Number(p.investment_amount),
           roi_percentage: Number(p.roi_percentage), roi_mode: p.roi_mode,
           total_earned: Number(p.total_roi_earned), status: p.status,
           invested_at: p.created_at, duration_months: p.duration_months,
@@ -166,7 +166,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-[13px] font-bold text-foreground truncate">{entry.code}</p>
+                          <p className="text-[13px] font-bold text-foreground truncate">{entry.account_name || entry.code}</p>
                           <Badge variant="outline" className={`text-[8px] px-1.5 py-0 ${sc.cls}`}>
                             <span className={`h-1 w-1 rounded-full ${sc.dot} mr-0.5`} />{sc.label}
                           </Badge>
