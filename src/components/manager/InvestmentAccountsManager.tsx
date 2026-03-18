@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft } from 'lucide-react';
+import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, FileText, Share2 } from 'lucide-react';
+import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -200,6 +201,36 @@ export function InvestmentAccountsManager() {
                         Top Up
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      title="Download PDF"
+                      onClick={() => downloadPortfolioPdf({
+                        portfolioCode: p.portfolio_code, accountName: p.account_name,
+                        investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
+                        roiMode: 'monthly_payout', totalRoiEarned: 0,
+                        status: p.status, createdAt: p.created_at,
+                        durationMonths: 12, ownerName: p.investor_name || p.agent_name,
+                      })}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-success hover:text-success"
+                      title="Share via WhatsApp"
+                      onClick={() => sharePortfolioViaWhatsApp({
+                        portfolioCode: p.portfolio_code, accountName: p.account_name,
+                        investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
+                        roiMode: 'monthly_payout', totalRoiEarned: 0,
+                        status: p.status, createdAt: p.created_at,
+                        durationMonths: 12, ownerName: p.investor_name || p.agent_name,
+                      })}
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
+                    </Button>
                     <Badge variant="outline" className={`text-[10px] ${statusColor(p.status)}`}>
                       {p.status === 'active' ? 'Active' : p.status === 'pending_approval' ? 'Pending' : p.status}
                     </Badge>

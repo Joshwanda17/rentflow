@@ -8,8 +8,9 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar,
   CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload, Trash2,
-  Plus
+  Plus, FileText, Share2
 } from 'lucide-react';
+import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1331,7 +1332,39 @@ export default function COOPartnersPage() {
                                   className="h-7 px-2.5 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
                                   onClick={() => { setDeletePortfolio(p); setDeleteReason(''); }}
                                 >
-                                  <Trash2 className="h-3 w-3" /> Delete Investment
+                                  <Trash2 className="h-3 w-3" /> Delete
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] gap-1"
+                                  onClick={() => downloadPortfolioPdf({
+                                    portfolioCode: p.portfolio_code, accountName: p.account_name,
+                                    investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
+                                    roiMode: p.roi_mode, totalRoiEarned: p.total_roi_earned,
+                                    status: p.status, createdAt: p.created_at,
+                                    durationMonths: p.duration_months, payoutDay: p.payout_day,
+                                    nextRoiDate: p.next_roi_date, maturityDate: p.maturity_date,
+                                    ownerName: detailPartner?.profile.full_name,
+                                  })}
+                                >
+                                  <FileText className="h-3 w-3" /> PDF
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] text-success hover:text-success hover:bg-success/5 gap-1"
+                                  onClick={() => sharePortfolioViaWhatsApp({
+                                    portfolioCode: p.portfolio_code, accountName: p.account_name,
+                                    investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
+                                    roiMode: p.roi_mode, totalRoiEarned: p.total_roi_earned,
+                                    status: p.status, createdAt: p.created_at,
+                                    durationMonths: p.duration_months, payoutDay: p.payout_day,
+                                    nextRoiDate: p.next_roi_date, maturityDate: p.maturity_date,
+                                    ownerName: detailPartner?.profile.full_name,
+                                  })}
+                                >
+                                  <Share2 className="h-3 w-3" /> WhatsApp
                                 </Button>
                               </div>
 
