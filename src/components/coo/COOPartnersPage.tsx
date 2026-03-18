@@ -1782,6 +1782,85 @@ export default function COOPartnersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Renew Portfolio Dialog */}
+      <AlertDialog open={!!renewPortfolio} onOpenChange={open => { if (!open) setRenewPortfolio(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-amber-600" /> Renew Portfolio
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will renew <strong>{renewPortfolio?.account_name || renewPortfolio?.portfolio_code}</strong> by resetting the start date to today, recalculating the maturity date, and resetting ROI earned to zero. The investment amount and ROI rate remain unchanged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-xs font-medium">Audit Reason (min 10 chars)</Label>
+            <Textarea
+              value={renewReason}
+              onChange={e => setRenewReason(e.target.value)}
+              placeholder="e.g. Partner requested renewal for another cycle..."
+              className="min-h-[60px] text-sm"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={renewing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={renewing || renewReason.trim().length < 10}
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!renewPortfolio) return;
+                setRenewing(true);
+                try {
+                  const now = new Date();
+                  const maturity = new Date(now);
+                  maturity.setMonth(maturity.getMonth() + (renewPortfolio.duration_months || 12));
+                  const nextRoi = new Date(now);
+                  nextRoi.setMonth(nextRoi.getMonth() + 1);
+                  if (renewPortfolio.payout_day) nextRoi.setDate(renewPortfolio.payout_day);
+
+                  const { error } = await supabase.from('investor_portfolios').update({
+                    created_at: now.toISOString(),
+                    maturity_date: maturity.toISOString().split('T')[0],
+                    next_roi_date: nextRoi.toISOString().split('T')[0],
+                    total_roi_earned: 0,
+                    status: 'active',
+                  }).eq('id', renewPortfolio.id);
+
+                  if (error) throw error;
+
+                  const { data: { user } } = await supabase.auth.getUser();
+                  await supabase.from('audit_logs').insert({
+                    user_id: user?.id,
+                    action_type: 'renew_portfolio',
+                    table_name: 'investor_portfolios',
+                    record_id: renewPortfolio.id,
+                    metadata: {
+                      reason: renewReason.trim(),
+                      old_created_at: renewPortfolio.created_at,
+                      old_maturity_date: renewPortfolio.maturity_date,
+                      new_created_at: now.toISOString(),
+                      new_maturity_date: maturity.toISOString().split('T')[0],
+                      portfolio_code: renewPortfolio.portfolio_code,
+                    },
+                  });
+
+                  toast.success('Portfolio renewed successfully');
+                  setRenewPortfolio(null);
+                  if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+                } catch (err: any) {
+                  toast.error('Renewal failed', { description: err.message });
+                } finally {
+                  setRenewing(false);
+                }
+              }}
+            >
+              {renewing && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Confirm Renewal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Wallet → Portfolio Top-Up Dialog */}
       <FundInvestmentAccountDialog
         open={topUpOpen}
