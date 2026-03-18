@@ -185,6 +185,7 @@ export default function COOPartnersPage() {
   const [editPortfolioRoiMode, setEditPortfolioRoiMode] = useState('monthly_payout');
   const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
   const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
+  const [editPortfolioDate, setEditPortfolioDate] = useState('');
   const [savingEditPortfolio, setSavingEditPortfolio] = useState(false);
 
   // Import dialog
@@ -660,6 +661,7 @@ export default function COOPartnersPage() {
     setEditPortfolioRoiMode(p.roi_mode || 'monthly_payout');
     setEditPortfolioDuration(String(p.duration_months));
     setEditPortfolioStatus(p.status);
+    setEditPortfolioDate(p.created_at ? p.created_at.slice(0, 10) : '');
   }
 
   /* ─── Save Edit Portfolio ─── */
@@ -693,19 +695,25 @@ export default function COOPartnersPage() {
             roi_mode: { from: editPortfolio.roi_mode, to: editPortfolioRoiMode },
             duration_months: { from: editPortfolio.duration_months, to: duration },
             status: { from: editPortfolio.status, to: editPortfolioStatus },
+            created_at: { from: editPortfolio.created_at, to: editPortfolioDate ? new Date(editPortfolioDate).toISOString() : editPortfolio.created_at },
           },
         },
       });
 
+      const updatePayload: Record<string, any> = {
+        investment_amount: amount,
+        roi_percentage: roi,
+        roi_mode: editPortfolioRoiMode,
+        duration_months: duration,
+        status: editPortfolioStatus,
+      };
+      if (editPortfolioDate) {
+        updatePayload.created_at = new Date(editPortfolioDate).toISOString();
+      }
+
       const { error } = await supabase
         .from('investor_portfolios')
-        .update({
-          investment_amount: amount,
-          roi_percentage: roi,
-          roi_mode: editPortfolioRoiMode,
-          duration_months: duration,
-          status: editPortfolioStatus,
-        })
+        .update(updatePayload)
         .eq('id', editPortfolio.id);
       if (error) throw error;
 
@@ -714,7 +722,7 @@ export default function COOPartnersPage() {
       // Update local state
       const updated = detailPartner.portfolios.map(p =>
         p.id === editPortfolio.id
-          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus }
+          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus, created_at: editPortfolioDate ? new Date(editPortfolioDate).toISOString() : p.created_at }
           : p
       );
       setDetailPartner({ ...detailPartner, portfolios: updated });
@@ -1736,6 +1744,13 @@ export default function COOPartnersPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /> Invested On Date</Label>
+                <Input type="date" value={editPortfolioDate} onChange={e => setEditPortfolioDate(e.target.value)} className="h-10 text-sm" />
+                {editPortfolio.created_at && (
+                  <p className="text-[10px] text-muted-foreground">Current: {formatDate(editPortfolio.created_at)}</p>
+                )}
               </div>
               {editPortfolioAmount && Number(editPortfolioAmount) >= MIN_INVEST && editPortfolioRoi && (
                 <div className="text-xs bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
