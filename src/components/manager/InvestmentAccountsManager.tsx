@@ -70,11 +70,25 @@ export function InvestmentAccountsManager() {
     const nameMap = new Map<string, string>();
     (profiles || []).forEach(p => nameMap.set(p.id, p.full_name));
 
-    setPortfolios((data || []).map(p => ({
+    const portfolioList = (data || []).map(p => ({
       ...p,
       investor_name: p.investor_id ? nameMap.get(p.investor_id) || 'Unknown' : undefined,
       agent_name: nameMap.get(p.agent_id) || 'Unknown',
-    })));
+    }));
+    setPortfolios(portfolioList);
+
+    // Fetch renewal counts
+    const pIds = portfolioList.map(p => p.id);
+    if (pIds.length > 0) {
+      const { data: renewals } = await supabase
+        .from('portfolio_renewals')
+        .select('portfolio_id')
+        .in('portfolio_id', pIds);
+      const counts: Record<string, number> = {};
+      (renewals || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
+      setRenewalCounts(counts);
+    }
+
     setLoading(false);
   }, []);
 
