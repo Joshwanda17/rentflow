@@ -203,6 +203,11 @@ export default function COOPartnersPage() {
   const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
 
+  // Portfolio name editing
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
   // Add portfolio dialog
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
