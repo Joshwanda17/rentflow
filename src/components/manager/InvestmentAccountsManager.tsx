@@ -3,7 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, FileText, Share2 } from 'lucide-react';
+import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, FileText, Share2, RefreshCw } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,6 +42,9 @@ export function InvestmentAccountsManager() {
   const [saving, setSaving] = useState(false);
   const [topUpAccount, setTopUpAccount] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
+  const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
+  const [renewReason, setRenewReason] = useState('');
+  const [renewing, setRenewing] = useState(false);
 
   const fetchPortfolios = useCallback(async () => {
     setLoading(true);
@@ -226,6 +235,15 @@ export function InvestmentAccountsManager() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="h-9 text-xs gap-1.5 min-h-[36px] border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                      title="Renew Portfolio"
+                      onClick={() => { setRenewPortfolio(p); setRenewReason(''); }}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Renew
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="h-9 text-xs gap-1.5 min-h-[36px] border-success/30 text-success hover:bg-success/5"
                       title="Share via WhatsApp"
                       onClick={() => sharePortfolioViaWhatsApp({
@@ -252,6 +270,79 @@ export function InvestmentAccountsManager() {
         account={topUpAccount}
         onSuccess={fetchPortfolios}
       />
+
+      {/* Renew Portfolio Dialog */}
+      <AlertDialog open={!!renewPortfolio} onOpenChange={open => { if (!open) setRenewPortfolio(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-amber-600" /> Renew Portfolio
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will renew <strong>{renewPortfolio?.account_name || renewPortfolio?.portfolio_code}</strong> by resetting the start date to today, recalculating maturity, and resetting ROI earned to zero.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-xs font-medium">Audit Reason (min 10 chars)</Label>
+            <Textarea
+              value={renewReason}
+              onChange={e => setRenewReason(e.target.value)}
+              placeholder="e.g. Partner requested renewal for another cycle..."
+              className="min-h-[60px] text-sm"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={renewing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={renewing || renewReason.trim().length < 10}
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!renewPortfolio) return;
+                setRenewing(true);
+                try {
+                  const now = new Date();
+                  const maturity = new Date(now);
+                  maturity.setMonth(maturity.getMonth() + 12);
+
+                  const { error } = await supabase.from('investor_portfolios').update({
+                    created_at: now.toISOString(),
+                    maturity_date: maturity.toISOString().split('T')[0],
+                    total_roi_earned: 0,
+                    status: 'active',
+                  }).eq('id', renewPortfolio.id);
+
+                  if (error) throw error;
+
+                  await supabase.from('audit_logs').insert({
+                    user_id: user?.id,
+                    action_type: 'renew_portfolio',
+                    table_name: 'investor_portfolios',
+                    record_id: renewPortfolio.id,
+                    metadata: {
+                      reason: renewReason.trim(),
+                      old_created_at: renewPortfolio.created_at,
+                      new_created_at: now.toISOString(),
+                      new_maturity_date: maturity.toISOString().split('T')[0],
+                      portfolio_code: renewPortfolio.portfolio_code,
+                    },
+                  });
+
+                  toast({ title: 'Portfolio renewed successfully' });
+                  setRenewPortfolio(null);
+                  fetchPortfolios();
+                } catch (err: any) {
+                  toast({ title: 'Renewal failed', description: err.message, variant: 'destructive' });
+                } finally {
+                  setRenewing(false);
+                }
+              }}
+            >
+              {renewing && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Confirm Renewal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
