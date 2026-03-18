@@ -5,6 +5,8 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
+import { ROIPaymentHistory } from './ROIPaymentHistory';
+import { Separator } from '@/components/ui/separator';
 
 export function PartnersOpsDashboard() {
   const { data: portfolios, isLoading } = useQuery({
