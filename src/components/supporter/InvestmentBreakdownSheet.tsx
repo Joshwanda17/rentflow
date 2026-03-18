@@ -54,7 +54,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           total_earned: Number(p.total_roi_earned), status: p.status,
           invested_at: p.created_at, duration_months: p.duration_months,
           next_roi_date: p.next_roi_date, maturity_date: p.maturity_date,
-          payout_day: (p as any).payout_day ?? null, source: 'portfolio',
+          payout_day: (p as any).payout_day ?? null, auto_reinvest: !!(p as any).auto_reinvest, source: 'portfolio',
         });
       }
       setEntries(result);
