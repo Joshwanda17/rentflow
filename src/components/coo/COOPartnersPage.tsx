@@ -1292,52 +1292,52 @@ export default function COOPartnersPage() {
                               </div>
 
                               {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
-                              <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50 flex-wrap">
+                              <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end gap-1.5 mt-2.5 pt-2.5 border-t border-border/50">
                                 {(p.status === 'pending_approval' || p.status === 'pending') && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2.5 text-[10px] text-success hover:text-success hover:bg-success/10 gap-1 font-semibold"
+                                    className="h-9 px-3 text-xs text-success hover:text-success hover:bg-success/10 gap-1.5 font-semibold min-h-[44px]"
                                     onClick={() => handleApprovePortfolio(p.id)}
                                     disabled={approvingId === p.id}
                                   >
-                                    {approvingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                    {approvingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                                     Approve
                                   </Button>
                                 )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 px-2.5 text-[10px] text-primary hover:text-primary hover:bg-primary/10 gap-1"
+                                  className="h-9 px-3 text-xs text-primary hover:text-primary hover:bg-primary/10 gap-1.5 min-h-[44px]"
                                   onClick={() => openEditPortfolio(p)}
                                 >
-                                  <Pencil className="h-3 w-3" /> Edit Investment
+                                  <Pencil className="h-3.5 w-3.5" /> Edit
                                 </Button>
                                 {p.status === 'active' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 px-2.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 gap-1"
+                                    className="h-9 px-3 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 gap-1.5 min-h-[44px]"
                                     onClick={() => {
                                       setTopUpPortfolio(p);
                                       setTopUpOpen(true);
                                     }}
                                   >
-                                    <Wallet className="h-3 w-3" /> Top Up
+                                    <Wallet className="h-3.5 w-3.5" /> Top Up
                                   </Button>
                                 )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 px-2.5 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+                                  className="h-9 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 min-h-[44px]"
                                   onClick={() => { setDeletePortfolio(p); setDeleteReason(''); }}
                                 >
-                                  <Trash2 className="h-3 w-3" /> Delete
+                                  <Trash2 className="h-3.5 w-3.5" /> Delete
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 px-2.5 text-[10px] gap-1"
+                                  className="h-9 px-3 text-xs gap-1.5 min-h-[44px]"
                                   onClick={() => downloadPortfolioPdf({
                                     portfolioCode: p.portfolio_code, accountName: p.account_name,
                                     investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
@@ -1348,12 +1348,12 @@ export default function COOPartnersPage() {
                                     ownerName: detailPartner?.profile.full_name,
                                   })}
                                 >
-                                  <FileText className="h-3 w-3" /> PDF
+                                  <FileText className="h-3.5 w-3.5" /> PDF
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 px-2.5 text-[10px] text-success hover:text-success hover:bg-success/5 gap-1"
+                                  className="h-9 px-3 text-xs text-success hover:text-success hover:bg-success/5 gap-1.5 min-h-[44px]"
                                   onClick={() => sharePortfolioViaWhatsApp({
                                     portfolioCode: p.portfolio_code, accountName: p.account_name,
                                     investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
@@ -1364,7 +1364,7 @@ export default function COOPartnersPage() {
                                     ownerName: detailPartner?.profile.full_name,
                                   })}
                                 >
-                                  <Share2 className="h-3 w-3" /> WhatsApp
+                                  <Share2 className="h-3.5 w-3.5" /> WhatsApp
                                 </Button>
                               </div>
 
