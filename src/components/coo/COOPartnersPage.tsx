@@ -53,6 +53,7 @@ interface PartnerRow {
 interface PortfolioRow {
   id: string;
   portfolio_code: string;
+  account_name: string | null;
   investment_amount: number;
   roi_percentage: number;
   payout_day: number;
@@ -63,6 +64,8 @@ interface PortfolioRow {
   total_roi_earned: number;
   duration_months: number;
   next_roi_date: string | null;
+  investor_id: string | null;
+  agent_id: string;
 }
 
 interface PartnerDetail {
