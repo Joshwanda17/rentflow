@@ -101,8 +101,11 @@ Deno.serve(async (req) => {
       supabaseAdmin.from('cart_items').delete().eq('user_id', user_id),
     ]);
 
-    // Cancel supporter invites
-    await supabaseAdmin.from('supporter_invites').update({ status: 'cancelled' }).eq('supporter_id', user_id);
+    // Cancel linked supporter invites
+    await supabaseAdmin
+      .from('supporter_invites')
+      .update({ status: 'cancelled' })
+      .or(`activated_user_id.eq.${user_id},created_by.eq.${user_id},parent_agent_id.eq.${user_id}`);
 
     // Delete profile last (other FKs reference it)
     await supabaseAdmin.from('profiles').delete().eq('id', user_id);
