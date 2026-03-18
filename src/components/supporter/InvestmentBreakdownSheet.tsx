@@ -301,6 +301,21 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       )}
                     </div>
 
+                    {/* Top Up Button */}
+                    {entry.status !== 'cancelled' && (
+                      <div className="px-3.5 pb-2.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2 text-xs border-primary/20 text-primary hover:bg-primary/5"
+                          onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Top Up This Account
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Timeline */}
                     <div className="bg-muted/20 border-t border-border/30 px-3.5 py-2.5 space-y-1.5">
                       {[
