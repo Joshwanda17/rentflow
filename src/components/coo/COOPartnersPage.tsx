@@ -31,6 +31,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import PartnerImportDialog from './PartnerImportDialog';
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 
