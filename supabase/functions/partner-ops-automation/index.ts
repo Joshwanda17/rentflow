@@ -1,0 +1,185 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const now = new Date();
+    const results = {
+      maturity_30d: 0,
+      maturity_7d: 0,
+      stale_approvals: 0,
+      errors: [] as string[],
+    };
+
+    // ═══ 1. MATURITY ALERTS ═══
+    // Get active portfolios with maturity dates
+    const { data: portfolios, error: pErr } = await supabase
+      .from('investor_portfolios')
+      .select('id, portfolio_code, account_name, investment_amount, maturity_date, investor_id, agent_id, maturity_alert_30d, maturity_alert_7d')
+      .eq('status', 'active')
+      .not('maturity_date', 'is', null);
+
+    if (pErr) throw new Error(`Failed to fetch portfolios: ${pErr.message}`);
+
+    for (const p of portfolios || []) {
+      try {
+        const maturity = new Date(p.maturity_date);
+        const daysToMaturity = Math.ceil((maturity.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        const displayName = p.account_name || p.portfolio_code;
+        const userId = p.investor_id || p.agent_id;
+
+        // 30-day alert
+        if (daysToMaturity <= 30 && daysToMaturity > 7 && !p.maturity_alert_30d) {
+          // Create escalation
+          await supabase.from('partner_escalations').insert({
+            portfolio_id: p.id,
+            escalation_type: 'maturity_30d',
+            details: { days_remaining: daysToMaturity, portfolio_code: p.portfolio_code, amount: p.investment_amount },
+          });
+
+          // Notify partner
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            title: '📅 Portfolio Maturing Soon',
+            message: `Your account "${displayName}" matures in ${daysToMaturity} days (${new Date(p.maturity_date).toLocaleDateString()}). Please plan accordingly.`,
+            type: 'info',
+            metadata: { portfolio_id: p.id, days_remaining: daysToMaturity },
+          });
+
+          await supabase.from('investor_portfolios').update({ maturity_alert_30d: true }).eq('id', p.id);
+          results.maturity_30d++;
+        }
+
+        // 7-day alert
+        if (daysToMaturity <= 7 && daysToMaturity > 0 && !p.maturity_alert_7d) {
+          await supabase.from('partner_escalations').insert({
+            portfolio_id: p.id,
+            escalation_type: 'maturity_7d',
+            details: { days_remaining: daysToMaturity, portfolio_code: p.portfolio_code, amount: p.investment_amount },
+          });
+
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            title: '⚠️ Portfolio Maturity in ' + daysToMaturity + ' Days!',
+            message: `Your account "${displayName}" with ${Number(p.investment_amount).toLocaleString()} matures in ${daysToMaturity} day(s). Contact your manager about renewal or withdrawal.`,
+            type: 'warning',
+            metadata: { portfolio_id: p.id, days_remaining: daysToMaturity },
+          });
+
+          await supabase.from('investor_portfolios').update({ maturity_alert_7d: true }).eq('id', p.id);
+          results.maturity_7d++;
+        }
+
+        // Expired maturity — auto-update status
+        if (daysToMaturity <= 0) {
+          await supabase.from('investor_portfolios').update({ status: 'matured' }).eq('id', p.id);
+          await supabase.from('partner_escalations').insert({
+            portfolio_id: p.id,
+            escalation_type: 'maturity_expired',
+            details: { portfolio_code: p.portfolio_code, amount: p.investment_amount, matured_at: now.toISOString() },
+          });
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            title: '🏁 Portfolio Matured',
+            message: `Your account "${displayName}" has reached maturity. Your investment of ${Number(p.investment_amount).toLocaleString()} is ready for renewal or withdrawal.`,
+            type: 'info',
+            metadata: { portfolio_id: p.id },
+          });
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        results.errors.push(`maturity ${p.id}: ${msg}`);
+      }
+    }
+
+    // ═══ 2. STALE APPROVAL ESCALATION ═══
+    // Flag portfolios pending approval for > 48 hours
+    const cutoff48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
+
+    const { data: stalePortfolios, error: sErr } = await supabase
+      .from('investor_portfolios')
+      .select('id, portfolio_code, account_name, investment_amount, created_at, investor_id, agent_id')
+      .eq('status', 'pending_approval')
+      .lt('created_at', cutoff48h);
+
+    if (sErr) {
+      console.error('Failed to fetch stale portfolios:', sErr.message);
+    } else {
+      for (const sp of stalePortfolios || []) {
+        try {
+          // Check if already escalated
+          const { data: existing } = await supabase
+            .from('partner_escalations')
+            .select('id')
+            .eq('portfolio_id', sp.id)
+            .eq('escalation_type', 'stale_approval')
+            .eq('status', 'open')
+            .limit(1);
+
+          if (existing && existing.length > 0) continue;
+
+          const hoursStale = Math.round((now.getTime() - new Date(sp.created_at).getTime()) / (60 * 60 * 1000));
+
+          await supabase.from('partner_escalations').insert({
+            portfolio_id: sp.id,
+            escalation_type: 'stale_approval',
+            details: {
+              portfolio_code: sp.portfolio_code,
+              amount: sp.investment_amount,
+              hours_pending: hoursStale,
+              created_at: sp.created_at,
+            },
+          });
+
+          // Notify COO-level users via notifications table
+          // Get all COO role users
+          const { data: cooUsers } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'coo');
+
+          for (const cu of cooUsers || []) {
+            await supabase.from('notifications').insert({
+              user_id: cu.user_id,
+              title: '🚨 Stale Approval Alert',
+              message: `Portfolio "${sp.account_name || sp.portfolio_code}" (${Number(sp.investment_amount).toLocaleString()}) has been pending approval for ${hoursStale}+ hours. Please review.`,
+              type: 'warning',
+              metadata: { portfolio_id: sp.id, hours_pending: hoursStale },
+            });
+          }
+
+          results.stale_approvals++;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          results.errors.push(`stale ${sp.id}: ${msg}`);
+        }
+      }
+    }
+
+    console.log(`[partner-ops-automation] Done: ${results.maturity_30d} 30d alerts, ${results.maturity_7d} 7d alerts, ${results.stale_approvals} escalations`);
+
+    return new Response(
+      JSON.stringify({ success: true, results }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[partner-ops-automation] Fatal:', msg);
+    return new Response(
+      JSON.stringify({ success: false, error: msg }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});

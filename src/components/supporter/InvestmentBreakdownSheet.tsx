@@ -19,7 +19,7 @@ interface InvestmentEntry {
   id: string; code: string; account_name: string | null; amount: number; roi_percentage: number;
   roi_mode: string; total_earned: number; status: string; invested_at: string;
   duration_months: number; next_roi_date: string | null; maturity_date: string | null;
-  payout_day: number | null; source: 'portfolio' | 'ledger';
+  payout_day: number | null; auto_reinvest: boolean; source: 'portfolio' | 'ledger';
 }
 
 export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreakdownSheetProps) {
@@ -36,10 +36,10 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
     try {
       const [{ data: byInvestor, error: e1 }, { data: byAgent, error: e2 }] = await Promise.all([
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day, auto_reinvest')
           .eq('investor_id', user.id).neq('status', 'cancelled').order('created_at', { ascending: false }),
         supabase.from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .select('id, portfolio_code, account_name, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day, auto_reinvest')
           .eq('agent_id', user.id).neq('status', 'cancelled').order('created_at', { ascending: false }),
       ]);
       if (e1 || e2) { console.error(e1 || e2); setEntries([]); return; }
@@ -54,7 +54,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           total_earned: Number(p.total_roi_earned), status: p.status,
           invested_at: p.created_at, duration_months: p.duration_months,
           next_roi_date: p.next_roi_date, maturity_date: p.maturity_date,
-          payout_day: (p as any).payout_day ?? null, source: 'portfolio',
+          payout_day: (p as any).payout_day ?? null, auto_reinvest: !!(p as any).auto_reinvest, source: 'portfolio',
         });
       }
       setEntries(result);
@@ -288,6 +288,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[9px] font-bold text-muted-foreground">
                         <Calendar className="h-2.5 w-2.5" />{entry.duration_months}mo
                       </span>
+                      {entry.auto_reinvest && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-success/10 text-[9px] font-bold text-success border border-success/20">
+                          <Repeat className="h-2.5 w-2.5" />Auto-Reinvest
+                        </span>
+                      )}
                     </div>
 
                     {/* Timeline */}

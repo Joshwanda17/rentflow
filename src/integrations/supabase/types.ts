@@ -1736,6 +1736,7 @@ export type Database = {
           account_number: string | null
           activation_token: string
           agent_id: string
+          auto_reinvest: boolean
           bank_name: string | null
           created_at: string
           display_currency: string
@@ -1744,6 +1745,8 @@ export type Database = {
           investment_amount: number
           investor_id: string | null
           invite_id: string | null
+          maturity_alert_30d: boolean
+          maturity_alert_7d: boolean
           maturity_date: string | null
           mobile_money_number: string | null
           mobile_network: string | null
@@ -1762,6 +1765,7 @@ export type Database = {
           account_number?: string | null
           activation_token?: string
           agent_id: string
+          auto_reinvest?: boolean
           bank_name?: string | null
           created_at?: string
           display_currency?: string
@@ -1770,6 +1774,8 @@ export type Database = {
           investment_amount: number
           investor_id?: string | null
           invite_id?: string | null
+          maturity_alert_30d?: boolean
+          maturity_alert_7d?: boolean
           maturity_date?: string | null
           mobile_money_number?: string | null
           mobile_network?: string | null
@@ -1788,6 +1794,7 @@ export type Database = {
           account_number?: string | null
           activation_token?: string
           agent_id?: string
+          auto_reinvest?: boolean
           bank_name?: string | null
           created_at?: string
           display_currency?: string
@@ -1796,6 +1803,8 @@ export type Database = {
           investment_amount?: number
           investor_id?: string | null
           invite_id?: string | null
+          maturity_alert_30d?: boolean
+          maturity_alert_7d?: boolean
           maturity_date?: string | null
           mobile_money_number?: string | null
           mobile_network?: string | null
@@ -2665,6 +2674,47 @@ export type Database = {
           verified_at?: string | null
         }
         Relationships: []
+      }
+      partner_escalations: {
+        Row: {
+          created_at: string
+          details: Json | null
+          escalation_type: string
+          id: string
+          portfolio_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          escalation_type: string
+          id?: string
+          portfolio_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          escalation_type?: string
+          id?: string
+          portfolio_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_escalations_portfolio_id_fkey"
+            columns: ["portfolio_id"]
+            isOneToOne: false
+            referencedRelation: "investor_portfolios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_tokens: {
         Row: {
