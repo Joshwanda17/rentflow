@@ -196,6 +196,10 @@ export default function COOPartnersPage() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
 
+  // Wallet top-up dialog
+  const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
+  const [topUpOpen, setTopUpOpen] = useState(false);
+
   // Add portfolio dialog
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
