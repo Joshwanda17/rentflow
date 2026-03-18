@@ -69,7 +69,7 @@ export default function InvestmentPortfolio() {
       if (error) { console.error(error); setAccounts([]); return; }
       const colors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#8b5cf6'];
       setAccounts((portfolios || []).map((p: any, i: number) => ({
-        id: p.id, name: p.portfolio_code || `Portfolio ${i + 1}`,
+        id: p.id, name: p.account_name || p.portfolio_code || `Portfolio ${i + 1}`,
         balance: p.investment_amount || 0, color: colors[i % colors.length],
         status: p.status === 'active' ? 'approved' : p.status,
         created_at: p.created_at, updated_at: p.created_at,
