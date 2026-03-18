@@ -203,6 +203,11 @@ export default function COOPartnersPage() {
   const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
 
+  // Portfolio name editing
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [editingNameValue, setEditingNameValue] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
   // Add portfolio dialog
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
@@ -427,6 +432,38 @@ export default function COOPartnersPage() {
       });
     } catch (e) { console.error(e); toast.error('Failed to load partner details'); }
     finally { setDetailLoading(false); }
+  }
+
+  /* ─── Save portfolio account name ─── */
+  async function handleSavePortfolioName(portfolioId: string) {
+    const trimmed = editingNameValue.trim();
+    setSavingName(true);
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ account_name: trimmed || null })
+        .eq('id', portfolioId);
+      if (error) throw error;
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        user_id: currentUser?.id,
+        action_type: 'edit_portfolio_name',
+        table_name: 'investor_portfolios',
+        record_id: portfolioId,
+        metadata: { new_name: trimmed },
+      });
+
+      toast.success(trimmed ? 'Portfolio name updated' : 'Portfolio name removed');
+      setEditingNameId(null);
+      if (detailPartner) {
+        const updated = detailPartner.portfolios.map(p =>
+          p.id === portfolioId ? { ...p, account_name: trimmed || null } : p
+        );
+        setDetailPartner({ ...detailPartner, portfolios: updated });
+      }
+    } catch (e: any) { toast.error(e.message || 'Failed to update name'); }
+    finally { setSavingName(false); }
   }
 
   /* ─── Save portfolio payout day ─── */
@@ -1108,7 +1145,7 @@ export default function COOPartnersPage() {
                         const statusColor = p.status === 'active' ? 'bg-primary/10 text-primary' : p.status === 'matured' ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground';
 
                         return (
-                          <Card key={p.id} className={cn('overflow-hidden transition-all', isEditing && 'ring-2 ring-primary/30')}>
+                              <Card key={p.id} className={cn('overflow-hidden transition-all', isEditing && 'ring-2 ring-primary/30')}>
                             <div className="p-3.5">
                               {/* Portfolio header row */}
                               <div className="flex items-start justify-between gap-2 mb-2.5">
@@ -1117,12 +1154,46 @@ export default function COOPartnersPage() {
                                     #{idx + 1}
                                   </div>
                                   <div>
+                                    {/* Account name above ID */}
+                                    {p.account_name && editingNameId !== p.id && (
+                                      <p className="text-xs font-semibold text-foreground leading-tight">{p.account_name}</p>
+                                    )}
                                     <div className="flex items-center gap-1.5">
-                                      <p className="text-sm font-bold">{p.portfolio_code}</p>
+                                      <p className={cn('text-sm font-bold', p.account_name ? 'text-muted-foreground text-xs' : '')}>{p.portfolio_code}</p>
                                       <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase', statusColor)}>
                                         {p.status}
                                       </span>
                                     </div>
+                                    {/* Inline name edit */}
+                                    {editingNameId === p.id ? (
+                                      <div className="flex items-center gap-1.5 mt-1">
+                                        <Input
+                                          value={editingNameValue}
+                                          onChange={e => setEditingNameValue(e.target.value)}
+                                          placeholder="Enter portfolio name..."
+                                          className="h-7 w-40 text-xs"
+                                          autoFocus
+                                          onKeyDown={e => {
+                                            if (e.key === 'Enter') handleSavePortfolioName(p.id);
+                                            if (e.key === 'Escape') setEditingNameId(null);
+                                          }}
+                                        />
+                                        <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => handleSavePortfolioName(p.id)} disabled={savingName}>
+                                          {savingName ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                        </Button>
+                                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setEditingNameId(null)}>
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => { setEditingNameId(p.id); setEditingNameValue(p.account_name || ''); }}
+                                        className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                                      >
+                                        <Pencil className="h-2.5 w-2.5" />
+                                        {p.account_name ? 'Edit Name' : 'Add Name'}
+                                      </button>
+                                    )}
                                     <p className="text-[10px] text-muted-foreground">{timeSince(p.created_at)} · {p.duration_months}mo term</p>
                                   </div>
                                 </div>
