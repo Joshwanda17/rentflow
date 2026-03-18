@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { FundInvestmentAccountDialog } from './FundInvestmentAccountDialog';
+import { RenewPortfolioDialog } from './RenewPortfolioDialog';
 
 interface PortfolioRow {
   id: string;
