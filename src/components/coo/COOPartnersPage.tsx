@@ -1167,23 +1167,23 @@ export default function COOPartnersPage() {
                                     </div>
                                     {/* Inline name edit */}
                                     {editingNameId === p.id ? (
-                                      <div className="flex items-center gap-1.5 mt-1">
+                                      <div className="flex items-center gap-1.5 mt-1.5 w-full">
                                         <Input
                                           value={editingNameValue}
                                           onChange={e => setEditingNameValue(e.target.value)}
                                           placeholder="Enter portfolio name..."
-                                          className="h-7 w-40 text-xs"
+                                          className="h-9 flex-1 min-w-0 text-sm"
                                           autoFocus
                                           onKeyDown={e => {
                                             if (e.key === 'Enter') handleSavePortfolioName(p.id);
                                             if (e.key === 'Escape') setEditingNameId(null);
                                           }}
                                         />
-                                        <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => handleSavePortfolioName(p.id)} disabled={savingName}>
-                                          {savingName ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                        <Button size="sm" className="h-9 px-3 text-xs min-w-[44px]" onClick={() => handleSavePortfolioName(p.id)} disabled={savingName}>
+                                          {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                                         </Button>
-                                        <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setEditingNameId(null)}>
-                                          <X className="h-3 w-3" />
+                                        <Button size="sm" variant="ghost" className="h-9 px-3 text-xs min-w-[44px]" onClick={() => setEditingNameId(null)}>
+                                          <X className="h-3.5 w-3.5" />
                                         </Button>
                                       </div>
                                     ) : (
