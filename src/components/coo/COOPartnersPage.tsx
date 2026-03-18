@@ -1219,8 +1219,20 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
-                              {/* Edit, Top Up & Delete Portfolio Buttons */}
+                              {/* Edit, Approve, Top Up & Delete Portfolio Buttons */}
                               <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50 flex-wrap">
+                                {(p.status === 'pending_approval' || p.status === 'pending') && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2.5 text-[10px] text-success hover:text-success hover:bg-success/10 gap-1 font-semibold"
+                                    onClick={() => handleApprovePortfolio(p.id)}
+                                    disabled={approvingId === p.id}
+                                  >
+                                    {approvingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                                    Approve
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
