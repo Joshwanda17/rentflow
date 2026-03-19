@@ -358,16 +358,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
               </div>
 
               {/* ── INLINE PAYOUT DETAILS ── */}
-              <AnimatePresence mode="wait">
-                {payoutMode && (
-                  <motion.div
-                    key={payoutMode}
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.25, ease: 'easeInOut' }}
-                    className="overflow-hidden"
-                  >
+              {payoutMode && (
+                <div className="animate-fade-in">
                     <div className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border/50">
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         {selectedOption?.label} Details
