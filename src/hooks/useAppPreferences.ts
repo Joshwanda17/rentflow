@@ -9,6 +9,7 @@ export interface AppPreferences {
   rememberLogin: boolean;
   skipSplash: boolean;
   defaultRole: DefaultRolePreference;
+  unlockAllRoles: boolean;
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
