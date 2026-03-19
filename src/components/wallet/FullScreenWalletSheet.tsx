@@ -271,17 +271,10 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               )}
             </div>
 
-            {/* Quick wallet actions */}
+            {/* Visible wallet actions — Deposit & Withdraw only */}
             <div>
               <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Wallet</h3>
-              <div className="grid grid-cols-4 gap-2">
-                <Button 
-                  onClick={() => { hapticTap(); setSendOpen(true); }} 
-                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all shadow-sm"
-                >
-                  <Send className="h-4 w-4" />
-                  <span className="text-[10px] font-semibold">Send</span>
-                </Button>
+              <div className="grid grid-cols-2 gap-2">
                 <Button 
                   onClick={() => { hapticTap(); setDepositOpen(true); }} 
                   variant="outline" 
@@ -289,14 +282,6 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 >
                   <Plus className="h-4 w-4" />
                   <span className="text-[10px] font-semibold">Deposit</span>
-                </Button>
-                <Button 
-                  onClick={() => { hapticTap(); setRequestOpen(true); }} 
-                  variant="outline"
-                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all"
-                >
-                  <HandCoins className="h-4 w-4" />
-                  <span className="text-[10px] font-semibold">Request</span>
                 </Button>
                 <Button 
                   onClick={() => { hapticTap(); setWithdrawOpen(true); }} 
