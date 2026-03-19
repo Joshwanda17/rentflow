@@ -6,9 +6,9 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
-  Building2, UserCheck, Smartphone, SmartphoneNfc,
+  Building2, UserCheck, Smartphone,
 } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
