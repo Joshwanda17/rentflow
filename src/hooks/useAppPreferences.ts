@@ -19,6 +19,7 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   rememberLogin: true,
   skipSplash: false,
   defaultRole: 'auto',
+  unlockAllRoles: false,
 };
 
 const STORAGE_KEY = 'welile_app_preferences';
