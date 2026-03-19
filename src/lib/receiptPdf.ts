@@ -57,7 +57,7 @@ function addDivider(doc: JsPDFType, y: number) {
   return y + 4;
 }
 
-function addFooter(doc: jsPDF) {
+function addFooter(doc: JsPDFType) {
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFillColor(249, 250, 251);
   doc.rect(0, pageHeight - 20, 210, 20, 'F');
