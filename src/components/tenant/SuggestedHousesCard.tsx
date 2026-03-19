@@ -12,46 +12,62 @@ interface SuggestedHousesCardProps {
   onViewAll: () => void;
 }
 
+interface SuggestedHouse {
+  id: string;
+  title: string;
+  address: string;
+  region: string;
+  district: string | null;
+  house_category: string;
+  number_of_rooms: number;
+  monthly_rent: number;
+  daily_rate: number;
+  image_urls: string[] | null;
+  agent_id: string;
+  agent_name: string | null;
+  agent_phone: string | null;
+}
+
+async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
+  const { data: lastRequest } = await supabase
+    .from('rent_requests')
+    .select('rent_amount')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  const maxRent = lastRequest?.[0]?.rent_amount ? lastRequest[0].rent_amount * 1.3 : 500000;
+
+  const { data: houses } = await (supabase
+    .from('house_listings')
+    .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, agent_id')
+    .eq('status', 'available')
+    .is('tenant_id', null)
+    .lte('monthly_rent', maxRent)
+    .order('created_at', { ascending: false })
+    .limit(6) as any);
+
+  if (!houses?.length) return [];
+
+  const agentIds = [...new Set(houses.map((h: any) => h.agent_id).filter(Boolean))] as string[];
+  let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
+  if (agentIds.length) {
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds);
+    if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
+  }
+
+  return houses.map((h: any) => ({
+    ...h,
+    agent_name: agentMap.get(h.agent_id)?.full_name || null,
+    agent_phone: agentMap.get(h.agent_id)?.phone || null,
+  }));
+}
+
 export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardProps) {
   const { data: suggestions, isLoading } = useQuery({
-    queryKey: ['tenant-suggested-houses', userId] as const,
-    queryFn: async () => {
-      // Get tenant's last rent request to understand their price range
-      const { data: lastRequest } = await supabase
-        .from('rent_requests')
-        .select('rent_amount')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      const maxRent = lastRequest?.[0]?.rent_amount ? lastRequest[0].rent_amount * 1.3 : 500000;
-
-      // Find available empty houses matching criteria
-      const { data: houses } = await supabase
-        .from('house_listings')
-        .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, agent_id, latitude, longitude, verified')
-        .eq('status', 'available')
-        .is('tenant_id', null)
-        .lte('monthly_rent', maxRent)
-        .order('created_at', { ascending: false })
-        .limit(6) as any;
-      if (!houses?.length) return [] as any[];
-
-      // Enrich with agent info
-      const agentIds = [...new Set(houses.map(h => h.agent_id).filter(Boolean))];
-      let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
-      if (agentIds.length) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds);
-        if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
-      }
-
-      return houses.map(h => ({
-        ...h,
-        agent_name: agentMap.get(h.agent_id)?.full_name || null,
-        agent_phone: agentMap.get(h.agent_id)?.phone || null,
-      }));
-    },
-    staleTime: 300000, // 5 min cache
+    queryKey: ['tenant-suggested-houses', userId],
+    queryFn: () => fetchSuggestions(userId),
+    staleTime: 300000,
   });
 
   if (isLoading || !suggestions?.length) return null;
