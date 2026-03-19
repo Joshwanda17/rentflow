@@ -29,12 +29,13 @@ interface SuggestedHouse {
 }
 
 async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
-  const { data: lastRequest } = await (supabase
+  const rentQuery: any = supabase
     .from('rent_requests')
     .select('rent_amount')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(1) as any);
+    .limit(1);
+  const { data: lastRequest } = await rentQuery;
 
   const maxRent = lastRequest?.[0]?.rent_amount ? lastRequest[0].rent_amount * 1.3 : 500000;
 
