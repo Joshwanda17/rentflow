@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff, LayoutDashboard, ChevronRight, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Sparkles } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import PinSecuritySection from '@/components/settings/PinSecuritySection';
 import BiometricSecuritySection from '@/components/settings/BiometricSecuritySection';
@@ -36,6 +36,7 @@ import { AgentAgreementModal } from '@/components/agent/agreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { SupporterAgreementModal } from '@/components/supporter/agreement';
 import { MyPerformanceCard } from '@/components/manager/MyPerformanceCard';
+import { cn } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -45,19 +46,19 @@ interface Profile {
   avatar_url: string | null;
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
-  },
-};
+type SettingsSection = 'account' | 'roles' | 'appearance' | 'security' | 'legal' | 'advanced';
+
+const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
+  { id: 'account', label: 'Account', icon: User },
+  { id: 'roles', label: 'Roles', icon: Shield },
+  { id: 'appearance', label: 'Display', icon: Palette },
+  { id: 'security', label: 'Security', icon: ShieldCheck },
+  { id: 'legal', label: 'Legal', icon: Scale },
+  { id: 'advanced', label: 'Advanced', icon: SettingsIcon },
+];
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 12 },
   visible: { 
     opacity: 1, 
     y: 0,
@@ -74,7 +75,6 @@ export default function Settings() {
   const { isAccepted: hasAcceptedTenantTerms, acceptance: tenantAcceptance, acceptAgreement: acceptTenantAgreement } = useTenantAgreement();
   const { isAccepted: hasAcceptedAgentTerms, acceptance: agentAcceptance, acceptAgreement: acceptAgentAgreement } = useAgentAgreement();
   const { hasAccepted: hasAcceptedSupporterTerms, acceptance: supporterAcceptance, acceptAgreement: acceptSupporterAgreement } = useSupporterAgreement();
-  // Push notifications removed
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,6 +92,9 @@ export default function Settings() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [activeSection, setActiveSection] = useState<SettingsSection>('account');
+
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -107,19 +110,16 @@ export default function Settings() {
 
   const fetchProfile = async () => {
     if (!user) return;
-
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .maybeSingle();
-
     if (error) {
       console.error('Error fetching profile:', error);
       setLoading(false);
       return;
     }
-
     if (data) {
       setProfile(data as Profile);
       setFullName(data.full_name);
@@ -131,44 +131,19 @@ export default function Settings() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be less than 5MB');
-      return;
-    }
-
+    if (!file.type.startsWith('image/')) { toast.error('Please upload an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be less than 5MB'); return; }
     setUploadingAvatar(true);
-
     try {
       const fileExt = file.name.split('.').pop();
       const filePath = `${user.id}/avatar.${fileExt}`;
-
       await supabase.storage.from('avatars').remove([filePath]);
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const avatarUrl = `${publicUrl}?t=${Date.now()}`;
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: avatarUrl })
-        .eq('id', user.id);
-
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
       if (updateError) throw updateError;
-
       setProfile(prev => prev ? { ...prev, avatar_url: avatarUrl } : null);
       toast.success('Profile photo updated!');
     } catch (error) {
@@ -181,41 +156,17 @@ export default function Settings() {
 
   const handleSave = async () => {
     if (!user || !profile) return;
-
-    if (!fullName.trim()) {
-      toast.error('Full name is required');
-      return;
-    }
-
-    if (!phone.trim()) {
-      toast.error('Phone number is required');
-      return;
-    }
-
+    if (!fullName.trim()) { toast.error('Full name is required'); return; }
+    if (!phone.trim()) { toast.error('Phone number is required'); return; }
     setSaving(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-      })
-      .eq('id', user.id);
-
+    const { error } = await supabase.from('profiles').update({ full_name: fullName.trim(), phone: phone.trim() }).eq('id', user.id);
     setSaving(false);
-
-    if (error) {
-      console.error('Settings profile update error:', error);
-      toast.error('Failed to update profile: ' + (error.message || error.code || 'Unknown error'));
-      return;
-    }
-
+    if (error) { toast.error('Failed to update profile'); return; }
     toast.success('Profile updated successfully');
     setProfile({ ...profile, full_name: fullName.trim(), phone: phone.trim() });
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
+  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   const roleConfig: Record<AppRole, { label: string; icon: React.ReactNode; color: string }> = {
     tenant: { label: 'Tenant', icon: <Home className="h-4 w-4" />, color: 'bg-primary/20 text-primary border-primary/30' },
@@ -234,6 +185,11 @@ export default function Settings() {
     super_admin: { label: 'Super Admin', icon: <Shield className="h-4 w-4" />, color: 'bg-destructive/20 text-destructive border-destructive/30' },
   };
 
+  const scrollToSection = (id: SettingsSection) => {
+    setActiveSection(id);
+    sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -247,819 +203,467 @@ export default function Settings() {
           </div>
           <Skeleton className="h-[400px] rounded-xl" />
           <Skeleton className="h-[200px] rounded-xl" />
-          <Skeleton className="h-[120px] rounded-xl" />
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.3 }}
-          transition={{ duration: 1 }}
-          className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl"
-        />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.2 }}
-          transition={{ duration: 1, delay: 0.3 }}
-          className="absolute bottom-0 left-0 w-72 h-72 bg-accent/10 rounded-full blur-3xl"
-        />
-      </div>
+  const hasLegalContent = roles.includes('tenant') || roles.includes('agent') || roles.includes('supporter');
 
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="container mx-auto px-4 py-6 max-w-2xl relative z-10"
-      >
-        {/* Header */}
-        <motion.div variants={itemVariants} className="flex items-center gap-4 mb-6">
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-4 max-w-2xl">
+
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md pb-3 -mx-4 px-4 border-b border-border/30 mb-4">
+          <div className="flex items-center gap-3 pt-2 pb-3">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => navigate('/dashboard')}
-              className="rounded-xl bg-card/50 backdrop-blur-sm border border-border/50"
+              className="rounded-xl h-10 w-10 shrink-0"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-          </motion.div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-muted-foreground text-sm">
-              Manage your account settings
-            </p>
-          </div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl font-bold tracking-tight">Settings</h1>
+              <p className="text-xs text-muted-foreground truncate">{profile?.full_name || 'Manage your account'}</p>
+            </div>
             <Button
-              variant="default"
+              variant="outline"
               size="sm"
               onClick={() => navigate('/dashboard')}
-              className="rounded-xl gap-2"
+              className="rounded-xl gap-1.5 text-xs shrink-0"
             >
-              <Home className="h-4 w-4" />
-              Dashboard
+              <Home className="h-3.5 w-3.5" />
+              Home
             </Button>
-          </motion.div>
+          </div>
+
+          {/* Section Navigation Pills */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+            {SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => scrollToSection(id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0 min-h-[32px]",
+                  activeSection === id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 🔓 UNLOCK ALL ROLES — Hero Banner (Priority #1) */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-5"
+        >
+          <div className={cn(
+            "relative overflow-hidden rounded-2xl border-2 p-4 transition-all",
+            preferences.unlockAllRoles
+              ? "border-success/40 bg-gradient-to-r from-success/5 via-success/10 to-success/5"
+              : "border-primary/40 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5"
+          )}>
+            <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20" 
+              style={{ background: preferences.unlockAllRoles ? 'hsl(var(--success))' : 'hsl(var(--primary))' }} />
+            <div className="flex items-center gap-4 relative">
+              <div className={cn(
+                "p-3 rounded-xl shrink-0",
+                preferences.unlockAllRoles ? "bg-success/15" : "bg-primary/15"
+              )}>
+                {preferences.unlockAllRoles ? (
+                  <Unlock className="h-6 w-6 text-success" />
+                ) : (
+                  <Lock className="h-6 w-6 text-primary" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="font-bold text-sm">Unlock All Roles</p>
+                  {preferences.unlockAllRoles && (
+                    <Badge variant="outline" className="text-[10px] border-success/30 text-success bg-success/10 px-1.5 py-0">
+                      Active
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Navigate freely between Tenant, Agent & Landlord dashboards without approval
+                </p>
+              </div>
+              <Switch
+                checked={preferences.unlockAllRoles}
+                onCheckedChange={(checked) => {
+                  updatePreference('unlockAllRoles', checked);
+                  toast.success(checked ? 'All roles unlocked for navigation' : 'Role gating re-enabled');
+                }}
+                className="shrink-0"
+              />
+            </div>
+          </div>
         </motion.div>
 
-        {/* Profile Card */}
-        <motion.div variants={itemVariants}>
-          <Card className="mb-6 glass-card border-border/50 shadow-elevated overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-            
-            <CardHeader className="relative">
-              <CardTitle className="flex items-center gap-2">
-                <motion.div
-                  className="p-2 rounded-lg bg-primary/10"
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  <User className="h-5 w-5 text-primary" />
-                </motion.div>
-                Profile Information
-              </CardTitle>
-              <CardDescription>
-                Update your personal information
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="space-y-6 relative">
-              {/* Avatar Upload */}
-              <div className="flex flex-col items-center gap-4 pb-6 border-b border-border/50">
-                <motion.div 
-                  className="relative"
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                >
-                  <Avatar className="h-28 w-28 border-4 border-background shadow-xl">
+        {/* ===== ACCOUNT SECTION ===== */}
+        <div ref={el => sectionRefs.current['account'] = el} className="scroll-mt-28 mb-6">
+          <SectionHeader icon={User} label="Account" />
+
+          <Card className="border-border/50 shadow-sm overflow-hidden">
+            <CardContent className="pt-6 space-y-5">
+              {/* Avatar */}
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Avatar className="h-16 w-16 border-2 border-border shadow-md">
                     <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-                    <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-semibold">
+                    <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-semibold">
                       {getInitials(fullName || 'U')}
                     </AvatarFallback>
                   </Avatar>
-                  <motion.div
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="absolute bottom-0 right-0 h-9 w-9 rounded-full shadow-lg border-2 border-background"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingAvatar}
-                    >
-                      {uploadingAvatar ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Camera className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </motion.div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                  />
-                </motion.div>
-                <p className="text-sm text-muted-foreground">
-                  Click the camera icon to upload a photo
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name"
-                    className="pl-10 bg-background/50 border-border/50 focus:border-primary/50"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    value={profile?.email || ''}
-                    disabled
-                    className="pl-10 bg-muted/50 border-border/50"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Email cannot be changed
-                </p>
-              </div>
-
-              {/* Change Password Section */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Password</Label>
                   <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-xs text-primary"
-                    onClick={() => setShowPasswordForm(!showPasswordForm)}
+                    size="icon"
+                    variant="secondary"
+                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
                   >
-                    {showPasswordForm ? 'Cancel' : 'Change Password'}
+                    {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
                   </Button>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
                 </div>
-                {!showPasswordForm ? (
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-base truncate">{fullName || 'Your Name'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Full Name</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      value="••••••••"
-                      disabled
-                      className="pl-10 bg-muted/50 border-border/50"
-                    />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter your full name" className="pl-10 h-11" />
                   </div>
-                ) : (
-                  <div className="space-y-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type={showCurrentPassword ? 'text' : 'password'}
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="Current password"
-                        className="pl-10 pr-10 bg-background/50 border-border/50"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      >
-                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type={showNewPassword ? 'text' : 'password'}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="New password (min 6 characters)"
-                        className="pl-10 pr-10 bg-background/50 border-border/50"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                      >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="password"
-                        value={confirmNewPassword}
-                        onChange={(e) => setConfirmNewPassword(e.target.value)}
-                        placeholder="Confirm new password"
-                        className="pl-10 bg-background/50 border-border/50"
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      className="w-full gap-2"
-                      disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
-                      onClick={async () => {
-                        if (newPassword.length < 6) {
-                          toast.error('New password must be at least 6 characters');
-                          return;
-                        }
-                        if (newPassword !== confirmNewPassword) {
-                          toast.error("New passwords don't match");
-                          return;
-                        }
-                        setChangingPassword(true);
-                        try {
-                          // Verify current password by re-signing in
-                          const { error: signInError } = await supabase.auth.signInWithPassword({
-                            email: profile?.email || '',
-                            password: currentPassword,
-                          });
-                          if (signInError) {
-                            toast.error('Current password is incorrect');
-                            setChangingPassword(false);
-                            return;
-                          }
-                          // Update to new password
-                          const { error: updateError } = await supabase.auth.updateUser({
-                            password: newPassword,
-                          });
-                          if (updateError) {
-                            toast.error('Failed to update password: ' + updateError.message);
-                          } else {
-                            toast.success('Password updated successfully!');
-                            setCurrentPassword('');
-                            setNewPassword('');
-                            setConfirmNewPassword('');
-                            setShowPasswordForm(false);
-                          }
-                        } catch (err) {
-                          toast.error('An error occurred while changing password');
-                        }
-                        setChangingPassword(false);
-                      }}
-                    >
-                      {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                      Update Password
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-11 bg-muted/50" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-11" />
+                  </div>
+                </div>
+
+                {/* Change Password */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</Label>
+                    <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setShowPasswordForm(!showPasswordForm)}>
+                      {showPasswordForm ? 'Cancel' : 'Change'}
                     </Button>
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. 0783673998"
-                    className="pl-10 bg-background/50 border-border/50 focus:border-primary/50"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  This is used for receiving money transfers
-                </p>
-              </div>
-
-              <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-11">
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  {!showPasswordForm ? (
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input value="••••••••" disabled className="pl-10 h-11 bg-muted/50" />
+                    </div>
                   ) : (
-                    <Save className="h-4 w-4" />
+                    <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-10" />
+                        <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
+                          {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-10" />
+                        <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowNewPassword(!showNewPassword)}>
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-10" />
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full gap-2 h-10"
+                        disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
+                        onClick={async () => {
+                          if (newPassword.length < 6) { toast.error('New password must be at least 6 characters'); return; }
+                          if (newPassword !== confirmNewPassword) { toast.error("New passwords don't match"); return; }
+                          setChangingPassword(true);
+                          try {
+                            const { error: signInError } = await supabase.auth.signInWithPassword({ email: profile?.email || '', password: currentPassword });
+                            if (signInError) { toast.error('Current password is incorrect'); setChangingPassword(false); return; }
+                            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+                            if (updateError) { toast.error('Failed to update password: ' + updateError.message); }
+                            else { toast.success('Password updated!'); setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword(''); setShowPasswordForm(false); }
+                          } catch { toast.error('An error occurred'); }
+                          setChangingPassword(false);
+                        }}
+                      >
+                        {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                        Update Password
+                      </Button>
+                    </div>
                   )}
-                  Save Changes
-                </Button>
-              </motion.div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Wallet Card */}
-        <motion.div variants={itemVariants} className="mb-6">
-          <WalletCard />
-        </motion.div>
-
-        {/* Manager Performance Stats */}
-        {roles.includes('manager') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <MyPerformanceCard />
-          </motion.div>
-        )}
-        {/* COO Dashboard Quick Link */}
-        {roles.includes('manager') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <Card 
-              className="glass-card border-border/50 shadow-elevated overflow-hidden cursor-pointer active:scale-[0.98] transition-all"
-              onClick={() => navigate('/coo-dashboard')}
-            >
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <Shield className="h-6 w-6 text-primary" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-base">COO Dashboard</p>
-                  <p className="text-xs text-muted-foreground">Operations health overview</p>
-                </div>
-                <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Roles Card */}
-        <motion.div variants={itemVariants}>
-          <Card className="mb-6 glass-card border-border/50 shadow-elevated overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-primary/5 pointer-events-none" />
-            
-            <CardHeader className="relative">
-              <CardTitle className="flex items-center gap-2">
-                <motion.div
-                  className="p-2 rounded-lg bg-accent/10"
-                  whileHover={{ scale: 1.1, rotate: -5 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  <Shield className="h-5 w-5 text-accent" />
-                </motion.div>
-                My Roles
-              </CardTitle>
-              <CardDescription>
-                Manage your account roles
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent className="space-y-4 relative">
-              <div className="space-y-3">
-                <Label>Current Roles</Label>
-                <div className="flex flex-wrap gap-2">
-                  {roles.map((role, index) => {
-                    const config = roleConfig[role];
-                    return (
-                      <motion.div
-                        key={role}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.1 }}
-                        whileHover={{ scale: 1.05, y: -2 }}
-                      >
-                        <Badge className={`${config.color} flex items-center gap-1.5 px-3 py-1.5 border`}>
-                          {config.icon}
-                          {config.label}
-                          <Check className="h-3 w-3 ml-1" />
-                        </Badge>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-                {roles.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No roles assigned</p>
-                )}
               </div>
-              
+
+              <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-11">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Changes
+              </Button>
             </CardContent>
           </Card>
-        </motion.div>
 
-        {/* Rent Discount Toggle for Tenants */}
-        {roles.includes('tenant') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <RentDiscountToggle />
-          </motion.div>
-        )}
+          {/* Wallet */}
+          <div className="mt-4">
+            <WalletCard />
+          </div>
 
-        {/* My Landlords Section for Tenants */}
-        {roles.includes('tenant') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <MyLandlordsSection />
-          </motion.div>
-        )}
-
-        {/* Legal & Agreements Section for Tenants */}
-        {roles.includes('tenant') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
-              <CardHeader className="relative">
-                <CardTitle className="flex items-center gap-2">
-                  <Scale className="h-5 w-5 text-primary" />
-                  Legal & Agreements
-                </CardTitle>
-                <CardDescription>
-                  View and manage your agreements
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 relative">
-                <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Tenant Agreement</p>
-                      <p className="text-sm text-muted-foreground">
-                        {hasAcceptedTenantTerms 
-                          ? `Accepted on ${new Date(tenantAcceptance?.accepted_at || '').toLocaleDateString()}`
-                          : 'Not yet accepted'}
-                      </p>
-                    </div>
+          {/* Manager extras */}
+          {roles.includes('manager') && (
+            <div className="mt-4 space-y-4">
+              <MyPerformanceCard />
+              <Card 
+                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
+                onClick={() => navigate('/coo-dashboard')}
+              >
+                <CardContent className="flex items-center gap-3 p-4">
+                  <div className="p-2.5 rounded-xl bg-primary/10">
+                    <Shield className="h-5 w-5 text-primary" />
                   </div>
-                  <Button 
-                    variant={hasAcceptedTenantTerms ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => setShowTenantAgreementModal(true)}
-                  >
-                    {hasAcceptedTenantTerms ? 'View' : 'Accept'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <TenantAgreementModal
-              isOpen={showTenantAgreementModal}
-              onClose={() => setShowTenantAgreementModal(false)}
-              onAccept={acceptTenantAgreement}
-              viewOnly={hasAcceptedTenantTerms || false}
-            />
-          </motion.div>
-        )}
-
-        {/* Legal & Agreements Section for Agents */}
-        {roles.includes('agent') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
-              <CardHeader className="relative">
-                <CardTitle className="flex items-center gap-2">
-                  <Scale className="h-5 w-5 text-warning" />
-                  Agent Terms & Conditions
-                </CardTitle>
-                <CardDescription>
-                  View your agent agreement
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 relative">
-                <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Agent Agreement</p>
-                      <p className="text-sm text-muted-foreground">
-                        By using Welile as an Agent, you agree to our terms
-                      </p>
-                    </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">COO Dashboard</p>
+                    <p className="text-xs text-muted-foreground">Operations overview</p>
                   </div>
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAgentAgreementModal(true)}
-                  >
-                    View Terms
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
 
-            <AgentAgreementModal
-              isOpen={showAgentAgreementModal}
-              onClose={() => setShowAgentAgreementModal(false)}
-              onAccept={async () => true}
-              viewOnly
-            />
-          </motion.div>
-        )}
+        {/* ===== ROLES & NAVIGATION SECTION ===== */}
+        <div ref={el => sectionRefs.current['roles'] = el} className="scroll-mt-28 mb-6">
+          <SectionHeader icon={Shield} label="Roles & Navigation" />
 
-        {/* Legal & Agreements Section for Supporters */}
-        {roles.includes('supporter') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
-              <CardHeader className="relative">
-                <CardTitle className="flex items-center gap-2">
-                  <Scale className="h-5 w-5 text-success" />
-                  Supporter Terms & Conditions
-                </CardTitle>
-                <CardDescription>
-                  View your supporter participation agreement
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 relative">
-                {/* Implicit Agreement Notice */}
-                <div className="p-3 rounded-xl bg-success/5 border border-success/20">
-                  <p className="text-xs text-success/80 leading-relaxed">
-                    <strong>Note:</strong> By using the Welile platform as a Supporter, you automatically agree to our Supporter Participation Agreement. This ensures a clear understanding of the platform's terms and your rights.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Supporter Agreement</p>
-                      <p className="text-sm text-muted-foreground">
-                        {hasAcceptedSupporterTerms 
-                          ? `Accepted on ${new Date(supporterAcceptance?.accepted_at || '').toLocaleDateString()}`
-                          : 'Implicitly agreed by using the platform'}
-                      </p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowSupporterAgreementModal(true)}
-                  >
-                    View Terms
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <SupporterAgreementModal
-              open={showSupporterAgreementModal}
-              onOpenChange={setShowSupporterAgreementModal}
-              onAccept={acceptSupporterAgreement}
-            />
-          </motion.div>
-        )}
-
-        {/* My Tenants Section for Landlords */}
-        {roles.includes('landlord') && (
-          <motion.div variants={itemVariants} className="mb-6">
-            <MyTenantsSection />
-          </motion.div>
-        )}
-
-        {/* PIN Security Section */}
-        <motion.div variants={itemVariants} className="mb-6">
-          <PinSecuritySection />
-        </motion.div>
-
-        {/* Biometric Security Section */}
-        <motion.div variants={itemVariants} className="mb-6">
-          <BiometricSecuritySection />
-        </motion.div>
-
-        {/* Appearance Card */}
-        <motion.div variants={itemVariants}>
-          <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-            
-            <CardHeader className="relative">
-              <CardTitle>Appearance</CardTitle>
-              <CardDescription>
-                Customize how the app looks
-              </CardDescription>
+          {/* Current Roles */}
+          <Card className="border-border/50 shadow-sm mb-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">My Roles</CardTitle>
+              <CardDescription className="text-xs">Your active platform roles</CardDescription>
             </CardHeader>
-            
-            <CardContent className="space-y-6 relative">
-              {/* Theme Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {roles.map((role) => {
+                  const config = roleConfig[role];
+                  return (
+                    <Badge key={role} className={`${config.color} flex items-center gap-1.5 px-3 py-1.5 border text-xs`}>
+                      {config.icon}
+                      {config.label}
+                      <Check className="h-3 w-3 ml-0.5" />
+                    </Badge>
+                  );
+                })}
+                {roles.length === 0 && <p className="text-sm text-muted-foreground">No roles assigned</p>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Default Dashboard */}
+          <Card className="border-border/50 shadow-sm mb-4">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <LayoutDashboard className="h-4 w-4 text-primary" />
                 <div>
-                  <p className="font-medium">Theme</p>
-                  <p className="text-sm text-muted-foreground">
-                    Switch between light and dark mode
-                  </p>
+                  <CardTitle className="text-sm">Default Dashboard</CardTitle>
+                  <CardDescription className="text-xs">Which dashboard opens first</CardDescription>
                 </div>
-                <ThemeToggle />
               </div>
-
-              {/* Font Size Selector */}
-              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                <div className="flex items-center gap-2 mb-4">
-                  <Type className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-medium">Font Size</p>
-                    <p className="text-sm text-muted-foreground">
-                      Adjust text size for better readability
-                    </p>
-                  </div>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup
+                value={preferences.defaultRole}
+                onValueChange={(value) => {
+                  updatePreference('defaultRole', value as any);
+                  const label = value === 'auto' ? 'Auto (Funder)' : roleConfig[value as AppRole]?.label || value;
+                  toast.success(`Default dashboard set to ${label}`);
+                }}
+                className="grid grid-cols-2 gap-2"
+              >
+                <div className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value="auto" id="role-auto" />
+                  <Label htmlFor="role-auto" className="text-sm cursor-pointer flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                    Auto
+                  </Label>
                 </div>
-                
-                <RadioGroup 
-                  value={fontSize} 
-                  onValueChange={(value) => setFontSize(value as typeof fontSize)}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  {fontSizeOptions.map((option) => (
-                    <motion.div
-                      key={option.value}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Label
-                        htmlFor={option.value}
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                          fontSize === option.value 
-                            ? 'border-primary bg-primary/10' 
-                            : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
-                        }`}
-                      >
-                        <RadioGroupItem value={option.value} id={option.value} />
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{option.label}</p>
-                          <p className="text-xs text-muted-foreground">{option.description}</p>
-                        </div>
+                {roles.map((r) => {
+                  const rc = roleConfig[r];
+                  if (!rc) return null;
+                  return (
+                    <div key={r} className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value={r} id={`role-${r}`} />
+                      <Label htmlFor={`role-${r}`} className="text-sm cursor-pointer flex items-center gap-1.5">
+                        {rc.icon}
+                        {rc.label}
                       </Label>
-                    </motion.div>
+                    </div>
+                  );
+                })}
+              </RadioGroup>
+            </CardContent>
+          </Card>
+
+          {/* Rent Discount for Tenants */}
+          {roles.includes('tenant') && <div className="mb-4"><RentDiscountToggle /></div>}
+
+          {/* My Landlords / Tenants */}
+          {roles.includes('tenant') && <div className="mb-4"><MyLandlordsSection /></div>}
+          {roles.includes('landlord') && <div className="mb-4"><MyTenantsSection /></div>}
+        </div>
+
+        {/* ===== APPEARANCE SECTION ===== */}
+        <div ref={el => sectionRefs.current['appearance'] = el} className="scroll-mt-28 mb-6">
+          <SectionHeader icon={Palette} label="Display & Sound" />
+
+          <Card className="border-border/50 shadow-sm">
+            <CardContent className="pt-5 space-y-5">
+              {/* Theme */}
+              <SettingsRow label="Theme" description="Light or dark mode">
+                <ThemeToggle />
+              </SettingsRow>
+
+              {/* Font Size */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Type className="h-4 w-4 text-primary" />
+                  <p className="font-medium text-sm">Font Size</p>
+                </div>
+                <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as typeof fontSize)} className="grid grid-cols-2 gap-2">
+                  {fontSizeOptions.map((opt) => (
+                    <Label
+                      key={opt.value}
+                      htmlFor={opt.value}
+                      className={cn(
+                        "flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm",
+                        fontSize === opt.value ? 'border-primary bg-primary/10' : 'border-border/50 hover:bg-muted/50'
+                      )}
+                    >
+                      <RadioGroupItem value={opt.value} id={opt.value} />
+                      <div>
+                        <p className="font-medium text-xs">{opt.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{opt.description}</p>
+                      </div>
+                    </Label>
                   ))}
                 </RadioGroup>
-
-                {/* Font Size Preview */}
-                <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border/30">
-                  <p className="text-muted-foreground text-xs mb-2">Preview:</p>
-                  <p className="leading-relaxed">
-                    This is how your text will look. Easy to read and comfortable for everyday use.
-                  </p>
-                </div>
               </div>
 
-              {/* Haptic Feedback Selector */}
-              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                <div className="flex items-center gap-2 mb-4">
-                  <Vibrate className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="font-medium">Haptic Feedback</p>
-                    <p className="text-sm text-muted-foreground">
-                      Adjust vibration intensity for touch interactions
-                    </p>
-                  </div>
+              {/* Haptic */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Vibrate className="h-4 w-4 text-primary" />
+                  <p className="font-medium text-sm">Haptic Feedback</p>
                 </div>
-                
                 <RadioGroup 
                   value={hapticIntensity} 
-                  onValueChange={(value) => {
-                    setHapticIntensity(value as typeof hapticIntensity);
-                    // Give a sample vibration when changing intensity
-                    if (value !== 'off') {
-                      setTimeout(() => hapticSelection(), 100);
-                    }
-                  }}
-                  className="grid grid-cols-2 gap-3"
+                  onValueChange={(v) => { setHapticIntensity(v as typeof hapticIntensity); if (v !== 'off') setTimeout(() => hapticSelection(), 100); }}
+                  className="grid grid-cols-2 gap-2"
                 >
-                  {hapticIntensityOptions.map((option) => (
-                    <motion.div
-                      key={option.value}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                  {hapticIntensityOptions.map((opt) => (
+                    <Label
+                      key={opt.value}
+                      htmlFor={`haptic-${opt.value}`}
+                      className={cn(
+                        "flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm",
+                        hapticIntensity === opt.value ? 'border-primary bg-primary/10' : 'border-border/50 hover:bg-muted/50'
+                      )}
                     >
-                      <Label
-                        htmlFor={`haptic-${option.value}`}
-                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                          hapticIntensity === option.value 
-                            ? 'border-primary bg-primary/10' 
-                            : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
-                        }`}
-                      >
-                        <RadioGroupItem value={option.value} id={`haptic-${option.value}`} />
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{option.label}</p>
-                          <p className="text-xs text-muted-foreground">{option.description}</p>
-                        </div>
-                      </Label>
-                    </motion.div>
+                      <RadioGroupItem value={opt.value} id={`haptic-${opt.value}`} />
+                      <div>
+                        <p className="font-medium text-xs">{opt.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{opt.description}</p>
+                      </div>
+                    </Label>
                   ))}
                 </RadioGroup>
-
-                {/* Haptic Preview */}
-                <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border/30">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="text-muted-foreground text-xs mb-1">Preview</p>
-                      <p className="text-sm">
-                        {hapticIntensity === 'off' 
-                          ? 'Vibration feedback is disabled.'
-                          : `Tap the button to feel ${hapticIntensity} vibration.`
-                        }
-                      </p>
-                    </div>
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={hapticIntensity === 'off'}
-                        onClick={() => hapticSelection()}
-                        className="gap-2"
-                      >
-                        <Vibrate className="h-4 w-4" />
-                        Test
-                      </Button>
-                    </motion.div>
-                  </div>
-                </div>
               </div>
 
-              {/* Push Notifications removed - table dropped */}
-
               {/* Notification Sounds */}
-              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                <div className="flex items-center justify-between mb-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Volume2 className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Notification Sounds</p>
-                      <p className="text-sm text-muted-foreground">
-                        Play sounds for notifications and alerts
-                      </p>
-                    </div>
+                    <Volume2 className="h-4 w-4 text-primary" />
+                    <p className="font-medium text-sm">Notification Sounds</p>
                   </div>
                   <Switch
                     checked={preferences.notificationSounds}
                     onCheckedChange={(checked) => {
                       updatePreference('notificationSounds', checked);
-                      if (checked) {
-                        playNotificationSound(preferences.notificationSoundType);
-                      }
+                      if (checked) playNotificationSound(preferences.notificationSoundType);
                       toast.success(checked ? 'Sounds enabled' : 'Sounds disabled');
                     }}
                   />
                 </div>
-                
                 {preferences.notificationSounds && (
-                  <div className="pt-4 border-t border-border/30 space-y-4">
+                  <div className="space-y-3 pl-6 border-l-2 border-primary/20">
                     <div>
-                      <p className="text-sm text-muted-foreground mb-3">General Sound Type</p>
+                      <p className="text-xs text-muted-foreground mb-2">General Sound</p>
                       <RadioGroup 
                         value={preferences.notificationSoundType} 
-                        onValueChange={(value) => {
-                          updatePreference('notificationSoundType', value as 'ding' | 'pop' | 'chime');
-                          playNotificationSound(value as 'ding' | 'pop' | 'chime');
-                        }}
+                        onValueChange={(v) => { updatePreference('notificationSoundType', v as any); playNotificationSound(v as any); }}
                         className="grid grid-cols-3 gap-2"
                       >
-                        {(['ding', 'pop', 'chime'] as const).map((soundType) => (
-                          <motion.div
-                            key={soundType}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <Label
-                              htmlFor={`sound-${soundType}`}
-                              className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all capitalize ${
-                                preferences.notificationSoundType === soundType 
-                                  ? 'border-primary bg-primary/10' 
-                                  : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
-                              }`}
-                            >
-                              <RadioGroupItem value={soundType} id={`sound-${soundType}`} className="sr-only" />
-                              {soundType}
-                            </Label>
-                          </motion.div>
+                        {(['ding', 'pop', 'chime'] as const).map((s) => (
+                          <Label key={s} htmlFor={`sound-${s}`} className={cn(
+                            "flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all capitalize text-xs",
+                            preferences.notificationSoundType === s ? 'border-primary bg-primary/10 font-semibold' : 'border-border/50 hover:bg-muted/50'
+                          )}>
+                            <RadioGroupItem value={s} id={`sound-${s}`} className="sr-only" />
+                            {s}
+                          </Label>
                         ))}
                       </RadioGroup>
                     </div>
-                    
                     <div>
-                      <p className="text-sm text-muted-foreground mb-2">💰 Opportunity Sound</p>
-                      <p className="text-xs text-muted-foreground mb-3">Sound when new investment opportunities appear</p>
+                      <p className="text-xs text-muted-foreground mb-2">💰 Opportunity Sound</p>
                       <RadioGroup 
                         value={preferences.opportunitySoundType} 
-                        onValueChange={(value) => {
-                          updatePreference('opportunitySoundType', value as 'ding' | 'pop' | 'chime' | 'opportunity');
-                          // Play the selected sound as preview
-                          if (value === 'opportunity') {
-                            import('@/lib/notificationSound').then(m => m.playOpportunitySound('opportunity'));
-                          } else {
-                            playNotificationSound(value as 'ding' | 'pop' | 'chime');
-                          }
+                        onValueChange={(v) => {
+                          updatePreference('opportunitySoundType', v as any);
+                          if (v === 'opportunity') import('@/lib/notificationSound').then(m => m.playOpportunitySound('opportunity'));
+                          else playNotificationSound(v as any);
                         }}
                         className="grid grid-cols-2 gap-2"
                       >
-                        {(['opportunity', 'ding', 'pop', 'chime'] as const).map((soundType) => (
-                          <motion.div
-                            key={soundType}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <Label
-                              htmlFor={`opp-sound-${soundType}`}
-                              className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all capitalize ${
-                                preferences.opportunitySoundType === soundType 
-                                  ? 'border-success bg-success/10' 
-                                  : 'border-border/50 hover:border-success/50 hover:bg-muted/50'
-                              }`}
-                            >
-                              <RadioGroupItem value={soundType} id={`opp-sound-${soundType}`} className="sr-only" />
-                              {soundType === 'opportunity' ? '💰 Money' : soundType}
-                            </Label>
-                          </motion.div>
+                        {(['opportunity', 'ding', 'pop', 'chime'] as const).map((s) => (
+                          <Label key={s} htmlFor={`opp-sound-${s}`} className={cn(
+                            "flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all capitalize text-xs",
+                            preferences.opportunitySoundType === s ? 'border-success bg-success/10 font-semibold' : 'border-border/50 hover:bg-muted/50'
+                          )}>
+                            <RadioGroupItem value={s} id={`opp-sound-${s}`} className="sr-only" />
+                            {s === 'opportunity' ? '💰 Money' : s}
+                          </Label>
                         ))}
                       </RadioGroup>
                     </div>
@@ -1068,160 +672,162 @@ export default function Settings() {
               </div>
 
               {/* Remember Login */}
-              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <LogIn className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Remember Login</p>
-                      <p className="text-sm text-muted-foreground">
-                        Stay signed in between sessions
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={preferences.rememberLogin}
-                    onCheckedChange={(checked) => {
-                      updatePreference('rememberLogin', checked);
-                      toast.success(checked ? 'Login will be remembered' : 'Login will not be remembered');
-                    }}
+              <SettingsRow label="Remember Login" description="Stay signed in between sessions" icon={LogIn}>
+                <Switch
+                  checked={preferences.rememberLogin}
+                  onCheckedChange={(checked) => { updatePreference('rememberLogin', checked); toast.success(checked ? 'Login will be remembered' : 'Login will not be remembered'); }}
+                />
+              </SettingsRow>
+
+              {/* Skip Splash */}
+              <SettingsRow label="Skip Splash Screen" description={preferences.skipSplash ? 'Splash is skipped' : 'Splash shows on startup'} icon={RotateCcw}>
+                <Switch
+                  checked={preferences.skipSplash}
+                  onCheckedChange={(checked) => { updatePreference('skipSplash', checked); toast.success(checked ? 'Splash skipped' : 'Splash enabled'); }}
+                />
+              </SettingsRow>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ===== SECURITY SECTION ===== */}
+        <div ref={el => sectionRefs.current['security'] = el} className="scroll-mt-28 mb-6">
+          <SectionHeader icon={ShieldCheck} label="Security" />
+          <div className="space-y-4">
+            <PinSecuritySection />
+            <BiometricSecuritySection />
+          </div>
+        </div>
+
+        {/* ===== LEGAL SECTION ===== */}
+        {hasLegalContent && (
+          <div ref={el => sectionRefs.current['legal'] = el} className="scroll-mt-28 mb-6">
+            <SectionHeader icon={Scale} label="Legal & Agreements" />
+            <Card className="border-border/50 shadow-sm">
+              <CardContent className="pt-5 space-y-3">
+                {roles.includes('tenant') && (
+                  <AgreementRow
+                    label="Tenant Agreement"
+                    accepted={hasAcceptedTenantTerms || false}
+                    acceptedAt={tenantAcceptance?.accepted_at}
+                    onView={() => setShowTenantAgreementModal(true)}
                   />
-                </div>
-              </div>
-
-              {/* Splash Screen Preference */}
-              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <RotateCcw className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Skip Splash Screen</p>
-                      <p className="text-sm text-muted-foreground">
-                        {preferences.skipSplash 
-                          ? 'Splash screen is skipped on startup' 
-                          : 'Splash screen shows on startup'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={preferences.skipSplash}
-                    onCheckedChange={(checked) => {
-                      updatePreference('skipSplash', checked);
-                      toast.success(checked ? 'Splash screen will be skipped' : 'Splash screen will show');
-                    }}
+                )}
+                {roles.includes('agent') && (
+                  <AgreementRow
+                    label="Agent Agreement"
+                    accepted={true}
+                    onView={() => setShowAgentAgreementModal(true)}
                   />
-                </div>
-                </div>
+                )}
+                {roles.includes('supporter') && (
+                  <AgreementRow
+                    label="Supporter Agreement"
+                    accepted={hasAcceptedSupporterTerms || false}
+                    acceptedAt={supporterAcceptance?.accepted_at}
+                    onView={() => setShowSupporterAgreementModal(true)}
+                    note="Implicitly agreed by using the platform"
+                  />
+                )}
+              </CardContent>
+            </Card>
 
-                {/* Default Dashboard Role */}
-                <div className="p-4 rounded-xl bg-background/50 border border-border/50 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <LayoutDashboard className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Default Dashboard</p>
-                      <p className="text-sm text-muted-foreground">
-                        Choose which dashboard you see first when you open the app
-                      </p>
-                    </div>
-                  </div>
-                  <RadioGroup
-                    value={preferences.defaultRole}
-                    onValueChange={(value) => {
-                      updatePreference('defaultRole', value as any);
-                      const label = value === 'auto' ? 'Auto (Funder)' : roleConfig[value as AppRole]?.label || value;
-                      toast.success(`Default dashboard set to ${label}`);
-                    }}
-                    className="grid grid-cols-2 gap-2"
-                  >
-                    <div className="flex items-center space-x-2 p-2 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
-                      <RadioGroupItem value="auto" id="role-auto" />
-                      <Label htmlFor="role-auto" className="text-sm cursor-pointer flex items-center gap-1.5">
-                        <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-                        Auto
-                      </Label>
-                    </div>
-                    {roles.map((r) => {
-                      const rc = roleConfig[r];
-                      if (!rc) return null;
-                      return (
-                        <div key={r} className="flex items-center space-x-2 p-2 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
-                          <RadioGroupItem value={r} id={`role-${r}`} />
-                          <Label htmlFor={`role-${r}`} className="text-sm cursor-pointer flex items-center gap-1.5">
-                            {rc.icon}
-                            {rc.label}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </RadioGroup>
-                </div>
+            {/* Modals */}
+            {roles.includes('tenant') && (
+              <TenantAgreementModal isOpen={showTenantAgreementModal} onClose={() => setShowTenantAgreementModal(false)} onAccept={acceptTenantAgreement} viewOnly={hasAcceptedTenantTerms || false} />
+            )}
+            {roles.includes('agent') && (
+              <AgentAgreementModal isOpen={showAgentAgreementModal} onClose={() => setShowAgentAgreementModal(false)} onAccept={async () => true} viewOnly />
+            )}
+            {roles.includes('supporter') && (
+              <SupporterAgreementModal open={showSupporterAgreementModal} onOpenChange={setShowSupporterAgreementModal} onAccept={acceptSupporterAgreement} />
+            )}
+          </div>
+        )}
 
-                {/* Unlock All Roles Navigation */}
-                <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Lock className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="font-medium">Unlock All Roles</p>
-                        <p className="text-sm text-muted-foreground">
-                          Allow free navigation to Tenant, Agent & Landlord dashboards without approval
-                        </p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={preferences.unlockAllRoles}
-                      onCheckedChange={(checked) => {
-                        updatePreference('unlockAllRoles', checked);
-                        toast.success(checked ? 'All roles unlocked for navigation' : 'Role gating re-enabled');
-                      }}
-                    />
+        {/* ===== ADVANCED SECTION ===== */}
+        <div ref={el => sectionRefs.current['advanced'] = el} className="scroll-mt-28 mb-6">
+          <SectionHeader icon={SettingsIcon} label="Advanced" />
+
+          {/* Reset Preferences */}
+          <Card className="border-border/50 shadow-sm mb-4">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-sm">Reset Preferences</p>
+                    <p className="text-xs text-muted-foreground">Restore all settings to defaults</p>
                   </div>
                 </div>
-
-
-              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Reset Preferences</p>
-                      <p className="text-sm text-muted-foreground">
-                        Restore all settings to defaults
-                      </p>
-                    </div>
-                  </div>
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        resetPreferences();
-                        toast.success('Preferences reset to defaults');
-                      }}
-                      className="gap-2"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      Reset
-                    </Button>
-                  </motion.div>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { resetPreferences(); toast.success('Preferences reset'); }}
+                  className="gap-1.5 text-xs"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Reset
+                </Button>
               </div>
             </CardContent>
           </Card>
-        </motion.div>
 
-        {/* Diagnostics Section */}
-        <motion.div variants={itemVariants} className="mt-6">
+          {/* Diagnostics */}
           <DiagnosticsSection />
-        </motion.div>
+        </div>
 
-        {/* Version Info */}
-        <motion.div variants={itemVariants} className="mt-6 mb-8 text-center text-xs text-muted-foreground/60 space-y-1">
+        {/* Version */}
+        <div className="mb-8 text-center text-xs text-muted-foreground/50 space-y-0.5 pb-20">
           <p>Welile v1.11 • SW v11</p>
           <p>Build {new Date((globalThis as any).__BUILD_TIME__ || Date.now()).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===== Reusable Sub-components ===== */
+
+function SectionHeader({ icon: Icon, label }: { icon: typeof User; label: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <Icon className="h-4 w-4 text-primary" />
+      <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{label}</h2>
+    </div>
+  );
+}
+
+function SettingsRow({ label, description, icon: Icon, children }: { label: string; description: string; icon?: typeof User; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        {Icon && <Icon className="h-4 w-4 text-primary shrink-0" />}
+        <div className="min-w-0">
+          <p className="font-medium text-sm">{label}</p>
+          <p className="text-xs text-muted-foreground truncate">{description}</p>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function AgreementRow({ label, accepted, acceptedAt, onView, note }: { label: string; accepted: boolean; acceptedAt?: string | null; onView: () => void; note?: string }) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="min-w-0">
+          <p className="font-medium text-sm">{label}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {accepted && acceptedAt ? `Accepted ${new Date(acceptedAt).toLocaleDateString()}` : note || (accepted ? 'Accepted' : 'Not yet accepted')}
+          </p>
+        </div>
+      </div>
+      <Button variant={accepted ? "outline" : "default"} size="sm" onClick={onView} className="shrink-0 text-xs h-8">
+        {accepted ? 'View' : 'Accept'}
+      </Button>
     </div>
   );
 }
