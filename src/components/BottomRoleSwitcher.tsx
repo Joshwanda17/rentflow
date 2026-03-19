@@ -75,7 +75,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
             </button>
           );
         })}
-        {hasStaffRole && (
+        {hasStaffRole && !['tenant', 'agent', 'landlord', 'supporter'].includes(currentRole) && (
           <button
             onClick={handleStaffNav}
             className="flex flex-col items-center justify-center gap-0.5 py-2 min-h-[52px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground"
