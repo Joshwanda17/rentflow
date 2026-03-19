@@ -294,8 +294,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-destructive">{stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''} owe rent</p>
-                  <p className="text-[10px] text-destructive/70">Total outstanding: {formatUGX(stats.totalOwing)}</p>
+                  <p className="text-xs font-semibold text-destructive">{stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''} still owe you money</p>
+                  <p className="text-[10px] text-destructive/70">They owe: {formatUGX(stats.totalOwing)} total</p>
                 </div>
               </div>
               <Button
