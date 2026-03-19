@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { WithdrawalStepTracker } from './WithdrawalStepTracker';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowDownToLine, Wallet, Loader2, CheckCircle, AlertCircle, Phone, Building2, Banknote, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowDownToLine, Wallet, Loader2, CheckCircle, AlertCircle, Phone, Building2, Banknote, Clock, CheckCircle2, Sparkles, Shield, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,11 +22,7 @@ interface WithdrawRequestDialogProps {
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
 
-const WORKING_HOURS = {
-  start: 8,
-  end: 17,
-  saturdayEnd: 13,
-};
+const WORKING_HOURS = { start: 8, end: 17, saturdayEnd: 13 };
 
 const checkWorkingHours = (): { isOpen: boolean; message: string; nextOpen: string } => {
   const now = new Date();
@@ -39,22 +35,22 @@ const checkWorkingHours = (): { isOpen: boolean; message: string; nextOpen: stri
   if (day === 0) return { isOpen: false, message: 'Withdrawals are not available on Sundays', nextOpen: 'Monday at 8:00 AM' };
   if (day === 6) {
     if (hour < WORKING_HOURS.start) return { isOpen: false, message: 'Withdrawals open at 8:00 AM on Saturdays', nextOpen: 'Today at 8:00 AM' };
-    if (hour >= WORKING_HOURS.saturdayEnd) return { isOpen: false, message: 'Withdrawals closed for today (Saturday ends at 1:00 PM)', nextOpen: 'Monday at 8:00 AM' };
+    if (hour >= WORKING_HOURS.saturdayEnd) return { isOpen: false, message: 'Saturday withdrawals close at 1:00 PM', nextOpen: 'Monday at 8:00 AM' };
     return { isOpen: true, message: '', nextOpen: '' };
   }
   if (hour < WORKING_HOURS.start) return { isOpen: false, message: 'Withdrawals open at 8:00 AM', nextOpen: 'Today at 8:00 AM' };
   if (hour >= WORKING_HOURS.end) {
     const nextDay = day === 5 ? 'Monday' : 'Tomorrow';
-    return { isOpen: false, message: 'Withdrawals closed for today (ends at 5:00 PM)', nextOpen: `${nextDay} at 8:00 AM` };
+    return { isOpen: false, message: 'Withdrawals close at 5:00 PM', nextOpen: `${nextDay} at 8:00 AM` };
   }
   return { isOpen: true, message: '', nextOpen: '' };
 };
 
-const PAYOUT_OPTIONS: { value: PayoutMode; label: string; icon: string; color: string }[] = [
-  { value: 'mtn', label: 'MTN MoMo', icon: '📱', color: 'border-yellow-400 bg-yellow-400/10' },
-  { value: 'airtel', label: 'Airtel Money', icon: '📱', color: 'border-red-400 bg-red-400/10' },
-  { value: 'bank', label: 'Bank', icon: '🏦', color: 'border-blue-400 bg-blue-400/10' },
-  { value: 'cash', label: 'Cash', icon: '💵', color: 'border-green-400 bg-green-400/10' },
+const PAYOUT_OPTIONS: { value: PayoutMode; label: string; sublabel: string; icon: string; accent: string; ring: string }[] = [
+  { value: 'mtn', label: 'MTN', sublabel: 'MoMo', icon: '📱', accent: 'from-yellow-400/20 to-yellow-500/5 border-yellow-400/40', ring: 'ring-yellow-400' },
+  { value: 'airtel', label: 'Airtel', sublabel: 'Money', icon: '📱', accent: 'from-red-400/20 to-red-500/5 border-red-400/40', ring: 'ring-red-400' },
+  { value: 'bank', label: 'Bank', sublabel: 'Transfer', icon: '🏦', accent: 'from-blue-400/20 to-blue-500/5 border-blue-400/40', ring: 'ring-blue-400' },
+  { value: 'cash', label: 'Cash', sublabel: 'Agent', icon: '💵', accent: 'from-emerald-400/20 to-emerald-500/5 border-emerald-400/40', ring: 'ring-emerald-400' },
 ];
 
 const formatCurrency = (value: number) =>
@@ -69,7 +65,6 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
   const [hasWithdrawnToday, setHasWithdrawnToday] = useState(false);
   const [_checkingDailyLimit, setCheckingDailyLimit] = useState(false);
 
-  // Payout state
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');
   const [momoName, setMomoName] = useState('');
@@ -82,7 +77,6 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
     if (open) setWorkingHoursStatus(checkWorkingHours());
   }, [open]);
 
-  // Check daily limit
   useEffect(() => {
     const checkDailyLimit = async () => {
       if (!user || !open) return;
@@ -109,7 +103,6 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
     checkDailyLimit();
   }, [user, open]);
 
-  // Fetch saved mobile money details
   useEffect(() => {
     const fetchSavedNumber = async () => {
       if (!user || !open) return;
@@ -123,9 +116,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
         if (profile?.mobile_money_number) {
           setMomoNumber(profile.mobile_money_number);
           const p = profile.mobile_money_provider as PayoutMode;
-          if (p === 'mtn' || p === 'airtel') {
-            setPayoutMode(p);
-          }
+          if (p === 'mtn' || p === 'airtel') setPayoutMode(p);
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -144,7 +135,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
     }
     if (payoutMode === 'bank')
       return !!bankName && bankAccountName.trim().length >= 2 && bankAccountNumber.trim().length >= 5;
-    return true; // cash
+    return true;
   };
 
   const MIN_BALANCE = 5000;
@@ -176,12 +167,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
         });
         if (error) throw error;
 
-        // Save mobile money details to profile
         if (payoutMode === 'mtn' || payoutMode === 'airtel') {
-          await supabase
-            .from('profiles')
-            .update({ mobile_money_number: momoNumber.trim(), mobile_money_provider: payoutMode })
-            .eq('id', user.id);
+          await supabase.from('profiles').update({ mobile_money_number: momoNumber.trim(), mobile_money_provider: payoutMode }).eq('id', user.id);
         }
 
         setSuccess(true);
@@ -212,291 +199,407 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
     onOpenChange(false);
   };
 
+  const selectedOption = PAYOUT_OPTIONS.find(o => o.value === payoutMode);
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto p-0" stable>
-        <DialogHeader className="px-5 pt-5 pb-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <ArrowDownToLine className="h-5 w-5 text-primary" />
-            Withdraw Funds
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            Choose how you want to receive your money
-          </DialogDescription>
-        </DialogHeader>
-
-        {success ? (
-          <div className="px-5 pb-5 pt-2 space-y-4">
-            <div className="text-center space-y-2">
-              <div className="mx-auto w-16 h-16 rounded-full bg-success/20 flex items-center justify-center">
-                <CheckCircle className="h-8 w-8 text-success" />
+      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto p-0 border-0 bg-transparent shadow-2xl" stable>
+        {/* Gradient header */}
+        <div className="relative overflow-hidden rounded-t-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 px-6 pt-6 pb-5">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5 blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-white/5 blur-xl" />
+          
+          <DialogHeader className="relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/15 backdrop-blur-sm">
+                <ArrowDownToLine className="h-5 w-5 text-white" />
               </div>
-              <h3 className="text-lg font-semibold">Request Submitted! 🎉</h3>
-              <p className="text-sm text-muted-foreground">
-                Your withdrawal of {formatCurrency(amount)} is now being reviewed.
-              </p>
-            </div>
-            <div className="p-3 rounded-xl border border-border bg-muted/30">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Approval Progress</p>
-              <WithdrawalStepTracker status="pending" createdAt={new Date().toISOString()} />
-            </div>
-            <Button onClick={handleClose} className="w-full h-12 text-base">Done</Button>
-          </div>
-        ) : (
-          <div className="px-5 pb-5 space-y-4">
-            {/* Balance bar */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-primary" />
-                <span className="text-xs text-muted-foreground">Available</span>
-              </div>
-              <span className="text-lg font-black text-foreground">{formatCurrency(walletBalance)}</span>
-            </div>
-
-            {/* Working Hours Warning */}
-            {!workingHoursStatus.isOpen && (
-              <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 space-y-1">
-                <div className="flex items-center gap-2 text-warning">
-                  <Clock className="h-4 w-4 shrink-0" />
-                  <p className="text-xs font-bold">Outside Working Hours</p>
-                </div>
-                <p className="text-[11px] text-muted-foreground">{workingHoursStatus.message}. Next: <strong>{workingHoursStatus.nextOpen}</strong></p>
-              </div>
-            )}
-
-            {/* Daily limit warning */}
-            {hasWithdrawnToday && (
-              <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-xl">
-                <Clock className="h-4 w-4 shrink-0 text-warning" />
-                <div>
-                  <p className="text-xs font-bold">Daily limit reached 🚫</p>
-                  <p className="text-[11px] text-muted-foreground">You can withdraw again tomorrow.</p>
-                </div>
-              </div>
-            )}
-
-            {/* Min balance policy */}
-            {!meetsMinBalance && (
-              <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-                <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                <p className="text-xs text-destructive font-medium">
-                  Balance must be at least <strong>UGX 5,000</strong> to withdraw.
-                </p>
-              </div>
-            )}
-
-            {/* ── PAYOUT METHOD SELECTION ── */}
-            <div className="space-y-2.5">
-              <Label className="text-sm font-bold">How do you want your money?</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {PAYOUT_OPTIONS.map((opt) => {
-                  const selected = payoutMode === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setPayoutMode(prev => prev === opt.value ? null : opt.value)}
-                      className={`relative flex flex-col items-center justify-center rounded-xl border-2 p-3 min-h-[72px] transition-all active:scale-95 touch-manipulation ${
-                        selected
-                          ? `${opt.color} ring-2 ring-primary shadow-md`
-                          : 'border-border bg-card hover:border-muted-foreground/30'
-                      }`}
-                    >
-                      {selected && <CheckCircle2 className="absolute top-1 right-1 h-3.5 w-3.5 text-primary" />}
-                      <span className="text-xl leading-none">{opt.icon}</span>
-                      <span className="text-[10px] font-bold mt-1.5 text-center leading-tight">{opt.label}</span>
-                    </button>
-                  );
-                })}
+              <div>
+                <DialogTitle className="text-white text-lg font-bold tracking-tight">
+                  Withdraw Money
+                </DialogTitle>
+                <p className="text-white/70 text-xs mt-0.5">Fast · Secure · Instant notifications</p>
               </div>
             </div>
+          </DialogHeader>
 
-            {/* ── INLINE PAYOUT DETAILS ── */}
-            <AnimatePresence mode="wait">
-              {payoutMode && (
+          {/* Balance pill */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="relative z-10 mt-4 flex items-center justify-between p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/20"
+          >
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-white/80" />
+              <span className="text-white/70 text-xs font-medium">Available Balance</span>
+            </div>
+            <span className="text-white text-xl font-black tracking-tight">{formatCurrency(walletBalance)}</span>
+          </motion.div>
+        </div>
+
+        {/* Content area */}
+        <div className="bg-background rounded-b-xl px-5 pb-6 pt-5 space-y-5">
+          {success ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="space-y-5 py-2"
+            >
+              <div className="text-center space-y-3">
                 <motion.div
-                  key={payoutMode}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
+                  className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center"
                 >
-                  <div className="space-y-3 pt-1">
-                    {(payoutMode === 'mtn' || payoutMode === 'airtel') && (
-                      <>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">
-                            {payoutMode === 'mtn' ? 'MTN' : 'Airtel'} Mobile Money Number
-                          </Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              type="tel"
-                              inputMode="tel"
-                              placeholder="e.g. 0770 123 456"
-                              value={momoNumber}
-                              onChange={(e) => setMomoNumber(e.target.value)}
-                              className="h-11 pl-10"
-                              disabled={fetchingProfile}
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Registered Name</Label>
-                          <Input
-                            placeholder="e.g. JOHN DOE"
-                            value={momoName}
-                            onChange={(e) => setMomoName(e.target.value)}
-                            className="h-11"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {payoutMode === 'bank' && (
-                      <>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Bank Name</Label>
-                          <Select value={bankName} onValueChange={setBankName}>
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Select your bank…" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                              {UGANDA_BANKS.map((b) => (
-                                <SelectItem key={b} value={b}>{b}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Account Holder Name</Label>
-                          <div className="relative">
-                            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="e.g. JOHN DOE"
-                              value={bankAccountName}
-                              onChange={(e) => setBankAccountName(e.target.value)}
-                              className="h-11 pl-10"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs font-semibold">Account Number</Label>
-                          <div className="relative">
-                            <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="e.g. 9030012345678"
-                              value={bankAccountNumber}
-                              onChange={(e) => setBankAccountNumber(e.target.value)}
-                              className="h-11 pl-10"
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {payoutMode === 'cash' && (
-                      <div className="p-3 rounded-xl bg-success/5 border border-success/20">
-                        <p className="text-xs font-bold mb-1">💵 Cash at Agent Shop</p>
-                        <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground text-[11px]">
-                          <li>Submit your request below</li>
-                          <li>A manager will approve it</li>
-                          <li>Visit the nearest agent shop with your ID to collect</li>
-                        </ol>
-                      </div>
-                    )}
-                  </div>
+                  <CheckCircle className="h-10 w-10 text-success" />
                 </motion.div>
-              )}
-            </AnimatePresence>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                  <h3 className="text-xl font-bold text-foreground">Request Submitted!</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    We're processing <strong className="text-foreground">{formatCurrency(amount)}</strong>
+                  </p>
+                </motion.div>
+              </div>
 
-            {/* ── AMOUNT SECTION (only after valid payout) ── */}
-            {isPayoutValid() && meetsMinBalance && !hasWithdrawnToday && workingHoursStatus.isOpen && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-3 border-t border-border pt-4"
+                transition={{ delay: 0.5 }}
+                className="p-4 rounded-2xl border border-border bg-muted/30"
               >
-                <Label className="text-sm font-bold">Amount to Withdraw</Label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder="Min: UGX 500"
-                  value={amount || ''}
-                  onChange={(e) => setAmount(Math.min(Number(e.target.value), walletBalance))}
-                  min={500}
-                  max={walletBalance}
-                  className="h-12 text-lg font-bold"
-                />
-                <Slider
-                  value={[amount]}
-                  onValueChange={([v]) => setAmount(v)}
-                  max={walletBalance}
-                  min={500}
-                  step={500}
-                  className="py-1"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>UGX 500</span>
-                  <button type="button" onClick={() => setAmount(walletBalance)} className="text-primary font-bold hover:underline">
-                    Withdraw All
-                  </button>
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-bold text-foreground uppercase tracking-wider">Approval Pipeline</p>
                 </div>
+                <WithdrawalStepTracker status="pending" createdAt={new Date().toISOString()} />
+              </motion.div>
 
-                {/* Quick amount chips */}
-                <div className="flex gap-2 flex-wrap">
-                  {[0.25, 0.5, 0.75, 1].map((fraction) => {
-                    const quickAmount = Math.max(500, Math.floor(walletBalance * fraction));
+              <Button onClick={handleClose} className="w-full h-12 rounded-xl text-base font-bold">
+                Done
+              </Button>
+            </motion.div>
+          ) : (
+            <>
+              {/* Alerts */}
+              {!workingHoursStatus.isOpen && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-2xl bg-warning/10 border border-warning/20 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-warning shrink-0" />
+                    <p className="text-sm font-bold text-foreground">Outside Working Hours</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{workingHoursStatus.message}</p>
+                  <p className="text-xs">Next: <strong className="text-foreground">{workingHoursStatus.nextOpen}</strong></p>
+                  <p className="text-[10px] text-muted-foreground/60 pt-1 border-t border-warning/10">🕐 Mon–Fri 8AM–5PM · Sat 8AM–1PM EAT</p>
+                </motion.div>
+              )}
+
+              {hasWithdrawnToday && (
+                <div className="flex items-center gap-3 p-4 rounded-2xl bg-warning/10 border border-warning/20">
+                  <Clock className="h-5 w-5 shrink-0 text-warning" />
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Daily limit reached</p>
+                    <p className="text-xs text-muted-foreground">Come back tomorrow for another withdrawal</p>
+                  </div>
+                </div>
+              )}
+
+              {!meetsMinBalance && (
+                <div className="flex items-start gap-3 p-4 rounded-2xl bg-destructive/10 border border-destructive/20">
+                  <TrendingDown className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Minimum balance required</p>
+                    <p className="text-xs text-muted-foreground">You need at least <strong>UGX 5,000</strong> to withdraw</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PAYOUT METHOD ── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <Label className="text-sm font-bold text-foreground">Where should we send your money?</Label>
+                </div>
+                <div className="grid grid-cols-4 gap-2.5">
+                  {PAYOUT_OPTIONS.map((opt, i) => {
+                    const selected = payoutMode === opt.value;
                     return (
-                      <Button
-                        key={fraction}
-                        variant={amount === quickAmount ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setAmount(quickAmount)}
-                        className="flex-1 h-10 touch-manipulation"
+                      <motion.button
+                        key={opt.value}
+                        type="button"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        onClick={() => setPayoutMode(prev => prev === opt.value ? null : opt.value)}
+                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 p-3 min-h-[80px] transition-all active:scale-95 touch-manipulation ${
+                          selected
+                            ? `bg-gradient-to-b ${opt.accent} ${opt.ring} ring-2 shadow-lg`
+                            : 'border-border bg-card hover:border-muted-foreground/30 hover:shadow-sm'
+                        }`}
                       >
-                        {fraction === 1 ? 'All' : `${fraction * 100}%`}
-                      </Button>
+                        {selected && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute -top-1 -right-1"
+                          >
+                            <CheckCircle2 className="h-4 w-4 text-primary drop-shadow-sm" />
+                          </motion.div>
+                        )}
+                        <span className="text-2xl leading-none">{opt.icon}</span>
+                        <span className="text-[11px] font-bold mt-1.5 text-foreground">{opt.label}</span>
+                        <span className="text-[9px] text-muted-foreground leading-none">{opt.sublabel}</span>
+                      </motion.button>
                     );
                   })}
                 </div>
+              </div>
 
-                {/* Transfer preview */}
-                {amount >= 500 && isPayoutValid() && (
-                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-1.5">
-                    <p className="text-xs text-muted-foreground">You will receive</p>
-                    <p className="text-2xl font-black text-primary">{formatCurrency(amount)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      via <strong>{PAYOUT_OPTIONS.find(o => o.value === payoutMode)?.label}</strong>
-                      {(payoutMode === 'mtn' || payoutMode === 'airtel') && momoNumber && ` • ${momoNumber}`}
-                      {payoutMode === 'bank' && bankName && ` • ${bankName}`}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">Remaining: {formatCurrency(walletBalance - amount)}</p>
-                  </div>
+              {/* ── INLINE PAYOUT DETAILS ── */}
+              <AnimatePresence mode="wait">
+                {payoutMode && (
+                  <motion.div
+                    key={payoutMode}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border/50">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        {selectedOption?.label} Details
+                      </p>
+
+                      {(payoutMode === 'mtn' || payoutMode === 'airtel') && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-foreground">
+                              {payoutMode === 'mtn' ? 'MTN' : 'Airtel'} Number
+                            </Label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                type="tel"
+                                inputMode="tel"
+                                placeholder="e.g. 0770 123 456"
+                                value={momoNumber}
+                                onChange={(e) => setMomoNumber(e.target.value)}
+                                className="h-12 pl-10 rounded-xl text-base font-medium"
+                                disabled={fetchingProfile}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-foreground">Registered Name</Label>
+                            <Input
+                              placeholder="As it appears on MoMo"
+                              value={momoName}
+                              onChange={(e) => setMomoName(e.target.value)}
+                              className="h-12 rounded-xl text-base font-medium"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {payoutMode === 'bank' && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-foreground">Bank</Label>
+                            <Select value={bankName} onValueChange={setBankName}>
+                              <SelectTrigger className="h-12 rounded-xl">
+                                <SelectValue placeholder="Select your bank…" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-60">
+                                {UGANDA_BANKS.map((b) => (
+                                  <SelectItem key={b} value={b}>{b}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-foreground">Account Holder</Label>
+                            <div className="relative">
+                              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Full name on account"
+                                value={bankAccountName}
+                                onChange={(e) => setBankAccountName(e.target.value)}
+                                className="h-12 pl-10 rounded-xl text-base font-medium"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-foreground">Account Number</Label>
+                            <div className="relative">
+                              <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="e.g. 9030012345678"
+                                value={bankAccountNumber}
+                                onChange={(e) => setBankAccountNumber(e.target.value)}
+                                className="h-12 pl-10 rounded-xl text-base font-medium"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {payoutMode === 'cash' && (
+                        <div className="p-4 rounded-xl bg-success/5 border border-success/20">
+                          <p className="text-sm font-bold text-foreground mb-2">💵 Cash Collection</p>
+                          <div className="space-y-2">
+                            {['Submit your request', 'Manager approves it', 'Collect at nearest agent with your ID'].map((step, i) => (
+                              <div key={i} className="flex items-center gap-2.5">
+                                <div className="w-6 h-6 rounded-full bg-success/15 flex items-center justify-center shrink-0">
+                                  <span className="text-[10px] font-bold text-success">{i + 1}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{step}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
                 )}
-              </motion.div>
-            )}
+              </AnimatePresence>
 
-            {/* ── ACTION BUTTON ── */}
-            <div className="pt-1 flex gap-2">
-              <Button variant="outline" onClick={handleClose} className="flex-1 h-12">Cancel</Button>
-              {isFormValid ? (
-                <Button onClick={handleSubmit} disabled={loading} className="flex-1 gap-2 h-12">
-                  {loading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</>
-                  ) : (
-                    <><ArrowDownToLine className="h-4 w-4" /> Withdraw</>
-                  )}
+              {/* ── AMOUNT SECTION ── */}
+              <AnimatePresence>
+                {isPayoutValid() && meetsMinBalance && !hasWithdrawnToday && workingHoursStatus.isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-4"
+                  >
+                    <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+                    <Label className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <span>💰</span> How much?
+                    </Label>
+
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-bold">UGX</span>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={amount || ''}
+                        onChange={(e) => setAmount(Math.min(Number(e.target.value), walletBalance))}
+                        min={500}
+                        max={walletBalance}
+                        className="h-14 pl-14 text-2xl font-black rounded-2xl bg-muted/30 border-border/50 text-center"
+                      />
+                    </div>
+
+                    <Slider
+                      value={[amount]}
+                      onValueChange={([v]) => setAmount(v)}
+                      max={walletBalance}
+                      min={500}
+                      step={500}
+                      className="py-1"
+                    />
+
+                    {/* Quick chips */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[0.25, 0.5, 0.75, 1].map((fraction) => {
+                        const quickAmount = Math.max(500, Math.floor(walletBalance * fraction));
+                        const isActive = amount === quickAmount;
+                        return (
+                          <Button
+                            key={fraction}
+                            variant={isActive ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setAmount(quickAmount)}
+                            className={`h-10 rounded-xl font-bold touch-manipulation text-xs ${
+                              isActive ? '' : 'border-border/50'
+                            }`}
+                          >
+                            {fraction === 1 ? '💯 All' : `${fraction * 100}%`}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Transfer preview card */}
+                    <AnimatePresence>
+                      {amount >= 500 && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.97 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.97 }}
+                          className="p-4 rounded-2xl bg-gradient-to-br from-primary/5 via-primary/3 to-transparent border border-primary/15 space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground font-medium">You'll receive</p>
+                            <p className="text-xs text-muted-foreground">
+                              via <strong className="text-foreground">{selectedOption?.label}</strong>
+                            </p>
+                          </div>
+                          <p className="text-3xl font-black text-primary tracking-tight">{formatCurrency(amount)}</p>
+                          <div className="flex items-center justify-between pt-1 border-t border-primary/10">
+                            <span className="text-[10px] text-muted-foreground">
+                              {(payoutMode === 'mtn' || payoutMode === 'airtel') && momoNumber ? `📱 ${momoNumber}` : ''}
+                              {payoutMode === 'bank' && bankName ? `🏦 ${bankName}` : ''}
+                              {payoutMode === 'cash' ? '💵 Cash at agent' : ''}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Remaining: {formatCurrency(walletBalance - amount)}
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── ACTIONS ── */}
+              <div className="pt-2 flex gap-3">
+                <Button variant="outline" onClick={handleClose} className="flex-1 h-12 rounded-xl font-bold border-border/50">
+                  Cancel
                 </Button>
-              ) : (
-                <Button disabled className="flex-1 h-12 opacity-50">
-                  {!payoutMode ? 'Select payout method' : !isPayoutValid() ? 'Complete details' : 'Enter amount'}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
+                {isFormValid ? (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="flex-1 gap-2 h-12 rounded-xl font-bold bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                  >
+                    {loading ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
+                    ) : (
+                      <><ArrowDownToLine className="h-4 w-4" /> Withdraw</>
+                    )}
+                  </Button>
+                ) : (
+                  <Button disabled className="flex-1 h-12 rounded-xl font-bold opacity-40">
+                    {!payoutMode
+                      ? 'Select method ↑'
+                      : !isPayoutValid()
+                      ? 'Fill details ↑'
+                      : amount < 500
+                      ? 'Enter amount'
+                      : 'Withdraw'
+                    }
+                  </Button>
+                )}
+              </div>
+
+              {/* Trust footer */}
+              <div className="flex items-center justify-center gap-2 pt-1">
+                <Shield className="h-3 w-3 text-muted-foreground/40" />
+                <p className="text-[9px] text-muted-foreground/40 font-medium tracking-wide">
+                  256-BIT ENCRYPTED · 4-STAGE APPROVAL · INSTANT NOTIFICATIONS
+                </p>
+              </div>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
