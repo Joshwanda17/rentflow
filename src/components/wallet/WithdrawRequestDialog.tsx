@@ -454,9 +454,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                         </div>
                       )}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+                </div>
+              )}
 
               {/* ── AMOUNT SECTION ── */}
               <AnimatePresence>
