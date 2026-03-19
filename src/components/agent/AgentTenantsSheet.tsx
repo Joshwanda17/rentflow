@@ -262,7 +262,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     const modes: SortMode[] = ['balance', 'name', 'recent'];
     const next = modes[(modes.indexOf(sortMode) + 1) % modes.length];
     setSortMode(next);
-    toast({ title: `Sorted by ${next === 'balance' ? 'rent balance' : next}` });
+    toast({ title: `Now showing by ${next === 'balance' ? 'who owes the most' : next === 'name' ? 'name' : 'newest first'}` });
   };
 
   return (

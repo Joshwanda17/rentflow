@@ -756,8 +756,8 @@ export default function Settings() {
                 <div className="flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="font-medium text-sm">Reset Preferences</p>
-                    <p className="text-xs text-muted-foreground">Restore all settings to defaults</p>
+                     <p className="font-medium text-sm">Start Fresh</p>
+                    <p className="text-xs text-muted-foreground">Put everything back to how it was</p>
                   </div>
                 </div>
                 <Button
