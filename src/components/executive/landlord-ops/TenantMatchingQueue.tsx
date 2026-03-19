@@ -3,13 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  Home, MapPin, Users, Phone, MessageCircle, ArrowRight,
-  Calendar, Loader2, Search, UserCheck,
+  Home, MapPin, Users, Calendar, Search, UserCheck,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ViewingSchedulerDialog } from './ViewingSchedulerDialog';

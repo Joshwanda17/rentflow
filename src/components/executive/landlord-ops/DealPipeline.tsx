@@ -8,10 +8,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  ArrowRight, CheckCircle2, Home, Loader2, MessageCircle,
-  Phone, Users, Calendar, MapPinned, Send, XCircle,
+  ArrowRight, CheckCircle2, Home, Loader2,
+  Users, Calendar, Send, XCircle,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 
 const STAGES = [
   { key: 'matched', label: 'Matched', icon: Users, color: 'bg-blue-500/20 text-blue-700 border-blue-500/30' },
