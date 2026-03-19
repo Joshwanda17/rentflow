@@ -102,6 +102,19 @@ function DashboardContent() {
     };
   }, []);
 
+  // Auto-default qualified investors (≥100K deployed) to Funder dashboard
+  useEffect(() => {
+    if (loading || !user || roles.length === 0) return;
+    if (!isQualifiedInvestor) return;
+    // Only auto-switch if user hasn't set an explicit preference
+    const preferred = getPreferredDefaultRole();
+    if (preferred !== 'auto') return;
+    // If current role isn't supporter and supporter is available, switch
+    if (role !== 'supporter' && roles.includes('supporter')) {
+      switchRole('supporter');
+    }
+  }, [loading, user, roles, role, isQualifiedInvestor, switchRole]);
+
   // Handle role switch via URL param (e.g. after tenant/supporter activation)
   // Gate on !loading && roles.length > 0 to prevent race with fetchUserRoles
   useEffect(() => {
