@@ -78,7 +78,12 @@ export function WalletCard() {
     }
   };
 
-  if (loading) {
+  // Show cached balance immediately — never show skeleton if we have cached data
+  const balance = wallet?.balance || 0;
+  const balanceColor = getBalanceColorClass(balance);
+  const dotColor = getBalanceDotClass(balance);
+
+  if (loading && !wallet) {
     return <SkeletonWallet />;
   }
 
