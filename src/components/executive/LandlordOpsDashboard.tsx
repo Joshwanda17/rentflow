@@ -35,6 +35,7 @@ interface ListingWithLandlord {
   lc1_chairperson_village: string | null;
   agent_id: string;
   landlord_id: string | null;
+  tenant_id: string | null;
   verified: boolean | null;
   listing_bonus_paid: boolean | null;
   created_at: string;
