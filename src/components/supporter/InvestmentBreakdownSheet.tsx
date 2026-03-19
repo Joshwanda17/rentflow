@@ -410,6 +410,15 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           }}
         />
       )}
+
+      {payoutTarget && (
+        <PayoutMethodDialog
+          open={!!payoutTarget}
+          onOpenChange={(open) => { if (!open) setPayoutTarget(null); }}
+          portfolioId={payoutTarget.id}
+          portfolioName={payoutTarget.name}
+        />
+      )}
     </Sheet>
   );
 }
