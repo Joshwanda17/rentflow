@@ -122,8 +122,8 @@ export async function generateDepositReceiptPdf(data: DepositReceiptData): Promi
   return doc;
 }
 
-export function downloadDepositReceipt(data: DepositReceiptData) {
-  const doc = generateDepositReceiptPdf(data);
+export async function downloadDepositReceipt(data: DepositReceiptData) {
+  const doc = await generateDepositReceiptPdf(data);
   doc.save(`Welile_Deposit_Receipt_${format(new Date(), 'yyyyMMdd')}.pdf`);
 }
 
