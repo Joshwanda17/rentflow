@@ -46,7 +46,6 @@ export default function WithdrawFlow({
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
   const [currency, setCurrency] = useState('UGX');
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [pin, setPin] = useState('');
 
   // Payout mode state
@@ -68,8 +67,6 @@ export default function WithdrawFlow({
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
   const maxAmount = source === 'available' ? availableBalance : roiBalance;
-  const fee = selectedMethod ? calculateFee(amount, selectedMethod) : 0;
-  const netAmount = amount - fee;
 
   const handleReset = () => {
     setCurrentStep(0);
