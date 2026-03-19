@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  X, ShoppingCart, Receipt, UtensilsCrossed, Fuel, Car, Hotel,
+  X, ShoppingCart, UtensilsCrossed, Fuel, Car, Hotel,
   Stethoscope, Wrench, Coffee, Scissors, BookOpen, Zap, Droplets,
-  Baby, PawPrint, Shirt
+  ChevronDown
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
@@ -54,6 +54,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [payAnythingOpen, setPayAnythingOpen] = useState(false);
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
@@ -209,36 +210,44 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               WebkitOverflowScrolling: 'touch'
             }}
           >
-            {/* === PAY FOR ANYTHING — Big category grid === */}
+            {/* === PAY FOR ANYTHING — Collapsible category grid === */}
             <div>
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Pay for Anything</h3>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { icon: UtensilsCrossed, label: 'Food', color: 'bg-orange-500/15 text-orange-600', action: () => setFoodMarketOpen(true) },
-                  { icon: ShoppingCart, label: 'Groceries', color: 'bg-green-500/15 text-green-600', action: () => setFoodMarketOpen(true) },
-                  { icon: Fuel, label: 'Fuel', color: 'bg-amber-500/15 text-amber-700', action: () => setBillsOpen(true) },
-                  { icon: Car, label: 'Transport', color: 'bg-blue-500/15 text-blue-600', action: () => setSendOpen(true) },
-                  { icon: Hotel, label: 'Hotel', color: 'bg-purple-500/15 text-purple-600', action: () => setSendOpen(true) },
-                  { icon: Stethoscope, label: 'Clinic', color: 'bg-red-500/15 text-red-600', action: () => setSendOpen(true) },
-                  { icon: Wrench, label: 'Mechanic', color: 'bg-slate-500/15 text-slate-600', action: () => setSendOpen(true) },
-                  { icon: Coffee, label: 'Restaurant', color: 'bg-rose-500/15 text-rose-600', action: () => setSendOpen(true) },
-                  { icon: Zap, label: 'Electricity', color: 'bg-yellow-500/15 text-yellow-700', action: () => setBillsOpen(true) },
-                  { icon: Droplets, label: 'Water', color: 'bg-cyan-500/15 text-cyan-600', action: () => setBillsOpen(true) },
-                  { icon: Scissors, label: 'Salon', color: 'bg-pink-500/15 text-pink-600', action: () => setSendOpen(true) },
-                  { icon: BookOpen, label: 'School', color: 'bg-indigo-500/15 text-indigo-600', action: () => setSendOpen(true) },
-                ].map((cat) => (
-                  <button
-                    key={cat.label}
-                    onClick={() => { hapticTap(); cat.action(); }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border/50 bg-card hover:shadow-md active:scale-95 transition-all min-h-[72px]"
-                  >
-                    <div className={`p-2.5 rounded-full ${cat.color}`}>
-                      <cat.icon className="h-5 w-5" />
-                    </div>
-                    <span className="text-[10px] font-semibold text-foreground leading-tight">{cat.label}</span>
-                  </button>
-                ))}
-              </div>
+              <button
+                onClick={() => { hapticTap(); setPayAnythingOpen(!payAnythingOpen); }}
+                className="flex items-center justify-between w-full mb-3 group"
+              >
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Pay for Anything</h3>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${payAnythingOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {payAnythingOpen && (
+                <div className="grid grid-cols-4 gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {[
+                    { icon: UtensilsCrossed, label: 'Food', color: 'bg-orange-500/15 text-orange-600', action: () => setFoodMarketOpen(true) },
+                    { icon: ShoppingCart, label: 'Groceries', color: 'bg-green-500/15 text-green-600', action: () => setFoodMarketOpen(true) },
+                    { icon: Fuel, label: 'Fuel', color: 'bg-amber-500/15 text-amber-700', action: () => setBillsOpen(true) },
+                    { icon: Car, label: 'Transport', color: 'bg-blue-500/15 text-blue-600', action: () => setSendOpen(true) },
+                    { icon: Hotel, label: 'Hotel', color: 'bg-purple-500/15 text-purple-600', action: () => setSendOpen(true) },
+                    { icon: Stethoscope, label: 'Clinic', color: 'bg-red-500/15 text-red-600', action: () => setSendOpen(true) },
+                    { icon: Wrench, label: 'Mechanic', color: 'bg-slate-500/15 text-slate-600', action: () => setSendOpen(true) },
+                    { icon: Coffee, label: 'Restaurant', color: 'bg-rose-500/15 text-rose-600', action: () => setSendOpen(true) },
+                    { icon: Zap, label: 'Electricity', color: 'bg-yellow-500/15 text-yellow-700', action: () => setBillsOpen(true) },
+                    { icon: Droplets, label: 'Water', color: 'bg-cyan-500/15 text-cyan-600', action: () => setBillsOpen(true) },
+                    { icon: Scissors, label: 'Salon', color: 'bg-pink-500/15 text-pink-600', action: () => setSendOpen(true) },
+                    { icon: BookOpen, label: 'School', color: 'bg-indigo-500/15 text-indigo-600', action: () => setSendOpen(true) },
+                  ].map((cat) => (
+                    <button
+                      key={cat.label}
+                      onClick={() => { hapticTap(); cat.action(); }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border/50 bg-card hover:shadow-md active:scale-95 transition-all min-h-[72px]"
+                    >
+                      <div className={`p-2.5 rounded-full ${cat.color}`}>
+                        <cat.icon className="h-5 w-5" />
+                      </div>
+                      <span className="text-[10px] font-semibold text-foreground leading-tight">{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Quick wallet actions */}
