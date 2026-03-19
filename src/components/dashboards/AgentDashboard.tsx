@@ -381,6 +381,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <GeneratePaymentTokenDialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen} />
       <RecordAgentCollectionDialog open={recordCollectionOpen} onOpenChange={setRecordCollectionOpen} />
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
+      <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
 
       <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
     </div>
