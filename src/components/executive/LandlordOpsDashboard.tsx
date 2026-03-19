@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck, Phone, MessageCircle, Image, MapPinned, DoorOpen } from 'lucide-react';
+import { Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck, Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { RentAdjustmentDialog } from './RentAdjustmentDialog';
+import { VacancyAnalytics } from './VacancyAnalytics';
 
 interface ListingWithLandlord {
   id: string;
@@ -105,6 +107,7 @@ export function LandlordOpsDashboard() {
   const { toast } = useToast();
   const [verifying, setVerifying] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
+  const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
 
   // Fetch house listings with joined landlord data
   const { data: listings, isLoading, refetch } = useQuery({
@@ -459,6 +462,19 @@ export function LandlordOpsDashboard() {
                   );
                 },
               },
+              {
+                key: 'id', label: 'Action', render: (_, row) => (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px] gap-1"
+                    onClick={() => setAdjustListing(row)}
+                  >
+                    <TrendingDown className="h-3 w-3" />
+                    Reduce Rent
+                  </Button>
+                ),
+              },
             ]}
             loading={isLoading}
             title={`🏚️ Empty Houses (${emptyHouses.length})`}
@@ -502,6 +518,9 @@ export function LandlordOpsDashboard() {
         ]}
       />
 
+      {/* Occupancy Analytics */}
+      <VacancyAnalytics listings={rows as any} />
+
       {/* Image Preview Dialog */}
       {previewImages && (
         <ImagePreviewDialog
@@ -509,6 +528,16 @@ export function LandlordOpsDashboard() {
           title={previewImages.title}
           open={!!previewImages}
           onClose={() => setPreviewImages(null)}
+        />
+      )}
+
+      {/* Rent Adjustment Dialog */}
+      {adjustListing && (
+        <RentAdjustmentDialog
+          open={!!adjustListing}
+          onOpenChange={(open) => !open && setAdjustListing(null)}
+          listing={adjustListing}
+          onSuccess={() => refetch()}
         />
       )}
     </div>
