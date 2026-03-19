@@ -692,7 +692,7 @@ export default function Settings() {
 
         {/* ===== SECURITY SECTION ===== */}
         <div ref={el => sectionRefs.current['security'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={ShieldCheck} label="Security" />
+          <SectionHeader icon={ShieldCheck} label="Keep Your Account Safe" />
           <div className="space-y-4">
             <PinSecuritySection />
             <BiometricSecuritySection />
