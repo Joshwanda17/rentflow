@@ -469,8 +469,8 @@ export default function Settings() {
           {/* Current Roles */}
           <Card className="border-border/50 shadow-sm mb-4">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">My Roles</CardTitle>
-              <CardDescription className="text-xs">Your active platform roles</CardDescription>
+              <CardTitle className="text-sm">What you do on Welile</CardTitle>
+              <CardDescription className="text-xs">These are the roles you have right now</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
