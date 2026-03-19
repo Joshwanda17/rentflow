@@ -282,11 +282,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <button
                 key={action.label}
                 onClick={() => { hapticTap(); action.onClick(); }}
-                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-card border border-border/40 hover:bg-muted/40 active:scale-95 active:bg-muted/60 transition-all touch-manipulation animate-fade-in"
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 py-3 rounded-xl border transition-all touch-manipulation animate-fade-in active:scale-95",
+                  (action as any).highlight
+                    ? "bg-primary/10 border-primary/30 hover:bg-primary/15 active:bg-primary/20"
+                    : "bg-card border-border/40 hover:bg-muted/40 active:bg-muted/60"
+                )}
                 style={staggerDelay(i, 30)}
               >
-                <action.icon className="h-[18px] w-[18px] text-foreground/70" />
-                <span className="text-[10px] font-medium text-foreground/80">{action.label}</span>
+                <action.icon className={cn("h-[18px] w-[18px]", (action as any).highlight ? "text-primary" : "text-foreground/70")} />
+                <span className={cn("text-[10px] font-medium", (action as any).highlight ? "text-primary font-bold" : "text-foreground/80")}>{action.label}</span>
               </button>
             ))}
           </div>
