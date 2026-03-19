@@ -35,6 +35,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const [entries, setEntries] = useState<InvestmentEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
+  const [payoutTarget, setPayoutTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => { if (open && user) fetchAll(); }, [open, user]);
 
