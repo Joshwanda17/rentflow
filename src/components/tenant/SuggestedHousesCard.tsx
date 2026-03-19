@@ -19,16 +19,15 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
       // Get tenant's last rent request to understand their price range
       const { data: lastRequest } = await supabase
         .from('rent_requests')
-        .select('rent_amount, property_location')
+        .select('rent_amount')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1);
 
       const maxRent = lastRequest?.[0]?.rent_amount ? lastRequest[0].rent_amount * 1.3 : 500000;
-      const location = lastRequest?.[0]?.property_location || null;
 
       // Find available empty houses matching criteria
-      let query = supabase
+      const query = supabase
         .from('house_listings')
         .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, agent_id, latitude, longitude, verified')
         .eq('status', 'available')
@@ -36,10 +35,6 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
         .lte('monthly_rent', maxRent)
         .order('created_at', { ascending: false })
         .limit(6);
-
-      if (region) {
-        query = query.ilike('region', `%${region}%`);
-      }
 
       const { data: houses } = await query;
       if (!houses?.length) return [];
