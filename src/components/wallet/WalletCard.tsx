@@ -167,12 +167,7 @@ export function WalletCard() {
 
           {/* Quick Stats Row */}
           {transactions.length > 0 && (
-            <motion.div 
-              className="flex gap-3 mt-4 pt-3 border-t border-primary-foreground/20"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
+            <div className="flex gap-3 mt-4 pt-3 border-t border-primary-foreground/20">
               <div className="flex items-center gap-2 flex-1">
                 <div className="p-1.5 rounded-full bg-success/20">
                   <TrendingUp className="h-3.5 w-3.5 text-success" />
@@ -199,7 +194,7 @@ export function WalletCard() {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
         
