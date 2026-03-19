@@ -55,8 +55,7 @@ export function VerificationOpportunitiesButton() {
   const [loading, setLoading] = useState(false);
   const [verifyingHouse, setVerifyingHouse] = useState<string | null>(null);
   const [promptHouseId, setPromptHouseId] = useState<string | null>(null);
-
-  const totalCount = rentCount + houseCount;
+  const [promptTenantId, setPromptTenantId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCounts();
