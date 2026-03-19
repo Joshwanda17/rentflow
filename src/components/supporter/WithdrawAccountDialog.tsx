@@ -318,10 +318,98 @@ export function WithdrawAccountDialog({
               </AnimatePresence>
             </>
           ) : (
-            <div className="flex items-center gap-2 p-4 rounded-xl bg-muted/50 text-muted-foreground text-sm">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>This account has no balance to withdraw</span>
-            </div>
+            <>
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-sm">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                <span className="text-muted-foreground">No balance yet — but you can <strong className="text-foreground">set up your payout method</strong> now so withdrawals are instant later.</span>
+              </div>
+
+              {/* ═══ PAYOUT METHOD (zero balance) ═══ */}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold">Set Up Withdrawal Method</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PAYOUT_OPTIONS.map((opt) => (
+                    <Card
+                      key={opt.value}
+                      className={`p-3 cursor-pointer transition-all text-center ${
+                        payoutMode === opt.value
+                          ? 'ring-2 ring-primary border-primary bg-primary/5'
+                          : 'hover:border-primary/50'
+                      }`}
+                      onClick={() => setPayoutMode(opt.value)}
+                    >
+                      <span className="text-xl">{opt.icon}</span>
+                      <p className="text-xs font-bold mt-1">{opt.label}</p>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={payoutMode}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="space-y-3"
+                >
+                  {(payoutMode === 'mtn' || payoutMode === 'airtel') && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">
+                          {payoutMode === 'mtn' ? 'MTN' : 'Airtel'} Mobile Money Number
+                        </Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input type="tel" placeholder="e.g. 0770123456" value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)} className="h-11 pl-10" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Registered Name</Label>
+                        <Input type="text" placeholder="e.g. JOHN DOE" value={momoName} onChange={(e) => setMomoName(e.target.value)} className="h-11" />
+                      </div>
+                    </>
+                  )}
+                  {payoutMode === 'bank' && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Bank Name</Label>
+                        <Select value={bankName} onValueChange={setBankName}>
+                          <SelectTrigger className="h-11"><SelectValue placeholder="Select your bank..." /></SelectTrigger>
+                          <SelectContent className="max-h-60">
+                            {UGANDA_BANKS.map(b => (<SelectItem key={b} value={b}>{b}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Account Holder Name</Label>
+                        <div className="relative">
+                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input type="text" placeholder="e.g. JOHN DOE" value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} className="h-11 pl-10" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Account Number</Label>
+                        <div className="relative">
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input type="text" placeholder="e.g. 9030012345678" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} className="h-11 pl-10" />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {payoutMode === 'cash' && (
+                    <Card className="p-3 bg-emerald-500/5 border-emerald-500/20">
+                      <p className="text-xs font-bold text-foreground mb-1">💵 Cash at Agent Shop</p>
+                      <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground text-[11px]">
+                        <li>Your request will be reviewed by a manager</li>
+                        <li>Once approved, you'll be notified</li>
+                        <li>Visit the nearest agent shop with your ID to collect</li>
+                      </ol>
+                    </Card>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </>
           )}
         </div>
 
