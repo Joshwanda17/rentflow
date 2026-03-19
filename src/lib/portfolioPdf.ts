@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
 import { formatUGX } from '@/lib/rentCalculations';
 
 export interface PortfolioPdfData {
@@ -33,7 +33,8 @@ function getOrdinalSuffix(day: number): string {
   }
 }
 
-export function generatePortfolioPdf(data: PortfolioPdfData): Blob {
+export async function generatePortfolioPdf(data: PortfolioPdfData): Promise<Blob> {
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const pw = pdf.internal.pageSize.getWidth();
   const margin = 16;
@@ -183,8 +184,8 @@ export function generatePortfolioPdf(data: PortfolioPdfData): Blob {
 }
 
 /** Download the PDF to the user's device */
-export function downloadPortfolioPdf(data: PortfolioPdfData) {
-  const blob = generatePortfolioPdf(data);
+export async function downloadPortfolioPdf(data: PortfolioPdfData) {
+  const blob = await generatePortfolioPdf(data);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

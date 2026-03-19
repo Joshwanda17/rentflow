@@ -14,7 +14,7 @@ import { PrintableReceiptSheet } from './PrintableReceiptSheet';
 import { VendorAnalytics } from './VendorAnalytics';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast as sonnerToast } from 'sonner';
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { QRCodeCanvas } from 'qrcode.react';
 import {
   Dialog,
@@ -335,6 +335,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
   };
 
   const generateReceiptPDF = async (): Promise<Blob> => {
+    const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',

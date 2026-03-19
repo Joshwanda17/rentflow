@@ -117,7 +117,7 @@ export function AgentCollectionsWidget() {
     } catch { toast.error('Failed to load user'); }
   };
 
-  const handleDownloadReport = (group: AgentGroup) => {
+  const handleDownloadReport = async (group: AgentGroup) => {
     const reportData = {
       agentName: group.agent_name,
       totalCollected: group.total,
@@ -132,7 +132,7 @@ export function AgentCollectionsWidget() {
         notes: p.notes,
       })),
     };
-    const blob = generateAgentReportPdf(reportData);
+    const blob = await generateAgentReportPdf(reportData);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

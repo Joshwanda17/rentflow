@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
 
 const formatUGX = (value: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
@@ -20,7 +20,8 @@ interface AgentReportData {
   payments: PaymentRow[];
 }
 
-export function generateAgentReportPdf(data: AgentReportData): Blob {
+export async function generateAgentReportPdf(data: AgentReportData): Promise<Blob> {
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const pw = pdf.internal.pageSize.getWidth();
   const margin = 12;

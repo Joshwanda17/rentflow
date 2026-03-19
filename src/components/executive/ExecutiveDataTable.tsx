@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 
 export interface Column<T> {
   key: keyof T & string;
@@ -103,7 +103,8 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
     URL.revokeObjectURL(url);
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
     doc.text(title || 'Report', 14, 16);

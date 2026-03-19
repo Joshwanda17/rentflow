@@ -14,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { useCurrency } from '@/hooks/useCurrency';
 import { useLanguage } from '@/hooks/useLanguage';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
@@ -137,6 +137,7 @@ export default function TryCalculator() {
       // Small delay for visual feedback
       await new Promise(resolve => setTimeout(resolve, 300));
       
+      const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       

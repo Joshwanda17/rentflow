@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
 import { supabase } from '@/integrations/supabase/client';
 
 interface AffectedUser {
@@ -105,6 +105,7 @@ export async function generatePhantomBalancesPDF() {
     throw new Error('No affected users found.');
   }
 
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const m = 12;
   const pw = pdf.internal.pageSize.getWidth();

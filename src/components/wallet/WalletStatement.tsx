@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
 interface LedgerEntry {
@@ -164,7 +164,7 @@ export function WalletStatement() {
     }
   };
 
-  const exportToPDF = useCallback(() => {
+  const exportToPDF = useCallback(async () => {
     if (entries.length === 0) {
       toast.error('No transactions to export');
       return;
@@ -173,6 +173,7 @@ export function WalletStatement() {
     setExporting(true);
 
     try {
+      const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();

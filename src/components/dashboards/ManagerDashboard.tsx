@@ -26,7 +26,7 @@ import {
   ArrowDownToLine,
   Home
 } from 'lucide-react';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { format, startOfMonth, isToday, isThisWeek } from 'date-fns';
@@ -671,12 +671,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     toast.success(`Exported ${filteredOnboarders.length} users to CSV`);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (filteredOnboarders.length === 0) {
       toast.error('No data to export');
       return;
     }
 
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     

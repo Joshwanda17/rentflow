@@ -1,4 +1,5 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
+import type { jsPDF as JsPDFType } from 'jspdf';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -8,7 +9,7 @@ const GRAY: [number, number, number] = [107, 114, 128];
 const BLACK: [number, number, number] = [17, 24, 39];
 const WHITE: [number, number, number] = [255, 255, 255];
 
-function addBrandHeader(doc: jsPDF, title: string): number {
+function addBrandHeader(doc: JsPDFType, title: string): number {
   // Purple header bar
   doc.setFillColor(...BRAND_PURPLE);
   doc.rect(0, 0, 210, 38, 'F');
@@ -35,7 +36,7 @@ function addBrandHeader(doc: jsPDF, title: string): number {
   return 46;
 }
 
-function addRow(doc: jsPDF, y: number, label: string, value: string, bold = false) {
+function addRow(doc: JsPDFType, y: number, label: string, value: string, bold = false) {
   doc.setTextColor(...GRAY);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -49,14 +50,14 @@ function addRow(doc: jsPDF, y: number, label: string, value: string, bold = fals
   return y + 7;
 }
 
-function addDivider(doc: jsPDF, y: number) {
+function addDivider(doc: JsPDFType, y: number) {
   doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.3);
   doc.line(14, y, 196, y);
   return y + 4;
 }
 
-function addFooter(doc: jsPDF) {
+function addFooter(doc: JsPDFType) {
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFillColor(249, 250, 251);
   doc.rect(0, pageHeight - 20, 210, 20, 'F');
@@ -81,7 +82,8 @@ export interface DepositReceiptData {
   recipientName?: string;
 }
 
-export function generateDepositReceiptPdf(data: DepositReceiptData): jsPDF {
+export async function generateDepositReceiptPdf(data: DepositReceiptData): Promise<JsPDFType> {
+  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   let y = addBrandHeader(doc, 'DEPOSIT RECEIPT');
 
@@ -120,8 +122,8 @@ export function generateDepositReceiptPdf(data: DepositReceiptData): jsPDF {
   return doc;
 }
 
-export function downloadDepositReceipt(data: DepositReceiptData) {
-  const doc = generateDepositReceiptPdf(data);
+export async function downloadDepositReceipt(data: DepositReceiptData) {
+  const doc = await generateDepositReceiptPdf(data);
   doc.save(`Welile_Deposit_Receipt_${format(new Date(), 'yyyyMMdd')}.pdf`);
 }
 
@@ -158,7 +160,8 @@ export interface RentStatementData {
   requestId: string;
 }
 
-export function generateRentStatementPdf(data: RentStatementData): jsPDF {
+export async function generateRentStatementPdf(data: RentStatementData): Promise<JsPDFType> {
+  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   let y = addBrandHeader(doc, 'RENT STATEMENT');
 
@@ -251,8 +254,8 @@ export function generateRentStatementPdf(data: RentStatementData): jsPDF {
   return doc;
 }
 
-export function downloadRentStatement(data: RentStatementData) {
-  const doc = generateRentStatementPdf(data);
+export async function downloadRentStatement(data: RentStatementData) {
+  const doc = await generateRentStatementPdf(data);
   doc.save(`Welile_Rent_Statement_${data.tenantName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
 }
 
