@@ -225,11 +225,13 @@ export function useWallet() {
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
           (payload) => {
-            if (payload.new) {
+          if (payload.new) {
               const updated = payload.new as Wallet;
               setWallet(updated);
               setIsOfflineData(false);
+              setLastSyncedAt(new Date());
               walletCache = { data: updated, userId: user.id, timestamp: Date.now() };
+              try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(updated)); } catch {}
               cacheWallet(updated);
             }
           }
