@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 

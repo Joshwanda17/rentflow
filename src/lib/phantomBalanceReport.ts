@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
 import { supabase } from '@/integrations/supabase/client';
 
 interface AffectedUser {

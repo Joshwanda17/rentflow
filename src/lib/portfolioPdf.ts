@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
 import { formatUGX } from '@/lib/rentCalculations';
 
 export interface PortfolioPdfData {

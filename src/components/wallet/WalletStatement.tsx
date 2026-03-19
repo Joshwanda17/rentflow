@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 
 interface LedgerEntry {

@@ -14,7 +14,7 @@ import { PrintableReceiptSheet } from './PrintableReceiptSheet';
 import { VendorAnalytics } from './VendorAnalytics';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast as sonnerToast } from 'sonner';
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { QRCodeCanvas } from 'qrcode.react';
 import {
   Dialog,

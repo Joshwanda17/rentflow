@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+// jsPDF loaded dynamically to reduce initial bundle size
 
 const formatUGX = (value: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);

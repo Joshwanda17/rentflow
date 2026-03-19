@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { Download, FileText, Loader2, Calendar, TrendingUp, Wallet, Percent } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 
 interface Contribution {
   id: string;

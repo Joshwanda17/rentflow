@@ -15,7 +15,7 @@ import welileLogo from '@/assets/welile-logo-small.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import { format, addMonths } from 'date-fns';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 
 interface InvestmentPackageSheetProps {
   open: boolean;

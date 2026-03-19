@@ -1,5 +1,4 @@
-import { toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
+// html-to-image and jsPDF loaded dynamically to reduce initial bundle size
 
 export interface ExportData {
   headers: string[];

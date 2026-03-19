@@ -26,7 +26,7 @@ import {
   ArrowDownToLine,
   Home
 } from 'lucide-react';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { format, startOfMonth, isToday, isThisWeek } from 'date-fns';

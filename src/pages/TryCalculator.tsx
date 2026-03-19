@@ -14,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
-import jsPDF from 'jspdf';
+// jsPDF loaded dynamically when needed
 import { useCurrency } from '@/hooks/useCurrency';
 import { useLanguage } from '@/hooks/useLanguage';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
