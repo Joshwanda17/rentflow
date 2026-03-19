@@ -14,6 +14,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { format, formatDistanceToNow, differenceInDays, isPast, addDays } from 'date-fns';
 import { FundAccountDialog } from './FundAccountDialog';
 import { toast } from 'sonner';
+import { PayoutMethodDialog } from './PayoutMethodDialog';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
