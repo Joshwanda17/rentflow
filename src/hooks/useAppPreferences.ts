@@ -9,6 +9,7 @@ export interface AppPreferences {
   rememberLogin: boolean;
   skipSplash: boolean;
   defaultRole: DefaultRolePreference;
+  unlockAllRoles: boolean;
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
@@ -18,6 +19,7 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   rememberLogin: true,
   skipSplash: false,
   defaultRole: 'auto',
+  unlockAllRoles: false,
 };
 
 const STORAGE_KEY = 'welile_app_preferences';
@@ -131,4 +133,16 @@ export function getPreferredDefaultRole(): DefaultRolePreference {
     }
   } catch (e) {}
   return 'auto';
+}
+
+// Standalone function to check if user has unlocked all roles for navigation
+export function areAllRolesUnlocked(): boolean {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const prefs = JSON.parse(stored);
+      return prefs.unlockAllRoles === true;
+    }
+  } catch (e) {}
+  return false;
 }

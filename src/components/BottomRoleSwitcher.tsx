@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
+import { areAllRolesUnlocked } from '@/hooks/useAppPreferences';
 import ApplyForRoleDialog from '@/components/ApplyForRoleDialog';
 
 interface BottomRoleSwitcherProps {
@@ -38,6 +39,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
   const staffRole = roles.find(r => STAFF_ROLES.includes(r));
 
   const isRoleGated = (role: AppRole): boolean => {
+    if (areAllRolesUnlocked()) return false; // user opted to unlock all roles
     if (!isQualifiedInvestor) return false;
     if (!GATED_ROLES.includes(role)) return false;
     if (roles.includes(role)) return false; // already has the role

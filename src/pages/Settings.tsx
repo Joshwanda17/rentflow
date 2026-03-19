@@ -1157,7 +1157,29 @@ export default function Settings() {
                   </RadioGroup>
                 </div>
 
-              {/* Reset All Preferences */}
+                {/* Unlock All Roles Navigation */}
+                <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="font-medium">Unlock All Roles</p>
+                        <p className="text-sm text-muted-foreground">
+                          Allow free navigation to Tenant, Agent & Landlord dashboards without approval
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={preferences.unlockAllRoles}
+                      onCheckedChange={(checked) => {
+                        updatePreference('unlockAllRoles', checked);
+                        toast.success(checked ? 'All roles unlocked for navigation' : 'Role gating re-enabled');
+                      }}
+                    />
+                  </div>
+                </div>
+
+
               <div className="p-4 rounded-xl bg-background/50 border border-border/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
