@@ -16,23 +16,16 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
   const { data: suggestions, isLoading } = useQuery({
     queryKey: ['tenant-suggested-houses', userId],
     queryFn: async () => {
-      // Get tenant's last rent request to understand their price range & region
+      // Get tenant's last rent request to understand their price range
       const { data: lastRequest } = await supabase
         .from('rent_requests')
-        .select('amount, landlord_phone')
+        .select('rent_amount, property_location')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1);
 
-      // Get tenant profile for location
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('region')
-        .eq('id', userId)
-        .single();
-
-      const maxRent = lastRequest?.[0]?.amount ? lastRequest[0].amount * 1.3 : 500000;
-      const region = profile?.region || null;
+      const maxRent = lastRequest?.[0]?.rent_amount ? lastRequest[0].rent_amount * 1.3 : 500000;
+      const location = lastRequest?.[0]?.property_location || null;
 
       // Find available empty houses matching criteria
       let query = supabase
