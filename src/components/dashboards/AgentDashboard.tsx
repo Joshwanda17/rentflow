@@ -66,6 +66,7 @@ import { staggerDelay } from '@/lib/cssAnimations';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
+import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
@@ -302,6 +303,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Credit Access */}
         <CreditAccessCard userId={user.id} compact />
+
+        {/* Tenant Rent Requests List */}
+        <AgentTenantRentRequestsList />
 
         <ApprovedRentRequestsWidget mode="agent" />
 
