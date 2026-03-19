@@ -107,6 +107,7 @@ export function LandlordOpsDashboard() {
   const { toast } = useToast();
   const [verifying, setVerifying] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
+  const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
 
   // Fetch house listings with joined landlord data
   const { data: listings, isLoading, refetch } = useQuery({
