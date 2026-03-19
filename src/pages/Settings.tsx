@@ -702,7 +702,7 @@ export default function Settings() {
         {/* ===== LEGAL SECTION ===== */}
         {hasLegalContent && (
           <div ref={el => sectionRefs.current['legal'] = el} className="scroll-mt-28 mb-6">
-            <SectionHeader icon={Scale} label="Legal & Agreements" />
+            <SectionHeader icon={Scale} label="Agreements You Signed" />
             <Card className="border-border/50 shadow-sm">
               <CardContent className="pt-5 space-y-3">
                 {roles.includes('tenant') && (
