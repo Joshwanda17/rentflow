@@ -39,7 +39,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   'commercial': '🏪 Commercial',
 };
 
-export function AgentTenantRentRequestsList() {
+interface AgentTenantRentRequestsListProps {
+  onOpenRequests?: () => void;
+}
+
+export function AgentTenantRentRequestsList({ onOpenRequests }: AgentTenantRentRequestsListProps) {
   const { user } = useAuth();
   const [requests, setRequests] = useState<RentRequest[]>([]);
   const [loading, setLoading] = useState(true);
