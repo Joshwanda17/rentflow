@@ -73,7 +73,6 @@ export default function WithdrawFlow({
     setSource('available');
     setAmount(100000);
     setCurrency('UGX');
-    setSelectedMethod(null);
     setPin('');
     setPayoutMode('mobile_money');
     setMomoNumber('');
