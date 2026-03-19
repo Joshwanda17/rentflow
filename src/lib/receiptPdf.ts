@@ -254,8 +254,8 @@ export async function generateRentStatementPdf(data: RentStatementData): Promise
   return doc;
 }
 
-export function downloadRentStatement(data: RentStatementData) {
-  const doc = generateRentStatementPdf(data);
+export async function downloadRentStatement(data: RentStatementData) {
+  const doc = await generateRentStatementPdf(data);
   doc.save(`Welile_Rent_Statement_${data.tenantName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`);
 }
 
