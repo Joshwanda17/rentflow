@@ -544,7 +544,7 @@ export default function Settings() {
 
         {/* ===== APPEARANCE SECTION ===== */}
         <div ref={el => sectionRefs.current['appearance'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Palette} label="Display & Sound" />
+          <SectionHeader icon={Palette} label="How It Looks & Sounds" />
 
           <Card className="border-border/50 shadow-sm">
             <CardContent className="pt-5 space-y-5">
