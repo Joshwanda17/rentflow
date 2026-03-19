@@ -49,12 +49,12 @@ interface Profile {
 type SettingsSection = 'account' | 'roles' | 'appearance' | 'security' | 'legal' | 'advanced';
 
 const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
-  { id: 'account', label: 'Account', icon: User },
+  { id: 'account', label: 'Me', icon: User },
   { id: 'roles', label: 'Roles', icon: Shield },
-  { id: 'appearance', label: 'Display', icon: Palette },
-  { id: 'security', label: 'Security', icon: ShieldCheck },
-  { id: 'legal', label: 'Legal', icon: Scale },
-  { id: 'advanced', label: 'Advanced', icon: SettingsIcon },
+  { id: 'appearance', label: 'Look & Feel', icon: Palette },
+  { id: 'security', label: 'Safety', icon: ShieldCheck },
+  { id: 'legal', label: 'Agreements', icon: Scale },
+  { id: 'advanced', label: 'More', icon: SettingsIcon },
 ];
 
 const itemVariants = {
