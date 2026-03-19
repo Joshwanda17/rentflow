@@ -62,6 +62,7 @@ function DashboardContent() {
   const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
 
   // Seamless role switch: auto-add public roles if not yet assigned
+  // For qualified investors (100K+ deployed), gating happens in BottomRoleSwitcher
   const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
     if (PUBLIC_ROLES.includes(newRole) && !roles.includes(newRole)) {
       await addRole(newRole);
