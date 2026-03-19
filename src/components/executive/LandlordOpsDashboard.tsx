@@ -6,7 +6,7 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
-  Building2, UserCheck, Smartphone,
+  Building2, UserCheck, Smartphone, Handshake, GitBranch,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/dialog';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
+import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
+import { DealPipeline } from './landlord-ops/DealPipeline';
 
 interface ListingWithLandlord {
   id: string;
