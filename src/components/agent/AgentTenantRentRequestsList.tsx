@@ -100,24 +100,30 @@ export function AgentTenantRentRequestsList() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="border border-border/60 overflow-hidden">
+      <Card className="border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-lg shadow-primary/10 overflow-hidden">
         <CardContent className="p-0">
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-primary/5 border-b border-border/40">
-            <div className="p-2 rounded-full bg-primary/10">
-              <FileText className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-3 px-4 py-3.5 bg-primary/15 border-b border-primary/20">
+            <div className="p-2.5 rounded-xl bg-primary/20">
+              <FileText className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-sm text-foreground">
-                Tenant Rent Requests
+              <h3 className="font-extrabold text-base text-foreground">
+                🏠 Tenant Rent Requests
               </h3>
-              <p className="text-[10px] text-muted-foreground">
-                {pendingCount > 0 ? `${pendingCount} pending` : 'All processed'}
+              <p className="text-[11px] text-muted-foreground font-medium">
+                {pendingCount > 0 ? `${pendingCount} awaiting action` : 'All processed'}
               </p>
             </div>
-            <Badge variant="secondary" className="text-[10px]">
-              {requests.length}
-            </Badge>
+            {pendingCount > 0 ? (
+              <Badge variant="warning" className="text-xs font-bold px-2 py-0.5 animate-pulse">
+                {pendingCount} pending
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px]">
+                {requests.length}
+              </Badge>
+            )}
           </div>
 
           {/* List */}
