@@ -348,7 +348,7 @@ export default function Settings() {
                   <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter your full name" className="pl-10 h-11" />
+                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Type your full name here" className="pl-10 h-11" />
                   </div>
                 </div>
 
