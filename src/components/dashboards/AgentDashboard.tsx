@@ -307,7 +307,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <CreditAccessCard userId={user.id} compact />
 
         {/* Tenant Rent Requests List */}
-        <AgentTenantRentRequestsList />
+        <AgentTenantRentRequestsList onOpenRequests={() => setMyRentRequestsOpen(true)} />
 
         <ApprovedRentRequestsWidget mode="agent" />
 
