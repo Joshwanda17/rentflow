@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
-import { Card } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Wallet, ArrowRight, AlertCircle, ArrowDownToLine, Phone, Building2, Banknote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
