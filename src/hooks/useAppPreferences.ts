@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export type DefaultRolePreference = 'auto' | 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
+
 export interface AppPreferences {
   notificationSounds: boolean;
   notificationSoundType: 'ding' | 'pop' | 'chime';
   opportunitySoundType: 'ding' | 'pop' | 'chime' | 'opportunity';
   rememberLogin: boolean;
   skipSplash: boolean;
+  defaultRole: DefaultRolePreference;
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
@@ -14,6 +17,7 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   opportunitySoundType: 'opportunity',
   rememberLogin: true,
   skipSplash: false,
+  defaultRole: 'auto',
 };
 
 const STORAGE_KEY = 'welile_app_preferences';
