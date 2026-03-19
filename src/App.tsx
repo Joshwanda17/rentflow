@@ -93,6 +93,7 @@ const COODashboardPage = lazy(() => import('./pages/coo/Dashboard'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/Dashboard'));
 const AdminUsersPage = lazy(() => import('./pages/admin/Users'));
 const RoleGuard = lazy(() => import('./components/auth/RoleGuard'));
+const ExecutiveHubPage = lazy(() => import('./pages/ExecutiveHub'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
