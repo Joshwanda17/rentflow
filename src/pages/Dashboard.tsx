@@ -13,7 +13,7 @@ import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
-import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
+import { getPreferredDefaultRole, areAllRolesUnlocked } from '@/hooks/useAppPreferences';
 import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
