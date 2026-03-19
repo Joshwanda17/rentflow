@@ -549,7 +549,7 @@ export default function Settings() {
           <Card className="border-border/50 shadow-sm">
             <CardContent className="pt-5 space-y-5">
               {/* Theme */}
-              <SettingsRow label="Theme" description="Light or dark mode">
+              <SettingsRow label="Dark / Light" description="Change the look of the app">
                 <ThemeToggle />
               </SettingsRow>
 
