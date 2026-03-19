@@ -462,6 +462,19 @@ export function LandlordOpsDashboard() {
                   );
                 },
               },
+              {
+                key: 'id', label: 'Action', render: (_, row) => (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px] gap-1"
+                    onClick={() => setAdjustListing(row)}
+                  >
+                    <TrendingDown className="h-3 w-3" />
+                    Reduce Rent
+                  </Button>
+                ),
+              },
             ]}
             loading={isLoading}
             title={`🏚️ Empty Houses (${emptyHouses.length})`}
