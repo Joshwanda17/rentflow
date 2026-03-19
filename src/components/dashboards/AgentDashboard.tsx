@@ -17,6 +17,7 @@ import {
   Receipt,
   Share2,
   TrendingUp,
+  Banknote,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -269,23 +270,28 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
           <div className="grid grid-cols-4 gap-1.5">
             {[
+              { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), highlight: true },
               { icon: MapPin, label: 'Visit', onClick: () => setVisitDialogOpen(true) },
               { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
               { icon: Receipt, label: 'Receipt', onClick: () => setReceiptOpen(true) },
               { icon: Wallet, label: 'Deposit', onClick: handleDeposit },
-              { icon: Share2, label: 'Refer', onClick: () => navigate('/referrals') },
               { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
               { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
               <button
                 key={action.label}
                 onClick={() => { hapticTap(); action.onClick(); }}
-                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-card border border-border/40 hover:bg-muted/40 active:scale-95 active:bg-muted/60 transition-all touch-manipulation animate-fade-in"
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 py-3 rounded-xl border transition-all touch-manipulation animate-fade-in active:scale-95",
+                  (action as any).highlight
+                    ? "bg-primary/10 border-primary/30 hover:bg-primary/15 active:bg-primary/20"
+                    : "bg-card border-border/40 hover:bg-muted/40 active:bg-muted/60"
+                )}
                 style={staggerDelay(i, 30)}
               >
-                <action.icon className="h-[18px] w-[18px] text-foreground/70" />
-                <span className="text-[10px] font-medium text-foreground/80">{action.label}</span>
+                <action.icon className={cn("h-[18px] w-[18px]", (action as any).highlight ? "text-primary" : "text-foreground/70")} />
+                <span className={cn("text-[10px] font-medium", (action as any).highlight ? "text-primary font-bold" : "text-foreground/80")}>{action.label}</span>
               </button>
             ))}
           </div>
