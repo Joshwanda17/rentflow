@@ -454,7 +454,6 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                         </div>
                       )}
                     </div>
-                  </div>
                 </div>
               )}
 
