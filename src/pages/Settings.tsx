@@ -37,6 +37,7 @@ import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { SupporterAgreementModal } from '@/components/supporter/agreement';
 import { MyPerformanceCard } from '@/components/manager/MyPerformanceCard';
 import { useDeployedCapital } from '@/hooks/useDeployedCapital';
+import { cn } from '@/lib/utils';
 
 interface Profile {
   id: string;
