@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Download, Share2, CheckCircle, ArrowUpRight, ArrowDownLeft, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { toPng } from 'html-to-image';
+// html-to-image loaded dynamically when needed
 import { buildReceiptText, shareViaWhatsApp } from '@/lib/shareReceipt';
 
 interface Transaction {
