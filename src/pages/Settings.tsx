@@ -582,8 +582,8 @@ export default function Settings() {
               {/* Haptic */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Vibrate className="h-4 w-4 text-primary" />
-                  <p className="font-medium text-sm">Haptic Feedback</p>
+                   <Vibrate className="h-4 w-4 text-primary" />
+                  <p className="font-medium text-sm">Vibration</p>
                 </div>
                 <RadioGroup 
                   value={hapticIntensity} 
