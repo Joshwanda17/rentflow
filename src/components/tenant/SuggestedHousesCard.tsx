@@ -40,14 +40,14 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
 
   const maxRent = lastRequest?.[0]?.rent_amount ? lastRequest[0].rent_amount * 1.3 : 500000;
 
-  const { data: houses } = await (supabase
+  const { data: houses } = await client
     .from('house_listings')
     .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, agent_id')
     .eq('status', 'available')
     .is('tenant_id', null)
     .lte('monthly_rent', maxRent)
     .order('created_at', { ascending: false })
-    .limit(6) as any);
+    .limit(6);
 
   if (!houses?.length) return [];
 
