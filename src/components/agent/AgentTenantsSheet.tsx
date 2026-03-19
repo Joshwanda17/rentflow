@@ -293,7 +293,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <div className="p-1.5 rounded-lg bg-destructive/20">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-semibold text-destructive">{stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''} owe rent</p>
                   <p className="text-[10px] text-destructive/70">Total outstanding: {formatUGX(stats.totalOwing)}</p>
                 </div>
