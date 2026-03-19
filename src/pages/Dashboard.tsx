@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, Suspense, lazy, memo } from 'react';
+
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -12,7 +13,7 @@ import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
-import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
+import { getPreferredDefaultRole, areAllRolesUnlocked } from '@/hooks/useAppPreferences';
 import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
@@ -103,9 +104,11 @@ function DashboardContent() {
   }, []);
 
   // Auto-default qualified investors (≥100K deployed) to Funder dashboard
+  // BUT skip if user has toggled "Open All Dashboards" — they choose freely
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
     if (!isQualifiedInvestor) return;
+    if (areAllRolesUnlocked()) return; // user opted to freely navigate all roles
     // Only auto-switch if user hasn't set an explicit preference
     const preferred = getPreferredDefaultRole();
     if (preferred !== 'auto') return;
