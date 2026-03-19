@@ -104,9 +104,11 @@ function DashboardContent() {
   }, []);
 
   // Auto-default qualified investors (≥100K deployed) to Funder dashboard
+  // BUT skip if user has toggled "Open All Dashboards" — they choose freely
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
     if (!isQualifiedInvestor) return;
+    if (areAllRolesUnlocked()) return; // user opted to freely navigate all roles
     // Only auto-switch if user hasn't set an explicit preference
     const preferred = getPreferredDefaultRole();
     if (preferred !== 'auto') return;
