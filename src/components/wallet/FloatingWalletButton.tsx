@@ -7,6 +7,7 @@ import { hapticTap } from '@/lib/haptics';
 import { FullScreenWalletSheet } from './FullScreenWalletSheet';
 import { Badge } from '@/components/ui/badge';
 import { fetchPendingCounts } from '@/lib/pendingCountsCache';
+import { getBalanceDotClass } from '@/lib/walletUtils';
 
 export function FloatingWalletButton() {
   const { user } = useAuth();
