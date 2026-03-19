@@ -18,7 +18,7 @@ import { AnimatedBalance } from './AnimatedBalance';
 import { WalletBreakdown } from './WalletBreakdown';
 import { WalletStatement } from './WalletStatement';
 import { MyReferralsCount } from './MyReferralsCount';
-import { RecentBalanceChanges } from './RecentBalanceChanges';
+
 import { RecentAutoCharges } from './RecentAutoCharges';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
