@@ -29,7 +29,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 
 export function WalletCard() {
   const navigate = useNavigate();
-  const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
+  const { wallet, transactions, loading, isOfflineData, lastSyncedAt, refreshWallet, refreshTransactions } = useWallet();
   const { user } = useAuth();
   const { profile } = useProfile();
   const [sendOpen, setSendOpen] = useState(false);
