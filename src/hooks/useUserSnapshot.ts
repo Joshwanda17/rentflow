@@ -156,28 +156,26 @@ export function useUserSnapshot(userId: string | undefined) {
   const fetchSnapshot = useCallback(async (force = false) => {
     if (!userId) return;
 
-    // Check cache first
-    if (!force) {
-      const cached = await getCachedSnapshot(userId);
-      if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
-        setSnapshot(cached.data);
-        setLastFetched(cached.cachedAt);
-        setLoading(false);
+    // Always try to show cached data immediately (stale-while-revalidate)
+    const cached = await getCachedSnapshot(userId);
+    if (cached) {
+      setSnapshot(cached.data);
+      setLastFetched(cached.cachedAt);
+      setLoading(false);
+
+      // If cache is fresh and not forced, skip network call
+      if (!force && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
         return;
       }
     }
 
-    // If offline, use stale cache
+    // If offline, stop here (we already showed cached data above)
     if (!navigator.onLine) {
-      const cached = await getCachedSnapshot(userId);
-      if (cached) {
-        setSnapshot(cached.data);
-        setLastFetched(cached.cachedAt);
-      }
       setLoading(false);
       return;
     }
 
+    // Background refresh — don't set loading=true if we have cached data
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setLoading(false); return; }
@@ -188,8 +186,6 @@ export function useUserSnapshot(userId: string | undefined) {
 
       if (res.error) {
         console.error('[Snapshot] fetch error:', res.error);
-        const cached = await getCachedSnapshot(userId);
-        if (cached) { setSnapshot(cached.data); setLastFetched(cached.cachedAt); }
         setLoading(false);
         return;
       }
@@ -205,8 +201,6 @@ export function useUserSnapshot(userId: string | undefined) {
       ]);
     } catch (err) {
       console.error('[Snapshot] unexpected error:', err);
-      const cached = await getCachedSnapshot(userId);
-      if (cached) { setSnapshot(cached.data); setLastFetched(cached.cachedAt); }
     } finally {
       setLoading(false);
     }
