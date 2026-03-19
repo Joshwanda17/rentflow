@@ -14,7 +14,7 @@ interface SuggestedHousesCardProps {
 
 export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardProps) {
   const { data: suggestions, isLoading } = useQuery({
-    queryKey: ['tenant-suggested-houses', userId],
+    queryKey: ['tenant-suggested-houses', userId] as const,
     queryFn: async () => {
       // Get tenant's last rent request to understand their price range
       const { data: lastRequest } = await supabase
