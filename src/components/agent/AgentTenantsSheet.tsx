@@ -473,7 +473,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="overflow-hidden border-t border-border"
                       >
                         <div className="p-3 space-y-3 bg-muted/20">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
                             <Banknote className="h-3 w-3" />
                             Rent Repayment Schedules
                           </p>
