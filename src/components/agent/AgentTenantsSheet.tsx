@@ -483,7 +483,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             </div>
                           ) : requests.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-3">No active rent requests found</p>
+                            <p className="text-xs text-muted-foreground text-center py-3">No rent payments here yet</p>
                           ) : (
                             requests.map((req) => {
                               const progress = req.total_repayment > 0 ? Math.min((req.amount_repaid / req.total_repayment) * 100, 100) : 0;
