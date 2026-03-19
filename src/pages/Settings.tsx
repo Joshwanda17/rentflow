@@ -70,6 +70,8 @@ const itemVariants = {
 export default function Settings() {
   const navigate = useNavigate();
   const { user, roles, loading: authLoading } = useAuth();
+  const { isQualifiedInvestor } = useDeployedCapital(user?.id);
+  const isFunder = roles.includes('supporter') || isQualifiedInvestor;
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
