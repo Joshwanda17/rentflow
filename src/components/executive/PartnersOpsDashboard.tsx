@@ -31,7 +31,7 @@ export function PartnersOpsDashboard() {
     queryKey: ['exec-partner-portfolios'],
     queryFn: async () => {
       const { data } = await supabase.from('investor_portfolios')
-        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, total_roi_earned, status, maturity_date, created_at, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, account_number, payout_day, auto_reinvest, duration_months')
+        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, total_roi_earned, status, maturity_date, created_at, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number, payout_day, auto_reinvest, duration_months')
         .order('created_at', { ascending: false }).limit(200);
 
       if (!data) return [];
@@ -145,6 +145,17 @@ export function PartnersOpsDashboard() {
     { key: 'investment_amount', label: 'Invested', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'roi_percentage', label: 'ROI%', render: (v) => `${v}%` },
     { key: 'total_roi_earned', label: 'Earned', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'payment_method', label: 'Payout', sortable: false, render: (v, row) => {
+      const method = String(v || 'none');
+      if (method === 'bank_transfer') return (
+        <span className="text-[10px] font-medium">🏦 {row.bank_name ? String(row.bank_name).split(' ').slice(0, 2).join(' ') : 'Bank'}</span>
+      );
+      if (method === 'mobile_money') return (
+        <span className="text-[10px] font-medium">📱 {row.mobile_network || 'MoMo'}</span>
+      );
+      if (method === 'cash') return <span className="text-[10px] font-medium">💵 Cash</span>;
+      return <span className="text-[10px] text-muted-foreground italic">Not set</span>;
+    }},
     { key: 'health_score', label: 'Health', sortable: false, render: (v) => {
       const score = Number(v);
       const color = score >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'

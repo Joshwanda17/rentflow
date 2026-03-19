@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Pencil } from 'lucide-react';
+import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
 
 interface EditInvestmentAccountDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ interface EditInvestmentAccountDialogProps {
     mobile_money_number: string | null;
     mobile_network: string | null;
     bank_name: string | null;
+    bank_account_name?: string | null;
     account_number: string | null;
     payout_day: number | null;
   } | null;
@@ -33,10 +35,6 @@ interface EditInvestmentAccountDialogProps {
 }
 
 const CURRENCIES = ['UGX', 'USD', 'KES', 'EUR', 'GBP'];
-const PAYMENT_METHODS = [
-  { value: 'mobile_money', label: 'Mobile Money' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-];
 
 export function EditInvestmentAccountDialog({ open, onOpenChange, account, onSuccess }: EditInvestmentAccountDialogProps) {
   const { toast } = useToast();
@@ -53,6 +51,7 @@ export function EditInvestmentAccountDialog({ open, onOpenChange, account, onSuc
     mobile_money_number: '',
     mobile_network: '',
     bank_name: '',
+    bank_account_name: '',
     account_number: '',
     payout_day: '',
   });
@@ -67,10 +66,10 @@ export function EditInvestmentAccountDialog({ open, onOpenChange, account, onSuc
         mobile_money_number: account.mobile_money_number || '',
         mobile_network: account.mobile_network || '',
         bank_name: account.bank_name || '',
+        bank_account_name: (account as any).bank_account_name || '',
         account_number: account.account_number || '',
         payout_day: account.payout_day ? String(account.payout_day) : '',
       });
-      // Load email for the investor
       const uid = account.investor_id || account.agent_id;
       if (uid) {
         setLoadingEmail(true);
@@ -92,13 +91,13 @@ export function EditInvestmentAccountDialog({ open, onOpenChange, account, onSuc
         mobile_money_number: form.mobile_money_number.trim() || null,
         mobile_network: form.mobile_network.trim() || null,
         bank_name: form.bank_name.trim() || null,
+        bank_account_name: form.bank_account_name.trim() || null,
         account_number: form.account_number.trim() || null,
         payout_day: form.payout_day ? parseInt(form.payout_day) : null,
-      }).eq('id', account.id);
+      } as any).eq('id', account.id);
 
       if (error) throw error;
 
-      // Update email on profile if changed
       const uid = account.investor_id || account.agent_id;
       if (email.trim() && uid) {
         await supabase.from('profiles').update({ email: email.trim() }).eq('id', uid);
@@ -141,7 +140,7 @@ export function EditInvestmentAccountDialog({ open, onOpenChange, account, onSuc
               <Input value={form.portfolio_code} onChange={e => set('portfolio_code', e.target.value)} className="h-9" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Account Name</Label>
+              <Label className="text-xs">Portfolio Name</Label>
               <Input value={form.account_name} onChange={e => set('account_name', e.target.value)} placeholder="e.g. Growth Fund" className="h-9" />
             </div>
           </div>
@@ -167,39 +166,73 @@ export function EditInvestmentAccountDialog({ open, onOpenChange, account, onSuc
             <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="partner@example.com" className="h-9" disabled={loadingEmail} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Payment Method</Label>
-            <Select value={form.payment_method} onValueChange={v => set('payment_method', v)}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          {/* ═══ PAYOUT METHOD SECTION ═══ */}
+          <div className="border-t pt-4 mt-2">
+            <p className="text-xs font-bold text-foreground mb-3 uppercase tracking-wider">💰 Payout Method for This Portfolio</p>
+            
+            <div className="space-y-1.5">
+              <Label className="text-xs">Payment Mode</Label>
+              <Select value={form.payment_method} onValueChange={v => set('payment_method', v)}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYOUT_METHODS.map(m => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.icon} {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {form.payment_method === 'mobile_money' && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Mobile Number</Label>
-                <Input value={form.mobile_money_number} onChange={e => set('mobile_money_number', e.target.value)} className="h-9" />
+                <Input value={form.mobile_money_number} onChange={e => set('mobile_money_number', e.target.value)} placeholder="0770123456" className="h-9" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Network</Label>
-                <Input value={form.mobile_network} onChange={e => set('mobile_network', e.target.value)} placeholder="MTN, Airtel..." className="h-9" />
+                <Select value={form.mobile_network || ''} onValueChange={v => set('mobile_network', v)}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MTN">MTN</SelectItem>
+                    <SelectItem value="Airtel">Airtel</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
 
           {form.payment_method === 'bank_transfer' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Bank Name</Label>
-                <Input value={form.bank_name} onChange={e => set('bank_name', e.target.value)} className="h-9" />
+                <Select value={form.bank_name || ''} onValueChange={v => set('bank_name', v)}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select bank..." /></SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {UGANDA_BANKS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Account Number</Label>
-                <Input value={form.account_number} onChange={e => set('account_number', e.target.value)} className="h-9" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Account Holder Name</Label>
+                  <Input value={form.bank_account_name} onChange={e => set('bank_account_name', e.target.value)} placeholder="e.g. JOHN DOE" className="h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Account Number</Label>
+                  <Input value={form.account_number} onChange={e => set('account_number', e.target.value)} placeholder="e.g. 9030012345678" className="h-9" />
+                </div>
               </div>
+            </div>
+          )}
+
+          {form.payment_method === 'cash' && (
+            <div className="px-3 py-2 rounded-lg bg-muted/50 border border-border/60">
+              <p className="text-xs text-muted-foreground">
+                💵 Cash pickup — partner will collect at the office. No account details required.
+              </p>
             </div>
           )}
         </div>

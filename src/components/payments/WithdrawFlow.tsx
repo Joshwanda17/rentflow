@@ -1,23 +1,21 @@
 import { useState } from 'react';
 import StepperModal, { Step } from './StepperModal';
-import PaymentMethodCard from './PaymentMethodCard';
 import ConfirmSummaryCard from './ConfirmSummaryCard';
 import ProcessingScreen from './ProcessingScreen';
 import ReceiptCard from './ReceiptCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { LOCAL_PAYMENT_METHODS, INTERNATIONAL_PAYMENT_METHODS, formatCurrency, calculateFee, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
-import { PaymentMethod } from './PaymentMethodCard';
+import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Wallet, TrendingUp, Lock, Phone } from 'lucide-react';
+import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
 
 interface WithdrawFlowProps {
   open: boolean;
@@ -30,8 +28,8 @@ interface WithdrawFlowProps {
 const STEPS: Step[] = [
   { id: 'source', title: 'Select Source' },
   { id: 'amount', title: 'Amount' },
-  { id: 'momo', title: 'Mobile Money' },
-  { id: 'destination', title: 'Destination' },
+  { id: 'payout', title: 'Payout Mode' },
+  { id: 'details', title: 'Details' },
   { id: 'security', title: 'Verify' },
   { id: 'process', title: 'Processing' },
 ];
@@ -48,30 +46,41 @@ export default function WithdrawFlow({
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
   const [currency, setCurrency] = useState('UGX');
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [pin, setPin] = useState('');
+
+  // Payout mode state
+  const [payoutMode, setPayoutMode] = useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
+  
+  // Mobile Money details
   const [momoNumber, setMomoNumber] = useState('');
   const [momoName, setMomoName] = useState('');
   const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
+
+  // Bank details
+  const [bankName, setBankName] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
   const maxAmount = source === 'available' ? availableBalance : roiBalance;
-  const fee = selectedMethod ? calculateFee(amount, selectedMethod) : 0;
-  const netAmount = amount - fee;
 
   const handleReset = () => {
     setCurrentStep(0);
     setSource('available');
     setAmount(100000);
     setCurrency('UGX');
-    setSelectedMethod(null);
     setPin('');
+    setPayoutMode('mobile_money');
     setMomoNumber('');
     setMomoName('');
     setMomoProvider('MTN');
+    setBankName('');
+    setBankAccountName('');
+    setBankAccountNumber('');
     setIsProcessing(false);
     setIsComplete(false);
     setWithdrawalRef('');
@@ -86,11 +95,28 @@ export default function WithdrawFlow({
     switch (currentStep) {
       case 0: return true;
       case 1: return amount > 0 && amount <= maxAmount;
-      case 2: return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
-      case 3: return selectedMethod !== null;
+      case 2: return !!payoutMode;
+      case 3: {
+        if (payoutMode === 'mobile_money') return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
+        if (payoutMode === 'bank_transfer') return !!bankName && bankAccountName.trim().length >= 2 && bankAccountNumber.trim().length >= 5;
+        if (payoutMode === 'cash') return true;
+        return false;
+      }
       case 4: return pin.length === 4;
       default: return false;
     }
+  };
+
+  const getPayoutSummary = () => {
+    if (payoutMode === 'mobile_money') return `${momoProvider} - ${momoNumber}`;
+    if (payoutMode === 'bank_transfer') return `${bankName.split(' ').slice(0, 2).join(' ')} - ${bankAccountNumber}`;
+    return 'Cash Pickup at Office';
+  };
+
+  const getPayoutName = () => {
+    if (payoutMode === 'mobile_money') return momoName;
+    if (payoutMode === 'bank_transfer') return bankAccountName;
+    return 'Cash Collection';
   };
 
   const processWithdrawal = async () => {
@@ -99,17 +125,18 @@ export default function WithdrawFlow({
     try {
       const ref = `WTH-${Date.now()}`;
 
-      // Insert withdrawal request — trigger automatically deducts wallet balance
+      const insertData: any = {
+        user_id: user.id,
+        amount: amount,
+        status: 'pending',
+        mobile_money_number: payoutMode === 'mobile_money' ? momoNumber.trim() : null,
+        mobile_money_name: payoutMode === 'mobile_money' ? momoName.trim() : (payoutMode === 'bank_transfer' ? bankAccountName.trim() : 'Cash Pickup'),
+        mobile_money_provider: payoutMode === 'mobile_money' ? momoProvider.toLowerCase() : (payoutMode === 'bank_transfer' ? 'bank' : 'cash'),
+      };
+
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
-        .insert({
-          user_id: user.id,
-          amount: amount,
-          mobile_money_number: momoNumber.trim(),
-          mobile_money_name: momoName.trim(),
-          mobile_money_provider: momoProvider.toLowerCase(),
-          status: 'pending',
-        });
+        .insert(insertData);
 
       if (requestError) {
         throw new Error(requestError.message || 'Failed to submit withdrawal request');
@@ -172,7 +199,7 @@ export default function WithdrawFlow({
                   </div>
                   <div className="flex-1">
                     <h4 className="font-semibold">ROI Earnings</h4>
-                    <p className="text-sm text-muted-foreground">Investment returns</p>
+                    <p className="text-sm text-muted-foreground">Platform rewards</p>
                   </div>
                   <span className="font-bold text-lg text-emerald-600">{formatCurrency(roiBalance, 'UGX')}</span>
                 </div>
@@ -184,13 +211,10 @@ export default function WithdrawFlow({
       case 1:
         return (
           <div className="space-y-6">
-            {/* Currency selector */}
             <div className="space-y-2">
               <Label>Currency</Label>
               <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SUPPORTED_CURRENCIES.map((curr) => (
                     <SelectItem key={curr} value={curr}>{curr}</SelectItem>
@@ -199,7 +223,6 @@ export default function WithdrawFlow({
               </Select>
             </div>
 
-            {/* Amount input */}
             <div className="space-y-2">
               <Label htmlFor="amount">Withdrawal Amount</Label>
               <Input
@@ -216,7 +239,6 @@ export default function WithdrawFlow({
               </p>
             </div>
 
-            {/* Quick amounts */}
             <div className="grid grid-cols-4 gap-2">
               {[0.25, 0.5, 0.75, 1].map((pct) => (
                 <Button
@@ -232,118 +254,189 @@ export default function WithdrawFlow({
           </div>
         );
 
+      // ═══ NEW: PAYOUT MODE SELECTION ═══
       case 2:
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="text-center mb-2">
-              <h3 className="font-semibold text-lg">Mobile Money Details</h3>
+              <h3 className="font-semibold text-lg">How do you want to receive?</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Enter the mobile money number to receive funds
+                Choose your preferred payout method
               </p>
             </div>
 
-            {/* Provider Selection */}
-            <div className="space-y-2">
-              <Label>Mobile Money Provider</Label>
-              <RadioGroup
-                value={momoProvider}
-                onValueChange={(v) => setMomoProvider(v as 'MTN' | 'Airtel')}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="MTN" id="withdraw-mtn" />
-                  <Label htmlFor="withdraw-mtn" className="font-medium text-yellow-600 cursor-pointer">MTN</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Airtel" id="withdraw-airtel" />
-                  <Label htmlFor="withdraw-airtel" className="font-medium text-red-600 cursor-pointer">Airtel</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {/* Phone Number */}
-            <div className="space-y-2">
-              <Label htmlFor="momo-number">Mobile Money Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="momo-number"
-                  type="tel"
-                  placeholder="e.g. 0770123456"
-                  value={momoNumber}
-                  onChange={(e) => setMomoNumber(e.target.value)}
-                  className="h-12 text-base pl-10"
-                />
-              </div>
-            </div>
-
-            {/* Registered Name */}
-            <div className="space-y-2">
-              <Label htmlFor="momo-name">Registered Name (as shown on Mobile Money)</Label>
-              <Input
-                id="momo-name"
-                type="text"
-                placeholder="e.g. JOHN DOE"
-                value={momoName}
-                onChange={(e) => setMomoName(e.target.value)}
-                className="h-12 text-base"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the name exactly as it appears on the mobile money account
-              </p>
+            <div className="space-y-3">
+              {PAYOUT_METHODS.map((method) => (
+                <Card
+                  key={method.value}
+                  className={`p-4 cursor-pointer transition-all ${
+                    payoutMode === method.value
+                      ? 'ring-2 ring-primary border-primary bg-primary/5'
+                      : 'hover:border-primary/50'
+                  }`}
+                  onClick={() => setPayoutMode(method.value as any)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl ${
+                      method.value === 'mobile_money' ? 'bg-yellow-500/10' :
+                      method.value === 'bank_transfer' ? 'bg-blue-500/10' :
+                      'bg-emerald-500/10'
+                    }`}>
+                      {method.icon}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{method.label}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {method.value === 'mobile_money' && 'MTN or Airtel Mobile Money'}
+                        {method.value === 'bank_transfer' && 'Direct bank deposit'}
+                        {method.value === 'cash' && 'Collect cash at the office'}
+                      </p>
+                    </div>
+                    {payoutMode === method.value && (
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
             </div>
           </div>
         );
 
+      // ═══ PAYOUT DETAILS ═══
       case 3:
         return (
-          <div className="space-y-4">
-            <Tabs defaultValue="local" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="local">Local</TabsTrigger>
-                <TabsTrigger value="international">International</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="local" className="space-y-3 mt-4">
-                {LOCAL_PAYMENT_METHODS.filter(m => m.type !== 'wallet').map((method) => (
-                  <PaymentMethodCard
-                    key={method.id}
-                    method={method}
-                    selected={selectedMethod?.id === method.id}
-                    onSelect={() => setSelectedMethod(method)}
-                  />
-                ))}
-              </TabsContent>
-              
-              <TabsContent value="international" className="space-y-3 mt-4">
-                {INTERNATIONAL_PAYMENT_METHODS.filter(m => m.type === 'bank').map((method) => (
-                  <PaymentMethodCard
-                    key={method.id}
-                    method={method}
-                    selected={selectedMethod?.id === method.id}
-                    onSelect={() => setSelectedMethod(method)}
-                  />
-                ))}
-              </TabsContent>
-            </Tabs>
+          <div className="space-y-5">
+            {payoutMode === 'mobile_money' && (
+              <>
+                <div className="text-center mb-2">
+                  <h3 className="font-semibold text-lg">📱 Mobile Money Details</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Enter the mobile money number to receive funds
+                  </p>
+                </div>
 
-            {selectedMethod && (
-              <Card className="bg-muted/30">
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Withdrawal Amount</span>
-                    <span>{formatCurrency(amount, currency)}</span>
+                <div className="space-y-2">
+                  <Label>Mobile Money Provider</Label>
+                  <RadioGroup
+                    value={momoProvider}
+                    onValueChange={(v) => setMomoProvider(v as 'MTN' | 'Airtel')}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="MTN" id="withdraw-mtn" />
+                      <Label htmlFor="withdraw-mtn" className="font-medium text-yellow-600 cursor-pointer">MTN</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Airtel" id="withdraw-airtel" />
+                      <Label htmlFor="withdraw-airtel" className="font-medium text-red-600 cursor-pointer">Airtel</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="momo-number">Mobile Money Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="momo-number"
+                      type="tel"
+                      placeholder="e.g. 0770123456"
+                      value={momoNumber}
+                      onChange={(e) => setMomoNumber(e.target.value)}
+                      className="h-12 text-base pl-10"
+                    />
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Fee ({selectedMethod.fee})</span>
-                    <span className="text-red-500">-{formatCurrency(fee, currency)}</span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="momo-name">Registered Name (as shown on Mobile Money)</Label>
+                  <Input
+                    id="momo-name"
+                    type="text"
+                    placeholder="e.g. JOHN DOE"
+                    value={momoName}
+                    onChange={(e) => setMomoName(e.target.value)}
+                    className="h-12 text-base"
+                  />
+                </div>
+              </>
+            )}
+
+            {payoutMode === 'bank_transfer' && (
+              <>
+                <div className="text-center mb-2">
+                  <h3 className="font-semibold text-lg">🏦 Bank Account Details</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Enter the bank account to receive your funds
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Bank Name</Label>
+                  <Select value={bankName} onValueChange={setBankName}>
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="Select your bank..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {UGANDA_BANKS.map(b => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Account Holder Name</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="e.g. JOHN DOE"
+                      value={bankAccountName}
+                      onChange={(e) => setBankAccountName(e.target.value)}
+                      className="h-12 text-base pl-10"
+                    />
                   </div>
-                  <div className="flex justify-between font-semibold pt-2 border-t">
-                    <span>You'll Receive</span>
-                    <span className="text-primary">{formatCurrency(netAmount, currency)}</span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Account Number</Label>
+                  <div className="relative">
+                    <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="e.g. 9030012345678"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      className="h-12 text-base pl-10"
+                    />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </>
+            )}
+
+            {payoutMode === 'cash' && (
+              <div className="space-y-4">
+                <div className="text-center mb-2">
+                  <h3 className="font-semibold text-lg">💵 Cash Pickup</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You will collect your funds at the office
+                  </p>
+                </div>
+
+                <Card className="p-4 bg-emerald-500/5 border-emerald-500/20">
+                  <div className="space-y-2 text-sm">
+                    <p className="font-bold text-foreground">How it works:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-muted-foreground text-xs">
+                      <li>Your request will be reviewed by a manager</li>
+                      <li>Once approved, you'll be notified</li>
+                      <li>Visit the office with your ID to collect</li>
+                    </ol>
+                  </div>
+                </Card>
+              </div>
             )}
           </div>
         );
@@ -378,11 +471,11 @@ export default function WithdrawFlow({
               items={[
                 { label: 'From', value: source === 'available' ? 'Available Balance' : 'ROI Earnings' },
                 { label: 'Amount', value: formatCurrency(amount, currency) },
-                { label: 'Fee', value: formatCurrency(fee, currency), secondary: true },
-                { label: 'To', value: `${momoProvider} - ${momoNumber}` },
-                { label: 'Name', value: momoName },
+                { label: 'Payout Mode', value: payoutMode === 'mobile_money' ? '📱 Mobile Money' : payoutMode === 'bank_transfer' ? '🏦 Bank Transfer' : '💵 Cash Pickup' },
+                { label: 'To', value: getPayoutSummary() },
+                { label: 'Name', value: getPayoutName() },
               ]}
-              total={{ label: "You'll Receive", value: formatCurrency(netAmount, currency) }}
+              total={{ label: "You'll Receive", value: formatCurrency(amount, currency) }}
               showSecurityNote={false}
             />
           </div>
@@ -395,12 +488,12 @@ export default function WithdrawFlow({
         return (
           <ReceiptCard
             status={paymentStatus}
-            amount={netAmount}
+            amount={amount}
             currency={currency}
-            fees={fee}
-            recipient={selectedMethod?.name || 'Bank Account'}
+            fees={0}
+            recipient={getPayoutSummary()}
             reference={withdrawalRef || `WTH-${Date.now()}`}
-            method={selectedMethod?.name || ''}
+            method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
             date={new Date()}
             onDownload={() => {}}
             onShare={() => {}}
