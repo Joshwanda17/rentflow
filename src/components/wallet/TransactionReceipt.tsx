@@ -68,6 +68,7 @@ export function TransactionReceipt({
     if (!receiptRef.current) return;
 
     try {
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(receiptRef.current, {
         backgroundColor: '#ffffff',
         pixelRatio: 2,
