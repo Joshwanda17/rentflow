@@ -56,6 +56,7 @@ export function VerificationOpportunitiesButton() {
   const [verifyingHouse, setVerifyingHouse] = useState<string | null>(null);
   const [promptHouseId, setPromptHouseId] = useState<string | null>(null);
   const [promptTenantId, setPromptTenantId] = useState<string | null>(null);
+  const totalCount = rentCount + houseCount;
 
   useEffect(() => {
     fetchCounts();
@@ -126,6 +127,16 @@ export function VerificationOpportunitiesButton() {
     setVerifyingHouse(null);
   };
 
+  const navigateToLandlord = (req: UnverifiedRequest) => {
+    hapticTap();
+    const ll = req.landlord;
+    if (!ll) return;
+    const dest = ll.latitude && ll.longitude
+      ? `${ll.latitude},${ll.longitude}`
+      : encodeURIComponent(`${ll.property_address}, Uganda`);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
+  };
+
   if (totalCount === 0) return null;
 
   return (
@@ -165,6 +176,7 @@ export function VerificationOpportunitiesButton() {
             </TabsList>
 
             <ScrollArea className="h-[calc(85vh-160px)] px-4 pb-4">
+              {/* ─── Houses Tab ─── */}
               <TabsContent value="houses" className="mt-0">
                 {loading ? (
                   <div className="space-y-3">
@@ -185,7 +197,7 @@ export function VerificationOpportunitiesButton() {
                                 <span className="truncate">{house.address}, {house.region}</span>
                               </div>
                             </div>
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30 shrink-0">
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30 shrink-0">
                               Pending
                             </Badge>
                           </div>
@@ -257,6 +269,7 @@ export function VerificationOpportunitiesButton() {
                 )}
               </TabsContent>
 
+              {/* ─── Tenants Tab (GPS-gated landlord visit) ─── */}
               <TabsContent value="tenants" className="mt-0">
                 {loading ? (
                   <div className="space-y-3">
@@ -266,6 +279,14 @@ export function VerificationOpportunitiesButton() {
                   <p className="text-center text-muted-foreground py-8">No tenant requests to verify right now</p>
                 ) : (
                   <div className="space-y-3">
+                    {/* Info banner */}
+                    <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                      <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">GPS Required:</span> You must physically visit the landlord's property to verify each tenant.
+                      </p>
+                    </div>
+
                     {requests.map(req => (
                       <Card key={req.id} className="border-border/60">
                         <CardContent className="p-4 space-y-3">
@@ -276,25 +297,83 @@ export function VerificationOpportunitiesButton() {
                             </div>
                             <p className="font-bold text-primary">{formatUGX(req.rent_amount)}</p>
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            <p>Landlord: {req.landlord?.name || 'Unknown'}</p>
-                            <p>Property: {req.landlord?.property_address || 'N/A'}</p>
+
+                          {/* Landlord details with location */}
+                          <div className="p-2.5 rounded-lg bg-muted/40 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <Home className="h-3 w-3 text-muted-foreground" />
+                              <p className="text-xs font-semibold">Landlord: {req.landlord?.name || 'Unknown'}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 pl-[18px]">
+                              <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <p className="text-[11px] text-muted-foreground">{req.landlord?.property_address || 'N/A'}</p>
+                            </div>
+                            {req.landlord?.latitude && req.landlord?.longitude && (
+                              <p className="text-[10px] text-primary/60 pl-[18px]">
+                                📍 GPS: {req.landlord.latitude.toFixed(4)}, {req.landlord.longitude.toFixed(4)}
+                              </p>
+                            )}
                           </div>
+
                           <div className="flex justify-between items-center">
                             <div className="text-xs space-y-0.5">
                               <p className="text-success font-medium">💰 UGX 10,000 bonus</p>
                               <p className="text-success font-medium">📈 5% ongoing commission</p>
                             </div>
-                            <VerifyTenantButton
-                              requestId={req.id}
-                              landlordId={req.landlord_id}
-                              variant="agent"
-                              onVerified={() => {
-                                fetchCounts();
-                                fetchAll();
-                              }}
-                            />
+                            <Button
+                              onClick={() => setPromptTenantId(promptTenantId === req.id ? null : req.id)}
+                              variant={promptTenantId === req.id ? 'secondary' : 'default'}
+                              size="sm"
+                              className="gap-1 text-xs h-8"
+                            >
+                              <Shield className="h-3.5 w-3.5" />
+                              Verify Tenant
+                            </Button>
                           </div>
+
+                          {/* GPS-gated visit prompt */}
+                          {promptTenantId === req.id && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3"
+                            >
+                              <div>
+                                <p className="text-xs font-semibold text-foreground">📍 Visit the landlord's property to verify this tenant</p>
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                  Go to <span className="font-medium text-foreground">{req.landlord?.name || 'the landlord'}</span>'s property, confirm the tenant lives there, then complete verification.
+                                </p>
+                              </div>
+
+                              {/* Navigate button */}
+                              <Button
+                                onClick={() => navigateToLandlord(req)}
+                                variant="outline"
+                                size="sm"
+                                className="w-full gap-1.5 text-xs h-9 border-primary/30 text-primary"
+                              >
+                                <Navigation className="h-3.5 w-3.5" />
+                                Navigate to Landlord's Property
+                              </Button>
+
+                              {/* Verify button (only after visiting) */}
+                              <div className="pt-1 border-t border-border/40">
+                                <p className="text-[10px] text-muted-foreground mb-2 text-center">
+                                  ✅ Already at the property? Complete verification below
+                                </p>
+                                <VerifyTenantButton
+                                  requestId={req.id}
+                                  landlordId={req.landlord_id}
+                                  variant="agent"
+                                  onVerified={() => {
+                                    setPromptTenantId(null);
+                                    fetchCounts();
+                                    fetchAll();
+                                  }}
+                                />
+                              </div>
+                            </motion.div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
