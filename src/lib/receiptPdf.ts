@@ -50,7 +50,7 @@ function addRow(doc: JsPDFType, y: number, label: string, value: string, bold = 
   return y + 7;
 }
 
-function addDivider(doc: jsPDF, y: number) {
+function addDivider(doc: JsPDFType, y: number) {
   doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.3);
   doc.line(14, y, 196, y);
