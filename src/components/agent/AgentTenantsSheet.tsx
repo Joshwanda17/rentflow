@@ -262,7 +262,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     const modes: SortMode[] = ['balance', 'name', 'recent'];
     const next = modes[(modes.indexOf(sortMode) + 1) % modes.length];
     setSortMode(next);
-    toast({ title: `Sorted by ${next === 'balance' ? 'rent balance' : next}` });
+    toast({ title: `Now showing by ${next === 'balance' ? 'who owes the most' : next === 'name' ? 'name' : 'newest first'}` });
   };
 
   return (
@@ -293,9 +293,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <div className="p-1.5 rounded-lg bg-destructive/20">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-destructive">{stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''} owe rent</p>
-                  <p className="text-[10px] text-destructive/70">Total outstanding: {formatUGX(stats.totalOwing)}</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-destructive">{stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''} still owe you money</p>
+                  <p className="text-[10px] text-destructive/70">They owe: {formatUGX(stats.totalOwing)} total</p>
                 </div>
               </div>
               <Button
@@ -314,7 +314,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search name or phone..."
+                placeholder="Type a name or phone number..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 h-9"
@@ -363,9 +363,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {/* Sort indicator */}
           <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
-            <Filter className="h-2.5 w-2.5" />
-            Sorted by {sortMode === 'balance' ? 'rent balance (highest first)' : sortMode === 'name' ? 'name (A-Z)' : 'most recent'}
-            {' · '}{processedTenants.length} result{processedTenants.length !== 1 ? 's' : ''}
+            <Filter className="h-2.5 w-2.5 shrink-0" />
+            Showing by {sortMode === 'balance' ? 'who owes the most' : sortMode === 'name' ? 'name A to Z' : 'newest first'}
+            {' · '}{processedTenants.length} tenant{processedTenants.length !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -381,11 +381,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <Users className="h-7 w-7 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground font-medium">
-                {search ? 'No tenants match your search' : activeFilter !== 'all' ? `No ${activeFilter} tenants` : 'No tenants registered yet'}
+                {search ? 'Nobody matches what you typed' : activeFilter !== 'all' ? `No ${activeFilter} tenants right now` : 'You haven\'t added any tenants yet'}
               </p>
               {activeFilter !== 'all' && (
                 <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setActiveFilter('all')}>
-                  Show all tenants
+                  See everyone
                 </Button>
               )}
             </div>
@@ -473,9 +473,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="overflow-hidden border-t border-border"
                       >
                         <div className="p-3 space-y-3 bg-muted/20">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
                             <Banknote className="h-3 w-3" />
-                            Rent Repayment Schedules
+                            Rent Payments
                           </p>
 
                           {isLoadingThis ? (
@@ -483,7 +483,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             </div>
                           ) : requests.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-3">No active rent requests found</p>
+                            <p className="text-xs text-muted-foreground text-center py-3">No rent payments here yet</p>
                           ) : (
                             requests.map((req) => {
                               const progress = req.total_repayment > 0 ? Math.min((req.amount_repaid / req.total_repayment) * 100, 100) : 0;

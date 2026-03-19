@@ -49,12 +49,12 @@ interface Profile {
 type SettingsSection = 'account' | 'roles' | 'appearance' | 'security' | 'legal' | 'advanced';
 
 const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
-  { id: 'account', label: 'Account', icon: User },
+  { id: 'account', label: 'Me', icon: User },
   { id: 'roles', label: 'Roles', icon: Shield },
-  { id: 'appearance', label: 'Display', icon: Palette },
-  { id: 'security', label: 'Security', icon: ShieldCheck },
-  { id: 'legal', label: 'Legal', icon: Scale },
-  { id: 'advanced', label: 'Advanced', icon: SettingsIcon },
+  { id: 'appearance', label: 'Look & Feel', icon: Palette },
+  { id: 'security', label: 'Safety', icon: ShieldCheck },
+  { id: 'legal', label: 'Agreements', icon: Scale },
+  { id: 'advanced', label: 'More', icon: SettingsIcon },
 ];
 
 const itemVariants = {
@@ -227,7 +227,7 @@ export default function Settings() {
             </Button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold tracking-tight">Settings</h1>
-              <p className="text-xs text-muted-foreground truncate">{profile?.full_name || 'Manage your account'}</p>
+              <p className="text-xs text-muted-foreground truncate">{profile?.full_name || 'Change how things work'}</p>
             </div>
             <Button
               variant="outline"
@@ -286,23 +286,23 @@ export default function Settings() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-bold text-sm">Unlock All Roles</p>
+                 <div className="flex items-center gap-2 mb-0.5">
+                  <p className="font-bold text-sm">Open All Dashboards</p>
                   {preferences.unlockAllRoles && (
                     <Badge variant="outline" className="text-[10px] border-success/30 text-success bg-success/10 px-1.5 py-0">
-                      Active
+                      On
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Navigate freely between Tenant, Agent & Landlord dashboards without approval
+                  Switch between Tenant, Agent & Landlord views anytime you want
                 </p>
               </div>
               <Switch
                 checked={preferences.unlockAllRoles}
                 onCheckedChange={(checked) => {
                   updatePreference('unlockAllRoles', checked);
-                  toast.success(checked ? 'All roles unlocked for navigation' : 'Role gating re-enabled');
+                  toast.success(checked ? 'You can now see all dashboards' : 'Back to your main dashboard only');
                 }}
                 className="shrink-0"
               />
@@ -345,15 +345,15 @@ export default function Settings() {
               {/* Form Fields */}
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Full Name</Label>
+                  <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter your full name" className="pl-10 h-11" />
+                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Type your full name here" className="pl-10 h-11" />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
+                  <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email (cannot change)</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-11 bg-muted/50" />
@@ -361,7 +361,7 @@ export default function Settings() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone Number</Label>
+                  <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-11" />
@@ -429,7 +429,7 @@ export default function Settings() {
 
               <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-11">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save Changes
+                Save
               </Button>
             </CardContent>
           </Card>
@@ -464,13 +464,13 @@ export default function Settings() {
 
         {/* ===== ROLES & NAVIGATION SECTION ===== */}
         <div ref={el => sectionRefs.current['roles'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Shield} label="Roles & Navigation" />
+          <SectionHeader icon={Shield} label="Your Roles" />
 
           {/* Current Roles */}
           <Card className="border-border/50 shadow-sm mb-4">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">My Roles</CardTitle>
-              <CardDescription className="text-xs">Your active platform roles</CardDescription>
+              <CardTitle className="text-sm">What you do on Welile</CardTitle>
+              <CardDescription className="text-xs">These are the roles you have right now</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
@@ -484,7 +484,7 @@ export default function Settings() {
                     </Badge>
                   );
                 })}
-                {roles.length === 0 && <p className="text-sm text-muted-foreground">No roles assigned</p>}
+                {roles.length === 0 && <p className="text-sm text-muted-foreground">No roles yet</p>}
               </div>
             </CardContent>
           </Card>
@@ -495,8 +495,8 @@ export default function Settings() {
               <div className="flex items-center gap-2">
                 <LayoutDashboard className="h-4 w-4 text-primary" />
                 <div>
-                  <CardTitle className="text-sm">Default Dashboard</CardTitle>
-                  <CardDescription className="text-xs">Which dashboard opens first</CardDescription>
+                  <CardTitle className="text-sm">Home Screen</CardTitle>
+                  <CardDescription className="text-xs">Pick which page opens when you log in</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -544,20 +544,20 @@ export default function Settings() {
 
         {/* ===== APPEARANCE SECTION ===== */}
         <div ref={el => sectionRefs.current['appearance'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Palette} label="Display & Sound" />
+          <SectionHeader icon={Palette} label="How It Looks & Sounds" />
 
           <Card className="border-border/50 shadow-sm">
             <CardContent className="pt-5 space-y-5">
               {/* Theme */}
-              <SettingsRow label="Theme" description="Light or dark mode">
+              <SettingsRow label="Dark / Light" description="Change the look of the app">
                 <ThemeToggle />
               </SettingsRow>
 
               {/* Font Size */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Type className="h-4 w-4 text-primary" />
-                  <p className="font-medium text-sm">Font Size</p>
+                   <Type className="h-4 w-4 text-primary" />
+                  <p className="font-medium text-sm">Text Size</p>
                 </div>
                 <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as typeof fontSize)} className="grid grid-cols-2 gap-2">
                   {fontSizeOptions.map((opt) => (
@@ -582,8 +582,8 @@ export default function Settings() {
               {/* Haptic */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Vibrate className="h-4 w-4 text-primary" />
-                  <p className="font-medium text-sm">Haptic Feedback</p>
+                   <Vibrate className="h-4 w-4 text-primary" />
+                  <p className="font-medium text-sm">Vibration</p>
                 </div>
                 <RadioGroup 
                   value={hapticIntensity} 
@@ -613,8 +613,8 @@ export default function Settings() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Volume2 className="h-4 w-4 text-primary" />
-                    <p className="font-medium text-sm">Notification Sounds</p>
+                     <Volume2 className="h-4 w-4 text-primary" />
+                    <p className="font-medium text-sm">Alert Sounds</p>
                   </div>
                   <Switch
                     checked={preferences.notificationSounds}
@@ -672,7 +672,7 @@ export default function Settings() {
               </div>
 
               {/* Remember Login */}
-              <SettingsRow label="Remember Login" description="Stay signed in between sessions" icon={LogIn}>
+              <SettingsRow label="Stay Logged In" description="Don't ask me to sign in every time" icon={LogIn}>
                 <Switch
                   checked={preferences.rememberLogin}
                   onCheckedChange={(checked) => { updatePreference('rememberLogin', checked); toast.success(checked ? 'Login will be remembered' : 'Login will not be remembered'); }}
@@ -680,7 +680,7 @@ export default function Settings() {
               </SettingsRow>
 
               {/* Skip Splash */}
-              <SettingsRow label="Skip Splash Screen" description={preferences.skipSplash ? 'Splash is skipped' : 'Splash shows on startup'} icon={RotateCcw}>
+              <SettingsRow label="Skip Welcome Screen" description={preferences.skipSplash ? 'Goes straight to your dashboard' : 'Shows the welcome page first'} icon={RotateCcw}>
                 <Switch
                   checked={preferences.skipSplash}
                   onCheckedChange={(checked) => { updatePreference('skipSplash', checked); toast.success(checked ? 'Splash skipped' : 'Splash enabled'); }}
@@ -692,7 +692,7 @@ export default function Settings() {
 
         {/* ===== SECURITY SECTION ===== */}
         <div ref={el => sectionRefs.current['security'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={ShieldCheck} label="Security" />
+          <SectionHeader icon={ShieldCheck} label="Keep Your Account Safe" />
           <div className="space-y-4">
             <PinSecuritySection />
             <BiometricSecuritySection />
@@ -702,7 +702,7 @@ export default function Settings() {
         {/* ===== LEGAL SECTION ===== */}
         {hasLegalContent && (
           <div ref={el => sectionRefs.current['legal'] = el} className="scroll-mt-28 mb-6">
-            <SectionHeader icon={Scale} label="Legal & Agreements" />
+            <SectionHeader icon={Scale} label="Agreements You Signed" />
             <Card className="border-border/50 shadow-sm">
               <CardContent className="pt-5 space-y-3">
                 {roles.includes('tenant') && (
@@ -747,7 +747,7 @@ export default function Settings() {
 
         {/* ===== ADVANCED SECTION ===== */}
         <div ref={el => sectionRefs.current['advanced'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={SettingsIcon} label="Advanced" />
+          <SectionHeader icon={SettingsIcon} label="Other Options" />
 
           {/* Reset Preferences */}
           <Card className="border-border/50 shadow-sm mb-4">
@@ -756,8 +756,8 @@ export default function Settings() {
                 <div className="flex items-center gap-2">
                   <RefreshCw className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="font-medium text-sm">Reset Preferences</p>
-                    <p className="text-xs text-muted-foreground">Restore all settings to defaults</p>
+                     <p className="font-medium text-sm">Start Fresh</p>
+                    <p className="text-xs text-muted-foreground">Put everything back to how it was</p>
                   </div>
                 </div>
                 <Button
