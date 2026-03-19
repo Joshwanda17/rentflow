@@ -110,7 +110,6 @@ export function AgentOpsDashboard() {
           />
         </div>
       </div>
-      </div>
 
       {/* Tenant Transfer Section */}
       <div className="rounded-2xl border border-border bg-card p-4">
