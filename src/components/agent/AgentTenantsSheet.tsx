@@ -381,7 +381,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <Users className="h-7 w-7 text-muted-foreground" />
               </div>
               <p className="text-sm text-muted-foreground font-medium">
-                {search ? 'No tenants match your search' : activeFilter !== 'all' ? `No ${activeFilter} tenants` : 'No tenants registered yet'}
+                {search ? 'Nobody matches what you typed' : activeFilter !== 'all' ? `No ${activeFilter} tenants right now` : 'You haven\'t added any tenants yet'}
               </p>
               {activeFilter !== 'all' && (
                 <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setActiveFilter('all')}>
