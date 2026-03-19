@@ -672,7 +672,7 @@ export default function Settings() {
               </div>
 
               {/* Remember Login */}
-              <SettingsRow label="Remember Login" description="Stay signed in between sessions" icon={LogIn}>
+              <SettingsRow label="Stay Logged In" description="Don't ask me to sign in every time" icon={LogIn}>
                 <Switch
                   checked={preferences.rememberLogin}
                   onCheckedChange={(checked) => { updatePreference('rememberLogin', checked); toast.success(checked ? 'Login will be remembered' : 'Login will not be remembered'); }}
