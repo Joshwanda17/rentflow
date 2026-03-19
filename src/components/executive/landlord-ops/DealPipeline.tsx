@@ -211,19 +211,34 @@ export function DealPipeline() {
                         </p>
                       )}
 
-                      {/* Three-way confirmation badges */}
-                      {(stage.key === 'viewed' || stage.key === 'scheduled') && (
-                        <div className="flex gap-1 flex-wrap">
-                          <Badge className={`text-[8px] h-4 px-1 border-0 ${viewing.agent_confirmed ? 'bg-green-500/20 text-green-700' : 'bg-muted text-muted-foreground'}`}>
-                            Agent {viewing.agent_confirmed ? '✓' : '?'}
+                      {/* Uber-style verification signals */}
+                      <div className="flex gap-1 flex-wrap">
+                        <Badge className={`text-[8px] h-4 px-1 border-0 ${viewing.proximity_verified ? 'bg-green-500/20 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                          📍 GPS {viewing.proximity_verified ? '✓' : '—'}
+                        </Badge>
+                        <Badge className={`text-[8px] h-4 px-1 border-0 ${viewing.pin_verified ? 'bg-green-500/20 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                          🔑 PIN {viewing.pin_verified ? '✓' : '—'}
+                        </Badge>
+                        {viewing.agent_rating && (
+                          <Badge className="text-[8px] h-4 px-1 border-0 bg-amber-500/20 text-amber-700">
+                            ⭐ Agent {viewing.agent_rating}/5
                           </Badge>
-                          <Badge className={`text-[8px] h-4 px-1 border-0 ${viewing.tenant_confirmed ? 'bg-green-500/20 text-green-700' : 'bg-muted text-muted-foreground'}`}>
-                            Tenant {viewing.tenant_confirmed ? '✓' : '?'}
+                        )}
+                        {viewing.tenant_rating && (
+                          <Badge className="text-[8px] h-4 px-1 border-0 bg-amber-500/20 text-amber-700">
+                            ⭐ Tenant {viewing.tenant_rating}/5
                           </Badge>
-                          <Badge className={`text-[8px] h-4 px-1 border-0 ${viewing.landlord_confirmed ? 'bg-green-500/20 text-green-700' : 'bg-muted text-muted-foreground'}`}>
-                            Landlord {viewing.landlord_confirmed ? '✓' : '?'}
+                        )}
+                        {viewing.meeting_verified && (
+                          <Badge className="text-[8px] h-4 px-1 border-0 bg-green-600/20 text-green-800 font-bold">
+                            ✅ VERIFIED
                           </Badge>
-                        </div>
+                        )}
+                      </div>
+
+                      {/* PIN display for manager reference */}
+                      {viewing.viewing_pin && !viewing.pin_verified && (
+                        <p className="text-[9px] text-muted-foreground font-mono">PIN: {viewing.viewing_pin}</p>
                       )}
 
                       {/* Actions */}
