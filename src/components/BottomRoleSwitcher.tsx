@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
+import { areAllRolesUnlocked } from '@/hooks/useAppPreferences';
 import ApplyForRoleDialog from '@/components/ApplyForRoleDialog';
 
 interface BottomRoleSwitcherProps {
