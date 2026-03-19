@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Home, MapPin, CheckCircle2, Loader2, Navigation, Locate } from 'lucide-react';
+import { Shield, Home, MapPin, CheckCircle2, Loader2, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import {
