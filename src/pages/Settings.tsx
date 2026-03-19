@@ -227,7 +227,7 @@ export default function Settings() {
             </Button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold tracking-tight">Settings</h1>
-              <p className="text-xs text-muted-foreground truncate">{profile?.full_name || 'Manage your account'}</p>
+              <p className="text-xs text-muted-foreground truncate">{profile?.full_name || 'Change how things work'}</p>
             </div>
             <Button
               variant="outline"
