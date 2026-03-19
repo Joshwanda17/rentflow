@@ -484,7 +484,7 @@ export default function Settings() {
                     </Badge>
                   );
                 })}
-                {roles.length === 0 && <p className="text-sm text-muted-foreground">No roles assigned</p>}
+                {roles.length === 0 && <p className="text-sm text-muted-foreground">No roles yet</p>}
               </div>
             </CardContent>
           </Card>
