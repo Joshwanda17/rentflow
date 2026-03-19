@@ -556,8 +556,8 @@ export default function Settings() {
               {/* Font Size */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Type className="h-4 w-4 text-primary" />
-                  <p className="font-medium text-sm">Font Size</p>
+                   <Type className="h-4 w-4 text-primary" />
+                  <p className="font-medium text-sm">Text Size</p>
                 </div>
                 <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as typeof fontSize)} className="grid grid-cols-2 gap-2">
                   {fontSizeOptions.map((opt) => (
