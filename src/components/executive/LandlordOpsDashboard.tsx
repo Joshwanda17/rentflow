@@ -362,8 +362,16 @@ export function LandlordOpsDashboard() {
       )}
 
       {/* Tabbed Management Sections */}
-      <Tabs defaultValue="empty" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-auto">
+      <Tabs defaultValue="matching" className="w-full">
+        <TabsList className="grid w-full grid-cols-7 h-auto">
+          <TabsTrigger value="matching" className="text-xs py-2 gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <Handshake className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Match</span>
+          </TabsTrigger>
+          <TabsTrigger value="pipeline" className="text-xs py-2 gap-1 data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700">
+            <GitBranch className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Pipeline</span>
+          </TabsTrigger>
           <TabsTrigger value="empty" className="text-xs py-2 gap-1 data-[state=active]:bg-red-500/10 data-[state=active]:text-red-700">
             <DoorOpen className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Empty</span>
@@ -388,6 +396,16 @@ export function LandlordOpsDashboard() {
             <span className="hidden sm:inline">Analytics</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* ──────── MATCHING TAB ──────── */}
+        <TabsContent value="matching" className="space-y-4 mt-4">
+          <TenantMatchingQueue onViewingCreated={() => refetch()} />
+        </TabsContent>
+
+        {/* ──────── PIPELINE TAB ──────── */}
+        <TabsContent value="pipeline" className="space-y-4 mt-4">
+          <DealPipeline />
+        </TabsContent>
 
         {/* ──────── EMPTY HOUSES TAB ──────── */}
         <TabsContent value="empty" className="space-y-4 mt-4">
