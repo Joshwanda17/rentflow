@@ -429,7 +429,7 @@ export default function Settings() {
 
               <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-11">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save Changes
+                Save
               </Button>
             </CardContent>
           </Card>
