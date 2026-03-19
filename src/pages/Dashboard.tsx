@@ -81,6 +81,7 @@ function DashboardContent() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();
+  const { isQualifiedInvestor } = useDeployedCapital(user?.id);
 
   // Derive frozen state from profile (no separate DB call)
   const isFrozen = profile?.is_frozen ?? false;
