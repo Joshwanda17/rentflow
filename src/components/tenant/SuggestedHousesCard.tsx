@@ -37,7 +37,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
         .limit(6);
 
       const { data: houses } = await query;
-      if (!houses?.length) return [];
+      if (!houses?.length) return [] as any[];
 
       // Enrich with agent info
       const agentIds = [...new Set(houses.map(h => h.agent_id).filter(Boolean))];
