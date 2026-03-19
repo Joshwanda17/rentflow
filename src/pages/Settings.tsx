@@ -286,16 +286,16 @@ export default function Settings() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-bold text-sm">Unlock All Roles</p>
+                 <div className="flex items-center gap-2 mb-0.5">
+                  <p className="font-bold text-sm">Open All Dashboards</p>
                   {preferences.unlockAllRoles && (
                     <Badge variant="outline" className="text-[10px] border-success/30 text-success bg-success/10 px-1.5 py-0">
-                      Active
+                      On
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Navigate freely between Tenant, Agent & Landlord dashboards without approval
+                  Switch between Tenant, Agent & Landlord views anytime you want
                 </p>
               </div>
               <Switch
