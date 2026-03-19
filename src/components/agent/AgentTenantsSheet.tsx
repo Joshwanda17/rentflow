@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt } from 'lucide-react';
+import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, Filter, ArrowUpDown, CheckCircle2, Clock, Users } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,6 +42,9 @@ interface AgentTenantsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type FilterTab = 'all' | 'owing' | 'active' | 'cleared' | 'new';
+type SortMode = 'balance' | 'name' | 'recent';
+
 function buildScheduleDays(startDate: string, durationDays: number) {
   const start = startOfDay(new Date(startDate));
   const days = [];
@@ -62,6 +65,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
+  const [sortMode, setSortMode] = useState<SortMode>('balance');
+  // Store rent balances keyed by tenant_id
+  const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (open && user) {
@@ -78,12 +85,30 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, email, created_at, monthly_rent, verified')
+        .select('id, full_name, phone, email, created_at, monthly_rent    , verified')
         .eq('referrer_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTenants(data || []);
+      const tenantList = data || [];
+      setTenants(tenantList);
+
+      // Fetch rent balances for all tenants in parallel
+      if (tenantList.length > 0) {
+        const tenantIds = tenantList.map(t => t.id);
+        const { data: rentRequests } = await supabase
+          .from('rent_requests')
+          .select('tenant_id, total_repayment, amount_repaid, status')
+          .in('tenant_id', tenantIds)
+          .in('status', ['approved', 'disbursed', 'repaying']);
+
+        const balances: Record<string, number> = {};
+        (rentRequests || []).forEach(rr => {
+          const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
+          balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+        });
+        setTenantBalances(balances);
+      }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
     } finally {
@@ -92,7 +117,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   };
 
   const fetchTenantRequests = useCallback(async (tenantId: string) => {
-    if (tenantRequests[tenantId]) return; // already loaded
+    if (tenantRequests[tenantId]) return;
     setLoadingRequests(tenantId);
     try {
       const { data, error } = await supabase
@@ -121,6 +146,64 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  // Filtered & sorted tenants
+  const processedTenants = useMemo(() => {
+    let list = tenants.filter(t =>
+      t.full_name.toLowerCase().includes(search.toLowerCase()) ||
+      t.phone.includes(search)
+    );
+
+    // Apply filter
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    switch (activeFilter) {
+      case 'owing':
+        list = list.filter(t => (tenantBalances[t.id] || 0) > 0);
+        break;
+      case 'active':
+        list = list.filter(t => (tenantBalances[t.id] || 0) > 0 || t.monthly_rent);
+        break;
+      case 'cleared':
+        list = list.filter(t => (tenantBalances[t.id] || 0) === 0 && t.verified);
+        break;
+      case 'new':
+        list = list.filter(t => new Date(t.created_at) > thirtyDaysAgo);
+        break;
+    }
+
+    // Apply sort
+    list.sort((a, b) => {
+      switch (sortMode) {
+        case 'balance':
+          return (tenantBalances[b.id] || 0) - (tenantBalances[a.id] || 0);
+        case 'name':
+          return a.full_name.localeCompare(b.full_name);
+        case 'recent':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        default:
+          return 0;
+      }
+    });
+
+    return list;
+  }, [tenants, search, activeFilter, sortMode, tenantBalances]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const totalOwing = Object.values(tenantBalances).reduce((s, v) => s + v, 0);
+    const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
+    return { totalOwing, owingCount, total: tenants.length };
+  }, [tenants, tenantBalances]);
+
+  const filterTabs: { key: FilterTab; label: string; icon: React.ReactNode; count?: number }[] = [
+    { key: 'owing', label: 'Owing', icon: <AlertTriangle className="h-3 w-3" />, count: stats.owingCount },
+    { key: 'all', label: 'All', icon: <Users className="h-3 w-3" />, count: stats.total },
+    { key: 'active', label: 'Active', icon: <Clock className="h-3 w-3" /> },
+    { key: 'cleared', label: 'Cleared', icon: <CheckCircle2 className="h-3 w-3" /> },
+    { key: 'new', label: 'New', icon: <User className="h-3 w-3" /> },
+  ];
+
   const handleDownloadPdf = async (tenant: Tenant, req: TenantRentRequest) => {
     try {
       const scheduleDays = [];
@@ -128,25 +211,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       for (let i = 0; i < req.duration_days; i++) {
         const d = new Date(start);
         d.setDate(d.getDate() + i);
-        scheduleDays.push({
-          date: format(d, 'yyyy-MM-dd'),
-          amount: req.daily_repayment,
-          status: 'pending' as const,
-        });
+        scheduleDays.push({ date: format(d, 'yyyy-MM-dd'), amount: req.daily_repayment, status: 'pending' as const });
       }
       await downloadRepaymentPdf({
-        tenantName: tenant.full_name,
-        phone: tenant.phone,
-        landlordName: req.landlord?.name || 'N/A',
-        propertyAddress: req.landlord?.property_address || 'N/A',
-        rentAmount: req.rent_amount,
-        totalRepayment: req.total_repayment,
-        dailyRepayment: req.daily_repayment,
-        durationDays: req.duration_days,
-        status: req.status || 'approved',
-        paidAmount: req.amount_repaid,
-        startDate: format(new Date(req.disbursed_at || req.created_at), 'dd MMM yyyy'),
-        schedule: scheduleDays,
+        tenantName: tenant.full_name, phone: tenant.phone,
+        landlordName: req.landlord?.name || 'N/A', propertyAddress: req.landlord?.property_address || 'N/A',
+        rentAmount: req.rent_amount, totalRepayment: req.total_repayment,
+        dailyRepayment: req.daily_repayment, durationDays: req.duration_days,
+        status: req.status || 'approved', paidAmount: req.amount_repaid,
+        startDate: format(new Date(req.disbursed_at || req.created_at), 'dd MMM yyyy'), schedule: scheduleDays,
       });
       toast({ title: 'PDF Downloaded', description: 'Repayment schedule saved.' });
     } catch {
@@ -161,35 +234,20 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       for (let i = 0; i < req.duration_days; i++) {
         const d = new Date(start);
         d.setDate(d.getDate() + i);
-        scheduleDays.push({
-          date: format(d, 'yyyy-MM-dd'),
-          amount: req.daily_repayment,
-          status: 'pending' as const,
-        });
+        scheduleDays.push({ date: format(d, 'yyyy-MM-dd'), amount: req.daily_repayment, status: 'pending' as const });
       }
       await shareRepaymentPdfWhatsApp({
-        tenantName: tenant.full_name,
-        phone: tenant.phone,
-        landlordName: req.landlord?.name || 'N/A',
-        propertyAddress: req.landlord?.property_address || 'N/A',
-        rentAmount: req.rent_amount,
-        totalRepayment: req.total_repayment,
-        dailyRepayment: req.daily_repayment,
-        durationDays: req.duration_days,
-        status: req.status || 'approved',
-        paidAmount: req.amount_repaid,
-        startDate: format(new Date(req.disbursed_at || req.created_at), 'dd MMM yyyy'),
-        schedule: scheduleDays,
+        tenantName: tenant.full_name, phone: tenant.phone,
+        landlordName: req.landlord?.name || 'N/A', propertyAddress: req.landlord?.property_address || 'N/A',
+        rentAmount: req.rent_amount, totalRepayment: req.total_repayment,
+        dailyRepayment: req.daily_repayment, durationDays: req.duration_days,
+        status: req.status || 'approved', paidAmount: req.amount_repaid,
+        startDate: format(new Date(req.disbursed_at || req.created_at), 'dd MMM yyyy'), schedule: scheduleDays,
       }, tenant.phone);
     } catch {
       toast({ title: 'Error', description: 'Could not share schedule.', variant: 'destructive' });
     }
   };
-
-  const filtered = tenants.filter(t =>
-    t.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    t.phone.includes(search)
-  );
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -200,91 +258,211 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  const cycleSortMode = () => {
+    const modes: SortMode[] = ['balance', 'name', 'recent'];
+    const next = modes[(modes.indexOf(sortMode) + 1) % modes.length];
+    setSortMode(next);
+    toast({ title: `Sorted by ${next === 'balance' ? 'rent balance' : next}` });
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl flex flex-col">
-        <SheetHeader className="pb-2">
-          <SheetTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            My Tenants ({tenants.length})
-          </SheetTitle>
-        </SheetHeader>
+      <SheetContent side="bottom" className="h-[90vh] rounded-t-2xl flex flex-col p-0">
+        {/* Header */}
+        <div className="px-4 pt-4 pb-2">
+          <SheetHeader className="pb-0">
+            <SheetTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                My Tenants
+              </span>
+              <Badge variant="secondary" className="text-xs font-mono">
+                {stats.total}
+              </Badge>
+            </SheetTitle>
+          </SheetHeader>
 
-        {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-            style={{ fontSize: '16px' }}
-          />
+          {/* Summary banner - prioritize rent balances */}
+          {stats.totalOwing > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3 rounded-xl bg-destructive/10 border border-destructive/20 p-3 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-destructive/20">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-destructive">{stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''} owe rent</p>
+                  <p className="text-[10px] text-destructive/70">Total outstanding: {formatUGX(stats.totalOwing)}</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-xs h-7 text-destructive hover:bg-destructive/10"
+                onClick={() => setActiveFilter('owing')}
+              >
+                View
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Search + Sort */}
+          <div className="flex items-center gap-2 mt-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search name or phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9"
+                style={{ fontSize: '16px' }}
+              />
+            </div>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-9 w-9 shrink-0"
+              onClick={cycleSortMode}
+              title={`Sort: ${sortMode}`}
+            >
+              <ArrowUpDown className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
+            {filterTabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveFilter(tab.key)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                  activeFilter === tab.key
+                    ? tab.key === 'owing'
+                      ? 'bg-destructive text-destructive-foreground shadow-sm'
+                      : 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    activeFilter === tab.key
+                      ? 'bg-background/20'
+                      : 'bg-background/60'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort indicator */}
+          <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
+            <Filter className="h-2.5 w-2.5" />
+            Sorted by {sortMode === 'balance' ? 'rent balance (highest first)' : sortMode === 'name' ? 'name (A-Z)' : 'most recent'}
+            {' · '}{processedTenants.length} result{processedTenants.length !== 1 ? 's' : ''}
+          </p>
         </div>
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto -mx-2 px-2 space-y-2">
+        {/* Tenant List */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              {search ? 'No tenants match your search' : 'No tenants registered yet'}
+          ) : processedTenants.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-muted/50 flex items-center justify-center">
+                <Users className="h-7 w-7 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground font-medium">
+                {search ? 'No tenants match your search' : activeFilter !== 'all' ? `No ${activeFilter} tenants` : 'No tenants registered yet'}
+              </p>
+              {activeFilter !== 'all' && (
+                <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setActiveFilter('all')}>
+                  Show all tenants
+                </Button>
+              )}
             </div>
           ) : (
-            filtered.map((tenant) => {
+            processedTenants.map((tenant, index) => {
               const isExpanded = expandedTenantId === tenant.id;
               const requests = tenantRequests[tenant.id] || [];
               const isLoadingThis = loadingRequests === tenant.id;
+              const balance = tenantBalances[tenant.id] || 0;
+              const hasDebt = balance > 0;
 
               return (
-                <div
+                <motion.div
                   key={tenant.id}
-                  className="rounded-xl border border-border bg-card overflow-hidden"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(index * 0.03, 0.3) }}
+                  className={`rounded-xl border overflow-hidden transition-colors ${
+                    hasDebt
+                      ? 'border-destructive/30 bg-destructive/5'
+                      : 'border-border bg-card'
+                  }`}
                 >
-                  {/* Tenant header - clickable to view schedule */}
+                  {/* Tenant header */}
                   <button
                     onClick={() => toggleExpand(tenant.id)}
                     className="w-full p-3 text-left hover:bg-muted/30 active:bg-primary/5 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <User className="h-5 w-5 text-primary" />
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                          hasDebt ? 'bg-destructive/15' : 'bg-primary/10'
+                        }`}>
+                          {hasDebt ? (
+                            <AlertTriangle className="h-4 w-4 text-destructive" />
+                          ) : (
+                            <User className="h-5 w-5 text-primary" />
+                          )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm truncate text-primary underline underline-offset-2 decoration-primary/30">{tenant.full_name}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">Tap to view repayment schedule</p>
+                          <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Phone className="h-3 w-3" />
                             <span>{tenant.phone}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {tenant.verified ? (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-success/20 text-success font-medium">Verified</span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {hasDebt ? (
+                          <span className="text-xs font-bold text-destructive">
+                            {formatUGX(balance)}
+                          </span>
+                        ) : tenant.verified ? (
+                          <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0">
+                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                            Clear
+                          </Badge>
                         ) : (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Pending</span>
+                          <Badge variant="secondary" className="text-[10px]">Pending</Badge>
                         )}
                         {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 mt-2 ml-[52px] text-xs text-muted-foreground">
+                    <div className="flex items-center gap-4 mt-1.5 ml-[52px] text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {format(new Date(tenant.created_at), 'dd MMM yyyy')}
                       </span>
                       {tenant.monthly_rent && (
-                        <span className="text-success font-medium">
+                        <span className="font-medium text-foreground/70">
                           Rent: {formatUGX(tenant.monthly_rent)}
                         </span>
                       )}
                     </div>
                   </button>
 
-                  {/* Expanded repayment schedule */}
+                  {/* Expanded section */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
@@ -310,21 +488,27 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                             requests.map((req) => {
                               const progress = req.total_repayment > 0 ? Math.min((req.amount_repaid / req.total_repayment) * 100, 100) : 0;
                               const previewDays = buildScheduleDays(req.disbursed_at || req.created_at, req.duration_days);
+                              const owing = Math.max(0, (req.total_repayment || 0) - (req.amount_repaid || 0));
 
                               return (
                                 <div key={req.id} className="bg-card rounded-lg border border-border p-3 space-y-2">
-                                  {/* Request header */}
                                   <div className="flex items-center justify-between">
                                     <div>
                                       <p className="text-xs font-medium">{req.landlord?.name || 'Landlord'}</p>
                                       <p className="text-[10px] text-muted-foreground">{req.landlord?.property_address || ''}</p>
                                     </div>
-                                    <Badge className={`text-[10px] ${getStatusColor(req.status)}`}>
-                                      {req.status}
-                                    </Badge>
+                                    <div className="flex items-center gap-1.5">
+                                      {owing > 0 && (
+                                        <span className="text-[10px] font-bold text-destructive">
+                                          -{formatUGX(owing)}
+                                        </span>
+                                      )}
+                                      <Badge className={`text-[10px] ${getStatusColor(req.status)}`}>
+                                        {req.status}
+                                      </Badge>
+                                    </div>
                                   </div>
 
-                                  {/* Amount info */}
                                   <div className="grid grid-cols-3 gap-2 text-center">
                                     <div>
                                       <p className="text-[10px] text-muted-foreground">Rent</p>
@@ -340,7 +524,6 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     </div>
                                   </div>
 
-                                  {/* Progress bar */}
                                   <div className="space-y-1">
                                     <div className="flex justify-between text-[10px] text-muted-foreground">
                                       <span>{req.duration_days} days</span>
@@ -348,100 +531,57 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     </div>
                                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                                       <div
-                                        className="h-full rounded-full bg-primary transition-all"
+                                        className={`h-full rounded-full transition-all ${progress >= 100 ? 'bg-success' : progress < 30 ? 'bg-destructive' : 'bg-primary'}`}
                                         style={{ width: `${progress}%` }}
                                       />
                                     </div>
                                   </div>
 
-                                  {/* 10-day preview */}
                                   <div className="flex gap-1 overflow-x-auto pb-1">
                                     {previewDays.map((day, i) => (
-                                      <div
-                                        key={i}
-                                        className="flex flex-col items-center min-w-[32px] px-1 py-1 rounded bg-muted/50 text-[9px]"
-                                      >
+                                      <div key={i} className="flex flex-col items-center min-w-[32px] px-1 py-1 rounded bg-muted/50 text-[9px]">
                                         <span className="text-muted-foreground">{format(day, 'dd')}</span>
                                         <span className="text-muted-foreground">{format(day, 'MMM')}</span>
                                       </div>
                                     ))}
                                     {req.duration_days > 10 && (
-                                      <div className="flex items-center text-[9px] text-muted-foreground px-1">
-                                        +{req.duration_days - 10}
-                                      </div>
+                                      <div className="flex items-center text-[9px] text-muted-foreground px-1">+{req.duration_days - 10}</div>
                                     )}
                                   </div>
 
-                                  {/* Actions */}
                                   <div className="grid grid-cols-2 gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs h-8"
-                                      onClick={() => handleDownloadPdf(tenant, req)}
-                                    >
-                                      <FileDown className="h-3 w-3 mr-1" />
-                                      Schedule PDF
+                                    <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleDownloadPdf(tenant, req)}>
+                                      <FileDown className="h-3 w-3 mr-1" />Schedule PDF
                                     </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs h-8"
-                                      onClick={() => handleShareWhatsApp(tenant, req)}
-                                    >
-                                      <MessageCircle className="h-3 w-3 mr-1" />
-                                      WhatsApp
+                                    <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleShareWhatsApp(tenant, req)}>
+                                      <MessageCircle className="h-3 w-3 mr-1" />WhatsApp
                                     </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs h-8 border-primary/30 text-primary"
-                                      onClick={() => {
-                                        downloadRentStatement({
-                                          tenantName: tenant.full_name,
-                                          tenantPhone: tenant.phone,
-                                          landlordName: req.landlord?.name || 'N/A',
-                                          propertyAddress: req.landlord?.property_address,
-                                          rentAmount: req.rent_amount,
-                                          totalRepayment: req.total_repayment,
-                                          amountRepaid: req.amount_repaid,
-                                          dailyRepayment: req.daily_repayment,
-                                          durationDays: req.duration_days,
-                                          status: req.status || 'approved',
-                                          createdAt: req.created_at,
-                                          requestId: req.id,
-                                        });
-                                        toast({ title: 'Downloaded', description: 'Rent statement saved.' });
-                                      }}
-                                    >
-                                      <Receipt className="h-3 w-3 mr-1" />
-                                      Rent Receipt
+                                    <Button size="sm" variant="outline" className="text-xs h-8 border-primary/30 text-primary" onClick={() => {
+                                      downloadRentStatement({
+                                        tenantName: tenant.full_name, tenantPhone: tenant.phone,
+                                        landlordName: req.landlord?.name || 'N/A', propertyAddress: req.landlord?.property_address,
+                                        rentAmount: req.rent_amount, totalRepayment: req.total_repayment,
+                                        amountRepaid: req.amount_repaid, dailyRepayment: req.daily_repayment,
+                                        durationDays: req.duration_days, status: req.status || 'approved',
+                                        createdAt: req.created_at, requestId: req.id,
+                                      });
+                                      toast({ title: 'Downloaded', description: 'Rent statement saved.' });
+                                    }}>
+                                      <Receipt className="h-3 w-3 mr-1" />Rent Receipt
                                     </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-xs h-8 border-emerald-500/30 text-emerald-600"
-                                      onClick={() => {
-                                        const text = buildRentStatementWhatsApp({
-                                          tenantName: tenant.full_name,
-                                          tenantPhone: tenant.phone,
-                                          landlordName: req.landlord?.name || 'N/A',
-                                          propertyAddress: req.landlord?.property_address,
-                                          rentAmount: req.rent_amount,
-                                          totalRepayment: req.total_repayment,
-                                          amountRepaid: req.amount_repaid,
-                                          dailyRepayment: req.daily_repayment,
-                                          durationDays: req.duration_days,
-                                          status: req.status || 'approved',
-                                          createdAt: req.created_at,
-                                          requestId: req.id,
-                                        });
-                                        shareViaWhatsApp(text);
-                                        toast({ title: 'Sharing', description: 'Opening WhatsApp...' });
-                                      }}
-                                    >
-                                      <MessageCircle className="h-3 w-3 mr-1" />
-                                      Receipt WA
+                                    <Button size="sm" variant="outline" className="text-xs h-8 border-emerald-500/30 text-emerald-600" onClick={() => {
+                                      const text = buildRentStatementWhatsApp({
+                                        tenantName: tenant.full_name, tenantPhone: tenant.phone,
+                                        landlordName: req.landlord?.name || 'N/A', propertyAddress: req.landlord?.property_address,
+                                        rentAmount: req.rent_amount, totalRepayment: req.total_repayment,
+                                        amountRepaid: req.amount_repaid, dailyRepayment: req.daily_repayment,
+                                        durationDays: req.duration_days, status: req.status || 'approved',
+                                        createdAt: req.created_at, requestId: req.id,
+                                      });
+                                      shareViaWhatsApp(text);
+                                      toast({ title: 'Sharing', description: 'Opening WhatsApp...' });
+                                    }}>
+                                      <MessageCircle className="h-3 w-3 mr-1" />Receipt WA
                                     </Button>
                                   </div>
                                 </div>
@@ -452,7 +592,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
+                </motion.div>
               );
             })
           )}
