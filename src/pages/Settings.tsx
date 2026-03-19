@@ -353,7 +353,7 @@ export default function Settings() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
+                  <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email (cannot change)</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-11 bg-muted/50" />
