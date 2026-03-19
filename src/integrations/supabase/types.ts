@@ -3244,11 +3244,15 @@ export type Database = {
       }
       property_viewings: {
         Row: {
+          agent_checkin_at: string | null
           agent_checkin_lat: number | null
           agent_checkin_lng: number | null
           agent_confirmed: boolean | null
           agent_confirmed_at: string | null
+          agent_feedback: string | null
           agent_id: string
+          agent_rated_at: string | null
+          agent_rating: number | null
           assigned_by: string | null
           confirmation_count: number | null
           confirmation_sms_sent: boolean | null
@@ -3258,22 +3262,38 @@ export type Database = {
           landlord_confirmed: boolean | null
           landlord_confirmed_at: string | null
           landlord_id: string | null
+          meeting_verified: boolean | null
           notes: string | null
+          pin_verified: boolean | null
+          pin_verified_at: string | null
+          proximity_distance_m: number | null
+          proximity_verified: boolean | null
           scheduled_date: string | null
           scheduled_time: string | null
           sms_sent: boolean | null
           status: string
+          tenant_checkin_at: string | null
+          tenant_checkin_lat: number | null
+          tenant_checkin_lng: number | null
           tenant_confirmed: boolean | null
           tenant_confirmed_at: string | null
+          tenant_feedback: string | null
           tenant_id: string
+          tenant_rated_at: string | null
+          tenant_rating: number | null
           updated_at: string | null
+          viewing_pin: string | null
         }
         Insert: {
+          agent_checkin_at?: string | null
           agent_checkin_lat?: number | null
           agent_checkin_lng?: number | null
           agent_confirmed?: boolean | null
           agent_confirmed_at?: string | null
+          agent_feedback?: string | null
           agent_id: string
+          agent_rated_at?: string | null
+          agent_rating?: number | null
           assigned_by?: string | null
           confirmation_count?: number | null
           confirmation_sms_sent?: boolean | null
@@ -3283,22 +3303,38 @@ export type Database = {
           landlord_confirmed?: boolean | null
           landlord_confirmed_at?: string | null
           landlord_id?: string | null
+          meeting_verified?: boolean | null
           notes?: string | null
+          pin_verified?: boolean | null
+          pin_verified_at?: string | null
+          proximity_distance_m?: number | null
+          proximity_verified?: boolean | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           sms_sent?: boolean | null
           status?: string
+          tenant_checkin_at?: string | null
+          tenant_checkin_lat?: number | null
+          tenant_checkin_lng?: number | null
           tenant_confirmed?: boolean | null
           tenant_confirmed_at?: string | null
+          tenant_feedback?: string | null
           tenant_id: string
+          tenant_rated_at?: string | null
+          tenant_rating?: number | null
           updated_at?: string | null
+          viewing_pin?: string | null
         }
         Update: {
+          agent_checkin_at?: string | null
           agent_checkin_lat?: number | null
           agent_checkin_lng?: number | null
           agent_confirmed?: boolean | null
           agent_confirmed_at?: string | null
+          agent_feedback?: string | null
           agent_id?: string
+          agent_rated_at?: string | null
+          agent_rating?: number | null
           assigned_by?: string | null
           confirmation_count?: number | null
           confirmation_sms_sent?: boolean | null
@@ -3308,15 +3344,27 @@ export type Database = {
           landlord_confirmed?: boolean | null
           landlord_confirmed_at?: string | null
           landlord_id?: string | null
+          meeting_verified?: boolean | null
           notes?: string | null
+          pin_verified?: boolean | null
+          pin_verified_at?: string | null
+          proximity_distance_m?: number | null
+          proximity_verified?: boolean | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           sms_sent?: boolean | null
           status?: string
+          tenant_checkin_at?: string | null
+          tenant_checkin_lat?: number | null
+          tenant_checkin_lng?: number | null
           tenant_confirmed?: boolean | null
           tenant_confirmed_at?: string | null
+          tenant_feedback?: string | null
           tenant_id?: string
+          tenant_rated_at?: string | null
+          tenant_rating?: number | null
           updated_at?: string | null
+          viewing_pin?: string | null
         }
         Relationships: [
           {
