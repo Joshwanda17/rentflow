@@ -4,9 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Wallet, ArrowRight, AlertCircle, ArrowDownToLine } from 'lucide-react';
+import { Wallet, ArrowRight, AlertCircle, ArrowDownToLine, Phone, Building2, Banknote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { UGANDA_BANKS } from '@/lib/ugandaBanks';
+
+type PayoutMode = 'cash' | 'mtn' | 'airtel' | 'bank';
 
 interface WithdrawAccountDialogProps {
   open: boolean;
@@ -14,8 +19,24 @@ interface WithdrawAccountDialogProps {
   accountName: string;
   accountId: string;
   accountBalance: number;
-  onWithdraw: (accountId: string, amount: number) => Promise<void>;
+  onWithdraw: (accountId: string, amount: number, payoutDetails?: PayoutDetails) => Promise<void>;
 }
+
+export interface PayoutDetails {
+  mode: PayoutMode;
+  momoNumber?: string;
+  momoName?: string;
+  bankName?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+}
+
+const PAYOUT_OPTIONS: { value: PayoutMode; label: string; icon: string; desc: string }[] = [
+  { value: 'mtn', label: 'MTN Mobile Money', icon: '📱', desc: 'Receive via MTN MoMo' },
+  { value: 'airtel', label: 'Airtel Money', icon: '📱', desc: 'Receive via Airtel Money' },
+  { value: 'bank', label: 'Bank Transfer', icon: '🏦', desc: 'Direct bank deposit' },
+  { value: 'cash', label: 'Cash at Agent Shop', icon: '💵', desc: 'Collect cash at agent location' },
+];
 
 export function WithdrawAccountDialog({ 
   open, 
@@ -28,34 +49,67 @@ export function WithdrawAccountDialog({
   const [amount, setAmount] = useState(10000);
   const [loading, setLoading] = useState(false);
 
+  // Payout state
+  const [payoutMode, setPayoutMode] = useState<PayoutMode>('mtn');
+  const [momoNumber, setMomoNumber] = useState('');
+  const [momoName, setMomoName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+
+  const isPayoutValid = () => {
+    if (payoutMode === 'mtn' || payoutMode === 'airtel') {
+      return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
+    }
+    if (payoutMode === 'bank') {
+      return !!bankName && bankAccountName.trim().length >= 2 && bankAccountNumber.trim().length >= 5;
+    }
+    return true; // cash
+  };
+
   const handleWithdraw = async () => {
-    if (amount <= 0 || amount > accountBalance) return;
+    if (amount <= 0 || amount > accountBalance || !isPayoutValid()) return;
     
     setLoading(true);
     try {
-      await onWithdraw(accountId, amount);
+      const payoutDetails: PayoutDetails = { mode: payoutMode };
+      if (payoutMode === 'mtn' || payoutMode === 'airtel') {
+        payoutDetails.momoNumber = momoNumber.trim();
+        payoutDetails.momoName = momoName.trim();
+      } else if (payoutMode === 'bank') {
+        payoutDetails.bankName = bankName;
+        payoutDetails.bankAccountName = bankAccountName.trim();
+        payoutDetails.bankAccountNumber = bankAccountNumber.trim();
+      }
+      await onWithdraw(accountId, amount, payoutDetails);
+      // Reset
       setAmount(10000);
+      setPayoutMode('mtn');
+      setMomoNumber('');
+      setMomoName('');
+      setBankName('');
+      setBankAccountName('');
+      setBankAccountNumber('');
       onOpenChange(false);
-      // Note: The parent component should show the approval pending message
     } finally {
       setLoading(false);
     }
   };
 
   const maxAmount = accountBalance;
-  const isValid = amount > 0 && amount <= accountBalance && accountBalance > 0;
+  const isValid = amount > 0 && amount <= accountBalance && accountBalance > 0 && isPayoutValid();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowDownToLine className="h-5 w-5 text-primary" />
-            Withdraw to Wallet
+            Withdraw Funds
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-5 py-4">
+        <div className="space-y-4 py-2">
           {/* Account Info */}
           <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
             <p className="text-xs text-muted-foreground">Withdrawing from</p>
@@ -112,6 +166,123 @@ export function WithdrawAccountDialog({
                 </div>
               </div>
 
+              {/* ═══ PAYOUT METHOD ═══ */}
+              <div className="space-y-3">
+                <Label className="text-sm font-bold">How do you want to receive?</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PAYOUT_OPTIONS.map((opt) => (
+                    <Card
+                      key={opt.value}
+                      className={`p-3 cursor-pointer transition-all text-center ${
+                        payoutMode === opt.value
+                          ? 'ring-2 ring-primary border-primary bg-primary/5'
+                          : 'hover:border-primary/50'
+                      }`}
+                      onClick={() => setPayoutMode(opt.value)}
+                    >
+                      <span className="text-xl">{opt.icon}</span>
+                      <p className="text-xs font-bold mt-1">{opt.label}</p>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* ═══ PAYOUT DETAILS ═══ */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={payoutMode}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="space-y-3"
+                >
+                  {(payoutMode === 'mtn' || payoutMode === 'airtel') && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">
+                          {payoutMode === 'mtn' ? 'MTN' : 'Airtel'} Mobile Money Number
+                        </Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="tel"
+                            placeholder="e.g. 0770123456"
+                            value={momoNumber}
+                            onChange={(e) => setMomoNumber(e.target.value)}
+                            className="h-11 pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Registered Name</Label>
+                        <Input
+                          type="text"
+                          placeholder="e.g. JOHN DOE"
+                          value={momoName}
+                          onChange={(e) => setMomoName(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {payoutMode === 'bank' && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Bank Name</Label>
+                        <Select value={bankName} onValueChange={setBankName}>
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select your bank..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60">
+                            {UGANDA_BANKS.map(b => (
+                              <SelectItem key={b} value={b}>{b}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Account Holder Name</Label>
+                        <div className="relative">
+                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder="e.g. JOHN DOE"
+                            value={bankAccountName}
+                            onChange={(e) => setBankAccountName(e.target.value)}
+                            className="h-11 pl-10"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Account Number</Label>
+                        <div className="relative">
+                          <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder="e.g. 9030012345678"
+                            value={bankAccountNumber}
+                            onChange={(e) => setBankAccountNumber(e.target.value)}
+                            className="h-11 pl-10"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {payoutMode === 'cash' && (
+                    <Card className="p-3 bg-emerald-500/5 border-emerald-500/20">
+                      <p className="text-xs font-bold text-foreground mb-1">💵 Cash at Agent Shop</p>
+                      <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground text-[11px]">
+                        <li>Your request will be reviewed by a manager</li>
+                        <li>Once approved, you'll be notified</li>
+                        <li>Visit the nearest agent shop with your ID to collect</li>
+                      </ol>
+                    </Card>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
               {/* Insufficient Balance Warning */}
               {amount > accountBalance && (
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
@@ -129,15 +300,17 @@ export function WithdrawAccountDialog({
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-violet-500/10 border border-primary/20">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary/10 to-violet-500/10 border border-primary/20">
+                      <div className="flex items-center gap-2 mb-1">
                         <Wallet className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-bold text-primary">Transfer to Wallet</span>
+                        <span className="text-xs font-bold text-primary">
+                          {payoutMode === 'mtn' ? '📱 MTN MoMo' : payoutMode === 'airtel' ? '📱 Airtel Money' : payoutMode === 'bank' ? '🏦 Bank Transfer' : '💵 Cash Pickup'}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">{accountName}</span>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xl font-black text-primary">{formatUGX(amount)}</span>
+                        <span className="text-sm text-muted-foreground truncate">{accountName}</span>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="text-lg font-black text-primary">{formatUGX(amount)}</span>
                       </div>
                     </div>
                   </motion.div>
