@@ -222,12 +222,17 @@ export function CollapsibleWalletCard() {
                       />
                       <div className="flex-1">
                         <p className="text-xs opacity-80 truncate font-medium">{profile?.full_name || 'User'}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`inline-block h-3 w-3 rounded-full ${dotColor} animate-pulse`} />
                         <AnimatedBalance 
-                          value={wallet?.balance || 0} 
-                          className="text-2xl font-bold tracking-tight mt-0.5 block"
+                          value={balance} 
+                          className="text-2xl font-bold tracking-tight block"
                         />
                       </div>
-                    </div>
+                      <p className="text-[10px] opacity-60 mt-0.5">
+                        {isOfflineData ? '📴 ' : ''}
+                        {formatSyncTime(lastSyncedAt)}
+                      </p>
 
                     {/* Quick Stats Row */}
                     {transactions.length > 0 && (
