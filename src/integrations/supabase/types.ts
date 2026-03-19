@@ -1737,6 +1737,7 @@ export type Database = {
           activation_token: string
           agent_id: string
           auto_reinvest: boolean
+          bank_account_name: string | null
           bank_name: string | null
           created_at: string
           display_currency: string
@@ -1766,6 +1767,7 @@ export type Database = {
           activation_token?: string
           agent_id: string
           auto_reinvest?: boolean
+          bank_account_name?: string | null
           bank_name?: string | null
           created_at?: string
           display_currency?: string
@@ -1795,6 +1797,7 @@ export type Database = {
           activation_token?: string
           agent_id?: string
           auto_reinvest?: boolean
+          bank_account_name?: string | null
           bank_name?: string | null
           created_at?: string
           display_currency?: string
