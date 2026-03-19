@@ -50,7 +50,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!roleCheck) {
-      return new Response(JSON.stringify({ error: "Only managers can verify listings" }), {
+      return new Response(JSON.stringify({ error: "Only internal staff can verify listings" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

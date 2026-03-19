@@ -106,22 +106,20 @@ export function VerificationOpportunitiesButton() {
   const handleVerifyHouse = async (houseId: string) => {
     if (!user) return;
     setVerifyingHouse(houseId);
-    const { error } = await supabase
-      .from('house_listings')
-      .update({
-        verified: true,
-        verified_at: new Date().toISOString(),
-        verified_by: user.id,
-        status: 'available',
-      })
-      .eq('id', houseId);
-
-    if (error) {
-      toast.error('Verification failed');
-    } else {
-      toast.success('House verified! It is now visible to tenants.');
+    try {
+      const { data, error } = await supabase.functions.invoke('credit-listing-bonus', {
+        body: { listing_id: houseId },
+      });
+      if (error) throw error;
+      if (data?.already_paid) {
+        toast.success('Already verified and bonus paid.');
+      } else {
+        toast.success(`House verified! UGX 5,000 bonus credited to listing agent.`);
+      }
       fetchCounts();
       fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || 'Verification failed');
     }
     setVerifyingHouse(null);
   };
