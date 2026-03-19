@@ -115,14 +115,15 @@ export function CollapsibleWalletCard() {
               </div>
               <div className="flex flex-col items-start min-w-0">
                 <div className="flex items-center gap-2">
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${dotColor}`} />
                   <span className="font-semibold text-foreground">Rent Money</span>
-                  {!loading && wallet && (
+                  {wallet && (
                     <span className="text-sm font-bold text-primary">
-                      {wallet.balance >= 1000000 
-                        ? `${(wallet.balance / 1000000).toFixed(1)}M` 
-                        : wallet.balance >= 1000 
-                          ? `${(wallet.balance / 1000).toFixed(0)}K` 
-                          : formatCurrency(wallet.balance)}
+                      {balance >= 1000000 
+                        ? `${(balance / 1000000).toFixed(1)}M` 
+                        : balance >= 1000 
+                          ? `${(balance / 1000).toFixed(0)}K` 
+                          : formatCurrency(balance)}
                     </span>
                   )}
                   {totalPending > 0 && (
