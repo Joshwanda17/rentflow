@@ -20,15 +20,16 @@ serve(async (req) => {
 
     // Verify caller is authenticated manager
     const authHeader = req.headers.get("authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
-    const anonClient = createClient(supabaseUrl, anonKey);
-    const { data: claimsData, error: claimsErr } = await anonClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
+    const anonClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: caller }, error: userErr } = await anonClient.auth.getUser();
+    if (userErr || !caller) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const managerId = claimsData.claims.sub as string;
+    const managerId = caller.id;
 
     const body = await req.json();
     const { listing_id } = body;

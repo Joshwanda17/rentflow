@@ -177,7 +177,11 @@ export function LandlordOpsDashboard() {
       const { data, error } = await supabase.functions.invoke('credit-listing-bonus', {
         body: { listing_id: listing.id },
       });
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Verification failed');
+        throw new Error(msg);
+      }
       if (data?.already_paid) {
         toast({ title: '✅ Already Verified', description: 'This listing was already verified and bonus paid.' });
       } else {
