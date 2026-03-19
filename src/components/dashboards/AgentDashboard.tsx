@@ -304,6 +304,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Credit Access */}
         <CreditAccessCard userId={user.id} compact />
 
+        {/* Tenant Rent Requests List */}
+        <AgentTenantRentRequestsList />
+
         <ApprovedRentRequestsWidget mode="agent" />
 
         <WalletDisclaimer />
