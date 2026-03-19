@@ -747,7 +747,7 @@ export default function Settings() {
 
         {/* ===== ADVANCED SECTION ===== */}
         <div ref={el => sectionRefs.current['advanced'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={SettingsIcon} label="Advanced" />
+          <SectionHeader icon={SettingsIcon} label="Other Options" />
 
           {/* Reset Preferences */}
           <Card className="border-border/50 shadow-sm mb-4">
