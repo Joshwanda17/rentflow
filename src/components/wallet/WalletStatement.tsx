@@ -164,7 +164,7 @@ export function WalletStatement() {
     }
   };
 
-  const exportToPDF = useCallback(() => {
+  const exportToPDF = useCallback(async () => {
     if (entries.length === 0) {
       toast.error('No transactions to export');
       return;

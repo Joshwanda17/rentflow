@@ -184,8 +184,8 @@ export async function generatePortfolioPdf(data: PortfolioPdfData): Promise<Blob
 }
 
 /** Download the PDF to the user's device */
-export function downloadPortfolioPdf(data: PortfolioPdfData) {
-  const blob = generatePortfolioPdf(data);
+export async function downloadPortfolioPdf(data: PortfolioPdfData) {
+  const blob = await generatePortfolioPdf(data);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
