@@ -18,6 +18,7 @@ import {
   Share2,
   TrendingUp,
   Banknote,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -272,11 +273,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className="grid grid-cols-4 gap-1.5">
             {[
               { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), highlight: true },
+              { icon: FileText, label: 'Requests', onClick: () => setMyRentRequestsOpen(true), highlight: true },
               { icon: MapPin, label: 'Visit', onClick: () => setVisitDialogOpen(true) },
               { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
               { icon: Receipt, label: 'Receipt', onClick: () => setReceiptOpen(true) },
-              { icon: Wallet, label: 'Deposit', onClick: handleDeposit },
               { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
               { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
