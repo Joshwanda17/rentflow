@@ -3242,6 +3242,99 @@ export type Database = {
         }
         Relationships: []
       }
+      property_viewings: {
+        Row: {
+          agent_checkin_lat: number | null
+          agent_checkin_lng: number | null
+          agent_confirmed: boolean | null
+          agent_confirmed_at: string | null
+          agent_id: string
+          assigned_by: string | null
+          confirmation_count: number | null
+          confirmation_sms_sent: boolean | null
+          created_at: string | null
+          house_listing_id: string
+          id: string
+          landlord_confirmed: boolean | null
+          landlord_confirmed_at: string | null
+          landlord_id: string | null
+          notes: string | null
+          scheduled_date: string | null
+          scheduled_time: string | null
+          sms_sent: boolean | null
+          status: string
+          tenant_confirmed: boolean | null
+          tenant_confirmed_at: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_checkin_lat?: number | null
+          agent_checkin_lng?: number | null
+          agent_confirmed?: boolean | null
+          agent_confirmed_at?: string | null
+          agent_id: string
+          assigned_by?: string | null
+          confirmation_count?: number | null
+          confirmation_sms_sent?: boolean | null
+          created_at?: string | null
+          house_listing_id: string
+          id?: string
+          landlord_confirmed?: boolean | null
+          landlord_confirmed_at?: string | null
+          landlord_id?: string | null
+          notes?: string | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          sms_sent?: boolean | null
+          status?: string
+          tenant_confirmed?: boolean | null
+          tenant_confirmed_at?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_checkin_lat?: number | null
+          agent_checkin_lng?: number | null
+          agent_confirmed?: boolean | null
+          agent_confirmed_at?: string | null
+          agent_id?: string
+          assigned_by?: string | null
+          confirmation_count?: number | null
+          confirmation_sms_sent?: boolean | null
+          created_at?: string | null
+          house_listing_id?: string
+          id?: string
+          landlord_confirmed?: boolean | null
+          landlord_confirmed_at?: string | null
+          landlord_id?: string | null
+          notes?: string | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          sms_sent?: boolean | null
+          status?: string
+          tenant_confirmed?: boolean | null
+          tenant_confirmed_at?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_viewings_house_listing_id_fkey"
+            columns: ["house_listing_id"]
+            isOneToOne: false
+            referencedRelation: "house_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_viewings_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
