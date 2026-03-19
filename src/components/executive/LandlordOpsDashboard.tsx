@@ -345,6 +345,7 @@ export function LandlordOpsDashboard() {
         <KPICard title="Total Listings" value={rows.length} icon={Home} loading={isLoading} />
         <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
         <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
+        <KPICard title="Empty Houses" value={emptyHouses.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`${rows.length ? Math.round((emptyHouses.length / rows.length) * 100) : 0}% vacancy rate`} />
         <KPICard title="Bonuses Due" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents on verify" />
       </div>
 
