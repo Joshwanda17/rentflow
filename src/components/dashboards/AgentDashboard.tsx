@@ -270,12 +270,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
           <div className="grid grid-cols-4 gap-1.5">
             {[
+              { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), highlight: true },
               { icon: MapPin, label: 'Visit', onClick: () => setVisitDialogOpen(true) },
               { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
               { icon: Receipt, label: 'Receipt', onClick: () => setReceiptOpen(true) },
               { icon: Wallet, label: 'Deposit', onClick: handleDeposit },
-              { icon: Share2, label: 'Refer', onClick: () => navigate('/referrals') },
               { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
               { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
