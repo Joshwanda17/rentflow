@@ -671,12 +671,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     toast.success(`Exported ${filteredOnboarders.length} users to CSV`);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (filteredOnboarders.length === 0) {
       toast.error('No data to export');
       return;
     }
 
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     

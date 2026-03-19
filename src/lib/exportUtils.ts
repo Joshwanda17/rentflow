@@ -47,6 +47,7 @@ export async function exportToPDF(
   title?: string
 ): Promise<void> {
   try {
+    const { toPng } = await import('html-to-image');
     // Capture element as image with lower pixel ratio for better mobile compatibility
     const dataUrl = await toPng(element, {
       quality: 0.95,
@@ -56,6 +57,7 @@ export async function exportToPDF(
       skipFonts: true, // Skip custom fonts for better compatibility
     });
 
+    const { jsPDF } = await import('jspdf');
     // Create PDF with PDF/A-1b compatible settings for maximum compatibility
     const pdf = new jsPDF({
       orientation: 'portrait',

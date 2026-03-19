@@ -335,6 +335,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
   };
 
   const generateReceiptPDF = async (): Promise<Blob> => {
+    const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',

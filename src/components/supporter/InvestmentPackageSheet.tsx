@@ -102,6 +102,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
   };
 
   const buildPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();

@@ -33,7 +33,8 @@ function getOrdinalSuffix(day: number): string {
   }
 }
 
-export function generatePortfolioPdf(data: PortfolioPdfData): Blob {
+export async function generatePortfolioPdf(data: PortfolioPdfData): Promise<Blob> {
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const pw = pdf.internal.pageSize.getWidth();
   const margin = 16;

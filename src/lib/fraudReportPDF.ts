@@ -100,6 +100,7 @@ export async function generateFraudReportPDF(): Promise<void> {
   const exploits = abusers.filter(u => u.withdrawals > 1000000 && u.earnings < 100000);
 
   // --- PDF GENERATION ---
+  const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const pw = pdf.internal.pageSize.getWidth();
   const ph = pdf.internal.pageSize.getHeight();

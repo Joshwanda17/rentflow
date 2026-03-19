@@ -103,7 +103,8 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
     URL.revokeObjectURL(url);
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(14);
     doc.text(title || 'Report', 14, 16);

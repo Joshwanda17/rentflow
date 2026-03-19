@@ -71,6 +71,7 @@ export function SavingsStatementPDF({
     setGenerating(true);
     
     try {
+      const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 20;
