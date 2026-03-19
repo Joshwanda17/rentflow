@@ -251,6 +251,7 @@ export function useWallet() {
     transactions,
     loading,
     isOfflineData,
+    lastSyncedAt,
     sendMoney,
     depositMoney,
     refreshWallet,
