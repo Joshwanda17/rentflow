@@ -15,6 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { RentAdjustmentDialog } from './RentAdjustmentDialog';
+import { VacancyAnalytics } from './VacancyAnalytics';
 
 interface ListingWithLandlord {
   id: string;
