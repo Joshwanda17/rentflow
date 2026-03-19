@@ -278,7 +278,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), highlight: true },
               { icon: FileText, label: 'Requests', onClick: () => setMyRentRequestsOpen(true), highlight: true },
               { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), highlight: true },
-              { icon: MapPin, label: 'Visit', onClick: () => setVisitDialogOpen(true) },
+              { icon: MapPin, label: 'Nearby', onClick: () => setNearbyTenantsOpen(true), highlight: true },
               { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
               { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
