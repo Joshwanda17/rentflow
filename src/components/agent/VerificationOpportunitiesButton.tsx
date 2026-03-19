@@ -26,7 +26,7 @@ interface UnverifiedRequest {
   created_at: string;
   landlord_id: string;
   tenant?: { full_name: string; city: string } | null;
-  landlord?: { name: string; property_address: string } | null;
+  landlord?: { name: string; property_address: string; latitude: number | null; longitude: number | null } | null;
 }
 
 interface UnverifiedHouse {
