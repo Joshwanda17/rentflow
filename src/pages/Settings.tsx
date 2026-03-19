@@ -495,8 +495,8 @@ export default function Settings() {
               <div className="flex items-center gap-2">
                 <LayoutDashboard className="h-4 w-4 text-primary" />
                 <div>
-                  <CardTitle className="text-sm">Default Dashboard</CardTitle>
-                  <CardDescription className="text-xs">Which dashboard opens first</CardDescription>
+                  <CardTitle className="text-sm">Home Screen</CardTitle>
+                  <CardDescription className="text-xs">Pick which page opens when you log in</CardDescription>
                 </div>
               </div>
             </CardHeader>
