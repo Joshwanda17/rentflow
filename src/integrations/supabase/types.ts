@@ -4578,6 +4578,158 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_transfers: {
+        Row: {
+          created_at: string
+          flag_type: string | null
+          from_agent_id: string
+          id: string
+          reason: string
+          rent_requests_updated: number | null
+          subscriptions_updated: number | null
+          tenant_id: string
+          to_agent_id: string
+          transferred_by: string
+        }
+        Insert: {
+          created_at?: string
+          flag_type?: string | null
+          from_agent_id: string
+          id?: string
+          reason: string
+          rent_requests_updated?: number | null
+          subscriptions_updated?: number | null
+          tenant_id: string
+          to_agent_id: string
+          transferred_by: string
+        }
+        Update: {
+          created_at?: string
+          flag_type?: string | null
+          from_agent_id?: string
+          id?: string
+          reason?: string
+          rent_requests_updated?: number | null
+          subscriptions_updated?: number | null
+          tenant_id?: string
+          to_agent_id?: string
+          transferred_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_transfers_from_agent_id_fkey"
+            columns: ["from_agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_from_agent_id_fkey"
+            columns: ["from_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_from_agent_id_fkey"
+            columns: ["from_agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_from_agent_id_fkey"
+            columns: ["from_agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_to_agent_id_fkey"
+            columns: ["to_agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_to_agent_id_fkey"
+            columns: ["to_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_to_agent_id_fkey"
+            columns: ["to_agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_to_agent_id_fkey"
+            columns: ["to_agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       transaction_approvals: {
         Row: {
           approval_id: string
@@ -5424,6 +5576,20 @@ export type Database = {
         Args: { phone_variants: string[] }
         Returns: {
           email: string
+        }[]
+      }
+      get_flagged_tenants_for_transfer: {
+        Args: never
+        Returns: {
+          accumulated_debt: number
+          active_rent_requests: number
+          agent_id: string
+          agent_name: string
+          flag_type: string
+          last_visit_at: string
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string
         }[]
       }
       get_ledger_balance: { Args: { p_user_id: string }; Returns: number }
