@@ -41,6 +41,8 @@ interface UnverifiedHouse {
   status: string;
   created_at: string;
   verified: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export function VerificationOpportunitiesButton() {
