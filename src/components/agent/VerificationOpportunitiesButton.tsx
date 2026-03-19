@@ -54,6 +54,7 @@ export function VerificationOpportunitiesButton() {
   const [houses, setHouses] = useState<UnverifiedHouse[]>([]);
   const [loading, setLoading] = useState(false);
   const [verifyingHouse, setVerifyingHouse] = useState<string | null>(null);
+  const [promptHouseId, setPromptHouseId] = useState<string | null>(null);
 
   const totalCount = rentCount + houseCount;
 
@@ -196,37 +197,59 @@ export function VerificationOpportunitiesButton() {
                             <span className="text-muted-foreground">•</span>
                             <span className="text-muted-foreground">{house.number_of_rooms} rooms</span>
                           </div>
-                          <div className="flex justify-between items-center gap-2">
-                            <p className="text-xs text-success font-medium">💰 UGX 5,000 listing bonus</p>
-                            <div className="flex items-center gap-1.5">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <p className="text-xs text-success font-medium">💰 UGX 5,000 listing bonus</p>
                               <Button
-                                onClick={() => {
-                                  const dest = house.latitude && house.longitude
-                                    ? `${house.latitude},${house.longitude}`
-                                    : encodeURIComponent(`${house.address}, ${house.region}, Uganda`);
-                                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
-                                }}
-                                variant="outline"
-                                size="sm"
-                                className="gap-1 text-xs h-8 border-primary/30 text-primary"
-                              >
-                                <Navigation className="h-3.5 w-3.5" />
-                                Navigate
-                              </Button>
-                              <Button
-                                onClick={() => handleVerifyHouse(house.id)}
-                                disabled={verifyingHouse === house.id}
+                                onClick={() => setPromptHouseId(promptHouseId === house.id ? null : house.id)}
+                                variant={promptHouseId === house.id ? 'secondary' : 'default'}
                                 size="sm"
                                 className="gap-1 text-xs h-8"
                               >
-                                {verifyingHouse === house.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                )}
-                                Verify
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Verify House
                               </Button>
                             </div>
+
+                            {promptHouseId === house.id && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2"
+                              >
+                                <p className="text-xs font-semibold text-foreground">📍 Visit this house physically to verify it</p>
+                                <p className="text-[11px] text-muted-foreground">Navigate to the property, confirm it exists and matches the listing, then tap "Confirm Verified".</p>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    onClick={() => {
+                                      const dest = house.latitude && house.longitude
+                                        ? `${house.latitude},${house.longitude}`
+                                        : encodeURIComponent(`${house.address}, ${house.region}, Uganda`);
+                                      window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1 text-xs h-8 flex-1 border-primary/30 text-primary"
+                                  >
+                                    <Navigation className="h-3.5 w-3.5" />
+                                    Navigate to House
+                                  </Button>
+                                  <Button
+                                    onClick={() => { setPromptHouseId(null); handleVerifyHouse(house.id); }}
+                                    disabled={verifyingHouse === house.id}
+                                    size="sm"
+                                    className="gap-1 text-xs h-8 flex-1"
+                                  >
+                                    {verifyingHouse === house.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="h-3.5 w-3.5" />
+                                    )}
+                                    Confirm Verified
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
