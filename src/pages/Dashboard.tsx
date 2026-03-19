@@ -184,7 +184,10 @@ function DashboardContent() {
   // Use cached role for instant display while loading
   const getDefaultRole = (availableRoles: AppRole[]): AppRole | null => {
     if (availableRoles.length === 0) return null;
-    // Default to supporter (Funder) dashboard for all users
+    // Check user's preferred default role
+    const preferred = getPreferredDefaultRole();
+    if (preferred !== 'auto' && availableRoles.includes(preferred as AppRole)) return preferred as AppRole;
+    // Fallback to supporter
     if (availableRoles.includes('supporter')) return 'supporter';
     return availableRoles[0];
   };
