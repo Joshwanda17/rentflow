@@ -83,7 +83,7 @@ export function VerificationOpportunitiesButton() {
     const [rentRes, houseRes] = await Promise.all([
       supabase
         .from('rent_requests')
-        .select('id, rent_amount, created_at, landlord_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address)')
+        .select('id, rent_amount, created_at, landlord_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address, latitude, longitude)')
         .eq('agent_verified', false)
         .in('status', ['pending', 'approved'])
         .order('created_at', { ascending: false }),
