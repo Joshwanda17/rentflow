@@ -167,15 +167,13 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const insertData: Record<string, any> = {
+        const { error } = await supabase.from('withdrawal_requests').insert({
           user_id: user.id,
           amount,
-          status: 'pending',
+          status: 'pending' as const,
           mobile_money_number: payoutMode === 'mtn' || payoutMode === 'airtel' ? momoNumber.trim() : null,
           mobile_money_provider: payoutMode === 'mtn' || payoutMode === 'airtel' ? payoutMode : null,
-        };
-
-        const { error } = await supabase.from('withdrawal_requests').insert(insertData);
+        });
         if (error) throw error;
 
         // Save mobile money details to profile
