@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Banknote,
   FileText,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
