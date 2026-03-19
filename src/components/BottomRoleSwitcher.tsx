@@ -42,7 +42,8 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
     }
   };
 
-  const cols = hasStaffRole ? 5 : 4;
+  const showStaffTab = hasStaffRole && !['tenant', 'agent', 'landlord', 'supporter'].includes(currentRole);
+  const cols = showStaffTab ? 5 : 4;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/40 pb-[env(safe-area-inset-bottom)]">
