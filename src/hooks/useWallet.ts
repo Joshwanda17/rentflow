@@ -34,14 +34,28 @@ const WALLET_CACHE_TTL = 30_000; // 30 seconds
 
 export function useWallet() {
   const { user } = useAuth();
-  const [wallet, setWallet] = useState<Wallet | null>(
-    walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)
-      ? walletCache.data
-      : null
-  );
+  // Initialize from module cache OR localStorage for instant display (no flash)
+  const [wallet, setWallet] = useState<Wallet | null>(() => {
+    if (walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
+      return walletCache.data;
+    }
+    // Sync read from localStorage for instant first-paint
+    try {
+      const raw = localStorage.getItem(`wallet_${user?.id}`);
+      if (raw) return JSON.parse(raw) as Wallet;
+    } catch {}
+    return null;
+  });
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [loading, setLoading] = useState(!walletCache || walletCache.userId !== user?.id);
+  // Never show loading if we have ANY cached balance — show stale data instantly
+  const [loading, setLoading] = useState(() => {
+    if (walletCache && walletCache.userId === user?.id) return false;
+    try {
+      return !localStorage.getItem(`wallet_${user?.id}`);
+    } catch { return true; }
+  });
   const [isOfflineData, setIsOfflineData] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
   const fetchWallet = useCallback(async (force = false) => {
     if (!user) return;
