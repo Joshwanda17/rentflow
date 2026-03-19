@@ -13,6 +13,7 @@ import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
 import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
+import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
@@ -80,6 +81,7 @@ function DashboardContent() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();
+  const { isQualifiedInvestor } = useDeployedCapital(user?.id);
 
   // Derive frozen state from profile (no separate DB call)
   const isFrozen = profile?.is_frozen ?? false;
@@ -99,6 +101,19 @@ function DashboardContent() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Auto-default qualified investors (≥100K deployed) to Funder dashboard
+  useEffect(() => {
+    if (loading || !user || roles.length === 0) return;
+    if (!isQualifiedInvestor) return;
+    // Only auto-switch if user hasn't set an explicit preference
+    const preferred = getPreferredDefaultRole();
+    if (preferred !== 'auto') return;
+    // If current role isn't supporter and supporter is available, switch
+    if (role !== 'supporter' && roles.includes('supporter')) {
+      switchRole('supporter');
+    }
+  }, [loading, user, roles, role, isQualifiedInvestor, switchRole]);
 
   // Handle role switch via URL param (e.g. after tenant/supporter activation)
   // Gate on !loading && roles.length > 0 to prevent race with fetchUserRoles
