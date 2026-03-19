@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { setCachedRoles } from '@/lib/sessionCache';
 import type { AppRole } from './types';
+import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
 
 export const DEFAULT_ROLE: AppRole = 'supporter';
 export const DEFAULT_ROLES: AppRole[] = ['supporter'];
