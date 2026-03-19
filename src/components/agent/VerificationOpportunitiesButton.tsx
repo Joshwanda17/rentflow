@@ -89,7 +89,7 @@ export function VerificationOpportunitiesButton() {
         .order('created_at', { ascending: false }),
       supabase
         .from('house_listings')
-        .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified')
+        .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified, latitude, longitude')
         .or('verified.is.null,verified.eq.false')
         .in('status', ['pending', 'available'])
         .order('created_at', { ascending: false }),
