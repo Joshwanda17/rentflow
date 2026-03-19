@@ -214,7 +214,9 @@ export function useWallet() {
 
   useEffect(() => {
     if (user) {
-      setLoading(true);
+      // Only show loading if we have NO cached data at all — prevents flash when cache exists
+      const hasCachedData = wallet !== null;
+      if (!hasCachedData) setLoading(true);
       // Only fetch wallet balance on mount — transactions load lazily when wallet sheet opens
       fetchWallet().finally(() => setLoading(false));
 
