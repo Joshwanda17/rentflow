@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck, Phone, MessageCircle, Image, MapPinned } from 'lucide-react';
+import { Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck, Phone, MessageCircle, Image, MapPinned, DoorOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ interface ListingWithLandlord {
   lc1_chairperson_village: string | null;
   agent_id: string;
   landlord_id: string | null;
+  tenant_id: string | null;
   verified: boolean | null;
   listing_bonus_paid: boolean | null;
   created_at: string;
@@ -113,7 +114,7 @@ export function LandlordOpsDashboard() {
         .select(`
           id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
           latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
-          agent_id, landlord_id, verified, listing_bonus_paid, created_at, status,
+          agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status,
           landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses)
         `)
         .order('created_at', { ascending: false })
@@ -141,6 +142,7 @@ export function LandlordOpsDashboard() {
   const verifiedListings = rows.filter(l => l.verified);
   const withImages = rows.filter(l => l.image_urls && l.image_urls.length > 0);
   const withGPS = rows.filter(l => l.latitude && l.longitude);
+  const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
     if (!user) return;
@@ -343,6 +345,7 @@ export function LandlordOpsDashboard() {
         <KPICard title="Total Listings" value={rows.length} icon={Home} loading={isLoading} />
         <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
         <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
+        <KPICard title="Empty Houses" value={emptyHouses.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`${rows.length ? Math.round((emptyHouses.length / rows.length) * 100) : 0}% vacancy rate`} />
         <KPICard title="Bonuses Due" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents on verify" />
       </div>
 
@@ -367,6 +370,113 @@ export function LandlordOpsDashboard() {
             },
           ]}
         />
+      )}
+
+      {/* Empty Houses - Vacancy Management */}
+      {emptyHouses.length > 0 && (
+        <div className="space-y-3">
+          <div className="rounded-2xl border-2 border-red-400/40 bg-red-50 dark:bg-red-950/20 p-4 flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-red-500/20 shrink-0">
+              <DoorOpen className="h-6 w-6 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-red-800 dark:text-red-300 text-lg">
+                🏚️ {emptyHouses.length} Empty House{emptyHouses.length !== 1 ? 's' : ''} — Lost Revenue
+              </p>
+              <p className="text-sm text-red-700 dark:text-red-400 mt-0.5">
+                These verified listings have no tenants. Potential monthly revenue loss: UGX {emptyHouses.reduce((s, h) => s + h.monthly_rent, 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <ExecutiveDataTable
+            data={emptyHouses}
+            columns={[
+              {
+                key: 'title', label: 'Property', render: (_, row) => (
+                  <div className="flex items-center gap-2 min-w-[140px]">
+                    {row.image_urls?.[0] ? (
+                      <button onClick={() => setPreviewImages({ images: row.image_urls!, title: row.title })} className="shrink-0 h-10 w-10 rounded-lg overflow-hidden border border-border hover:ring-2 ring-primary">
+                        <img src={row.image_urls[0]} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ) : (
+                      <div className="shrink-0 h-10 w-10 rounded-lg bg-muted flex items-center justify-center"><DoorOpen className="h-4 w-4 text-muted-foreground" /></div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-sm leading-tight">{row.title}</p>
+                      <p className="text-[10px] text-muted-foreground">{row.address}, {row.district || row.region}</p>
+                      <Badge variant="outline" className="text-[9px] h-4 px-1 mt-0.5">{row.house_category} • {row.number_of_rooms} rooms</Badge>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'monthly_rent', label: 'Rent/mo', render: (v) => (
+                  <span className="font-semibold text-sm">{Number(v || 0).toLocaleString()}</span>
+                ),
+              },
+              {
+                key: 'daily_rate', label: 'Daily Rate', render: (v) => (
+                  <span className="text-xs font-medium text-primary">{Number(v || 0).toLocaleString()}/day</span>
+                ),
+              },
+              {
+                key: 'landlord_id', label: 'Landlord', render: (_, row) => {
+                  const l = row.landlords;
+                  if (!l) return <span className="text-muted-foreground text-xs italic">Unlinked</span>;
+                  return (
+                    <div>
+                      <p className="text-xs font-medium">{l.name}</p>
+                      <PhoneLinks phone={l.phone} name={l.name} />
+                    </div>
+                  );
+                },
+              },
+              {
+                key: 'agent_id', label: 'Agent', render: (_, row) => (
+                  <div>
+                    <p className="text-xs font-medium">{row.agent_name}</p>
+                    {row.agent_phone && <PhoneLinks phone={row.agent_phone} name={row.agent_name} />}
+                  </div>
+                ),
+              },
+              {
+                key: 'latitude', label: 'Location', render: (_, row) => {
+                  if (!row.latitude || !row.longitude) return <span className="text-muted-foreground text-xs">No GPS</span>;
+                  return (
+                    <a href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
+                      <MapPinned className="h-3.5 w-3.5" /> View
+                    </a>
+                  );
+                },
+              },
+              {
+                key: 'created_at', label: 'Days Empty', render: (v) => {
+                  const days = Math.floor((Date.now() - new Date(v as string).getTime()) / 86400000);
+                  return (
+                    <Badge variant={days > 30 ? 'destructive' : days > 14 ? 'secondary' : 'outline'} className="text-[10px]">
+                      {days}d
+                    </Badge>
+                  );
+                },
+              },
+            ]}
+            loading={isLoading}
+            title={`🏚️ Empty Houses (${emptyHouses.length})`}
+            limit={50}
+            filters={[
+              {
+                key: 'house_category',
+                label: 'Type',
+                options: [...new Set(emptyHouses.map(l => l.house_category).filter(Boolean))].map(v => ({ value: v, label: v })),
+              },
+              {
+                key: 'region',
+                label: 'Region',
+                options: [...new Set(emptyHouses.map(l => l.region).filter(Boolean))].map(v => ({ value: v, label: v })),
+              },
+            ]}
+          />
+        </div>
       )}
 
       {/* All Listings Table */}
