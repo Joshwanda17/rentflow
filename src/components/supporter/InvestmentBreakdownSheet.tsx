@@ -316,6 +316,15 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <Plus className="h-4 w-4" />
                           Top Up This Account
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5 font-semibold"
+                          onClick={() => setPayoutTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          Set Payout Method
+                        </Button>
                         <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
