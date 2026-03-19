@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Home, MapPin, CheckCircle2, Loader2 } from 'lucide-react';
+import { Shield, Home, MapPin, CheckCircle2, Loader2, Navigation } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import {
@@ -41,6 +41,8 @@ interface UnverifiedHouse {
   status: string;
   created_at: string;
   verified: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export function VerificationOpportunitiesButton() {
@@ -87,7 +89,7 @@ export function VerificationOpportunitiesButton() {
         .order('created_at', { ascending: false }),
       supabase
         .from('house_listings')
-        .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified')
+        .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified, latitude, longitude')
         .or('verified.is.null,verified.eq.false')
         .in('status', ['pending', 'available'])
         .order('created_at', { ascending: false }),
@@ -194,21 +196,37 @@ export function VerificationOpportunitiesButton() {
                             <span className="text-muted-foreground">•</span>
                             <span className="text-muted-foreground">{house.number_of_rooms} rooms</span>
                           </div>
-                          <div className="flex justify-between items-center">
+                          <div className="flex justify-between items-center gap-2">
                             <p className="text-xs text-success font-medium">💰 UGX 5,000 listing bonus</p>
-                            <Button
-                              onClick={() => handleVerifyHouse(house.id)}
-                              disabled={verifyingHouse === house.id}
-                              size="sm"
-                              className="gap-1.5 text-xs h-8"
-                            >
-                              {verifyingHouse === house.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                              )}
-                              Verify House
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                onClick={() => {
+                                  const dest = house.latitude && house.longitude
+                                    ? `${house.latitude},${house.longitude}`
+                                    : encodeURIComponent(`${house.address}, ${house.region}, Uganda`);
+                                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 text-xs h-8 border-primary/30 text-primary"
+                              >
+                                <Navigation className="h-3.5 w-3.5" />
+                                Navigate
+                              </Button>
+                              <Button
+                                onClick={() => handleVerifyHouse(house.id)}
+                                disabled={verifyingHouse === house.id}
+                                size="sm"
+                                className="gap-1 text-xs h-8"
+                              >
+                                {verifyingHouse === house.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                )}
+                                Verify
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
