@@ -680,7 +680,7 @@ export default function Settings() {
               </SettingsRow>
 
               {/* Skip Splash */}
-              <SettingsRow label="Skip Splash Screen" description={preferences.skipSplash ? 'Splash is skipped' : 'Splash shows on startup'} icon={RotateCcw}>
+              <SettingsRow label="Skip Welcome Screen" description={preferences.skipSplash ? 'Goes straight to your dashboard' : 'Shows the welcome page first'} icon={RotateCcw}>
                 <Switch
                   checked={preferences.skipSplash}
                   onCheckedChange={(checked) => { updatePreference('skipSplash', checked); toast.success(checked ? 'Splash skipped' : 'Splash enabled'); }}
