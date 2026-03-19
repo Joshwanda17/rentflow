@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.viewing-confirmation-sms]
 verify_jwt = false
+
+[functions.verify-viewing-checkin]
+verify_jwt = false
