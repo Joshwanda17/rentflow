@@ -18,6 +18,7 @@ import {
   Share2,
   TrendingUp,
   Banknote,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
