@@ -305,6 +305,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </button>
           </div>
 
+          {/* Suggested Houses — matched to tenant */}
+          <SuggestedHousesCard userId={user.id} onViewAll={() => setHousesOpen(true)} />
+
           {/* Nearby Houses — auto-detected */}
           <NearbyHousesPreview onViewAll={() => setHousesOpen(true)} />
 
