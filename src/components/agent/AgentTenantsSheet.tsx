@@ -364,8 +364,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           {/* Sort indicator */}
           <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
             <Filter className="h-2.5 w-2.5 shrink-0" />
-            Sorted by {sortMode === 'balance' ? 'rent balance (highest first)' : sortMode === 'name' ? 'name (A-Z)' : 'most recent'}
-            {' · '}{processedTenants.length} result{processedTenants.length !== 1 ? 's' : ''}
+            Showing by {sortMode === 'balance' ? 'who owes the most' : sortMode === 'name' ? 'name A to Z' : 'newest first'}
+            {' · '}{processedTenants.length} tenant{processedTenants.length !== 1 ? 's' : ''}
           </p>
         </div>
 
