@@ -112,13 +112,9 @@ export function WalletCard() {
         <div className="bg-gradient-to-br from-primary via-primary to-primary/85 p-4 sm:p-5 text-primary-foreground">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <motion.div 
-                className="p-2.5 rounded-xl bg-primary-foreground/15 backdrop-blur-sm"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                whileTap={{ scale: 0.95 }}
-              >
+              <div className="p-2.5 rounded-xl bg-primary-foreground/15">
                 <Wallet className="h-5 w-5" />
-              </motion.div>
+              </div>
               <div>
                 <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet Balance</span>
                 <div className="mt-0.5 flex items-center gap-2">
@@ -150,10 +146,19 @@ export function WalletCard() {
             />
             <div className="flex-1">
               <p className="text-sm opacity-80 truncate font-medium">{profile?.full_name || 'User'}</p>
-              <AnimatedBalance 
-                value={wallet?.balance || 0} 
-                className="text-3xl sm:text-2xl font-bold tracking-tight mt-0.5 block"
-              />
+              <div className="flex items-center gap-2 mt-0.5">
+                {/* Traffic-light dot indicator */}
+                <span className={`inline-block h-3 w-3 rounded-full ${dotColor} animate-pulse`} />
+                <AnimatedBalance 
+                  value={balance} 
+                  className="text-3xl sm:text-2xl font-bold tracking-tight block"
+                />
+              </div>
+              {/* Sync status - subtle, non-intrusive */}
+              <p className="text-[10px] opacity-60 mt-0.5">
+                {isOfflineData ? '📴 Offline • ' : ''}
+                Updated {formatSyncTime(lastSyncedAt)}
+              </p>
             </div>
           </div>
 
