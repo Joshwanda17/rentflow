@@ -518,6 +518,9 @@ export function LandlordOpsDashboard() {
         ]}
       />
 
+      {/* Occupancy Analytics */}
+      <VacancyAnalytics listings={rows as any} />
+
       {/* Image Preview Dialog */}
       {previewImages && (
         <ImagePreviewDialog
@@ -525,6 +528,16 @@ export function LandlordOpsDashboard() {
           title={previewImages.title}
           open={!!previewImages}
           onClose={() => setPreviewImages(null)}
+        />
+      )}
+
+      {/* Rent Adjustment Dialog */}
+      {adjustListing && (
+        <RentAdjustmentDialog
+          open={!!adjustListing}
+          onOpenChange={(open) => !open && setAdjustListing(null)}
+          listing={adjustListing}
+          onSuccess={() => refetch()}
         />
       )}
     </div>
