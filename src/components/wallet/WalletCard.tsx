@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, History, TrendingUp, TrendingDown, ArrowDownToLine } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
+import { getBalanceColorClass, getBalanceDotClass, formatSyncTime } from '@/lib/walletUtils';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import { DepositDialog } from './DepositDialog';
 import { RequestMoneyDialog } from './RequestMoneyDialog';
@@ -18,7 +18,7 @@ import { AnimatedBalance } from './AnimatedBalance';
 import { WalletBreakdown } from './WalletBreakdown';
 import { WalletStatement } from './WalletStatement';
 import { MyReferralsCount } from './MyReferralsCount';
-import { RecentBalanceChanges } from './RecentBalanceChanges';
+
 import { RecentAutoCharges } from './RecentAutoCharges';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,7 +29,7 @@ import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingC
 
 export function WalletCard() {
   const navigate = useNavigate();
-  const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
+  const { wallet, transactions, loading, isOfflineData, lastSyncedAt, refreshWallet, refreshTransactions } = useWallet();
   const { user } = useAuth();
   const { profile } = useProfile();
   const [sendOpen, setSendOpen] = useState(false);
@@ -51,22 +51,6 @@ export function WalletCard() {
     fetchPendingCount();
   }, [fetchPendingCount]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-UG', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const handlePendingClose = (open: boolean) => {
     setPendingOpen(open);
@@ -78,7 +62,11 @@ export function WalletCard() {
     }
   };
 
-  if (loading) {
+  // Show cached balance immediately — never show skeleton if we have cached data
+  const balance = wallet?.balance || 0;
+  const dotColor = getBalanceDotClass(balance);
+
+  if (loading && !wallet) {
     return <SkeletonWallet />;
   }
 
@@ -107,13 +95,9 @@ export function WalletCard() {
         <div className="bg-gradient-to-br from-primary via-primary to-primary/85 p-4 sm:p-5 text-primary-foreground">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <motion.div 
-                className="p-2.5 rounded-xl bg-primary-foreground/15 backdrop-blur-sm"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                whileTap={{ scale: 0.95 }}
-              >
+              <div className="p-2.5 rounded-xl bg-primary-foreground/15">
                 <Wallet className="h-5 w-5" />
-              </motion.div>
+              </div>
               <div>
                 <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet Balance</span>
                 <div className="mt-0.5 flex items-center gap-2">
@@ -145,10 +129,19 @@ export function WalletCard() {
             />
             <div className="flex-1">
               <p className="text-sm opacity-80 truncate font-medium">{profile?.full_name || 'User'}</p>
-              <AnimatedBalance 
-                value={wallet?.balance || 0} 
-                className="text-3xl sm:text-2xl font-bold tracking-tight mt-0.5 block"
-              />
+              <div className="flex items-center gap-2 mt-0.5">
+                {/* Traffic-light dot indicator */}
+                <span className={`inline-block h-3 w-3 rounded-full ${dotColor} animate-pulse`} />
+                <AnimatedBalance 
+                  value={balance} 
+                  className="text-3xl sm:text-2xl font-bold tracking-tight block"
+                />
+              </div>
+              {/* Sync status - subtle, non-intrusive */}
+              <p className="text-[10px] opacity-60 mt-0.5">
+                {isOfflineData ? '📴 Offline • ' : ''}
+                Updated {formatSyncTime(lastSyncedAt)}
+              </p>
             </div>
           </div>
 
@@ -157,12 +150,7 @@ export function WalletCard() {
 
           {/* Quick Stats Row */}
           {transactions.length > 0 && (
-            <motion.div 
-              className="flex gap-3 mt-4 pt-3 border-t border-primary-foreground/20"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
+            <div className="flex gap-3 mt-4 pt-3 border-t border-primary-foreground/20">
               <div className="flex items-center gap-2 flex-1">
                 <div className="p-1.5 rounded-full bg-success/20">
                   <TrendingUp className="h-3.5 w-3.5 text-success" />
@@ -189,7 +177,7 @@ export function WalletCard() {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
         

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getBalanceDotClass, formatSyncTime } from '@/lib/walletUtils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +31,7 @@ import { WalletDisclaimer } from './WalletDisclaimer';
 
 export function CollapsibleWalletCard() {
   const navigate = useNavigate();
-  const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
+  const { wallet, transactions, loading, isOfflineData, lastSyncedAt, refreshWallet, refreshTransactions } = useWallet();
   const { user } = useAuth();
   const { profile } = useProfile();
   const [isOpen, setIsOpen] = useState(false);
@@ -57,6 +58,9 @@ export function CollapsibleWalletCard() {
   useEffect(() => {
     fetchAllPendingCounts();
   }, [fetchAllPendingCounts]);
+
+  const balance = wallet?.balance || 0;
+  const dotColor = getBalanceDotClass(balance);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -111,14 +115,15 @@ export function CollapsibleWalletCard() {
               </div>
               <div className="flex flex-col items-start min-w-0">
                 <div className="flex items-center gap-2">
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${dotColor}`} />
                   <span className="font-semibold text-foreground">Rent Money</span>
-                  {!loading && wallet && (
+                  {wallet && (
                     <span className="text-sm font-bold text-primary">
-                      {wallet.balance >= 1000000 
-                        ? `${(wallet.balance / 1000000).toFixed(1)}M` 
-                        : wallet.balance >= 1000 
-                          ? `${(wallet.balance / 1000).toFixed(0)}K` 
-                          : formatCurrency(wallet.balance)}
+                      {balance >= 1000000 
+                        ? `${(balance / 1000000).toFixed(1)}M` 
+                        : balance >= 1000 
+                          ? `${(balance / 1000).toFixed(0)}K` 
+                          : formatCurrency(balance)}
                     </span>
                   )}
                   {totalPending > 0 && (
@@ -217,10 +222,17 @@ export function CollapsibleWalletCard() {
                       />
                       <div className="flex-1">
                         <p className="text-xs opacity-80 truncate font-medium">{profile?.full_name || 'User'}</p>
-                        <AnimatedBalance 
-                          value={wallet?.balance || 0} 
-                          className="text-2xl font-bold tracking-tight mt-0.5 block"
-                        />
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`inline-block h-3 w-3 rounded-full ${dotColor} animate-pulse`} />
+                          <AnimatedBalance 
+                            value={balance} 
+                            className="text-2xl font-bold tracking-tight block"
+                          />
+                        </div>
+                        <p className="text-[10px] opacity-60 mt-0.5">
+                          {isOfflineData ? '📴 ' : ''}
+                          {formatSyncTime(lastSyncedAt)}
+                        </p>
                       </div>
                     </div>
 
