@@ -42,6 +42,9 @@ export function FloatingWalletButton() {
 
   if (!user) return null;
 
+  const balance = wallet?.balance || 0;
+  const dotColor = getBalanceDotClass(balance);
+
   return (
     <>
       <button
@@ -49,10 +52,11 @@ export function FloatingWalletButton() {
         className="fixed bottom-24 sm:bottom-28 left-4 z-40 flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all animate-scale-in"
         aria-label="Open Rent Money"
       >
+        <span className={`inline-block h-2.5 w-2.5 rounded-full ${dotColor}`} />
         <Wallet className="h-4 w-4" />
-        {!loading && wallet && (
+        {wallet && (
           <span className="text-xs font-bold">
-            {formatCompact(wallet.balance || 0)}
+            {formatCompact(balance)}
           </span>
         )}
         {pendingCount > 0 && (
