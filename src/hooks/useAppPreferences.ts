@@ -120,3 +120,15 @@ export function isRememberLoginEnabled(): boolean {
   } catch (e) {}
   return true;
 }
+
+// Standalone function to get the user's preferred default role
+export function getPreferredDefaultRole(): DefaultRolePreference {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const prefs = JSON.parse(stored);
+      return prefs.defaultRole || 'auto';
+    }
+  } catch (e) {}
+  return 'auto';
+}
