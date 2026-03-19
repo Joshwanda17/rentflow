@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff, LayoutDashboard } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import PinSecuritySection from '@/components/settings/PinSecuritySection';
 import BiometricSecuritySection from '@/components/settings/BiometricSecuritySection';
@@ -1112,7 +1112,50 @@ export default function Settings() {
                     }}
                   />
                 </div>
-              </div>
+                </div>
+
+                {/* Default Dashboard Role */}
+                <div className="p-4 rounded-xl bg-background/50 border border-border/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <LayoutDashboard className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Default Dashboard</p>
+                      <p className="text-sm text-muted-foreground">
+                        Choose which dashboard you see first when you open the app
+                      </p>
+                    </div>
+                  </div>
+                  <RadioGroup
+                    value={preferences.defaultRole}
+                    onValueChange={(value) => {
+                      updatePreference('defaultRole', value as any);
+                      const label = value === 'auto' ? 'Auto (Funder)' : roleConfig[value as AppRole]?.label || value;
+                      toast.success(`Default dashboard set to ${label}`);
+                    }}
+                    className="grid grid-cols-2 gap-2"
+                  >
+                    <div className="flex items-center space-x-2 p-2 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="auto" id="role-auto" />
+                      <Label htmlFor="role-auto" className="text-sm cursor-pointer flex items-center gap-1.5">
+                        <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                        Auto
+                      </Label>
+                    </div>
+                    {roles.map((r) => {
+                      const rc = roleConfig[r];
+                      if (!rc) return null;
+                      return (
+                        <div key={r} className="flex items-center space-x-2 p-2 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
+                          <RadioGroupItem value={r} id={`role-${r}`} />
+                          <Label htmlFor={`role-${r}`} className="text-sm cursor-pointer flex items-center gap-1.5">
+                            {rc.icon}
+                            {rc.label}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </RadioGroup>
+                </div>
 
               {/* Reset All Preferences */}
               <div className="p-4 rounded-xl bg-background/50 border border-border/50">

@@ -12,6 +12,7 @@ import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
+import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
@@ -184,7 +185,10 @@ function DashboardContent() {
   // Use cached role for instant display while loading
   const getDefaultRole = (availableRoles: AppRole[]): AppRole | null => {
     if (availableRoles.length === 0) return null;
-    // Default to supporter (Funder) dashboard for all users
+    // Check user's preferred default role
+    const preferred = getPreferredDefaultRole();
+    if (preferred !== 'auto' && availableRoles.includes(preferred as AppRole)) return preferred as AppRole;
+    // Fallback to supporter
     if (availableRoles.includes('supporter')) return 'supporter';
     return availableRoles[0];
   };

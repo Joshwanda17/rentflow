@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { setCachedRoles } from '@/lib/sessionCache';
 import type { AppRole } from './types';
+import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
 
 export const DEFAULT_ROLE: AppRole = 'supporter';
 export const DEFAULT_ROLES: AppRole[] = ['supporter'];
@@ -54,9 +55,12 @@ export async function fetchUserRoles(
       setRoles(userRoles);
       setCachedRoles(userRoles);
       
-      // Default to supporter (Funder) dashboard for all users
+      // Check user's preferred default role first
+      const preferred = getPreferredDefaultRole();
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
-      const defaultForUser = (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+      const defaultForUser = 
+        (preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
+        : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
         : userRoles.includes('supporter') ? 'supporter'
         : userRoles[0];
       if (!currentRole || !userRoles.includes(currentRole)) {
