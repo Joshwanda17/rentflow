@@ -613,8 +613,8 @@ export default function Settings() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Volume2 className="h-4 w-4 text-primary" />
-                    <p className="font-medium text-sm">Notification Sounds</p>
+                     <Volume2 className="h-4 w-4 text-primary" />
+                    <p className="font-medium text-sm">Alert Sounds</p>
                   </div>
                   <Switch
                     checked={preferences.notificationSounds}
