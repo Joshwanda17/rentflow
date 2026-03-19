@@ -404,7 +404,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                               <SelectTrigger className="h-12 rounded-xl">
                                 <SelectValue placeholder="Select your bank…" />
                               </SelectTrigger>
-                              <SelectContent className="max-h-60">
+                              <SelectContent className="max-h-60 z-[200]" position="popper" sideOffset={4}>
                                 {UGANDA_BANKS.map((b) => (
                                   <SelectItem key={b} value={b}>{b}</SelectItem>
                                 ))}
