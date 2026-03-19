@@ -1,4 +1,5 @@
 // jsPDF loaded dynamically to reduce initial bundle size
+import type { jsPDF as JsPDFType } from 'jspdf';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -8,7 +9,7 @@ const GRAY: [number, number, number] = [107, 114, 128];
 const BLACK: [number, number, number] = [17, 24, 39];
 const WHITE: [number, number, number] = [255, 255, 255];
 
-function addBrandHeader(doc: jsPDF, title: string): number {
+function addBrandHeader(doc: JsPDFType, title: string): number {
   // Purple header bar
   doc.setFillColor(...BRAND_PURPLE);
   doc.rect(0, 0, 210, 38, 'F');
