@@ -464,7 +464,7 @@ export default function Settings() {
 
         {/* ===== ROLES & NAVIGATION SECTION ===== */}
         <div ref={el => sectionRefs.current['roles'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Shield} label="Roles & Navigation" />
+          <SectionHeader icon={Shield} label="Your Roles" />
 
           {/* Current Roles */}
           <Card className="border-border/50 shadow-sm mb-4">
