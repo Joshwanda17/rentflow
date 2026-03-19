@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, History, TrendingUp, TrendingDown, ArrowDownToLine } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
+import { getBalanceColorClass, getBalanceDotClass, formatSyncTime } from '@/lib/walletUtils';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import { DepositDialog } from './DepositDialog';
 import { RequestMoneyDialog } from './RequestMoneyDialog';
