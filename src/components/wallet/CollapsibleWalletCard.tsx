@@ -59,6 +59,9 @@ export function CollapsibleWalletCard() {
     fetchAllPendingCounts();
   }, [fetchAllPendingCounts]);
 
+  const balance = wallet?.balance || 0;
+  const dotColor = getBalanceDotClass(balance);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
