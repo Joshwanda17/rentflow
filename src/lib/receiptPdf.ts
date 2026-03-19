@@ -36,7 +36,7 @@ function addBrandHeader(doc: JsPDFType, title: string): number {
   return 46;
 }
 
-function addRow(doc: jsPDF, y: number, label: string, value: string, bold = false) {
+function addRow(doc: JsPDFType, y: number, label: string, value: string, bold = false) {
   doc.setTextColor(...GRAY);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
