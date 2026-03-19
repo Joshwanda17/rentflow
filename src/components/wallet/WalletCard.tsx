@@ -51,22 +51,6 @@ export function WalletCard() {
     fetchPendingCount();
   }, [fetchPendingCount]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-UG', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const handlePendingClose = (open: boolean) => {
     setPendingOpen(open);
