@@ -302,7 +302,7 @@ export default function Settings() {
                 checked={preferences.unlockAllRoles}
                 onCheckedChange={(checked) => {
                   updatePreference('unlockAllRoles', checked);
-                  toast.success(checked ? 'All roles unlocked for navigation' : 'Role gating re-enabled');
+                  toast.success(checked ? 'You can now see all dashboards' : 'Back to your main dashboard only');
                 }}
                 className="shrink-0"
               />
