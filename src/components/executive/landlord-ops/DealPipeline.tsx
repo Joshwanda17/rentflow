@@ -34,6 +34,12 @@ interface Viewing {
   tenant_confirmed: boolean;
   landlord_confirmed: boolean;
   confirmation_count: number;
+  pin_verified: boolean;
+  proximity_verified: boolean;
+  meeting_verified: boolean;
+  agent_rating: number | null;
+  tenant_rating: number | null;
+  viewing_pin: string | null;
   notes: string | null;
   created_at: string;
   // Joined
