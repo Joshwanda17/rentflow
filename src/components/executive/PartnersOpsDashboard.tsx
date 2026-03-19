@@ -145,6 +145,17 @@ export function PartnersOpsDashboard() {
     { key: 'investment_amount', label: 'Invested', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'roi_percentage', label: 'ROI%', render: (v) => `${v}%` },
     { key: 'total_roi_earned', label: 'Earned', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'payment_method', label: 'Payout', sortable: false, render: (v, row) => {
+      const method = String(v || 'none');
+      if (method === 'bank_transfer') return (
+        <span className="text-[10px] font-medium">🏦 {row.bank_name ? String(row.bank_name).split(' ').slice(0, 2).join(' ') : 'Bank'}</span>
+      );
+      if (method === 'mobile_money') return (
+        <span className="text-[10px] font-medium">📱 {row.mobile_network || 'MoMo'}</span>
+      );
+      if (method === 'cash') return <span className="text-[10px] font-medium">💵 Cash</span>;
+      return <span className="text-[10px] text-muted-foreground italic">Not set</span>;
+    }},
     { key: 'health_score', label: 'Health', sortable: false, render: (v) => {
       const score = Number(v);
       const color = score >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
