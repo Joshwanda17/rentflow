@@ -385,7 +385,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               </p>
               {activeFilter !== 'all' && (
                 <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setActiveFilter('all')}>
-                  Show all tenants
+                  See everyone
                 </Button>
               )}
             </div>
