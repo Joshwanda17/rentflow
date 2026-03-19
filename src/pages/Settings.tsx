@@ -36,6 +36,7 @@ import { AgentAgreementModal } from '@/components/agent/agreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { SupporterAgreementModal } from '@/components/supporter/agreement';
 import { MyPerformanceCard } from '@/components/manager/MyPerformanceCard';
+import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { cn } from '@/lib/utils';
 
 interface Profile {
@@ -69,6 +70,8 @@ const itemVariants = {
 export default function Settings() {
   const navigate = useNavigate();
   const { user, roles, loading: authLoading } = useAuth();
+  const { isQualifiedInvestor } = useDeployedCapital(user?.id);
+  const isFunder = roles.includes('supporter') || isQualifiedInvestor;
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
@@ -260,7 +263,8 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* 🔓 UNLOCK ALL ROLES — Hero Banner (Priority #1) */}
+        {/* 🔓 UNLOCK ALL ROLES — Only visible for Funders */}
+        {isFunder && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -295,20 +299,21 @@ export default function Settings() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Switch between Tenant, Agent & Landlord views anytime you want
+                  As a Funder, you can also use Tenant, Agent & Landlord dashboards
                 </p>
               </div>
               <Switch
                 checked={preferences.unlockAllRoles}
                 onCheckedChange={(checked) => {
                   updatePreference('unlockAllRoles', checked);
-                  toast.success(checked ? 'You can now see all dashboards' : 'Back to your main dashboard only');
+                  toast.success(checked ? 'All dashboards are now open for you!' : 'Back to Funder dashboard only');
                 }}
                 className="shrink-0"
               />
             </div>
           </div>
         </motion.div>
+        )}
 
         {/* ===== ACCOUNT SECTION ===== */}
         <div ref={el => sectionRefs.current['account'] = el} className="scroll-mt-28 mb-6">
