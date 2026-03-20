@@ -140,7 +140,7 @@ export default function Landing() {
           ))}
         </motion.div>
 
-        {/* Explore without signing up — stateless exploration */}
+        {/* Explore without signing up */}
         <motion.div
           className="mt-6 space-y-3"
           initial={{ opacity: 0 }}
@@ -149,12 +149,12 @@ export default function Landing() {
         >
           <Link
             to="/rent-calculator"
-            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors touch-manipulation"
+            className="flex items-center justify-center gap-2 p-2.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
             onClick={() => hapticTap()}
           >
-            <Calculator className="h-5 w-5 text-primary" />
-            <span className="font-medium text-primary text-sm">
-              Try Rent Calculator — no signup
+            <Calculator className="h-4 w-4" />
+            <span className="text-sm">
+              Try Rent Calculator
             </span>
           </Link>
         </motion.div>
@@ -183,13 +183,14 @@ export default function Landing() {
         </motion.div>
       </main>
 
-      {/* Footer — minimal */}
-      <footer className="px-5 py-4 text-center pb-safe-bottom">
+      {/* Footer — Sign in CTA */}
+      <footer className="px-5 py-5 pb-safe-bottom max-w-lg mx-auto w-full">
         <button
-          onClick={() => navigate('/auth')}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          onClick={() => { hapticTap(); navigate('/auth'); }}
+          className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base shadow-md hover:shadow-lg hover:brightness-110 active:scale-[0.97] transition-all touch-manipulation"
         >
-          Already here? <span className="font-semibold text-primary">Sign in</span>
+          Sign in to your account
+          <ArrowRight className="h-5 w-5" />
         </button>
       </footer>
     </div>
