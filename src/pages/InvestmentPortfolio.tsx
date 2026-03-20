@@ -300,6 +300,7 @@ export default function InvestmentPortfolio() {
                                   <span>Rename</span>
                                 </button>
                               </>
+                            )}
                           </div>
                           <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                         </div>
