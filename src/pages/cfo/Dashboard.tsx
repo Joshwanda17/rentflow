@@ -51,7 +51,13 @@ export default function CFODashboardPage() {
           </div>
         );
       default:
-        return <FinancialOverview />;
+        return (
+          <div className="space-y-6">
+            <FinancialOverview />
+            {/* 🔥 PRIORITY: Rent Payout Queue on overview */}
+            <RentPipelineQueue stage="coo_approved" />
+          </div>
+        );
     }
   };
 
