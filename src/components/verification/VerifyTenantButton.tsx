@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, CheckCircle2, Loader2, XCircle, KeyRound, Zap, Droplets, FileText } from 'lucide-react';
+import { Shield, CheckCircle2, Loader2, XCircle, KeyRound, Zap, Droplets, FileText, HandHeart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -15,6 +15,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface VerifyTenantButtonProps {
   requestId: string;
@@ -36,6 +46,8 @@ export function VerifyTenantButton({
   const { user, role } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [showGuaranteeConfirm, setShowGuaranteeConfirm] = useState(false);
+  const [guaranteeLoading, setGuaranteeLoading] = useState(false);
   
   // Agent verification form fields
   const [pin1, setPin1] = useState('');
@@ -50,6 +62,34 @@ export function VerifyTenantButton({
   const isAgent = variant === 'agent';
   const isAlreadyVerified = isAgent ? agentVerified : managerVerified;
   const canVerify = isAgent ? role === 'agent' : role === 'manager';
+
+  const handleGuarantee = async () => {
+    if (!user) return;
+    hapticTap();
+    setGuaranteeLoading(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({
+          agent_verified: true,
+          agent_verified_at: new Date().toISOString(),
+          agent_verified_by: user.id,
+          agent_id: user.id,
+        })
+        .eq('id', requestId);
+
+      if (error) throw error;
+      hapticSuccess();
+      toast.success('Tenant guaranteed! Your reputation is on the line.');
+      setShowGuaranteeConfirm(false);
+      onVerified();
+    } catch (error: any) {
+      hapticError();
+      toast.error(error.message || 'Failed to guarantee tenant');
+    } finally {
+      setGuaranteeLoading(false);
+    }
+  };
 
   const handleManagerVerify = async () => {
     if (!user || role !== 'manager') return;
@@ -89,14 +129,12 @@ export function VerifyTenantButton({
     setVerificationResult(null);
 
     try {
-      // Fetch landlord data for matching
       const { data: landlord } = await supabase
         .from('landlords')
         .select('verification_pin_1, verification_pin_2, tin, water_meter_number, electricity_meter_number')
         .eq('id', landlordId)
         .single();
 
-      // Fetch rent request for tenant meters
       const { data: request } = await supabase
         .from('rent_requests')
         .select('tenant_water_meter, tenant_electricity_meter')
@@ -111,7 +149,6 @@ export function VerifyTenantButton({
 
       const normalize = (v: string | null | undefined) => (v || '').trim().toUpperCase();
 
-      // Match each field — PINs and TIN are now optional
       const pin1Match = (pin1.trim() && landlord.verification_pin_1) ? normalize(pin1) === normalize(landlord.verification_pin_1) : null;
       const pin2Match = (pin2.trim() && landlord.verification_pin_2) ? normalize(pin2) === normalize(landlord.verification_pin_2) : null;
       const tinMatch = (tin.trim() && landlord.tin) ? normalize(tin) === normalize(landlord.tin) : null;
@@ -120,7 +157,6 @@ export function VerifyTenantButton({
       const tenantWaterMatch = request?.tenant_water_meter ? normalize(tenantWaterMeter) === normalize(request.tenant_water_meter) : null;
       const tenantElecMatch = request?.tenant_electricity_meter ? normalize(tenantElectricityMeter) === normalize(request.tenant_electricity_meter) : null;
 
-      // All provided fields must match; skipped fields are ignored
       const allChecks = [pin1Match, pin2Match, tinMatch, landlordWaterMatch, landlordElecMatch, tenantWaterMatch, tenantElecMatch].filter(v => v !== null);
       const overallMatch = allChecks.length === 0 || allChecks.every(v => v === true);
 
@@ -135,12 +171,8 @@ export function VerifyTenantButton({
 
       setVerificationResult({ match: overallMatch, details });
 
-      // agent_verifications table removed - skip saving
-      console.log('Agent verification submitted (table removed)');
-
       if (overallMatch) {
         hapticSuccess();
-        // Mark as agent verified and assign agent
         await supabase
           .from('rent_requests')
           .update({
@@ -197,26 +229,75 @@ export function VerifyTenantButton({
     );
   }
 
-  // Agent: open verification dialog
+  // Agent: two options — quick guarantee OR detailed verification
   return (
     <>
-      <Button
-        size="sm"
-        variant="success"
-        onClick={() => {
-          hapticTap();
-          setShowDialog(true);
-          setVerificationResult(null);
-          setPin1(''); setPin2(''); setTin('');
-          setLandlordWaterMeter(''); setLandlordElectricityMeter('');
-          setTenantWaterMeter(''); setTenantElectricityMeter('');
-        }}
-        className="gap-1.5"
-      >
-        <Shield className="h-4 w-4" />
-        Verify Tenant
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            hapticTap();
+            setShowGuaranteeConfirm(true);
+          }}
+          className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+        >
+          <HandHeart className="h-4 w-4" />
+          I Guarantee
+        </Button>
+        <Button
+          size="sm"
+          variant="success"
+          onClick={() => {
+            hapticTap();
+            setShowDialog(true);
+            setVerificationResult(null);
+            setPin1(''); setPin2(''); setTin('');
+            setLandlordWaterMeter(''); setLandlordElectricityMeter('');
+            setTenantWaterMeter(''); setTenantElectricityMeter('');
+          }}
+          className="gap-1.5"
+        >
+          <Shield className="h-4 w-4" />
+          Full Verify
+        </Button>
+      </div>
 
+      {/* Quick Guarantee Confirmation */}
+      <AlertDialog open={showGuaranteeConfirm} onOpenChange={setShowGuaranteeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <HandHeart className="h-5 w-5 text-primary" />
+              Guarantee This Tenant?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  By tapping <strong>"I Guarantee"</strong>, you are personally vouching for this tenant. 
+                  This means you trust them to repay on time.
+                </p>
+                <p className="text-destructive font-medium">
+                  If the tenant defaults, this will affect your agent reputation and future earnings.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleGuarantee}
+              disabled={guaranteeLoading}
+              className="gap-1.5"
+            >
+              {guaranteeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <HandHeart className="h-4 w-4" />}
+              Yes, I Guarantee
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Full Verification Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
