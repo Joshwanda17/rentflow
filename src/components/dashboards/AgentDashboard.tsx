@@ -276,12 +276,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className="grid grid-cols-4 gap-1.5">
             {[
               { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), highlight: true },
-              { icon: FileText, label: 'Requests', onClick: () => setMyRentRequestsOpen(true), highlight: true },
+              { icon: FileText, label: 'Post Request', onClick: () => setRentRequestOpen(true), highlight: true, featured: true },
               { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), highlight: true },
               { icon: MapPin, label: 'Nearby', onClick: () => setNearbyTenantsOpen(true), highlight: true },
               { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
-              { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
+              { icon: FileText, label: 'Requests', onClick: () => setMyRentRequestsOpen(true) },
               { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
               <button
