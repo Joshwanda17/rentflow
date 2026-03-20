@@ -197,7 +197,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   }, [tenants, tenantBalances]);
 
   const filterTabs: { key: FilterTab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { key: 'owing', label: 'Owing', icon: <AlertTriangle className="h-3 w-3" />, count: stats.owingCount },
+    { key: 'owing', label: 'Unpaid', icon: <AlertTriangle className="h-3 w-3" />, count: stats.owingCount },
     { key: 'all', label: 'All', icon: <Users className="h-3 w-3" />, count: stats.total },
     { key: 'active', label: 'Active', icon: <Clock className="h-3 w-3" /> },
     { key: 'cleared', label: 'Cleared', icon: <CheckCircle2 className="h-3 w-3" /> },
