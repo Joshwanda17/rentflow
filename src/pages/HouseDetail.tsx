@@ -21,7 +21,7 @@ import { motion } from 'framer-motion';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
-  Heart, Eye,
+  Eye,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
