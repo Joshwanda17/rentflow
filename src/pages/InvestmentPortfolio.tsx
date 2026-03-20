@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -16,13 +17,15 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowLeft, TrendingUp, Calendar, Wallet, CheckCircle2, Target, BarChart3,
-  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Filter, ArrowUpDown
+  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Filter, ArrowUpDown,
+  Edit2, Check, X, Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { InvestmentTransactionHistory } from '@/components/investment/InvestmentTransactionHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useToast } from '@/hooks/use-toast';
 
 type SortOption = 'balance-desc' | 'balance-asc' | 'roi-desc' | 'roi-asc' | 'date-desc' | 'date-asc';
 type FilterOption = 'all' | 'approved' | 'pending' | 'pending_activation';
