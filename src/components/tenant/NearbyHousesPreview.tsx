@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
@@ -46,6 +47,7 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
 }
 
 function MiniHouseCard({ listing }: { listing: HouseListing }) {
+  const navigate = useNavigate();
   const dist = listing.distance_km;
   const isPending = !listing.verified || listing.status === 'pending';
   const [imgIdx, setImgIdx] = useState(0);
@@ -61,7 +63,8 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="min-w-[240px] max-w-[240px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
+      onClick={() => navigate(`/house/${listing.id}`)}
+      className="min-w-[240px] max-w-[240px] snap-start rounded-2xl border border-border bg-card overflow-hidden shadow-sm cursor-pointer active:scale-[0.97] transition-transform touch-manipulation"
     >
       {/* Cover image with carousel */}
       <div className="relative w-full h-28 bg-muted">
