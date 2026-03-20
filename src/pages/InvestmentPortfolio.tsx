@@ -57,6 +57,27 @@ export default function InvestmentPortfolio() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('date-desc');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const { toast } = useToast();
+
+  const handleSaveName = useCallback(async (accountId: string) => {
+    if (!editName.trim()) return;
+    setSavingName(true);
+    const { error } = await supabase
+      .from('investor_portfolios')
+      .update({ account_name: editName.trim() })
+      .eq('id', accountId);
+    setSavingName(false);
+    if (error) {
+      toast({ title: 'Failed to rename', description: error.message, variant: 'destructive' });
+    } else {
+      setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, name: editName.trim() } : a));
+      toast({ title: '✅ Account renamed' });
+    }
+    setEditingId(null);
+  }, [editName, toast]);
 
   useEffect(() => { if (user) fetchPortfolioData(); }, [user]);
 
