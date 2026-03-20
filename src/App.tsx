@@ -265,6 +265,7 @@ function AppRoutes() {
           <Route path="/coo-dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'manager']}><COODashboardPage /></RoleGuard>} />
           <Route path="/cfo-dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'manager']}><CFODashboardPage /></RoleGuard>} />
           <Route path="/executive-hub" element={<RoleGuard allowedRoles={['ceo', 'cto', 'cmo', 'crm', 'coo', 'cfo', 'super_admin', 'manager', 'employee', 'operations']}><ExecutiveHubPage /></RoleGuard>} />
+          <Route path="/roi-trends" element={<RoleGuard allowedRoles={['ceo', 'coo', 'cfo', 'super_admin', 'manager', 'operations']}><ROITrendsPage /></RoleGuard>} />
           <Route path="/agent-advances" element={<AgentAdvances />} />
           <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
           <Route path="/coo/active-users" element={<ActiveUsersDetail />} />

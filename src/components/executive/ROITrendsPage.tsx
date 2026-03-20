@@ -12,7 +12,6 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import {
-  AreaChart,
   Area,
   XAxis,
   YAxis,
@@ -20,7 +19,6 @@ import {
   Line,
   ComposedChart,
   ReferenceLine,
-  ResponsiveContainer,
 } from 'recharts';
 
 interface DailyROI {

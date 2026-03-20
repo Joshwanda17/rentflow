@@ -303,6 +303,13 @@ export function PartnersOpsDashboard() {
       />
 
       <Separator className="my-2" />
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-bold text-sm">ROI Auto-Payout History</h3>
+        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => navigate('/roi-trends')}>
+          <TrendingUp className="h-3.5 w-3.5" />
+          View Trends & Projection
+        </Button>
+      </div>
       <ROIPaymentHistory />
 
       {/* Dialogs */}
