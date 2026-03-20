@@ -17,7 +17,7 @@ import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+// supabase client available via hooks
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
