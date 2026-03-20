@@ -518,16 +518,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
               <div className="rounded-xl bg-muted/50 border p-3 space-y-1">
                 <p className="text-xs text-muted-foreground font-semibold">Available Capital</p>
                 <p className="text-xl font-black text-foreground">{formatAmount(withdrawDialog.maxAmount)}</p>
-              </div>
-
-              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3">
-                <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
-                  ⏳ 90-day notice period — rewards pause immediately on withdrawn amount
-                </p>
+                <p className="text-[11px] text-muted-foreground">You can withdraw part or all — the rest stays invested</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-bold">Amount (UGX)</label>
+                <label className="text-sm font-bold">Amount to Withdraw (UGX)</label>
                 <Input
                   type="number"
                   inputMode="numeric"
@@ -556,6 +551,54 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 })}
               </div>
 
+              {Number(withdrawAmount) > 0 && Number(withdrawAmount) <= withdrawDialog.maxAmount && (() => {
+                const depositDate = new Date();
+                depositDate.setDate(depositDate.getDate() + 90);
+                const remaining = withdrawDialog.maxAmount - Number(withdrawAmount);
+                return (
+                  <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 space-y-2">
+                    <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                      💰 Auto-Deposit Summary
+                    </p>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Withdraw Amount</span>
+                        <span className="font-bold text-foreground">{formatAmount(Number(withdrawAmount))}</span>
+                      </div>
+                      {remaining > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Stays Invested</span>
+                          <span className="font-bold text-success">{formatAmount(remaining)}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-border/50 pt-1.5 mt-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Deposited to Wallet on</span>
+                          <span className="font-bold text-primary">
+                            {depositDate.toLocaleDateString('en-UG', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">At approximately</span>
+                          <span className="font-bold text-primary">
+                            {depositDate.toLocaleTimeString('en-UG', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 space-y-1">
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
+                  ⏳ 90-day notice period — rewards pause immediately on withdrawn amount
+                </p>
+                <p className="text-[11px] text-amber-600/80 dark:text-amber-500/80">
+                  Your money will be <strong>automatically deposited</strong> into your Rent Money wallet after 90 days. No action needed from you.
+                </p>
+              </div>
+
               <Button
                 onClick={() => handleAccountAction('withdraw_capital', withdrawDialog.id, withdrawDialog.name, {
                   amount: Number(withdrawAmount),
@@ -569,7 +612,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 }
                 className="w-full gap-2 h-11 font-bold"
               >
-                {actionLoading === `withdraw_capital-${withdrawDialog.id}` ? 'Submitting…' : 'Submit 90-Day Withdrawal'}
+                {actionLoading === `withdraw_capital-${withdrawDialog.id}` ? 'Submitting…' : 'Confirm Withdrawal'}
               </Button>
             </div>
           </DialogContent>
