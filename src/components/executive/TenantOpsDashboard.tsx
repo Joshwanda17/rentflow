@@ -79,11 +79,9 @@ export function TenantOpsDashboard() {
                 { value: 'repaying', label: 'Repaying' },
                 { value: 'fully_repaid', label: 'Fully Repaid' },
                 { value: 'defaulted', label: 'Defaulted' },
-              ],
-            }]}
-          />
-        </TabsContent>
-      </Tabs>
+          ],
+        }]}
+      />
     </div>
   );
 }

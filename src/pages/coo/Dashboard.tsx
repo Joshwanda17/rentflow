@@ -77,6 +77,8 @@ export default function COODashboardPage() {
         return (
           <div className="space-y-6">
             <h1 className="text-xl font-bold">Financial Operations Dashboard</h1>
+            {/* 🔥 PRIORITY: Rent Approval Queue on overview */}
+            <RentPipelineQueue stage="landlord_ops_approved" />
             <FinancialMetricsCards />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <PaymentModeAnalytics />

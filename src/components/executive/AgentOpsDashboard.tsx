@@ -73,6 +73,9 @@ export function AgentOpsDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* 🔥 PRIORITY: Agent Verification Queue */}
+      <RentPipelineQueue stage="tenant_ops_approved" />
+
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard title="Active Agents" value={uniqueAgents} icon={Users} loading={isLoading} />
         <KPICard title="Total Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
@@ -111,9 +114,6 @@ export function AgentOpsDashboard() {
           />
         </div>
       </div>
-
-      {/* Agent Verification Queue */}
-      <RentPipelineQueue stage="tenant_ops_approved" />
 
       {/* Tenant Transfer Section */}
       <div className="rounded-2xl border border-border bg-card p-4">

@@ -340,7 +340,10 @@ export function LandlordOpsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Overview KPIs - Always visible */}
+      {/* 🔥 PRIORITY: Rent Pipeline Review */}
+      <RentPipelineQueue stage="agent_verified" />
+
+      {/* Overview KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <KPICard title="Total Properties" value={rows.length} icon={Home} loading={isLoading} />
         <KPICard title="Occupied" value={occupiedHouses.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo revenue`} />
