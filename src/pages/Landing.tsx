@@ -183,13 +183,14 @@ export default function Landing() {
         </motion.div>
       </main>
 
-      {/* Footer — minimal */}
-      <footer className="px-5 py-4 text-center pb-safe-bottom">
+      {/* Footer — Sign in CTA */}
+      <footer className="px-5 py-5 pb-safe-bottom max-w-lg mx-auto w-full">
         <button
-          onClick={() => navigate('/auth')}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          onClick={() => { hapticTap(); navigate('/auth'); }}
+          className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base shadow-md hover:shadow-lg hover:brightness-110 active:scale-[0.97] transition-all touch-manipulation"
         >
-          Already here? <span className="font-semibold text-primary">Sign in</span>
+          Sign in to your account
+          <ArrowRight className="h-5 w-5" />
         </button>
       </footer>
     </div>
