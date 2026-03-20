@@ -49,6 +49,9 @@ export function TenantOpsDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* 🔥 PRIORITY: Review Queue at the top */}
+      <RentPipelineQueue stage="pending" />
+
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard title="Pending Review" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
         <KPICard title="In Pipeline" value={inPipeline} icon={ArrowRight} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
@@ -58,25 +61,12 @@ export function TenantOpsDashboard() {
         <KPICard title="Defaulted" value={defaulted} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
       </div>
 
-      <Tabs defaultValue="review" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="review" className="gap-1">
-            🔍 Review Queue {pending > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 rounded-full">{pending}</span>}
-          </TabsTrigger>
-          <TabsTrigger value="all">All Requests</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="review">
-          <RentPipelineQueue stage="pending" />
-        </TabsContent>
-
-        <TabsContent value="all">
-          <ExecutiveDataTable
-            data={rows}
-            columns={columns}
-            loading={isLoading}
-            title="Tenant Operations"
-            filters={[{
+      <ExecutiveDataTable
+        data={rows}
+        columns={columns}
+        loading={isLoading}
+        title="All Requests"
+        filters={[{
               key: 'status',
               label: 'Status',
               options: [
