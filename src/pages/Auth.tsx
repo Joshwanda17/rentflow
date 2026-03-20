@@ -238,7 +238,7 @@ export default function Auth() {
           <Card className="border-border/40 shadow-sm overflow-hidden">
             {/* Prominent social sign-in for login view */}
             {!isForgotPassword && !isForgotPhone && !isSignUp && loginMode === 'password' && (
-              <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/30 space-y-3">
+              <div className="p-4 border-b border-border/30 space-y-3">
                 <GoogleSignInButton
                   onClick={wrappedHandleGoogleSignIn}
                   disabled={isGoogleLoading || isAppleLoading || isLoading}
