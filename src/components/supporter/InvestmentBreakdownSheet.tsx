@@ -356,6 +356,56 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <CreditCard className="h-4 w-4" />
                           Set Payout Method
                         </Button>
+                        
+                        {/* Renew Account */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 font-semibold"
+                          disabled={actionLoading === `renew-${entry.id}`}
+                          onClick={() => {
+                            if (confirm(`Renew "${entry.account_name || entry.code}" for another 12 months? Your earned rewards counter will reset.`)) {
+                              handleAccountAction('renew', entry.id, entry.account_name || entry.code);
+                            }
+                          }}
+                        >
+                          <RefreshCw className={`h-4 w-4 ${actionLoading === `renew-${entry.id}` ? 'animate-spin' : ''}`} />
+                          {actionLoading === `renew-${entry.id}` ? 'Renewing…' : 'Renew This Account'}
+                        </Button>
+
+                        {/* Withdraw Capital */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-amber-500/20 text-amber-600 hover:bg-amber-500/5 font-semibold"
+                          disabled={entry.amount <= 0}
+                          onClick={() => setWithdrawDialog({ id: entry.id, name: entry.account_name || entry.code, maxAmount: entry.amount })}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Withdraw Capital
+                        </Button>
+
+                        {/* Toggle Compound / Simple */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`w-full gap-2 text-sm h-10 min-h-[44px] font-semibold ${
+                            isCompounding
+                              ? 'border-amber-500/20 text-amber-600 hover:bg-amber-500/5'
+                              : 'border-success/20 text-success hover:bg-success/5'
+                          }`}
+                          disabled={actionLoading === `toggle_roi_mode-${entry.id}`}
+                          onClick={() => {
+                            const newMode = isCompounding ? 'Simple' : 'Compounding';
+                            if (confirm(`Switch "${entry.account_name || entry.code}" to ${newMode} mode?`)) {
+                              handleAccountAction('toggle_roi_mode', entry.id, entry.account_name || entry.code);
+                            }
+                          }}
+                        >
+                          {isCompounding ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                          {actionLoading === `toggle_roi_mode-${entry.id}` ? 'Switching…' : isCompounding ? 'Switch to Simple' : 'Switch to Compounding'}
+                        </Button>
+
                         <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
