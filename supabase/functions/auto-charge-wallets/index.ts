@@ -97,6 +97,11 @@ Deno.serve(async (req) => {
             await supabase.rpc("record_rent_request_repayment", {
               p_tenant_id: charge.tenant_id, p_amount: agentAmountCharged,
             });
+            // Credit agent 5% commission
+            await supabase.rpc("credit_agent_rent_commission", {
+              p_rent_request_id: charge.rent_request_id, p_repayment_amount: agentAmountCharged,
+              p_source_table: "auto_charge_wallets", p_source_id: charge.id,
+            });
           }
 
           // Notify agent
@@ -167,6 +172,11 @@ Deno.serve(async (req) => {
           if (charge.rent_request_id) {
             await supabase.rpc("record_rent_request_repayment", {
               p_tenant_id: charge.tenant_id, p_amount: chargeAmount,
+            });
+            // Credit agent 5% commission on tenant's own payment
+            await supabase.rpc("credit_agent_rent_commission", {
+              p_rent_request_id: charge.rent_request_id, p_repayment_amount: chargeAmount,
+              p_source_table: "auto_charge_wallets", p_source_id: charge.id,
             });
           }
 
@@ -296,6 +306,11 @@ Deno.serve(async (req) => {
         if (charge.rent_request_id && totalCollected > 0) {
           await supabase.rpc("record_rent_request_repayment", {
             p_tenant_id: charge.tenant_id, p_amount: totalCollected,
+          });
+          // Credit agent 5% commission
+          await supabase.rpc("credit_agent_rent_commission", {
+            p_rent_request_id: charge.rent_request_id, p_repayment_amount: totalCollected,
+            p_source_table: "auto_charge_wallets", p_source_id: charge.id,
           });
         }
 
@@ -489,6 +504,11 @@ async function chargeAgent(
     await supabase.rpc("record_rent_request_repayment", {
       p_tenant_id: charge.tenant_id,
       p_amount: shortfall,
+    });
+    // Credit agent 5% commission on grace-period recovery
+    await supabase.rpc("credit_agent_rent_commission", {
+      p_rent_request_id: charge.rent_request_id, p_repayment_amount: shortfall,
+      p_source_table: "auto_charge_wallets", p_source_id: charge.id,
     });
   }
 

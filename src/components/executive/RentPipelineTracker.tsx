@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Clock, ArrowRight, Coins, Shield, UserCheck, FileCheck, Banknote, Wallet } from 'lucide-react';
+import { CheckCircle2, Clock, ArrowRight, Coins, Shield, UserCheck, FileCheck, Banknote, Wallet, MapPin } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 const STAGES = [
@@ -8,41 +8,47 @@ const STAGES = [
     label: 'Tenant Ops',
     agentBenefit: 'assigned',
     agentDesc: 'Agent assigned based on proximity — earns task assignment',
+    earningAmount: 0,
     icon: UserCheck,
   },
   {
     key: 'tenant_ops_approved',
     label: 'Agent Ops',
-    agentBenefit: 'verification_bonus',
-    agentDesc: 'Agent verifies tenant & property → UGX 10,000 verification bonus',
+    agentBenefit: 'verification',
+    agentDesc: 'Agent verifies tenant & property location',
+    earningAmount: 0,
     icon: Shield,
   },
   {
     key: 'agent_verified',
     label: 'Landlord Ops',
-    agentBenefit: 'pipeline',
-    agentDesc: 'Landlord verified — agent\'s commission is being secured',
-    icon: FileCheck,
+    agentBenefit: 'landlord_verification',
+    agentDesc: 'Landlord location verified → UGX 5,000 verification bonus',
+    earningAmount: 5000,
+    icon: MapPin,
   },
   {
     key: 'landlord_ops_approved',
     label: 'COO',
     agentBenefit: 'pipeline',
-    agentDesc: 'Operational sign-off — commission locked and pending',
+    agentDesc: 'Operational sign-off — bonuses locked and pending',
+    earningAmount: 0,
     icon: FileCheck,
   },
   {
     key: 'coo_approved',
     label: 'CFO',
     agentBenefit: 'pipeline',
-    agentDesc: 'Awaiting payout authorization — commission queued on disbursement',
+    agentDesc: 'Awaiting payout authorization — bonus queued on disbursement',
+    earningAmount: 0,
     icon: Banknote,
   },
   {
     key: 'funded',
     label: 'Disbursed',
-    agentBenefit: 'commission',
-    agentDesc: '5% commission auto-queued to agent wallet for approval',
+    agentBenefit: 'rent_funded',
+    agentDesc: 'UGX 5,000 rent-funded bonus + 5% on every future repayment',
+    earningAmount: 5000,
     icon: Wallet,
   },
 ];
@@ -59,8 +65,9 @@ interface RentPipelineTrackerProps {
 
 export function RentPipelineTracker({ currentStatus, compact, rentAmount, showAgentBenefits }: RentPipelineTrackerProps) {
   const currentIndex = STAGE_ORDER[currentStatus] ?? -1;
-  const commission = rentAmount ? Math.floor(rentAmount * 0.05) : 0;
-  const verificationBonus = 10000;
+  const landlordVerificationBonus = 5000;
+  const rentFundedBonus = 5000;
+  const listingBonus = 5000;
 
   return (
     <div className="space-y-2">
@@ -107,14 +114,18 @@ export function RentPipelineTracker({ currentStatus, compact, rentAmount, showAg
 
               let earningLabel = '';
               let earningColor = 'text-muted-foreground';
+
               if (stage.agentBenefit === 'assigned') {
                 earningLabel = 'Task assigned';
                 earningColor = completed || active ? 'text-primary' : 'text-muted-foreground';
-              } else if (stage.agentBenefit === 'verification_bonus') {
-                earningLabel = `+${formatUGX(verificationBonus)} bonus`;
+              } else if (stage.agentBenefit === 'verification') {
+                earningLabel = 'Verifying…';
+                earningColor = completed ? 'text-primary/70' : active ? 'text-primary' : 'text-muted-foreground';
+              } else if (stage.agentBenefit === 'landlord_verification') {
+                earningLabel = `+${formatUGX(landlordVerificationBonus)} bonus`;
                 earningColor = completed ? 'text-success' : active ? 'text-primary' : 'text-muted-foreground';
-              } else if (stage.agentBenefit === 'commission') {
-                earningLabel = commission > 0 ? `+${formatUGX(commission)} (5%)` : '+5% of rent';
+              } else if (stage.agentBenefit === 'rent_funded') {
+                earningLabel = `+${formatUGX(rentFundedBonus)} + 5%/repayment`;
                 earningColor = completed ? 'text-success font-bold' : 'text-muted-foreground';
               } else {
                 earningLabel = 'Processing…';
@@ -141,16 +152,27 @@ export function RentPipelineTracker({ currentStatus, compact, rentAmount, showAg
             })}
           </div>
 
-          {/* Total Potential */}
+          {/* Total Potential + Recurring */}
           {rentAmount && (
-            <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-success/10 border border-success/20 mt-2">
-              <span className="text-xs font-semibold text-success flex items-center gap-1.5">
-                <Wallet className="h-4 w-4" />
-                Total Agent Earning Potential
-              </span>
-              <span className="font-bold text-success">
-                {formatUGX(verificationBonus + commission)}
-              </span>
+            <div className="space-y-1.5 mt-2">
+              <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-primary/5 border border-primary/20">
+                <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                  <Coins className="h-4 w-4" />
+                  One-Time Bonuses
+                </span>
+                <span className="font-bold text-primary">
+                  {formatUGX(landlordVerificationBonus + rentFundedBonus + listingBonus)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-success/10 border border-success/20">
+                <span className="text-xs font-semibold text-success flex items-center gap-1.5">
+                  <Wallet className="h-4 w-4" />
+                  Recurring: 5% of Every Repayment
+                </span>
+                <span className="font-bold text-success">
+                  ∞ (per collection)
+                </span>
+              </div>
             </div>
           )}
         </div>

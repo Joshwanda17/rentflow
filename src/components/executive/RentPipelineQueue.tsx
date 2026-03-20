@@ -205,6 +205,33 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
       if (error) throw error;
 
+      // Trigger landlord verification bonus when Landlord Ops approves
+      if (stage === 'agent_verified') {
+        try {
+          await supabase.functions.invoke('credit-landlord-verification-bonus', {
+            body: { rent_request_id: selectedRequest.id },
+          });
+        } catch (bonusErr) {
+          console.warn('Landlord verification bonus failed:', bonusErr);
+        }
+      }
+
+      // Trigger disbursement when CFO authorizes payout
+      if (stage === 'coo_approved') {
+        try {
+          await supabase.functions.invoke('disburse-rent-to-landlord', {
+            body: {
+              rent_request_id: selectedRequest.id,
+              transaction_reference: payoutRef.trim(),
+              payout_method: payoutMethod,
+              notes: comment || null,
+            },
+          });
+        } catch (disbErr) {
+          console.warn('Disbursement function failed:', disbErr);
+        }
+      }
+
       toast({ title: `Request approved and forwarded` });
       setSelectedRequest(null);
       setComment('');

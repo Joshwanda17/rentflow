@@ -28,7 +28,7 @@ export function useAgentEarnings() {
     const total = data.reduce((sum, e) => sum + Number(e.amount), 0);
     setTotalEarnings(total);
     setCommissionTotal(data.filter(e => e.earning_type === 'commission').reduce((sum, e) => sum + Number(e.amount), 0));
-    setBonusTotal(data.filter(e => e.earning_type === 'approval_bonus').reduce((sum, e) => sum + Number(e.amount), 0));
+    setBonusTotal(data.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'listing_bonus'].includes(e.earning_type)).reduce((sum, e) => sum + Number(e.amount), 0));
     setTotalPaidOut(paidOut);
     setAvailableToWithdraw(Math.max(0, walletBalance));
   };
