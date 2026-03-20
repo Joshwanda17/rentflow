@@ -50,6 +50,9 @@ Deno.serve(async (req) => {
     if (reqErr || !request) throw new Error('Rent request not found')
     if (request.status !== 'coo_approved') throw new Error(`Invalid status: ${request.status}. Expected coo_approved.`)
 
+    // Determine the agent who should earn commission (assigned > original)
+    const commissionAgentId = request.assigned_agent_id || request.agent_id
+
     // Fetch landlord details
     const { data: landlord } = await serviceClient
       .from('landlords')
@@ -89,10 +92,9 @@ Deno.serve(async (req) => {
 
     if (updateErr) throw new Error(`Failed to update request: ${updateErr.message}`)
 
-    // Record in general ledger
+    // Record in general ledger — landlord payout
     const transactionGroupId = crypto.randomUUID()
     
-    // Debit: rent payout (platform pays out)
     await serviceClient.from('general_ledger').insert({
       source_table: 'rent_requests',
       source_id: rent_request_id,
@@ -118,6 +120,63 @@ Deno.serve(async (req) => {
         .eq('id', landlord.id)
     }
 
+    // ============================================================
+    // AGENT COMMISSION: 5% of rent amount, queued for approval
+    // Only triggers AFTER landlord has been paid (disbursed)
+    // ============================================================
+    let commissionQueued = false
+    const commissionAmount = Math.floor(request.rent_amount * 0.05)
+
+    if (commissionAgentId && commissionAmount > 0) {
+      // Fetch agent name for audit trail
+      const { data: agentProfile } = await serviceClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', commissionAgentId)
+        .single()
+
+      const agentName = agentProfile?.full_name || 'Agent'
+
+      // Queue commission in pending_wallet_operations for manager approval
+      const { error: pendingErr } = await serviceClient
+        .from('pending_wallet_operations')
+        .insert({
+          user_id: commissionAgentId,
+          operation_type: 'credit',
+          amount: commissionAmount,
+          category: 'agent_commission',
+          description: `5% commission on rent UGX ${request.rent_amount.toLocaleString()} for tenant ${request.tenant_id} → landlord ${landlord?.name || 'Unknown'}. Ref: ${transaction_reference}`,
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          status: 'pending',
+          metadata: {
+            rent_request_id,
+            rent_amount: request.rent_amount,
+            commission_rate: 0.05,
+            landlord_name: landlord?.name,
+            transaction_reference,
+            payout_method: method,
+          },
+        })
+
+      if (pendingErr) {
+        console.error('Failed to queue commission:', pendingErr.message)
+        // Non-fatal: landlord payout succeeded, commission can be manually processed
+      } else {
+        commissionQueued = true
+      }
+
+      // Record in agent_earnings for tracking (status: pending_approval)
+      await serviceClient.from('agent_earnings').insert({
+        agent_id: commissionAgentId,
+        amount: commissionAmount,
+        earning_type: 'commission',
+        description: `5% rent commission – ${landlord?.name || 'Unknown'} (UGX ${request.rent_amount.toLocaleString()}) [pending approval]`,
+        rent_request_id: rent_request_id,
+        source_user_id: request.tenant_id,
+      })
+    }
+
     // Record audit log
     await serviceClient.from('audit_logs').insert({
       user_id: user.id,
@@ -130,6 +189,9 @@ Deno.serve(async (req) => {
         payout_method: method,
         transaction_reference,
         landlord_has_wallet: landlordHasWallet,
+        commission_agent_id: commissionAgentId,
+        commission_amount: commissionAmount,
+        commission_queued: commissionQueued,
         notes,
       },
     })
@@ -141,6 +203,11 @@ Deno.serve(async (req) => {
         payout_method: method,
         landlord_has_wallet: landlordHasWallet,
         transaction_reference,
+        commission: {
+          agent_id: commissionAgentId,
+          amount: commissionAmount,
+          queued_for_approval: commissionQueued,
+        },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
