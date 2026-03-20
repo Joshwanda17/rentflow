@@ -10,12 +10,21 @@ import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
+import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 
 export default function COODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'rent-approvals':
+        return (
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold">🏠 Rent Request Approvals</h1>
+            <p className="text-sm text-muted-foreground">Review rent requests approved by Landlord Ops. Your sign-off forwards to CFO for payout.</p>
+            <RentPipelineQueue stage="landlord_ops_approved" />
+          </div>
+        );
       case 'transactions':
         return (
           <div className="space-y-4">

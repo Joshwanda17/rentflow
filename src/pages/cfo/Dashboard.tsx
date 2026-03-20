@@ -10,12 +10,24 @@ import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
+import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'rent-payouts':
+        return (
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold">💰 Rent Payout Authorization</h1>
+            <p className="text-sm text-muted-foreground">
+              Approve rent payouts to landlords. Enter the transaction reference to confirm disbursement.
+              For landlords without a Rent Money wallet, select "Cash Payout" as the method.
+            </p>
+            <RentPipelineQueue stage="coo_approved" />
+          </div>
+        );
       case 'statements':
         return <FinancialStatementsPanel />;
       case 'solvency':

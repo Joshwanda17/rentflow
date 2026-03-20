@@ -409,6 +409,7 @@ export function LandlordOpsDashboard() {
 
         {/* ──────── PIPELINE TAB ──────── */}
         <TabsContent value="pipeline" className="space-y-4 mt-4">
+          <RentPipelineQueue stage="agent_verified" />
           <DealPipeline />
         </TabsContent>
 
