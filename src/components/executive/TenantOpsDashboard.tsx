@@ -5,7 +5,7 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 export function TenantOpsDashboard() {
   const { data: rentRequests, isLoading } = useQuery({
