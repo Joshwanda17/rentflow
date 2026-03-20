@@ -79,8 +79,11 @@ export function VerifyTenantButton({
         .eq('id', requestId);
 
       if (error) throw error;
+
+      // No UGX 5,000 verification bonus for guarantee — agent skipped full verification
+
       hapticSuccess();
-      toast.success('Tenant guaranteed! Your reputation is on the line.');
+      toast.success('Tenant guaranteed! No verification bonus — you skipped full verification.');
       setShowGuaranteeConfirm(false);
       onVerified();
     } catch (error: any) {
@@ -90,6 +93,8 @@ export function VerifyTenantButton({
       setGuaranteeLoading(false);
     }
   };
+
+
 
   const handleManagerVerify = async () => {
     if (!user || role !== 'manager') return;
@@ -276,6 +281,9 @@ export function VerifyTenantButton({
                 <p>
                   By tapping <strong>"I Guarantee"</strong>, you are personally vouching for this tenant. 
                   This means you trust them to repay on time.
+                </p>
+                <p className="font-medium text-amber-600">
+                  ⚠️ You will NOT earn the UGX 5,000 verification bonus. Use "Full Verify" to earn it.
                 </p>
                 <p className="text-destructive font-medium">
                   If the tenant defaults, this will affect your agent reputation and future earnings.
