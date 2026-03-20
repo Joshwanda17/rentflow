@@ -103,7 +103,7 @@ export function InvestmentAccountsManager() {
     setSaving(true);
     const { error } = await supabase
       .from('investor_portfolios')
-      .update({ portfolio_code: trimmed })
+      .update({ account_name: trimmed })
       .eq('id', portfolioId);
 
     if (error) {
@@ -117,7 +117,7 @@ export function InvestmentAccountsManager() {
         metadata: { new_name: trimmed },
       });
       toast({ title: 'Account name updated' });
-      setPortfolios(prev => prev.map(p => p.id === portfolioId ? { ...p, portfolio_code: trimmed } : p));
+      setPortfolios(prev => prev.map(p => p.id === portfolioId ? { ...p, account_name: trimmed } : p));
     }
     setEditingId(null);
     setSaving(false);
