@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
