@@ -20,6 +20,7 @@ import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvest
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editAccount, setEditAccount] = useState<any>(null);
   const [fundAccount, setFundAccount] = useState<any>(null);
