@@ -306,6 +306,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Daily Ops Report */}
+        {/* Verification Opportunities */}
+        <AgentVerificationOpportunitiesCard />
+
         <AgentDailyOpsCard />
 
         {/* Credit Access */}
