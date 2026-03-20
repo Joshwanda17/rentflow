@@ -339,26 +339,6 @@ export default function PublicRentCalculator() {
           </TabsContent>
         </Tabs>
 
-        {/* CTA */}
-        <Card className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-          <CardContent className="p-6 text-center space-y-4">
-            <h2 className="text-xl font-bold">Ready to Get Your Rent Paid?</h2>
-            <p className="text-sm text-primary-foreground/90">
-              Join Welile today and get access to rent assistance with flexible repayment options.
-            </p>
-            <Button 
-              onClick={handleSignUp}
-              size="lg"
-              className="w-full bg-white text-primary hover:bg-white/90 font-bold gap-2"
-            >
-              Sign Up as Tenant
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            <p className="text-xs text-primary-foreground/70">
-              Already have an account? <button onClick={() => navigate('/auth')} className="underline">Login here</button>
-            </p>
-          </CardContent>
-        </Card>
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground pb-4">
