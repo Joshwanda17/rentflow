@@ -235,7 +235,7 @@ export default function Auth() {
 
           <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
 
-          <Card className="border-border/50 shadow-lg overflow-hidden">
+          <Card className="border-border/40 shadow-sm overflow-hidden">
             {/* Prominent social sign-in for login view */}
             {!isForgotPassword && !isForgotPhone && !isSignUp && loginMode === 'password' && (
               <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/30 space-y-3">
