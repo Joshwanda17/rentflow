@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -16,13 +17,15 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowLeft, TrendingUp, Calendar, Wallet, CheckCircle2, Target, BarChart3,
-  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Filter, ArrowUpDown
+  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Filter, ArrowUpDown,
+  Edit2, Check, X, Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { InvestmentTransactionHistory } from '@/components/investment/InvestmentTransactionHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useToast } from '@/hooks/use-toast';
 
 type SortOption = 'balance-desc' | 'balance-asc' | 'roi-desc' | 'roi-asc' | 'date-desc' | 'date-asc';
 type FilterOption = 'all' | 'approved' | 'pending' | 'pending_activation';
@@ -54,6 +57,27 @@ export default function InvestmentPortfolio() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('date-desc');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const { toast } = useToast();
+
+  const handleSaveName = useCallback(async (accountId: string) => {
+    if (!editName.trim()) return;
+    setSavingName(true);
+    const { error } = await supabase
+      .from('investor_portfolios')
+      .update({ account_name: editName.trim() })
+      .eq('id', accountId);
+    setSavingName(false);
+    if (error) {
+      toast({ title: 'Failed to rename', description: error.message, variant: 'destructive' });
+    } else {
+      setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, name: editName.trim() } : a));
+      toast({ title: '✅ Account renamed' });
+    }
+    setEditingId(null);
+  }, [editName, toast]);
 
   useEffect(() => { if (user) fetchPortfolioData(); }, [user]);
 
@@ -238,12 +262,41 @@ export default function InvestmentPortfolio() {
                             <Wallet className="h-4 w-4" style={{ color: account.color }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <p className="text-[13px] font-bold text-foreground truncate">{account.name}</p>
-                              <Badge variant="outline" className={`text-[8px] px-1.5 py-0 shrink-0 ${getStatusColor(account.status)}`}>
-                                {getStatusLabel(account.status)}
-                              </Badge>
-                            </div>
+                            {editingId === account.id ? (
+                              <div className="flex items-center gap-1.5 mb-0.5" onClick={e => e.stopPropagation()}>
+                                <Input
+                                  value={editName}
+                                  onChange={e => setEditName(e.target.value)}
+                                  className="h-7 text-[13px] font-bold flex-1 min-w-0"
+                                  autoFocus
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') handleSaveName(account.id);
+                                    if (e.key === 'Escape') setEditingId(null);
+                                  }}
+                                />
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-success shrink-0" onClick={() => handleSaveName(account.id)} disabled={savingName}>
+                                  {savingName ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingId(null)}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <p className="text-[13px] font-bold text-foreground truncate">{account.name}</p>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-muted-foreground hover:text-primary shrink-0"
+                                  onClick={e => { e.stopPropagation(); setEditingId(account.id); setEditName(account.name); }}
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
+                                <Badge variant="outline" className={`text-[8px] px-1.5 py-0 shrink-0 ${getStatusColor(account.status)}`}>
+                                  {getStatusLabel(account.status)}
+                                </Badge>
+                              </div>
+                            )}
                             <p className="text-[clamp(0.8rem,3.5vw,0.95rem)] font-extrabold text-foreground leading-tight truncate">
                               {formatAmount(account.balance)}
                             </p>
