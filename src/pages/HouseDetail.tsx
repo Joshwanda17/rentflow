@@ -242,7 +242,7 @@ export default function HouseDetail() {
                 images={lightboxImages}
                 initialIndex={imgIdx}
                 open={lightboxOpen}
-                onClose={() => { setLightboxOpen(false); setShowAllPhotos(false); }}
+                onClose={() => setLightboxOpen(false)}
                 productName={listing.title}
               />
             </>
