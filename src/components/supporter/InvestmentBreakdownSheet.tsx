@@ -38,6 +38,35 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const [loading, setLoading] = useState(true);
   const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
   const [payoutTarget, setPayoutTarget] = useState<{ id: string; name: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [withdrawDialog, setWithdrawDialog] = useState<{ id: string; name: string; maxAmount: number } | null>(null);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  const handleAccountAction = async (action: string, portfolioId: string, accountName: string, extra?: any) => {
+    setActionLoading(`${action}-${portfolioId}`);
+    try {
+      const { data, error } = await supabase.functions.invoke('supporter-account-action', {
+        body: { action, portfolio_id: portfolioId, ...extra },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'Action failed');
+
+      if (action === 'renew') {
+        toast.success(`"${accountName}" renewed for 12 months! 📧 Confirmation email sent.`);
+      } else if (action === 'withdraw_capital') {
+        toast.success(`Withdrawal requested for "${accountName}". 📧 Email confirmation sent.`);
+        setWithdrawDialog(null);
+        setWithdrawAmount('');
+      } else if (action === 'toggle_roi_mode') {
+        const modeLabel = data?.new_mode === 'compound' ? 'Compounding' : 'Simple';
+        toast.success(`"${accountName}" switched to ${modeLabel} mode. 📧 Email sent.`);
+      }
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || 'Action failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   useEffect(() => { if (open && user) fetchAll(); }, [open, user]);
 
