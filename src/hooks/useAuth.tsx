@@ -121,19 +121,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           // Skip session state update on error — preserve existing state / cache
         } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+          if (session) {
+            setSession(session);
+            setUser(session.user);
 
-          if (session?.user) {
             setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
             // Always fetch roles here — this is the authoritative fetch
             rolesFetched = true;
             const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
             const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
             await Promise.race([rolePromise, timeoutPromise]);
-          } else if (!cachedSession) {
-            // Only clear cache if we had NO cached session — prevents
-            // transient getSession() nulls from signing out real users
+          } else if (cachedSession) {
+            // getSession() returned null but we have a cached session.
+            // This is a transient state (e.g., token refresh in progress on PC).
+            // Preserve existing state — don't clear user/session.
+            // The onAuthStateChange listener will update when the refresh completes.
+            console.log('[Auth] getSession() null but cached session exists — preserving state');
+          } else {
+            // No session AND no cache — user is genuinely not logged in
+            setSession(null);
+            setUser(null);
             clearSessionCache();
           }
         }
