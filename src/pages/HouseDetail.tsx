@@ -217,7 +217,7 @@ export default function HouseDetail() {
 
                 {/* Photo count badge */}
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowAllPhotos(true); setLightboxOpen(true); }}
+                  onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
                   className="absolute bottom-4 right-4 bg-background/90 backdrop-blur-sm text-foreground text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-md border border-border"
                 >
                   <Eye className="h-3.5 w-3.5" />
