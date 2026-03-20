@@ -3,8 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { RentPipelineQueue } from './RentPipelineQueue';
-import { RentPipelineTracker } from './RentPipelineTracker';
-import { Users, FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight } from 'lucide-react';
+import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
