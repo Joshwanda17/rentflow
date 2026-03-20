@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const RENT_FUNDED_BONUS = 5000; // UGX 5,000 flat bonus when rent is funded to landlord
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -50,8 +52,8 @@ Deno.serve(async (req) => {
     if (reqErr || !request) throw new Error('Rent request not found')
     if (request.status !== 'coo_approved') throw new Error(`Invalid status: ${request.status}. Expected coo_approved.`)
 
-    // Determine the agent who should earn commission (assigned > original)
-    const commissionAgentId = request.assigned_agent_id || request.agent_id
+    // Determine the agent who should earn bonus (assigned > original)
+    const bonusAgentId = request.assigned_agent_id || request.agent_id
 
     // Fetch landlord details
     const { data: landlord } = await serviceClient
@@ -121,60 +123,68 @@ Deno.serve(async (req) => {
     }
 
     // ============================================================
-    // AGENT COMMISSION: 5% of rent amount, queued for approval
-    // Only triggers AFTER landlord has been paid (disbursed)
+    // AGENT BONUS: UGX 5,000 flat bonus for posting a rent request
+    // that was successfully funded to the landlord.
+    // The 5% recurring commission is earned on EACH rent repayment
+    // via the credit_agent_rent_commission() database function.
     // ============================================================
-    let commissionQueued = false
-    const commissionAmount = Math.floor(request.rent_amount * 0.05)
+    let bonusPaid = false
 
-    if (commissionAgentId && commissionAmount > 0) {
+    if (bonusAgentId) {
       // Fetch agent name for audit trail
       const { data: agentProfile } = await serviceClient
         .from('profiles')
         .select('full_name')
-        .eq('id', commissionAgentId)
+        .eq('id', bonusAgentId)
         .single()
 
       const agentName = agentProfile?.full_name || 'Agent'
 
-      // Queue commission in pending_wallet_operations for manager approval
-      const { error: pendingErr } = await serviceClient
-        .from('pending_wallet_operations')
-        .insert({
-          user_id: commissionAgentId,
-          operation_type: 'credit',
-          amount: commissionAmount,
-          category: 'agent_commission',
-          description: `5% commission on rent UGX ${request.rent_amount.toLocaleString()} for tenant ${request.tenant_id} → landlord ${landlord?.name || 'Unknown'}. Ref: ${transaction_reference}`,
-          source_table: 'rent_requests',
-          source_id: rent_request_id,
-          status: 'pending',
-          metadata: {
-            rent_request_id,
-            rent_amount: request.rent_amount,
-            commission_rate: 0.05,
-            landlord_name: landlord?.name,
-            transaction_reference,
-            payout_method: method,
-          },
+      // Credit UGX 5,000 flat bonus directly to agent wallet
+      const bonusTxGroupId = crypto.randomUUID()
+      const { error: ledgerErr } = await serviceClient.from('general_ledger').insert({
+        user_id: bonusAgentId,
+        amount: RENT_FUNDED_BONUS,
+        direction: 'cash_in',
+        category: 'agent_bonus',
+        source_table: 'rent_requests',
+        source_id: rent_request_id,
+        description: `UGX 5,000 rent funded bonus – landlord ${landlord?.name || 'Unknown'} paid via ${method}. Ref: ${transaction_reference}`,
+        linked_party: request.tenant_id,
+        ledger_scope: 'wallet',
+        transaction_group_id: bonusTxGroupId,
+        transaction_date: now,
+      })
+
+      if (!ledgerErr) {
+        bonusPaid = true
+
+        // Record in agent_earnings for tracking
+        await serviceClient.from('agent_earnings').insert({
+          agent_id: bonusAgentId,
+          amount: RENT_FUNDED_BONUS,
+          earning_type: 'rent_funded_bonus',
+          description: `UGX 5,000 bonus – rent funded to ${landlord?.name || 'Unknown'} (UGX ${request.rent_amount.toLocaleString()})`,
+          rent_request_id: rent_request_id,
+          source_user_id: request.tenant_id,
         })
 
-      if (pendingErr) {
-        console.error('Failed to queue commission:', pendingErr.message)
-        // Non-fatal: landlord payout succeeded, commission can be manually processed
+        // Notify agent
+        await serviceClient.from('notifications').insert({
+          user_id: bonusAgentId,
+          title: 'Rent Funded Bonus! 🎉',
+          message: `You earned UGX ${RENT_FUNDED_BONUS.toLocaleString()} bonus because rent for your tenant was paid to landlord ${landlord?.name || 'Unknown'}. You will also earn 5% on every repayment this tenant makes!`,
+          type: 'earning',
+          metadata: {
+            amount: RENT_FUNDED_BONUS,
+            type: 'rent_funded_bonus',
+            rent_request_id,
+            landlord_name: landlord?.name,
+          },
+        })
       } else {
-        commissionQueued = true
+        console.error('Failed to credit rent funded bonus:', ledgerErr.message)
       }
-
-      // Record in agent_earnings for tracking (status: pending_approval)
-      await serviceClient.from('agent_earnings').insert({
-        agent_id: commissionAgentId,
-        amount: commissionAmount,
-        earning_type: 'commission',
-        description: `5% rent commission – ${landlord?.name || 'Unknown'} (UGX ${request.rent_amount.toLocaleString()}) [pending approval]`,
-        rent_request_id: rent_request_id,
-        source_user_id: request.tenant_id,
-      })
     }
 
     // Record audit log
@@ -189,9 +199,9 @@ Deno.serve(async (req) => {
         payout_method: method,
         transaction_reference,
         landlord_has_wallet: landlordHasWallet,
-        commission_agent_id: commissionAgentId,
-        commission_amount: commissionAmount,
-        commission_queued: commissionQueued,
+        bonus_agent_id: bonusAgentId,
+        bonus_amount: RENT_FUNDED_BONUS,
+        bonus_paid: bonusPaid,
         notes,
       },
     })
@@ -203,10 +213,11 @@ Deno.serve(async (req) => {
         payout_method: method,
         landlord_has_wallet: landlordHasWallet,
         transaction_reference,
-        commission: {
-          agent_id: commissionAgentId,
-          amount: commissionAmount,
-          queued_for_approval: commissionQueued,
+        agent_bonus: {
+          agent_id: bonusAgentId,
+          amount: RENT_FUNDED_BONUS,
+          paid: bonusPaid,
+          note: 'Agent will also earn 5% on every future rent repayment',
         },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
