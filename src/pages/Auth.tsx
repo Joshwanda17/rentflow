@@ -157,7 +157,7 @@ export default function Auth() {
         // Redirect to the magic link verify URL
         window.location.href = data.verify_url;
       }
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Network error. Please check your connection.', variant: 'destructive' });
     } finally {
       setOtpLoginLoading(false);
