@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
