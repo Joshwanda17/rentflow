@@ -505,6 +505,11 @@ async function chargeAgent(
       p_tenant_id: charge.tenant_id,
       p_amount: shortfall,
     });
+    // Credit agent 5% commission on grace-period recovery
+    await supabase.rpc("credit_agent_rent_commission", {
+      p_rent_request_id: charge.rent_request_id, p_repayment_amount: shortfall,
+      p_source_table: "auto_charge_wallets", p_source_id: charge.id,
+    });
   }
 
   console.log(`[auto-charge-wallets] Agent ${charge.agent_id} charged ${shortfall} for tenant ${tenantName} (${charge.tenant_id}) after 72h grace`);
