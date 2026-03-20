@@ -39,13 +39,15 @@ export default function AdminDashboardPage() {
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
         {/* Back to dashboard */}
         <div className="flex items-center justify-between">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Admin Dashboard
-          </button>
+            Back to Dashboard
+          </Button>
           
         </div>
 
