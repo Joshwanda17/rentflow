@@ -79,10 +79,20 @@ export function VerifyTenantButton({
         .eq('id', requestId);
 
       if (error) throw error;
+
+      // No UGX 5,000 verification bonus for guarantee — agent skipped full verification
+
       hapticSuccess();
-      toast.success('Tenant guaranteed! Your reputation is on the line.');
+      toast.success('Tenant guaranteed! No verification bonus — you skipped full verification.');
       setShowGuaranteeConfirm(false);
       onVerified();
+    } catch (error: any) {
+      hapticError();
+      toast.error(error.message || 'Failed to guarantee tenant');
+    } finally {
+      setGuaranteeLoading(false);
+    }
+  };
     } catch (error: any) {
       hapticError();
       toast.error(error.message || 'Failed to guarantee tenant');
