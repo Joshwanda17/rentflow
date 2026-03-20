@@ -41,6 +41,21 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [withdrawDialog, setWithdrawDialog] = useState<{ id: string; name: string; maxAmount: number } | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const handleRename = async (portfolioId: string) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) { toast.error('Please enter a name'); return; }
+    try {
+      const { error } = await supabase.from('investor_portfolios').update({ account_name: trimmed }).eq('id', portfolioId);
+      if (error) throw error;
+      toast.success(`Account renamed to "${trimmed}"`);
+      setRenamingId(null);
+      setRenameValue('');
+      fetchAll();
+    } catch (err: any) { toast.error(err.message || 'Rename failed'); }
+  };
 
   const handleAccountAction = async (action: string, portfolioId: string, accountName: string, extra?: any) => {
     setActionLoading(`${action}-${portfolioId}`);
