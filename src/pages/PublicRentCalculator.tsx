@@ -118,6 +118,23 @@ export default function PublicRentCalculator() {
       </div>
 
       <div className="max-w-lg mx-auto p-4 space-y-4">
+        {/* Sign In / Sign Up CTA — top priority */}
+        <div className="space-y-2">
+          <button
+            onClick={handleSignUp}
+            className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base shadow-md hover:shadow-lg hover:brightness-110 active:scale-[0.97] transition-all touch-manipulation"
+          >
+            Sign Up & Get Rent Paid
+            <ArrowRight className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => navigate('/auth')}
+            className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/5 active:scale-[0.97] transition-all touch-manipulation"
+          >
+            Already have an account? Log in
+          </button>
+        </div>
+
         {/* Benefits */}
         <div className="grid grid-cols-3 gap-2">
           <div className="text-center p-3 rounded-xl bg-card border">
@@ -322,26 +339,6 @@ export default function PublicRentCalculator() {
           </TabsContent>
         </Tabs>
 
-        {/* CTA */}
-        <Card className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-          <CardContent className="p-6 text-center space-y-4">
-            <h2 className="text-xl font-bold">Ready to Get Your Rent Paid?</h2>
-            <p className="text-sm text-primary-foreground/90">
-              Join Welile today and get access to rent assistance with flexible repayment options.
-            </p>
-            <Button 
-              onClick={handleSignUp}
-              size="lg"
-              className="w-full bg-white text-primary hover:bg-white/90 font-bold gap-2"
-            >
-              Sign Up as Tenant
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            <p className="text-xs text-primary-foreground/70">
-              Already have an account? <button onClick={() => navigate('/auth')} className="underline">Login here</button>
-            </p>
-          </CardContent>
-        </Card>
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground pb-4">
