@@ -1,124 +1,87 @@
 project_id = "wirntoujqoyjobfhyelc"
 
-[functions.wallet-transfer]
-verify_jwt = false
-
-[functions.agent-deposit]
-verify_jwt = false
-
-[functions.agent-withdrawal]
-verify_jwt = false
-
-[functions.approve-rent-request]
-verify_jwt = false
-
-[functions.product-purchase]
-verify_jwt = false
-
-[functions.vendor-login]
-verify_jwt = false
-
-[functions.vendor-mark-receipt]
-verify_jwt = false
-
-[functions.approve-loan-application]
-verify_jwt = false
-
-[functions.loan-reminders]
-verify_jwt = false
-
-[functions.process-monthly-rewards]
-verify_jwt = false
-
-[functions.approve-deposit]
-verify_jwt = false
-
-[functions.rent-reminders]
-verify_jwt = false
-
-[functions.payment-reminder]
-verify_jwt = false
-
-[functions.process-investment-interest]
-verify_jwt = false
-
-[functions.create-supporter-invite]
-verify_jwt = false
-
-[functions.activate-supporter]
-verify_jwt = false
-
-[functions.scan-receipt]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = false
-
-[functions.process-supporter-roi]
-verify_jwt = false
-
-[functions.check-repayment-status]
-verify_jwt = false
-
-[functions.automation-engine]
-verify_jwt = false
-
-[functions.ai-brain]
-verify_jwt = false
-
-[functions.ai-user-experience-report]
-verify_jwt = false
-
-[functions.batch-sync]
-verify_jwt = false
-
-[functions.sms-otp]
-verify_jwt = false
-
-[functions.user-snapshot]
-verify_jwt = false
-
-[functions.password-reset-sms]
-verify_jwt = false
-
-[functions.welile-ai-chat]
-verify_jwt = false
-
-[functions.earning-predictor]
-verify_jwt = false
-
-[functions.fund-tenants]
-verify_jwt = false
-
-[functions.fund-tenant-from-pool]
-verify_jwt = false
-
-[functions.agent-invest-for-partner]
-verify_jwt = false
-
-[functions.seed-test-funds]
-verify_jwt = false
-
-[functions.create-investor-portfolio]
-verify_jwt = false
-
-[functions.coo-invest-for-partner]
-verify_jwt = false
-
-[functions.fix-supporter-metadata]
-verify_jwt = false
-
-[functions.credit-listing-bonus]
-verify_jwt = false
-
-[functions.admin-reset-password]
-verify_jwt = false
-
-[functions.manager-portfolio-topup]
-verify_jwt = false
-
-[functions.viewing-confirmation-sms]
-verify_jwt = false
-
-[functions.verify-viewing-checkin]
-verify_jwt = false
+[functions]
+  [functions.activate-supporter]
+    verify_jwt = false
+  [functions.admin-reset-password]
+    verify_jwt = false
+  [functions.agent-deposit]
+    verify_jwt = false
+  [functions.agent-invest-for-partner]
+    verify_jwt = false
+  [functions.agent-withdrawal]
+    verify_jwt = false
+  [functions.ai-brain]
+    verify_jwt = false
+  [functions.ai-user-experience-report]
+    verify_jwt = false
+  [functions.approve-deposit]
+    verify_jwt = false
+  [functions.approve-loan-application]
+    verify_jwt = false
+  [functions.approve-rent-request]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.automation-engine]
+    verify_jwt = false
+  [functions.batch-sync]
+    verify_jwt = false
+  [functions.check-repayment-status]
+    verify_jwt = false
+  [functions.coo-invest-for-partner]
+    verify_jwt = false
+  [functions.create-investor-portfolio]
+    verify_jwt = false
+  [functions.create-supporter-invite]
+    verify_jwt = false
+  [functions.credit-listing-bonus]
+    verify_jwt = false
+  [functions.earning-predictor]
+    verify_jwt = false
+  [functions.fix-supporter-metadata]
+    verify_jwt = false
+  [functions.fund-tenant-from-pool]
+    verify_jwt = false
+  [functions.fund-tenants]
+    verify_jwt = false
+  [functions.loan-reminders]
+    verify_jwt = false
+  [functions.manager-portfolio-topup]
+    verify_jwt = false
+  [functions.password-reset-sms]
+    verify_jwt = false
+  [functions.payment-reminder]
+    verify_jwt = false
+  [functions.process-investment-interest]
+    verify_jwt = false
+  [functions.process-monthly-rewards]
+    verify_jwt = false
+  [functions.process-supporter-roi]
+    verify_jwt = false
+  [functions.product-purchase]
+    verify_jwt = false
+  [functions.rent-reminders]
+    verify_jwt = false
+  [functions.scan-receipt]
+    verify_jwt = false
+  [functions.seed-test-funds]
+    verify_jwt = false
+  [functions.send-push-notification]
+    verify_jwt = false
+  [functions.sms-otp]
+    verify_jwt = false
+  [functions.user-snapshot]
+    verify_jwt = false
+  [functions.vendor-login]
+    verify_jwt = false
+  [functions.vendor-mark-receipt]
+    verify_jwt = false
+  [functions.verify-viewing-checkin]
+    verify_jwt = false
+  [functions.viewing-confirmation-sms]
+    verify_jwt = false
+  [functions.wallet-transfer]
+    verify_jwt = false
+  [functions.welile-ai-chat]
+    verify_jwt = false
