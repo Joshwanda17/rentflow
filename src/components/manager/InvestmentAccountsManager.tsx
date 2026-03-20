@@ -199,7 +199,7 @@ export function InvestmentAccountsManager() {
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0"
-                            onClick={() => { setEditingId(p.id); setEditName(p.portfolio_code); }}
+                            onClick={() => { setEditingId(p.id); setEditName(p.account_name || p.portfolio_code); }}
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>
