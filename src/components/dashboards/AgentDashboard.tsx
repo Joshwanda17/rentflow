@@ -16,7 +16,7 @@ import {
   Home,
   Receipt,
   Share2,
-  TrendingUp,
+  // TrendingUp removed — moved Earnings to More menu
   Banknote,
   FileText,
   Users,
@@ -276,12 +276,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className="grid grid-cols-4 gap-1.5">
             {[
               { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), highlight: true },
-              { icon: FileText, label: 'Requests', onClick: () => setMyRentRequestsOpen(true), highlight: true },
+              { icon: FileText, label: 'Post Request', onClick: () => setRentRequestOpen(true), highlight: true, featured: true },
               { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), highlight: true },
               { icon: MapPin, label: 'Nearby', onClick: () => setNearbyTenantsOpen(true), highlight: true },
               { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
-              { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings') },
+              { icon: FileText, label: 'Requests', onClick: () => setMyRentRequestsOpen(true) },
               { icon: Menu, label: 'More', onClick: handleOpenMenu },
             ].map((action, i) => (
               <button
@@ -289,14 +289,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 onClick={() => { hapticTap(); action.onClick(); }}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-3 rounded-xl border transition-all touch-manipulation animate-fade-in active:scale-95",
-                  (action as any).highlight
+                  (action as any).featured
+                    ? "bg-success/15 border-success/40 hover:bg-success/20 active:bg-success/25 ring-1 ring-success/30"
+                    : (action as any).highlight
                     ? "bg-primary/10 border-primary/30 hover:bg-primary/15 active:bg-primary/20"
                     : "bg-card border-border/40 hover:bg-muted/40 active:bg-muted/60"
                 )}
                 style={staggerDelay(i, 30)}
               >
-                <action.icon className={cn("h-[18px] w-[18px]", (action as any).highlight ? "text-primary" : "text-foreground/70")} />
-                <span className={cn("text-[10px] font-medium", (action as any).highlight ? "text-primary font-bold" : "text-foreground/80")}>{action.label}</span>
+                <action.icon className={cn("h-[18px] w-[18px]", (action as any).featured ? "text-success" : (action as any).highlight ? "text-primary" : "text-foreground/70")} />
+                <span className={cn("text-[10px] font-medium", (action as any).featured ? "text-success font-bold" : (action as any).highlight ? "text-primary font-bold" : "text-foreground/80")}>{action.label}</span>
               </button>
             ))}
           </div>
