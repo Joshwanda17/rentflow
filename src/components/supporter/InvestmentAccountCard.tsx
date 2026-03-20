@@ -1,9 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Wallet, TrendingUp, MoreVertical, Trash2, Edit2, Sparkles, Clock, ArrowDownToLine } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,94 +30,74 @@ interface InvestmentAccountCardProps {
   onClick?: (account: InvestmentAccount) => void;
 }
 
+const accentMap: Record<string, string> = {
+  blue: 'border-l-[hsl(220,80%,55%)]',
+  green: 'border-l-[hsl(var(--success))]',
+  purple: 'border-l-[hsl(270,60%,55%)]',
+  orange: 'border-l-[hsl(32,95%,50%)]',
+  pink: 'border-l-[hsl(340,70%,55%)]',
+};
+
+const statusDot: Record<string, string> = {
+  pending: 'bg-warning',
+  approved: 'bg-success animate-[pulse_3s_ease-in-out_infinite]',
+  rejected: 'bg-destructive',
+};
+
+const statusLabel: Record<string, string> = {
+  pending: 'Pending',
+  approved: 'Active',
+  rejected: 'Rejected',
+};
+
 export function InvestmentAccountCard({ account, onDelete, onEdit, onFund, onWithdraw, onClick }: InvestmentAccountCardProps) {
-  const monthlyROI = 15; // Fixed 15% monthly ROI
-
-  const colorSchemes: Record<string, { gradient: string; iconBg: string; glow: string }> = {
-    blue: { 
-      gradient: 'from-blue-600/20 via-cyan-500/10 to-indigo-600/20',
-      iconBg: 'from-blue-500 to-cyan-400',
-      glow: 'shadow-blue-500/20'
-    },
-    green: { 
-      gradient: 'from-emerald-600/20 via-green-500/10 to-teal-600/20',
-      iconBg: 'from-emerald-500 to-green-400',
-      glow: 'shadow-emerald-500/20'
-    },
-    purple: { 
-      gradient: 'from-purple-600/20 via-violet-500/10 to-fuchsia-600/20',
-      iconBg: 'from-purple-500 to-violet-400',
-      glow: 'shadow-purple-500/20'
-    },
-    orange: { 
-      gradient: 'from-orange-600/20 via-amber-500/10 to-yellow-600/20',
-      iconBg: 'from-orange-500 to-amber-400',
-      glow: 'shadow-orange-500/20'
-    },
-    pink: { 
-      gradient: 'from-pink-600/20 via-rose-500/10 to-red-600/20',
-      iconBg: 'from-pink-500 to-rose-400',
-      glow: 'shadow-pink-500/20'
-    },
-  };
-
-  const scheme = colorSchemes[account.color] || colorSchemes.purple;
+  const monthlyROI = 15;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+    <div
       onClick={() => onClick?.(account)}
-      className={onClick ? 'cursor-pointer' : ''}
+      className={cn('animate-fade-in', onClick && 'cursor-pointer')}
     >
-      <Card className={`relative overflow-hidden border-0 bg-gradient-to-br ${scheme.gradient} backdrop-blur-xl shadow-lg ${scheme.glow} hover:shadow-xl transition-all duration-300`}>
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/40 to-transparent" />
-        
-        <CardContent className="relative p-4">
+      <Card className={cn(
+        'border-l-[3px] border border-border/40 bg-card hover:bg-accent/30 transition-colors duration-200 active:scale-[0.98] transition-transform overflow-hidden',
+        accentMap[account.color] || accentMap.purple
+      )}>
+        <CardContent className="p-4">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${scheme.iconBg} shadow-md`}>
-                <Wallet className="h-4 w-4 text-white" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-muted/60 flex items-center justify-center shrink-0">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-foreground">{account.name}</h3>
-                  {account.status === 'pending' && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-warning/20 text-warning border-warning/30">
-                      Pending
-                    </Badge>
-                  )}
-                  {account.status === 'approved' && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-success/20 text-success border-success/30">
-                      Active
-                    </Badge>
-                  )}
-                  {account.status === 'rejected' && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-destructive/20 text-destructive border-destructive/30">
-                      Rejected
-                    </Badge>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-[13px] font-bold text-foreground truncate">{account.name}</h3>
+                  {account.status && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={cn('h-1.5 w-1.5 rounded-full', statusDot[account.status] || 'bg-muted-foreground/40')} />
+                      <span className="text-[9px] font-medium text-muted-foreground capitalize">
+                        {statusLabel[account.status] || account.status}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                  <MoreVertical className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/60 hover:text-foreground">
+                  <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="backdrop-blur-xl bg-background/90">
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit?.(account.id)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
+                  <Edit2 className="h-3.5 w-3.5 mr-2" />
                   Edit
                 </DropdownMenuItem>
                 {!account.isDefault && (
                   <DropdownMenuItem onClick={() => onDelete?.(account.id)} className="text-destructive focus:text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
                     Delete
                   </DropdownMenuItem>
                 )}
@@ -126,61 +105,50 @@ export function InvestmentAccountCard({ account, onDelete, onEdit, onFund, onWit
             </DropdownMenu>
           </div>
 
-          {/* Simplified Stats - Only Invested and Monthly ROI */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="p-3 rounded-xl bg-white/5 backdrop-blur border border-white/10">
-              <p className="text-[10px] text-muted-foreground/70 uppercase tracking-wider font-semibold mb-1">Invested</p>
-              <p className="font-bold text-lg text-foreground">{formatUGX(account.balance)}</p>
+          {/* Balance + ROI */}
+          <div className="flex items-end justify-between mb-4">
+            <div>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Invested</p>
+              <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight">{formatUGX(account.balance)}</p>
             </div>
-            <div className="p-3 rounded-xl bg-success/10 backdrop-blur border border-success/20">
-              <div className="flex items-center gap-1.5 mb-1">
-                <TrendingUp className="h-3 w-3 text-success" />
-                <p className="text-[10px] text-success/80 uppercase tracking-wider font-semibold">Monthly ROI</p>
-              </div>
-              <p className="font-bold text-lg text-success">{monthlyROI}%</p>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-success/8 border border-success/15">
+              <TrendingUp className="h-3 w-3 text-success" />
+              <span className="text-xs font-bold text-success">{monthlyROI}%</span>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Actions */}
           {account.status === 'approved' ? (
             <div className="flex gap-2">
-              <Button 
-                onClick={(e) => { e.stopPropagation(); onFund?.(account.id); }} 
-                className="flex-1 h-10 font-semibold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md"
+              <Button
+                onClick={(e) => { e.stopPropagation(); onFund?.(account.id); }}
+                className="flex-1 h-10 text-sm font-semibold gap-1.5 rounded-lg"
               >
-                <Sparkles className="h-4 w-4 mr-1.5" />
+                <Sparkles className="h-4 w-4" />
                 Fund
               </Button>
-              <Button 
-                onClick={(e) => { e.stopPropagation(); onWithdraw?.(account.id); }} 
+              <Button
+                onClick={(e) => { e.stopPropagation(); onWithdraw?.(account.id); }}
                 variant="outline"
-                className="flex-1 h-10 font-semibold text-sm border-primary/30 hover:bg-primary/10"
+                className="flex-1 h-10 text-sm font-semibold gap-1.5 rounded-lg border-border/60"
                 disabled={account.balance <= 0}
               >
-                <ArrowDownToLine className="h-4 w-4 mr-1.5" />
+                <ArrowDownToLine className="h-4 w-4" />
                 Withdraw
               </Button>
             </div>
           ) : account.status === 'pending' ? (
-            <Button 
-              disabled
-              variant="outline"
-              className="w-full h-10 font-semibold text-sm"
-            >
-              <Clock className="h-4 w-4 mr-2" />
+            <Button disabled variant="outline" className="w-full h-10 text-sm font-semibold rounded-lg">
+              <Clock className="h-4 w-4 mr-1.5" />
               Awaiting Approval
             </Button>
           ) : (
-            <Button 
-              disabled
-              variant="outline"
-              className="w-full h-10 font-semibold text-sm text-destructive"
-            >
+            <Button disabled variant="outline" className="w-full h-10 text-sm font-semibold text-destructive rounded-lg">
               Account Rejected
             </Button>
           )}
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
