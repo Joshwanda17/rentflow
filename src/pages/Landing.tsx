@@ -140,7 +140,7 @@ export default function Landing() {
           ))}
         </motion.div>
 
-        {/* Explore without signing up — stateless exploration */}
+        {/* Explore without signing up */}
         <motion.div
           className="mt-6 space-y-3"
           initial={{ opacity: 0 }}
@@ -149,12 +149,12 @@ export default function Landing() {
         >
           <Link
             to="/rent-calculator"
-            className="flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors touch-manipulation"
+            className="flex items-center justify-center gap-2 p-2.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
             onClick={() => hapticTap()}
           >
-            <Calculator className="h-5 w-5 text-primary" />
-            <span className="font-medium text-primary text-sm">
-              Try Rent Calculator — no signup
+            <Calculator className="h-4 w-4" />
+            <span className="text-sm">
+              Try Rent Calculator
             </span>
           </Link>
         </motion.div>
