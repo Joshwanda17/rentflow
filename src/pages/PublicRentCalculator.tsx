@@ -118,6 +118,23 @@ export default function PublicRentCalculator() {
       </div>
 
       <div className="max-w-lg mx-auto p-4 space-y-4">
+        {/* Sign In / Sign Up CTA — top priority */}
+        <div className="space-y-2">
+          <button
+            onClick={handleSignUp}
+            className="w-full flex items-center justify-center gap-2 h-14 rounded-2xl bg-primary text-primary-foreground font-bold text-base shadow-md hover:shadow-lg hover:brightness-110 active:scale-[0.97] transition-all touch-manipulation"
+          >
+            Sign Up & Get Rent Paid
+            <ArrowRight className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => navigate('/auth')}
+            className="w-full flex items-center justify-center gap-2 h-12 rounded-2xl border-2 border-primary text-primary font-semibold text-sm hover:bg-primary/5 active:scale-[0.97] transition-all touch-manipulation"
+          >
+            Already have an account? Log in
+          </button>
+        </div>
+
         {/* Benefits */}
         <div className="grid grid-cols-3 gap-2">
           <div className="text-center p-3 rounded-xl bg-card border">
