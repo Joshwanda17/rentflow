@@ -8,6 +8,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ROIPaymentHistory } from './ROIPaymentHistory';
 import { Separator } from '@/components/ui/separator';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvest
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editAccount, setEditAccount] = useState<any>(null);
   const [fundAccount, setFundAccount] = useState<any>(null);
@@ -301,6 +303,13 @@ export function PartnersOpsDashboard() {
       />
 
       <Separator className="my-2" />
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-bold text-sm">ROI Auto-Payout History</h3>
+        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => navigate('/roi-trends')}>
+          <TrendingUp className="h-3.5 w-3.5" />
+          View Trends & Projection
+        </Button>
+      </div>
       <ROIPaymentHistory />
 
       {/* Dialogs */}
