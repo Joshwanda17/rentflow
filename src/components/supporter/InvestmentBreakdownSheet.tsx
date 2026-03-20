@@ -220,12 +220,53 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         {String(idx + 1).padStart(2, '0')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-[13px] font-bold text-foreground truncate">{entry.account_name || entry.code}</p>
-                          <Badge variant="outline" className={`text-[8px] px-1.5 py-0 ${sc.cls}`}>
-                            <span className={`h-1 w-1 rounded-full ${sc.dot} mr-0.5`} />{sc.label}
-                          </Badge>
-                        </div>
+                        {/* Account Name - prominent */}
+                        {entry.account_name && renamingId !== entry.id && (
+                          <p className="text-[15px] font-extrabold text-foreground truncate mb-0.5">{entry.account_name}</p>
+                        )}
+                        {renamingId === entry.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              placeholder="e.g. Rent Fund Alpha"
+                              className="h-7 text-xs bg-muted/50"
+                              autoFocus
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleRename(entry.id); if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); } }}
+                            />
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-success" onClick={() => handleRename(entry.id)}>
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => { setRenamingId(null); setRenameValue(''); }}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[10px] text-muted-foreground font-mono truncate">{entry.code}</p>
+                            <Badge variant="outline" className={`text-[8px] px-1.5 py-0 ${sc.cls}`}>
+                              <span className={`h-1 w-1 rounded-full ${sc.dot} mr-0.5`} />{sc.label}
+                            </Badge>
+                          </div>
+                        )}
+                        {!entry.account_name && renamingId !== entry.id && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(''); }}
+                            className="flex items-center gap-1 mt-1 px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/15 text-primary text-[10px] font-bold transition-colors"
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Name My Account
+                          </button>
+                        )}
+                        {entry.account_name && renamingId !== entry.id && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(entry.account_name || ''); }}
+                            className="flex items-center gap-1 text-muted-foreground hover:text-primary text-[9px] transition-colors mt-0.5"
+                          >
+                            <Pencil className="h-2.5 w-2.5" />
+                            Rename
+                          </button>
+                        )}
                         <p className="text-[10px] text-muted-foreground">{formatDistanceToNow(investedDate, { addSuffix: true })}</p>
                       </div>
                     </div>
