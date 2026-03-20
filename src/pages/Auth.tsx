@@ -224,8 +224,8 @@ export default function Auth() {
 
           {/* Feature 2: WhatsApp deeplink banner */}
           {deepLinkAgent && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
-              <MessageCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+            <div className="mb-4 p-3 rounded-xl bg-accent/50 border border-accent flex items-center gap-3">
+              <MessageCircle className="h-5 w-5 text-primary shrink-0" />
               <div>
                 <p className="text-sm font-medium text-foreground">Sent by Agent {deepLinkAgent}</p>
                 <p className="text-xs text-muted-foreground">Verifying your login code automatically...</p>
