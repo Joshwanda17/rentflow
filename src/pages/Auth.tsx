@@ -192,31 +192,18 @@ export default function Auth() {
   return (
     <>
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        {/* Background decoration */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        </div>
-
         <div className="w-full max-w-md relative z-10 animate-fade-in">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-8 transition-colors text-sm"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Home</span>
+            Back
           </Link>
 
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center mb-3">
               <WelileLogo linkToHome={false} />
-            </div>
-            <p className="text-muted-foreground">Rent Facilitation Platform</p>
-            <div className="flex items-center justify-center mt-4">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 border border-border/50">
-                <span className="text-xs text-muted-foreground">Currency:</span>
-                <CurrencySwitcher variant="compact" />
-              </div>
             </div>
           </div>
 
