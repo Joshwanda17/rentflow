@@ -111,6 +111,9 @@ export function AgentOpsDashboard() {
         </div>
       </div>
 
+      {/* Agent Verification Queue */}
+      <RentPipelineQueue stage="tenant_ops_approved" />
+
       {/* Tenant Transfer Section */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <TenantTransferPanel />
