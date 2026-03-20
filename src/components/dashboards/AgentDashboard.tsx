@@ -70,6 +70,7 @@ import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
+import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
@@ -305,6 +306,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Daily Ops Report */}
+        {/* Verification Opportunities */}
+        <AgentVerificationOpportunitiesCard />
+
         <AgentDailyOpsCard />
 
         {/* Credit Access */}
