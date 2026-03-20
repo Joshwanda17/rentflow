@@ -212,17 +212,23 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 const growthPct = entry.amount > 0 ? ((finalValue - entry.amount) / entry.amount * 100) : 0;
 
                 return (
-                  <div key={entry.id} className="rounded-xl border border-border/40 bg-card overflow-hidden">
+                  <div
+                    key={entry.id}
+                    className="rounded-xl border border-border/40 bg-card overflow-hidden border-l-[3px] animate-fade-in"
+                    style={{ borderLeftColor: color, animationDelay: `${idx * 60}ms` }}
+                  >
                     {/* Header */}
-                    <div className="flex items-center gap-3 p-3.5 pb-2.5">
-                      <div className="h-9 w-9 rounded-lg flex items-center justify-center text-white text-[11px] font-extrabold shrink-0"
-                        style={{ backgroundColor: color }}>
+                    <div className="flex items-center gap-3 p-4 pb-3">
+                      <div
+                        className="h-10 w-10 rounded-xl flex items-center justify-center text-white text-xs font-extrabold shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
                         {String(idx + 1).padStart(2, '0')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        {/* Account Name - prominent */}
+                        {/* Account Name */}
                         {entry.account_name && renamingId !== entry.id && (
-                          <p className="text-[15px] font-extrabold text-foreground truncate mb-0.5">{entry.account_name}</p>
+                          <p className="text-sm font-bold text-foreground truncate leading-tight">{entry.account_name}</p>
                         )}
                         {renamingId === entry.id ? (
                           <div className="flex items-center gap-1.5">
@@ -230,7 +236,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               value={renameValue}
                               onChange={(e) => setRenameValue(e.target.value)}
                               placeholder="e.g. Rent Fund Alpha"
-                              className="h-7 text-xs bg-muted/50"
+                              className="h-7 text-xs bg-muted/50 rounded-lg"
                               autoFocus
                               onKeyDown={(e) => { if (e.key === 'Enter') handleRename(entry.id); if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); } }}
                             />
@@ -244,75 +250,87 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         ) : (
                           <div className="flex items-center gap-1.5">
                             <p className="text-[10px] text-muted-foreground font-mono truncate">{entry.code}</p>
-                            <Badge variant="outline" className={`text-[8px] px-1.5 py-0 ${sc.cls}`}>
-                              <span className={`h-1 w-1 rounded-full ${sc.dot} mr-0.5`} />{sc.label}
-                            </Badge>
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-medium ${sc.cls} px-1.5 py-0.5 rounded-full`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />{sc.label}
+                            </span>
                           </div>
                         )}
                         {!entry.account_name && renamingId !== entry.id && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(''); }}
-                            className="flex items-center gap-1 mt-1 px-2 py-1 rounded-md bg-primary/10 hover:bg-primary/15 text-primary text-[10px] font-bold transition-colors"
+                            className="flex items-center gap-1 mt-1.5 px-2 py-1 rounded-lg bg-primary/8 hover:bg-primary/12 text-primary text-[10px] font-semibold transition-colors"
                           >
                             <Pencil className="h-3 w-3" />
-                            Name My Account
+                            Name this account
                           </button>
                         )}
                         {entry.account_name && renamingId !== entry.id && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(entry.account_name || ''); }}
-                            className="flex items-center gap-1 text-muted-foreground hover:text-primary text-[9px] transition-colors mt-0.5"
+                            className="flex items-center gap-1 text-muted-foreground/60 hover:text-primary text-[9px] transition-colors mt-0.5"
                           >
                             <Pencil className="h-2.5 w-2.5" />
                             Rename
                           </button>
                         )}
-                        <p className="text-[10px] text-muted-foreground">{formatDistanceToNow(investedDate, { addSuffix: true })}</p>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground shrink-0">{formatDistanceToNow(investedDate, { addSuffix: true })}</p>
+                    </div>
+
+                    {/* Balance row */}
+                    <div className="px-4 pb-3 flex items-end justify-between">
+                      <div>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
+                        <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight">{formatAmount(entry.amount)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">
+                          {isCompounding ? 'Month 1' : 'Monthly'}
+                        </p>
+                        <p className="text-base font-bold text-success font-mono tabular-nums tracking-tight flex items-center gap-0.5 justify-end">
+                          <TrendingUp className="h-3 w-3" />{formatAmount(monthlyReturn)}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Capital + Return */}
-                    <div className="px-3.5 pb-2.5 grid grid-cols-2 gap-2">
-                      <div className="rounded-lg bg-muted/30 p-2.5">
-                        <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium mb-0.5">Capital</p>
-                        <p className="text-[clamp(0.7rem,3vw,0.85rem)] font-extrabold text-foreground leading-tight truncate">{formatAmount(entry.amount)}</p>
-                      </div>
-                      <div className="rounded-lg bg-success/5 border border-success/10 p-2.5">
-                        <p className="text-[8px] text-success uppercase tracking-[0.1em] font-medium mb-0.5">
-                          {isCompounding ? 'Month 1' : 'Per Month'}
-                        </p>
-                        <p className="text-[clamp(0.7rem,3vw,0.85rem)] font-extrabold text-success leading-tight truncate flex items-center gap-0.5">
-                          <ArrowUpRight className="h-3 w-3 shrink-0" />{formatAmount(monthlyReturn)}
-                        </p>
-                        {isCompounding && <p className="text-[7px] text-muted-foreground mt-0.5">Grows monthly</p>}
-                      </div>
+                    {/* Tags — compact horizontal strip */}
+                    <div className="px-4 pb-3 flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/8 text-[9px] font-semibold text-primary">
+                        {entry.roi_percentage}% ROI
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+                        {isCompounding ? 'Compound' : 'Simple'}
+                      </span>
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+                        {entry.duration_months}mo
+                      </span>
                     </div>
 
-                    {/* Next Payout */}
-                    <div className="mx-3.5 mb-2.5 rounded-lg bg-primary/5 border border-primary/10 p-2.5 flex items-center gap-2.5">
+                    {/* Next Payout — clean bar */}
+                    <div className="mx-4 mb-3 rounded-lg bg-muted/40 border border-border/30 p-3 flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <CalendarCheck className="h-3.5 w-3.5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Next Payout</p>
-                        <p className="text-[12px] font-bold text-foreground">{format(nextPayout, 'dd MMM yyyy')}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Next Payout</p>
+                        <p className="text-xs font-bold text-foreground">{format(nextPayout, 'dd MMM yyyy')}</p>
                       </div>
                       {daysToNext >= 0 ? (
                         <div className="text-right shrink-0">
-                          <p className="text-base font-extrabold text-primary leading-none">{daysToNext}</p>
+                          <p className="text-lg font-black text-primary leading-none font-mono tabular-nums">{daysToNext}</p>
                           <p className="text-[7px] text-muted-foreground font-medium uppercase">days</p>
                         </div>
                       ) : (
-                        <Badge className="bg-warning/10 text-warning border-warning/20 text-[8px] shrink-0">Overdue</Badge>
+                        <span className="text-[9px] font-semibold text-warning bg-warning/10 px-2 py-0.5 rounded-full shrink-0">Overdue</span>
                       )}
                     </div>
 
                     {/* Compound Projection */}
                     {isCompounding && projectionRows.length > 0 && (
-                      <div className="mx-3.5 mb-2.5">
+                      <div className="mx-4 mb-3">
                         <Accordion type="single" collapsible>
-                          <AccordionItem value="proj" className="border rounded-lg overflow-hidden bg-success/5 border-success/10">
-                            <AccordionTrigger className="px-2.5 py-2 hover:no-underline">
+                          <AccordionItem value="proj" className="border rounded-lg overflow-hidden border-border/30 bg-muted/20">
+                            <AccordionTrigger className="px-3 py-2.5 hover:no-underline">
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <Repeat className="h-3.5 w-3.5 text-success shrink-0" />
                                 <div className="text-left min-w-0">
@@ -324,15 +342,15 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               </div>
                             </AccordionTrigger>
                             <AccordionContent>
-                              <div className="px-2.5 pb-2.5 space-y-1.5">
+                              <div className="px-3 pb-3 space-y-1.5">
                                 <div className="grid grid-cols-2 gap-1.5 mb-2">
-                                  <div className="rounded-md bg-background/80 border p-2 text-center">
+                                  <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
                                     <p className="text-[7px] text-muted-foreground uppercase">Earnings</p>
-                                    <p className="text-[clamp(0.6rem,2.5vw,0.75rem)] font-extrabold text-success truncate">{formatAmount(finalValue - entry.amount)}</p>
+                                    <p className="text-xs font-bold text-success font-mono tabular-nums truncate">{formatAmount(finalValue - entry.amount)}</p>
                                   </div>
-                                  <div className="rounded-md bg-background/80 border p-2 text-center">
-                                    <p className="text-[7px] text-muted-foreground uppercase">Final</p>
-                                    <p className="text-[clamp(0.6rem,2.5vw,0.75rem)] font-extrabold text-foreground truncate">{formatAmount(finalValue)}</p>
+                                  <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
+                                    <p className="text-[7px] text-muted-foreground uppercase">Final Value</p>
+                                    <p className="text-xs font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(finalValue)}</p>
                                   </div>
                                 </div>
                                 {projectionRows.map((row) => {
@@ -340,26 +358,26 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                   const past = isPast(row.date);
                                   return (
                                     <div key={row.month}
-                                      className={`rounded-md border p-2 ${isLast ? 'bg-success/10 border-success/15' : 'bg-background/80'}`}>
+                                      className={`rounded-lg border p-2 ${isLast ? 'bg-success/5 border-success/15' : 'bg-card border-border/30'}`}>
                                       <div className="flex items-center justify-between mb-1">
                                         <div className="flex items-center gap-1.5">
                                           <span className={`text-[9px] font-bold ${isLast ? 'text-success' : 'text-muted-foreground'}`}>M{row.month}</span>
                                           {past && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">PAID</span>}
                                         </div>
-                                        <span className="text-[9px] text-muted-foreground">{format(row.date, 'dd MMM yy')}</span>
+                                        <span className="text-[9px] text-muted-foreground font-mono">{format(row.date, 'dd MMM yy')}</span>
                                       </div>
                                       <div className="grid grid-cols-3 gap-1">
                                         <div>
                                           <p className="text-[6px] text-muted-foreground uppercase">Open</p>
-                                          <p className="text-[clamp(0.55rem,2.2vw,0.65rem)] font-bold text-foreground truncate">{formatAmount(row.opening)}</p>
+                                          <p className="text-[11px] font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(row.opening)}</p>
                                         </div>
                                         <div>
                                           <p className="text-[6px] text-muted-foreground uppercase">Reward</p>
-                                          <p className={`text-[clamp(0.55rem,2.2vw,0.65rem)] font-bold truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
+                                          <p className={`text-[11px] font-bold font-mono tabular-nums truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
                                         </div>
                                         <div className="text-right">
                                           <p className="text-[6px] text-muted-foreground uppercase">Close</p>
-                                          <p className="text-[clamp(0.55rem,2.2vw,0.65rem)] font-extrabold text-foreground truncate">{formatAmount(row.closing)}</p>
+                                          <p className="text-[11px] font-extrabold text-foreground font-mono tabular-nums truncate">{formatAmount(row.closing)}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -372,101 +390,81 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       </div>
                     )}
 
-                    {/* Tags */}
-                    <div className="px-3.5 pb-2.5 flex flex-wrap gap-1">
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/8 text-[9px] font-bold text-primary">
-                        <TrendingUp className="h-2.5 w-2.5" />{entry.roi_percentage}%
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[9px] font-bold text-muted-foreground">
-                        {isCompounding ? <Repeat className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
-                        {isCompounding ? 'Compound' : 'Simple'}
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted text-[9px] font-bold text-muted-foreground">
-                        <Calendar className="h-2.5 w-2.5" />{entry.duration_months}mo
-                      </span>
-                      {entry.auto_reinvest && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-success/10 text-[9px] font-bold text-success border border-success/20">
-                          <Repeat className="h-2.5 w-2.5" />Auto-Reinvest
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Top Up & Share Buttons */}
+                    {/* Action Buttons — grouped cleanly */}
                     {entry.status !== 'cancelled' && (
-                      <div className="px-3.5 pb-2.5 space-y-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 font-semibold"
-                          onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
-                        >
-                          <Plus className="h-4 w-4" />
-                          Top Up This Account
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5 font-semibold"
-                          onClick={() => setPayoutTarget({ id: entry.id, name: entry.account_name || entry.code })}
-                        >
-                          <CreditCard className="h-4 w-4" />
-                          Set Payout Method
-                        </Button>
-                        
-                        {/* Renew Account */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 font-semibold"
-                          disabled={actionLoading === `renew-${entry.id}`}
-                          onClick={() => {
-                            if (confirm(`Renew "${entry.account_name || entry.code}" for another 12 months? Your earned rewards counter will reset.`)) {
-                              handleAccountAction('renew', entry.id, entry.account_name || entry.code);
-                            }
-                          }}
-                        >
-                          <RefreshCw className={`h-4 w-4 ${actionLoading === `renew-${entry.id}` ? 'animate-spin' : ''}`} />
-                          {actionLoading === `renew-${entry.id}` ? 'Renewing…' : 'Renew This Account'}
-                        </Button>
-
-                        {/* Withdraw Capital */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-amber-500/20 text-amber-600 hover:bg-amber-500/5 font-semibold"
-                          disabled={entry.amount <= 0}
-                          onClick={() => setWithdrawDialog({ id: entry.id, name: entry.account_name || entry.code, maxAmount: entry.amount })}
-                        >
-                          <LogOut className="h-4 w-4" />
-                          Withdraw Capital
-                        </Button>
-
-                        {/* Toggle Compound / Simple */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`w-full gap-2 text-sm h-10 min-h-[44px] font-semibold ${
-                            isCompounding
-                              ? 'border-amber-500/20 text-amber-600 hover:bg-amber-500/5'
-                              : 'border-success/20 text-success hover:bg-success/5'
-                          }`}
-                          disabled={actionLoading === `toggle_roi_mode-${entry.id}`}
-                          onClick={() => {
-                            const newMode = isCompounding ? 'Simple' : 'Compounding';
-                            if (confirm(`Switch "${entry.account_name || entry.code}" to ${newMode} mode?`)) {
-                              handleAccountAction('toggle_roi_mode', entry.id, entry.account_name || entry.code);
-                            }
-                          }}
-                        >
-                          {isCompounding ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                          {actionLoading === `toggle_roi_mode-${entry.id}` ? 'Switching…' : isCompounding ? 'Switch to Simple' : 'Switch to Compounding'}
-                        </Button>
+                      <div className="px-4 pb-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold"
+                            onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Top Up
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-border/60"
+                            onClick={() => setPayoutTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                          >
+                            <CreditCard className="h-3.5 w-3.5" />
+                            Payout Method
+                          </Button>
+                        </div>
 
                         <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1.5 text-xs h-10 min-h-[44px] border-border/40"
+                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-border/60"
+                            disabled={actionLoading === `renew-${entry.id}`}
+                            onClick={() => {
+                              if (confirm(`Renew "${entry.account_name || entry.code}" for another 12 months?`)) {
+                                handleAccountAction('renew', entry.id, entry.account_name || entry.code);
+                              }
+                            }}
+                          >
+                            <RefreshCw className={`h-3.5 w-3.5 ${actionLoading === `renew-${entry.id}` ? 'animate-spin' : ''}`} />
+                            {actionLoading === `renew-${entry.id}` ? 'Renewing…' : 'Renew'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-amber-500/30 text-amber-600 hover:bg-amber-500/5"
+                            disabled={entry.amount <= 0}
+                            onClick={() => setWithdrawDialog({ id: entry.id, name: entry.account_name || entry.code, maxAmount: entry.amount })}
+                          >
+                            <LogOut className="h-3.5 w-3.5" />
+                            Withdraw
+                          </Button>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`w-full gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold ${
+                            isCompounding
+                              ? 'border-amber-500/30 text-amber-600 hover:bg-amber-500/5'
+                              : 'border-success/30 text-success hover:bg-success/5'
+                          }`}
+                          disabled={actionLoading === `toggle_roi_mode-${entry.id}`}
+                          onClick={() => {
+                            const newMode = isCompounding ? 'Simple' : 'Compounding';
+                            if (confirm(`Switch to ${newMode} mode?`)) {
+                              handleAccountAction('toggle_roi_mode', entry.id, entry.account_name || entry.code);
+                            }
+                          }}
+                        >
+                          {isCompounding ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
+                          {actionLoading === `toggle_roi_mode-${entry.id}` ? 'Switching…' : isCompounding ? 'Switch to Simple' : 'Switch to Compound'}
+                        </Button>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="gap-1 text-[11px] h-9 rounded-lg text-muted-foreground hover:text-foreground"
                             onClick={() => downloadPortfolioPdf({
                               portfolioCode: entry.code, accountName: entry.account_name,
                               investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
@@ -476,12 +474,12 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
                             })}
                           >
-                            <FileText className="h-4 w-4" /> Download PDF
+                            <FileText className="h-3.5 w-3.5" /> PDF
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs h-10 min-h-[44px] border-success/30 text-success hover:bg-success/5"
+                            variant="ghost"
+                            className="gap-1 text-[11px] h-9 rounded-lg text-success hover:text-success hover:bg-success/5"
                             onClick={() => sharePortfolioViaWhatsApp({
                               portfolioCode: entry.code, accountName: entry.account_name,
                               investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
@@ -491,30 +489,30 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
                             })}
                           >
-                            <Share2 className="h-4 w-4" /> WhatsApp
+                            <Share2 className="h-3.5 w-3.5" /> WhatsApp
                           </Button>
                         </div>
                       </div>
                     )}
 
                     {/* Timeline */}
-                    <div className="bg-muted/20 border-t border-border/30 px-3.5 py-2.5 space-y-1.5">
+                    <div className="bg-muted/20 border-t border-border/30 px-4 py-3 space-y-1.5">
                       {[
                         { dot: 'bg-primary', label: 'Started', value: format(investedDate, 'dd MMM yyyy') },
-                        { dot: 'bg-primary/60', label: 'Cycle', value: entry.payout_day ? `${entry.payout_day}${['st','nd','rd'][entry.payout_day-1] || 'th'} monthly` : 'Every 30 days' },
+                        { dot: 'bg-muted-foreground/40', label: 'Cycle', value: entry.payout_day ? `${entry.payout_day}${['st','nd','rd'][entry.payout_day-1] || 'th'} monthly` : 'Every 30 days' },
                         { dot: 'bg-success', label: 'Earned', value: formatAmount(entry.total_earned), extra: 'text-success font-extrabold' },
                       ].map((t, i) => (
                         <div key={i} className="flex items-center gap-2.5">
                           <div className={`h-1.5 w-1.5 rounded-full ${t.dot} shrink-0`} />
-                          <span className="text-[9px] text-muted-foreground font-medium w-11 shrink-0">{t.label}</span>
-                          <span className={`text-[10px] font-semibold text-foreground truncate ${t.extra || ''}`}>{t.value}</span>
+                          <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{t.label}</span>
+                          <span className={`text-[10px] font-semibold text-foreground truncate font-mono tabular-nums ${t.extra || ''}`}>{t.value}</span>
                         </div>
                       ))}
                       {maturity && (
                         <div className="flex items-center gap-2.5">
                           <div className={`h-1.5 w-1.5 rounded-full ${isPast(maturity) ? 'bg-warning' : 'bg-muted-foreground/40'} shrink-0`} />
-                          <span className="text-[9px] text-muted-foreground font-medium w-11 shrink-0">{isPast(maturity) ? 'Matured' : 'Matures'}</span>
-                          <span className="text-[10px] font-semibold text-foreground">{format(maturity, 'dd MMM yyyy')}</span>
+                          <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{isPast(maturity) ? 'Matured' : 'Matures'}</span>
+                          <span className="text-[10px] font-semibold text-foreground font-mono tabular-nums">{format(maturity, 'dd MMM yyyy')}</span>
                         </div>
                       )}
                     </div>
