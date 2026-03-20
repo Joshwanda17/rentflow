@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useWallet } from '@/hooks/useWallet';
 import { supabase } from '@/integrations/supabase/client';
-import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target, Plus, FileText, Share2, CreditCard, RefreshCw, LogOut, ToggleLeft, ToggleRight } from 'lucide-react';
+import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target, Plus, FileText, Share2, CreditCard, RefreshCw, LogOut, ToggleLeft, ToggleRight, Pencil, Check, X } from 'lucide-react';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, formatDistanceToNow, differenceInDays, isPast, addDays } from 'date-fns';
