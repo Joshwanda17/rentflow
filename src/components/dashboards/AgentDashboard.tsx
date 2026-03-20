@@ -16,7 +16,7 @@ import {
   Home,
   Receipt,
   Share2,
-  TrendingUp,
+  // TrendingUp removed — moved Earnings to More menu
   Banknote,
   FileText,
   Users,
