@@ -373,16 +373,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 )}
               </div>
 
-              {/* Pipeline Status */}
-              <div className="flex items-center gap-2 py-2">
-                <Badge className={STATUS_COLORS[selectedRequest.status] || 'bg-muted'}>
-                  {selectedRequest.status.replace(/_/g, ' ')}
-                </Badge>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                <Badge className={STATUS_COLORS[config.nextStatus] || 'bg-muted'}>
-                  {config.nextStatus.replace(/_/g, ' ')}
-                </Badge>
-              </div>
+              {/* Pipeline Status + Agent Benefits */}
+              <RentPipelineTracker
+                currentStatus={selectedRequest.status}
+                rentAmount={selectedRequest.rent_amount}
+                showAgentBenefits={true}
+              />
 
               {/* Agent Proximity Selector - only for Tenant Ops */}
               {config.showAgentSelector && (
