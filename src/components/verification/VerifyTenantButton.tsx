@@ -93,13 +93,8 @@ export function VerifyTenantButton({
       setGuaranteeLoading(false);
     }
   };
-    } catch (error: any) {
-      hapticError();
-      toast.error(error.message || 'Failed to guarantee tenant');
-    } finally {
-      setGuaranteeLoading(false);
-    }
-  };
+
+
 
   const handleManagerVerify = async () => {
     if (!user || role !== 'manager') return;
