@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, Sparkles } from 'lucide-react';
 import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
-import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
@@ -193,31 +192,18 @@ export default function Auth() {
   return (
     <>
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        {/* Background decoration */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        </div>
-
         <div className="w-full max-w-md relative z-10 animate-fade-in">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-8 transition-colors text-sm"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to Home</span>
+            Back
           </Link>
 
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center mb-3">
               <WelileLogo linkToHome={false} />
-            </div>
-            <p className="text-muted-foreground">Rent Facilitation Platform</p>
-            <div className="flex items-center justify-center mt-4">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 border border-border/50">
-                <span className="text-xs text-muted-foreground">Currency:</span>
-                <CurrencySwitcher variant="compact" />
-              </div>
             </div>
           </div>
 
@@ -238,8 +224,8 @@ export default function Auth() {
 
           {/* Feature 2: WhatsApp deeplink banner */}
           {deepLinkAgent && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
-              <MessageCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+            <div className="mb-4 p-3 rounded-xl bg-accent/50 border border-accent flex items-center gap-3">
+              <MessageCircle className="h-5 w-5 text-primary shrink-0" />
               <div>
                 <p className="text-sm font-medium text-foreground">Sent by Agent {deepLinkAgent}</p>
                 <p className="text-xs text-muted-foreground">Verifying your login code automatically...</p>
@@ -249,10 +235,10 @@ export default function Auth() {
 
           <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
 
-          <Card className="border-border/50 shadow-lg overflow-hidden">
+          <Card className="border-border/40 shadow-sm overflow-hidden">
             {/* Prominent social sign-in for login view */}
             {!isForgotPassword && !isForgotPhone && !isSignUp && loginMode === 'password' && (
-              <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/30 space-y-3">
+              <div className="p-4 border-b border-border/30 space-y-3">
                 <GoogleSignInButton
                   onClick={wrappedHandleGoogleSignIn}
                   disabled={isGoogleLoading || isAppleLoading || isLoading}
