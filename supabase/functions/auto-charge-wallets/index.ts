@@ -97,6 +97,11 @@ Deno.serve(async (req) => {
             await supabase.rpc("record_rent_request_repayment", {
               p_tenant_id: charge.tenant_id, p_amount: agentAmountCharged,
             });
+            // Credit agent 5% commission
+            await supabase.rpc("credit_agent_rent_commission", {
+              p_rent_request_id: charge.rent_request_id, p_repayment_amount: agentAmountCharged,
+              p_source_table: "auto_charge_wallets", p_source_id: charge.id,
+            });
           }
 
           // Notify agent
