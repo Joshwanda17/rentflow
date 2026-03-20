@@ -8,13 +8,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useWallet } from '@/hooks/useWallet';
 import { supabase } from '@/integrations/supabase/client';
-import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target, Plus, FileText, Share2, CreditCard } from 'lucide-react';
-import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
+import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target, Plus, FileText, Share2, CreditCard, RefreshCw, LogOut, ToggleLeft, ToggleRight } from 'lucide-react';
+import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, formatDistanceToNow, differenceInDays, isPast, addDays } from 'date-fns';
 import { FundAccountDialog } from './FundAccountDialog';
 import { toast } from 'sonner';
 import { PayoutMethodDialog } from './PayoutMethodDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
@@ -36,6 +38,35 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const [loading, setLoading] = useState(true);
   const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
   const [payoutTarget, setPayoutTarget] = useState<{ id: string; name: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [withdrawDialog, setWithdrawDialog] = useState<{ id: string; name: string; maxAmount: number } | null>(null);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  const handleAccountAction = async (action: string, portfolioId: string, accountName: string, extra?: any) => {
+    setActionLoading(`${action}-${portfolioId}`);
+    try {
+      const { data, error } = await supabase.functions.invoke('supporter-account-action', {
+        body: { action, portfolio_id: portfolioId, ...extra },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'Action failed');
+
+      if (action === 'renew') {
+        toast.success(`"${accountName}" renewed for 12 months! 📧 Confirmation email sent.`);
+      } else if (action === 'withdraw_capital') {
+        toast.success(`Withdrawal requested for "${accountName}". 📧 Email confirmation sent.`);
+        setWithdrawDialog(null);
+        setWithdrawAmount('');
+      } else if (action === 'toggle_roi_mode') {
+        const modeLabel = data?.new_mode === 'compound' ? 'Compounding' : 'Simple';
+        toast.success(`"${accountName}" switched to ${modeLabel} mode. 📧 Email sent.`);
+      }
+      fetchAll();
+    } catch (err: any) {
+      toast.error(err.message || 'Action failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   useEffect(() => { if (open && user) fetchAll(); }, [open, user]);
 
@@ -325,6 +356,56 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <CreditCard className="h-4 w-4" />
                           Set Payout Method
                         </Button>
+                        
+                        {/* Renew Account */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 font-semibold"
+                          disabled={actionLoading === `renew-${entry.id}`}
+                          onClick={() => {
+                            if (confirm(`Renew "${entry.account_name || entry.code}" for another 12 months? Your earned rewards counter will reset.`)) {
+                              handleAccountAction('renew', entry.id, entry.account_name || entry.code);
+                            }
+                          }}
+                        >
+                          <RefreshCw className={`h-4 w-4 ${actionLoading === `renew-${entry.id}` ? 'animate-spin' : ''}`} />
+                          {actionLoading === `renew-${entry.id}` ? 'Renewing…' : 'Renew This Account'}
+                        </Button>
+
+                        {/* Withdraw Capital */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full gap-2 text-sm h-10 min-h-[44px] border-amber-500/20 text-amber-600 hover:bg-amber-500/5 font-semibold"
+                          disabled={entry.amount <= 0}
+                          onClick={() => setWithdrawDialog({ id: entry.id, name: entry.account_name || entry.code, maxAmount: entry.amount })}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Withdraw Capital
+                        </Button>
+
+                        {/* Toggle Compound / Simple */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`w-full gap-2 text-sm h-10 min-h-[44px] font-semibold ${
+                            isCompounding
+                              ? 'border-amber-500/20 text-amber-600 hover:bg-amber-500/5'
+                              : 'border-success/20 text-success hover:bg-success/5'
+                          }`}
+                          disabled={actionLoading === `toggle_roi_mode-${entry.id}`}
+                          onClick={() => {
+                            const newMode = isCompounding ? 'Simple' : 'Compounding';
+                            if (confirm(`Switch "${entry.account_name || entry.code}" to ${newMode} mode?`)) {
+                              handleAccountAction('toggle_roi_mode', entry.id, entry.account_name || entry.code);
+                            }
+                          }}
+                        >
+                          {isCompounding ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                          {actionLoading === `toggle_roi_mode-${entry.id}` ? 'Switching…' : isCompounding ? 'Switch to Simple' : 'Switch to Compounding'}
+                        </Button>
+
                         <div className="grid grid-cols-2 gap-2">
                           <Button
                             size="sm"
@@ -418,6 +499,81 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           portfolioId={payoutTarget.id}
           portfolioName={payoutTarget.name}
         />
+      )}
+
+      {/* Withdraw Capital Dialog */}
+      {withdrawDialog && (
+        <Dialog open={!!withdrawDialog} onOpenChange={(open) => { if (!open) { setWithdrawDialog(null); setWithdrawAmount(''); } }}>
+          <DialogContent className="max-w-sm" stable>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <LogOut className="h-5 w-5 text-amber-600" />
+                Withdraw Capital
+              </DialogTitle>
+              <DialogDescription>
+                Withdraw from "{withdrawDialog.name}". Takes 90 days to process.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="rounded-xl bg-muted/50 border p-3 space-y-1">
+                <p className="text-xs text-muted-foreground font-semibold">Available Capital</p>
+                <p className="text-xl font-black text-foreground">{formatAmount(withdrawDialog.maxAmount)}</p>
+              </div>
+
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3">
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
+                  ⏳ 90-day notice period — rewards pause immediately on withdrawn amount
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold">Amount (UGX)</label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Enter amount"
+                  value={withdrawAmount}
+                  onChange={e => setWithdrawAmount(e.target.value)}
+                  className="text-lg font-bold h-12"
+                />
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                {[25, 50, 75, 100].map(pct => {
+                  const val = Math.floor(withdrawDialog.maxAmount * (pct / 100));
+                  return (
+                    <Button
+                      key={pct}
+                      type="button"
+                      variant={Number(withdrawAmount) === val ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setWithdrawAmount(String(val))}
+                      className="text-xs rounded-full h-8 px-3"
+                    >
+                      {pct}%
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                onClick={() => handleAccountAction('withdraw_capital', withdrawDialog.id, withdrawDialog.name, {
+                  amount: Number(withdrawAmount),
+                  reason: `Capital withdrawal from ${withdrawDialog.name}`,
+                })}
+                disabled={
+                  !withdrawAmount ||
+                  Number(withdrawAmount) <= 0 ||
+                  Number(withdrawAmount) > withdrawDialog.maxAmount ||
+                  actionLoading === `withdraw_capital-${withdrawDialog.id}`
+                }
+                className="w-full gap-2 h-11 font-bold"
+              >
+                {actionLoading === `withdraw_capital-${withdrawDialog.id}` ? 'Submitting…' : 'Submit 90-Day Withdrawal'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </Sheet>
   );
