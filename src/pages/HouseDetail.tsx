@@ -47,7 +47,7 @@ export default function HouseDetail() {
   const [imgIdx, setImgIdx] = useState(0);
   const [copied, setCopied] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [showAllPhotos, setShowAllPhotos] = useState(false);
+  
   const { reviews, summary, myReview, loading: reviewsLoading, refetch: refetchReviews } = useHouseReviews(id);
 
   useEffect(() => {
