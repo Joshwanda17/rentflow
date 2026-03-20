@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { RentPipelineQueue } from './RentPipelineQueue';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
@@ -408,6 +409,7 @@ export function LandlordOpsDashboard() {
 
         {/* ──────── PIPELINE TAB ──────── */}
         <TabsContent value="pipeline" className="space-y-4 mt-4">
+          <RentPipelineQueue stage="agent_verified" />
           <DealPipeline />
         </TabsContent>
 

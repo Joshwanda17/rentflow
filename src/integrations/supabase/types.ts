@@ -3597,6 +3597,11 @@ export type Database = {
           approval_comment: string | null
           approved_at: string | null
           approved_by: string | null
+          assigned_agent_id: string | null
+          cfo_reviewed_at: string | null
+          cfo_reviewed_by: string | null
+          coo_reviewed_at: string | null
+          coo_reviewed_by: string | null
           created_at: string
           daily_repayment: number
           disbursed_at: string | null
@@ -3609,12 +3614,16 @@ export type Database = {
           house_category: string | null
           id: string
           landlord_id: string
+          landlord_ops_reviewed_at: string | null
+          landlord_ops_reviewed_by: string | null
           lc1_id: string
           manager_verified: boolean | null
           manager_verified_at: string | null
           manager_verified_by: string | null
           next_roi_due_date: string | null
           number_of_payments: number | null
+          payout_method: string | null
+          payout_transaction_reference: string | null
           rejected_reason: string | null
           rent_amount: number
           request_city: string | null
@@ -3629,6 +3638,8 @@ export type Database = {
           tenant_electricity_meter: string | null
           tenant_id: string
           tenant_no_smartphone: boolean
+          tenant_ops_reviewed_at: string | null
+          tenant_ops_reviewed_by: string | null
           tenant_water_meter: string | null
           total_repayment: number
           total_roi_paid: number | null
@@ -3644,6 +3655,11 @@ export type Database = {
           approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          assigned_agent_id?: string | null
+          cfo_reviewed_at?: string | null
+          cfo_reviewed_by?: string | null
+          coo_reviewed_at?: string | null
+          coo_reviewed_by?: string | null
           created_at?: string
           daily_repayment: number
           disbursed_at?: string | null
@@ -3656,12 +3672,16 @@ export type Database = {
           house_category?: string | null
           id?: string
           landlord_id: string
+          landlord_ops_reviewed_at?: string | null
+          landlord_ops_reviewed_by?: string | null
           lc1_id: string
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
           next_roi_due_date?: string | null
           number_of_payments?: number | null
+          payout_method?: string | null
+          payout_transaction_reference?: string | null
           rejected_reason?: string | null
           rent_amount: number
           request_city?: string | null
@@ -3676,6 +3696,8 @@ export type Database = {
           tenant_electricity_meter?: string | null
           tenant_id: string
           tenant_no_smartphone?: boolean
+          tenant_ops_reviewed_at?: string | null
+          tenant_ops_reviewed_by?: string | null
           tenant_water_meter?: string | null
           total_repayment: number
           total_roi_paid?: number | null
@@ -3691,6 +3713,11 @@ export type Database = {
           approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          assigned_agent_id?: string | null
+          cfo_reviewed_at?: string | null
+          cfo_reviewed_by?: string | null
+          coo_reviewed_at?: string | null
+          coo_reviewed_by?: string | null
           created_at?: string
           daily_repayment?: number
           disbursed_at?: string | null
@@ -3703,12 +3730,16 @@ export type Database = {
           house_category?: string | null
           id?: string
           landlord_id?: string
+          landlord_ops_reviewed_at?: string | null
+          landlord_ops_reviewed_by?: string | null
           lc1_id?: string
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
           next_roi_due_date?: string | null
           number_of_payments?: number | null
+          payout_method?: string | null
+          payout_transaction_reference?: string | null
           rejected_reason?: string | null
           rent_amount?: number
           request_city?: string | null
@@ -3723,6 +3754,8 @@ export type Database = {
           tenant_electricity_meter?: string | null
           tenant_id?: string
           tenant_no_smartphone?: boolean
+          tenant_ops_reviewed_at?: string | null
+          tenant_ops_reviewed_by?: string | null
           tenant_water_meter?: string | null
           total_repayment?: number
           total_roi_paid?: number | null

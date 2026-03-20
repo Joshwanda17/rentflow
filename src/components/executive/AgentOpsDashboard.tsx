@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
-import { Users, Trophy, Banknote, TrendingUp, UserCheck, DollarSign } from 'lucide-react';
+import { RentPipelineQueue } from './RentPipelineQueue';
+import { Users, Banknote, DollarSign } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 
@@ -110,6 +111,9 @@ export function AgentOpsDashboard() {
           />
         </div>
       </div>
+
+      {/* Agent Verification Queue */}
+      <RentPipelineQueue stage="tenant_ops_approved" />
 
       {/* Tenant Transfer Section */}
       <div className="rounded-2xl border border-border bg-card p-4">
