@@ -351,6 +351,14 @@ export function useAuthForm() {
       setLoginError(null);
       setFailedAttempts(0);
       saveLocationInBackground();
+      // Save user name for returning-user greeting
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          const name = currentUser.user_metadata?.full_name;
+          if (name) localStorage.setItem('welile_last_user_name', name);
+        }
+      } catch { /* non-critical */ }
       return;
     }
 
