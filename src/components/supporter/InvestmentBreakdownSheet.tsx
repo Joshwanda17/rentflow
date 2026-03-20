@@ -500,6 +500,81 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           portfolioName={payoutTarget.name}
         />
       )}
+
+      {/* Withdraw Capital Dialog */}
+      {withdrawDialog && (
+        <Dialog open={!!withdrawDialog} onOpenChange={(open) => { if (!open) { setWithdrawDialog(null); setWithdrawAmount(''); } }}>
+          <DialogContent className="max-w-sm" stable>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <LogOut className="h-5 w-5 text-amber-600" />
+                Withdraw Capital
+              </DialogTitle>
+              <DialogDescription>
+                Withdraw from "{withdrawDialog.name}". Takes 90 days to process.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="rounded-xl bg-muted/50 border p-3 space-y-1">
+                <p className="text-xs text-muted-foreground font-semibold">Available Capital</p>
+                <p className="text-xl font-black text-foreground">{formatAmount(withdrawDialog.maxAmount)}</p>
+              </div>
+
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3">
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
+                  ⏳ 90-day notice period — rewards pause immediately on withdrawn amount
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold">Amount (UGX)</label>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Enter amount"
+                  value={withdrawAmount}
+                  onChange={e => setWithdrawAmount(e.target.value)}
+                  className="text-lg font-bold h-12"
+                />
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                {[25, 50, 75, 100].map(pct => {
+                  const val = Math.floor(withdrawDialog.maxAmount * (pct / 100));
+                  return (
+                    <Button
+                      key={pct}
+                      type="button"
+                      variant={Number(withdrawAmount) === val ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setWithdrawAmount(String(val))}
+                      className="text-xs rounded-full h-8 px-3"
+                    >
+                      {pct}%
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                onClick={() => handleAccountAction('withdraw_capital', withdrawDialog.id, withdrawDialog.name, {
+                  amount: Number(withdrawAmount),
+                  reason: `Capital withdrawal from ${withdrawDialog.name}`,
+                })}
+                disabled={
+                  !withdrawAmount ||
+                  Number(withdrawAmount) <= 0 ||
+                  Number(withdrawAmount) > withdrawDialog.maxAmount ||
+                  actionLoading === `withdraw_capital-${withdrawDialog.id}`
+                }
+                className="w-full gap-2 h-11 font-bold"
+              >
+                {actionLoading === `withdraw_capital-${withdrawDialog.id}` ? 'Submitting…' : 'Submit 90-Day Withdrawal'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </Sheet>
   );
 }
