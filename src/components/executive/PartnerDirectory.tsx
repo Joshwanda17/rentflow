@@ -207,6 +207,14 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
     });
   };
 
+  const getDashboardStatus = (lastActiveAt: string | null) => {
+    if (!lastActiveAt) return { label: 'Never logged in', color: 'text-destructive', icon: EyeOff };
+    const days = differenceInDays(new Date(), new Date(lastActiveAt));
+    if (days <= 7) return { label: `Active ${formatDistanceToNow(new Date(lastActiveAt), { addSuffix: true })}`, color: 'text-green-600', icon: Eye };
+    if (days <= 30) return { label: `${days}d ago`, color: 'text-amber-600', icon: Eye };
+    return { label: `Inactive ${days}d`, color: 'text-destructive', icon: EyeOff };
+  };
+
   const openProfile = (p: PartnerRow) => {
     setSelectedProfile({
       id: p.investor_id,
@@ -216,6 +224,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
       createdAt: p.created_at,
       phone: p.phone,
       city: p.territory,
+      lastActiveAt: p.lastActiveAt,
     });
   };
 
