@@ -1,0 +1,171 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Monthly 33% → daily equivalent for compounding on arrears
+const MONTHLY_RATE = 0.33;
+const DAILY_COMPOUND_RATE = Math.pow(1 + MONTHLY_RATE, 1 / 30) - 1;
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Get all active draws
+    const { data: draws, error: fetchError } = await supabase
+      .from('credit_access_draws')
+      .select('*')
+      .in('status', ['active', 'overdue']);
+
+    if (fetchError) throw fetchError;
+    if (!draws || draws.length === 0) {
+      return new Response(JSON.stringify({ message: 'No active credit draws' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const results = [];
+
+    for (const draw of draws) {
+      const openingBalance = Number(draw.outstanding_balance);
+      if (openingBalance <= 0) continue;
+
+      // Check if overdue → compound
+      const isOverdue = new Date() > new Date(draw.expires_at);
+      let dailyCharge = Number(draw.daily_charge);
+
+      if (isOverdue) {
+        // Compound: add daily interest on outstanding
+        const compoundInterest = Math.round(openingBalance * DAILY_COMPOUND_RATE);
+        dailyCharge = dailyCharge + compoundInterest;
+      }
+
+      // Try deduct from user's wallet first
+      const { data: userWalletEntries } = await supabase
+        .from('general_ledger')
+        .select('amount, direction')
+        .eq('user_id', draw.user_id)
+        .eq('category', 'wallet');
+
+      let userBalance = 0;
+      if (userWalletEntries) {
+        userBalance = userWalletEntries.reduce((sum: number, e: any) => {
+          return sum + (e.direction === 'credit' ? Number(e.amount) : -Number(e.amount));
+        }, 0);
+      }
+
+      let userDeducted = Math.min(Math.max(userBalance, 0), dailyCharge);
+      let remaining = dailyCharge - userDeducted;
+      let agentDeducted = 0;
+
+      // Fallback to agent wallet if insufficient
+      if (remaining > 0 && draw.agent_id) {
+        const { data: agentWalletEntries } = await supabase
+          .from('general_ledger')
+          .select('amount, direction')
+          .eq('user_id', draw.agent_id)
+          .eq('category', 'wallet');
+
+        let agentBalance = 0;
+        if (agentWalletEntries) {
+          agentBalance = agentWalletEntries.reduce((sum: number, e: any) => {
+            return sum + (e.direction === 'credit' ? Number(e.amount) : -Number(e.amount));
+          }, 0);
+        }
+
+        agentDeducted = Math.min(Math.max(agentBalance, 0), remaining);
+        remaining -= agentDeducted;
+      }
+
+      const totalDeducted = userDeducted + agentDeducted;
+      const closingBalance = openingBalance - totalDeducted;
+
+      // If overdue and not fully deducted, outstanding compounds
+      const compoundedClosing = isOverdue && remaining > 0
+        ? closingBalance + Math.round(remaining * DAILY_COMPOUND_RATE)
+        : closingBalance;
+
+      const deductionStatus = totalDeducted >= dailyCharge ? 'full' :
+        totalDeducted > 0 ? 'partial' : 'none';
+
+      // Record in draw ledger
+      await supabase.from('credit_draw_ledger').insert({
+        draw_id: draw.id,
+        date: today,
+        opening_balance: openingBalance,
+        daily_charge: dailyCharge,
+        amount_deducted: userDeducted,
+        agent_deducted: agentDeducted,
+        closing_balance: Math.max(0, compoundedClosing),
+        deduction_status: deductionStatus,
+      });
+
+      // Debit user wallet
+      const groupId = crypto.randomUUID();
+      if (userDeducted > 0) {
+        await supabase.from('general_ledger').insert({
+          user_id: draw.user_id,
+          amount: userDeducted,
+          direction: 'debit',
+          category: 'credit_access_repayment',
+          source_table: 'credit_access_draws',
+          source_id: draw.id,
+          description: `Credit daily charge - Day ${Math.ceil((Date.now() - new Date(draw.started_at).getTime()) / 86400000)}`,
+          transaction_date: today,
+          transaction_group_id: groupId,
+        });
+      }
+
+      // Debit agent wallet if used
+      if (agentDeducted > 0 && draw.agent_id) {
+        await supabase.from('general_ledger').insert({
+          user_id: draw.agent_id,
+          amount: agentDeducted,
+          direction: 'debit',
+          category: 'credit_access_agent_fallback',
+          source_table: 'credit_access_draws',
+          source_id: draw.id,
+          description: `Agent fallback for credit charge - user shortfall`,
+          transaction_date: today,
+          transaction_group_id: groupId,
+        });
+      }
+
+      // Update draw status
+      const newStatus = compoundedClosing <= 0 ? 'completed' : (isOverdue ? 'overdue' : 'active');
+      await supabase.from('credit_access_draws').update({
+        outstanding_balance: Math.max(0, compoundedClosing),
+        amount_repaid: Number(draw.amount_repaid) + totalDeducted,
+        status: newStatus,
+        ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {}),
+      }).eq('id', draw.id);
+
+      results.push({
+        draw_id: draw.id,
+        user_id: draw.user_id,
+        daily_charge: dailyCharge,
+        user_deducted: userDeducted,
+        agent_deducted: agentDeducted,
+        closing: compoundedClosing,
+        status: newStatus,
+      });
+    }
+
+    return new Response(JSON.stringify({ processed: results.length, results }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
