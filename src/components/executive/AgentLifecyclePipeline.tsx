@@ -27,15 +27,20 @@ export function AgentLifecyclePipeline() {
       const agentIds = (roles || []).map(r => r.user_id);
       if (agentIds.length === 0) return { new: 0, active: 0, top: 0, idle: 0, dormant: 0, total: 0 };
 
-      // Get profiles with last_active_at and created_at
-      const { data: profiles } = await supabase.from('profiles')
-        .select('id, last_active_at, created_at')
-        .in('id', agentIds);
+      const BATCH = 50;
+      const batchIn = async <T,>(fn: (b: string[]) => Promise<{ data: T[] | null }>): Promise<T[]> => {
+        const r: T[] = [];
+        for (let i = 0; i < agentIds.length; i += BATCH) {
+          const { data } = await fn(agentIds.slice(i, i + BATCH));
+          if (data) r.push(...data);
+        }
+        return r;
+      };
 
-      // Get recent earnings to find top earners
-      const { data: earnings } = await supabase.from('agent_earnings')
-        .select('agent_id, amount')
-        .in('agent_id', agentIds);
+      const [profiles, earnings] = await Promise.all([
+        batchIn<any>(async b => supabase.from('profiles').select('id, last_active_at, created_at').in('id', b)),
+        batchIn<any>(async b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
+      ]);
 
       const earningsMap: Record<string, number> = {};
       (earnings || []).forEach(e => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
