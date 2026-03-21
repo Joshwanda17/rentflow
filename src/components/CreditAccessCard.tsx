@@ -122,9 +122,11 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                 {/* How to increase */}
                 <p className="text-[10px] font-semibold text-foreground">🚀 Pay on time → Unlock more rent fees</p>
                 <div className="space-y-1.5">
-                  <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-success" />} label="✅ Repay rent on time" value={limit.bonusFromRentHistory} currency={currency} tip="Biggest boost" />
+                <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-success" />} label="✅ Repay rent on time" value={limit.bonusFromRentHistory} currency={currency} tip="Biggest boost" />
                   <CompactBreakdownRow icon={<Receipt className="h-3 w-3 text-blue-500" />} label="📸 Post rent receipts" value={limit.bonusFromReceipts} currency={currency} tip="Proves history" />
                   <CompactBreakdownRow icon={<Star className="h-3 w-3 text-yellow-500" />} label="⭐ Earn landlord ratings" value={limit.bonusFromRatings} currency={currency} tip="Trust score" />
+                  <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="🏠 List houses" value={limit.bonusFromHousesListed} currency={currency} tip="+50K per house" />
+                  <CompactBreakdownRow icon={<Users className="h-3 w-3 text-primary" />} label="🤝 Onboard partners" value={limit.bonusFromPartnersOnboarded} currency={currency} tip="+200K per partner" />
                   <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="🏠 Register as landlord" value={limit.bonusFromLandlordRent} currency={currency} tip="Dual role bonus" />
                 </div>
 
@@ -148,7 +150,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
             </motion.div>
           )}
         </AnimatePresence>
-        <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
+        <CreditAccessDrawSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
       </div>
     );
   }
