@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,8 +19,9 @@ import { Separator } from '@/components/ui/separator';
 import { 
   User, 
   Phone, 
-  MapPin, 
-  Building2, 
+  MapPin,
+  Navigation,
+  Building2,
   Loader2, 
   CheckCircle2, 
   FileText,
@@ -88,6 +89,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [lc1Village, setLc1Village] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
   const [noSmartphone, setNoSmartphone] = useState(false);
+  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  const captureGPS = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error('GPS not supported on this device');
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setGpsLoading(false);
+        toast.success('Property GPS captured!');
+      },
+      (err) => {
+        setGpsLoading(false);
+        toast.error(err.code === 1 ? 'Location permission denied' : 'Could not get GPS. Try again.');
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }, []);
 
   const resetForm = () => {
     setIncomeType(null);
@@ -104,6 +131,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setLc1Village('');
     setHouseCategory('');
     setNoSmartphone(false);
+    setGpsLocation(null);
+    setGpsLoading(false);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
@@ -248,6 +277,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           status: 'pending',
           house_category: houseCategory,
           tenant_no_smartphone: noSmartphone,
+          request_latitude: gpsLocation?.lat ?? null,
+          request_longitude: gpsLocation?.lng ?? null,
         });
 
       if (requestError) throw requestError;
@@ -610,6 +641,53 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     className="h-10"
                     required
                   />
+                </div>
+
+                {/* GPS Capture */}
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1">
+                    <Navigation className="h-3 w-3" /> Property GPS
+                  </Label>
+                  {gpsLocation ? (
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
+                      <Navigation className="h-4 w-4 text-success flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-success">📍 GPS Captured</p>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {gpsLocation.lat.toFixed(5)}, {gpsLocation.lng.toFixed(5)} (±{Math.round(gpsLocation.accuracy)}m)
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs h-7 px-2"
+                        onClick={captureGPS}
+                      >
+                        Retake
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-10 gap-2 border-dashed"
+                      onClick={captureGPS}
+                      disabled={gpsLoading}
+                    >
+                      {gpsLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Getting GPS...
+                        </>
+                      ) : (
+                        <>
+                          <Navigation className="h-4 w-4" />
+                          Capture Property GPS
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
 
