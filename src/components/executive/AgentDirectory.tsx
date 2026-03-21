@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAgentIds, batchedQuery } from '@/lib/supabaseBatchUtils';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,9 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-// Batch size to avoid URL length overflow on IN queries
-const BATCH_SIZE = 50;
 
 interface AgentRow {
   id: string;
@@ -58,33 +56,15 @@ export function AgentDirectory() {
   const { data: agents, isLoading } = useQuery({
     queryKey: ['exec-agent-directory-v2'],
     queryFn: async () => {
-      const { data: agentRoles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'agent');
-
-      const agentIds = (agentRoles || []).map(r => r.user_id);
+      const agentIds = await fetchAllAgentIds();
       if (agentIds.length === 0) return [];
 
-      // Batch all IN queries to avoid URL length overflow (PostgREST 400)
-      const batchFetch = async <T,>(
-        fn: (batch: string[]) => Promise<{ data: T[] | null }>
-      ): Promise<T[]> => {
-        const results: T[] = [];
-        for (let i = 0; i < agentIds.length; i += BATCH_SIZE) {
-          const batch = agentIds.slice(i, i + BATCH_SIZE);
-          const { data } = await fn(batch);
-          if (data) results.push(...data);
-        }
-        return results;
-      };
-
       const [profilesData, earningsData, collectionsData, requestsData, housesData] = await Promise.all([
-        batchFetch<any>(async b => supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at').in('id', b)),
-        batchFetch<any>(async b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
-        batchFetch<any>(async b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
-        batchFetch<any>(async b => supabase.from('rent_requests').select('agent_id').in('agent_id', b)),
-        batchFetch<any>(async b => supabase.from('house_listings').select('agent_id').in('agent_id', b)),
+        batchedQuery<any>(agentIds, b => supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at').in('id', b)),
+        batchedQuery<any>(agentIds, b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
+        batchedQuery<any>(agentIds, b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
+        batchedQuery<any>(agentIds, b => supabase.from('rent_requests').select('agent_id').in('agent_id', b)),
+        batchedQuery<any>(agentIds, b => supabase.from('house_listings').select('agent_id').in('agent_id', b)),
       ]);
 
       const earningsMap: Record<string, number> = {};
