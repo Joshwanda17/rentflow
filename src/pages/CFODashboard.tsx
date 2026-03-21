@@ -5,11 +5,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, BarChart3, Shield, Banknote, ClipboardList, 
-  BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine
+  BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine,
+  Receipt, Wallet, Bell, Layers, DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
@@ -20,6 +20,11 @@ import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
+import { DisbursementRegistry } from '@/components/cfo/DisbursementRegistry';
+import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
+import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
+import { ThresholdAlerts } from '@/components/cfo/ThresholdAlerts';
+import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -54,6 +59,9 @@ export default function CFODashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'cash', label: 'Cash Position', icon: Wallet },
+    { id: 'revenue', label: 'P&L', icon: DollarSign },
+    { id: 'disbursements', label: 'Disbursements', icon: Receipt },
     { id: 'statements', label: 'Statements', icon: BookOpen },
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'payouts', label: 'Payouts', icon: Banknote },
@@ -98,7 +106,23 @@ export default function CFODashboard() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            <ThresholdAlerts />
             <FinancialOverview />
+          </TabsContent>
+
+          {/* Cash Position Tab */}
+          <TabsContent value="cash" className="space-y-6">
+            <DailyCashPositionReport />
+          </TabsContent>
+
+          {/* Revenue vs Expense (P&L) Tab */}
+          <TabsContent value="revenue" className="space-y-6">
+            <RevenueExpenseDashboard />
+          </TabsContent>
+
+          {/* Disbursement Registry Tab */}
+          <TabsContent value="disbursements" className="space-y-6">
+            <DisbursementRegistry />
           </TabsContent>
 
           {/* Financial Statements Tab */}
@@ -116,11 +140,20 @@ export default function CFODashboard() {
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  Batch Payout Processing
+                </h3>
+                <BatchPayoutProcessor />
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-warning" />
                   Payout Authorization Gates
                 </h3>
                 <SupporterROITrigger />
               </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Banknote className="h-4 w-4 text-primary" />
@@ -128,13 +161,13 @@ export default function CFODashboard() {
                 </h3>
                 <AgentCommissionPayoutsManager />
               </div>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <ArrowDownToLine className="h-4 w-4 text-primary" />
-                Withdrawal Approvals (Manager → CFO)
-              </h3>
-              <CFOWithdrawalApprovals />
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <ArrowDownToLine className="h-4 w-4 text-primary" />
+                  Withdrawal Approvals
+                </h3>
+                <CFOWithdrawalApprovals />
+              </div>
             </div>
             <div className="space-y-4">
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
