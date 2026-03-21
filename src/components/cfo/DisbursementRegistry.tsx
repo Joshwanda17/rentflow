@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 import { Receipt, Search, Download, RefreshCw, Loader2, CheckCircle2, Clock, AlertTriangle, MapPin, Camera, ExternalLink } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
