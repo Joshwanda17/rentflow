@@ -244,19 +244,19 @@ export default function Settings() {
           </div>
 
           {/* Section Navigation Pills */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
             {SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent).map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => scrollToSection(id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all shrink-0 min-h-[32px]",
+                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 min-h-[44px] touch-manipulation active:scale-95",
                   activeSection === id
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                    : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <Icon className="h-3 w-3" />
+                <Icon className="h-4 w-4" />
                 {label}
               </button>
             ))}
