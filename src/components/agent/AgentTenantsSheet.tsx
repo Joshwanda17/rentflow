@@ -69,6 +69,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [sortMode, setSortMode] = useState<SortMode>('balance');
   // Store rent balances keyed by tenant_id
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (open && user) {
