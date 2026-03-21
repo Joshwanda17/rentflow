@@ -352,43 +352,17 @@ export default function Settings() {
 
         {/* ===== ACCOUNT SECTION ===== */}
         <div ref={el => sectionRefs.current['account'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={User} label="Account" />
+          <SectionHeader icon={User} label="Account" color="primary" />
 
-          <Card className="border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="pt-6 space-y-5">
-              {/* Avatar */}
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Avatar className="h-16 w-16 border-2 border-border shadow-md">
-                    <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-                    <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-semibold">
-                      {getInitials(fullName || 'U')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingAvatar}
-                  >
-                    {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-                  </Button>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-base truncate">{fullName || 'Your Name'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
-                </div>
-              </div>
-
+          <Card className="border-border/40 shadow-md rounded-2xl overflow-hidden">
+            <CardContent className="pt-6 space-y-4">
               {/* Form Fields */}
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Type your full name here" className="pl-10 h-11" />
+                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Type your full name here" className="pl-10 h-12 rounded-xl" />
                   </div>
                 </div>
 
@@ -396,7 +370,7 @@ export default function Settings() {
                   <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email (cannot change)</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-11 bg-muted/50" />
+                    <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-12 rounded-xl bg-muted/50" />
                   </div>
                 </div>
 
@@ -404,7 +378,7 @@ export default function Settings() {
                   <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-11" />
+                    <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" />
                   </div>
                 </div>
 
@@ -419,31 +393,31 @@ export default function Settings() {
                   {!showPasswordForm ? (
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input value="••••••••" disabled className="pl-10 h-11 bg-muted/50" />
+                      <Input value="••••••••" disabled className="pl-10 h-12 rounded-xl bg-muted/50" />
                     </div>
                   ) : (
-                    <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border/50">
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-10" />
+                        <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-11 rounded-xl" />
                         <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
                           {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-10" />
+                        <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-11 rounded-xl" />
                         <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowNewPassword(!showNewPassword)}>
                           {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-10" />
+                        <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-11 rounded-xl" />
                       </div>
                       <Button
                         size="sm"
-                        className="w-full gap-2 h-10"
+                        className="w-full gap-2 h-11 rounded-xl"
                         disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
                         onClick={async () => {
                           if (newPassword.length < 6) { toast.error('New password must be at least 6 characters'); return; }
@@ -467,9 +441,9 @@ export default function Settings() {
                 </div>
               </div>
 
-              <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-11">
+              <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save
+                Save Changes
               </Button>
             </CardContent>
           </Card>
