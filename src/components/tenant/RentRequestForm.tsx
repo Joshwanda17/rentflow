@@ -249,6 +249,17 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       return;
     }
 
+    // Upload house photos if any
+    if (housePhotos.length > 0 && rentRequest?.id) {
+      const photoUrls = await uploadHousePhotos(rentRequest.id);
+      if (photoUrls.length > 0) {
+        await supabase
+          .from('rent_requests')
+          .update({ house_image_urls: photoUrls } as any)
+          .eq('id', rentRequest.id);
+      }
+    }
+
     // Generate and insert repayment schedule
     const schedule = generateRepaymentSchedule(
       calc.totalRepayment,
