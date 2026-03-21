@@ -65,6 +65,7 @@ interface AgentMenuDrawerProps {
   onFindRentals?: () => void;
   onListEmptyHouse?: () => void;
   onViewMyListings?: () => void;
+  onViewSubAgents?: () => void;
 }
 
 interface MenuItem {
