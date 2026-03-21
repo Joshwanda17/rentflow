@@ -96,6 +96,8 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromReceipts: Number(data.bonus_from_receipts) || 0,
           bonusFromRentHistory: Number(data.bonus_from_rent_history) || 0,
           bonusFromLandlordRent: Number(data.bonus_from_landlord_rent) || 0,
+          bonusFromHousesListed: Number((data as any).bonus_from_houses_listed) || 0,
+          bonusFromPartnersOnboarded: Number((data as any).bonus_from_partners_onboarded) || 0,
         };
         setLimit(parsed);
         limitCache.set(userId, { data: parsed, timestamp: Date.now() });
