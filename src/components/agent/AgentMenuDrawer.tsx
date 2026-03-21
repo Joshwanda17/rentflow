@@ -167,7 +167,9 @@ export function AgentMenuDrawer({
         { icon: ScrollText, label: 'Rent Requests', description: 'Verify your posted requests', onClick: onViewMyRentRequests, accent: 'indigo-500' },
         { icon: Calendar, label: 'Schedules', description: 'PDF & WhatsApp', onClick: onViewMyRentRequests, accent: 'primary', badge: 'PDF' },
         { icon: History, label: 'Proxy History', description: 'Partner investments', onClick: onViewProxyHistory, accent: 'emerald-500' },
-        { icon: Users, label: 'Sub-Agents', description: 'Manage your team', path: '/sub-agents', accent: 'blue-500' },
+        { icon: Handshake, label: 'Register Sub-Agent', description: 'Add to your team', onClick: onInviteSubAgent, accent: 'amber-500', badge: '500' },
+        { icon: Users, label: 'My Sub-Agents', description: 'View your team', onClick: onViewSubAgents, accent: 'orange-500' },
+        { icon: Share2, label: 'Share Recruit Link', description: 'WhatsApp / Copy link', onClick: onShareSubAgentLink, accent: 'green-500', badge: '🔗' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
