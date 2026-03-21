@@ -481,7 +481,7 @@ export default function Settings() {
           <SectionHeader icon={Shield} label="Your Roles" color="accent" />
 
           {/* Current Roles */}
-          <Card className="border-border/50 shadow-sm mb-4">
+          <Card className="border-border/40 shadow-md rounded-2xl mb-4">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">What you do on Welile</CardTitle>
               <CardDescription className="text-xs">These are the roles you have right now</CardDescription>
