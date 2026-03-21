@@ -38,6 +38,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
@@ -247,6 +248,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </div>
         </button>
+
+        {/* Verification Checklist */}
+        <VerificationChecklist userId={user.id} highlightRole="agent" compact />
 
         {/* Action Insights: Daily Rent, Forecast, Streak, Priority Queue */}
         <AgentActionInsights agentId={user.id} />

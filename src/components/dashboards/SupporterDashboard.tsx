@@ -38,6 +38,7 @@ import { SupporterAgreementViewModal } from '@/components/supporter/agreement/Su
 // Menu drawer
 import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { hapticTap } from '@/lib/haptics';
 // motion removed — static rendering for low-end devices
 
@@ -397,6 +398,8 @@ export default function SupporterDashboard({
             {/* AI ID on its own row */}
             <AiIdButton variant="compact" />
           </div>
+
+          <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
 
           <MerchantCodePills />
 

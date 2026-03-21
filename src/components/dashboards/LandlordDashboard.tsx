@@ -34,6 +34,7 @@ import { hapticTap } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 
 interface LandlordDashboardProps {
   user: User;
@@ -167,6 +168,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               <p className="text-[10px] font-medium text-muted-foreground">Rent/Month</p>
             </div>
           </div>
+
+          {/* Verification Checklist */}
+          <VerificationChecklist userId={user.id} highlightRole="landlord" compact />
 
           {/* Credit Access */}
           <CreditAccessCard userId={user.id} />
