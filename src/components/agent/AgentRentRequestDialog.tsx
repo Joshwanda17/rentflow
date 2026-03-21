@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { 
   User, 
-  Phone, 
+  
   MapPin,
   Navigation,
   Building2,
