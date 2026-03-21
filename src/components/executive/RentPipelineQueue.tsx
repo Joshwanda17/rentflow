@@ -15,7 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 
@@ -91,6 +91,31 @@ const STATUS_COLORS: Record<string, string> = {
   funded: 'bg-green-100 text-green-700',
   disbursed: 'bg-teal-100 text-teal-700',
   rejected: 'bg-destructive/10 text-destructive',
+};
+
+const formatWhatsApp = (phone: string): string => {
+  if (!phone) return '';
+  let clean = phone.replace(/\D/g, '');
+  if (clean.startsWith('0')) clean = '256' + clean.slice(1);
+  if (!clean.startsWith('256')) clean = '256' + clean;
+  return clean;
+};
+
+const WhatsAppButton = ({ phone, name, label }: { phone: string; name: string; label: string }) => {
+  if (!phone) return null;
+  const waNumber = formatWhatsApp(phone);
+  return (
+    <a
+      href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Hi ${name}, regarding a rent request on Welile.`)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={e => e.stopPropagation()}
+      className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 transition-colors"
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.352 0-4.55-.764-6.326-2.057a.5.5 0 00-.395-.088l-3.088 1.035 1.035-3.088a.5.5 0 00-.088-.395A9.953 9.953 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>
+      {label}
+    </a>
+  );
 };
 
 interface RentPipelineQueueProps {
@@ -188,15 +213,23 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
 
-      return data.map(r => ({
-        ...r,
-        tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
-        tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
-        agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
-        assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
-        landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
-        landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
-      }));
+      return data.map(r => {
+        const agentProfile = r.assigned_agent_id
+          ? profileMap.get(r.assigned_agent_id)
+          : r.agent_id
+            ? profileMap.get(r.agent_id)
+            : null;
+        return {
+          ...r,
+          tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
+          tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
+          agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
+          agent_phone: agentProfile?.phone || '',
+          assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
+          landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
+          landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
+        };
+      });
     },
     staleTime: 30000,
     refetchInterval: 60000,
@@ -383,6 +416,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                           </span>
                         )}
                       </div>
+                      {/* WhatsApp quick contacts */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <WhatsAppButton phone={req.tenant_phone} name={req.tenant_name} label="Tenant" />
+                        <WhatsAppButton phone={req.landlord_phone} name={req.landlord_name} label="Landlord" />
+                        <WhatsAppButton phone={req.agent_phone} name={req.assigned_agent_name || req.agent_name} label="Agent" />
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-sm">UGX {fmt(req.rent_amount)}</p>
@@ -425,11 +464,26 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Tenant</p>
                   <p className="font-semibold">{selectedRequest.tenant_name}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-xs text-muted-foreground">{selectedRequest.tenant_phone}</span>
+                    <WhatsAppButton phone={selectedRequest.tenant_phone} name={selectedRequest.tenant_name} label="WhatsApp" />
+                  </div>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Landlord</p>
                   <p className="font-semibold">{selectedRequest.landlord_name}</p>
-                  <p className="text-xs text-muted-foreground">{selectedRequest.landlord_phone}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-xs text-muted-foreground">{selectedRequest.landlord_phone}</span>
+                    <WhatsAppButton phone={selectedRequest.landlord_phone} name={selectedRequest.landlord_name} label="WhatsApp" />
+                  </div>
+                </div>
+                <div className="space-y-0.5 col-span-2">
+                  <p className="text-xs text-muted-foreground">Assigned Agent</p>
+                  <p className="font-semibold">{selectedRequest.assigned_agent_name || selectedRequest.agent_name || 'No Agent'}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-xs text-muted-foreground">{selectedRequest.agent_phone}</span>
+                    <WhatsAppButton phone={selectedRequest.agent_phone} name={selectedRequest.assigned_agent_name || selectedRequest.agent_name} label="WhatsApp" />
+                  </div>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Rent Amount</p>
