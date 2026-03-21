@@ -210,6 +210,17 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
         }
       }
 
+      // Upload video if any
+      if (houseVideo && listing) {
+        const videoUrl = await uploadHouseVideo(user.id, listing.id, houseVideo.file);
+        if (videoUrl) {
+          await supabase
+            .from('house_listings')
+            .update({ video_url: videoUrl } as any)
+            .eq('id', listing.id);
+        }
+      }
+
       toast.success('House listed successfully!', {
         description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day · UGX 5,000 bonus on landlord verification`,
       });
