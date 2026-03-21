@@ -61,6 +61,7 @@ import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
 import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
+import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { staggerDelay } from '@/lib/cssAnimations';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
@@ -132,6 +133,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [nearbyTenantsOpen, setNearbyTenantsOpen] = useState(false);
   const [applyingToSell, setApplyingToSell] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
+  const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
 
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
@@ -312,6 +314,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
         onListEmptyHouse={() => { setMenuOpen(false); setListHouseOpen(true); }}
         onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
+        onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
       />
 
       {/* Existing Dialogs */}
@@ -354,6 +357,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <RecordAgentCollectionDialog open={recordCollectionOpen} onOpenChange={setRecordCollectionOpen} />
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
+      <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
 
       <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
     </div>
