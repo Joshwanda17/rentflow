@@ -252,25 +252,6 @@ export default function HouseDetail() {
             </div>
           )}
 
-          {/* Video Tour */}
-          {(listing as any).video_url && (
-            <div className="px-4 pt-2">
-              <div className="rounded-2xl overflow-hidden border border-primary/20 bg-muted">
-                <video
-                  src={(listing as any).video_url}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="w-full max-h-[250px] object-contain bg-black"
-                  poster={images[0] || undefined}
-                />
-                <div className="px-3 py-1.5 bg-primary/5 flex items-center gap-1.5">
-                  <span className="text-[11px] font-semibold text-primary">🎬 Video Tour</span>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Floating top controls */}
           <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-4 pt-safe-top py-3">
             <button onClick={() => navigate(-1)}

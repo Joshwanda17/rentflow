@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateDailyRentalRate } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { HouseImageUploader, uploadHouseImages, uploadHouseVideo, type HouseImageFile, type HouseVideoFile } from './HouseImageUploader';
+import { HouseImageUploader, uploadHouseImages, type HouseImageFile } from './HouseImageUploader';
 
 interface ListEmptyHouseDialogProps {
   open: boolean;
@@ -45,7 +45,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
   const getPosition = geo.requestGPSPermission;
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
-  const [houseVideo, setHouseVideo] = useState<HouseVideoFile | null>(null);
   const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
   const [form, setForm] = useState({
     title: '',
@@ -210,26 +209,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
         }
       }
 
-      // Upload video if any
-      if (houseVideo && listing) {
-        const videoUrl = await uploadHouseVideo(user.id, listing.id, houseVideo.file);
-        if (videoUrl) {
-          await supabase
-            .from('house_listings')
-            .update({ video_url: videoUrl } as any)
-            .eq('id', listing.id);
-        }
-      }
-
       toast.success('House listed successfully!', {
         description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day · UGX 5,000 bonus on landlord verification`,
       });
       onSuccess?.();
       onOpenChange(false);
       houseImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
-      if (houseVideo) URL.revokeObjectURL(houseVideo.previewUrl);
       setHouseImages([]);
-      setHouseVideo(null);
       setForm({
         title: '', description: '', house_category: 'single_room',
         number_of_rooms: 1, monthly_rent: '', region: '', district: '',
@@ -427,14 +413,8 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
             </div>
           </div>
 
-          {/* Photos & Video */}
-          <HouseImageUploader
-            images={houseImages}
-            onChange={setHouseImages}
-            maxImages={5}
-            video={houseVideo}
-            onVideoChange={setHouseVideo}
-          />
+          {/* Photos */}
+          <HouseImageUploader images={houseImages} onChange={setHouseImages} maxImages={5} />
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
