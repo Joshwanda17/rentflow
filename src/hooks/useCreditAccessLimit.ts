@@ -52,14 +52,16 @@ export function useCreditAccessLimit(userId: string | undefined) {
   const cached = userId ? limitCache.get(userId) : undefined;
   const [limit, setLimit] = useState<CreditAccessLimit>(
     cached && (Date.now() - cached.timestamp < CACHE_TTL)
-      ? cached.data
-      : {
+    ? cached.data
+    : {
           totalLimit: MIN_LIMIT,
           baseLimit: MIN_LIMIT,
           bonusFromRatings: 0,
           bonusFromReceipts: 0,
           bonusFromRentHistory: 0,
           bonusFromLandlordRent: 0,
+          bonusFromHousesListed: 0,
+          bonusFromPartnersOnboarded: 0,
         }
   );
   const [loading, setLoading] = useState(!cached || (Date.now() - (cached?.timestamp ?? 0)) >= CACHE_TTL);
