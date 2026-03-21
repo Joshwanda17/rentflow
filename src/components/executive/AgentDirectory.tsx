@@ -79,27 +79,27 @@ export function AgentDirectory() {
         return results;
       };
 
-      const [profiles, earnings, collections, requests, houses] = await Promise.all([
-        batchFetch(b => supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at').in('id', b)),
-        batchFetch(b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
-        batchFetch(b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
-        batchFetch(b => supabase.from('rent_requests').select('agent_id').in('agent_id', b)),
-        batchFetch(b => supabase.from('house_listings').select('agent_id').in('agent_id', b)),
+      const [profilesData, earningsData, collectionsData, requestsData, housesData] = await Promise.all([
+        batchFetch<any>(async b => supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at').in('id', b)),
+        batchFetch<any>(async b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
+        batchFetch<any>(async b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
+        batchFetch<any>(async b => supabase.from('rent_requests').select('agent_id').in('agent_id', b)),
+        batchFetch<any>(async b => supabase.from('house_listings').select('agent_id').in('agent_id', b)),
       ]);
 
       const earningsMap: Record<string, number> = {};
-      (earningsRes.data || []).forEach(e => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
+      earningsData.forEach((e: any) => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
 
       const collectionsMap: Record<string, number> = {};
-      (collectionsRes.data || []).forEach(c => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
+      collectionsData.forEach((c: any) => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
 
       const reqMap: Record<string, number> = {};
-      (requestsRes.data || []).forEach(r => { if (r.agent_id) reqMap[r.agent_id] = (reqMap[r.agent_id] || 0) + 1; });
+      requestsData.forEach((r: any) => { if (r.agent_id) reqMap[r.agent_id] = (reqMap[r.agent_id] || 0) + 1; });
 
       const houseMap: Record<string, number> = {};
-      (housesRes.data || []).forEach(h => { houseMap[h.agent_id] = (houseMap[h.agent_id] || 0) + 1; });
+      housesData.forEach((h: any) => { houseMap[h.agent_id] = (houseMap[h.agent_id] || 0) + 1; });
 
-      return (profilesRes.data || []).map(p => ({
+      return profilesData.map((p: any) => ({
         ...p,
         totalEarnings: earningsMap[p.id] || 0,
         rentRequests: reqMap[p.id] || 0,
