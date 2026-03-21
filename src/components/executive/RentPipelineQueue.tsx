@@ -199,19 +199,24 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         if (r.agent_id) ids.add(r.agent_id);
         if (r.assigned_agent_id) ids.add(r.assigned_agent_id);
       });
-      const landlordIds = [...new Set(data.map(r => r.landlord_id))];
+      const landlordIds = [...new Set(data.map(r => r.landlord_id).filter(Boolean))];
+      const lc1Ids = [...new Set(data.map(r => r.lc1_id).filter(Boolean))];
 
-      const [profilesRes, landlordsRes] = await Promise.all([
+      const [profilesRes, landlordsRes, lc1Res] = await Promise.all([
         ids.size > 0
           ? supabase.from('profiles').select('id, full_name, phone, email').in('id', [...ids])
           : { data: [] },
         landlordIds.length > 0
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
           : { data: [] },
+        lc1Ids.length > 0
+          ? supabase.from('lc1_chairpersons').select('id, name, phone, village').in('id', lc1Ids)
+          : { data: [] },
       ]);
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
+      const lc1Map = new Map((lc1Res.data || []).map(l => [l.id, l]));
 
       return data.map(r => {
         const agentProfile = r.assigned_agent_id
@@ -229,6 +234,9 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
           landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
           landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
+          lc1_name: r.lc1_id ? (lc1Map.get(r.lc1_id)?.name || '') : '',
+          lc1_phone: r.lc1_id ? (lc1Map.get(r.lc1_id)?.phone || '') : '',
+          lc1_village: r.lc1_id ? (lc1Map.get(r.lc1_id)?.village || '') : '',
         };
       });
     },
@@ -521,6 +529,49 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                     <p className="font-semibold">{selectedRequest.request_city}</p>
                   </div>
                 )}
+              </div>
+
+              {/* LC1 & GPS Details */}
+              <div className="rounded-xl border border-border p-3 bg-muted/30 space-y-2">
+                <h4 className="text-sm font-semibold">📍 Property Location & LC1</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {selectedRequest.lc1_name && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">LC1 Chairperson</p>
+                      <p className="font-semibold">{selectedRequest.lc1_name}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-xs text-muted-foreground">{selectedRequest.lc1_phone}</span>
+                        <WhatsAppButton phone={selectedRequest.lc1_phone} name={selectedRequest.lc1_name} label="WhatsApp" />
+                      </div>
+                    </div>
+                  )}
+                  {selectedRequest.lc1_village && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">Village</p>
+                      <p className="font-semibold">{selectedRequest.lc1_village}</p>
+                    </div>
+                  )}
+                  {(selectedRequest.request_latitude && selectedRequest.request_longitude) && (
+                    <div className="space-y-0.5 col-span-2">
+                      <p className="text-xs text-muted-foreground">GPS Coordinates</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-xs">{Number(selectedRequest.request_latitude).toFixed(6)}, {Number(selectedRequest.request_longitude).toFixed(6)}</p>
+                        <a
+                          href={`https://www.google.com/maps?q=${selectedRequest.request_latitude},${selectedRequest.request_longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          <MapPin className="h-3 w-3" />
+                          Open Map
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {!selectedRequest.lc1_name && !selectedRequest.request_latitude && (
+                    <p className="text-xs text-muted-foreground col-span-2">No LC1 or GPS data captured for this request</p>
+                  )}
+                </div>
               </div>
 
               {/* Pipeline Status + Agent Benefits */}
