@@ -45,6 +45,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
   const getPosition = geo.requestGPSPermission;
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
+  const [houseVideo, setHouseVideo] = useState<HouseVideoFile | null>(null);
   const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
   const [form, setForm] = useState({
     title: '',
