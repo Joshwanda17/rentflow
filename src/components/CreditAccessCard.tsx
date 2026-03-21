@@ -246,6 +246,20 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                   />
                   <BreakdownRow
                     icon={<Home className="h-3.5 w-3.5 text-purple-500" />}
+                    label="Houses Listed"
+                    value={limit.bonusFromHousesListed}
+                    currency={currency}
+                    tip="+50K per house listed"
+                  />
+                  <BreakdownRow
+                    icon={<Users className="h-3.5 w-3.5 text-primary" />}
+                    label="Partners Onboarded"
+                    value={limit.bonusFromPartnersOnboarded}
+                    currency={currency}
+                    tip="+200K per partner onboarded"
+                  />
+                  <BreakdownRow
+                    icon={<Home className="h-3.5 w-3.5 text-purple-500" />}
                     label="Landlord Rent Collected"
                     value={limit.bonusFromLandlordRent}
                     currency={currency}
@@ -265,13 +279,13 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
           >
             <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
             <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="sm:hidden">⚡ Apply Now</span>
-            <span className="hidden sm:inline">⚡ Apply Now — Instant Decision</span>
+            <span className="sm:hidden">⚡ Access Now</span>
+            <span className="hidden sm:inline">⚡ Access Credit Now</span>
           </motion.button>
         </CardContent>
       </Card>
 
-      <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
+      <CreditAccessDrawSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
     </motion.div>
   );
 }
