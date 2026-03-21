@@ -187,6 +187,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ============================================================
+    // EMAIL: Notify agent that landlord has been funded
+    // Agent should go collect a physical receipt from landlord
+    // ============================================================
+    if (bonusAgentId) {
+      const { data: agentEmailProfile } = await serviceClient
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', bonusAgentId)
+        .single()
+
+      if (agentEmailProfile?.email) {
+        const agentName = agentEmailProfile.full_name || 'Agent'
+        const landlordName = landlord?.name || 'the landlord'
+        const landlordPhone = landlord?.phone || 'N/A'
+        const rentFormatted = `UGX ${request.rent_amount.toLocaleString()}`
+
+        const emailSubject = `✅ Landlord Funded – Please Collect Receipt | ${landlordName}`
+        const emailBody = `Hi ${agentName},\n\nGreat news! The rent of ${rentFormatted} has been successfully disbursed to ${landlordName}.\n\n📋 ACTION REQUIRED:\nPlease visit ${landlordName} physically to collect a signed receipt confirming they received the rent payment.\n\n📞 Landlord Contact: ${landlordPhone}\n💳 Payout Method: ${method}\n🔖 Transaction Ref: ${transaction_reference}\n💰 Your Bonus: UGX ${RENT_FUNDED_BONUS.toLocaleString()} (already credited)\n\nRemember: You will also earn 5% commission on every repayment this tenant makes!\n\nThank you for your service.\n— Welile Team`
+
+        try {
+          await serviceClient.rpc("enqueue_email" as any, {
+            p_queue_name: "transactional_emails",
+            p_message: JSON.stringify({
+              to: agentEmailProfile.email,
+              subject: emailSubject,
+              text: emailBody,
+              template_name: "agent_disbursement_receipt",
+            }),
+          })
+        } catch (emailErr) {
+          console.warn('[disburse] Agent email enqueue failed:', emailErr)
+        }
+      }
+    }
+
     // Record audit log
     await serviceClient.from('audit_logs').insert({
       user_id: user.id,
