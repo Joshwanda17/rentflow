@@ -89,7 +89,7 @@ export function AgentPerformanceTiers() {
         } as AgentScore;
       });
     },
-    enabled: (agentRoles?.length || 0) > 0,
+    staleTime: 600000,
     staleTime: 600000,
   });
 
