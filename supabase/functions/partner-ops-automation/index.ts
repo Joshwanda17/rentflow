@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
           results.maturity_7d++;
         }
 
-        // Expired maturity — auto-update status
+        // Expired maturity — auto-update status & close all maturity escalations
         if (daysToMaturity <= 0) {
           await supabase.from('investor_portfolios').update({ status: 'matured' }).eq('id', p.id);
           await supabase.from('partner_escalations').insert({
@@ -90,6 +90,12 @@ Deno.serve(async (req) => {
             escalation_type: 'maturity_expired',
             details: { portfolio_code: p.portfolio_code, amount: p.investment_amount, matured_at: now.toISOString() },
           });
+          // Auto-close prior maturity alerts for this portfolio
+          await supabase.from('partner_escalations')
+            .update({ status: 'auto_resolved', resolved_at: now.toISOString() })
+            .eq('portfolio_id', p.id)
+            .eq('status', 'open')
+            .in('escalation_type', ['maturity_30d', 'maturity_7d']);
           await supabase.from('notifications').insert({
             user_id: userId,
             title: '🏁 Portfolio Matured',
