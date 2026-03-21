@@ -5,6 +5,7 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
 import { RentPipelineQueue } from './RentPipelineQueue';
+import { AgentDirectory } from './AgentDirectory';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Users, Banknote, DollarSign } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
