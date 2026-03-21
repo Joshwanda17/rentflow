@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import UserReviewsSection from '@/components/reviews/UserReviewsSection';
 import { useUserStats } from '@/hooks/useUserStats';
 import { UserStatsSection } from '@/components/profile/UserStatsSection';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -244,6 +245,11 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
               </>
             )}
           </div>
+
+          <Separator />
+
+          {/* Verification Checklist */}
+          <VerificationChecklist userId={user.id} highlightRole={user.type} compact />
 
           <Separator />
 
