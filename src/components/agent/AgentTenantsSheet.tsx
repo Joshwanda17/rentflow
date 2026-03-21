@@ -197,7 +197,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     });
 
     return list;
-  }, [tenants, search, activeFilter, sortMode, tenantBalances]);
+  }, [tenants, search, activeFilter, sortMode, tenantBalances, noSmartphoneMap]);
 
   // Stats
   const stats = useMemo(() => {
