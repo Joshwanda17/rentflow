@@ -43,6 +43,53 @@ const TIER_PILLS = [
   { key: 'verified', label: '✅ Verified', color: 'bg-green-500/10 text-green-700 border-green-300' },
 ];
 
+const normalizeText = (value?: string | null) => (value || '').toLowerCase().trim();
+const normalizePhone = (value?: string | null) => (value || '').replace(/\D/g, '');
+
+function getAgentSearchScore(agent: AgentRow, rawQuery: string): number {
+  const query = normalizeText(rawQuery);
+  if (!query) return 1;
+
+  const digitsQuery = normalizePhone(rawQuery);
+  const terms = query.split(/\s+/).filter(Boolean);
+
+  const name = normalizeText(agent.full_name);
+  const email = normalizeText(agent.email);
+  const territory = normalizeText(agent.territory);
+  const phoneDigits = normalizePhone(agent.phone);
+  const shortId = agent.id.slice(0, 8).toLowerCase();
+
+  let score = 0;
+
+  if (name === query) score += 300;
+  else if (name.startsWith(query)) score += 220;
+  else if (name.includes(query)) score += 140;
+
+  if (email.startsWith(query)) score += 120;
+  else if (email.includes(query)) score += 80;
+
+  if (territory.startsWith(query)) score += 100;
+  else if (territory.includes(query)) score += 70;
+
+  if (shortId === query) score += 160;
+  else if (shortId.includes(query)) score += 90;
+
+  if (digitsQuery) {
+    if (phoneDigits === digitsQuery) score += 260;
+    else if (phoneDigits.endsWith(digitsQuery)) score += 220;
+    else if (phoneDigits.includes(digitsQuery)) score += 140;
+  }
+
+  for (const term of terms) {
+    if (term.length < 2) continue;
+    if (name.includes(term)) score += 35;
+    if (territory.includes(term)) score += 20;
+    if (email.includes(term)) score += 15;
+  }
+
+  return score;
+}
+
 export function AgentDirectory() {
   const [search, setSearch] = useState('');
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
@@ -94,26 +141,22 @@ export function AgentDirectory() {
   const filtered = useMemo(() => {
     let list = agents || [];
 
-    // Tier filter
     if (tierFilter === 'verified') {
       list = list.filter(a => a.verified);
     } else if (tierFilter !== 'all') {
       list = list.filter(a => a.tier === tierFilter);
     }
 
-    // Search
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(a =>
-        a.full_name?.toLowerCase().includes(q) ||
-        a.phone?.includes(q) ||
-        a.territory?.toLowerCase().includes(q) ||
-        a.email?.toLowerCase().includes(q)
-      );
+    const searchValue = search.trim();
+    if (searchValue) {
+      return list
+        .map(agent => ({ agent, score: getAgentSearchScore(agent, searchValue) }))
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || (a.agent.full_name || '').localeCompare(b.agent.full_name || ''))
+        .map(item => item.agent);
     }
 
-    // Sort
-    list = [...list].sort((a, b) => {
+    return [...list].sort((a, b) => {
       let cmp = 0;
       if (sortField === 'name') cmp = (a.full_name || '').localeCompare(b.full_name || '');
       else if (sortField === 'earnings') cmp = a.totalEarnings - b.totalEarnings;
@@ -121,14 +164,14 @@ export function AgentDirectory() {
         const aTime = a.lastActive ? new Date(a.lastActive).getTime() : 0;
         const bTime = b.lastActive ? new Date(b.lastActive).getTime() : 0;
         cmp = aTime - bTime;
+      } else {
+        cmp = a.rentRequests - b.rentRequests;
       }
-      else cmp = a.rentRequests - b.rentRequests;
       return sortAsc ? cmp : -cmp;
     });
-    return list;
   }, [agents, search, sortField, sortAsc, tierFilter]);
 
-  const displayed = showAll ? filtered : filtered.slice(0, 30);
+  const displayed = search.trim() ? filtered.slice(0, 100) : showAll ? filtered : filtered.slice(0, 30);
   const bulkMode = selectedIds.size > 0;
 
   const toggleSelect = (id: string) => {
@@ -211,7 +254,7 @@ export function AgentDirectory() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
-          placeholder="🔍 Find agent by name, phone, territory, or email..."
+          placeholder="🔍 Find agent by name, phone, territory, email, or ID..."
           value={search}
           onChange={e => { setSearch(e.target.value); setShowAll(false); }}
           className="pl-10 h-11 text-sm border-2 focus:border-primary"
@@ -226,6 +269,9 @@ export function AgentDirectory() {
           </button>
         )}
       </div>
+      <p className="text-[11px] text-muted-foreground px-1">
+        Tip: Search by name, any phone digits (e.g. last 4), territory, email, or first 8 chars of agent ID.
+      </p>
 
       {/* Tier filter pills */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
