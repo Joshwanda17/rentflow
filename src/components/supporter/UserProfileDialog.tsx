@@ -5,7 +5,7 @@ import { ContactActionsBar } from '@/components/chat/ContactActionsBar';
 import { WhatsAppRequestButton } from '@/components/chat/WhatsAppRequestButton';
 import { Separator } from '@/components/ui/separator';
 import { MapPin, Calendar, Home, Building, Users, Phone, Shield, CheckCircle2, Zap, Eye, EyeOff } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, differenceInDays } from 'date-fns';
 import UserReviewsSection from '@/components/reviews/UserReviewsSection';
 import { useUserStats } from '@/hooks/useUserStats';
 import { UserStatsSection } from '@/components/profile/UserStatsSection';
