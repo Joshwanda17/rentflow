@@ -11,11 +11,11 @@ export function PartnerOpsBrief() {
       const since = subHours(new Date(), 24).toISOString();
 
       const [
-        { count: newPortfolios },
-        { count: pendingApprovals },
+        newPortfoliosRes,
+        pendingApprovalsRes,
         { data: maturingSoon },
         { data: recentROI },
-        { data: escalations },
+        escalationsRes,
       ] = await Promise.all([
         supabase.from('investor_portfolios').select('*', { count: 'exact', head: true }).gte('created_at', since),
         supabase.from('investor_portfolios').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
