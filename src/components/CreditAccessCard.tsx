@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Star, Receipt, Home, ChevronDown, Send, Users, Banknote } from 'lucide-react';
+import { TrendingUp, Star, Receipt, Home, ChevronDown, Send, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { Skeleton } from '@/components/ui/skeleton';
