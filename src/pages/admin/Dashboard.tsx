@@ -43,7 +43,7 @@ export default function AdminDashboardPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(-1 as any) || navigate('/dashboard')}
             className="gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
