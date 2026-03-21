@@ -57,15 +57,14 @@ export function PartnersOpsDashboard() {
     staleTime: 600000,
   });
 
-  // Escalations
+  // Escalations — no limit, show all open
   const { data: escalations } = useQuery({
     queryKey: ['partner-escalations'],
     queryFn: async () => {
       const { data } = await supabase.from('partner_escalations')
         .select('*')
         .eq('status', 'open')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
       return data || [];
     },
     staleTime: 300000,
