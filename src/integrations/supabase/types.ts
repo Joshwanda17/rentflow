@@ -223,6 +223,71 @@ export type Database = {
           },
         ]
       }
+      agent_collection_streaks: {
+        Row: {
+          agent_id: string
+          badges: Json | null
+          current_streak: number | null
+          id: string
+          last_collection_date: string | null
+          longest_streak: number | null
+          streak_multiplier: number | null
+          total_badges: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          badges?: Json | null
+          current_streak?: number | null
+          id?: string
+          last_collection_date?: string | null
+          longest_streak?: number | null
+          streak_multiplier?: number | null
+          total_badges?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          badges?: Json | null
+          current_streak?: number | null
+          id?: string
+          last_collection_date?: string | null
+          longest_streak?: number | null
+          streak_multiplier?: number | null
+          total_badges?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_collection_streaks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collection_streaks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collection_streaks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collection_streaks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_collections: {
         Row: {
           agent_id: string
@@ -578,6 +643,68 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      agent_incentive_bonuses: {
+        Row: {
+          agent_id: string
+          amount: number | null
+          awarded_at: string | null
+          bonus_type: string
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          agent_id: string
+          amount?: number | null
+          awarded_at?: string | null
+          bonus_type: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number | null
+          awarded_at?: string | null
+          bonus_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_incentive_bonuses_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_incentive_bonuses_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_incentive_bonuses_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_incentive_bonuses_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       agent_rebalance_records: {
         Row: {
@@ -5925,6 +6052,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      update_agent_collection_streak: {
+        Args: { p_agent_id: string }
+        Returns: undefined
+      }
       update_user_risk_score: {
         Args: { p_reason?: string; p_score_change: number; p_user_id: string }
         Returns: number
