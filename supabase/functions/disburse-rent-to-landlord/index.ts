@@ -203,9 +203,11 @@ Deno.serve(async (req) => {
         const landlordName = landlord?.name || 'the landlord'
         const landlordPhone = landlord?.phone || 'N/A'
         const rentFormatted = `UGX ${request.rent_amount.toLocaleString()}`
+        const dailyRepayment = request.daily_repayment ? `UGX ${request.daily_repayment.toLocaleString()}` : 'N/A'
+        const durationDays = request.duration_days || 'N/A'
 
         const emailSubject = `✅ Landlord Funded – Please Collect Receipt | ${landlordName}`
-        const emailBody = `Hi ${agentName},\n\nGreat news! The rent of ${rentFormatted} has been successfully disbursed to ${landlordName}.\n\n📋 ACTION REQUIRED:\nPlease visit ${landlordName} physically to collect a signed receipt confirming they received the rent payment.\n\n📞 Landlord Contact: ${landlordPhone}\n💳 Payout Method: ${method}\n🔖 Transaction Ref: ${transaction_reference}\n💰 Your Bonus: UGX ${RENT_FUNDED_BONUS.toLocaleString()} (already credited)\n\nRemember: You will also earn 5% commission on every repayment this tenant makes!\n\nThank you for your service.\n— Welile Team`
+        const emailBody = `Hi ${agentName},\n\nGreat news! The rent of ${rentFormatted} has been successfully disbursed to ${landlordName}.\n\n📋 ACTION REQUIRED:\nPlease visit ${landlordName} physically to collect a signed receipt confirming they received the rent payment.\n\n📞 Landlord Contact: ${landlordPhone}\n💳 Payout Method: ${method}\n🔖 Transaction Ref: ${transaction_reference}\n\n📊 TENANT REPAYMENT SCHEDULE:\n💵 Daily Repayment: ${dailyRepayment}/day\n📅 Duration: ${durationDays} days\n\n💰 Your Bonus: UGX ${RENT_FUNDED_BONUS.toLocaleString()} (already credited)\n\nRemember: You will also earn 5% commission on every repayment this tenant makes!\n\nThank you for your service.\n— Welile Team`
 
         try {
           await serviceClient.rpc("enqueue_email" as any, {
