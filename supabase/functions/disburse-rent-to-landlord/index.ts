@@ -94,6 +94,21 @@ Deno.serve(async (req) => {
 
     if (updateErr) throw new Error(`Failed to update request: ${updateErr.message}`)
 
+    // Record in disbursement_records for CFO tracking
+    await serviceClient.from('disbursement_records').insert({
+      rent_request_id: rent_request_id,
+      tenant_id: request.tenant_id,
+      landlord_id: request.landlord_id,
+      agent_id: bonusAgentId || request.agent_id,
+      amount: request.rent_amount,
+      payout_method: method,
+      transaction_reference: transaction_reference,
+      disbursed_by: user.id,
+      disbursed_at: now,
+      reconciliation_status: 'pending',
+      notes: notes || null,
+    })
+
     // Record in general ledger — landlord payout
     const transactionGroupId = crypto.randomUUID()
     
