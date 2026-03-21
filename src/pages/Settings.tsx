@@ -796,6 +796,27 @@ export default function Settings() {
           <p>Welile v1.11 • SW v11</p>
           <p>Build {new Date((globalThis as any).__BUILD_TIME__ || Date.now()).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
+        {/* ═══ FLOATING QUICK-JUMP BAR ═══ */}
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 md:bottom-6">
+          <div className="flex gap-1 bg-card/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-2xl p-1.5">
+            {SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => scrollToSection(id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[40px] touch-manipulation active:scale-95",
+                  activeSection === id
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden xs:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );
