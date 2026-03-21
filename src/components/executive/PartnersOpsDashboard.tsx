@@ -324,46 +324,79 @@ export function PartnersOpsDashboard() {
       <PendingWalletOperationsWidget />
 
       {/* ═══ ESCALATION ALERTS ═══ */}
-      {openEscalations > 0 && (
-        <Card className="border-warning/40 bg-warning/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Bell className="h-4 w-4 text-warning animate-pulse" />
-              Active Escalations
-              <Badge variant="destructive" className="ml-auto text-[10px]">{openEscalations}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-48 overflow-y-auto">
-            {(escalations || []).map(esc => (
-              <div key={esc.id} className="flex items-center gap-3 rounded-lg border border-border/60 p-2.5 bg-card text-sm">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className={`text-[9px] ${
-                      esc.escalation_type === 'stale_approval' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                    }`}>
-                      {esc.escalation_type === 'stale_approval' ? '🚨 Stale Approval' :
-                       esc.escalation_type === 'maturity_7d' ? '⚠️ 7-Day Maturity' :
-                       esc.escalation_type === 'maturity_30d' ? '📅 30-Day Maturity' :
-                       '🏁 Matured'}
-                    </Badge>
-                    <span className="text-xs font-medium truncate">{(esc.details as any)?.portfolio_code || '—'}</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {esc.escalation_type === 'stale_approval'
-                      ? `Pending for ${(esc.details as any)?.hours_pending || '?'}+ hours`
-                      : `${(esc.details as any)?.days_remaining || '?'} days remaining`}
-                    {' · '}{formatDistanceToNow(new Date(esc.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => acknowledgeEscalation(esc.id)}>
-                  <CheckCircle2 className="h-3 w-3" /> Ack
-                </Button>
+      {openEscalations > 0 && (() => {
+        const staleCount = (escalations || []).filter(e => e.escalation_type === 'stale_approval').length;
+        const maturityCount = openEscalations - staleCount;
+        return (
+          <Card className="border-warning/40 bg-warning/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Bell className="h-4 w-4 text-warning animate-pulse" />
+                Active Escalations
+                <Badge variant="destructive" className="ml-auto text-[10px]">{openEscalations}</Badge>
+              </CardTitle>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {staleCount > 0 && (
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 text-destructive border-destructive/30" onClick={() => bulkResolveEscalations('stale_approval')}>
+                    <CheckCircle2 className="h-3 w-3" /> Resolve All Stale ({staleCount})
+                  </Button>
+                )}
+                {maturityCount > 0 && (
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 text-warning border-warning/30" onClick={() => { bulkResolveEscalations('maturity_30d'); bulkResolveEscalations('maturity_7d'); bulkResolveEscalations('maturity_expired'); }}>
+                    <CheckCircle2 className="h-3 w-3" /> Resolve All Maturity ({maturityCount})
+                  </Button>
+                )}
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+            </CardHeader>
+            <CardContent className="space-y-2 max-h-64 overflow-y-auto">
+              {(escalations || []).map(esc => {
+                const severity = getEscalationSeverity(esc);
+                const hours = (esc.details as any)?.hours_pending;
+                const isStale = esc.escalation_type === 'stale_approval';
+                const borderColor = severity === 'critical' ? 'border-destructive/50 bg-destructive/5' : severity === 'warning' ? 'border-warning/50 bg-warning/5' : 'border-border/60 bg-card';
+                const amount = Number((esc.details as any)?.amount || 0);
+
+                return (
+                  <div key={esc.id} className={`flex items-center gap-3 rounded-lg border p-2.5 text-sm ${borderColor}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className={`text-[9px] ${
+                          severity === 'critical' ? 'bg-destructive/10 text-destructive border-destructive/30' :
+                          severity === 'warning' ? 'bg-warning/10 text-warning border-warning/30' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {isStale ? '🚨 Stale' :
+                           esc.escalation_type === 'maturity_7d' ? '⚠️ 7d Mat.' :
+                           esc.escalation_type === 'maturity_30d' ? '📅 30d Mat.' :
+                           '🏁 Matured'}
+                        </Badge>
+                        <span className="text-xs font-medium truncate">{(esc.details as any)?.portfolio_code || '—'}</span>
+                        {amount > 0 && <span className="text-[10px] text-muted-foreground">({amount >= 1e6 ? `${(amount / 1e6).toFixed(1)}M` : `${(amount / 1e3).toFixed(0)}K`})</span>}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {isStale
+                          ? `Pending ${hours ? (hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`) : '?'}`
+                          : `${(esc.details as any)?.days_remaining || '?'} days remaining`}
+                        {' · '}{formatDistanceToNow(new Date(esc.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {isStale && (
+                        <Button size="sm" variant="default" className="h-7 text-[10px] gap-1" onClick={() => approvePortfolioFromEscalation(esc)}>
+                          ✅ Approve
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => acknowledgeEscalation(esc.id)}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {pendingApproval > 0 && (
