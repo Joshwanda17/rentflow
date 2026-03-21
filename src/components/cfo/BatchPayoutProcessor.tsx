@@ -22,7 +22,7 @@ export function BatchPayoutProcessor() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, amount, user_id, status, created_at')
+        .select('id, rent_amount, user_id, status, created_at')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
