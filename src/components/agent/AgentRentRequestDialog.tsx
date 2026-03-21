@@ -23,8 +23,8 @@ import {
   MapPin,
   Navigation,
   Building2,
-  Loader2, 
-  CheckCircle2, 
+  Loader2,
+  CheckCircle2,
   FileText,
   Calculator,
   Calendar,
@@ -33,7 +33,10 @@ import {
   Share2,
   Copy,
   MessageCircle,
-  Home
+  Home,
+  Camera,
+  X,
+  ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
