@@ -22,19 +22,19 @@ export function BatchPayoutProcessor() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, user_id, status, created_at')
+        .select('id, rent_amount, tenant_id, status, created_at')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
 
-      const userIds = [...new Set((data || []).map(r => r.user_id))];
+      const userIds = [...new Set((data || []).map(r => r.tenant_id))];
       const profileMap = new Map<string, string>();
       if (userIds.length > 0) {
         const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
         for (const p of profiles || []) profileMap.set(p.id, p.full_name);
       }
 
-      return (data || []).map(r => ({ ...r, amount: r.rent_amount, tenant_name: profileMap.get(r.user_id) || 'Unknown' }));
+      return (data || []).map(r => ({ ...r, amount: r.rent_amount, tenant_name: profileMap.get(r.tenant_id) || 'Unknown' }));
     },
     staleTime: 30_000,
   });
