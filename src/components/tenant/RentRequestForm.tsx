@@ -60,6 +60,66 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // GPS & Photos
+  const [propertyGps, setPropertyGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
+
+  const capturePropertyGPS = useCallback(() => {
+    if (!navigator.geolocation) { toast({ title: 'GPS not supported', variant: 'destructive' }); return; }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setPropertyGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+        setGpsLoading(false);
+        toast({ title: '📍 Property GPS captured!' });
+      },
+      (err) => {
+        setGpsLoading(false);
+        toast({ title: err.code === 1 ? 'Location permission denied' : 'Could not get GPS', variant: 'destructive' });
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }, [toast]);
+
+  const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = 3 - housePhotos.length;
+    if (remaining <= 0) return;
+    const toAdd = files.slice(0, remaining);
+    const newPhotos = toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+    setHousePhotos(prev => [...prev, ...newPhotos]);
+    if (e.target) e.target.value = '';
+  }, [housePhotos.length]);
+
+  const removePhoto = useCallback((index: number) => {
+    setHousePhotos(prev => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const uploadHousePhotos = async (requestId: string): Promise<string[]> => {
+    if (housePhotos.length === 0) return [];
+    const urls: string[] = [];
+    for (let i = 0; i < housePhotos.length; i++) {
+      try {
+        const optimized = await optimizeImage(housePhotos[i].file, { maxWidth: 1200, quality: 0.8 });
+        const ext = optimized.file.name.split('.').pop() || 'webp';
+        const path = `${userId}/${requestId}/photo_${i}.${ext}`;
+        const { error } = await supabase.storage
+          .from('house-images')
+          .upload(path, optimized.file, { cacheControl: '86400', upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+        urls.push(data.publicUrl);
+      } catch (err) {
+        console.warn(`Photo ${i} upload failed:`, err);
+      }
+    }
+    return urls;
+  };
+
   // Max payments based on duration
   const maxPayments = Math.min(duration, 30);
 
