@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, Filter, ArrowUpDown, CheckCircle2, Clock, Users } from 'lucide-react';
+import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, Filter, ArrowUpDown, CheckCircle2, Clock, Users, Share2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,7 @@ import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repayment
 import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useToast } from '@/hooks/use-toast';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface Tenant {
   id: string;
@@ -42,7 +43,7 @@ interface AgentTenantsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type FilterTab = 'all' | 'owing' | 'active' | 'cleared' | 'new';
+type FilterTab = 'all' | 'owing' | 'active' | 'cleared' | 'new' | 'no-phone';
 type SortMode = 'balance' | 'name' | 'recent';
 
 function buildScheduleDays(startDate: string, durationDays: number) {
@@ -69,6 +70,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [sortMode, setSortMode] = useState<SortMode>('balance');
   // Store rent balances keyed by tenant_id
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (open && user) {
@@ -93,21 +95,26 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       const tenantList = data || [];
       setTenants(tenantList);
 
-      // Fetch rent balances for all tenants in parallel
+      // Fetch rent balances and smartphone status for all tenants in parallel
       if (tenantList.length > 0) {
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status')
+          .select('tenant_id, total_repayment, amount_repaid, status, tenant_no_smartphone')
           .in('tenant_id', tenantIds)
           .in('status', ['approved', 'disbursed', 'repaying']);
 
         const balances: Record<string, number> = {};
+        const noSmartphoneMap: Record<string, boolean> = {};
         (rentRequests || []).forEach(rr => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          if (rr.tenant_no_smartphone) {
+            noSmartphoneMap[rr.tenant_id] = true;
+          }
         });
         setTenantBalances(balances);
+        setNoSmartphoneMap(noSmartphoneMap);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
@@ -170,6 +177,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       case 'new':
         list = list.filter(t => new Date(t.created_at) > thirtyDaysAgo);
         break;
+      case 'no-phone':
+        list = list.filter(t => noSmartphoneMap[t.id]);
+        break;
     }
 
     // Apply sort
@@ -187,18 +197,20 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     });
 
     return list;
-  }, [tenants, search, activeFilter, sortMode, tenantBalances]);
+  }, [tenants, search, activeFilter, sortMode, tenantBalances, noSmartphoneMap]);
 
   // Stats
   const stats = useMemo(() => {
     const totalOwing = Object.values(tenantBalances).reduce((s, v) => s + v, 0);
     const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
-    return { totalOwing, owingCount, total: tenants.length };
-  }, [tenants, tenantBalances]);
+    const noPhoneCount = Object.values(noSmartphoneMap).filter(Boolean).length;
+    return { totalOwing, owingCount, total: tenants.length, noPhoneCount };
+  }, [tenants, tenantBalances, noSmartphoneMap]);
 
   const filterTabs: { key: FilterTab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: 'owing', label: 'Rent Receivable', icon: <AlertTriangle className="h-3 w-3" />, count: stats.owingCount },
     { key: 'all', label: 'All', icon: <Users className="h-3 w-3" />, count: stats.total },
+    { key: 'no-phone', label: 'No Phone', icon: <Phone className="h-3 w-3" />, count: stats.noPhoneCount },
     { key: 'active', label: 'Active', icon: <Clock className="h-3 w-3" /> },
     { key: 'cleared', label: 'Cleared', icon: <CheckCircle2 className="h-3 w-3" /> },
     { key: 'new', label: 'New', icon: <User className="h-3 w-3" /> },
@@ -396,6 +408,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const isLoadingThis = loadingRequests === tenant.id;
               const balance = tenantBalances[tenant.id] || 0;
               const hasDebt = balance > 0;
+              const isNoSmartphone = noSmartphoneMap[tenant.id] || false;
+
+              // Format phone for WhatsApp check (wa.me link)
+              const formatPhoneForWA = (phone: string) => {
+                let clean = phone.replace(/\D/g, '');
+                if (clean.startsWith('0')) clean = '256' + clean.slice(1);
+                if (!clean.startsWith('256')) clean = '256' + clean;
+                return clean;
+              };
+              const waPhone = formatPhoneForWA(tenant.phone);
+              const appLink = `${getPublicOrigin()}/activate?ref=${user?.id}`;
 
               return (
                 <motion.div
@@ -426,7 +449,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                            {isNoSmartphone && (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/40 text-warning bg-warning/10 shrink-0">
+                                📵 No Phone
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Phone className="h-3 w-3" />
                             <span>{tenant.phone}</span>
@@ -473,6 +503,46 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="overflow-hidden border-t border-border"
                       >
                         <div className="p-3 space-y-3 bg-muted/20">
+                          {/* WhatsApp Check & Share Link for no-smartphone tenants */}
+                          {isNoSmartphone && (
+                            <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-2">
+                              <p className="text-xs font-semibold text-warning flex items-center gap-1.5">
+                                📵 This tenant has no smartphone
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                You manage their repayments. Check if they've joined WhatsApp — it means they now have a smartphone!
+                              </p>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-8 flex-1 border-success/30 text-success hover:bg-success/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${tenant.full_name}, this is your agent from Welile. Tap this link to check your rent schedule: ${appLink}`)}`, '_blank');
+                                    toast({ title: 'WhatsApp Check', description: 'If WhatsApp opens, they have a smartphone! Share the app link.' });
+                                  }}
+                                >
+                                  <MessageCircle className="h-3 w-3 mr-1" />
+                                  Check WhatsApp
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-8 flex-1 border-primary/30 text-primary hover:bg-primary/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(appLink);
+                                    toast({ title: 'Link Copied!', description: 'Share this link with the tenant to access their dashboard.' });
+                                  }}
+                                >
+                                  <Share2 className="h-3 w-3 mr-1" />
+                                  Copy App Link
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
                             <Banknote className="h-3 w-3" />
                             Rent Payments
