@@ -25,7 +25,7 @@ export function PartnerChurnAlerts() {
 
       // Fetch pending/recent withdrawals
       const { data: withdrawals } = await supabase.from('investment_withdrawal_requests')
-        .select('investor_id, amount, status, created_at')
+        .select('user_id, amount, status, created_at')
         .in('status', ['pending', 'approved'])
         .order('created_at', { ascending: false })
         .limit(200);
