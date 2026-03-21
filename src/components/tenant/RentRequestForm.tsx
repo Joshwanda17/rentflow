@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { FileText } from 'lucide-react';
+import { FileText, CalendarClock, Banknote } from 'lucide-react';
+import { format, addDays } from 'date-fns';
 import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES, calculateInstalment } from '@/lib/rentCalculations';
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -208,17 +209,199 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
 
   return (
     <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="bg-primary/10 border-b-2 border-primary/30">
+        <CardTitle className="flex items-center gap-2 text-primary">
           <FileText className="h-5 w-5" />
           Rent Request Form
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tenant Identity */}
+          {/* ═══ RENT DETAILS — FIRST & PROMINENT ═══ */}
+          <div className="space-y-4 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40 shadow-lg shadow-primary/10">
+            <h3 className="font-extrabold text-base text-primary flex items-center gap-2">
+              <Banknote className="h-5 w-5" />
+              💰 Rent Details
+            </h3>
+
+            {/* Rent Amount */}
+            <div className="space-y-2">
+              <Label className="font-bold text-sm">Rent Amount (UGX)</Label>
+              <Input 
+                value={rentAmount} 
+                onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))} 
+                placeholder="e.g., 500000"
+                required
+                className="h-12 text-lg font-bold border-primary/30 focus:border-primary"
+              />
+            </div>
+
+            {/* Access Fee Rate */}
+            <div className="space-y-2">
+              <Label className="font-bold text-sm">Access Fee Rate</Label>
+              <div className="flex flex-wrap gap-2">
+                {ACCESS_FEE_RATES.map((opt) => (
+                  <Button
+                    key={opt.rate}
+                    type="button"
+                    variant={accessFeeRate === opt.rate ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setAccessFeeRate(opt.rate)}
+                    className="text-xs"
+                  >
+                    {opt.label}/month
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payback Period */}
+            <div className="space-y-2">
+              <Label className="font-bold text-sm">Payback Period</Label>
+              <div className="flex flex-wrap gap-2">
+                {quickOptions.map((option) => (
+                  <Button
+                    key={option.days}
+                    type="button"
+                    variant={duration === option.days ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleDurationChange(option.days)}
+                    className="text-xs"
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Days Slider */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <Label className="font-bold text-sm">Custom Days</Label>
+                <span className="text-sm font-bold text-primary">{duration} days</span>
+              </div>
+              <Slider
+                value={[duration]}
+                onValueChange={(value) => handleDurationChange(value[0])}
+                min={MIN_DAYS}
+                max={MAX_DAYS}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{MIN_DAYS} days</span>
+                <span>{MAX_DAYS} days</span>
+              </div>
+            </div>
+
+            {/* Number of Payments */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <Label className="font-bold text-sm">Number of Payments</Label>
+                <span className="text-sm font-bold text-primary">{numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4, 5, 6].filter(n => n <= maxPayments).map((num) => (
+                  <Button
+                    key={num}
+                    type="button"
+                    variant={numberOfPayments === num ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setNumberOfPayments(num)}
+                    className="text-xs min-w-[40px]"
+                  >
+                    {num}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Max {maxPayments} payments for {duration} days
+              </p>
+            </div>
+
+            {/* ═══ DAILY REPAYMENT HERO + START DATE ═══ */}
+            {calc && (
+              <div className="space-y-3">
+                {/* Daily Amount — BIG & BOLD */}
+                <div className="p-4 rounded-2xl bg-primary/20 border-2 border-primary/40 text-center">
+                  <p className="text-xs font-semibold text-primary/80 mb-1 uppercase tracking-wide">Daily Repayment</p>
+                  <p className="text-3xl font-black text-primary font-mono">{formatUGX(calc.dailyRepayment)}</p>
+                  <p className="text-xs text-primary/70 mt-1">per day for {calc.durationDays} days</p>
+                </div>
+
+                {/* Repayment Start Date — next day */}
+                <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-3">
+                  <CalendarClock className="h-5 w-5 text-primary shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Repayment starts</p>
+                    <p className="font-bold text-sm text-primary">
+                      {format(addDays(new Date(), 1), 'EEEE, MMMM d, yyyy')}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Tomorrow — the day after posting</p>
+                  </div>
+                </div>
+
+                {/* Summary breakdown */}
+                <div className="space-y-2 p-3 rounded-xl bg-background/80 border">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Rent Amount:</span>
+                    <span className="font-mono font-medium">{formatUGX(calc.rentAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Access Fee:</span>
+                    <span className="font-mono font-medium text-warning">{formatUGX(calc.accessFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Request Fee:</span>
+                    <span className="font-mono font-medium">{formatUGX(calc.requestFee)}</span>
+                  </div>
+                  <div className="border-t pt-2">
+                    <div className="p-2 rounded-lg bg-primary/10 text-center">
+                      <p className="text-xs text-muted-foreground">Total to Repay</p>
+                      <p className="text-xl font-bold text-primary font-mono">{formatUGX(calc.totalRepayment)}</p>
+                    </div>
+                  </div>
+                  {/* Per Payment */}
+                  <div className="p-2 rounded-lg bg-accent/20 border border-accent/30 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      {numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''} of
+                    </p>
+                    <p className="text-lg font-bold font-mono">
+                      {formatUGX(Math.ceil(calc.totalRepayment / numberOfPayments))}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      every {Math.floor(calc.durationDays / numberOfPayments)} days
+                    </p>
+                  </div>
+                  {/* Instalment Breakdown */}
+                  <div className="space-y-2 p-3 rounded-lg bg-muted/50 border">
+                    <p className="text-xs font-medium text-muted-foreground">Instalment Breakdown</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Daily', days: 1 },
+                        { label: 'Weekly', days: 7 },
+                        { label: 'Bi-Weekly', days: 14 },
+                        { label: 'Monthly', days: 30 },
+                      ].filter(p => p.days <= calc.durationDays).map((period) => {
+                        const inst = calculateInstalment(calc.totalRepayment, calc.durationDays, period.days);
+                        return (
+                          <div key={period.label} className="p-2 rounded bg-background border text-center">
+                            <p className="text-[10px] text-muted-foreground">{period.label}</p>
+                            <p className="text-sm font-bold font-mono">{formatUGX(inst.amount)}</p>
+                            <p className="text-[10px] text-muted-foreground">× {inst.count} payments</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ═══ TENANT IDENTITY ═══ */}
           <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground">Your Identity (as on National ID)</h3>
+            <h3 className="font-semibold text-sm text-muted-foreground">Your Identity (as on National ID)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Full Name (as on ID)</Label>
@@ -262,158 +445,6 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
               </div>
             </div>
           </div>
-
-          {/* Rent Amount */}
-          <div className="space-y-2">
-            <Label>Rent Amount (UGX)</Label>
-            <Input 
-              value={rentAmount} 
-              onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))} 
-              placeholder="e.g., 500000"
-              required 
-            />
-          </div>
-
-          {/* Access Fee Rate Selection */}
-          <div className="space-y-2">
-            <Label>Access Fee Rate (Monthly Compounding)</Label>
-            <div className="flex flex-wrap gap-2">
-              {ACCESS_FEE_RATES.map((opt) => (
-                <Button
-                  key={opt.rate}
-                  type="button"
-                  variant={accessFeeRate === opt.rate ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setAccessFeeRate(opt.rate)}
-                  className="text-xs"
-                >
-                  {opt.label}/month
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Select Buttons */}
-          <div className="space-y-2">
-            <Label>Payback Period</Label>
-            <div className="flex flex-wrap gap-2">
-              {quickOptions.map((option) => (
-                <Button
-                  key={option.days}
-                  type="button"
-                  variant={duration === option.days ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleDurationChange(option.days)}
-                  className="text-xs"
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Days Slider */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <Label>Custom Days</Label>
-              <span className="text-sm font-medium text-primary">{duration} days</span>
-            </div>
-            <Slider
-              value={[duration]}
-              onValueChange={(value) => handleDurationChange(value[0])}
-              min={MIN_DAYS}
-              max={MAX_DAYS}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{MIN_DAYS} days</span>
-              <span>{MAX_DAYS} days</span>
-            </div>
-          </div>
-
-          {/* Number of Payments */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <Label>Number of Payments</Label>
-              <span className="text-sm font-medium text-primary">{numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''}</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {[1, 2, 3, 4, 5, 6].filter(n => n <= maxPayments).map((num) => (
-                <Button
-                  key={num}
-                  type="button"
-                  variant={numberOfPayments === num ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setNumberOfPayments(num)}
-                  className="text-xs min-w-[40px]"
-                >
-                  {num}
-                </Button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Max {maxPayments} payments for {duration} days
-            </p>
-          </div>
-
-          {/* Calculation Preview */}
-          {calc && (
-            <div className="p-4 rounded-lg bg-secondary/50 space-y-3">
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Rent Amount:</span>
-                <span className="font-mono font-medium">{formatUGX(calc.rentAmount)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Access Fee:</span>
-                <span className="font-mono font-medium text-warning">{formatUGX(calc.accessFee)}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Request Fee:</span>
-                <span className="font-mono font-medium">{formatUGX(calc.requestFee)}</span>
-              </div>
-              <div className="border-t border-border pt-3 space-y-3">
-                {/* Per Payment Amount */}
-                <div className="p-3 rounded-lg bg-accent/20 border border-accent/30 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    {numberOfPayments} payment{numberOfPayments > 1 ? 's' : ''} of
-                  </p>
-                  <p className="text-xl font-bold text-accent-foreground font-mono">
-                    {formatUGX(Math.ceil(calc.totalRepayment / numberOfPayments))}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    every {Math.floor(calc.durationDays / numberOfPayments)} days
-                  </p>
-                </div>
-                {/* Instalment Breakdown by Period */}
-                <div className="space-y-2 p-3 rounded-lg bg-muted/50 border">
-                  <p className="text-xs font-medium text-muted-foreground">Instalment Breakdown</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: 'Daily', days: 1 },
-                      { label: 'Weekly', days: 7 },
-                      { label: 'Bi-Weekly', days: 14 },
-                      { label: 'Monthly', days: 30 },
-                    ].filter(p => p.days <= calc.durationDays).map((period) => {
-                      const inst = calculateInstalment(calc.totalRepayment, calc.durationDays, period.days);
-                      return (
-                        <div key={period.label} className="p-2 rounded bg-background border text-center">
-                          <p className="text-[10px] text-muted-foreground">{period.label}</p>
-                          <p className="text-sm font-bold font-mono">{formatUGX(inst.amount)}</p>
-                          <p className="text-[10px] text-muted-foreground">× {inst.count} payments</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                {/* Total */}
-                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Total to Repay in {calc.durationDays} days</p>
-                  <p className="text-2xl font-bold text-primary font-mono">{formatUGX(calc.totalRepayment)}</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="space-y-4">
             <h3 className="font-medium">Landlord Details</h3>

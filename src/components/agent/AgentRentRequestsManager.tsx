@@ -371,14 +371,18 @@ export function AgentRentRequestsManager() {
                               <Banknote className="h-3 w-3" />
                               {formatUGX(request.rent_amount)}
                             </Badge>
+                            <Badge variant="outline" className="gap-1 bg-primary/10 text-primary border-primary/30 font-bold">
+                              <Banknote className="h-3 w-3" />
+                              {formatUGX(request.daily_repayment)}/day
+                            </Badge>
                             <Badge variant="outline" className="gap-1">
                               <Calendar className="h-3 w-3" />
                               {request.duration_days} days
                             </Badge>
                           </div>
                           
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {format(new Date(request.created_at), 'MMM d, yyyy h:mm a')}
+                          <p className="text-xs text-primary font-medium mt-1.5">
+                            📅 Repayment starts: {format(new Date(new Date(request.created_at).getTime() + 86400000), 'MMM d, yyyy')}
                           </p>
                         </div>
                         
