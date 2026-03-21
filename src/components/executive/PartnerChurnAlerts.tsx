@@ -43,8 +43,8 @@ export function PartnerChurnAlerts() {
       const risks: ChurnRisk[] = [];
       const withdrawMap = new Map<string, number>();
       (withdrawals || []).forEach(w => {
-        const current = withdrawMap.get(w.investor_id) || 0;
-        withdrawMap.set(w.investor_id, current + (w.amount || 0));
+        const current = withdrawMap.get(w.user_id) || 0;
+        withdrawMap.set(w.user_id, current + (w.amount || 0));
       });
 
       // Group by investor

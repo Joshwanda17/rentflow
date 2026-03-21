@@ -42,7 +42,7 @@ export function PartnerOpsBrief() {
 
   const items = [
     { icon: UserPlus, label: 'New Portfolios (24h)', value: data.newPortfolios, color: 'text-blue-500' },
-    { icon: AlertTriangle, label: 'Pending Approval', value: data.pendingApprovals, color: data.pendingApprovals > 0 ? 'text-amber-500' : 'text-muted-foreground' },
+    { icon: AlertTriangle, label: 'Pending Approval', value: data.pendingApprovals, color: (data.pendingApprovals as number) > 0 ? 'text-amber-500' : 'text-muted-foreground' },
     { icon: CalendarClock, label: 'Maturing in 7 days', value: data.maturingSoon, color: data.maturingSoon > 0 ? 'text-orange-500' : 'text-muted-foreground' },
     { icon: DollarSign, label: 'ROI Paid (24h)', value: data.roiPaid24h > 0 ? `${(data.roiPaid24h / 1e3).toFixed(0)}K` : '0', color: 'text-green-500' },
     { icon: CheckCircle2, label: 'Open Escalations', value: data.openEscalations, color: data.openEscalations > 0 ? 'text-red-500' : 'text-green-500' },

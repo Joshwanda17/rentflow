@@ -90,7 +90,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
-  const { toast } = useToast();
+  
 
   // Fetch all partner portfolios
   const { data: partners, isLoading } = useQuery({

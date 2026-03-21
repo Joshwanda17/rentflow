@@ -32,7 +32,7 @@ export function PartnerCapitalFlow() {
       // Last 14 days capital inflow trend
       const days14 = Array.from({ length: 14 }, (_, i) => {
         const day = startOfDay(subDays(new Date(), 13 - i));
-        const dayStr = format(day, 'yyyy-MM-dd');
+        const dayStr = format(day, 'yyyy-MM-dd') as string;
         const inflow = (portfolios || [])
           .filter(p => p.created_at && format(new Date(p.created_at), 'yyyy-MM-dd') === dayStr)
           .reduce((s, p) => s + (p.investment_amount || 0), 0);
