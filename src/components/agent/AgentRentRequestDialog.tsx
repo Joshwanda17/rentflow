@@ -277,6 +277,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           status: 'pending',
           house_category: houseCategory,
           tenant_no_smartphone: noSmartphone,
+          request_latitude: gpsLocation?.lat ?? null,
+          request_longitude: gpsLocation?.lng ?? null,
         });
 
       if (requestError) throw requestError;
