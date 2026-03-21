@@ -191,27 +191,30 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     // Get referral agent ID from localStorage
     const agentId = localStorage.getItem('referral_agent_id');
 
-    // Capture GPS location for the request
-    let requestLat: number | null = null;
-    let requestLon: number | null = null;
+    // Use manually captured GPS if available, otherwise try auto-capture
+    let requestLat: number | null = propertyGps?.lat ?? null;
+    let requestLon: number | null = propertyGps?.lng ?? null;
     let requestCity: string | null = null;
     let requestCountry: string | null = null;
     
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 60000,
+    if (!requestLat) {
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 60000,
+          });
         });
-      });
-      requestLat = position.coords.latitude;
-      requestLon = position.coords.longitude;
-      if (requestLat >= -1.5 && requestLat <= 4.2 && requestLon >= 29.5 && requestLon <= 35.0) {
-        requestCountry = 'Uganda';
+        requestLat = position.coords.latitude;
+        requestLon = position.coords.longitude;
+      } catch (locErr) {
+        console.warn('Could not capture location for rent request:', locErr);
       }
-    } catch (locErr) {
-      console.warn('Could not capture location for rent request:', locErr);
+    }
+    
+    if (requestLat && requestLon && requestLat >= -1.5 && requestLat <= 4.2 && requestLon >= 29.5 && requestLon <= 35.0) {
+      requestCountry = 'Uganda';
     }
 
     // Create rent request with number_of_payments and tenant meters
