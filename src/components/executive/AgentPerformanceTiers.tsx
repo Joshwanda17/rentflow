@@ -66,19 +66,19 @@ export function AgentPerformanceTiers() {
       ]);
 
       const nameMap: Record<string, string> = {};
-      (profilesRes.data || []).forEach(p => { nameMap[p.id] = p.full_name; });
+      profilesData.forEach((p: any) => { nameMap[p.id] = p.full_name; });
 
       const earningsMap: Record<string, number> = {};
-      (earningsRes.data || []).forEach(e => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
+      earningsData.forEach((e: any) => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
 
       const collectionsMap: Record<string, number> = {};
-      (collectionsRes.data || []).forEach(c => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
+      collectionsData.forEach((c: any) => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
 
       const visitsMap: Record<string, number> = {};
-      (visitsRes.data || []).forEach(v => { visitsMap[v.agent_id] = (visitsMap[v.agent_id] || 0) + 1; });
+      visitsData.forEach((v: any) => { visitsMap[v.agent_id] = (visitsMap[v.agent_id] || 0) + 1; });
 
       const referralsMap: Record<string, number> = {};
-      (referralsRes.data || []).forEach(r => {
+      referralsData.forEach((r: any) => {
         if (r.created_by) referralsMap[r.created_by] = (referralsMap[r.created_by] || 0) + 1;
       });
 
