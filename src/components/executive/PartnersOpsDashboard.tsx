@@ -244,6 +244,12 @@ export function PartnersOpsDashboard() {
         }} title="New Account for Partner">
           <Plus className="h-3.5 w-3.5" />
         </Button>
+        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300" onClick={(e) => {
+          e.stopPropagation();
+          setMaturityAccount(row);
+        }} title="Change Maturity Date">
+          <CalendarClock className="h-3.5 w-3.5" />
+        </Button>
       </div>
     )},
   ];
