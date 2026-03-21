@@ -274,6 +274,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
           </motion.div>
 
+          {/* Verification Checklist */}
+          <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
+
           {/* Subscription Status */}
           <SubscriptionStatusCard userId={user.id} />
 

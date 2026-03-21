@@ -169,6 +169,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             </div>
           </div>
 
+          {/* Verification Checklist */}
+          <VerificationChecklist userId={user.id} highlightRole="landlord" compact />
+
           {/* Credit Access */}
           <CreditAccessCard userId={user.id} />
 

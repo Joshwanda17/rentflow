@@ -399,6 +399,8 @@ export default function SupporterDashboard({
             <AiIdButton variant="compact" />
           </div>
 
+          <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
+
           <MerchantCodePills />
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}

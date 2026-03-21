@@ -249,6 +249,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         </button>
 
+        {/* Verification Checklist */}
+        <VerificationChecklist userId={user.id} highlightRole="agent" compact />
+
         {/* Action Insights: Daily Rent, Forecast, Streak, Priority Queue */}
         <AgentActionInsights agentId={user.id} />
 
