@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle, Pencil, PlusCircle, Plus, RefreshCw, Zap, Bell, CheckCircle2 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle, Pencil, PlusCircle, Plus, RefreshCw, Zap, Bell, CheckCircle2, CalendarClock } from 'lucide-react';
+import { format, formatDistanceToNow, addMonths } from 'date-fns';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ROIPaymentHistory } from './ROIPaymentHistory';
 import { Separator } from '@/components/ui/separator';
@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EditInvestmentAccountDialog } from '@/components/manager/EditInvestmentAccountDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
+import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -28,6 +29,8 @@ export function PartnersOpsDashboard() {
   const [createForUser, setCreateForUser] = useState<{ id: string; name: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState(false);
+  const [maturityAccount, setMaturityAccount] = useState<any>(null);
+  const autoRenewedRef = useRef(false);
 
   const { data: portfolios, isLoading, refetch } = useQuery({
     queryKey: ['exec-partner-portfolios'],
@@ -74,6 +77,55 @@ export function PartnersOpsDashboard() {
   const activePortfolios = rows.filter(p => p.status === 'active').length;
   const pendingApproval = rows.filter(p => p.status === 'pending_approval').length;
   const openEscalations = (escalations || []).length;
+
+  // ═══ AUTO-RENEW MATURED PORTFOLIOS ═══
+  useEffect(() => {
+    if (autoRenewedRef.current || !portfolios || portfolios.length === 0) return;
+    const matured = portfolios.filter(p => p.status === 'matured');
+    if (matured.length === 0) return;
+
+    autoRenewedRef.current = true;
+
+    const autoRenew = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      let renewed = 0;
+
+      for (const p of matured) {
+        const newMaturity = format(addMonths(new Date(), p.duration_months || 12), 'yyyy-MM-dd');
+
+        // Update portfolio to active with new maturity
+        const { error } = await supabase.from('investor_portfolios')
+          .update({ status: 'active', maturity_date: newMaturity })
+          .eq('id', p.id);
+
+        if (!error) {
+          // Log renewal in history (preserves old data)
+          await supabase.from('portfolio_renewals').insert({
+            portfolio_id: p.id,
+            renewed_by: user?.id || 'system',
+            reason: 'Auto-renewed on maturity (system)',
+            old_maturity_date: p.maturity_date,
+            new_maturity_date: newMaturity,
+            old_created_at: p.created_at,
+            new_created_at: new Date().toISOString(),
+            old_duration_months: p.duration_months || 12,
+            new_duration_months: p.duration_months || 12,
+            old_roi_percentage: p.roi_percentage,
+            new_roi_percentage: p.roi_percentage,
+            top_up_amount: 0,
+          });
+          renewed++;
+        }
+      }
+
+      if (renewed > 0) {
+        toast({ title: `${renewed} matured portfolio(s) auto-renewed`, description: 'History preserved in renewal records' });
+        refetch();
+      }
+    };
+
+    autoRenew();
+  }, [portfolios]);
 
   const toggleAutoReinvest = async (id: string, current: boolean) => {
     const { error } = await supabase.from('investor_portfolios')
@@ -191,6 +243,12 @@ export function PartnersOpsDashboard() {
           setCreateOpen(true);
         }} title="New Account for Partner">
           <Plus className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300" onClick={(e) => {
+          e.stopPropagation();
+          setMaturityAccount(row);
+        }} title="Change Maturity Date">
+          <CalendarClock className="h-3.5 w-3.5" />
         </Button>
       </div>
     )},
@@ -316,6 +374,7 @@ export function PartnersOpsDashboard() {
       <EditInvestmentAccountDialog open={!!editAccount} onOpenChange={(v) => { if (!v) setEditAccount(null); }} account={editAccount} onSuccess={() => refetch()} />
       <FundInvestmentAccountDialog open={!!fundAccount} onOpenChange={(v) => { if (!v) setFundAccount(null); }} account={fundAccount} onSuccess={() => refetch()} />
       <CreateInvestmentAccountDialog open={createOpen} onOpenChange={setCreateOpen} onSuccess={() => refetch()} prefillInvestorId={createForUser?.id} prefillInvestorName={createForUser?.name} />
+      <ChangeMaturityDateDialog open={!!maturityAccount} onOpenChange={(v) => { if (!v) setMaturityAccount(null); }} portfolio={maturityAccount} onSuccess={() => refetch()} />
     </div>
   );
 }
