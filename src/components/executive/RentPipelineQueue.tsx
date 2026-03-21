@@ -481,10 +481,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 <div className="space-y-0.5 col-span-2">
                   <p className="text-xs text-muted-foreground">Assigned Agent</p>
                   <p className="font-semibold">{selectedRequest.assigned_agent_name || selectedRequest.agent_name || 'No Agent'}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-xs text-muted-foreground">{selectedRequest.agent_phone}</span>
                     <WhatsAppButton phone={selectedRequest.agent_phone} name={selectedRequest.assigned_agent_name || selectedRequest.agent_name} label="WhatsApp" />
                   </div>
+                  {selectedRequest.agent_email && (
+                    <p className="text-xs text-muted-foreground mt-0.5">✉️ {selectedRequest.agent_email}</p>
+                  )}
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Rent Amount</p>
