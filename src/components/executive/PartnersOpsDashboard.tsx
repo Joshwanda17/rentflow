@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle, Pencil, PlusCircle, Plus, RefreshCw, Zap, Bell, CheckCircle2 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle, Pencil, PlusCircle, Plus, RefreshCw, Zap, Bell, CheckCircle2, CalendarClock } from 'lucide-react';
+import { format, formatDistanceToNow, addMonths } from 'date-fns';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ROIPaymentHistory } from './ROIPaymentHistory';
 import { Separator } from '@/components/ui/separator';
@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EditInvestmentAccountDialog } from '@/components/manager/EditInvestmentAccountDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
+import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
