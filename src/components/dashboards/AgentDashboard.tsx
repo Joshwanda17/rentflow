@@ -64,6 +64,8 @@ import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
+import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
+import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { staggerDelay } from '@/lib/cssAnimations';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
