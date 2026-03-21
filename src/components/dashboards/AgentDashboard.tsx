@@ -138,6 +138,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [applyingToSell, setApplyingToSell] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
+  const [shareLinkOpen, setShareLinkOpen] = useState(false);
 
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
