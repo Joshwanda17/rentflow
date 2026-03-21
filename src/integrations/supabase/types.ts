@@ -3731,6 +3731,7 @@ export type Database = {
           fund_routed_at: string | null
           funded_at: string | null
           house_category: string | null
+          house_image_urls: string[] | null
           id: string
           landlord_id: string
           landlord_ops_reviewed_at: string | null
@@ -3789,6 +3790,7 @@ export type Database = {
           fund_routed_at?: string | null
           funded_at?: string | null
           house_category?: string | null
+          house_image_urls?: string[] | null
           id?: string
           landlord_id: string
           landlord_ops_reviewed_at?: string | null
@@ -3847,6 +3849,7 @@ export type Database = {
           fund_routed_at?: string | null
           funded_at?: string | null
           house_category?: string | null
+          house_image_urls?: string[] | null
           id?: string
           landlord_id?: string
           landlord_ops_reviewed_at?: string | null
