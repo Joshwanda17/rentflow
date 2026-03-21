@@ -376,6 +376,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
+      <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
 
       <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
     </div>
