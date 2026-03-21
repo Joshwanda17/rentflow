@@ -7,6 +7,10 @@ import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle,
 import { format, formatDistanceToNow, addMonths } from 'date-fns';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ROIPaymentHistory } from './ROIPaymentHistory';
+import { PartnerDirectory } from './PartnerDirectory';
+import { PartnerCapitalFlow } from './PartnerCapitalFlow';
+import { PartnerOpsBrief } from './PartnerOpsBrief';
+import { PartnerChurnAlerts } from './PartnerChurnAlerts';
 import { Separator } from '@/components/ui/separator';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -321,6 +325,9 @@ export function PartnersOpsDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Daily Brief */}
+      <PartnerOpsBrief />
+
       <PendingWalletOperationsWidget />
 
       {/* ═══ ESCALATION ALERTS ═══ */}
@@ -435,6 +442,15 @@ export function PartnersOpsDashboard() {
         <Badge variant="outline" className="ml-auto gap-1 text-[10px] text-success border-success/30">
           <Zap className="h-3 w-3" /> Auto-payout active
         </Badge>
+      </div>
+
+      {/* Partner Directory — PROMINENT */}
+      <PartnerDirectory />
+
+      {/* Capital Flow & Churn */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <PartnerCapitalFlow />
+        <PartnerChurnAlerts />
       </div>
 
       <ExecutiveDataTable
