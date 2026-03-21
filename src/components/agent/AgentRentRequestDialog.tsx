@@ -307,7 +307,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       const tenantId = tenantResult.user_id;
 
       // Create rent request with agent_id
-      const { error: requestError } = await supabase
+      const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
           tenant_id: tenantId,
@@ -325,9 +325,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           tenant_no_smartphone: noSmartphone,
           request_latitude: gpsLocation?.lat ?? null,
           request_longitude: gpsLocation?.lng ?? null,
-        });
+        })
+        .select('id')
+        .single();
 
       if (requestError) throw requestError;
+
+      // Upload house photos if any
+      if (housePhotos.length > 0 && rentReq?.id) {
+        const photoUrls = await uploadHousePhotos(rentReq.id);
+        if (photoUrls.length > 0) {
+          await supabase
+            .from('rent_requests')
+            .update({ house_image_urls: photoUrls })
+            .eq('id', rentReq.id);
+        }
+      }
 
       // Build activation link if tenant is new
       if (!tenantResult.existing && tenantResult.activation_token) {
