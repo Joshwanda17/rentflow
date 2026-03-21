@@ -38,6 +38,7 @@ import { SupporterAgreementViewModal } from '@/components/supporter/agreement/Su
 // Menu drawer
 import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { hapticTap } from '@/lib/haptics';
 // motion removed — static rendering for low-end devices
 
