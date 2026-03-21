@@ -6,6 +6,10 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { AgentDirectory } from './AgentDirectory';
+import { AgentPerformanceTiers } from './AgentPerformanceTiers';
+import { AgentLifecyclePipeline } from './AgentLifecyclePipeline';
+import { AgentOpsBrief } from './AgentOpsBrief';
+import { AgentAlertFeed } from './AgentAlertFeed';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Users, Banknote, DollarSign } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -34,7 +38,6 @@ export function AgentOpsDashboard() {
     staleTime: 600000,
   });
 
-  // Fetch agent profiles with full details
   const agentIds = [...new Set([...(earnings || []).map(e => e.agent_id), ...(commissions || []).map(c => c.agent_id)])];
   const { data: agentProfiles } = useQuery({
     queryKey: ['exec-agent-profiles-full', agentIds.sort().join(',')],
@@ -102,12 +105,26 @@ export function AgentOpsDashboard() {
     <div className="space-y-6">
       <RentPipelineQueue stage="tenant_ops_approved" />
 
+      {/* Daily Brief */}
+      <AgentOpsBrief />
+
+      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <KPICard title="Active Agents" value={uniqueAgents} icon={Users} loading={isLoading} />
         <KPICard title="Total Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
         <KPICard title="Commissions Paid" value={fmt(totalCommissions)} icon={DollarSign} color="bg-blue-500/10 text-blue-600" />
       </div>
 
+      {/* Performance & Lifecycle */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AgentPerformanceTiers />
+        <AgentLifecyclePipeline />
+      </div>
+
+      {/* Alerts */}
+      <AgentAlertFeed />
+
+      {/* Leaderboard & Earnings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3">🏆 Agent Leaderboard</h3>
@@ -149,8 +166,10 @@ export function AgentOpsDashboard() {
         </div>
       </div>
 
+      {/* Agent Directory */}
       <AgentDirectory />
 
+      {/* Tenant Transfer */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <TenantTransferPanel />
       </div>
