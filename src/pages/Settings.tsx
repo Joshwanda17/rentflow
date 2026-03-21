@@ -803,11 +803,13 @@ export default function Settings() {
 
 /* ===== Reusable Sub-components ===== */
 
-function SectionHeader({ icon: Icon, label }: { icon: typeof User; label: string }) {
+function SectionHeader({ icon: Icon, label, color = 'primary' }: { icon: typeof User; label: string; color?: string }) {
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <Icon className="h-4 w-4 text-primary" />
-      <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{label}</h2>
+    <div className="flex items-center gap-2.5 mb-4">
+      <div className={cn("p-2 rounded-xl", `bg-${color}/10`)}>
+        <Icon className={cn("h-4 w-4", `text-${color}`)} />
+      </div>
+      <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{label}</h2>
     </div>
   );
 }
