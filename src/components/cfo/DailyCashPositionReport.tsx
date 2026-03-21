@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Loader2, TrendingUp, TrendingDown, ArrowRight, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
