@@ -248,8 +248,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
         </button>
 
-        {/* Total Daily Rent Expected */}
-        <DailyRentExpectedCard userId={user.id} />
+        {/* Action Insights: Daily Rent, Forecast, Streak, Priority Queue */}
+        <AgentActionInsights agentId={user.id} />
 
         {/* 5 Key Action Buttons + Hub */}
         <div className="grid grid-cols-3 gap-2 animate-fade-in">
