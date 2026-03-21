@@ -327,6 +327,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onListEmptyHouse={() => { setMenuOpen(false); setListHouseOpen(true); }}
         onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
+        onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
       />
 
       {/* Existing Dialogs */}
