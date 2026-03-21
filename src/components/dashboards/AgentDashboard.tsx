@@ -255,12 +255,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
 
-        {/* Recruit Sub-Agents CTA */}
-        <RecruitSubAgentCTA
-          onRegister={() => setInviteSubAgentOpen(true)}
-          onViewSubAgents={() => setSubAgentsSheetOpen(true)}
-          onShareLink={() => setShareLinkOpen(true)}
-        />
 
         {/* Action Insights: Daily Rent, Forecast, Streak, Priority Queue */}
         <AgentActionInsights agentId={user.id} />
@@ -333,6 +327,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onListEmptyHouse={() => { setMenuOpen(false); setListHouseOpen(true); }}
         onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
+        onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
       />
 
       {/* Existing Dialogs */}

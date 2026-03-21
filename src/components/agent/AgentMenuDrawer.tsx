@@ -66,6 +66,7 @@ interface AgentMenuDrawerProps {
   onListEmptyHouse?: () => void;
   onViewMyListings?: () => void;
   onViewSubAgents?: () => void;
+  onShareSubAgentLink?: () => void;
 }
 
 interface MenuItem {
@@ -106,6 +107,7 @@ export function AgentMenuDrawer({
   onListEmptyHouse,
   onViewMyListings,
   onViewSubAgents,
+  onShareSubAgentLink,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('actions');
@@ -139,8 +141,6 @@ export function AgentMenuDrawer({
         { icon: Receipt, label: 'Issue Receipt', description: 'Record cash payment', onClick: onIssueReceipt, accent: 'amber-500', badge: 'New' },
         { icon: Wallet, label: 'Top Up Wallet', description: 'Deposit to tenant wallet', onClick: onTopUpTenant, accent: 'emerald-500' },
         { icon: HandCoins, label: 'Invest for Partner', description: 'Proxy investment', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
-        { icon: Handshake, label: 'Sub-Agent', description: 'Register sub-agent', onClick: onInviteSubAgent, accent: 'amber-500' },
-        { icon: Users, label: 'My Sub-Agents', description: 'View agents you cover', onClick: onViewSubAgents, accent: 'orange-500' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
@@ -167,7 +167,9 @@ export function AgentMenuDrawer({
         { icon: ScrollText, label: 'Rent Requests', description: 'Verify your posted requests', onClick: onViewMyRentRequests, accent: 'indigo-500' },
         { icon: Calendar, label: 'Schedules', description: 'PDF & WhatsApp', onClick: onViewMyRentRequests, accent: 'primary', badge: 'PDF' },
         { icon: History, label: 'Proxy History', description: 'Partner investments', onClick: onViewProxyHistory, accent: 'emerald-500' },
-        { icon: Users, label: 'Sub-Agents', description: 'Manage your team', path: '/sub-agents', accent: 'blue-500' },
+        { icon: Handshake, label: 'Register Sub-Agent', description: 'Add to your team', onClick: onInviteSubAgent, accent: 'amber-500', badge: '500' },
+        { icon: Users, label: 'My Sub-Agents', description: 'View your team', onClick: onViewSubAgents, accent: 'orange-500' },
+        { icon: Share2, label: 'Share Recruit Link', description: 'WhatsApp / Copy link', onClick: onShareSubAgentLink, accent: 'green-500', badge: '🔗' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
@@ -309,6 +311,44 @@ export function AgentMenuDrawer({
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.15 }}
                 >
+                  {/* Build Your Team CTA — visible in People tab */}
+                  {activeCategory === 'people' && (
+                    <div className="mb-3 rounded-2xl border-2 border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-3">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="p-2 rounded-xl bg-amber-500/20">
+                          <Users className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm">Build Your Team 🚀</p>
+                          <p className="text-[10px] text-muted-foreground">Earn <span className="font-bold text-amber-600">UGX 500</span> per signup + <span className="font-bold text-amber-600">1%</span> of their collections</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          onClick={() => { hapticSuccess(); onInviteSubAgent(); onOpenChange(false); }}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 transition-all touch-manipulation"
+                        >
+                          <Handshake className="h-4 w-4 text-amber-600" />
+                          <span className="text-[9px] font-semibold text-amber-700">Register</span>
+                        </button>
+                        <button
+                          onClick={() => { hapticSuccess(); if (onViewSubAgents) onViewSubAgents(); onOpenChange(false); }}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 transition-all touch-manipulation"
+                        >
+                          <Users className="h-4 w-4 text-orange-600" />
+                          <span className="text-[9px] font-semibold text-orange-700">My Team</span>
+                        </button>
+                        <button
+                          onClick={() => { hapticSuccess(); if (onShareSubAgentLink) onShareSubAgentLink(); onOpenChange(false); }}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl bg-green-500/15 hover:bg-green-500/25 active:scale-95 transition-all touch-manipulation"
+                        >
+                          <Share2 className="h-4 w-4 text-green-600" />
+                          <span className="text-[9px] font-semibold text-green-700">Share Link</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Icon Grid */}
                   <div className="grid grid-cols-3 gap-2.5">
                     {activeCat.items.map((item, idx) => {
