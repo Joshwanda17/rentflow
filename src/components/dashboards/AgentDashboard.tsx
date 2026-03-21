@@ -64,6 +64,8 @@ import { ListEmptyHouseDialog } from '@/components/agent/ListEmptyHouseDialog';
 import { AgentListingsSheet } from '@/components/agent/AgentListingsSheet';
 import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
+import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
+import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { staggerDelay } from '@/lib/cssAnimations';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
@@ -136,6 +138,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [applyingToSell, setApplyingToSell] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
+  const [shareLinkOpen, setShareLinkOpen] = useState(false);
 
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
@@ -252,6 +255,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
 
+        {/* Recruit Sub-Agents CTA */}
+        <RecruitSubAgentCTA
+          onRegister={() => setInviteSubAgentOpen(true)}
+          onViewSubAgents={() => setSubAgentsSheetOpen(true)}
+          onShareLink={() => setShareLinkOpen(true)}
+        />
+
         {/* Action Insights: Daily Rent, Forecast, Streak, Priority Queue */}
         <AgentActionInsights agentId={user.id} />
 
@@ -366,6 +376,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
+      <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
 
       <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
     </div>
