@@ -78,6 +78,55 @@ export function PartnersOpsDashboard() {
   const pendingApproval = rows.filter(p => p.status === 'pending_approval').length;
   const openEscalations = (escalations || []).length;
 
+  // ═══ AUTO-RENEW MATURED PORTFOLIOS ═══
+  useEffect(() => {
+    if (autoRenewedRef.current || !portfolios || portfolios.length === 0) return;
+    const matured = portfolios.filter(p => p.status === 'matured');
+    if (matured.length === 0) return;
+
+    autoRenewedRef.current = true;
+
+    const autoRenew = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      let renewed = 0;
+
+      for (const p of matured) {
+        const newMaturity = format(addMonths(new Date(), p.duration_months || 12), 'yyyy-MM-dd');
+
+        // Update portfolio to active with new maturity
+        const { error } = await supabase.from('investor_portfolios')
+          .update({ status: 'active', maturity_date: newMaturity })
+          .eq('id', p.id);
+
+        if (!error) {
+          // Log renewal in history (preserves old data)
+          await supabase.from('portfolio_renewals').insert({
+            portfolio_id: p.id,
+            renewed_by: user?.id || 'system',
+            reason: 'Auto-renewed on maturity (system)',
+            old_maturity_date: p.maturity_date,
+            new_maturity_date: newMaturity,
+            old_created_at: p.created_at,
+            new_created_at: new Date().toISOString(),
+            old_duration_months: p.duration_months || 12,
+            new_duration_months: p.duration_months || 12,
+            old_roi_percentage: p.roi_percentage,
+            new_roi_percentage: p.roi_percentage,
+            top_up_amount: 0,
+          });
+          renewed++;
+        }
+      }
+
+      if (renewed > 0) {
+        toast({ title: `${renewed} matured portfolio(s) auto-renewed`, description: 'History preserved in renewal records' });
+        refetch();
+      }
+    };
+
+    autoRenew();
+  }, [portfolios]);
+
   const toggleAutoReinvest = async (id: string, current: boolean) => {
     const { error } = await supabase.from('investor_portfolios')
       .update({ auto_reinvest: !current }).eq('id', id);
