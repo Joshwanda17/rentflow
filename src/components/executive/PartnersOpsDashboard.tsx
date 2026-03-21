@@ -7,6 +7,10 @@ import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle,
 import { format, formatDistanceToNow, addMonths } from 'date-fns';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ROIPaymentHistory } from './ROIPaymentHistory';
+import { PartnerDirectory } from './PartnerDirectory';
+import { PartnerCapitalFlow } from './PartnerCapitalFlow';
+import { PartnerOpsBrief } from './PartnerOpsBrief';
+import { PartnerChurnAlerts } from './PartnerChurnAlerts';
 import { Separator } from '@/components/ui/separator';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
