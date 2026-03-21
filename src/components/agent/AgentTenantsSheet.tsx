@@ -43,7 +43,7 @@ interface AgentTenantsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type FilterTab = 'all' | 'owing' | 'active' | 'cleared' | 'new';
+type FilterTab = 'all' | 'owing' | 'active' | 'cleared' | 'new' | 'no-phone';
 type SortMode = 'balance' | 'name' | 'recent';
 
 function buildScheduleDays(startDate: string, durationDays: number) {
