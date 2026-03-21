@@ -416,9 +416,102 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
-              {/* Tenant Section */}
+              {/* ===== 1. RENT DETAILS — PRIMARY SECTION (Purple Hero) ===== */}
+              <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
+                <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-primary/20">
+                    <Calculator className="h-5 w-5 text-primary" />
+                  </div>
+                  💰 Rent Details
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-primary/80">Rent Amount (UGX) *</Label>
+                    <Input
+                      value={rentAmount}
+                      onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="500,000"
+                      className="h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-primary/80">
+                      {incomeType === 'daily' ? 'Duration' : 'Repayment Period'} *
+                    </Label>
+                    {incomeType === 'daily' ? (
+                      <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
+                        <SelectTrigger className="h-12 text-base font-semibold border-2 border-primary/30 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 Days</SelectItem>
+                          <SelectItem value="60">60 Days</SelectItem>
+                          <SelectItem value="90">90 Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
+                        <SelectTrigger className="h-12 text-base font-semibold border-2 border-primary/30 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="7">7 Days</SelectItem>
+                          <SelectItem value="14">14 Days</SelectItem>
+                          <SelectItem value="21">21 Days</SelectItem>
+                          <SelectItem value="30">30 Days</SelectItem>
+                          <SelectItem value="120">120 Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Daily Repayment Hero Card */}
+                {fees && (
+                  <div className="space-y-2">
+                    <div className="p-4 rounded-2xl bg-primary/20 border-2 border-primary/40 text-center">
+                      <p className="text-xs text-primary/70 font-medium mb-1">Daily Repayment</p>
+                      <p className="text-3xl font-black text-primary font-mono">{formatUGX(fees.dailyRepayment)}</p>
+                      <p className="text-xs text-primary/70 mt-1">per day for {fees.durationDays} days</p>
+                    </div>
+
+                    {/* Repayment Start Date */}
+                    <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+                      <div>
+                        <p className="text-[10px] text-primary/60 font-medium">Repayment starts</p>
+                        <p className="font-bold text-sm text-primary">
+                          {format(addDays(new Date(), 1), 'EEEE, MMMM d, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Fee Breakdown */}
+                    <div className="p-3 rounded-lg bg-background/60 space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Rent Amount</span>
+                        <span className="font-medium">{formatUGX(fees.rentAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Access Fee</span>
+                        <span className="font-medium">{formatUGX(fees.accessFee)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Platform Fee</span>
+                        <span className="font-medium">{formatUGX(fees.requestFee)}</span>
+                      </div>
+                      <Separator className="my-1" />
+                      <div className="flex justify-between text-sm">
+                        <span className="font-semibold">Total Repayment</span>
+                        <span className="font-bold text-primary">{formatUGX(fees.totalRepayment)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* ===== 2. TENANT DETAILS ===== */}
               <div className="space-y-3">
-              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <User className="h-3 w-3" />
                   Tenant Details
                 </h4>
@@ -476,7 +569,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
               <Separator />
 
-              {/* House Category */}
+              {/* ===== 3. HOUSE CATEGORY ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Home className="h-3 w-3" />
@@ -498,81 +591,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
               <Separator />
 
-              {/* Rent Amount & Duration */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <Calculator className="h-3 w-3" />
-                  Rent Details
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Rent Amount (UGX) *</Label>
-                    <Input
-                      value={rentAmount}
-                      onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="500000"
-                      className="h-10"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">
-                      {incomeType === 'daily' ? 'Duration' : 'Repayment Period'} *
-                    </Label>
-                    {incomeType === 'daily' ? (
-                      <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
-                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="30">30 Days</SelectItem>
-                          <SelectItem value="60">60 Days</SelectItem>
-                          <SelectItem value="90">90 Days</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
-                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="7">7 Days</SelectItem>
-                          <SelectItem value="14">14 Days</SelectItem>
-                          <SelectItem value="21">21 Days</SelectItem>
-                          <SelectItem value="30">30 Days</SelectItem>
-                          <SelectItem value="120">120 Days</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                </div>
-                
-                {fees && (
-                  <div className="p-3 rounded-lg bg-primary/10 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Rent Amount</span>
-                      <span className="font-medium">{formatUGX(fees.rentAmount)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Access Fee</span>
-                      <span className="font-medium">{formatUGX(fees.accessFee)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Platform Fee</span>
-                      <span className="font-medium">{formatUGX(fees.requestFee)}</span>
-                    </div>
-                    <Separator className="my-1" />
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium">Total Repayment</span>
-                      <span className="font-bold text-primary">{formatUGX(fees.totalRepayment)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Daily Payment</span>
-                      <span className="font-medium">{formatUGX(fees.dailyRepayment)}/day</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Landlord Section */}
+              {/* ===== 4. LANDLORD DETAILS ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Building2 className="h-3 w-3" />
@@ -616,7 +635,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
               <Separator />
 
-              {/* LC1 Section */}
+              {/* ===== 5. LC1 DETAILS ===== */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <Users className="h-3 w-3" />
