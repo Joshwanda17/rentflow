@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { RentPipelineQueue } from './RentPipelineQueue';
+import { ApprovalHistoryLog } from './ApprovalHistoryLog';
 import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -60,6 +61,8 @@ export function TenantOpsDashboard() {
         <KPICard title="Fully Repaid" value={fullyRepaid} icon={CheckCircle2} loading={isLoading} color="bg-emerald-500/10 text-emerald-600" />
         <KPICard title="Defaulted" value={defaulted} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
       </div>
+
+      <ApprovalHistoryLog />
 
       <ExecutiveDataTable
         data={rows}
