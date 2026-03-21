@@ -403,6 +403,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const isLoadingThis = loadingRequests === tenant.id;
               const balance = tenantBalances[tenant.id] || 0;
               const hasDebt = balance > 0;
+              const isNoSmartphone = noSmartphoneMap[tenant.id] || false;
+
+              // Format phone for WhatsApp check (wa.me link)
+              const formatPhoneForWA = (phone: string) => {
+                let clean = phone.replace(/\D/g, '');
+                if (clean.startsWith('0')) clean = '256' + clean.slice(1);
+                if (!clean.startsWith('256')) clean = '256' + clean;
+                return clean;
+              };
+              const waPhone = formatPhoneForWA(tenant.phone);
+              const waCheckUrl = `https://wa.me/${waPhone}`;
+              const appLink = `${getPublicOrigin()}/activate?ref=${user?.id}`;
 
               return (
                 <motion.div
