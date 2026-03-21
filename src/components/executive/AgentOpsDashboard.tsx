@@ -41,7 +41,7 @@ export function AgentOpsDashboard() {
       if (agentIds.length === 0) return {};
       const { data } = await supabase.from('profiles')
         .select('id, full_name, phone, email, avatar_url, verified, created_at, territory')
-        .in('id', agentIds.slice(0, 50));
+        .in('id', agentIds);
       const map: Record<string, any> = {};
       (data || []).forEach(p => { map[p.id] = p; });
       return map;
