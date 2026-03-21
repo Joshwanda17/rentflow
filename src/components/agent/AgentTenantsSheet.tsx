@@ -413,7 +413,6 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 return clean;
               };
               const waPhone = formatPhoneForWA(tenant.phone);
-              const waCheckUrl = `https://wa.me/${waPhone}`;
               const appLink = `${getPublicOrigin()}/activate?ref=${user?.id}`;
 
               return (
