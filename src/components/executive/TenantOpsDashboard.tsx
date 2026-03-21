@@ -62,6 +62,8 @@ export function TenantOpsDashboard() {
         <KPICard title="Defaulted" value={defaulted} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
       </div>
 
+      <ApprovalHistoryLog />
+
       <ExecutiveDataTable
         data={rows}
         columns={columns}
