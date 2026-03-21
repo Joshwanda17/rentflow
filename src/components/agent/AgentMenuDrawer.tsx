@@ -107,6 +107,7 @@ export function AgentMenuDrawer({
   onListEmptyHouse,
   onViewMyListings,
   onViewSubAgents,
+  onShareSubAgentLink,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('actions');
