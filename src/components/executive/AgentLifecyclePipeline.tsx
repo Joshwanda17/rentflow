@@ -23,24 +23,12 @@ export function AgentLifecyclePipeline() {
   const { data: pipeline, isLoading } = useQuery({
     queryKey: ['agent-lifecycle-pipeline'],
     queryFn: async () => {
-      // Get all agents
-      const { data: roles } = await supabase.from('user_roles').select('user_id').eq('role', 'agent');
-      const agentIds = (roles || []).map(r => r.user_id);
+      const agentIds = await fetchAllAgentIds();
       if (agentIds.length === 0) return { new: 0, active: 0, top: 0, idle: 0, dormant: 0, total: 0 };
 
-      const BATCH = 50;
-      const batchIn = async <T,>(fn: (b: string[]) => Promise<{ data: T[] | null }>): Promise<T[]> => {
-        const r: T[] = [];
-        for (let i = 0; i < agentIds.length; i += BATCH) {
-          const { data } = await fn(agentIds.slice(i, i + BATCH));
-          if (data) r.push(...data);
-        }
-        return r;
-      };
-
       const [profiles, earnings] = await Promise.all([
-        batchIn<any>(async b => supabase.from('profiles').select('id, last_active_at, created_at').in('id', b)),
-        batchIn<any>(async b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
+        batchedQuery<any>(agentIds, b => supabase.from('profiles').select('id, last_active_at, created_at').in('id', b)),
+        batchedQuery<any>(agentIds, b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
       ]);
 
       const earningsMap: Record<string, number> = {};
