@@ -199,7 +199,8 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, video, onV
   );
 }
 
-
+/** Upload images to storage and return public URLs */
+export async function uploadHouseImages(
   userId: string,
   listingId: string,
   files: File[]
@@ -225,3 +226,26 @@ export function HouseImageUploader({ images, onChange, maxImages = 5, video, onV
 
   return urls;
 }
+
+/** Upload a video to storage and return public URL */
+export async function uploadHouseVideo(
+  userId: string,
+  listingId: string,
+  file: File
+): Promise<string | null> {
+  const ext = file.name.split('.').pop() || 'mp4';
+  const path = `${userId}/${listingId}/${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('house-videos')
+    .upload(path, file, { cacheControl: '3600', upsert: false });
+
+  if (error) {
+    console.error('Video upload error:', error);
+    return null;
+  }
+
+  const { data } = supabase.storage.from('house-videos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
