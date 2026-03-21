@@ -9,6 +9,26 @@ import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+// Helper to batch large IN queries to avoid URL length limits
+async function batchedIn<T>(
+  table: string,
+  filterCol: string,
+  ids: string[],
+  selectCols: string,
+  batchSize = 50
+): Promise<T[]> {
+  const results: T[] = [];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const { data } = await supabase
+      .from(table)
+      .select(selectCols)
+      .in(filterCol, batch);
+    if (data) results.push(...(data as T[]));
+  }
+  return results;
+}
+
 interface AgentRow {
   id: string;
   full_name: string;
