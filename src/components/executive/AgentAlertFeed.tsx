@@ -93,14 +93,12 @@ export function AgentAlertFeed() {
 
       // 3. Dormant agents (no activity in 30+ days) — sample
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-      const { data: dormantRoles } = await supabase.from('user_roles')
-        .select('user_id').eq('role', 'agent');
-      const allAgentIds = (dormantRoles || []).map(r => r.user_id);
+      const allAgentIds = await fetchAllAgentIds();
 
       if (allAgentIds.length > 0) {
+        // Only check a sample for dormancy alerts (limit 5)
         const { data: dormantProfiles } = await supabase.from('profiles')
           .select('id, full_name, last_active_at')
-          .in('id', allAgentIds.slice(0, 200))
           .lt('last_active_at', thirtyDaysAgo)
           .limit(5);
 
