@@ -21,12 +21,11 @@ export function PartnerOpsBrief() {
         supabase.from('investor_portfolios').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
         supabase.from('investor_portfolios').select('id').eq('status', 'active')
           .lte('maturity_date', format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd')),
-        supabase.from('supporter_roi_payments').select('amount').gte('payment_date', since),
+        supabase.from('supporter_roi_payments').select('roi_amount').gte('due_date', since).eq('status', 'paid'),
         supabase.from('partner_escalations').select('*', { count: 'exact', head: true }).eq('status', 'open'),
       ]);
 
-      const capitalDeployed24h = 0; // Could be computed from portfolios
-      const roiPaid24h = (recentROI || []).reduce((s, p) => s + (p.amount || 0), 0);
+      const roiPaid24h = (recentROI || []).reduce((s, p) => s + (p.roi_amount || 0), 0);
 
       return {
         newPortfolios: newPortfolios || 0,
