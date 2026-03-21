@@ -499,6 +499,46 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="overflow-hidden border-t border-border"
                       >
                         <div className="p-3 space-y-3 bg-muted/20">
+                          {/* WhatsApp Check & Share Link for no-smartphone tenants */}
+                          {isNoSmartphone && (
+                            <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-2">
+                              <p className="text-xs font-semibold text-warning flex items-center gap-1.5">
+                                📵 This tenant has no smartphone
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                You manage their repayments. Check if they've joined WhatsApp — it means they now have a smartphone!
+                              </p>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-8 flex-1 border-success/30 text-success hover:bg-success/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${tenant.full_name}, this is your agent from Welile. Tap this link to check your rent schedule: ${appLink}`)}`, '_blank');
+                                    toast({ title: 'WhatsApp Check', description: 'If WhatsApp opens, they have a smartphone! Share the app link.' });
+                                  }}
+                                >
+                                  <MessageCircle className="h-3 w-3 mr-1" />
+                                  Check WhatsApp
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-8 flex-1 border-primary/30 text-primary hover:bg-primary/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(appLink);
+                                    toast({ title: 'Link Copied!', description: 'Share this link with the tenant to access their dashboard.' });
+                                  }}
+                                >
+                                  <Share2 className="h-3 w-3 mr-1" />
+                                  Copy App Link
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
                             <Banknote className="h-3 w-3" />
                             Rent Payments
