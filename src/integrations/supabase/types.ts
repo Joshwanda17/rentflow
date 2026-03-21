@@ -993,10 +993,75 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_access_draws: {
+        Row: {
+          access_fee: number
+          agent_id: string | null
+          amount: number
+          amount_repaid: number
+          completed_at: string | null
+          created_at: string
+          daily_charge: number
+          duration_days: number | null
+          duration_months: number
+          expires_at: string
+          id: string
+          monthly_rate: number
+          outstanding_balance: number
+          started_at: string
+          status: string
+          total_payable: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_fee?: number
+          agent_id?: string | null
+          amount: number
+          amount_repaid?: number
+          completed_at?: string | null
+          created_at?: string
+          daily_charge?: number
+          duration_days?: number | null
+          duration_months?: number
+          expires_at: string
+          id?: string
+          monthly_rate?: number
+          outstanding_balance?: number
+          started_at?: string
+          status?: string
+          total_payable?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_fee?: number
+          agent_id?: string | null
+          amount?: number
+          amount_repaid?: number
+          completed_at?: string | null
+          created_at?: string
+          daily_charge?: number
+          duration_days?: number | null
+          duration_months?: number
+          expires_at?: string
+          id?: string
+          monthly_rate?: number
+          outstanding_balance?: number
+          started_at?: string
+          status?: string
+          total_payable?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       credit_access_limits: {
         Row: {
           base_limit: number
+          bonus_from_houses_listed: number
           bonus_from_landlord_rent: number
+          bonus_from_partners_onboarded: number
           bonus_from_ratings: number
           bonus_from_receipts: number
           bonus_from_rent_history: number
@@ -1008,7 +1073,9 @@ export type Database = {
         }
         Insert: {
           base_limit?: number
+          bonus_from_houses_listed?: number
           bonus_from_landlord_rent?: number
+          bonus_from_partners_onboarded?: number
           bonus_from_ratings?: number
           bonus_from_receipts?: number
           bonus_from_rent_history?: number
@@ -1020,7 +1087,9 @@ export type Database = {
         }
         Update: {
           base_limit?: number
+          bonus_from_houses_listed?: number
           bonus_from_landlord_rent?: number
+          bonus_from_partners_onboarded?: number
           bonus_from_ratings?: number
           bonus_from_receipts?: number
           bonus_from_rent_history?: number
@@ -1031,6 +1100,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      credit_draw_ledger: {
+        Row: {
+          agent_deducted: number
+          amount_deducted: number
+          closing_balance: number
+          created_at: string
+          daily_charge: number
+          date: string
+          deduction_status: string
+          draw_id: string
+          id: string
+          opening_balance: number
+        }
+        Insert: {
+          agent_deducted?: number
+          amount_deducted?: number
+          closing_balance?: number
+          created_at?: string
+          daily_charge?: number
+          date: string
+          deduction_status?: string
+          draw_id: string
+          id?: string
+          opening_balance?: number
+        }
+        Update: {
+          agent_deducted?: number
+          amount_deducted?: number
+          closing_balance?: number
+          created_at?: string
+          daily_charge?: number
+          date?: string
+          deduction_status?: string
+          draw_id?: string
+          id?: string
+          opening_balance?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_draw_ledger_draw_id_fkey"
+            columns: ["draw_id"]
+            isOneToOne: false
+            referencedRelation: "credit_access_draws"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       credit_request_details: {
         Row: {
