@@ -34,7 +34,7 @@ export async function fetchAllAgentIds(): Promise<string[]> {
  */
 export async function batchedQuery<T>(
   ids: string[],
-  fn: (batch: string[]) => Promise<{ data: T[] | null }>,
+  fn: (batch: string[]) => PromiseLike<{ data: T[] | null }>,
   batchSize = 50
 ): Promise<T[]> {
   const results: T[] = [];
