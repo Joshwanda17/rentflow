@@ -325,6 +325,9 @@ export function PartnersOpsDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Daily Brief */}
+      <PartnerOpsBrief />
+
       <PendingWalletOperationsWidget />
 
       {/* ═══ ESCALATION ALERTS ═══ */}
