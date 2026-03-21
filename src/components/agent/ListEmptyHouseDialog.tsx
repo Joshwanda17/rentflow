@@ -227,7 +227,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       onSuccess?.();
       onOpenChange(false);
       houseImages.forEach(i => URL.revokeObjectURL(i.previewUrl));
+      if (houseVideo) URL.revokeObjectURL(houseVideo.previewUrl);
       setHouseImages([]);
+      setHouseVideo(null);
       setForm({
         title: '', description: '', house_category: 'single_room',
         number_of_rooms: 1, monthly_rent: '', region: '', district: '',
