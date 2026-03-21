@@ -66,6 +66,7 @@ interface AgentMenuDrawerProps {
   onListEmptyHouse?: () => void;
   onViewMyListings?: () => void;
   onViewSubAgents?: () => void;
+  onShareSubAgentLink?: () => void;
 }
 
 interface MenuItem {
