@@ -145,11 +145,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     for (let i = 0; i < housePhotos.length; i++) {
       try {
         const optimized = await optimizeImage(housePhotos[i].file, { maxWidth: 1200, quality: 0.8 });
-        const ext = optimized.name.split('.').pop() || 'webp';
+        const ext = optimized.file.name.split('.').pop() || 'webp';
         const path = `${user.id}/${requestId}/photo_${i}.${ext}`;
         const { error } = await supabase.storage
           .from('house-images')
-          .upload(path, optimized, { cacheControl: '86400', upsert: false });
+          .upload(path, optimized.file, { cacheControl: '86400', upsert: false });
         if (error) throw error;
         const { data } = supabase.storage.from('house-images').getPublicUrl(path);
         urls.push(data.publicUrl);
