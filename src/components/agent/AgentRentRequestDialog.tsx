@@ -19,8 +19,9 @@ import { Separator } from '@/components/ui/separator';
 import { 
   User, 
   Phone, 
-  MapPin, 
-  Building2, 
+  MapPin,
+  Navigation,
+  Building2,
   Loader2, 
   CheckCircle2, 
   FileText,
