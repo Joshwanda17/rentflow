@@ -227,6 +227,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
             {/* Rent Amount */}
             <div className="space-y-2">
               <Label className="font-bold text-sm">Rent Amount (UGX)</Label>
+              <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
               <Input 
                 value={rentAmount} 
                 onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))} 
