@@ -177,6 +177,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       case 'new':
         list = list.filter(t => new Date(t.created_at) > thirtyDaysAgo);
         break;
+      case 'no-phone':
+        list = list.filter(t => noSmartphoneMap[t.id]);
+        break;
     }
 
     // Apply sort
