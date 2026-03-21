@@ -152,6 +152,13 @@ Deno.serve(async (req) => {
             });
           }
 
+          // SMS to tenant (no-smartphone) about agent payment
+          if (agentAmountCharged > 0 && tenantPhone) {
+            const remaining = Number(charge.charges_remaining) - 1;
+            const sms = `WELILE: Dear ${tenantName}, UGX ${agentAmountCharged.toLocaleString()} has been paid for your rent by your agent. ${remaining > 0 ? `${remaining} payments remaining.` : 'Rent fully paid!'} Access up to UGX 30M with WELILE. Ask your agent!`;
+            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
+          }
+
           results.totalAgentCharged += agentAmountCharged;
           results.totalDebt += debtAdded;
           console.log(`[auto-charge-wallets] ${charge.tenant_id}: ${logStatus} (no-smartphone) - agent:${agentAmountCharged}, debt:${debtAdded}`);
