@@ -270,7 +270,7 @@ Password: ${createdInvite?.password}`;
         </div>
       </div>
 
-      <Button type="submit" className="w-full h-14 text-base font-semibold rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600" disabled={isLoading}>
+      <Button type="submit" className="w-full h-14 text-base font-semibold rounded-xl bg-warning text-warning-foreground hover:bg-warning/90" disabled={isLoading}>
         {isLoading ? (
           <>
             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
