@@ -28,11 +28,11 @@ export function PartnerOpsBrief() {
       const roiPaid24h = (recentROI || []).reduce((s, p) => s + (p.roi_amount || 0), 0);
 
       return {
-        newPortfolios: newPortfolios || 0,
-        pendingApprovals: pendingApprovals || 0,
+        newPortfolios: newPortfoliosRes.count || 0,
+        pendingApprovals: pendingApprovalsRes.count || 0,
         maturingSoon: (maturingSoon || []).length,
         roiPaid24h,
-        openEscalations: escalations || 0,
+        openEscalations: escalationsRes.count || 0,
       };
     },
     staleTime: 300000,
