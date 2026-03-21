@@ -416,6 +416,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                           </span>
                         )}
                       </div>
+                      {/* WhatsApp quick contacts */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <WhatsAppButton phone={req.tenant_phone} name={req.tenant_name} label="Tenant" />
+                        <WhatsAppButton phone={req.landlord_phone} name={req.landlord_name} label="Landlord" />
+                        <WhatsAppButton phone={req.agent_phone} name={req.assigned_agent_name || req.agent_name} label="Agent" />
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-sm">UGX {fmt(req.rent_amount)}</p>
