@@ -34,9 +34,7 @@ import {
   Copy,
   MessageCircle,
   Home,
-  Camera,
-  X,
-  ImageIcon
+  Home
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
