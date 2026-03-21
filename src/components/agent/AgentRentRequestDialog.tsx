@@ -482,27 +482,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                         </p>
                       </div>
                     </div>
-
-                    {/* Fee Breakdown */}
-                    <div className="p-3 rounded-lg bg-background/60 space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Rent Amount</span>
-                        <span className="font-medium">{formatUGX(fees.rentAmount)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Access Fee</span>
-                        <span className="font-medium">{formatUGX(fees.accessFee)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Platform Fee</span>
-                        <span className="font-medium">{formatUGX(fees.requestFee)}</span>
-                      </div>
-                      <Separator className="my-1" />
-                      <div className="flex justify-between text-sm">
-                        <span className="font-semibold">Total Repayment</span>
-                        <span className="font-bold text-primary">{formatUGX(fees.totalRepayment)}</span>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
