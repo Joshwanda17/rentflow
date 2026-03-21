@@ -113,13 +113,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch tenant name
+    // Fetch tenant profile (name + phone)
     const { data: tenantProfile } = await supabase
       .from("profiles")
-      .select("full_name")
+      .select("full_name, phone")
       .eq("id", rr.tenant_id)
       .single();
     const tenantName = tenantProfile?.full_name || "Unknown Tenant";
+    const tenantPhone = tenantProfile?.phone || "";
+
+    // Fetch agent name
+    const { data: agentProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+    const agentName = agentProfile?.full_name || "Your Agent";
 
     // Try tenant wallet first
     const { data: tenantWallet } = await supabase
