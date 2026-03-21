@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Star, Receipt, Home, ChevronDown, Send } from 'lucide-react';
+import { TrendingUp, Star, Receipt, Home, ChevronDown, Send, Users, Banknote } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { hapticTap } from '@/lib/haptics';
-import { CreditRequestSheet } from '@/components/CreditRequestSheet';
+import { CreditAccessDrawSheet } from '@/components/CreditAccessDrawSheet';
+import { useNavigate } from 'react-router-dom';
 
 interface CreditAccessCardProps {
   userId: string;
