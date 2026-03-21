@@ -90,7 +90,6 @@ export function AgentPerformanceTiers() {
       });
     },
     staleTime: 600000,
-    staleTime: 600000,
   });
 
   const tierCounts = useMemo(() => {
