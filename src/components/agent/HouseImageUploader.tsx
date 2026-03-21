@@ -73,6 +73,7 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
     setCompressing(false);
     onChange([...images, ...newImages]);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const remove = (id: string) => {
     const img = images.find(i => i.id === id);
