@@ -314,6 +314,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
         onListEmptyHouse={() => { setMenuOpen(false); setListHouseOpen(true); }}
         onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
+        onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
       />
 
       {/* Existing Dialogs */}
