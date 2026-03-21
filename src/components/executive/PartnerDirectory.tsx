@@ -324,11 +324,20 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
                   <span>{p.portfolioCount} acct{p.portfolioCount !== 1 ? 's' : ''}</span>
                 </div>
               </button>
-              <div className="shrink-0 text-right">
+              <div className="shrink-0 text-right space-y-0.5">
                 <div className={`text-[10px] font-medium ${p.status === 'active' ? 'text-green-600' : p.status === 'pending' ? 'text-amber-600' : 'text-muted-foreground'}`}>
                   {p.status === 'active' ? '● Active' : p.status === 'pending' ? '⏳ Pending' : '○ Inactive'}
                 </div>
-                <div className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</div>
+                {(() => {
+                  const ds = getDashboardStatus(p.lastActiveAt);
+                  const Icon = ds.icon;
+                  return (
+                    <div className={`text-[9px] flex items-center justify-end gap-0.5 ${ds.color}`}>
+                      <Icon className="h-2.5 w-2.5" />
+                      {ds.label}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))
