@@ -556,6 +556,61 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
                 </div>
               </div>
             </div>
+
+            {/* Property GPS */}
+            <div className="space-y-2">
+              <Label className="text-xs flex items-center gap-1">
+                <Navigation className="h-3 w-3" /> Property GPS Location
+              </Label>
+              {propertyGps ? (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-success/10 border border-success/30">
+                  <Navigation className="h-4 w-4 text-success flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-success">📍 GPS Captured</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {propertyGps.lat.toFixed(5)}, {propertyGps.lng.toFixed(5)} (±{Math.round(propertyGps.accuracy)}m)
+                    </p>
+                  </div>
+                  <Button type="button" size="sm" variant="ghost" className="text-xs h-7 px-2" onClick={capturePropertyGPS}>
+                    Retake
+                  </Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" className="w-full h-10 gap-2 border-dashed" onClick={capturePropertyGPS} disabled={gpsLoading}>
+                  {gpsLoading ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Getting GPS...</>
+                  ) : (
+                    <><Navigation className="h-4 w-4" /> Capture Property GPS</>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* House Photos (max 3) */}
+            <div className="space-y-2">
+              <Label className="text-xs">📸 House Photos (up to 3)</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {housePhotos.map((photo, idx) => (
+                  <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border">
+                    <img src={photo.preview} alt={`House ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(idx)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {housePhotos.length < 3 && (
+                  <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                    <span className="text-xl text-muted-foreground/50">📷</span>
+                    <span className="text-[10px] text-muted-foreground/50 mt-1">Add Photo</span>
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoAdd} />
+                  </label>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">
