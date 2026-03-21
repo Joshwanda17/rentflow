@@ -25,7 +25,7 @@ export function PartnerCapitalFlow() {
       ]);
 
       const totalDeployed = (portfolios || []).filter(p => p.status === 'active').reduce((s, p) => s + (p.investment_amount || 0), 0);
-      const totalROIPaid = (roiPayments || []).reduce((s, p) => s + (p.amount || 0), 0);
+      const totalROIPaid = (roiPayments || []).filter(p => p.status === 'paid').reduce((s, p) => s + (p.roi_amount || 0), 0);
       const pendingWithdrawals = (withdrawals || []).filter(w => w.status === 'pending' || w.status === 'approved').reduce((s, w) => s + (w.amount || 0), 0);
       const completedWithdrawals = (withdrawals || []).filter(w => w.status === 'completed' || w.status === 'disbursed').reduce((s, w) => s + (w.amount || 0), 0);
 
