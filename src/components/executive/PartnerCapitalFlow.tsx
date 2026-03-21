@@ -15,11 +15,11 @@ export function PartnerCapitalFlow() {
           .select('investment_amount, total_roi_earned, status, created_at')
           .in('status', ['active', 'matured', 'pending_approval']),
         supabase.from('investment_withdrawal_requests')
-          .select('amount, status, created_at')
+          .select('amount, status, created_at, user_id')
           .order('created_at', { ascending: false })
           .limit(500),
         supabase.from('supporter_roi_payments')
-          .select('amount, payment_date')
+          .select('roi_amount, due_date, status')
           .order('payment_date', { ascending: false })
           .limit(500),
       ]);
