@@ -414,8 +414,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
             </div>
           </div>
 
-          {/* Photos */}
-          <HouseImageUploader images={houseImages} onChange={setHouseImages} maxImages={5} />
+          {/* Photos & Video */}
+          <HouseImageUploader
+            images={houseImages}
+            onChange={setHouseImages}
+            maxImages={5}
+            video={houseVideo}
+            onVideoChange={setHouseVideo}
+          />
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
