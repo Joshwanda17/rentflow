@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, TrendingDown, Clock, UserMinus } from 'lucide-react';
-import { formatDistanceToNow, subDays } from 'date-fns';
+import { UserMinus } from 'lucide-react';
+import { subDays } from 'date-fns';
 
 interface ChurnRisk {
   investor_id: string;
