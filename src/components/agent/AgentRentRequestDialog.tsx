@@ -468,7 +468,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 {fees && (
                   <div className="space-y-2">
                     <div className="p-4 rounded-2xl bg-primary/20 border-2 border-primary/40 text-center">
-                      <p className="text-xs text-primary/70 font-medium mb-1">Daily Repayment</p>
+                      <p className="text-xs text-primary/70 font-medium mb-1">And You Pay</p>
                       <p className="text-3xl font-black text-primary font-mono">{formatUGX(fees.dailyRepayment)}</p>
                       <p className="text-xs text-primary/70 mt-1">per day for {fees.durationDays} days</p>
                     </div>
