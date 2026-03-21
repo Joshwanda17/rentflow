@@ -47,28 +47,38 @@ export function AgentPerformanceTiers() {
       const ids = agentRoles || [];
       if (ids.length === 0) return [];
 
-      const [profilesRes, earningsRes, collectionsRes, visitsRes, referralsRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name').in('id', ids),
-        supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', ids),
-        supabase.from('agent_collections').select('agent_id').in('agent_id', ids),
-        supabase.from('agent_visits').select('agent_id').in('agent_id', ids),
-        supabase.from('supporter_invites').select('created_by').in('created_by', ids).eq('status', 'activated'),
+      const BATCH = 50;
+      const batchIn = async <T,>(fn: (b: string[]) => Promise<{ data: T[] | null }>): Promise<T[]> => {
+        const r: T[] = [];
+        for (let i = 0; i < ids.length; i += BATCH) {
+          const { data } = await fn(ids.slice(i, i + BATCH));
+          if (data) r.push(...data);
+        }
+        return r;
+      };
+
+      const [profilesData, earningsData, collectionsData, visitsData, referralsData] = await Promise.all([
+        batchIn<any>(async b => supabase.from('profiles').select('id, full_name').in('id', b)),
+        batchIn<any>(async b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
+        batchIn<any>(async b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
+        batchIn<any>(async b => supabase.from('agent_visits').select('agent_id').in('agent_id', b)),
+        batchIn<any>(async b => supabase.from('supporter_invites').select('created_by').in('created_by', b).eq('status', 'activated')),
       ]);
 
       const nameMap: Record<string, string> = {};
-      (profilesRes.data || []).forEach(p => { nameMap[p.id] = p.full_name; });
+      profilesData.forEach((p: any) => { nameMap[p.id] = p.full_name; });
 
       const earningsMap: Record<string, number> = {};
-      (earningsRes.data || []).forEach(e => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
+      earningsData.forEach((e: any) => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
 
       const collectionsMap: Record<string, number> = {};
-      (collectionsRes.data || []).forEach(c => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
+      collectionsData.forEach((c: any) => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
 
       const visitsMap: Record<string, number> = {};
-      (visitsRes.data || []).forEach(v => { visitsMap[v.agent_id] = (visitsMap[v.agent_id] || 0) + 1; });
+      visitsData.forEach((v: any) => { visitsMap[v.agent_id] = (visitsMap[v.agent_id] || 0) + 1; });
 
       const referralsMap: Record<string, number> = {};
-      (referralsRes.data || []).forEach(r => {
+      referralsData.forEach((r: any) => {
         if (r.created_by) referralsMap[r.created_by] = (referralsMap[r.created_by] || 0) + 1;
       });
 

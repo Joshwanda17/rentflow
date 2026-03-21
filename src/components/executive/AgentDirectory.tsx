@@ -9,6 +9,9 @@ import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+// Batch size to avoid URL length overflow on IN queries
+const BATCH_SIZE = 50;
+
 interface AgentRow {
   id: string;
   full_name: string;
@@ -63,29 +66,40 @@ export function AgentDirectory() {
       const agentIds = (agentRoles || []).map(r => r.user_id);
       if (agentIds.length === 0) return [];
 
-      const [profilesRes, earningsRes, collectionsRes, requestsRes, housesRes] = await Promise.all([
-        supabase.from('profiles')
-          .select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at')
-          .in('id', agentIds),
-        supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', agentIds),
-        supabase.from('agent_collections').select('agent_id').in('agent_id', agentIds),
-        supabase.from('rent_requests').select('agent_id').in('agent_id', agentIds),
-        supabase.from('house_listings').select('agent_id').in('agent_id', agentIds),
+      // Batch all IN queries to avoid URL length overflow (PostgREST 400)
+      const batchFetch = async <T,>(
+        fn: (batch: string[]) => Promise<{ data: T[] | null }>
+      ): Promise<T[]> => {
+        const results: T[] = [];
+        for (let i = 0; i < agentIds.length; i += BATCH_SIZE) {
+          const batch = agentIds.slice(i, i + BATCH_SIZE);
+          const { data } = await fn(batch);
+          if (data) results.push(...data);
+        }
+        return results;
+      };
+
+      const [profilesData, earningsData, collectionsData, requestsData, housesData] = await Promise.all([
+        batchFetch<any>(async b => supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at').in('id', b)),
+        batchFetch<any>(async b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
+        batchFetch<any>(async b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
+        batchFetch<any>(async b => supabase.from('rent_requests').select('agent_id').in('agent_id', b)),
+        batchFetch<any>(async b => supabase.from('house_listings').select('agent_id').in('agent_id', b)),
       ]);
 
       const earningsMap: Record<string, number> = {};
-      (earningsRes.data || []).forEach(e => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
+      earningsData.forEach((e: any) => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
 
       const collectionsMap: Record<string, number> = {};
-      (collectionsRes.data || []).forEach(c => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
+      collectionsData.forEach((c: any) => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
 
       const reqMap: Record<string, number> = {};
-      (requestsRes.data || []).forEach(r => { if (r.agent_id) reqMap[r.agent_id] = (reqMap[r.agent_id] || 0) + 1; });
+      requestsData.forEach((r: any) => { if (r.agent_id) reqMap[r.agent_id] = (reqMap[r.agent_id] || 0) + 1; });
 
       const houseMap: Record<string, number> = {};
-      (housesRes.data || []).forEach(h => { houseMap[h.agent_id] = (houseMap[h.agent_id] || 0) + 1; });
+      housesData.forEach((h: any) => { houseMap[h.agent_id] = (houseMap[h.agent_id] || 0) + 1; });
 
-      return (profilesRes.data || []).map(p => ({
+      return profilesData.map((p: any) => ({
         ...p,
         totalEarnings: earningsMap[p.id] || 0,
         rentRequests: reqMap[p.id] || 0,
