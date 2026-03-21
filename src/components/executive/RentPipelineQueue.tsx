@@ -203,7 +203,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
       const [profilesRes, landlordsRes] = await Promise.all([
         ids.size > 0
-          ? supabase.from('profiles').select('id, full_name, phone').in('id', [...ids])
+          ? supabase.from('profiles').select('id, full_name, phone, email').in('id', [...ids])
           : { data: [] },
         landlordIds.length > 0
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
@@ -225,6 +225,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
           agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
           agent_phone: agentProfile?.phone || '',
+          agent_email: agentProfile?.email || '',
           assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
           landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
           landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
@@ -480,10 +481,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 <div className="space-y-0.5 col-span-2">
                   <p className="text-xs text-muted-foreground">Assigned Agent</p>
                   <p className="font-semibold">{selectedRequest.assigned_agent_name || selectedRequest.agent_name || 'No Agent'}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-xs text-muted-foreground">{selectedRequest.agent_phone}</span>
                     <WhatsAppButton phone={selectedRequest.agent_phone} name={selectedRequest.assigned_agent_name || selectedRequest.agent_name} label="WhatsApp" />
                   </div>
+                  {selectedRequest.agent_email && (
+                    <p className="text-xs text-muted-foreground mt-0.5">✉️ {selectedRequest.agent_email}</p>
+                  )}
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Rent Amount</p>
