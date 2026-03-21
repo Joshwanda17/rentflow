@@ -234,7 +234,13 @@ Deno.serve(async (req) => {
             metadata: { subscription_id: charge.id, amount: chargeAmount },
           });
 
-          results.successful++;
+          // SMS confirmation to tenant
+          if (tenantPhone) {
+            const remaining = Math.max(0, charge.charges_remaining - 1);
+            const sms = `WELILE: Dear ${tenantName}, UGX ${chargeAmount.toLocaleString()} deducted from your wallet for rent. ${remaining > 0 ? `${remaining} payments left.` : 'Rent fully paid!'} Access up to UGX 30M credit with WELILE!`;
+            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
+          }
+
           results.totalCharged += chargeAmount;
           console.log(`[auto-charge-wallets] ${charge.tenant_id}: success - tenant:${chargeAmount}`);
           continue;
