@@ -24,6 +24,7 @@ interface PartnerRow {
   activePortfolios: number;
   status: string;
   tier: 'platinum' | 'gold' | 'silver' | 'starter';
+  lastActiveAt: string | null;
 }
 
 function getPartnerTier(invested: number, activeCount: number): PartnerRow['tier'] {
