@@ -140,25 +140,39 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
   );
 }
 
-/** Upload images to storage and return public URLs */
+/** Upload images to storage and return public URLs. Images are already optimized client-side. */
 export async function uploadHouseImages(
   userId: string,
   listingId: string,
-  files: File[]
+  files: File[],
+  thumbnailFiles?: (File | undefined)[]
 ): Promise<string[]> {
   const urls: string[] = [];
 
-  for (const file of files) {
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `${userId}/${listingId}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const ext = file.name.split('.').pop() || 'webp';
+    const baseName = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const path = `${userId}/${listingId}/${baseName}.${ext}`;
 
     const { error } = await supabase.storage
       .from('house-images')
-      .upload(path, file, { cacheControl: '3600', upsert: false });
+      .upload(path, file, { cacheControl: '86400', upsert: false });
 
     if (error) {
       console.error('Upload error:', error);
       continue;
+    }
+
+    // Upload thumbnail alongside
+    const thumbFile = thumbnailFiles?.[i];
+    if (thumbFile) {
+      const thumbExt = thumbFile.name.split('.').pop() || 'webp';
+      const thumbPath = `${userId}/${listingId}/thumb_${baseName}.${thumbExt}`;
+      await supabase.storage
+        .from('house-images')
+        .upload(thumbPath, thumbFile, { cacheControl: '86400', upsert: false })
+        .catch(e => console.warn('Thumbnail upload failed:', e));
     }
 
     const { data } = supabase.storage.from('house-images').getPublicUrl(path);
