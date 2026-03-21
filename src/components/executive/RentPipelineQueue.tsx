@@ -199,19 +199,24 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         if (r.agent_id) ids.add(r.agent_id);
         if (r.assigned_agent_id) ids.add(r.assigned_agent_id);
       });
-      const landlordIds = [...new Set(data.map(r => r.landlord_id))];
+      const landlordIds = [...new Set(data.map(r => r.landlord_id).filter(Boolean))];
+      const lc1Ids = [...new Set(data.map(r => r.lc1_id).filter(Boolean))];
 
-      const [profilesRes, landlordsRes] = await Promise.all([
+      const [profilesRes, landlordsRes, lc1Res] = await Promise.all([
         ids.size > 0
           ? supabase.from('profiles').select('id, full_name, phone, email').in('id', [...ids])
           : { data: [] },
         landlordIds.length > 0
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
           : { data: [] },
+        lc1Ids.length > 0
+          ? supabase.from('lc1_chairpersons').select('id, name, phone, village').in('id', lc1Ids)
+          : { data: [] },
       ]);
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
+      const lc1Map = new Map((lc1Res.data || []).map(l => [l.id, l]));
 
       return data.map(r => {
         const agentProfile = r.assigned_agent_id
