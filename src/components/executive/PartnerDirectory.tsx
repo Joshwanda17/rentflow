@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
-import { Search, Phone, ChevronDown, ChevronUp, CheckSquare, X, DollarSign, TrendingUp, Shield } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Search, Phone, ChevronDown, ChevronUp, CheckSquare, X, DollarSign, TrendingUp, Shield, Eye, EyeOff } from 'lucide-react';
+import { formatDistanceToNow, differenceInDays } from 'date-fns';
 
 interface PartnerRow {
   id: string;
@@ -24,6 +24,7 @@ interface PartnerRow {
   activePortfolios: number;
   status: string;
   tier: 'platinum' | 'gold' | 'silver' | 'starter';
+  lastActiveAt: string | null;
 }
 
 function getPartnerTier(invested: number, activeCount: number): PartnerRow['tier'] {
@@ -136,7 +137,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
       const BATCH = 50;
       for (let i = 0; i < investorIds.length; i += BATCH) {
         const { data } = await supabase.from('profiles')
-          .select('id, full_name, phone, email, avatar_url, created_at, territory')
+          .select('id, full_name, phone, email, avatar_url, created_at, territory, last_active_at')
           .in('id', investorIds.slice(i, i + BATCH));
         if (data) allProfiles.push(...data);
       }
@@ -158,6 +159,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
           activePortfolios: inv.activePortfolios,
           status: inv.status,
           tier: getPartnerTier(inv.totalInvested, inv.activePortfolios),
+          lastActiveAt: (p as any).last_active_at || null,
         } as PartnerRow;
       });
     },
@@ -205,6 +207,14 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
     });
   };
 
+  const getDashboardStatus = (lastActiveAt: string | null) => {
+    if (!lastActiveAt) return { label: 'Never logged in', color: 'text-destructive', icon: EyeOff };
+    const days = differenceInDays(new Date(), new Date(lastActiveAt));
+    if (days <= 7) return { label: `Active ${formatDistanceToNow(new Date(lastActiveAt), { addSuffix: true })}`, color: 'text-green-600', icon: Eye };
+    if (days <= 30) return { label: `${days}d ago`, color: 'text-amber-600', icon: Eye };
+    return { label: `Inactive ${days}d`, color: 'text-destructive', icon: EyeOff };
+  };
+
   const openProfile = (p: PartnerRow) => {
     setSelectedProfile({
       id: p.investor_id,
@@ -214,6 +224,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
       createdAt: p.created_at,
       phone: p.phone,
       city: p.territory,
+      lastActiveAt: p.lastActiveAt,
     });
   };
 
@@ -313,11 +324,20 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
                   <span>{p.portfolioCount} acct{p.portfolioCount !== 1 ? 's' : ''}</span>
                 </div>
               </button>
-              <div className="shrink-0 text-right">
+              <div className="shrink-0 text-right space-y-0.5">
                 <div className={`text-[10px] font-medium ${p.status === 'active' ? 'text-green-600' : p.status === 'pending' ? 'text-amber-600' : 'text-muted-foreground'}`}>
                   {p.status === 'active' ? '● Active' : p.status === 'pending' ? '⏳ Pending' : '○ Inactive'}
                 </div>
-                <div className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</div>
+                {(() => {
+                  const ds = getDashboardStatus(p.lastActiveAt);
+                  const Icon = ds.icon;
+                  return (
+                    <div className={`text-[9px] flex items-center justify-end gap-0.5 ${ds.color}`}>
+                      <Icon className="h-2.5 w-2.5" />
+                      {ds.label}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))
