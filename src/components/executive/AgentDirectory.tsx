@@ -66,14 +66,25 @@ export function AgentDirectory() {
       const agentIds = (agentRoles || []).map(r => r.user_id);
       if (agentIds.length === 0) return [];
 
-      const [profilesRes, earningsRes, collectionsRes, requestsRes, housesRes] = await Promise.all([
-        supabase.from('profiles')
-          .select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at')
-          .in('id', agentIds),
-        supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', agentIds),
-        supabase.from('agent_collections').select('agent_id').in('agent_id', agentIds),
-        supabase.from('rent_requests').select('agent_id').in('agent_id', agentIds),
-        supabase.from('house_listings').select('agent_id').in('agent_id', agentIds),
+      // Batch all IN queries to avoid URL length overflow (PostgREST 400)
+      const batchFetch = async <T,>(
+        fn: (batch: string[]) => Promise<{ data: T[] | null }>
+      ): Promise<T[]> => {
+        const results: T[] = [];
+        for (let i = 0; i < agentIds.length; i += BATCH_SIZE) {
+          const batch = agentIds.slice(i, i + BATCH_SIZE);
+          const { data } = await fn(batch);
+          if (data) results.push(...data);
+        }
+        return results;
+      };
+
+      const [profiles, earnings, collections, requests, houses] = await Promise.all([
+        batchFetch(b => supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at').in('id', b)),
+        batchFetch(b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
+        batchFetch(b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
+        batchFetch(b => supabase.from('rent_requests').select('agent_id').in('agent_id', b)),
+        batchFetch(b => supabase.from('house_listings').select('agent_id').in('agent_id', b)),
       ]);
 
       const earningsMap: Record<string, number> = {};
