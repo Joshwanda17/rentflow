@@ -122,6 +122,44 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     );
   }, []);
 
+  const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = 3 - housePhotos.length;
+    if (remaining <= 0) { toast.error('Maximum 3 photos'); return; }
+    const toAdd = files.slice(0, remaining);
+    const newPhotos = toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+    setHousePhotos(prev => [...prev, ...newPhotos]);
+    if (e.target) e.target.value = '';
+  }, [housePhotos.length]);
+
+  const removePhoto = useCallback((index: number) => {
+    setHousePhotos(prev => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const uploadHousePhotos = async (requestId: string): Promise<string[]> => {
+    if (!user || housePhotos.length === 0) return [];
+    const urls: string[] = [];
+    for (let i = 0; i < housePhotos.length; i++) {
+      try {
+        const optimized = await optimizeImage(housePhotos[i].file, { maxWidth: 1200, quality: 0.8 });
+        const ext = optimized.name.split('.').pop() || 'webp';
+        const path = `${user.id}/${requestId}/photo_${i}.${ext}`;
+        const { error } = await supabase.storage
+          .from('house-images')
+          .upload(path, optimized, { cacheControl: '86400', upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+        urls.push(data.publicUrl);
+      } catch (err) {
+        console.warn(`Photo ${i} upload failed:`, err);
+      }
+    }
+    return urls;
+  };
+
   const resetForm = () => {
     setIncomeType(null);
     setTenantName('');
