@@ -464,11 +464,26 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Tenant</p>
                   <p className="font-semibold">{selectedRequest.tenant_name}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-xs text-muted-foreground">{selectedRequest.tenant_phone}</span>
+                    <WhatsAppButton phone={selectedRequest.tenant_phone} name={selectedRequest.tenant_name} label="WhatsApp" />
+                  </div>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Landlord</p>
                   <p className="font-semibold">{selectedRequest.landlord_name}</p>
-                  <p className="text-xs text-muted-foreground">{selectedRequest.landlord_phone}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-xs text-muted-foreground">{selectedRequest.landlord_phone}</span>
+                    <WhatsAppButton phone={selectedRequest.landlord_phone} name={selectedRequest.landlord_name} label="WhatsApp" />
+                  </div>
+                </div>
+                <div className="space-y-0.5 col-span-2">
+                  <p className="text-xs text-muted-foreground">Assigned Agent</p>
+                  <p className="font-semibold">{selectedRequest.assigned_agent_name || selectedRequest.agent_name || 'No Agent'}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-xs text-muted-foreground">{selectedRequest.agent_phone}</span>
+                    <WhatsAppButton phone={selectedRequest.agent_phone} name={selectedRequest.assigned_agent_name || selectedRequest.agent_name} label="WhatsApp" />
+                  </div>
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Rent Amount</p>
