@@ -177,14 +177,28 @@ Password: ${createdInvite?.password}`;
 
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-2xl p-4">
+      <div className="bg-gradient-to-br from-warning/10 to-warning/5 border border-warning/20 rounded-2xl p-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-orange-500/20">
-            <Users className="h-6 w-6 text-orange-500" />
+          <div className="p-3 rounded-xl bg-warning/20">
+            <Users className="h-6 w-6 text-warning" />
           </div>
           <div>
-            <p className="font-bold text-orange-600 dark:text-orange-400">Sub-Agent Registration</p>
-            <p className="text-sm text-muted-foreground">They earn 4% commission, you earn 1% of their earnings</p>
+            <p className="font-bold text-warning">Quick Sub-Agent Registration</p>
+            <p className="text-sm text-muted-foreground">Just name, phone & password — done in 30 seconds</p>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div className="py-1.5 rounded-lg bg-background/60">
+            <p className="text-sm font-bold text-warning">💰 UGX 500</p>
+            <p className="text-[10px] text-muted-foreground">you earn now</p>
+          </div>
+          <div className="py-1.5 rounded-lg bg-background/60">
+            <p className="text-sm font-bold text-warning">📈 1%</p>
+            <p className="text-[10px] text-muted-foreground">their earnings</p>
+          </div>
+          <div className="py-1.5 rounded-lg bg-background/60">
+            <p className="text-sm font-bold text-warning">🤝 4%</p>
+            <p className="text-[10px] text-muted-foreground">they earn</p>
           </div>
         </div>
       </div>
