@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
-import { Search, Phone, ChevronDown, ChevronUp, CheckSquare, X, DollarSign, TrendingUp, Shield } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Search, Phone, ChevronDown, ChevronUp, CheckSquare, X, DollarSign, TrendingUp, Shield, Eye, EyeOff } from 'lucide-react';
+import { formatDistanceToNow, differenceInDays } from 'date-fns';
 
 interface PartnerRow {
   id: string;
