@@ -34,7 +34,7 @@ export function DailyCashPositionReport() {
       // Get pending obligations
       const { data: pendingRent } = await supabase
         .from('rent_requests')
-        .select('amount')
+        .select('rent_amount')
         .in('status', ['coo_approved', 'cfo_approved']);
       const pendingObligations = (pendingRent || []).reduce((s, r) => s + r.amount, 0);
 
