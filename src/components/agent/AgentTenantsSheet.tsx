@@ -93,21 +93,26 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       const tenantList = data || [];
       setTenants(tenantList);
 
-      // Fetch rent balances for all tenants in parallel
+      // Fetch rent balances and smartphone status for all tenants in parallel
       if (tenantList.length > 0) {
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status')
+          .select('tenant_id, total_repayment, amount_repaid, status, tenant_no_smartphone')
           .in('tenant_id', tenantIds)
           .in('status', ['approved', 'disbursed', 'repaying']);
 
         const balances: Record<string, number> = {};
+        const noSmartphoneMap: Record<string, boolean> = {};
         (rentRequests || []).forEach(rr => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          if (rr.tenant_no_smartphone) {
+            noSmartphoneMap[rr.tenant_id] = true;
+          }
         });
         setTenantBalances(balances);
+        setNoSmartphoneMap(noSmartphoneMap);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
