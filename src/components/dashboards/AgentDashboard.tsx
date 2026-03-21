@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { 
   UserPlus,
@@ -11,12 +12,8 @@ import {
   WifiOff,
   RefreshCw,
   BadgeCheck,
-  MapPin,
-  ShoppingBag,
   Home,
-  Receipt,
-  Share2,
-  // TrendingUp removed — moved Earnings to More menu
+  TrendingUp,
   Banknote,
   FileText,
   Users,
@@ -134,6 +131,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [depositCashOpen, setDepositCashOpen] = useState(false);
   const [nearbyTenantsOpen, setNearbyTenantsOpen] = useState(false);
   const [applyingToSell, setApplyingToSell] = useState(false);
+  const [creditOpen, setCreditOpen] = useState(false);
 
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
@@ -254,7 +252,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             { icon: FileText, label: 'Post Request', onClick: () => setRentRequestOpen(true), color: 'text-success', bg: 'bg-success/15 border-success/40 hover:bg-success/20 ring-1 ring-success/30' },
             { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
             { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-chart-4', bg: 'bg-chart-4/10 border-chart-4/30 hover:bg-chart-4/15' },
-            { icon: Receipt, label: 'Rent Fee', onClick: () => setMyRentRequestsOpen(true), color: 'text-warning', bg: 'bg-warning/10 border-warning/30 hover:bg-warning/15' },
+            { icon: TrendingUp, label: 'Credit', onClick: () => setCreditOpen(prev => !prev), color: 'text-warning', bg: 'bg-warning/10 border-warning/30 hover:bg-warning/15' },
             { icon: Menu, label: 'Agent Hub', onClick: handleOpenMenu, color: 'text-foreground/70', bg: 'bg-card border-border/40 hover:bg-muted/40' },
           ].map((action, i) => (
             <button
@@ -271,6 +269,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </button>
           ))}
         </div>
+
+        {/* Credit Access — toggles on Credit button */}
+        <AnimatePresence>
+          {creditOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <CreditAccessCard userId={user.id} compact />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <RecentAutoCharges />
 
