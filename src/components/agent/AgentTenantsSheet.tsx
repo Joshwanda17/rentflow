@@ -203,12 +203,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const stats = useMemo(() => {
     const totalOwing = Object.values(tenantBalances).reduce((s, v) => s + v, 0);
     const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
-    return { totalOwing, owingCount, total: tenants.length };
-  }, [tenants, tenantBalances]);
+    const noPhoneCount = Object.values(noSmartphoneMap).filter(Boolean).length;
+    return { totalOwing, owingCount, total: tenants.length, noPhoneCount };
+  }, [tenants, tenantBalances, noSmartphoneMap]);
 
   const filterTabs: { key: FilterTab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: 'owing', label: 'Rent Receivable', icon: <AlertTriangle className="h-3 w-3" />, count: stats.owingCount },
     { key: 'all', label: 'All', icon: <Users className="h-3 w-3" />, count: stats.total },
+    { key: 'no-phone', label: 'No Phone', icon: <Phone className="h-3 w-3" />, count: stats.noPhoneCount },
     { key: 'active', label: 'Active', icon: <Clock className="h-3 w-3" /> },
     { key: 'cleared', label: 'Cleared', icon: <CheckCircle2 className="h-3 w-3" /> },
     { key: 'new', label: 'New', icon: <User className="h-3 w-3" /> },
