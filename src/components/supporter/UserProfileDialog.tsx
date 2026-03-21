@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import UserReviewsSection from '@/components/reviews/UserReviewsSection';
 import { useUserStats } from '@/hooks/useUserStats';
 import { UserStatsSection } from '@/components/profile/UserStatsSection';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 
 interface UserProfileDialogProps {
   open: boolean;
