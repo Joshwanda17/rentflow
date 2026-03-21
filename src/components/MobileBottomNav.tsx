@@ -104,7 +104,9 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
     }
     if (currentRole === 'supporter') {
       return [...baseItems,
+        { href: '/transactions', icon: Wallet, label: 'Wallet', active: currentPath === '/transactions' },
         { href: '/marketplace', icon: Store, label: 'Shop', active: currentPath === '/marketplace' },
+        { href: '/settings', icon: Settings, label: 'Settings', active: currentPath === '/settings' },
       ];
     }
     return [...baseItems,
