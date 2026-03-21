@@ -7,7 +7,6 @@ import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAcces
 import { Skeleton } from '@/components/ui/skeleton';
 import { hapticTap } from '@/lib/haptics';
 import { CreditAccessDrawSheet } from '@/components/CreditAccessDrawSheet';
-import { useNavigate } from 'react-router-dom';
 
 interface CreditAccessCardProps {
   userId: string;
