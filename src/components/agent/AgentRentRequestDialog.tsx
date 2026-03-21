@@ -427,6 +427,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold text-primary/80">Rent Amount (UGX) *</Label>
+                    <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
                     <Input
                       value={rentAmount}
                       onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
@@ -467,7 +468,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 {fees && (
                   <div className="space-y-2">
                     <div className="p-4 rounded-2xl bg-primary/20 border-2 border-primary/40 text-center">
-                      <p className="text-xs text-primary/70 font-medium mb-1">Daily Repayment</p>
+                      <p className="text-xs text-primary/70 font-medium mb-1">And You Pay</p>
                       <p className="text-3xl font-black text-primary font-mono">{formatUGX(fees.dailyRepayment)}</p>
                       <p className="text-xs text-primary/70 mt-1">per day for {fees.durationDays} days</p>
                     </div>

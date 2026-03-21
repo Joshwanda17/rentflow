@@ -227,6 +227,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
             {/* Rent Amount */}
             <div className="space-y-2">
               <Label className="font-bold text-sm">Rent Amount (UGX)</Label>
+              <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
               <Input 
                 value={rentAmount} 
                 onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))} 
@@ -324,7 +325,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
               <div className="space-y-3">
                 {/* Daily Amount — BIG & BOLD */}
                 <div className="p-4 rounded-2xl bg-primary/20 border-2 border-primary/40 text-center">
-                  <p className="text-xs font-semibold text-primary/80 mb-1 uppercase tracking-wide">Daily Repayment</p>
+                  <p className="text-xs font-semibold text-primary/80 mb-1 uppercase tracking-wide">And You Pay</p>
                   <p className="text-3xl font-black text-primary font-mono">{formatUGX(calc.dailyRepayment)}</p>
                   <p className="text-xs text-primary/70 mt-1">per day for {calc.durationDays} days</p>
                 </div>
