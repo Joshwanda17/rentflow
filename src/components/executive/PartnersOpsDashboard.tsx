@@ -92,13 +92,11 @@ export function PartnersOpsDashboard() {
       for (const p of matured) {
         const newMaturity = format(addMonths(new Date(), p.duration_months || 12), 'yyyy-MM-dd');
 
-        // Update portfolio to active with new maturity
         const { error } = await supabase.from('investor_portfolios')
           .update({ status: 'active', maturity_date: newMaturity })
           .eq('id', p.id);
 
         if (!error) {
-          // Log renewal in history (preserves old data)
           await supabase.from('portfolio_renewals').insert({
             portfolio_id: p.id,
             renewed_by: user?.id || 'system',
@@ -113,13 +111,22 @@ export function PartnersOpsDashboard() {
             new_roi_percentage: p.roi_percentage,
             top_up_amount: 0,
           });
+
+          // Auto-close related escalations
+          await supabase.from('partner_escalations')
+            .update({ status: 'auto_resolved', resolved_at: new Date().toISOString() })
+            .eq('portfolio_id', p.id)
+            .eq('status', 'open')
+            .in('escalation_type', ['maturity_expired', 'maturity_30d', 'maturity_7d']);
+
           renewed++;
         }
       }
 
       if (renewed > 0) {
-        toast({ title: `${renewed} matured portfolio(s) auto-renewed`, description: 'History preserved in renewal records' });
+        toast({ title: `${renewed} matured portfolio(s) auto-renewed`, description: 'History preserved · escalations auto-resolved' });
         refetch();
+        queryClient.invalidateQueries({ queryKey: ['partner-escalations'] });
       }
     };
 
