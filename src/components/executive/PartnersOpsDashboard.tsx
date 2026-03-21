@@ -444,6 +444,15 @@ export function PartnersOpsDashboard() {
         </Badge>
       </div>
 
+      {/* Partner Directory — PROMINENT */}
+      <PartnerDirectory />
+
+      {/* Capital Flow & Churn */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <PartnerCapitalFlow />
+        <PartnerChurnAlerts />
+      </div>
+
       <ExecutiveDataTable
         data={rows}
         columns={columns}
