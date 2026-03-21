@@ -38,6 +38,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
