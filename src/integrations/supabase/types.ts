@@ -562,6 +562,142 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_escalations: {
+        Row: {
+          agent_id: string
+          created_at: string
+          description: string | null
+          escalation_type: string
+          id: string
+          metadata: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          tenant_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          description?: string | null
+          escalation_type: string
+          id?: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          description?: string | null
+          escalation_type?: string
+          id?: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_escalations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_float_limits: {
         Row: {
           agent_id: string
@@ -943,6 +1079,154 @@ export type Database = {
           sub_agent_id?: string
         }
         Relationships: []
+      }
+      agent_tasks: {
+        Row: {
+          agent_id: string
+          assigned_by: string | null
+          completed_at: string | null
+          completion_latitude: number | null
+          completion_longitude: number | null
+          completion_notes: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          gps_required: boolean | null
+          id: string
+          priority: string
+          rent_request_id: string | null
+          status: string
+          task_type: string
+          tenant_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_by?: string | null
+          completed_at?: string | null
+          completion_latitude?: number | null
+          completion_longitude?: number | null
+          completion_notes?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          gps_required?: boolean | null
+          id?: string
+          priority?: string
+          rent_request_id?: string | null
+          status?: string
+          task_type?: string
+          tenant_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_by?: string | null
+          completed_at?: string | null
+          completion_latitude?: number | null
+          completion_longitude?: number | null
+          completion_notes?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          gps_required?: boolean | null
+          id?: string
+          priority?: string
+          rent_request_id?: string | null
+          status?: string
+          task_type?: string
+          tenant_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       agent_visits: {
         Row: {
