@@ -558,9 +558,9 @@ export default function Settings() {
 
         {/* ===== APPEARANCE SECTION ===== */}
         <div ref={el => sectionRefs.current['appearance'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Palette} label="How It Looks & Sounds" />
+          <SectionHeader icon={Palette} label="How It Looks & Sounds" color="primary" />
 
-          <Card className="border-border/50 shadow-sm">
+          <Card className="border-border/40 shadow-md rounded-2xl">
             <CardContent className="pt-5 space-y-5">
               {/* Theme */}
               <SettingsRow label="Dark / Light" description="Change the look of the app">
