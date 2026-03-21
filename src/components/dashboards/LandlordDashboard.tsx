@@ -34,6 +34,7 @@ import { hapticTap } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
+import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 
 interface LandlordDashboardProps {
   user: User;
