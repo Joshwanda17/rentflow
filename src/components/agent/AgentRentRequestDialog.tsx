@@ -131,6 +131,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setLc1Village('');
     setHouseCategory('');
     setNoSmartphone(false);
+    setGpsLocation(null);
+    setGpsLoading(false);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
