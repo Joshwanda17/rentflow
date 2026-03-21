@@ -5,6 +5,35 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function formatPhoneInternational(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return `+${digits}`;
+}
+
+async function sendTenantSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username || !phone) return false;
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  try {
+    const body = new URLSearchParams({ username, to: formatPhoneInternational(phone), message });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    return recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+  } catch { return false; }
+}
+
 const GRACE_PERIOD_HOURS = 72;
 
 Deno.serve(async (req) => {
@@ -123,6 +152,13 @@ Deno.serve(async (req) => {
             });
           }
 
+          // SMS to tenant (no-smartphone) about agent payment
+          if (agentAmountCharged > 0 && tenantPhone) {
+            const remaining = Number(charge.charges_remaining) - 1;
+            const sms = `WELILE: Dear ${tenantName}, UGX ${agentAmountCharged.toLocaleString()} has been paid for your rent by your agent. ${remaining > 0 ? `${remaining} payments remaining.` : 'Rent fully paid!'} Access up to UGX 30M with WELILE. Ask your agent!`;
+            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
+          }
+
           results.totalAgentCharged += agentAmountCharged;
           results.totalDebt += debtAdded;
           console.log(`[auto-charge-wallets] ${charge.tenant_id}: ${logStatus} (no-smartphone) - agent:${agentAmountCharged}, debt:${debtAdded}`);
@@ -198,7 +234,13 @@ Deno.serve(async (req) => {
             metadata: { subscription_id: charge.id, amount: chargeAmount },
           });
 
-          results.successful++;
+          // SMS confirmation to tenant
+          if (tenantPhone) {
+            const remaining = Math.max(0, charge.charges_remaining - 1);
+            const sms = `WELILE: Dear ${tenantName}, UGX ${chargeAmount.toLocaleString()} deducted from your wallet for rent. ${remaining > 0 ? `${remaining} payments left.` : 'Rent fully paid!'} Access up to UGX 30M credit with WELILE!`;
+            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
+          }
+
           results.totalCharged += chargeAmount;
           console.log(`[auto-charge-wallets] ${charge.tenant_id}: success - tenant:${chargeAmount}`);
           continue;
@@ -337,6 +379,14 @@ Deno.serve(async (req) => {
             type: "warning",
             metadata: { subscription_id: charge.id, agent_covered: agentAmountCharged },
           });
+
+
+          // SMS to tenant that agent covered their rent
+          if (tenantPhone) {
+            const totalPaid = amountDeducted + agentAmountCharged;
+            const sms = `WELILE: Dear ${tenantName}, UGX ${totalPaid.toLocaleString()} has been paid towards your rent${agentAmountCharged > 0 ? ' (covered by your agent)' : ''}. Please top up your wallet. Access up to UGX 30M with WELILE!`;
+            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
+          }
         }
 
         if (debtAdded > 0 && charge.agent_id) {

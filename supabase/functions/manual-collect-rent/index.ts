@@ -1,5 +1,43 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+function formatPhoneInternational(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return `+${digits}`;
+}
+
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) {
+    console.error("[manual-collect-rent] Missing AT credentials, skipping SMS");
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  const formattedPhone = formatPhoneInternational(phone);
+  try {
+    const body = new URLSearchParams({ username, to: formattedPhone, message });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    const success = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    console.log(`[manual-collect-rent] SMS to ${formattedPhone}: ${success ? "sent" : "failed"}`);
+    return success;
+  } catch (err) {
+    console.error("[manual-collect-rent] SMS error:", err);
+    return false;
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -75,13 +113,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch tenant name
+    // Fetch tenant profile (name + phone)
     const { data: tenantProfile } = await supabase
       .from("profiles")
-      .select("full_name")
+      .select("full_name, phone")
       .eq("id", rr.tenant_id)
       .single();
     const tenantName = tenantProfile?.full_name || "Unknown Tenant";
+    const tenantPhone = tenantProfile?.phone || "";
+
+    // Fetch agent name
+    const { data: agentProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+    const agentName = agentProfile?.full_name || "Your Agent";
 
     // Try tenant wallet first
     const { data: tenantWallet } = await supabase
@@ -211,6 +258,20 @@ Deno.serve(async (req) => {
         p_source_table: "manual_collect_rent",
         p_source_id: rr.id,
       });
+    }
+
+    // Send SMS to tenant (especially for non-smartphone users)
+    const remainingBalance = outstanding - totalCollected;
+    if (tenantPhone) {
+      const smsMessage = [
+        `WELILE: Dear ${tenantName}, UGX ${totalCollected.toLocaleString()} has been paid towards your rent by ${agentName}.`,
+        remainingBalance > 0
+          ? `Balance remaining: UGX ${remainingBalance.toLocaleString()}.`
+          : `Your rent is now fully paid! Thank you.`,
+        `Did you know? With WELILE, you can access up to UGX 30,000,000 in credit. Ask your agent for details!`,
+        `Ref: ${rent_request_id.slice(0, 8)}`,
+      ].join("\n");
+      sendSMS(tenantPhone, smsMessage).catch(e => console.error("[manual-collect-rent] SMS error:", e));
     }
 
     console.log(`[manual-collect-rent] Collected ${totalCollected} for ${rent_request_id}: tenant=${tenantDeducted}, agent=${agentDeducted}`);
