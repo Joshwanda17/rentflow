@@ -748,6 +748,40 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     </Button>
                   )}
                 </div>
+
+                {/* House Photos (max 3) */}
+                <div className="space-y-2">
+                  <Label className="text-xs flex items-center gap-1">
+                    📸 House Photos (up to 3)
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {housePhotos.map((photo, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border">
+                        <img src={photo.preview} alt={`House ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(idx)}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {housePhotos.length < 3 && (
+                      <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                        <span className="text-xl text-muted-foreground/50">📷</span>
+                        <span className="text-[10px] text-muted-foreground/50 mt-1">Add Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handlePhotoAdd}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <Separator />
