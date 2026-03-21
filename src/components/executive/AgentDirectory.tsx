@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllAgentIds, batchedQuery } from '@/lib/supabaseBatchUtils';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,9 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-// Batch size to avoid URL length overflow on IN queries
-const BATCH_SIZE = 50;
 
 interface AgentRow {
   id: string;
