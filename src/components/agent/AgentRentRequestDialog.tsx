@@ -427,6 +427,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold text-primary/80">Rent Amount (UGX) *</Label>
+                    <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
                     <Input
                       value={rentAmount}
                       onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
