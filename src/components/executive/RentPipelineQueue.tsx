@@ -15,7 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, Home, Banknote, ArrowRight, Loader2, Search } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 
