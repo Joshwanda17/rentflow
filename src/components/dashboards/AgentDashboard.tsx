@@ -133,6 +133,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [nearbyTenantsOpen, setNearbyTenantsOpen] = useState(false);
   const [applyingToSell, setApplyingToSell] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
+  const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
 
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
