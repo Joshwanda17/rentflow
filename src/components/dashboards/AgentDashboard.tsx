@@ -11,12 +11,8 @@ import {
   WifiOff,
   RefreshCw,
   BadgeCheck,
-  MapPin,
-  ShoppingBag,
   Home,
-  Receipt,
-  Share2,
-  // TrendingUp removed — moved Earnings to More menu
+  TrendingUp,
   Banknote,
   FileText,
   Users,
