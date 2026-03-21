@@ -45,11 +45,16 @@ export function AgentOpsDashboard() {
     queryKey: ['exec-agent-profiles-full', agentIds.sort().join(',')],
     queryFn: async () => {
       if (agentIds.length === 0) return {};
-      const { data } = await supabase.from('profiles')
-        .select('id, full_name, phone, email, avatar_url, verified, created_at, territory')
-        .in('id', agentIds);
+      const BATCH = 50;
+      const allProfiles: any[] = [];
+      for (let i = 0; i < agentIds.length; i += BATCH) {
+        const { data } = await supabase.from('profiles')
+          .select('id, full_name, phone, email, avatar_url, verified, created_at, territory')
+          .in('id', agentIds.slice(i, i + BATCH));
+        if (data) allProfiles.push(...data);
+      }
       const map: Record<string, any> = {};
-      (data || []).forEach(p => { map[p.id] = p; });
+      allProfiles.forEach(p => { map[p.id] = p; });
       return map;
     },
     enabled: agentIds.length > 0,
