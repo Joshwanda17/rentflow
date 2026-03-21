@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     // Fetch the rent request
     const { data: request, error: reqErr } = await serviceClient
       .from('rent_requests')
-      .select('id, tenant_id, agent_id, landlord_id, rent_amount, status, payout_method, assigned_agent_id')
+      .select('id, tenant_id, agent_id, landlord_id, rent_amount, daily_repayment, duration_days, status, payout_method, assigned_agent_id')
       .eq('id', rent_request_id)
       .single()
 
