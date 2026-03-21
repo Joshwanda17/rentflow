@@ -34,6 +34,7 @@ interface UserProfileDialogProps {
     country?: string;
     tenantCount?: number;
     hasRentRequest?: boolean;
+    lastActiveAt?: string | null;
   } | null;
 }
 
