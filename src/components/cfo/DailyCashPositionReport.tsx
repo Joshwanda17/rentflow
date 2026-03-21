@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { Loader2, TrendingUp, TrendingDown, ArrowRight, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
+import { format, subDays, startOfDay } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 
 export function DailyCashPositionReport() {
