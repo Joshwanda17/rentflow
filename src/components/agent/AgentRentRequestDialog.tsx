@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+import { optimizeImage } from '@/lib/imageOptimizer';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
@@ -18,12 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { 
   User, 
-  Phone, 
+  
   MapPin,
   Navigation,
   Building2,
-  Loader2, 
-  CheckCircle2, 
+  Loader2,
+  CheckCircle2,
   FileText,
   Calculator,
   Calendar,
@@ -91,6 +92,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [noSmartphone, setNoSmartphone] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
 
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
@@ -116,6 +118,44 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     );
   }, []);
 
+  const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = 3 - housePhotos.length;
+    if (remaining <= 0) { toast.error('Maximum 3 photos'); return; }
+    const toAdd = files.slice(0, remaining);
+    const newPhotos = toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }));
+    setHousePhotos(prev => [...prev, ...newPhotos]);
+    if (e.target) e.target.value = '';
+  }, [housePhotos.length]);
+
+  const removePhoto = useCallback((index: number) => {
+    setHousePhotos(prev => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const uploadHousePhotos = async (requestId: string): Promise<string[]> => {
+    if (!user || housePhotos.length === 0) return [];
+    const urls: string[] = [];
+    for (let i = 0; i < housePhotos.length; i++) {
+      try {
+        const optimized = await optimizeImage(housePhotos[i].file, { maxWidth: 1200, quality: 0.8 });
+        const ext = optimized.file.name.split('.').pop() || 'webp';
+        const path = `${user.id}/${requestId}/photo_${i}.${ext}`;
+        const { error } = await supabase.storage
+          .from('house-images')
+          .upload(path, optimized.file, { cacheControl: '86400', upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from('house-images').getPublicUrl(path);
+        urls.push(data.publicUrl);
+      } catch (err) {
+        console.warn(`Photo ${i} upload failed:`, err);
+      }
+    }
+    return urls;
+  };
+
   const resetForm = () => {
     setIncomeType(null);
     setTenantName('');
@@ -133,6 +173,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setNoSmartphone(false);
     setGpsLocation(null);
     setGpsLoading(false);
+    housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
+    setHousePhotos([]);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
@@ -261,7 +303,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       const tenantId = tenantResult.user_id;
 
       // Create rent request with agent_id
-      const { error: requestError } = await supabase
+      const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
           tenant_id: tenantId,
@@ -279,9 +321,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           tenant_no_smartphone: noSmartphone,
           request_latitude: gpsLocation?.lat ?? null,
           request_longitude: gpsLocation?.lng ?? null,
-        });
+        })
+        .select('id')
+        .single();
 
       if (requestError) throw requestError;
+
+      // Upload house photos if any
+      if (housePhotos.length > 0 && rentReq?.id) {
+        const photoUrls = await uploadHousePhotos(rentReq.id);
+        if (photoUrls.length > 0) {
+          await supabase
+            .from('rent_requests')
+            .update({ house_image_urls: photoUrls })
+            .eq('id', rentReq.id);
+        }
+      }
 
       // Build activation link if tenant is new
       if (!tenantResult.existing && tenantResult.activation_token) {
@@ -688,6 +743,40 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                       )}
                     </Button>
                   )}
+                </div>
+
+                {/* House Photos (max 3) */}
+                <div className="space-y-2">
+                  <Label className="text-xs flex items-center gap-1">
+                    📸 House Photos (up to 3)
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {housePhotos.map((photo, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border">
+                        <img src={photo.preview} alt={`House ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(idx)}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {housePhotos.length < 3 && (
+                      <label className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                        <span className="text-xl text-muted-foreground/50">📷</span>
+                        <span className="text-[10px] text-muted-foreground/50 mt-1">Add Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handlePhotoAdd}
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
               </div>
 
