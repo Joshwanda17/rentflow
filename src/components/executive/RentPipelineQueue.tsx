@@ -188,15 +188,23 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
 
-      return data.map(r => ({
-        ...r,
-        tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
-        tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
-        agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
-        assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
-        landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
-        landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
-      }));
+      return data.map(r => {
+        const agentProfile = r.assigned_agent_id
+          ? profileMap.get(r.assigned_agent_id)
+          : r.agent_id
+            ? profileMap.get(r.agent_id)
+            : null;
+        return {
+          ...r,
+          tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown',
+          tenant_phone: profileMap.get(r.tenant_id)?.phone || '',
+          agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unassigned') : 'Unassigned',
+          agent_phone: agentProfile?.phone || '',
+          assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
+          landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
+          landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
+        };
+      });
     },
     staleTime: 30000,
     refetchInterval: 60000,
