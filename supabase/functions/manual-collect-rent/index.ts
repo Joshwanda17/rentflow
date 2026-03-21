@@ -260,6 +260,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Send SMS to tenant (especially for non-smartphone users)
+    const remainingBalance = outstanding - totalCollected;
+    if (tenantPhone) {
+      const smsMessage = [
+        `WELILE: Dear ${tenantName}, UGX ${totalCollected.toLocaleString()} has been paid towards your rent by ${agentName}.`,
+        remainingBalance > 0
+          ? `Balance remaining: UGX ${remainingBalance.toLocaleString()}.`
+          : `Your rent is now fully paid! Thank you.`,
+        `Did you know? With WELILE, you can access up to UGX 30,000,000 in credit. Ask your agent for details!`,
+        `Ref: ${rent_request_id.slice(0, 8)}`,
+      ].join("\n");
+      sendSMS(tenantPhone, smsMessage).catch(e => console.error("[manual-collect-rent] SMS error:", e));
+    }
+
     console.log(`[manual-collect-rent] Collected ${totalCollected} for ${rent_request_id}: tenant=${tenantDeducted}, agent=${agentDeducted}`);
 
     return new Response(JSON.stringify({
