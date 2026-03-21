@@ -531,6 +531,49 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 )}
               </div>
 
+              {/* LC1 & GPS Details */}
+              <div className="rounded-xl border border-border p-3 bg-muted/30 space-y-2">
+                <h4 className="text-sm font-semibold">📍 Property Location & LC1</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {selectedRequest.lc1_name && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">LC1 Chairperson</p>
+                      <p className="font-semibold">{selectedRequest.lc1_name}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-xs text-muted-foreground">{selectedRequest.lc1_phone}</span>
+                        <WhatsAppButton phone={selectedRequest.lc1_phone} name={selectedRequest.lc1_name} label="WhatsApp" />
+                      </div>
+                    </div>
+                  )}
+                  {selectedRequest.lc1_village && (
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">Village</p>
+                      <p className="font-semibold">{selectedRequest.lc1_village}</p>
+                    </div>
+                  )}
+                  {(selectedRequest.request_latitude && selectedRequest.request_longitude) && (
+                    <div className="space-y-0.5 col-span-2">
+                      <p className="text-xs text-muted-foreground">GPS Coordinates</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono text-xs">{Number(selectedRequest.request_latitude).toFixed(6)}, {Number(selectedRequest.request_longitude).toFixed(6)}</p>
+                        <a
+                          href={`https://www.google.com/maps?q=${selectedRequest.request_latitude},${selectedRequest.request_longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          <MapPin className="h-3 w-3" />
+                          Open Map
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {!selectedRequest.lc1_name && !selectedRequest.request_latitude && (
+                    <p className="text-xs text-muted-foreground col-span-2">No LC1 or GPS data captured for this request</p>
+                  )}
+                </div>
+              </div>
+
               {/* Pipeline Status + Agent Benefits */}
               <RentPipelineTracker
                 currentStatus={selectedRequest.status}
