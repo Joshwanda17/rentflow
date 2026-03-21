@@ -108,6 +108,13 @@ export function SupporterMenuDrawer({
 
   const menuSections: MenuSection[] = [
     {
+      title: 'Share & Grow',
+      items: [
+        { icon: Share2, label: 'Referrals', description: 'Invite & earn rewards', path: '/referrals' },
+        { icon: Download, label: 'Share App', description: 'Invite friends to Welile', path: '/install' },
+      ]
+    },
+    {
       title: 'Investments',
       items: [
         { icon: CreditCard, label: 'Add Investment', description: 'Fund via Mobile Money', onClick: onAddInvestment },
@@ -127,9 +134,7 @@ export function SupporterMenuDrawer({
     {
       title: 'Community',
       items: [
-        { icon: Share2, label: 'Referrals', description: 'Invite & earn rewards', path: '/referrals' },
         { icon: Store, label: 'Marketplace', description: 'Shop products', path: '/marketplace' },
-        { icon: Download, label: 'Share App', description: 'Invite friends to Welile', path: '/install' },
       ]
     },
     {
