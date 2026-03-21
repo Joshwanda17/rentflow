@@ -140,6 +140,7 @@ export function AgentMenuDrawer({
         { icon: Wallet, label: 'Top Up Wallet', description: 'Deposit to tenant wallet', onClick: onTopUpTenant, accent: 'emerald-500' },
         { icon: HandCoins, label: 'Invest for Partner', description: 'Proxy investment', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
         { icon: Handshake, label: 'Sub-Agent', description: 'Register sub-agent', onClick: onInviteSubAgent, accent: 'amber-500' },
+        { icon: Users, label: 'My Sub-Agents', description: 'View agents you cover', onClick: onViewSubAgents, accent: 'orange-500' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
