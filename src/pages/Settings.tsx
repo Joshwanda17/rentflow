@@ -214,8 +214,8 @@ export default function Settings() {
   const hasLegalContent = roles.includes('tenant') || roles.includes('agent') || roles.includes('supporter');
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-4 max-w-2xl">
+    <div className="min-h-screen bg-background relative">
+      <div className="container mx-auto px-4 py-4 max-w-2xl pb-32">
 
         {/* Sticky Header */}
         <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md pb-3 -mx-4 px-4 border-b border-border/30 mb-4">
@@ -242,26 +242,61 @@ export default function Settings() {
               Home
             </Button>
           </div>
-
-          {/* Section Navigation Pills */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
-            {SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent).map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => scrollToSection(id)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 min-h-[44px] touch-manipulation active:scale-95",
-                  activeSection === id
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                    : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
+
+        {/* ═══ PREMIUM PROFILE HERO CARD ═══ */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-lg">
+            {/* Decorative mesh */}
+            <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-accent/10 blur-3xl" />
+            
+            <div className="relative flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="h-20 w-20 border-3 border-primary/20 shadow-xl ring-2 ring-background">
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+                  <AvatarFallback className="text-xl bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-bold">
+                    {getInitials(fullName || 'U')}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg border-2 border-background"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                >
+                  {uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                </Button>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-bold text-lg truncate">{fullName || 'Your Name'}</h2>
+                <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {roles.slice(0, 3).map((role) => {
+                    const config = roleConfig[role];
+                    return (
+                      <Badge key={role} className={`${config.color} text-[10px] px-2 py-0.5 border`}>
+                        {config.icon}
+                        <span className="ml-1">{config.label}</span>
+                      </Badge>
+                    );
+                  })}
+                  {roles.length > 3 && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                      +{roles.length - 3}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* 🔓 UNLOCK ALL ROLES — Only visible for Funders */}
         {isFunder && (
