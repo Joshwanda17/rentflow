@@ -15,7 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, Home, Banknote, ArrowRight, Loader2, Search } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 
@@ -367,10 +367,14 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className="font-semibold text-sm truncate">{req.tenant_name}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Home className="h-3 w-3" />
                           {req.landlord_name}
+                        </span>
+                        <span className="flex items-center gap-1 text-primary">
+                          <UserCheck className="h-3 w-3" />
+                          {req.assigned_agent_name || req.agent_name || 'No Agent'}
                         </span>
                         {req.request_city && (
                           <span className="flex items-center gap-1">
