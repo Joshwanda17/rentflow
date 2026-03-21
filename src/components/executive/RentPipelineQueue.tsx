@@ -109,7 +109,51 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   const [payoutRef, setPayoutRef] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('wallet');
   const [processing, setProcessing] = useState(false);
+  const [quickProcessingId, setQuickProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+
+  // Quick approve directly from list — no dialog needed
+  const handleQuickApprove = async (req: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || quickProcessingId) return;
+    // CFO stage needs payout ref, Tenant Ops may need agent — use dialog
+    if (config.showPayoutFields || config.showAgentSelector) {
+      setSelectedRequest(req);
+      return;
+    }
+    setQuickProcessingId(req.id);
+    try {
+      const updateData: any = {
+        status: config.nextStatus,
+        [config.reviewerColumn]: user.id,
+        [config.reviewerAtColumn]: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (stage === 'agent_verified') {
+        try {
+          await supabase.functions.invoke('credit-landlord-verification-bonus', {
+            body: { rent_request_id: req.id },
+          });
+        } catch (bonusErr) {
+          console.warn('Landlord verification bonus failed:', bonusErr);
+        }
+      }
+
+      const { error } = await supabase
+        .from('rent_requests')
+        .update(updateData)
+        .eq('id', req.id);
+      if (error) throw error;
+
+      toast({ title: '✅ Approved', description: `${req.tenant_name} → ${config.nextStatus.replace(/_/g, ' ')}` });
+      queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setQuickProcessingId(null);
+    }
+  };
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ['rent-pipeline', stage],
@@ -309,43 +353,56 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         ) : (
           <div className="divide-y divide-border">
             {filtered.map(req => (
-              <button
+              <div
                 key={req.id}
-                onClick={() => setSelectedRequest(req)}
-                className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors"
+                className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors flex items-center gap-2"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="font-semibold text-sm truncate">{req.tenant_name}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Home className="h-3 w-3" />
-                        {req.landlord_name}
-                      </span>
-                      {req.request_city && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {req.request_city}
-                        </span>
-                      )}
-                    </div>
-                    {req.agent_name !== 'Unassigned' && (
-                      <div className="text-xs text-muted-foreground">
-                        Agent: {req.assigned_agent_name || req.agent_name}
+                <button
+                  onClick={() => setSelectedRequest(req)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-semibold text-sm truncate">{req.tenant_name}</span>
                       </div>
-                    )}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Home className="h-3 w-3" />
+                          {req.landlord_name}
+                        </span>
+                        {req.request_city && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {req.request_city}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-sm">UGX {fmt(req.rent_amount)}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {format(new Date(req.created_at), 'dd MMM yy')}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-bold text-sm">UGX {fmt(req.rent_amount)}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {format(new Date(req.created_at), 'dd MMM yy')}
-                    </p>
-                  </div>
-                </div>
-              </button>
+                </button>
+                {/* Quick Approve Button */}
+                <Button
+                  size="sm"
+                  onClick={(e) => handleQuickApprove(req, e)}
+                  disabled={quickProcessingId === req.id}
+                  className="shrink-0 h-8 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {quickProcessingId === req.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  )}
+                  Approve
+                </Button>
+              </div>
             ))}
           </div>
         )}
