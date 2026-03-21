@@ -203,7 +203,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
       const [profilesRes, landlordsRes] = await Promise.all([
         ids.size > 0
-          ? supabase.from('profiles').select('id, full_name, phone').in('id', [...ids])
+          ? supabase.from('profiles').select('id, full_name, phone, email').in('id', [...ids])
           : { data: [] },
         landlordIds.length > 0
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
