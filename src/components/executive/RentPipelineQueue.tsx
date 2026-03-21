@@ -502,6 +502,10 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   <p className="font-semibold">UGX {fmt(selectedRequest.access_fee)}</p>
                 </div>
                 <div className="space-y-0.5">
+                  <p className="text-xs text-muted-foreground">Daily Repayment</p>
+                  <p className="font-bold text-base text-primary">UGX {fmt(selectedRequest.daily_repayment)}</p>
+                </div>
+                <div className="space-y-0.5">
                   <p className="text-xs text-muted-foreground">Total Repayment</p>
                   <p className="font-semibold">UGX {fmt(selectedRequest.total_repayment)}</p>
                 </div>
