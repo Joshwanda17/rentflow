@@ -105,6 +105,7 @@ export function AgentMenuDrawer({
   onFindRentals,
   onListEmptyHouse,
   onViewMyListings,
+  onViewSubAgents,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('actions');
