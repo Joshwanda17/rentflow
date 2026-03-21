@@ -1485,6 +1485,7 @@ export type Database = {
           verified: boolean | null
           verified_at: string | null
           verified_by: string | null
+          video_url: string | null
           village: string | null
         }
         Insert: {
@@ -1532,6 +1533,7 @@ export type Database = {
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          video_url?: string | null
           village?: string | null
         }
         Update: {
@@ -1579,6 +1581,7 @@ export type Database = {
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          video_url?: string | null
           village?: string | null
         }
         Relationships: [
