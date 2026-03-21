@@ -93,7 +93,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
