@@ -1,14 +1,16 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Camera, X, Loader2, ImagePlus } from 'lucide-react';
+import { Camera, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { optimizeImage, generateThumbnail } from '@/lib/imageOptimizer';
 
 interface HouseImageFile {
   id: string;
   previewUrl: string;
   file: File;
+  thumbnailFile?: File;
 }
 
 interface HouseImageUploaderProps {
@@ -20,9 +22,10 @@ interface HouseImageUploaderProps {
 export type { HouseImageFile };
 
 export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseImageUploaderProps) {
+  const [compressing, setCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
@@ -32,20 +35,42 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
       return;
     }
 
+    setCompressing(true);
     const newImages: HouseImageFile[] = [];
+
     for (const file of files) {
       if (!file.type.startsWith('image/')) continue;
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} exceeds 5MB`);
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 10MB`);
         continue;
       }
-      newImages.push({
-        id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        previewUrl: URL.createObjectURL(file),
-        file,
-      });
+
+      try {
+        const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+        const thumb = await generateThumbnail(file, 300);
+        
+        const saved = Math.round((1 - optimized.compressedSize / optimized.originalSize) * 100);
+        if (saved > 10) {
+          console.log(`[ImageOptimizer] ${file.name}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.compressedSize/1024).toFixed(0)}KB (${saved}% smaller)`);
+        }
+
+        newImages.push({
+          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          previewUrl: optimized.previewUrl,
+          file: optimized.file,
+          thumbnailFile: thumb.file,
+        });
+      } catch (err) {
+        console.error('Image optimization failed, using original:', err);
+        newImages.push({
+          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          previewUrl: URL.createObjectURL(file),
+          file,
+        });
+      }
     }
 
+    setCompressing(false);
     onChange([...images, ...newImages]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -93,9 +118,19 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
           size="sm"
           className="w-full border-dashed min-h-[44px]"
           onClick={() => fileInputRef.current?.click()}
+          disabled={compressing}
         >
-          <Camera className="h-4 w-4 mr-2" />
-          {images.length === 0 ? 'Add Photos' : 'Add More'}
+          {compressing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Optimizing...
+            </>
+          ) : (
+            <>
+              <Camera className="h-4 w-4 mr-2" />
+              {images.length === 0 ? 'Add Photos' : 'Add More'}
+            </>
+          )}
         </Button>
       )}
       <p className="text-[10px] text-muted-foreground">
@@ -105,25 +140,39 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
   );
 }
 
-/** Upload images to storage and return public URLs */
+/** Upload images to storage and return public URLs. Images are already optimized client-side. */
 export async function uploadHouseImages(
   userId: string,
   listingId: string,
-  files: File[]
+  files: File[],
+  thumbnailFiles?: (File | undefined)[]
 ): Promise<string[]> {
   const urls: string[] = [];
 
-  for (const file of files) {
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `${userId}/${listingId}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const ext = file.name.split('.').pop() || 'webp';
+    const baseName = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const path = `${userId}/${listingId}/${baseName}.${ext}`;
 
     const { error } = await supabase.storage
       .from('house-images')
-      .upload(path, file, { cacheControl: '3600', upsert: false });
+      .upload(path, file, { cacheControl: '86400', upsert: false });
 
     if (error) {
       console.error('Upload error:', error);
       continue;
+    }
+
+    // Upload thumbnail alongside
+    const thumbFile = thumbnailFiles?.[i];
+    if (thumbFile) {
+      const thumbExt = thumbFile.name.split('.').pop() || 'webp';
+      const thumbPath = `${userId}/${listingId}/thumb_${baseName}.${thumbExt}`;
+      await supabase.storage
+        .from('house-images')
+        .upload(thumbPath, thumbFile, { cacheControl: '86400', upsert: false })
+        .catch(e => console.warn('Thumbnail upload failed:', e));
     }
 
     const { data } = supabase.storage.from('house-images').getPublicUrl(path);

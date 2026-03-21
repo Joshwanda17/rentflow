@@ -2,9 +2,10 @@ import { useState, useRef } from 'react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, X, Loader2, GripVertical } from 'lucide-react';
+import { Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { optimizeImage } from '@/lib/imageOptimizer';
 
 interface GalleryImage {
   id: string;
@@ -40,6 +41,7 @@ export function GalleryImageUploader({
       return;
     }
 
+    setUploading(true);
     const newImages: GalleryImage[] = [];
 
     for (const file of files) {
@@ -48,27 +50,39 @@ export function GalleryImageUploader({
         continue;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} exceeds 5MB limit`);
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 10MB limit`);
         continue;
       }
 
-      // Create preview
-      const reader = new FileReader();
-      const previewUrl = await new Promise<string>((resolve) => {
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
+      try {
+        const optimized = await optimizeImage(file, { maxWidth: 1200, quality: 0.8 });
 
-      newImages.push({
-        id: `new-${Date.now()}-${Math.random()}`,
-        image_url: previewUrl,
-        display_order: images.length + newImages.length,
-        isNew: true,
-        file,
-      });
+        newImages.push({
+          id: `new-${Date.now()}-${Math.random()}`,
+          image_url: optimized.previewUrl,
+          display_order: images.length + newImages.length,
+          isNew: true,
+          file: optimized.file,
+        });
+      } catch {
+        // Fallback to original
+        const reader = new FileReader();
+        const previewUrl = await new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        newImages.push({
+          id: `new-${Date.now()}-${Math.random()}`,
+          image_url: previewUrl,
+          display_order: images.length + newImages.length,
+          isNew: true,
+          file,
+        });
+      }
     }
 
+    setUploading(false);
     onChange([...images, ...newImages]);
     
     if (fileInputRef.current) {
