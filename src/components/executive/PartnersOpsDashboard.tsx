@@ -152,6 +152,63 @@ export function PartnersOpsDashboard() {
     toast({ title: 'Escalation acknowledged' });
   };
 
+  const approvePortfolioFromEscalation = async (esc: any) => {
+    const portfolioId = esc.portfolio_id;
+    const { error } = await supabase.from('investor_portfolios')
+      .update({ status: 'active' })
+      .eq('id', portfolioId);
+    if (error) {
+      toast({ title: 'Approval failed', variant: 'destructive' });
+      return;
+    }
+    // Close escalation
+    await supabase.from('partner_escalations')
+      .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+      .eq('id', esc.id);
+    // Close any other stale_approval escalations for this portfolio
+    await supabase.from('partner_escalations')
+      .update({ status: 'auto_resolved', resolved_at: new Date().toISOString() })
+      .eq('portfolio_id', portfolioId)
+      .eq('escalation_type', 'stale_approval')
+      .eq('status', 'open');
+    // Audit log
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('audit_logs').insert({
+      user_id: user?.id,
+      action_type: 'portfolio_approved_from_escalation',
+      table_name: 'investor_portfolios',
+      record_id: portfolioId,
+      metadata: { escalation_id: esc.id, portfolio_code: (esc.details as any)?.portfolio_code },
+    });
+    queryClient.invalidateQueries({ queryKey: ['partner-escalations'] });
+    refetch();
+    toast({ title: 'Portfolio approved & escalation resolved' });
+  };
+
+  const bulkResolveEscalations = async (type: string) => {
+    const toResolve = (escalations || []).filter(e => e.escalation_type === type);
+    if (toResolve.length === 0) return;
+    const ids = toResolve.map(e => e.id);
+    await supabase.from('partner_escalations')
+      .update({ status: 'acknowledged', resolved_at: new Date().toISOString() })
+      .in('id', ids);
+    queryClient.invalidateQueries({ queryKey: ['partner-escalations'] });
+    toast({ title: `${ids.length} ${type.replace('_', ' ')} escalations resolved` });
+  };
+
+  const getEscalationSeverity = (esc: any): 'critical' | 'warning' | 'info' => {
+    const hours = (esc.details as any)?.hours_pending;
+    if (esc.escalation_type === 'stale_approval') {
+      if (hours && hours > 168) return 'critical'; // > 7 days
+      if (hours && hours > 72) return 'warning';
+      return 'info';
+    }
+    const days = (esc.details as any)?.days_remaining;
+    if (days && days <= 3) return 'critical';
+    if (days && days <= 7) return 'warning';
+    return 'info';
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
