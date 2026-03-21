@@ -126,6 +126,33 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
               </div>
             )}
 
+            {/* Dashboard Access Status */}
+            {(() => {
+              const lastActive = user.lastActiveAt;
+              if (lastActive) {
+                const days = differenceInDays(new Date(), new Date(lastActive));
+                const isRecent = days <= 7;
+                return (
+                  <div className="flex items-center gap-2 text-sm">
+                    {isRecent ? <Eye className="h-4 w-4 text-green-600" /> : <EyeOff className="h-4 w-4 text-destructive" />}
+                    <span className="text-muted-foreground">Dashboard</span>
+                    <span className={`ml-auto font-medium ${isRecent ? 'text-green-600' : days <= 30 ? 'text-amber-600' : 'text-destructive'}`}>
+                      {isRecent ? 'Active' : `Last seen ${formatDistanceToNow(new Date(lastActive), { addSuffix: true })}`}
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <div className="flex items-center gap-2 text-sm">
+                  <EyeOff className="h-4 w-4 text-destructive" />
+                  <span className="text-muted-foreground">Dashboard</span>
+                  <span className="ml-auto">
+                    <Badge variant="destructive" className="text-[10px]">Never logged in</Badge>
+                  </span>
+                </div>
+              );
+            })()}
+
             {/* Landlord-specific info */}
             {user.type === 'landlord' && (
               <>
