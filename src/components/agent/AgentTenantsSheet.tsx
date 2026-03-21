@@ -445,7 +445,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                            {isNoSmartphone && (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/40 text-warning bg-warning/10 shrink-0">
+                                📵 No Phone
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Phone className="h-3 w-3" />
                             <span>{tenant.phone}</span>
