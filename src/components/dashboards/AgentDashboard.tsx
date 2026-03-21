@@ -201,125 +201,78 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         <AgentAgreementBanner />
 
-        {/* Profile + Wallet Hero */}
-        <div className="rounded-2xl border border-border/60 bg-card overflow-hidden animate-fade-in">
-          {/* Profile row */}
-          <div className="flex items-center gap-3 p-4 pb-3">
-            <button onClick={() => navigate('/settings')} className="shrink-0">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
-              <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5 flex-wrap">
-                <span className="break-words">{profile?.full_name || 'Agent'}</span>
-                {profile?.verified && (
-                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
-                )}
-                {profile?.is_seller && (
-                  <ShoppingBag className="h-3.5 w-3.5 text-chart-4 shrink-0" />
-                )}
-              </h1>
-              <p className="text-xs text-muted-foreground">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
-            </div>
-            <AiIdButton variant="compact" />
+        {/* Profile + Name + AI ID */}
+        <div className="flex items-center gap-3 animate-fade-in">
+          <button onClick={() => navigate('/settings')} className="shrink-0">
+            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-xl leading-tight flex items-center gap-1.5 flex-wrap">
+              <span className="break-words">{profile?.full_name || 'Agent'}</span>
+              {profile?.verified && (
+                <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+              )}
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
           </div>
+          <AiIdButton variant="compact" />
+        </div>
 
-          {/* Wallet strip */}
-          <button
-            onClick={handleViewWallet}
-            className="group w-full flex items-center gap-3 px-4 py-3.5 bg-success/5 border-t border-border/40 hover:bg-success/10 transition-all touch-manipulation"
-          >
-            <div className="p-2 rounded-lg bg-success/15 group-hover:bg-success/25 transition-colors shrink-0">
-              <Wallet className="h-4 w-4 text-success" />
+        {/* Wallet — Most Prominent */}
+        <button
+          onClick={handleViewWallet}
+          className="group w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all touch-manipulation animate-fade-in active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-primary/15 group-hover:bg-primary/25 transition-colors shrink-0">
+              <Wallet className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1 text-left min-w-0">
-              <p className="font-bold text-lg text-foreground truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-              <p className="text-[10px] text-muted-foreground">Tap to open wallet</p>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Wallet Balance</p>
+              <p className="font-bold text-2xl text-foreground truncate mt-0.5">{formatUGX(wallet?.balance ?? 0)}</p>
             </div>
             <div className="flex items-center gap-1.5">
               {profile?.phone && (
                 <>
                   {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
-                    <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[6px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
+                    <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[hsl(48,100%,50%)] text-[7px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
                   )}
                   {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
-                    <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[6px] font-black text-white leading-none">A</span>
+                    <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[hsl(0,85%,50%)] text-[7px] font-black text-white leading-none">A</span>
                   )}
                 </>
               )}
-              <span className="text-muted-foreground group-hover:text-foreground transition-colors">›</span>
+              <span className="text-lg text-muted-foreground group-hover:text-primary transition-colors">›</span>
             </div>
-          </button>
-          <RecentAutoCharges />
+          </div>
+        </button>
+
+        {/* 5 Key Action Buttons + Hub */}
+        <div className="grid grid-cols-3 gap-2 animate-fade-in">
+          {[
+            { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
+            { icon: FileText, label: 'Post Request', onClick: () => setRentRequestOpen(true), color: 'text-success', bg: 'bg-success/15 border-success/40 hover:bg-success/20 ring-1 ring-success/30' },
+            { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
+            { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-chart-4', bg: 'bg-chart-4/10 border-chart-4/30 hover:bg-chart-4/15' },
+            { icon: Receipt, label: 'Rent Fee', onClick: () => setMyRentRequestsOpen(true), color: 'text-warning', bg: 'bg-warning/10 border-warning/30 hover:bg-warning/15' },
+            { icon: Menu, label: 'Agent Hub', onClick: handleOpenMenu, color: 'text-foreground/70', bg: 'bg-card border-border/40 hover:bg-muted/40' },
+          ].map((action, i) => (
+            <button
+              key={action.label}
+              onClick={() => { hapticTap(); action.onClick(); }}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl border transition-all touch-manipulation active:scale-95",
+                action.bg
+              )}
+              style={staggerDelay(i, 40)}
+            >
+              <action.icon className={cn("h-5 w-5", action.color)} />
+              <span className={cn("text-[11px] font-semibold", action.color)}>{action.label}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Seller CTA */}
-        {!profile?.is_seller && profile?.seller_application_status !== 'pending' && (
-          <button
-            onClick={() => { hapticTap(); handleApplyToSell(); }}
-            disabled={applyingToSell}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-chart-4/40 text-chart-4 text-xs font-medium hover:bg-chart-4/5 transition-colors touch-manipulation"
-          >
-            <ShoppingBag className="h-3.5 w-3.5" />
-            {applyingToSell ? 'Applying…' : 'Start Selling on Welile'}
-          </button>
-        )}
-        {!profile?.is_seller && profile?.seller_application_status === 'pending' && (
-          <div className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-warning/5 border border-warning/20 text-warning text-xs font-medium">
-            <ShoppingBag className="h-3.5 w-3.5" />
-            Seller Application Pending
-          </div>
-        )}
-
-        {/* Quick Actions — Clean 2×4 Grid */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
-          <div className="grid grid-cols-4 gap-1.5">
-            {[
-              { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), highlight: true },
-              { icon: FileText, label: 'Post Request', onClick: () => setRentRequestOpen(true), highlight: true, featured: true },
-              { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), highlight: true },
-              { icon: MapPin, label: 'Nearby', onClick: () => setNearbyTenantsOpen(true), highlight: true },
-              { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
-              { icon: UserPlus, label: 'Register', onClick: handleRegisterUser },
-              { icon: FileText, label: 'Requests', onClick: () => setMyRentRequestsOpen(true) },
-              { icon: Menu, label: 'More', onClick: handleOpenMenu },
-            ].map((action, i) => (
-              <button
-                key={action.label}
-                onClick={() => { hapticTap(); action.onClick(); }}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1 py-3 rounded-xl border transition-all touch-manipulation animate-fade-in active:scale-95",
-                  (action as any).featured
-                    ? "bg-success/15 border-success/40 hover:bg-success/20 active:bg-success/25 ring-1 ring-success/30"
-                    : (action as any).highlight
-                    ? "bg-primary/10 border-primary/30 hover:bg-primary/15 active:bg-primary/20"
-                    : "bg-card border-border/40 hover:bg-muted/40 active:bg-muted/60"
-                )}
-                style={staggerDelay(i, 30)}
-              >
-                <action.icon className={cn("h-[18px] w-[18px]", (action as any).featured ? "text-success" : (action as any).highlight ? "text-primary" : "text-foreground/70")} />
-                <span className={cn("text-[10px] font-medium", (action as any).featured ? "text-success font-bold" : (action as any).highlight ? "text-primary font-bold" : "text-foreground/80")}>{action.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Daily Ops Report */}
-        {/* Verification Opportunities */}
-        <AgentVerificationOpportunitiesCard />
-
-        <AgentDailyOpsCard />
-
-        {/* Credit Access */}
-        <CreditAccessCard userId={user.id} compact />
-
-        {/* Tenant Rent Requests List */}
-        <AgentTenantRentRequestsList onOpenRequests={() => setMyRentRequestsOpen(true)} />
-
-        <ApprovedRentRequestsWidget mode="agent" />
-
-        <WalletDisclaimer />
+        <RecentAutoCharges />
 
         </main>
       </PullToRefresh>
