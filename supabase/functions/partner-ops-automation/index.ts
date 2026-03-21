@@ -111,12 +111,25 @@ Deno.serve(async (req) => {
     }
 
     // ═══ 2. STALE APPROVAL ESCALATION ═══
-    // First, auto-resolve stale_approval escalations for portfolios no longer pending
-    await supabase.from('partner_escalations')
-      .update({ status: 'auto_resolved', resolved_at: now.toISOString() })
+    // First, cleanup: auto-resolve stale escalations for portfolios no longer pending
+    const { data: openStaleEscalations } = await supabase.from('partner_escalations')
+      .select('id, portfolio_id')
       .eq('escalation_type', 'stale_approval')
-      .eq('status', 'open')
-      .not('portfolio_id', 'in', `(${(await supabase.from('investor_portfolios').select('id').eq('status', 'pending_approval')).data?.map(p => `"${p.id}"`).join(',') || '"none"'})`);
+      .eq('status', 'open');
+
+    if (openStaleEscalations && openStaleEscalations.length > 0) {
+      const escPortfolioIds = [...new Set(openStaleEscalations.map(e => e.portfolio_id))];
+      const { data: stillPending } = await supabase.from('investor_portfolios')
+        .select('id').eq('status', 'pending_approval').in('id', escPortfolioIds);
+      const stillPendingIds = new Set((stillPending || []).map(p => p.id));
+      const toResolve = openStaleEscalations.filter(e => !stillPendingIds.has(e.portfolio_id)).map(e => e.id);
+      if (toResolve.length > 0) {
+        await supabase.from('partner_escalations')
+          .update({ status: 'auto_resolved', resolved_at: now.toISOString() })
+          .in('id', toResolve);
+        console.log(`[partner-ops-automation] Auto-resolved ${toResolve.length} orphaned stale escalations`);
+      }
+    }
 
     // Flag portfolios pending approval for > 48 hours
     const cutoff48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
