@@ -248,6 +248,11 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
 
           <Separator />
 
+          {/* Verification Checklist */}
+          <VerificationChecklist userId={user.id} highlightRole={user.type} compact />
+
+          <Separator />
+
           {/* Activity Stats */}
           <UserStatsSection stats={stats} loading={statsLoading} />
 
