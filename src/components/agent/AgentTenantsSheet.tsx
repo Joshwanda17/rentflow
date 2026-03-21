@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, Filter, ArrowUpDown, CheckCircle2, Clock, Users, Share2 } from 'lucide-react';
+import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, CheckCircle2, Clock, Users, Share2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -68,17 +68,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
   const [sortMode, setSortMode] = useState<SortMode>('balance');
-  // Store rent balances keyed by tenant_id
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (open && user) {
-      fetchTenants();
-    }
-    if (!open) {
-      setExpandedTenantId(null);
-    }
+    if (open && user) fetchTenants();
+    if (!open) setExpandedTenantId(null);
   }, [open, user]);
 
   const fetchTenants = async () => {
@@ -87,7 +82,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, email, created_at, monthly_rent    , verified')
+        .select('id, full_name, phone, email, created_at, monthly_rent, verified')
         .eq('referrer_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -95,7 +90,6 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       const tenantList = data || [];
       setTenants(tenantList);
 
-      // Fetch rent balances and smartphone status for all tenants in parallel
       if (tenantList.length > 0) {
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
@@ -105,16 +99,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           .in('status', ['approved', 'disbursed', 'repaying']);
 
         const balances: Record<string, number> = {};
-        const noSmartphoneMap: Record<string, boolean> = {};
+        const phoneMap: Record<string, boolean> = {};
         (rentRequests || []).forEach(rr => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
-          if (rr.tenant_no_smartphone) {
-            noSmartphoneMap[rr.tenant_id] = true;
-          }
+          if (rr.tenant_no_smartphone) phoneMap[rr.tenant_id] = true;
         });
         setTenantBalances(balances);
-        setNoSmartphoneMap(noSmartphoneMap);
+        setNoSmartphoneMap(phoneMap);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
@@ -160,7 +152,6 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       t.phone.includes(search)
     );
 
-    // Apply filter
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -182,17 +173,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         break;
     }
 
-    // Apply sort
     list.sort((a, b) => {
       switch (sortMode) {
-        case 'balance':
-          return (tenantBalances[b.id] || 0) - (tenantBalances[a.id] || 0);
-        case 'name':
-          return a.full_name.localeCompare(b.full_name);
-        case 'recent':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        default:
-          return 0;
+        case 'balance': return (tenantBalances[b.id] || 0) - (tenantBalances[a.id] || 0);
+        case 'name': return a.full_name.localeCompare(b.full_name);
+        case 'recent': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        default: return 0;
       }
     });
 
@@ -203,19 +189,30 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const stats = useMemo(() => {
     const totalOwing = Object.values(tenantBalances).reduce((s, v) => s + v, 0);
     const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
+    const clearedCount = tenants.filter(t => (tenantBalances[t.id] || 0) === 0 && t.verified).length;
     const noPhoneCount = Object.values(noSmartphoneMap).filter(Boolean).length;
-    return { totalOwing, owingCount, total: tenants.length, noPhoneCount };
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const newCount = tenants.filter(t => new Date(t.created_at) > thirtyDaysAgo).length;
+    return { totalOwing, owingCount, total: tenants.length, noPhoneCount, clearedCount, newCount };
   }, [tenants, tenantBalances, noSmartphoneMap]);
 
-  const filterTabs: { key: FilterTab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { key: 'owing', label: 'Rent Receivable', icon: <AlertTriangle className="h-3 w-3" />, count: stats.owingCount },
-    { key: 'all', label: 'All', icon: <Users className="h-3 w-3" />, count: stats.total },
-    { key: 'no-phone', label: 'No Phone', icon: <Phone className="h-3 w-3" />, count: stats.noPhoneCount },
-    { key: 'active', label: 'Active', icon: <Clock className="h-3 w-3" /> },
-    { key: 'cleared', label: 'Cleared', icon: <CheckCircle2 className="h-3 w-3" /> },
-    { key: 'new', label: 'New', icon: <User className="h-3 w-3" /> },
+  const filterTabs: { key: FilterTab; label: string; emoji: string; count: number; color: string; activeColor: string }[] = [
+    { key: 'owing', label: 'Owing', emoji: '🔴', count: stats.owingCount, color: 'text-destructive', activeColor: 'bg-destructive text-destructive-foreground' },
+    { key: 'all', label: 'All', emoji: '👥', count: stats.total, color: 'text-foreground', activeColor: 'bg-primary text-primary-foreground' },
+    { key: 'active', label: 'Active', emoji: '🟢', count: stats.owingCount + stats.clearedCount, color: 'text-success', activeColor: 'bg-success text-white' },
+    { key: 'cleared', label: 'Cleared', emoji: '✅', count: stats.clearedCount, color: 'text-success', activeColor: 'bg-success/80 text-white' },
+    { key: 'new', label: 'New', emoji: '🆕', count: stats.newCount, color: 'text-primary', activeColor: 'bg-primary text-primary-foreground' },
+    { key: 'no-phone', label: 'No Phone', emoji: '📵', count: stats.noPhoneCount, color: 'text-warning', activeColor: 'bg-warning text-warning-foreground' },
   ];
 
+  const sortOptions: { key: SortMode; label: string }[] = [
+    { key: 'balance', label: 'Highest debt' },
+    { key: 'name', label: 'Name A-Z' },
+    { key: 'recent', label: 'Newest' },
+  ];
+
+  // ───── Handlers ─────
   const handleDownloadPdf = async (tenant: Tenant, req: TenantRentRequest) => {
     try {
       const scheduleDays = [];
@@ -233,10 +230,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         status: req.status || 'approved', paidAmount: req.amount_repaid,
         startDate: format(new Date(req.disbursed_at || req.created_at), 'dd MMM yyyy'), schedule: scheduleDays,
       });
-      toast({ title: 'PDF Downloaded', description: 'Repayment schedule saved.' });
-    } catch {
-      toast({ title: 'Error', description: 'Could not generate PDF.', variant: 'destructive' });
-    }
+    } catch { toast({ title: 'Error generating PDF', variant: 'destructive' }); }
   };
 
   const handleShareWhatsApp = async (tenant: Tenant, req: TenantRentRequest) => {
@@ -256,9 +250,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         status: req.status || 'approved', paidAmount: req.amount_repaid,
         startDate: format(new Date(req.disbursed_at || req.created_at), 'dd MMM yyyy'), schedule: scheduleDays,
       }, tenant.phone);
-    } catch {
-      toast({ title: 'Error', description: 'Could not share schedule.', variant: 'destructive' });
-    }
+    } catch { toast({ title: 'Error sharing', variant: 'destructive' }); }
   };
 
   const getStatusColor = (status: string | null) => {
@@ -270,134 +262,141 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
-  const cycleSortMode = () => {
-    const modes: SortMode[] = ['balance', 'name', 'recent'];
-    const next = modes[(modes.indexOf(sortMode) + 1) % modes.length];
-    setSortMode(next);
-    toast({ title: `Now showing by ${next === 'balance' ? 'who owes the most' : next === 'name' ? 'name' : 'newest first'}` });
-  };
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] rounded-t-2xl flex flex-col p-0">
-        {/* Header */}
-        <div className="px-4 pt-4 pb-2">
+      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0">
+        {/* ───── Sticky Header ───── */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b px-4 pt-4 pb-3 space-y-3">
+          {/* Title Row */}
           <SheetHeader className="pb-0">
             <SheetTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+              <span className="flex items-center gap-2 text-lg">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
                 My Tenants
               </span>
-              <Badge variant="secondary" className="text-xs font-mono">
+              <Badge variant="outline" className="text-sm font-mono px-3 py-1">
                 {stats.total}
               </Badge>
             </SheetTitle>
           </SheetHeader>
 
-          {/* Summary banner - prioritize rent balances */}
-          {stats.totalOwing > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-3 rounded-xl bg-destructive/10 border border-destructive/20 p-3 flex items-center justify-between"
+          {/* ───── Quick Stats Row ───── */}
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => setActiveFilter('owing')}
+              className={`rounded-xl p-2.5 text-center transition-all border ${
+                activeFilter === 'owing' 
+                  ? 'bg-destructive/10 border-destructive/40 ring-2 ring-destructive/20' 
+                  : 'bg-destructive/5 border-destructive/20 hover:bg-destructive/10'
+              }`}
             >
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-destructive/20">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-destructive">{stats.owingCount} tenant{stats.owingCount !== 1 ? 's' : ''} still owe you money</p>
-                  <p className="text-[10px] text-destructive/70">They owe: {formatUGX(stats.totalOwing)} total</p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-xs h-7 text-destructive hover:bg-destructive/10"
-                onClick={() => setActiveFilter('owing')}
-              >
-                View
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Search + Sort */}
-          <div className="flex items-center gap-2 mt-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Type a name or phone number..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-9"
-                style={{ fontSize: '16px' }}
-              />
-            </div>
-            <Button
-              size="icon"
-              variant="outline"
-              className="h-9 w-9 shrink-0"
-              onClick={cycleSortMode}
-              title={`Sort: ${sortMode}`}
+              <p className="text-xl font-black text-destructive font-mono leading-none">{stats.owingCount}</p>
+              <p className="text-[10px] text-destructive/70 font-medium mt-0.5">Owing</p>
+              <p className="text-[9px] text-destructive/50 font-mono">{formatUGX(stats.totalOwing)}</p>
+            </button>
+            <button
+              onClick={() => setActiveFilter('cleared')}
+              className={`rounded-xl p-2.5 text-center transition-all border ${
+                activeFilter === 'cleared'
+                  ? 'bg-success/10 border-success/40 ring-2 ring-success/20'
+                  : 'bg-success/5 border-success/20 hover:bg-success/10'
+              }`}
             >
-              <ArrowUpDown className="h-4 w-4" />
-            </Button>
+              <p className="text-xl font-black text-success font-mono leading-none">{stats.clearedCount}</p>
+              <p className="text-[10px] text-success/70 font-medium mt-0.5">Cleared</p>
+            </button>
+            <button
+              onClick={() => setActiveFilter('no-phone')}
+              className={`rounded-xl p-2.5 text-center transition-all border ${
+                activeFilter === 'no-phone'
+                  ? 'bg-warning/10 border-warning/40 ring-2 ring-warning/20'
+                  : 'bg-warning/5 border-warning/20 hover:bg-warning/10'
+              }`}
+            >
+              <p className="text-xl font-black text-warning font-mono leading-none">{stats.noPhoneCount}</p>
+              <p className="text-[10px] text-warning/70 font-medium mt-0.5">No Phone</p>
+            </button>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
+          {/* ───── Search Bar ───── */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search name or phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-10 rounded-xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/40"
+              style={{ fontSize: '16px' }}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs">✕</button>
+            )}
+          </div>
+
+          {/* ───── Filter Pills (horizontally scrollable) ───── */}
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-hide">
             {filterTabs.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveFilter(tab.key)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
                   activeFilter === tab.key
-                    ? tab.key === 'owing'
-                      ? 'bg-destructive text-destructive-foreground shadow-sm'
-                      : 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                    ? `${tab.activeColor} shadow-sm scale-[1.02]`
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted active:scale-95'
                 }`}
               >
-                {tab.icon}
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    activeFilter === tab.key
-                      ? 'bg-background/20'
-                      : 'bg-background/60'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
+                <span className="text-sm leading-none">{tab.emoji}</span>
+                <span>{tab.label}</span>
+                <span className={`ml-0.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  activeFilter === tab.key ? 'bg-white/25' : 'bg-background/80'
+                }`}>
+                  {tab.count}
+                </span>
               </button>
             ))}
           </div>
 
-          {/* Sort indicator */}
-          <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
-            <Filter className="h-2.5 w-2.5 shrink-0" />
-            Showing by {sortMode === 'balance' ? 'who owes the most' : sortMode === 'name' ? 'name A to Z' : 'newest first'}
-            {' · '}{processedTenants.length} tenant{processedTenants.length !== 1 ? 's' : ''}
-          </p>
+          {/* ───── Sort Row ───── */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground shrink-0">Sort:</span>
+            {sortOptions.map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setSortMode(opt.key)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-all ${
+                  sortMode === opt.key
+                    ? 'bg-primary/10 text-primary border border-primary/30'
+                    : 'text-muted-foreground hover:bg-muted/50'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {processedTenants.length} result{processedTenants.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
 
-        {/* Tenant List */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
+        {/* ───── Tenant List ───── */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : processedTenants.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-muted/50 flex items-center justify-center">
-                <Users className="h-7 w-7 text-muted-foreground" />
+            <div className="text-center py-16">
+              <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-muted/50 flex items-center justify-center">
+                <Users className="h-8 w-8 text-muted-foreground/50" />
               </div>
               <p className="text-sm text-muted-foreground font-medium">
-                {search ? 'Nobody matches what you typed' : activeFilter !== 'all' ? `No ${activeFilter} tenants right now` : 'You haven\'t added any tenants yet'}
+                {search ? `No results for "${search}"` : activeFilter !== 'all' ? `No ${activeFilter} tenants` : 'No tenants yet'}
               </p>
-              {activeFilter !== 'all' && (
-                <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => setActiveFilter('all')}>
-                  See everyone
+              {(activeFilter !== 'all' || search) && (
+                <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => { setActiveFilter('all'); setSearch(''); }}>
+                  Show all tenants
                 </Button>
               )}
             </div>
@@ -410,7 +409,6 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const hasDebt = balance > 0;
               const isNoSmartphone = noSmartphoneMap[tenant.id] || false;
 
-              // Format phone for WhatsApp check (wa.me link)
               const formatPhoneForWA = (phone: string) => {
                 let clean = phone.replace(/\D/g, '');
                 if (clean.startsWith('0')) clean = '256' + clean.slice(1);
@@ -423,76 +421,74 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               return (
                 <motion.div
                   key={tenant.id}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(index * 0.03, 0.3) }}
-                  className={`rounded-xl border overflow-hidden transition-colors ${
+                  transition={{ delay: Math.min(index * 0.02, 0.2) }}
+                  className={`rounded-2xl border overflow-hidden transition-all ${
                     hasDebt
-                      ? 'border-destructive/30 bg-destructive/5'
-                      : 'border-border bg-card'
+                      ? 'border-destructive/25 bg-gradient-to-r from-destructive/5 to-transparent'
+                      : isNoSmartphone
+                        ? 'border-warning/25 bg-gradient-to-r from-warning/5 to-transparent'
+                        : 'border-border bg-card'
                   }`}
                 >
-                  {/* Tenant header */}
+                  {/* Tenant row */}
                   <button
                     onClick={() => toggleExpand(tenant.id)}
-                    className="w-full p-3 text-left hover:bg-muted/30 active:bg-primary/5 transition-colors"
+                    className="w-full p-3.5 text-left hover:bg-muted/20 active:bg-primary/5 transition-colors"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                          hasDebt ? 'bg-destructive/15' : 'bg-primary/10'
-                        }`}>
-                          {hasDebt ? (
-                            <AlertTriangle className="h-4 w-4 text-destructive" />
-                          ) : (
-                            <User className="h-5 w-5 text-primary" />
+                    <div className="flex items-center gap-3">
+                      {/* Avatar */}
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold ${
+                        hasDebt ? 'bg-destructive/15 text-destructive' : isNoSmartphone ? 'bg-warning/15 text-warning' : 'bg-primary/10 text-primary'
+                      }`}>
+                        {tenant.full_name.charAt(0).toUpperCase()}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                          {isNoSmartphone && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/40 text-warning bg-warning/10 shrink-0">
+                              📵
+                            </Badge>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
-                            {isNoSmartphone && (
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-warning/40 text-warning bg-warning/10 shrink-0">
-                                📵 No Phone
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span>{tenant.phone}</span>
-                          </div>
-                        </div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-2.5 w-2.5" />
+                          {tenant.phone}
+                          <span className="text-muted-foreground/50 mx-0.5">·</span>
+                          <Calendar className="h-2.5 w-2.5" />
+                          {format(new Date(tenant.created_at), 'dd MMM')}
+                        </p>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
+
+                      {/* Right side */}
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
                         {hasDebt ? (
-                          <span className="text-xs font-bold text-destructive">
+                          <span className="text-sm font-bold text-destructive font-mono">
                             {formatUGX(balance)}
                           </span>
                         ) : tenant.verified ? (
-                          <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0">
-                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                          <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0 gap-0.5">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
                             Clear
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-[10px]">Pending</Badge>
+                          <Badge variant="secondary" className="text-[10px]">
+                            <Clock className="h-2.5 w-2.5 mr-0.5" />
+                            Pending
+                          </Badge>
                         )}
-                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        <div className="mt-0.5">
+                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4 mt-1.5 ml-[52px] text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(tenant.created_at), 'dd MMM yyyy')}
-                      </span>
-                      {tenant.monthly_rent && (
-                        <span className="font-medium text-foreground/70">
-                          Rent: {formatUGX(tenant.monthly_rent)}
-                        </span>
-                      )}
                     </div>
                   </button>
 
-                  {/* Expanded section */}
+                  {/* ───── Expanded Details ───── */}
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
@@ -500,133 +496,124 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="overflow-hidden border-t border-border"
+                        className="overflow-hidden border-t border-border/50"
                       >
-                        <div className="p-3 space-y-3 bg-muted/20">
-                          {/* WhatsApp Check & Share Link for no-smartphone tenants */}
+                        <div className="p-3.5 space-y-3 bg-muted/10">
+                          {/* No-smartphone tools */}
                           {isNoSmartphone && (
                             <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-2">
-                              <p className="text-xs font-semibold text-warning flex items-center gap-1.5">
-                                📵 This tenant has no smartphone
-                              </p>
-                              <p className="text-[10px] text-muted-foreground">
-                                You manage their repayments. Check if they've joined WhatsApp — it means they now have a smartphone!
-                              </p>
+                              <p className="text-xs font-semibold text-warning">📵 No smartphone — you manage their payments</p>
                               <div className="flex gap-2">
                                 <Button
-                                  size="sm"
-                                  variant="outline"
+                                  size="sm" variant="outline"
                                   className="text-xs h-8 flex-1 border-success/30 text-success hover:bg-success/10"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${tenant.full_name}, this is your agent from Welile. Tap this link to check your rent schedule: ${appLink}`)}`, '_blank');
-                                    toast({ title: 'WhatsApp Check', description: 'If WhatsApp opens, they have a smartphone! Share the app link.' });
+                                    toast({ title: 'WhatsApp opened — if it works, they have a smartphone!' });
                                   }}
                                 >
                                   <MessageCircle className="h-3 w-3 mr-1" />
                                   Check WhatsApp
                                 </Button>
                                 <Button
-                                  size="sm"
-                                  variant="outline"
+                                  size="sm" variant="outline"
                                   className="text-xs h-8 flex-1 border-primary/30 text-primary hover:bg-primary/10"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     navigator.clipboard.writeText(appLink);
-                                    toast({ title: 'Link Copied!', description: 'Share this link with the tenant to access their dashboard.' });
+                                    toast({ title: 'Link copied!' });
                                   }}
                                 >
                                   <Share2 className="h-3 w-3 mr-1" />
-                                  Copy App Link
+                                  Copy Link
                                 </Button>
                               </div>
                             </div>
                           )}
 
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
-                            <Banknote className="h-3 w-3" />
-                            Rent Payments
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                            <Banknote className="h-3 w-3" /> Rent History
                           </p>
 
                           {isLoadingThis ? (
-                            <div className="flex items-center justify-center py-4">
+                            <div className="flex items-center justify-center py-6">
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                             </div>
                           ) : requests.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-3">No rent payments here yet</p>
+                            <p className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-xl">No rent records yet</p>
                           ) : (
                             requests.map((req) => {
                               const progress = req.total_repayment > 0 ? Math.min((req.amount_repaid / req.total_repayment) * 100, 100) : 0;
-                              const previewDays = buildScheduleDays(req.disbursed_at || req.created_at, req.duration_days);
                               const owing = Math.max(0, (req.total_repayment || 0) - (req.amount_repaid || 0));
+                              const previewDays = buildScheduleDays(req.disbursed_at || req.created_at, req.duration_days);
 
                               return (
-                                <div key={req.id} className="bg-card rounded-lg border border-border p-3 space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <p className="text-xs font-medium">{req.landlord?.name || 'Landlord'}</p>
-                                      <p className="text-[10px] text-muted-foreground">{req.landlord?.property_address || ''}</p>
+                                <div key={req.id} className="bg-card rounded-xl border p-3 space-y-2.5">
+                                  {/* Request header */}
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold truncate">{req.landlord?.name || 'Landlord'}</p>
+                                      <p className="text-[10px] text-muted-foreground truncate">{req.landlord?.property_address || ''}</p>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                      {owing > 0 && (
-                                        <span className="text-[10px] font-bold text-destructive">
-                                          -{formatUGX(owing)}
-                                        </span>
-                                      )}
-                                      <Badge className={`text-[10px] ${getStatusColor(req.status)}`}>
-                                        {req.status}
-                                      </Badge>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {owing > 0 && <span className="text-[10px] font-bold text-destructive font-mono">-{formatUGX(owing)}</span>}
+                                      <Badge className={`text-[10px] ${getStatusColor(req.status)}`}>{req.status}</Badge>
                                     </div>
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-2 text-center">
-                                    <div>
-                                      <p className="text-[10px] text-muted-foreground">Rent</p>
-                                      <p className="text-xs font-bold">{formatUGX(req.rent_amount)}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] text-muted-foreground">Daily</p>
-                                      <p className="text-xs font-bold text-primary">{formatUGX(req.daily_repayment)}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-[10px] text-muted-foreground">Repaid</p>
-                                      <p className="text-xs font-bold text-success">{formatUGX(req.amount_repaid)}</p>
-                                    </div>
+                                  {/* Stats grid */}
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                      { label: 'Rent', value: formatUGX(req.rent_amount), color: 'text-foreground' },
+                                      { label: 'Daily', value: formatUGX(req.daily_repayment), color: 'text-primary' },
+                                      { label: 'Repaid', value: formatUGX(req.amount_repaid), color: 'text-success' },
+                                    ].map(s => (
+                                      <div key={s.label} className="text-center p-1.5 rounded-lg bg-muted/40">
+                                        <p className="text-[9px] text-muted-foreground">{s.label}</p>
+                                        <p className={`text-xs font-bold ${s.color} font-mono`}>{s.value}</p>
+                                      </div>
+                                    ))}
                                   </div>
 
+                                  {/* Progress */}
                                   <div className="space-y-1">
                                     <div className="flex justify-between text-[10px] text-muted-foreground">
                                       <span>{req.duration_days} days</span>
-                                      <span>{progress.toFixed(0)}%</span>
+                                      <span className="font-bold">{progress.toFixed(0)}%</span>
                                     </div>
-                                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                                      <div
-                                        className={`h-full rounded-full transition-all ${progress >= 100 ? 'bg-success' : progress < 30 ? 'bg-destructive' : 'bg-primary'}`}
-                                        style={{ width: `${progress}%` }}
+                                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                      <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${progress}%` }}
+                                        transition={{ duration: 0.5, ease: 'easeOut' }}
+                                        className={`h-full rounded-full ${progress >= 100 ? 'bg-success' : progress < 30 ? 'bg-destructive' : 'bg-primary'}`}
                                       />
                                     </div>
                                   </div>
 
-                                  <div className="flex gap-1 overflow-x-auto pb-1">
+                                  {/* Schedule preview */}
+                                  <div className="flex gap-1 overflow-x-auto pb-0.5">
                                     {previewDays.map((day, i) => (
-                                      <div key={i} className="flex flex-col items-center min-w-[32px] px-1 py-1 rounded bg-muted/50 text-[9px]">
-                                        <span className="text-muted-foreground">{format(day, 'dd')}</span>
+                                      <div key={i} className="flex flex-col items-center min-w-[30px] px-1 py-1 rounded-lg bg-muted/40 text-[9px]">
+                                        <span className="font-medium">{format(day, 'dd')}</span>
                                         <span className="text-muted-foreground">{format(day, 'MMM')}</span>
                                       </div>
                                     ))}
                                     {req.duration_days > 10 && (
-                                      <div className="flex items-center text-[9px] text-muted-foreground px-1">+{req.duration_days - 10}</div>
+                                      <div className="flex items-center text-[9px] text-muted-foreground px-1.5">+{req.duration_days - 10}</div>
                                     )}
                                   </div>
 
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleDownloadPdf(tenant, req)}>
-                                      <FileDown className="h-3 w-3 mr-1" />Schedule PDF
+                                  {/* Actions */}
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    <Button size="sm" variant="outline" className="text-[10px] h-7 rounded-lg" onClick={() => handleDownloadPdf(tenant, req)}>
+                                      <FileDown className="h-3 w-3 mr-1" />PDF
                                     </Button>
-                                    <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleShareWhatsApp(tenant, req)}>
+                                    <Button size="sm" variant="outline" className="text-[10px] h-7 rounded-lg" onClick={() => handleShareWhatsApp(tenant, req)}>
                                       <MessageCircle className="h-3 w-3 mr-1" />WhatsApp
                                     </Button>
-                                    <Button size="sm" variant="outline" className="text-xs h-8 border-primary/30 text-primary" onClick={() => {
+                                    <Button size="sm" variant="outline" className="text-[10px] h-7 rounded-lg border-primary/30 text-primary" onClick={() => {
                                       downloadRentStatement({
                                         tenantName: tenant.full_name, tenantPhone: tenant.phone,
                                         landlordName: req.landlord?.name || 'N/A', propertyAddress: req.landlord?.property_address,
@@ -635,11 +622,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         durationDays: req.duration_days, status: req.status || 'approved',
                                         createdAt: req.created_at, requestId: req.id,
                                       });
-                                      toast({ title: 'Downloaded', description: 'Rent statement saved.' });
                                     }}>
-                                      <Receipt className="h-3 w-3 mr-1" />Rent Receipt
+                                      <Receipt className="h-3 w-3 mr-1" />Receipt
                                     </Button>
-                                    <Button size="sm" variant="outline" className="text-xs h-8 border-emerald-500/30 text-emerald-600" onClick={() => {
+                                    <Button size="sm" variant="outline" className="text-[10px] h-7 rounded-lg border-emerald-500/30 text-emerald-600" onClick={() => {
                                       const text = buildRentStatementWhatsApp({
                                         tenantName: tenant.full_name, tenantPhone: tenant.phone,
                                         landlordName: req.landlord?.name || 'N/A', propertyAddress: req.landlord?.property_address,
@@ -649,7 +635,6 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         createdAt: req.created_at, requestId: req.id,
                                       });
                                       shareViaWhatsApp(text);
-                                      toast({ title: 'Sharing', description: 'Opening WhatsApp...' });
                                     }}>
                                       <MessageCircle className="h-3 w-3 mr-1" />Receipt WA
                                     </Button>
