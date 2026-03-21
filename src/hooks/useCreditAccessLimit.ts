@@ -8,6 +8,8 @@ export interface CreditAccessLimit {
   bonusFromReceipts: number;
   bonusFromRentHistory: number;
   bonusFromLandlordRent: number;
+  bonusFromHousesListed: number;
+  bonusFromPartnersOnboarded: number;
 }
 
 const MIN_LIMIT = 30_000;
