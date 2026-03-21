@@ -34,7 +34,7 @@ export function BatchPayoutProcessor() {
         for (const p of profiles || []) profileMap.set(p.id, p.full_name);
       }
 
-      return (data || []).map(r => ({ ...r, tenant_name: profileMap.get(r.user_id) || 'Unknown' }));
+      return (data || []).map(r => ({ ...r, amount: r.rent_amount, tenant_name: profileMap.get(r.user_id) || 'Unknown' }));
     },
     staleTime: 30_000,
   });

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Receipt, Search, Download, RefreshCw, Loader2, CheckCircle2, Clock, AlertTriangle, MapPin, Camera, ExternalLink } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+
 
 type ReconciliationFilter = 'all' | 'pending' | 'confirmed' | 'disputed';
 

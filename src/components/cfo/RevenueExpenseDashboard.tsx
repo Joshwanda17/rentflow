@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays, startOfDay } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
 const REVENUE_CATEGORIES = ['tenant_access_fee', 'tenant_request_fee', 'platform_service_income'];

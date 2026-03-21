@@ -36,7 +36,7 @@ export function DailyCashPositionReport() {
         .from('rent_requests')
         .select('rent_amount')
         .in('status', ['coo_approved', 'cfo_approved']);
-      const pendingObligations = (pendingRent || []).reduce((s, r) => s + r.amount, 0);
+      const pendingObligations = (pendingRent || []).reduce((s, r) => s + r.rent_amount, 0);
 
       // Aggregate by day
       for (let i = 6; i >= 0; i--) {
