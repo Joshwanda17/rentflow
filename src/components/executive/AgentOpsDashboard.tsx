@@ -10,6 +10,8 @@ import { AgentPerformanceTiers } from './AgentPerformanceTiers';
 import { AgentLifecyclePipeline } from './AgentLifecyclePipeline';
 import { AgentOpsBrief } from './AgentOpsBrief';
 import { AgentAlertFeed } from './AgentAlertFeed';
+import { AgentTaskManager } from './AgentTaskManager';
+import { AgentEscalationQueue } from './AgentEscalationQueue';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Users, Banknote, DollarSign } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -103,6 +105,7 @@ export function AgentOpsDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Rent Pipeline */}
       <RentPipelineQueue stage="tenant_ops_approved" />
 
       {/* Daily Brief */}
@@ -115,10 +118,19 @@ export function AgentOpsDashboard() {
         <KPICard title="Commissions Paid" value={fmt(totalCommissions)} icon={DollarSign} color="bg-blue-500/10 text-blue-600" />
       </div>
 
+      {/* 🔍 Agent Directory — PROMINENT */}
+      <AgentDirectory />
+
       {/* Performance & Lifecycle */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AgentPerformanceTiers />
         <AgentLifecyclePipeline />
+      </div>
+
+      {/* Tasks & Escalations */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AgentTaskManager />
+        <AgentEscalationQueue />
       </div>
 
       {/* Alerts */}
@@ -165,9 +177,6 @@ export function AgentOpsDashboard() {
           />
         </div>
       </div>
-
-      {/* Agent Directory */}
-      <AgentDirectory />
 
       {/* Tenant Transfer */}
       <div className="rounded-2xl border border-border bg-card p-4">
