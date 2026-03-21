@@ -89,6 +89,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [lc1Village, setLc1Village] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
   const [noSmartphone, setNoSmartphone] = useState(false);
+  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  const captureGPS = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error('GPS not supported on this device');
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setGpsLoading(false);
+        toast.success('Property GPS captured!');
+      },
+      (err) => {
+        setGpsLoading(false);
+        toast.error(err.code === 1 ? 'Location permission denied' : 'Could not get GPS. Try again.');
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }, []);
 
   const resetForm = () => {
     setIncomeType(null);
