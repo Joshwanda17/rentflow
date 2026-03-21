@@ -473,6 +473,62 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_delivery_confirmations: {
+        Row: {
+          agent_id: string
+          confirmation_type: string
+          confirmed_at: string
+          created_at: string
+          disbursement_id: string
+          id: string
+          landlord_signature_url: string | null
+          latitude: number | null
+          location_accuracy: number | null
+          longitude: number | null
+          notes: string | null
+          photo_urls: string[] | null
+          rent_request_id: string
+        }
+        Insert: {
+          agent_id: string
+          confirmation_type?: string
+          confirmed_at?: string
+          created_at?: string
+          disbursement_id: string
+          id?: string
+          landlord_signature_url?: string | null
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
+          notes?: string | null
+          photo_urls?: string[] | null
+          rent_request_id: string
+        }
+        Update: {
+          agent_id?: string
+          confirmation_type?: string
+          confirmed_at?: string
+          created_at?: string
+          disbursement_id?: string
+          id?: string
+          landlord_signature_url?: string | null
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
+          notes?: string | null
+          photo_urls?: string[] | null
+          rent_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_delivery_confirmations_disbursement_id_fkey"
+            columns: ["disbursement_id"]
+            isOneToOne: false
+            referencedRelation: "disbursement_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_earnings: {
         Row: {
           agent_id: string
@@ -1070,6 +1126,48 @@ export type Database = {
           },
         ]
       }
+      cfo_threshold_alerts: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          current_value: number | null
+          description: string | null
+          id: string
+          severity: string
+          threshold_value: number | null
+          title: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          severity?: string
+          threshold_value?: number | null
+          title: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          severity?: string
+          threshold_value?: number | null
+          title?: string
+        }
+        Relationships: []
+      }
       conversation_participants: {
         Row: {
           conversation_id: string
@@ -1460,6 +1558,66 @@ export type Database = {
           transaction_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      disbursement_records: {
+        Row: {
+          agent_confirmed: boolean | null
+          agent_confirmed_at: string | null
+          agent_id: string | null
+          amount: number
+          created_at: string
+          disbursed_at: string
+          disbursed_by: string | null
+          id: string
+          landlord_confirmed: boolean | null
+          landlord_confirmed_at: string | null
+          landlord_id: string | null
+          notes: string | null
+          payout_method: string
+          reconciliation_status: string
+          rent_request_id: string
+          tenant_id: string
+          transaction_reference: string | null
+        }
+        Insert: {
+          agent_confirmed?: boolean | null
+          agent_confirmed_at?: string | null
+          agent_id?: string | null
+          amount: number
+          created_at?: string
+          disbursed_at?: string
+          disbursed_by?: string | null
+          id?: string
+          landlord_confirmed?: boolean | null
+          landlord_confirmed_at?: string | null
+          landlord_id?: string | null
+          notes?: string | null
+          payout_method?: string
+          reconciliation_status?: string
+          rent_request_id: string
+          tenant_id: string
+          transaction_reference?: string | null
+        }
+        Update: {
+          agent_confirmed?: boolean | null
+          agent_confirmed_at?: string | null
+          agent_id?: string | null
+          amount?: number
+          created_at?: string
+          disbursed_at?: string
+          disbursed_by?: string | null
+          id?: string
+          landlord_confirmed?: boolean | null
+          landlord_confirmed_at?: string | null
+          landlord_id?: string | null
+          notes?: string | null
+          payout_method?: string
+          reconciliation_status?: string
+          rent_request_id?: string
+          tenant_id?: string
+          transaction_reference?: string | null
         }
         Relationships: []
       }
