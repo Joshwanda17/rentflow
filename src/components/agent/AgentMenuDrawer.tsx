@@ -311,6 +311,44 @@ export function AgentMenuDrawer({
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.15 }}
                 >
+                  {/* Build Your Team CTA — visible in People tab */}
+                  {activeCategory === 'people' && (
+                    <div className="mb-3 rounded-2xl border-2 border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-3">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="p-2 rounded-xl bg-amber-500/20">
+                          <Users className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm">Build Your Team 🚀</p>
+                          <p className="text-[10px] text-muted-foreground">Earn <span className="font-bold text-amber-600">UGX 500</span> per signup + <span className="font-bold text-amber-600">1%</span> of their collections</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          onClick={() => { hapticSuccess(); onInviteSubAgent(); onOpenChange(false); }}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 transition-all touch-manipulation"
+                        >
+                          <Handshake className="h-4 w-4 text-amber-600" />
+                          <span className="text-[9px] font-semibold text-amber-700">Register</span>
+                        </button>
+                        <button
+                          onClick={() => { hapticSuccess(); if (onViewSubAgents) onViewSubAgents(); onOpenChange(false); }}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 transition-all touch-manipulation"
+                        >
+                          <Users className="h-4 w-4 text-orange-600" />
+                          <span className="text-[9px] font-semibold text-orange-700">My Team</span>
+                        </button>
+                        <button
+                          onClick={() => { hapticSuccess(); if (onShareSubAgentLink) onShareSubAgentLink(); onOpenChange(false); }}
+                          className="flex flex-col items-center gap-1 p-2 rounded-xl bg-green-500/15 hover:bg-green-500/25 active:scale-95 transition-all touch-manipulation"
+                        >
+                          <Share2 className="h-4 w-4 text-green-600" />
+                          <span className="text-[9px] font-semibold text-green-700">Share Link</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Icon Grid */}
                   <div className="grid grid-cols-3 gap-2.5">
                     {activeCat.items.map((item, idx) => {
