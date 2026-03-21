@@ -137,7 +137,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
       const BATCH = 50;
       for (let i = 0; i < investorIds.length; i += BATCH) {
         const { data } = await supabase.from('profiles')
-          .select('id, full_name, phone, email, avatar_url, created_at, territory')
+          .select('id, full_name, phone, email, avatar_url, created_at, territory, last_active_at')
           .in('id', investorIds.slice(i, i + BATCH));
         if (data) allProfiles.push(...data);
       }
