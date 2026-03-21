@@ -1,14 +1,16 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Camera, X, Loader2, ImagePlus } from 'lucide-react';
+import { Camera, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { optimizeImage, generateThumbnail } from '@/lib/imageOptimizer';
 
 interface HouseImageFile {
   id: string;
   previewUrl: string;
   file: File;
+  thumbnailFile?: File;
 }
 
 interface HouseImageUploaderProps {
@@ -20,9 +22,10 @@ interface HouseImageUploaderProps {
 export type { HouseImageFile };
 
 export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseImageUploaderProps) {
+  const [compressing, setCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
@@ -32,23 +35,44 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
       return;
     }
 
+    setCompressing(true);
     const newImages: HouseImageFile[] = [];
+
     for (const file of files) {
       if (!file.type.startsWith('image/')) continue;
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} exceeds 5MB`);
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 10MB`);
         continue;
       }
-      newImages.push({
-        id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        previewUrl: URL.createObjectURL(file),
-        file,
-      });
+
+      try {
+        const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+        const thumb = await generateThumbnail(file, 300);
+        
+        const saved = Math.round((1 - optimized.compressedSize / optimized.originalSize) * 100);
+        if (saved > 10) {
+          console.log(`[ImageOptimizer] ${file.name}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.compressedSize/1024).toFixed(0)}KB (${saved}% smaller)`);
+        }
+
+        newImages.push({
+          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          previewUrl: optimized.previewUrl,
+          file: optimized.file,
+          thumbnailFile: thumb.file,
+        });
+      } catch (err) {
+        console.error('Image optimization failed, using original:', err);
+        newImages.push({
+          id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          previewUrl: URL.createObjectURL(file),
+          file,
+        });
+      }
     }
 
+    setCompressing(false);
     onChange([...images, ...newImages]);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  };
 
   const remove = (id: string) => {
     const img = images.find(i => i.id === id);
