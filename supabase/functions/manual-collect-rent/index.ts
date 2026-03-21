@@ -1,5 +1,43 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+function formatPhoneInternational(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  if (digits.length === 9) return `+256${digits}`;
+  return `+${digits}`;
+}
+
+async function sendSMS(phone: string, message: string): Promise<boolean> {
+  const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
+  const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  if (!apiKey || !username) {
+    console.error("[manual-collect-rent] Missing AT credentials, skipping SMS");
+    return false;
+  }
+  const isSandbox = username.toLowerCase() === "sandbox";
+  const baseUrl = isSandbox
+    ? "https://api.sandbox.africastalking.com/version1/messaging"
+    : "https://api.africastalking.com/version1/messaging";
+  const formattedPhone = formatPhoneInternational(phone);
+  try {
+    const body = new URLSearchParams({ username, to: formattedPhone, message });
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", apiKey, Accept: "application/json" },
+      body: body.toString(),
+    });
+    const data = await res.json();
+    const recipients = data?.SMSMessageData?.Recipients || [];
+    const success = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    console.log(`[manual-collect-rent] SMS to ${formattedPhone}: ${success ? "sent" : "failed"}`);
+    return success;
+  } catch (err) {
+    console.error("[manual-collect-rent] SMS error:", err);
+    return false;
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
