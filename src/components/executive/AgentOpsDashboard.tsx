@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
 import { RentPipelineQueue } from './RentPipelineQueue';
+import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Users, Banknote, DollarSign } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 
 export function AgentOpsDashboard() {
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
+
   const { data: earnings, isLoading } = useQuery({
     queryKey: ['exec-agent-earnings'],
     queryFn: async () => {
@@ -29,40 +33,62 @@ export function AgentOpsDashboard() {
     staleTime: 600000,
   });
 
-  // Fetch agent profiles for name resolution
+  // Fetch agent profiles with full details
   const agentIds = [...new Set([...(earnings || []).map(e => e.agent_id), ...(commissions || []).map(c => c.agent_id)])];
   const { data: agentProfiles } = useQuery({
-    queryKey: ['exec-agent-profiles', agentIds.sort().join(',')],
+    queryKey: ['exec-agent-profiles-full', agentIds.sort().join(',')],
     queryFn: async () => {
       if (agentIds.length === 0) return {};
-      const { data } = await supabase.from('profiles').select('id, full_name').in('id', agentIds.slice(0, 50));
-      const map: Record<string, string> = {};
-      (data || []).forEach(p => { map[p.id] = p.full_name; });
+      const { data } = await supabase.from('profiles')
+        .select('id, full_name, phone, email, avatar_url, verified, created_at, territory')
+        .in('id', agentIds.slice(0, 50));
+      const map: Record<string, any> = {};
+      (data || []).forEach(p => { map[p.id] = p; });
       return map;
     },
     enabled: agentIds.length > 0,
     staleTime: 600000,
   });
 
-  const getName = (id: string) => agentProfiles?.[id] || id.substring(0, 8) + '...';
+  const getName = (id: string) => agentProfiles?.[id]?.full_name || id.substring(0, 8) + '...';
+
+  const openAgentProfile = (agentId: string) => {
+    const profile = agentProfiles?.[agentId];
+    setSelectedAgent({
+      id: agentId,
+      name: profile?.full_name || 'Unknown Agent',
+      avatarUrl: profile?.avatar_url,
+      type: 'agent' as const,
+      createdAt: profile?.created_at,
+      phone: profile?.phone,
+      verified: profile?.verified,
+      city: profile?.territory,
+    });
+  };
 
   const totalEarnings = (earnings || []).reduce((s, e) => s + e.amount, 0);
   const totalCommissions = (commissions || []).reduce((s, c) => s + c.amount, 0);
   const uniqueAgents = new Set((earnings || []).map(e => e.agent_id)).size;
 
-  // Leaderboard
   const agentTotals: Record<string, number> = {};
   (earnings || []).forEach(e => {
     agentTotals[e.agent_id] = (agentTotals[e.agent_id] || 0) + e.amount;
   });
   const leaderboard = Object.entries(agentTotals)
-    .map(([id, total]) => ({ agent_id: getName(id), total }))
+    .map(([id, total]) => ({ agent_id: id, agent_name: getName(id), total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
   const earningsColumns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
-    { key: 'agent_id', label: 'Agent', render: (v) => getName(String(v)) },
+    { key: 'agent_id', label: 'Agent', render: (v) => (
+      <button
+        onClick={() => openAgentProfile(String(v))}
+        className="text-primary hover:underline font-medium text-left"
+      >
+        {getName(String(v))}
+      </button>
+    )},
     { key: 'earning_type', label: 'Type', render: (v) => (
       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-muted">{String(v)}</span>
     )},
@@ -73,7 +99,6 @@ export function AgentOpsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* 🔥 PRIORITY: Agent Verification Queue */}
       <RentPipelineQueue stage="tenant_ops_approved" />
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -89,9 +114,17 @@ export function AgentOpsDashboard() {
             <BarChart data={leaderboard} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis type="number" className="text-xs" />
-              <YAxis dataKey="agent_id" type="category" className="text-xs" width={80} />
+              <YAxis dataKey="agent_name" type="category" className="text-xs" width={80} />
               <Tooltip />
-              <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              <Bar
+                dataKey="total"
+                fill="hsl(var(--primary))"
+                radius={[0, 4, 4, 0]}
+                cursor="pointer"
+                onClick={(data: any) => {
+                  if (data?.agent_id) openAgentProfile(data.agent_id);
+                }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -115,10 +148,15 @@ export function AgentOpsDashboard() {
         </div>
       </div>
 
-      {/* Tenant Transfer Section */}
       <div className="rounded-2xl border border-border bg-card p-4">
         <TenantTransferPanel />
       </div>
+
+      <UserProfileDialog
+        open={!!selectedAgent}
+        onOpenChange={(open) => !open && setSelectedAgent(null)}
+        user={selectedAgent}
+      />
     </div>
   );
 }
