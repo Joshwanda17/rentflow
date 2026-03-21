@@ -111,6 +111,13 @@ Deno.serve(async (req) => {
     }
 
     // ═══ 2. STALE APPROVAL ESCALATION ═══
+    // First, auto-resolve stale_approval escalations for portfolios no longer pending
+    await supabase.from('partner_escalations')
+      .update({ status: 'auto_resolved', resolved_at: now.toISOString() })
+      .eq('escalation_type', 'stale_approval')
+      .eq('status', 'open')
+      .not('portfolio_id', 'in', `(${(await supabase.from('investor_portfolios').select('id').eq('status', 'pending_approval')).data?.map(p => `"${p.id}"`).join(',') || '"none"'})`);
+
     // Flag portfolios pending approval for > 48 hours
     const cutoff48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
 
