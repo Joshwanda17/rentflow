@@ -13,6 +13,7 @@ import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repayment
 import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useToast } from '@/hooks/use-toast';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface Tenant {
   id: string;
