@@ -29,6 +29,8 @@ export function PartnersOpsDashboard() {
   const [createForUser, setCreateForUser] = useState<{ id: string; name: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState(false);
+  const [maturityAccount, setMaturityAccount] = useState<any>(null);
+  const autoRenewedRef = useRef(false);
 
   const { data: portfolios, isLoading, refetch } = useQuery({
     queryKey: ['exec-partner-portfolios'],
