@@ -379,6 +379,14 @@ Deno.serve(async (req) => {
             type: "warning",
             metadata: { subscription_id: charge.id, agent_covered: agentAmountCharged },
           });
+
+
+          // SMS to tenant that agent covered their rent
+          if (tenantPhone) {
+            const totalPaid = amountDeducted + agentAmountCharged;
+            const sms = `WELILE: Dear ${tenantName}, UGX ${totalPaid.toLocaleString()} has been paid towards your rent${agentAmountCharged > 0 ? ' (covered by your agent)' : ''}. Please top up your wallet. Access up to UGX 30M with WELILE!`;
+            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
+          }
         }
 
         if (debtAdded > 0 && charge.agent_id) {
