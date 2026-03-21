@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Star, Receipt, Home, ChevronDown, Send } from 'lucide-react';
+import { TrendingUp, Star, Receipt, Home, ChevronDown, Send, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { hapticTap } from '@/lib/haptics';
-import { CreditRequestSheet } from '@/components/CreditRequestSheet';
+import { CreditAccessDrawSheet } from '@/components/CreditAccessDrawSheet';
 
 interface CreditAccessCardProps {
   userId: string;
@@ -122,9 +122,11 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                 {/* How to increase */}
                 <p className="text-[10px] font-semibold text-foreground">🚀 Pay on time → Unlock more rent fees</p>
                 <div className="space-y-1.5">
-                  <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-success" />} label="✅ Repay rent on time" value={limit.bonusFromRentHistory} currency={currency} tip="Biggest boost" />
+                <CompactBreakdownRow icon={<TrendingUp className="h-3 w-3 text-success" />} label="✅ Repay rent on time" value={limit.bonusFromRentHistory} currency={currency} tip="Biggest boost" />
                   <CompactBreakdownRow icon={<Receipt className="h-3 w-3 text-blue-500" />} label="📸 Post rent receipts" value={limit.bonusFromReceipts} currency={currency} tip="Proves history" />
                   <CompactBreakdownRow icon={<Star className="h-3 w-3 text-yellow-500" />} label="⭐ Earn landlord ratings" value={limit.bonusFromRatings} currency={currency} tip="Trust score" />
+                  <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="🏠 List houses" value={limit.bonusFromHousesListed} currency={currency} tip="+50K per house" />
+                  <CompactBreakdownRow icon={<Users className="h-3 w-3 text-primary" />} label="🤝 Onboard partners" value={limit.bonusFromPartnersOnboarded} currency={currency} tip="+200K per partner" />
                   <CompactBreakdownRow icon={<Home className="h-3 w-3 text-purple-500" />} label="🏠 Register as landlord" value={limit.bonusFromLandlordRent} currency={currency} tip="Dual role bonus" />
                 </div>
 
@@ -148,7 +150,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
             </motion.div>
           )}
         </AnimatePresence>
-        <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
+        <CreditAccessDrawSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
       </div>
     );
   }
@@ -244,6 +246,20 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                   />
                   <BreakdownRow
                     icon={<Home className="h-3.5 w-3.5 text-purple-500" />}
+                    label="Houses Listed"
+                    value={limit.bonusFromHousesListed}
+                    currency={currency}
+                    tip="+50K per house listed"
+                  />
+                  <BreakdownRow
+                    icon={<Users className="h-3.5 w-3.5 text-primary" />}
+                    label="Partners Onboarded"
+                    value={limit.bonusFromPartnersOnboarded}
+                    currency={currency}
+                    tip="+200K per partner onboarded"
+                  />
+                  <BreakdownRow
+                    icon={<Home className="h-3.5 w-3.5 text-purple-500" />}
                     label="Landlord Rent Collected"
                     value={limit.bonusFromLandlordRent}
                     currency={currency}
@@ -263,13 +279,13 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
           >
             <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
             <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="sm:hidden">⚡ Apply Now</span>
-            <span className="hidden sm:inline">⚡ Apply Now — Instant Decision</span>
+            <span className="sm:hidden">⚡ Access Now</span>
+            <span className="hidden sm:inline">⚡ Access Credit Now</span>
           </motion.button>
         </CardContent>
       </Card>
 
-      <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
+      <CreditAccessDrawSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
     </motion.div>
   );
 }

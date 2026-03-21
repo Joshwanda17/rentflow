@@ -8,6 +8,8 @@ export interface CreditAccessLimit {
   bonusFromReceipts: number;
   bonusFromRentHistory: number;
   bonusFromLandlordRent: number;
+  bonusFromHousesListed: number;
+  bonusFromPartnersOnboarded: number;
 }
 
 const MIN_LIMIT = 30_000;
@@ -50,14 +52,16 @@ export function useCreditAccessLimit(userId: string | undefined) {
   const cached = userId ? limitCache.get(userId) : undefined;
   const [limit, setLimit] = useState<CreditAccessLimit>(
     cached && (Date.now() - cached.timestamp < CACHE_TTL)
-      ? cached.data
-      : {
+    ? cached.data
+    : {
           totalLimit: MIN_LIMIT,
           baseLimit: MIN_LIMIT,
           bonusFromRatings: 0,
           bonusFromReceipts: 0,
           bonusFromRentHistory: 0,
           bonusFromLandlordRent: 0,
+          bonusFromHousesListed: 0,
+          bonusFromPartnersOnboarded: 0,
         }
   );
   const [loading, setLoading] = useState(!cached || (Date.now() - (cached?.timestamp ?? 0)) >= CACHE_TTL);
@@ -92,6 +96,8 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromReceipts: Number(data.bonus_from_receipts) || 0,
           bonusFromRentHistory: Number(data.bonus_from_rent_history) || 0,
           bonusFromLandlordRent: Number(data.bonus_from_landlord_rent) || 0,
+          bonusFromHousesListed: Number((data as any).bonus_from_houses_listed) || 0,
+          bonusFromPartnersOnboarded: Number((data as any).bonus_from_partners_onboarded) || 0,
         };
         setLimit(parsed);
         limitCache.set(userId, { data: parsed, timestamp: Date.now() });
