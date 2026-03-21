@@ -269,6 +269,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           ))}
         </div>
 
+        {/* Credit Access — toggles on Credit button */}
+        <AnimatePresence>
+          {creditOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <CreditAccessCard userId={user.id} compact />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <RecentAutoCharges />
 
         </main>
