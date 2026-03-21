@@ -15,7 +15,6 @@ import {
   Home,
   TrendingUp,
   Banknote,
-  CalendarClock,
   FileText,
   Users,
 } from 'lucide-react';
