@@ -1,15 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { FileText, CalendarClock, Banknote } from 'lucide-react';
+import { FileText, CalendarClock, Banknote, Navigation, Loader2 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES, calculateInstalment } from '@/lib/rentCalculations';
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
+import { optimizeImage } from '@/lib/imageOptimizer';
 
 interface RentRequestFormProps {
   userId: string;
