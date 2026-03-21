@@ -214,8 +214,8 @@ export default function Settings() {
   const hasLegalContent = roles.includes('tenant') || roles.includes('agent') || roles.includes('supporter');
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-4 max-w-2xl">
+    <div className="min-h-screen bg-background relative">
+      <div className="container mx-auto px-4 py-4 max-w-2xl pb-32">
 
         {/* Sticky Header */}
         <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md pb-3 -mx-4 px-4 border-b border-border/30 mb-4">
@@ -242,26 +242,61 @@ export default function Settings() {
               Home
             </Button>
           </div>
-
-          {/* Section Navigation Pills */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
-            {SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent).map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => scrollToSection(id)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 min-h-[44px] touch-manipulation active:scale-95",
-                  activeSection === id
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                    : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
+
+        {/* ═══ PREMIUM PROFILE HERO CARD ═══ */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-lg">
+            {/* Decorative mesh */}
+            <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-accent/10 blur-3xl" />
+            
+            <div className="relative flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="h-20 w-20 border-3 border-primary/20 shadow-xl ring-2 ring-background">
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+                  <AvatarFallback className="text-xl bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-bold">
+                    {getInitials(fullName || 'U')}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg border-2 border-background"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                >
+                  {uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                </Button>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-bold text-lg truncate">{fullName || 'Your Name'}</h2>
+                <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {roles.slice(0, 3).map((role) => {
+                    const config = roleConfig[role];
+                    return (
+                      <Badge key={role} className={`${config.color} text-[10px] px-2 py-0.5 border`}>
+                        {config.icon}
+                        <span className="ml-1">{config.label}</span>
+                      </Badge>
+                    );
+                  })}
+                  {roles.length > 3 && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                      +{roles.length - 3}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* 🔓 UNLOCK ALL ROLES — Only visible for Funders */}
         {isFunder && (
@@ -317,43 +352,17 @@ export default function Settings() {
 
         {/* ===== ACCOUNT SECTION ===== */}
         <div ref={el => sectionRefs.current['account'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={User} label="Account" />
+          <SectionHeader icon={User} label="Account" color="primary" />
 
-          <Card className="border-border/50 shadow-sm overflow-hidden">
-            <CardContent className="pt-6 space-y-5">
-              {/* Avatar */}
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Avatar className="h-16 w-16 border-2 border-border shadow-md">
-                    <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-                    <AvatarFallback className="text-lg bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-semibold">
-                      {getInitials(fullName || 'U')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingAvatar}
-                  >
-                    {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
-                  </Button>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-base truncate">{fullName || 'Your Name'}</p>
-                  <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
-                </div>
-              </div>
-
+          <Card className="border-border/40 shadow-md rounded-2xl overflow-hidden">
+            <CardContent className="pt-6 space-y-4">
               {/* Form Fields */}
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Type your full name here" className="pl-10 h-11" />
+                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Type your full name here" className="pl-10 h-12 rounded-xl" />
                   </div>
                 </div>
 
@@ -361,7 +370,7 @@ export default function Settings() {
                   <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email (cannot change)</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-11 bg-muted/50" />
+                    <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-12 rounded-xl bg-muted/50" />
                   </div>
                 </div>
 
@@ -369,7 +378,7 @@ export default function Settings() {
                   <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-11" />
+                    <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" />
                   </div>
                 </div>
 
@@ -384,31 +393,31 @@ export default function Settings() {
                   {!showPasswordForm ? (
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input value="••••••••" disabled className="pl-10 h-11 bg-muted/50" />
+                      <Input value="••••••••" disabled className="pl-10 h-12 rounded-xl bg-muted/50" />
                     </div>
                   ) : (
-                    <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border/50">
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-10" />
+                        <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-11 rounded-xl" />
                         <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
                           {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-10" />
+                        <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-11 rounded-xl" />
                         <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowNewPassword(!showNewPassword)}>
                           {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </Button>
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-10" />
+                        <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-11 rounded-xl" />
                       </div>
                       <Button
                         size="sm"
-                        className="w-full gap-2 h-10"
+                        className="w-full gap-2 h-11 rounded-xl"
                         disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
                         onClick={async () => {
                           if (newPassword.length < 6) { toast.error('New password must be at least 6 characters'); return; }
@@ -432,9 +441,9 @@ export default function Settings() {
                 </div>
               </div>
 
-              <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-11">
+              <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save
+                Save Changes
               </Button>
             </CardContent>
           </Card>
@@ -469,10 +478,10 @@ export default function Settings() {
 
         {/* ===== ROLES & NAVIGATION SECTION ===== */}
         <div ref={el => sectionRefs.current['roles'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Shield} label="Your Roles" />
+          <SectionHeader icon={Shield} label="Your Roles" color="accent" />
 
           {/* Current Roles */}
-          <Card className="border-border/50 shadow-sm mb-4">
+          <Card className="border-border/40 shadow-md rounded-2xl mb-4">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">What you do on Welile</CardTitle>
               <CardDescription className="text-xs">These are the roles you have right now</CardDescription>
@@ -549,9 +558,9 @@ export default function Settings() {
 
         {/* ===== APPEARANCE SECTION ===== */}
         <div ref={el => sectionRefs.current['appearance'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Palette} label="How It Looks & Sounds" />
+          <SectionHeader icon={Palette} label="How It Looks & Sounds" color="primary" />
 
-          <Card className="border-border/50 shadow-sm">
+          <Card className="border-border/40 shadow-md rounded-2xl">
             <CardContent className="pt-5 space-y-5">
               {/* Theme */}
               <SettingsRow label="Dark / Light" description="Change the look of the app">
@@ -697,7 +706,7 @@ export default function Settings() {
 
         {/* ===== SECURITY SECTION ===== */}
         <div ref={el => sectionRefs.current['security'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={ShieldCheck} label="Keep Your Account Safe" />
+          <SectionHeader icon={ShieldCheck} label="Keep Your Account Safe" color="destructive" />
           <div className="space-y-4">
             <PinSecuritySection />
             <BiometricSecuritySection />
@@ -707,8 +716,8 @@ export default function Settings() {
         {/* ===== LEGAL SECTION ===== */}
         {hasLegalContent && (
           <div ref={el => sectionRefs.current['legal'] = el} className="scroll-mt-28 mb-6">
-            <SectionHeader icon={Scale} label="Agreements You Signed" />
-            <Card className="border-border/50 shadow-sm">
+            <SectionHeader icon={Scale} label="Agreements You Signed" color="warning" />
+            <Card className="border-border/40 shadow-md rounded-2xl">
               <CardContent className="pt-5 space-y-3">
                 {roles.includes('tenant') && (
                   <AgreementRow
@@ -752,7 +761,7 @@ export default function Settings() {
 
         {/* ===== ADVANCED SECTION ===== */}
         <div ref={el => sectionRefs.current['advanced'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={SettingsIcon} label="Other Options" />
+          <SectionHeader icon={SettingsIcon} label="Other Options" color="muted-foreground" />
 
           {/* Reset Preferences */}
           <Card className="border-border/50 shadow-sm mb-4">
@@ -787,6 +796,27 @@ export default function Settings() {
           <p>Welile v1.11 • SW v11</p>
           <p>Build {new Date((globalThis as any).__BUILD_TIME__ || Date.now()).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
+        {/* ═══ FLOATING QUICK-JUMP BAR ═══ */}
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 md:bottom-6">
+          <div className="flex gap-1 bg-card/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-2xl p-1.5">
+            {SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => scrollToSection(id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[40px] touch-manipulation active:scale-95",
+                  activeSection === id
+                    ? "bg-primary text-primary-foreground shadow-md"
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden xs:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -794,11 +824,13 @@ export default function Settings() {
 
 /* ===== Reusable Sub-components ===== */
 
-function SectionHeader({ icon: Icon, label }: { icon: typeof User; label: string }) {
+function SectionHeader({ icon: Icon, label, color = 'primary' }: { icon: typeof User; label: string; color?: string }) {
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <Icon className="h-4 w-4 text-primary" />
-      <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{label}</h2>
+    <div className="flex items-center gap-2.5 mb-4">
+      <div className={cn("p-2 rounded-xl", `bg-${color}/10`)}>
+        <Icon className={cn("h-4 w-4", `text-${color}`)} />
+      </div>
+      <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{label}</h2>
     </div>
   );
 }
