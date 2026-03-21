@@ -33,7 +33,6 @@ import {
   Share2,
   Copy,
   MessageCircle,
-  Home,
   Home
 } from 'lucide-react';
 import { toast } from 'sonner';
