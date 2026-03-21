@@ -109,7 +109,51 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   const [payoutRef, setPayoutRef] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('wallet');
   const [processing, setProcessing] = useState(false);
+  const [quickProcessingId, setQuickProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+
+  // Quick approve directly from list — no dialog needed
+  const handleQuickApprove = async (req: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || quickProcessingId) return;
+    // CFO stage needs payout ref, Tenant Ops may need agent — use dialog
+    if (config.showPayoutFields || config.showAgentSelector) {
+      setSelectedRequest(req);
+      return;
+    }
+    setQuickProcessingId(req.id);
+    try {
+      const updateData: any = {
+        status: config.nextStatus,
+        [config.reviewerColumn]: user.id,
+        [config.reviewerAtColumn]: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (stage === 'agent_verified') {
+        try {
+          await supabase.functions.invoke('credit-landlord-verification-bonus', {
+            body: { rent_request_id: req.id },
+          });
+        } catch (bonusErr) {
+          console.warn('Landlord verification bonus failed:', bonusErr);
+        }
+      }
+
+      const { error } = await supabase
+        .from('rent_requests')
+        .update(updateData)
+        .eq('id', req.id);
+      if (error) throw error;
+
+      toast({ title: '✅ Approved', description: `${req.tenant_name} → ${config.nextStatus.replace(/_/g, ' ')}` });
+      queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setQuickProcessingId(null);
+    }
+  };
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ['rent-pipeline', stage],
