@@ -117,9 +117,19 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
           size="sm"
           className="w-full border-dashed min-h-[44px]"
           onClick={() => fileInputRef.current?.click()}
+          disabled={compressing}
         >
-          <Camera className="h-4 w-4 mr-2" />
-          {images.length === 0 ? 'Add Photos' : 'Add More'}
+          {compressing ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Optimizing...
+            </>
+          ) : (
+            <>
+              <Camera className="h-4 w-4 mr-2" />
+              {images.length === 0 ? 'Add Photos' : 'Add More'}
+            </>
+          )}
         </Button>
       )}
       <p className="text-[10px] text-muted-foreground">
