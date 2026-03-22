@@ -34,13 +34,9 @@ export default function PinSecuritySection() {
           
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2">
-              <motion.div
-                className="p-2 rounded-lg bg-primary/10"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-              >
+              <div className="p-2 rounded-lg bg-primary/10">
                 <Shield className="h-5 w-5 text-primary" />
-              </motion.div>
+              </div>
               Quick Access PIN
             </CardTitle>
             <CardDescription>
