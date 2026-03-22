@@ -437,27 +437,6 @@ export default function Settings() {
             <WalletCard />
           </div>
 
-          {/* Manager extras */}
-          {roles.includes('manager') && (
-            <div className="mt-4 space-y-4">
-              <MyPerformanceCard />
-              <Card 
-                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
-                onClick={() => navigate('/coo-dashboard')}
-              >
-                <CardContent className="flex items-center gap-3 p-4">
-                  <div className="p-2.5 rounded-xl bg-primary/10">
-                    <Shield className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">COO Dashboard</p>
-                    <p className="text-xs text-muted-foreground">Operations overview</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
 
         {/* ===== ROLES & NAVIGATION SECTION ===== */}

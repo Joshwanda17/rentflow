@@ -213,7 +213,10 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
     );
   }
 
-  // Header variant — dropdown showing all roles
+  // Header variant — dropdown showing only roles the user can access
+  // Only show restricted roles the user ALREADY has — never expose internal roles to consumers
+  const visibleRestrictedRoles = RESTRICTED_ROLES.filter(r => availableRoles.includes(r));
+  
   return (
     <>
       <DropdownMenu>
@@ -247,29 +250,30 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
             );
           })}
           
-          <DropdownMenuSeparator />
-          
-          {/* Restricted roles */}
-          {RESTRICTED_ROLES.map((role) => {
-            const config = roleConfig[role];
-            const isActive = role === currentRole;
-            const hasRole = availableRoles.includes(role);
-            return (
-              <DropdownMenuItem
-                key={role}
-                onClick={() => handleSwitch(role)}
-                disabled={isAdding}
-                className={cn(
-                  "flex items-center gap-2 cursor-pointer",
-                  isActive && "bg-primary/10 text-primary font-semibold"
-                )}
-              >
-                <span className="text-sm">{config.emoji}</span>
-                <span className="flex-1">{config.label}</span>
-                {!hasRole && <Lock className="h-3 w-3 text-muted-foreground" />}
-              </DropdownMenuItem>
-            );
-          })}
+          {/* Only show restricted roles the user already has */}
+          {visibleRestrictedRoles.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              {visibleRestrictedRoles.map((role) => {
+                const config = roleConfig[role];
+                const isActive = role === currentRole;
+                return (
+                  <DropdownMenuItem
+                    key={role}
+                    onClick={() => handleSwitch(role)}
+                    disabled={isAdding}
+                    className={cn(
+                      "flex items-center gap-2 cursor-pointer",
+                      isActive && "bg-primary/10 text-primary font-semibold"
+                    )}
+                  >
+                    <span className="text-sm">{config.emoji}</span>
+                    <span className="flex-1">{config.label}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       {accessCodeDialog}
