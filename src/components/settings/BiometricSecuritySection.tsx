@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Fingerprint, Scan, Smartphone, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,15 +6,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 import { toast } from 'sonner';
 import { hapticSuccess, hapticError } from '@/lib/haptics';
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 25 }
-  },
-};
 
 export default function BiometricSecuritySection() {
   const { 
