@@ -409,6 +409,15 @@ export function ApprovalQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Detail Drill-Down Sheet */}
+      <RequestDetailSheet
+        open={!!inspectItem}
+        onOpenChange={(open) => !open && setInspectItem(null)}
+        userId={inspectItem?.userId || null}
+        requestType={inspectItem?.type || 'deposits'}
+        requestData={inspectItem?.rawData}
+      />
     </>
   );
 }
