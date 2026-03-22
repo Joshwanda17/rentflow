@@ -67,7 +67,7 @@ export default function BiometricSecuritySection() {
 
   if (!isBiometricAvailable) {
     return (
-      <motion.div variants={itemVariants}>
+      <div>
         <Card className="glass-card border-border/50 shadow-elevated overflow-hidden opacity-60">
           <div className="absolute inset-0 bg-gradient-to-br from-muted/20 via-transparent to-muted/20 pointer-events-none" />
           
