@@ -110,6 +110,7 @@ export function useProfile() {
       setProfile(data);
       setIsOfflineData(false);
       profileCache = { data, userId: user.id, timestamp: Date.now() };
+      try { localStorage.setItem(LS_KEY_PREFIX + user.id, JSON.stringify(data)); } catch {}
       await cacheProfile(data);
     }
   }, [user]);
