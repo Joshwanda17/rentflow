@@ -339,7 +339,7 @@ export default function Settings() {
               />
             </div>
           </div>
-        </motion.div>
+        </div>
         )}
 
         {/* ===== ACCOUNT SECTION ===== */}
