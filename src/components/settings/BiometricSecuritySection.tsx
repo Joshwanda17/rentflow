@@ -96,7 +96,7 @@ export default function BiometricSecuritySection() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     );
   }
 
