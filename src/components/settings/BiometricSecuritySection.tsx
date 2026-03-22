@@ -73,9 +73,9 @@ export default function BiometricSecuritySection() {
           
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2">
-              <motion.div className="p-2 rounded-lg bg-muted">
+              <div className="p-2 rounded-lg bg-muted">
                 <Fingerprint className="h-5 w-5 text-muted-foreground" />
-              </motion.div>
+              </div>
               Biometric Login
             </CardTitle>
             <CardDescription>
