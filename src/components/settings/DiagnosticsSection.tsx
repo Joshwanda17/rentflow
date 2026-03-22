@@ -300,11 +300,7 @@ export default function DiagnosticsSection() {
         <div className="pt-4 border-t border-border/50 space-y-3">
           {/* iOS Force Refresh - Prominent for iOS PWA users */}
           {isIOSStandalone && (
-            <motion.div 
-              whileHover={{ scale: 1.01 }} 
-              whileTap={{ scale: 0.99 }}
-              className="mb-2"
-            >
+            <div className="mb-2">
               <Button 
                 className="w-full gap-2 bg-primary hover:bg-primary/90" 
                 onClick={handleForceRefreshData}
@@ -320,7 +316,7 @@ export default function DiagnosticsSection() {
               <p className="text-xs text-muted-foreground mt-1 text-center">
                 Tap to get the latest figures if data seems stale
               </p>
-            </motion.div>
+            </div>
           )}
 
           <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
