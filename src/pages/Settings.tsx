@@ -245,11 +245,7 @@ export default function Settings() {
         </div>
 
         {/* ═══ PREMIUM PROFILE HERO CARD ═══ */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
+        <div className="mb-6">
           <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-lg">
             {/* Decorative mesh */}
             <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
