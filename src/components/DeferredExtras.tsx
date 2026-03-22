@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, Component, ReactNode, ErrorInfo } from "react";
+import { lazy, Suspense, useState, useEffect, Component, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
