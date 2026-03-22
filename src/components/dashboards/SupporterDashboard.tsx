@@ -135,7 +135,7 @@ export default function SupporterDashboard({
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toast({
         title: '🎉 Welcome to Welile Supporters!',
-        description: 'Terms accepted. You can now start investing and helping tenants.',
+        description: 'Terms accepted. A copy has been sent to your email.',
       });
       // Send welcome notification
       supabase.from('notifications').insert({
@@ -144,6 +144,10 @@ export default function SupporterDashboard({
         message: "You have accepted the Supporter Agreement. You can now invest in rent opportunities and earn 15% monthly returns.\n\n\u{1F4B0} Add funds via Mobile Money\n\u{1F4CA} Track your portfolio\n\u{1F3E0} Fund virtual houses\n\nYour journey to financial growth starts now!",
         type: 'welcome',
       }).then(() => {});
+      // Send agreement terms to their email automatically
+      supabase.functions.invoke('send-supporter-agreement-email').then(({ error }) => {
+        if (error) console.error('Failed to send agreement email:', error);
+      });
       setTimeout(() => setJustAccepted(false), 5000);
     }
     return success;
