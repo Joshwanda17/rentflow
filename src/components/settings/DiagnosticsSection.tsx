@@ -226,13 +226,9 @@ export default function DiagnosticsSection() {
       
       <CardHeader className="relative">
         <CardTitle className="flex items-center gap-2">
-          <motion.div
-            className="p-2 rounded-lg bg-muted/50"
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-          >
+          <div className="p-2 rounded-lg bg-muted/50">
             <Bug className="h-5 w-5 text-muted-foreground" />
-          </motion.div>
+          </div>
           Diagnostics
         </CardTitle>
         <CardDescription>
