@@ -319,7 +319,7 @@ export default function DiagnosticsSection() {
             </div>
           )}
 
-          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <div>
             <Button 
               variant="outline" 
               className="w-full gap-2" 
@@ -328,7 +328,7 @@ export default function DiagnosticsSection() {
               <RefreshCw className="h-4 w-4" />
               Refresh Diagnostics
             </Button>
-          </motion.div>
+          </div>
 
           <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
             <Button 
