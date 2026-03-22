@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, Component, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,9 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Sparkles } from 'lucide-react';
-import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
-import PinSecuritySection from '@/components/settings/PinSecuritySection';
-import BiometricSecuritySection from '@/components/settings/BiometricSecuritySection';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
@@ -17,27 +14,73 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
 import { Skeleton } from '@/components/ui/skeleton';
-import MyLandlordsSection from '@/components/tenant/MyLandlordsSection';
-import MyTenantsSection from '@/components/landlord/MyTenantsSection';
-import RentDiscountToggle from '@/components/tenant/RentDiscountToggle';
 import { useFontSize, fontSizeOptions } from '@/hooks/useFontSize';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { WalletCard } from '@/components/wallet/WalletCard';
 import { Switch } from '@/components/ui/switch';
 import { useAppPreferences } from '@/hooks/useAppPreferences';
 import { playNotificationSound } from '@/lib/notificationSound';
-import { useTenantAgreement } from '@/hooks/useTenantAgreement';
-import { TenantAgreementModal } from '@/components/tenant/agreement';
-
-import { useAgentAgreement } from '@/hooks/useAgentAgreement';
-import { AgentAgreementModal } from '@/components/agent/agreement';
-import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
-import { SupporterAgreementModal } from '@/components/supporter/agreement';
-
-import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { cn } from '@/lib/utils';
+
+// ── Lazy-loaded heavy components (the core fix for white screen on mobile) ──
+const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m => ({ default: m.WalletCard })));
+const DiagnosticsSection = lazy(() => import('@/components/settings/DiagnosticsSection'));
+const PinSecuritySection = lazy(() => import('@/components/settings/PinSecuritySection'));
+const BiometricSecuritySection = lazy(() => import('@/components/settings/BiometricSecuritySection'));
+const MyLandlordsSection = lazy(() => import('@/components/tenant/MyLandlordsSection'));
+const MyTenantsSection = lazy(() => import('@/components/landlord/MyTenantsSection'));
+const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountToggle'));
+const TenantAgreementModal = lazy(() => import('@/components/tenant/agreement').then(m => ({ default: m.TenantAgreementModal })));
+const AgentAgreementModal = lazy(() => import('@/components/agent/agreement').then(m => ({ default: m.AgentAgreementModal })));
+const SupporterAgreementModal = lazy(() => import('@/components/supporter/agreement').then(m => ({ default: m.SupporterAgreementModal })));
+
+// ── Section error boundary — prevents one broken section from killing the whole page ──
+class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error) {
+    console.warn(`[Settings/${this.props.name}] Section failed:`, error.message);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="border-destructive/20 bg-destructive/5 rounded-2xl">
+          <CardContent className="py-6 text-center">
+            <p className="text-sm text-muted-foreground">This section couldn't load.</p>
+            <Button variant="ghost" size="sm" className="mt-2" onClick={() => this.setState({ hasError: false })}>
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── Section loading skeleton ──
+function SectionSkeleton() {
+  return (
+    <Card className="border-border/40 rounded-2xl">
+      <CardContent className="py-6 space-y-3">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-10 w-full rounded-xl" />
+        <Skeleton className="h-10 w-full rounded-xl" />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Wrap lazy sections safely ──
+function LazySection({ children, name }: { children: ReactNode; name: string }) {
+  return (
+    <SectionBoundary name={name}>
+      <Suspense fallback={<SectionSkeleton />}>
+        {children}
+      </Suspense>
+    </SectionBoundary>
+  );
+}
 
 interface Profile {
   id: string;
@@ -62,23 +105,15 @@ const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
 export default function Settings() {
   const navigate = useNavigate();
   const { user, roles, loading: authLoading } = useAuth();
-  const { isQualifiedInvestor } = useDeployedCapital(user?.id);
-  const isFunder = roles.includes('supporter') || isQualifiedInvestor;
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
-  const { isAccepted: hasAcceptedTenantTerms, acceptance: tenantAcceptance, acceptAgreement: acceptTenantAgreement } = useTenantAgreement();
-  const { isAccepted: hasAcceptedAgentTerms, acceptance: agentAcceptance, acceptAgreement: acceptAgentAgreement } = useAgentAgreement();
-  const { hasAccepted: hasAcceptedSupporterTerms, acceptance: supporterAcceptance, acceptAgreement: acceptSupporterAgreement } = useSupporterAgreement();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [showTenantAgreementModal, setShowTenantAgreementModal] = useState(false);
-  const [showAgentAgreementModal, setShowAgentAgreementModal] = useState(false);
-  const [showSupporterAgreementModal, setShowSupporterAgreementModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -88,6 +123,10 @@ export default function Settings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
+
+  // Deferred state — agreements & investor status load AFTER first paint
+  const [deferredReady, setDeferredReady] = useState(false);
+  const [isFunder, setIsFunder] = useState(false);
 
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -102,6 +141,31 @@ export default function Settings() {
       fetchProfile();
     }
   }, [user]);
+
+  // Defer heavy checks until after first paint
+  useEffect(() => {
+    const timer = setTimeout(() => setDeferredReady(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Check funder status only when deferred and ready
+  useEffect(() => {
+    if (!deferredReady || !user) return;
+    const checkFunder = async () => {
+      try {
+        const { data } = await supabase
+          .from('investor_portfolios')
+          .select('investment_amount')
+          .eq('investor_id', user.id)
+          .in('status', ['active', 'pending', 'pending_approval']);
+        const total = (data || []).reduce((sum: number, p: any) => sum + (p.investment_amount || 0), 0);
+        setIsFunder(roles.includes('supporter') || total >= 100000);
+      } catch {
+        setIsFunder(roles.includes('supporter'));
+      }
+    };
+    checkFunder();
+  }, [deferredReady, user, roles]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -432,9 +496,11 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Wallet */}
+          {/* Wallet — lazy loaded */}
           <div className="mt-4">
-            <WalletCard />
+            <LazySection name="Wallet">
+              <WalletCard />
+            </LazySection>
           </div>
 
         </div>
@@ -511,12 +577,30 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Rent Discount for Tenants */}
-          {roles.includes('tenant') && <div className="mb-4"><RentDiscountToggle /></div>}
+          {/* Rent Discount for Tenants — lazy */}
+          {roles.includes('tenant') && (
+            <div className="mb-4">
+              <LazySection name="RentDiscount">
+                <RentDiscountToggle />
+              </LazySection>
+            </div>
+          )}
 
-          {/* My Landlords / Tenants */}
-          {roles.includes('tenant') && <div className="mb-4"><MyLandlordsSection /></div>}
-          {roles.includes('landlord') && <div className="mb-4"><MyTenantsSection /></div>}
+          {/* My Landlords / Tenants — lazy */}
+          {roles.includes('tenant') && (
+            <div className="mb-4">
+              <LazySection name="MyLandlords">
+                <MyLandlordsSection />
+              </LazySection>
+            </div>
+          )}
+          {roles.includes('landlord') && (
+            <div className="mb-4">
+              <LazySection name="MyTenants">
+                <MyTenantsSection />
+              </LazySection>
+            </div>
+          )}
         </div>
 
         {/* ===== APPEARANCE SECTION ===== */}
@@ -667,59 +751,22 @@ export default function Settings() {
           </Card>
         </div>
 
-        {/* ===== SECURITY SECTION ===== */}
+        {/* ===== SECURITY SECTION — lazy loaded ===== */}
         <div ref={el => sectionRefs.current['security'] = el} className="scroll-mt-28 mb-6">
           <SectionHeader icon={ShieldCheck} label="Keep Your Account Safe" color="destructive" />
           <div className="space-y-4">
-            <PinSecuritySection />
-            <BiometricSecuritySection />
+            <LazySection name="PinSecurity">
+              <PinSecuritySection />
+            </LazySection>
+            <LazySection name="BiometricSecurity">
+              <BiometricSecuritySection />
+            </LazySection>
           </div>
         </div>
 
-        {/* ===== LEGAL SECTION ===== */}
-        {hasLegalContent && (
-          <div ref={el => sectionRefs.current['legal'] = el} className="scroll-mt-28 mb-6">
-            <SectionHeader icon={Scale} label="Agreements You Signed" color="warning" />
-            <Card className="border-border/40 shadow-md rounded-2xl">
-              <CardContent className="pt-5 space-y-3">
-                {roles.includes('tenant') && (
-                  <AgreementRow
-                    label="Tenant Agreement"
-                    accepted={hasAcceptedTenantTerms || false}
-                    acceptedAt={tenantAcceptance?.accepted_at}
-                    onView={() => setShowTenantAgreementModal(true)}
-                  />
-                )}
-                {roles.includes('agent') && (
-                  <AgreementRow
-                    label="Agent Agreement"
-                    accepted={true}
-                    onView={() => setShowAgentAgreementModal(true)}
-                  />
-                )}
-                {roles.includes('supporter') && (
-                  <AgreementRow
-                    label="Supporter Agreement"
-                    accepted={hasAcceptedSupporterTerms || false}
-                    acceptedAt={supporterAcceptance?.accepted_at}
-                    onView={() => setShowSupporterAgreementModal(true)}
-                    note="Implicitly agreed by using the platform"
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Modals */}
-            {roles.includes('tenant') && (
-              <TenantAgreementModal isOpen={showTenantAgreementModal} onClose={() => setShowTenantAgreementModal(false)} onAccept={acceptTenantAgreement} viewOnly={hasAcceptedTenantTerms || false} />
-            )}
-            {roles.includes('agent') && (
-              <AgentAgreementModal isOpen={showAgentAgreementModal} onClose={() => setShowAgentAgreementModal(false)} onAccept={async () => true} viewOnly />
-            )}
-            {roles.includes('supporter') && (
-              <SupporterAgreementModal open={showSupporterAgreementModal} onOpenChange={setShowSupporterAgreementModal} onAccept={acceptSupporterAgreement} />
-            )}
-          </div>
+        {/* ===== LEGAL SECTION — deferred + lazy ===== */}
+        {hasLegalContent && deferredReady && (
+          <DeferredLegalSection roles={roles} sectionRef={el => sectionRefs.current['legal'] = el} />
         )}
 
         {/* ===== ADVANCED SECTION ===== */}
@@ -750,8 +797,10 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Diagnostics */}
-          <DiagnosticsSection />
+          {/* Diagnostics — lazy loaded */}
+          <LazySection name="Diagnostics">
+            <DiagnosticsSection />
+          </LazySection>
         </div>
 
         {/* Version */}
@@ -781,6 +830,72 @@ export default function Settings() {
         </div>
 
       </div>
+    </div>
+  );
+}
+
+/* ===== Deferred Legal Section — loads agreement hooks only when needed ===== */
+function DeferredLegalSection({ roles, sectionRef }: { roles: AppRole[]; sectionRef: (el: HTMLDivElement | null) => void }) {
+  // These hooks are only instantiated when the legal section renders (deferred)
+  const { useTenantAgreement } = require('@/hooks/useTenantAgreement');
+  const { useAgentAgreement } = require('@/hooks/useAgentAgreement');
+  const { useSupporterAgreement } = require('@/hooks/useSupporterAgreement');
+
+  const tenantAgreement = roles.includes('tenant') ? useTenantAgreement() : null;
+  const agentAgreement = roles.includes('agent') ? useAgentAgreement() : null;
+  const supporterAgreement = roles.includes('supporter') ? useSupporterAgreement() : null;
+
+  const [showTenantModal, setShowTenantModal] = useState(false);
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [showSupporterModal, setShowSupporterModal] = useState(false);
+
+  return (
+    <div ref={sectionRef} className="scroll-mt-28 mb-6">
+      <SectionHeader icon={Scale} label="Agreements You Signed" color="warning" />
+      <Card className="border-border/40 shadow-md rounded-2xl">
+        <CardContent className="pt-5 space-y-3">
+          {roles.includes('tenant') && tenantAgreement && (
+            <AgreementRow
+              label="Tenant Agreement"
+              accepted={tenantAgreement.isAccepted || false}
+              acceptedAt={tenantAgreement.acceptance?.accepted_at}
+              onView={() => setShowTenantModal(true)}
+            />
+          )}
+          {roles.includes('agent') && agentAgreement && (
+            <AgreementRow
+              label="Agent Agreement"
+              accepted={agentAgreement.isAccepted || false}
+              acceptedAt={agentAgreement.acceptance?.accepted_at}
+              onView={() => setShowAgentModal(true)}
+            />
+          )}
+          {roles.includes('supporter') && supporterAgreement && (
+            <AgreementRow
+              label="Supporter Agreement"
+              accepted={supporterAgreement.hasAccepted || false}
+              acceptedAt={supporterAgreement.acceptance?.accepted_at}
+              onView={() => setShowSupporterModal(true)}
+              note="Implicitly agreed by using the platform"
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modals — lazy loaded */}
+      <LazySection name="AgreementModals">
+        <>
+          {roles.includes('tenant') && tenantAgreement && (
+            <TenantAgreementModal isOpen={showTenantModal} onClose={() => setShowTenantModal(false)} onAccept={tenantAgreement.acceptAgreement} viewOnly={tenantAgreement.isAccepted || false} />
+          )}
+          {roles.includes('agent') && agentAgreement && (
+            <AgentAgreementModal isOpen={showAgentModal} onClose={() => setShowAgentModal(false)} onAccept={async () => true} viewOnly />
+          )}
+          {roles.includes('supporter') && supporterAgreement && (
+            <SupporterAgreementModal open={showSupporterModal} onOpenChange={setShowSupporterModal} onAccept={supporterAgreement.acceptAgreement} />
+          )}
+        </>
+      </LazySection>
     </div>
   );
 }
