@@ -58,14 +58,6 @@ const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
   { id: 'advanced', label: 'More', icon: SettingsIcon },
 ];
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 25 }
-  },
-};
 
 export default function Settings() {
   const navigate = useNavigate();

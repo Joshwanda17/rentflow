@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Fingerprint, Scan, Smartphone, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,15 +6,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useBiometricAuth } from '@/hooks/useBiometricAuth';
 import { toast } from 'sonner';
 import { hapticSuccess, hapticError } from '@/lib/haptics';
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 25 }
-  },
-};
 
 export default function BiometricSecuritySection() {
   const { 
@@ -77,15 +67,15 @@ export default function BiometricSecuritySection() {
 
   if (!isBiometricAvailable) {
     return (
-      <motion.div variants={itemVariants}>
+      <div>
         <Card className="glass-card border-border/50 shadow-elevated overflow-hidden opacity-60">
           <div className="absolute inset-0 bg-gradient-to-br from-muted/20 via-transparent to-muted/20 pointer-events-none" />
           
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2">
-              <motion.div className="p-2 rounded-lg bg-muted">
+              <div className="p-2 rounded-lg bg-muted">
                 <Fingerprint className="h-5 w-5 text-muted-foreground" />
-              </motion.div>
+              </div>
               Biometric Login
             </CardTitle>
             <CardDescription>
@@ -106,28 +96,24 @@ export default function BiometricSecuritySection() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div variants={itemVariants}>
+    <div>
       <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
         
         <CardHeader className="relative">
           <CardTitle className="flex items-center gap-2">
-            <motion.div
-              className="p-2 rounded-lg bg-primary/10"
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-            >
+            <div className="p-2 rounded-lg bg-primary/10">
               {biometricType === 'face' ? (
                 <Scan className="h-5 w-5 text-primary" />
               ) : (
                 <Fingerprint className="h-5 w-5 text-primary" />
               )}
-            </motion.div>
+            </div>
             {getBiometricName()} Login
           </CardTitle>
           <CardDescription>
@@ -218,6 +204,6 @@ export default function BiometricSecuritySection() {
           )}
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }

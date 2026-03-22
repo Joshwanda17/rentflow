@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Shield, Lock, Trash2, Plus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,15 +9,6 @@ import { usePinAuth } from '@/hooks/usePinAuth';
 import PinSetupDialog from '@/components/auth/PinSetupDialog';
 import { toast } from 'sonner';
 import { hapticSuccess } from '@/lib/haptics';
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 25 }
-  },
-};
 
 export default function PinSecuritySection() {
   const { isPinEnabled, disablePin } = usePinAuth();
@@ -38,19 +28,15 @@ export default function PinSecuritySection() {
 
   return (
     <>
-      <motion.div variants={itemVariants}>
+      <div>
         <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
           
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2">
-              <motion.div
-                className="p-2 rounded-lg bg-primary/10"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-              >
+              <div className="p-2 rounded-lg bg-primary/10">
                 <Shield className="h-5 w-5 text-primary" />
-              </motion.div>
+              </div>
               Quick Access PIN
             </CardTitle>
             <CardDescription>
@@ -142,7 +128,7 @@ export default function PinSecuritySection() {
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       <PinSetupDialog 
         open={showPinSetup} 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -226,13 +226,9 @@ export default function DiagnosticsSection() {
       
       <CardHeader className="relative">
         <CardTitle className="flex items-center gap-2">
-          <motion.div
-            className="p-2 rounded-lg bg-muted/50"
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-          >
+          <div className="p-2 rounded-lg bg-muted/50">
             <Bug className="h-5 w-5 text-muted-foreground" />
-          </motion.div>
+          </div>
           Diagnostics
         </CardTitle>
         <CardDescription>
@@ -304,11 +300,7 @@ export default function DiagnosticsSection() {
         <div className="pt-4 border-t border-border/50 space-y-3">
           {/* iOS Force Refresh - Prominent for iOS PWA users */}
           {isIOSStandalone && (
-            <motion.div 
-              whileHover={{ scale: 1.01 }} 
-              whileTap={{ scale: 0.99 }}
-              className="mb-2"
-            >
+            <div className="mb-2">
               <Button 
                 className="w-full gap-2 bg-primary hover:bg-primary/90" 
                 onClick={handleForceRefreshData}
@@ -324,10 +316,10 @@ export default function DiagnosticsSection() {
               <p className="text-xs text-muted-foreground mt-1 text-center">
                 Tap to get the latest figures if data seems stale
               </p>
-            </motion.div>
+            </div>
           )}
 
-          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <div>
             <Button 
               variant="outline" 
               className="w-full gap-2" 
@@ -336,9 +328,9 @@ export default function DiagnosticsSection() {
               <RefreshCw className="h-4 w-4" />
               Refresh Diagnostics
             </Button>
-          </motion.div>
+          </div>
 
-          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <div>
             <Button 
               variant="destructive" 
               className="w-full gap-2" 
@@ -352,7 +344,7 @@ export default function DiagnosticsSection() {
               )}
               Clear Cache & Reload
             </Button>
-          </motion.div>
+          </div>
         </div>
       </CardContent>
     </Card>
