@@ -82,6 +82,7 @@ const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
+const StaffPortal = lazy(() => import('./pages/StaffPortal'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
 // Executive role-isolated dashboards
 const CTODashboardPage = lazy(() => import('./pages/cto/Dashboard'));
@@ -253,6 +254,7 @@ function AppRoutes() {
           <Route path="/tv-dashboard" element={<TVDashboard />} />
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
+          <Route path="/staff" element={<StaffPortal />} />
           {/* Role-isolated executive dashboards */}
           <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin', 'manager']}><CTODashboardPage /></RoleGuard>} />
           <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']}><CEODashboardPage /></RoleGuard>} />

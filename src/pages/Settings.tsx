@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff, LayoutDashboard, ChevronRight, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck, Sparkles } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import PinSecuritySection from '@/components/settings/PinSecuritySection';
 import BiometricSecuritySection from '@/components/settings/BiometricSecuritySection';
@@ -35,7 +35,7 @@ import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { AgentAgreementModal } from '@/components/agent/agreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { SupporterAgreementModal } from '@/components/supporter/agreement';
-import { MyPerformanceCard } from '@/components/manager/MyPerformanceCard';
+
 import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { cn } from '@/lib/utils';
 
@@ -437,27 +437,6 @@ export default function Settings() {
             <WalletCard />
           </div>
 
-          {/* Manager extras */}
-          {roles.includes('manager') && (
-            <div className="mt-4 space-y-4">
-              <MyPerformanceCard />
-              <Card 
-                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
-                onClick={() => navigate('/coo-dashboard')}
-              >
-                <CardContent className="flex items-center gap-3 p-4">
-                  <div className="p-2.5 rounded-xl bg-primary/10">
-                    <Shield className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">COO Dashboard</p>
-                    <p className="text-xs text-muted-foreground">Operations overview</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
 
         {/* ===== ROLES & NAVIGATION SECTION ===== */}
