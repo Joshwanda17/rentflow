@@ -330,7 +330,7 @@ export default function DiagnosticsSection() {
             </Button>
           </div>
 
-          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+          <div>
             <Button 
               variant="destructive" 
               className="w-full gap-2" 
@@ -344,7 +344,7 @@ export default function DiagnosticsSection() {
               )}
               Clear Cache & Reload
             </Button>
-          </motion.div>
+          </div>
         </div>
       </CardContent>
     </Card>

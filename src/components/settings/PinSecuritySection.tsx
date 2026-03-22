@@ -128,7 +128,7 @@ export default function PinSecuritySection() {
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       <PinSetupDialog 
         open={showPinSetup} 
