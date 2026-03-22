@@ -75,7 +75,9 @@ export default function SupporterDashboard({
   const { profile } = useProfile();
   const { isOnline } = useOffline();
   const [loading, setLoading] = useState(false);
-  const [hasCachedData, setHasCachedData] = useState(false);
+  const [hasCachedData, setHasCachedData] = useState(() => {
+    try { return !!localStorage.getItem(`supporter_houses_${user.id}`); } catch { return false; }
+  });
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
