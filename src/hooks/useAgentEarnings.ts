@@ -13,6 +13,21 @@ interface Earning {
 }
 
 const EARNINGS_CACHE_KEY = 'agent_earnings';
+const LS_KEY_PREFIX = 'lf_agent_earnings_';
+
+function readLocalCache(userId: string): { earnings: Earning[]; paidOut: number; walletBalance: number } | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY_PREFIX + userId);
+    if (raw) return JSON.parse(raw).data;
+  } catch {}
+  return null;
+}
+
+function writeLocalCache(userId: string, data: { earnings: Earning[]; paidOut: number; walletBalance: number }): void {
+  try {
+    localStorage.setItem(LS_KEY_PREFIX + userId, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {}
+}
 
 export function useAgentEarnings() {
   const { user } = useAuth();
@@ -33,10 +48,21 @@ export function useAgentEarnings() {
     setAvailableToWithdraw(Math.max(0, walletBalance));
   };
 
+  // Load cached data immediately on init
+  useEffect(() => {
+    if (!user) return;
+    const cached = readLocalCache(user.id);
+    if (cached) {
+      setEarnings(cached.earnings);
+      computeTotals(cached.earnings, cached.paidOut, cached.walletBalance);
+      setLoading(false);
+    }
+  }, [user?.id]);
+
   const fetchEarnings = useCallback(async () => {
     if (!user) return;
 
-    // Try cache first
+    // If offline, try IndexedDB cache
     if (!navigator.onLine) {
       try {
         const cached = await getCachedDashboardData(user.id, EARNINGS_CACHE_KEY);
@@ -45,6 +71,7 @@ export function useAgentEarnings() {
           computeTotals(cached as Earning[], 0, 0);
         }
       } catch {}
+      setLoading(false);
       return;
     }
 
@@ -69,6 +96,7 @@ export function useAgentEarnings() {
 
     if (earningsRes.error) {
       console.error('Error fetching earnings:', earningsRes.error);
+      setLoading(false);
       return;
     }
 
@@ -78,15 +106,16 @@ export function useAgentEarnings() {
 
     setEarnings(result);
     computeTotals(result, paidOut, walletBalance);
+    setLoading(false);
 
-    // Cache for offline
+    // Cache for offline (both localStorage + IndexedDB)
+    writeLocalCache(user.id, { earnings: result, paidOut, walletBalance });
     try { await cacheDashboardData(user.id, EARNINGS_CACHE_KEY, result); } catch {}
   }, [user]);
 
   useEffect(() => {
     if (user) {
-      setLoading(true);
-      fetchEarnings().finally(() => setLoading(false));
+      fetchEarnings();
     }
   }, [user, fetchEarnings]);
 
