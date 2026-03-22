@@ -4,13 +4,13 @@ import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals'
 import FinancialMetricsCards from '@/components/coo/FinancialMetricsCards';
 import FinancialTransactionsTable from '@/components/coo/FinancialTransactionsTable';
 import AgentCollectionsOverview from '@/components/coo/AgentCollectionsOverview';
-import WalletMonitoringPanel from '@/components/coo/WalletMonitoringPanel';
 import PaymentModeAnalytics from '@/components/coo/PaymentModeAnalytics';
 import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
+import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 
 export default function COODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -40,12 +40,7 @@ export default function COODashboardPage() {
           </div>
         );
       case 'wallets':
-        return (
-          <div className="space-y-4">
-            <h1 className="text-xl font-bold">Wallet Monitoring</h1>
-            <WalletMonitoringPanel />
-          </div>
-        );
+        return <FinancialOpsCommandCenter />;
       case 'analytics':
         return (
           <div className="space-y-4">
@@ -85,7 +80,7 @@ export default function COODashboardPage() {
               <FinancialAlertsPanel />
             </div>
             <AgentCollectionsOverview />
-            <WalletMonitoringPanel />
+            <FinancialOpsCommandCenter />
           </div>
         );
     }

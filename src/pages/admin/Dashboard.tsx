@@ -25,6 +25,7 @@ const executiveDashboards: DashboardCard[] = [
 ];
 
 const operationsDashboards: DashboardCard[] = [
+  { label: 'Financial Ops', description: 'Deposits, withdrawals, ledger & reconciliation', icon: Wallet, route: '/admin/financial-ops', color: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30' },
   { label: 'Company Staff', description: 'Manage employees & staff accounts', icon: Shield, route: '/admin/users', color: 'bg-red-500/10 text-red-700 border-red-500/30' },
   { label: 'Agent Ops', description: 'Agent performance & activity', icon: Users, route: '/executive-hub?tab=agent-ops', color: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/30' },
   { label: 'Tenant Ops', description: 'Tenant metrics & rentals', icon: Home, route: '/executive-hub?tab=tenant-ops', color: 'bg-teal-500/10 text-teal-700 border-teal-500/30' },
