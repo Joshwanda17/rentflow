@@ -92,10 +92,23 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const { toast } = useToast();
   const { isAccepted: hasAcceptedTerms, isLoading: agreementLoading, acceptAgreement } = useTenantAgreement();
 
-  const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
-  const [repayments, setRepayments] = useState<Repayment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasCachedData, setHasCachedData] = useState(false);
+  // Local-first: read cache synchronously for instant paint
+  const [rentRequests, setRentRequests] = useState<RentRequest[]>(() => {
+    try {
+      const raw = localStorage.getItem(`tenant_dashboard_${user.id}`);
+      if (raw) return JSON.parse(raw).rentRequests || [];
+    } catch {}
+    return [];
+  });
+  const [repayments, setRepayments] = useState<Repayment[]>(() => {
+    try {
+      const raw = localStorage.getItem(`tenant_dashboard_${user.id}`);
+      if (raw) return JSON.parse(raw).repayments || [];
+    } catch {}
+    return [];
+  });
+  const hasCachedData = rentRequests.length > 0;
+  const [loading, setLoading] = useState(!hasCachedData);
 
   // Dialog states
   const [showWallet, setShowWallet] = useState(false);
@@ -119,33 +132,41 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     }
   };
 
-  // Load cached data first for offline support
+  // Background fetch — never blocks UI if cache exists
   useEffect(() => {
-    const cached = localStorage.getItem(`tenant_dashboard_${user.id}`);
-    if (cached) {
-      try {
-        const data = JSON.parse(cached);
-        setRentRequests(data.rentRequests || []);
-        setRepayments(data.repayments || []);
-        setHasCachedData(true);
-      } catch (e) {
-        console.warn('[TenantDashboard] Failed to load cached data');
-      }
-    }
-  }, [user.id]);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    if (!navigator.onLine && hasCachedData) {
+    if (!navigator.onLine) {
       setLoading(false);
       return;
     }
     
-    setLoading(true);
-    
+    (async () => {
+      try {
+        const { data: requests } = await supabase
+          .from('rent_requests')
+          .select('*')
+          .eq('tenant_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        const newRentRequests = requests || [];
+        const newRepayments: Repayment[] = [];
+        
+        setRentRequests(newRentRequests);
+        setRepayments(newRepayments);
+        
+        localStorage.setItem(`tenant_dashboard_${user.id}`, JSON.stringify({
+          rentRequests: newRentRequests,
+          repayments: newRepayments,
+          timestamp: Date.now()
+        }));
+      } catch (error) {
+        console.error('[TenantDashboard] Error fetching data:', error);
+      }
+      setLoading(false);
+    })();
+  }, [user.id]);
+
+  const fetchData = async () => {
+    if (!navigator.onLine) return;
     try {
       const { data: requests } = await supabase
         .from('rent_requests')
@@ -153,27 +174,21 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         .eq('tenant_id', user.id)
         .order('created_at', { ascending: false });
       
-      // repayments table removed - use empty array
       const newRentRequests = requests || [];
-      const newRepayments: Repayment[] = [];
-      
       setRentRequests(newRentRequests);
-      setRepayments(newRepayments);
+      setRepayments([]);
       
       localStorage.setItem(`tenant_dashboard_${user.id}`, JSON.stringify({
         rentRequests: newRentRequests,
-        repayments: newRepayments,
+        repayments: [],
         timestamp: Date.now()
       }));
-      setHasCachedData(true);
     } catch (error) {
       console.error('[TenantDashboard] Error fetching data:', error);
     }
-    
-    setLoading(false);
   };
 
-  if (loading && isOnline && !hasCachedData) {
+  if (loading && !hasCachedData) {
     return <TenantDashboardSkeleton />;
   }
 

@@ -75,7 +75,9 @@ export default function SupporterDashboard({
   const { profile } = useProfile();
   const { isOnline } = useOffline();
   const [loading, setLoading] = useState(false);
-  const [hasCachedData, setHasCachedData] = useState(false);
+  const [hasCachedData, setHasCachedData] = useState(() => {
+    try { return !!localStorage.getItem(`supporter_houses_${user.id}`); } catch { return false; }
+  });
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
@@ -94,9 +96,21 @@ export default function SupporterDashboard({
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
 
-  // Virtual houses data (from funded rent_requests)
-  const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>([]);
-  const [totalRentContributed, setTotalRentContributed] = useState(0);
+  // Local-first: read cache synchronously in useState init
+  const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>(() => {
+    try {
+      const raw = localStorage.getItem(`supporter_houses_${user.id}`);
+      if (raw) return JSON.parse(raw).houses || [];
+    } catch {}
+    return [];
+  });
+  const [totalRentContributed, setTotalRentContributed] = useState(() => {
+    try {
+      const raw = localStorage.getItem(`supporter_houses_${user.id}`);
+      if (raw) return JSON.parse(raw).totalRent || 0;
+    } catch {}
+    return 0;
+  });
   const [totalRoiEarned, setTotalRoiEarned] = useState(0);
 
   // Agreement
@@ -135,20 +149,7 @@ export default function SupporterDashboard({
     return success;
   };
 
-  // Load cached data
-  useEffect(() => {
-    const cached = localStorage.getItem(`supporter_houses_${user.id}`);
-    if (cached) {
-      try {
-        const data = JSON.parse(cached);
-        setVirtualHouses(data.houses || []);
-        setTotalRentContributed(data.totalRent || 0);
-        setHasCachedData(true);
-      } catch (e) {
-        console.warn('[SupporterDashboard] Cache read failed');
-      }
-    }
-  }, [user.id]);
+  // Cache already loaded synchronously in useState init above
 
   // Scroll to opportunities
   useEffect(() => {
