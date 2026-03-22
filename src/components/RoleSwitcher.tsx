@@ -177,15 +177,16 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
 
   // Prominent variant — full-width horizontal pills in dashboard body
   if (variant === 'prominent') {
+    // Only show public roles + restricted roles the user ALREADY has
+    const visibleRoles = ALL_ROLES.filter(r => PUBLIC_ROLES.includes(r) || availableRoles.includes(r));
     return (
       <>
         <div className="w-full">
           <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-2xl flex-wrap">
-            {ALL_ROLES.map((role) => {
+            {visibleRoles.map((role) => {
               const config = roleConfig[role];
               const isActive = role === currentRole;
               const hasRole = availableRoles.includes(role);
-              const isRestricted = RESTRICTED_ROLES.includes(role);
               return (
                 <button
                   key={role}
@@ -202,7 +203,6 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
                 >
                   <span className="text-base">{config.emoji}</span>
                   <span className="truncate">{config.label}</span>
-                  {!hasRole && isRestricted && <Lock className="h-3 w-3 opacity-50 shrink-0" />}
                 </button>
               );
             })}
