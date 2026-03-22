@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2 } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { RequestDetailSheet } from './RequestDetailSheet';
 
 type QueueType = 'deposits' | 'withdrawals' | 'wallet_ops';
 
@@ -42,6 +43,7 @@ export function ApprovalQueue() {
   const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
   const [reason, setReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
 
   const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
     queryKey: ['approval-queue-deposits'],
@@ -328,11 +330,13 @@ export function ApprovalQueue() {
                   return (
                     <div
                       key={item.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border-l-4 ${urgencyBg[item.urgency]} bg-card hover:bg-muted/40 transition-colors`}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-l-4 ${urgencyBg[item.urgency]} bg-card hover:bg-muted/40 transition-colors cursor-pointer`}
+                      onClick={() => setInspectItem(item)}
                     >
                       <Checkbox
                         checked={selected.has(item.id)}
                         onCheckedChange={() => toggleSelect(item.id)}
+                        onClick={(e) => e.stopPropagation()}
                       />
                       <div className={`p-1.5 rounded-lg ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
                         <Icon className={`h-3.5 w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
@@ -346,11 +350,12 @@ export function ApprovalQueue() {
                           {item.ageHours >= 1 && ` · ${Math.round(item.ageHours)}h ago`}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-1">
                         <p className="text-sm font-bold tabular-nums">{formatUGX(item.amount)}</p>
                         <Badge variant="outline" className="text-[9px] px-1">
                           {item.category.replace(/_/g, ' ')}
                         </Badge>
+                        <Eye className="h-3 w-3 text-muted-foreground/50" />
                       </div>
                     </div>
                   );
@@ -404,6 +409,15 @@ export function ApprovalQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Detail Drill-Down Sheet */}
+      <RequestDetailSheet
+        open={!!inspectItem}
+        onOpenChange={(open) => !open && setInspectItem(null)}
+        userId={inspectItem?.userId || null}
+        requestType={inspectItem?.type || 'deposits'}
+        requestData={inspectItem?.rawData}
+      />
     </>
   );
 }
