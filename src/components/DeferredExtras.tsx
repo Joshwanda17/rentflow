@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState, useEffect, Component, ReactNode, ErrorInfo } from "react";
+import { lazy, Suspense, useState, useEffect, Component, ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
@@ -14,7 +15,7 @@ const IOSShareReceiver = lazy(() => import("@/components/IOSShareReceiver"));
 class ExtrasBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error: Error, info: ErrorInfo) {
+  componentDidCatch(error: Error) {
     console.warn('[DeferredExtras] Non-critical component failed:', error.message);
   }
   render() { return this.state.hasError ? null : this.props.children; }
@@ -22,6 +23,7 @@ class ExtrasBoundary extends Component<{ children: ReactNode }, { hasError: bool
 
 export default function DeferredExtras() {
   const [ready, setReady] = useState(false);
+  const { pathname } = useLocation();
 
   useServiceWorkerUpdate();
   useForceRefresh();
@@ -39,14 +41,16 @@ export default function DeferredExtras() {
 
   if (!ready) return null;
 
+  const shouldShowGlobalPrompts = pathname !== '/settings';
+
   return (
     <ExtrasBoundary>
       <Suspense fallback={null}>
         <IOSOptimizations />
         <IOSLinkHandler />
         <IOSShareReceiver />
-        <PWAInstallPrompt />
-        <WhatsNewModal />
+        {shouldShowGlobalPrompts && <PWAInstallPrompt />}
+        {shouldShowGlobalPrompts && <WhatsNewModal />}
         {/* GlobalSettingsToolbar now in FloatingToolbar */}
       </Suspense>
     </ExtrasBoundary>
