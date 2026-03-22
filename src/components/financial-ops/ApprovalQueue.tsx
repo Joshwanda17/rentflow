@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2 } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { RequestDetailSheet } from './RequestDetailSheet';
 
 type QueueType = 'deposits' | 'withdrawals' | 'wallet_ops';
 
