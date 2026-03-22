@@ -40,12 +40,7 @@ export default function COODashboardPage() {
           </div>
         );
       case 'wallets':
-        return (
-          <div className="space-y-4">
-            <h1 className="text-xl font-bold">Wallet Monitoring</h1>
-            <WalletMonitoringPanel />
-          </div>
-        );
+        return <FinancialOpsCommandCenter />;
       case 'analytics':
         return (
           <div className="space-y-4">
