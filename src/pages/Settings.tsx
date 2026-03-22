@@ -834,69 +834,17 @@ export default function Settings() {
   );
 }
 
-/* ===== Deferred Legal Section — loads agreement hooks only when needed ===== */
+/* ===== Deferred Legal Section — lazy wrapper so agreement hooks don't block first paint ===== */
+const DeferredLegalSectionInner = lazy(() => import('@/components/settings/LegalSection'));
+
 function DeferredLegalSection({ roles, sectionRef }: { roles: AppRole[]; sectionRef: (el: HTMLDivElement | null) => void }) {
-  // These hooks are only instantiated when the legal section renders (deferred)
-  const { useTenantAgreement } = require('@/hooks/useTenantAgreement');
-  const { useAgentAgreement } = require('@/hooks/useAgentAgreement');
-  const { useSupporterAgreement } = require('@/hooks/useSupporterAgreement');
-
-  const tenantAgreement = roles.includes('tenant') ? useTenantAgreement() : null;
-  const agentAgreement = roles.includes('agent') ? useAgentAgreement() : null;
-  const supporterAgreement = roles.includes('supporter') ? useSupporterAgreement() : null;
-
-  const [showTenantModal, setShowTenantModal] = useState(false);
-  const [showAgentModal, setShowAgentModal] = useState(false);
-  const [showSupporterModal, setShowSupporterModal] = useState(false);
-
   return (
-    <div ref={sectionRef} className="scroll-mt-28 mb-6">
-      <SectionHeader icon={Scale} label="Agreements You Signed" color="warning" />
-      <Card className="border-border/40 shadow-md rounded-2xl">
-        <CardContent className="pt-5 space-y-3">
-          {roles.includes('tenant') && tenantAgreement && (
-            <AgreementRow
-              label="Tenant Agreement"
-              accepted={tenantAgreement.isAccepted || false}
-              acceptedAt={tenantAgreement.acceptance?.accepted_at}
-              onView={() => setShowTenantModal(true)}
-            />
-          )}
-          {roles.includes('agent') && agentAgreement && (
-            <AgreementRow
-              label="Agent Agreement"
-              accepted={agentAgreement.isAccepted || false}
-              acceptedAt={agentAgreement.acceptance?.accepted_at}
-              onView={() => setShowAgentModal(true)}
-            />
-          )}
-          {roles.includes('supporter') && supporterAgreement && (
-            <AgreementRow
-              label="Supporter Agreement"
-              accepted={supporterAgreement.hasAccepted || false}
-              acceptedAt={supporterAgreement.acceptance?.accepted_at}
-              onView={() => setShowSupporterModal(true)}
-              note="Implicitly agreed by using the platform"
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Modals — lazy loaded */}
-      <LazySection name="AgreementModals">
-        <>
-          {roles.includes('tenant') && tenantAgreement && (
-            <TenantAgreementModal isOpen={showTenantModal} onClose={() => setShowTenantModal(false)} onAccept={tenantAgreement.acceptAgreement} viewOnly={tenantAgreement.isAccepted || false} />
-          )}
-          {roles.includes('agent') && agentAgreement && (
-            <AgentAgreementModal isOpen={showAgentModal} onClose={() => setShowAgentModal(false)} onAccept={async () => true} viewOnly />
-          )}
-          {roles.includes('supporter') && supporterAgreement && (
-            <SupporterAgreementModal open={showSupporterModal} onOpenChange={setShowSupporterModal} onAccept={supporterAgreement.acceptAgreement} />
-          )}
-        </>
-      </LazySection>
-    </div>
+    <LazySection name="Legal">
+      <div ref={sectionRef} className="scroll-mt-28 mb-6">
+        <SectionHeader icon={Scale} label="Agreements You Signed" color="warning" />
+        <DeferredLegalSectionInner roles={roles} />
+      </div>
+    </LazySection>
   );
 }
 
