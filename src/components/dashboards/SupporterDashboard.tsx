@@ -149,20 +149,7 @@ export default function SupporterDashboard({
     return success;
   };
 
-  // Load cached data
-  useEffect(() => {
-    const cached = localStorage.getItem(`supporter_houses_${user.id}`);
-    if (cached) {
-      try {
-        const data = JSON.parse(cached);
-        setVirtualHouses(data.houses || []);
-        setTotalRentContributed(data.totalRent || 0);
-        setHasCachedData(true);
-      } catch (e) {
-        console.warn('[SupporterDashboard] Cache read failed');
-      }
-    }
-  }, [user.id]);
+  // Cache already loaded synchronously in useState init above
 
   // Scroll to opportunities
   useEffect(() => {
