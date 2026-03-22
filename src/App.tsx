@@ -82,6 +82,7 @@ const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
+const StaffPortal = lazy(() => import('./pages/StaffPortal'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
 // Executive role-isolated dashboards
 const CTODashboardPage = lazy(() => import('./pages/cto/Dashboard'));
