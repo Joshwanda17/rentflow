@@ -80,7 +80,7 @@ export default function COODashboardPage() {
               <FinancialAlertsPanel />
             </div>
             <AgentCollectionsOverview />
-            <WalletMonitoringPanel />
+            <FinancialOpsCommandCenter />
           </div>
         );
     }
