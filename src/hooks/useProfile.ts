@@ -77,6 +77,8 @@ export function useProfile() {
           setProfile(data);
           setIsOfflineData(false);
           profileCache = { data, userId: user.id, timestamp: Date.now() };
+          // Cache to both IndexedDB and localStorage
+          try { localStorage.setItem(LS_KEY_PREFIX + user.id, JSON.stringify(data)); } catch {}
           await cacheProfile(data);
         }
       } catch (e) {
