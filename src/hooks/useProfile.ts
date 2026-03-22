@@ -19,14 +19,24 @@ interface Profile {
 // Module-level cache to deduplicate across component instances
 let profileCache: { data: Profile; userId: string; timestamp: number } | null = null;
 const PROFILE_CACHE_TTL = 60_000; // 1 minute
+const LS_KEY_PREFIX = 'lf_profile_';
+
+// Sync localStorage read for instant first paint
+function readProfileFromLS(userId: string): Profile | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY_PREFIX + userId);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
 
 export function useProfile() {
   const { user } = useAuth();
   const cached = user && profileCache && profileCache.userId === user.id && (Date.now() - profileCache.timestamp < PROFILE_CACHE_TTL)
-    ? profileCache.data : null;
+    ? profileCache.data : (user ? readProfileFromLS(user.id) : null);
   const [profile, setProfile] = useState<Profile | null>(cached);
   const [loading, setLoading] = useState(!cached);
-  const [isOfflineData, setIsOfflineData] = useState(false);
+  const [isOfflineData, setIsOfflineData] = useState(!!cached && !profileCache);
 
   const fetchProfile = useCallback(async () => {
     if (!user) {
