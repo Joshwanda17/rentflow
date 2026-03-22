@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef, lazy, Suspense, Component, ReactNode } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, Component, ReactNode, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, LogIn, Volume2, RefreshCw, Scale, Lock, Eye, EyeOff, LayoutDashboard, Unlock, Settings as SettingsIcon, Palette, ShieldCheck } from 'lucide-react';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
@@ -22,7 +21,6 @@ import { useAppPreferences } from '@/hooks/useAppPreferences';
 import { playNotificationSound } from '@/lib/notificationSound';
 import { cn } from '@/lib/utils';
 
-// ── Lazy-loaded heavy components (the core fix for white screen on mobile) ──
 const WalletCard = lazy(() => import('@/components/wallet/WalletCard').then(m => ({ default: m.WalletCard })));
 const DiagnosticsSection = lazy(() => import('@/components/settings/DiagnosticsSection'));
 const PinSecuritySection = lazy(() => import('@/components/settings/PinSecuritySection'));
@@ -30,26 +28,18 @@ const BiometricSecuritySection = lazy(() => import('@/components/settings/Biomet
 const MyLandlordsSection = lazy(() => import('@/components/tenant/MyLandlordsSection'));
 const MyTenantsSection = lazy(() => import('@/components/landlord/MyTenantsSection'));
 const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountToggle'));
-const TenantAgreementModal = lazy(() => import('@/components/tenant/agreement').then(m => ({ default: m.TenantAgreementModal })));
-const AgentAgreementModal = lazy(() => import('@/components/agent/agreement').then(m => ({ default: m.AgentAgreementModal })));
-const SupporterAgreementModal = lazy(() => import('@/components/supporter/agreement').then(m => ({ default: m.SupporterAgreementModal })));
 
-// ── Section error boundary — prevents one broken section from killing the whole page ──
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error: Error) {
-    console.warn(`[Settings/${this.props.name}] Section failed:`, error.message);
-  }
+  componentDidCatch(error: Error) { console.warn(`[Settings/${this.props.name}] failed:`, error.message); }
   render() {
     if (this.state.hasError) {
       return (
         <Card className="border-destructive/20 bg-destructive/5 rounded-2xl">
           <CardContent className="py-6 text-center">
             <p className="text-sm text-muted-foreground">This section couldn't load.</p>
-            <Button variant="ghost" size="sm" className="mt-2" onClick={() => this.setState({ hasError: false })}>
-              Try again
-            </Button>
+            <Button variant="ghost" size="sm" className="mt-2" onClick={() => this.setState({ hasError: false })}>Try again</Button>
           </CardContent>
         </Card>
       );
@@ -58,49 +48,35 @@ class SectionBoundary extends Component<{ children: ReactNode; name: string }, {
   }
 }
 
-// ── Section loading skeleton ──
 function SectionSkeleton() {
   return (
-    <Card className="border-border/40 rounded-2xl">
-      <CardContent className="py-6 space-y-3">
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-10 w-full rounded-xl" />
-        <Skeleton className="h-10 w-full rounded-xl" />
-      </CardContent>
-    </Card>
+    <div className="py-6 space-y-3 px-1">
+      <Skeleton className="h-5 w-32" />
+      <Skeleton className="h-10 w-full rounded-xl" />
+      <Skeleton className="h-10 w-full rounded-xl" />
+    </div>
   );
 }
 
-// ── Wrap lazy sections safely ──
 function LazySection({ children, name }: { children: ReactNode; name: string }) {
   return (
     <SectionBoundary name={name}>
-      <Suspense fallback={<SectionSkeleton />}>
-        {children}
-      </Suspense>
+      <Suspense fallback={<SectionSkeleton />}>{children}</Suspense>
     </SectionBoundary>
   );
 }
 
-interface Profile {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  avatar_url: string | null;
-}
-
+interface Profile { id: string; full_name: string; email: string; phone: string; avatar_url: string | null; }
 type SettingsSection = 'account' | 'roles' | 'appearance' | 'security' | 'legal' | 'advanced';
 
 const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
   { id: 'account', label: 'Me', icon: User },
   { id: 'roles', label: 'Roles', icon: Shield },
-  { id: 'appearance', label: 'Look & Feel', icon: Palette },
+  { id: 'appearance', label: 'Look', icon: Palette },
   { id: 'security', label: 'Safety', icon: ShieldCheck },
-  { id: 'legal', label: 'Agreements', icon: Scale },
+  { id: 'legal', label: 'Legal', icon: Scale },
   { id: 'advanced', label: 'More', icon: SettingsIcon },
 ];
-
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -123,67 +99,17 @@ export default function Settings() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
-
-  // Deferred state — agreements & investor status load AFTER first paint
   const [deferredReady, setDeferredReady] = useState(false);
-  const [isFunder, setIsFunder] = useState(false);
 
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [user, authLoading, navigate]);
-
-  useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  // Defer heavy checks until after first paint
-  useEffect(() => {
-    const timer = setTimeout(() => setDeferredReady(true), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Check funder status only when deferred and ready
-  useEffect(() => {
-    if (!deferredReady || !user) return;
-    const checkFunder = async () => {
-      try {
-        const { data } = await supabase
-          .from('investor_portfolios')
-          .select('investment_amount')
-          .eq('investor_id', user.id)
-          .in('status', ['active', 'pending', 'pending_approval']);
-        const total = (data || []).reduce((sum: number, p: any) => sum + (p.investment_amount || 0), 0);
-        setIsFunder(roles.includes('supporter') || total >= 100000);
-      } catch {
-        setIsFunder(roles.includes('supporter'));
-      }
-    };
-    checkFunder();
-  }, [deferredReady, user, roles]);
+  useEffect(() => { if (!authLoading && !user) navigate('/auth'); }, [user, authLoading, navigate]);
+  useEffect(() => { if (user) fetchProfile(); }, [user]);
+  useEffect(() => { const t = setTimeout(() => setDeferredReady(true), 300); return () => clearTimeout(t); }, []);
 
   const fetchProfile = async () => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (error) {
-      console.error('Error fetching profile:', error);
-      setLoading(false);
-      return;
-    }
-    if (data) {
-      setProfile(data as Profile);
-      setFullName(data.full_name);
-      setPhone(data.phone);
-    }
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (error) { console.error('Error fetching profile:', error); setLoading(false); return; }
+    if (data) { setProfile(data as Profile); setFullName(data.full_name); setPhone(data.phone); }
     setLoading(false);
   };
 
@@ -205,12 +131,8 @@ export default function Settings() {
       if (updateError) throw updateError;
       setProfile(prev => prev ? { ...prev, avatar_url: avatarUrl } : null);
       toast.success('Profile photo updated!');
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      toast.error('Failed to upload photo');
-    } finally {
-      setUploadingAvatar(false);
-    }
+    } catch (error) { console.error('Error uploading avatar:', error); toast.error('Failed to upload photo'); }
+    finally { setUploadingAvatar(false); }
   };
 
   const handleSave = async () => {
@@ -244,10 +166,8 @@ export default function Settings() {
     super_admin: { label: 'Super Admin', icon: <Shield className="h-4 w-4" />, color: 'bg-destructive/20 text-destructive border-destructive/30' },
   };
 
-  const scrollToSection = (id: SettingsSection) => {
-    setActiveSection(id);
-    sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  const hasLegalContent = roles.includes('tenant') || roles.includes('agent') || roles.includes('supporter');
+  const visibleSections = useMemo(() => SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent), [hasLegalContent]);
 
   if (authLoading || loading) {
     return (
@@ -255,642 +175,242 @@ export default function Settings() {
         <div className="container mx-auto px-4 py-6 max-w-2xl space-y-6">
           <div className="flex items-center gap-4">
             <Skeleton className="h-10 w-10 rounded-lg" />
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-4 w-48" />
-            </div>
+            <div className="space-y-2"><Skeleton className="h-6 w-32" /><Skeleton className="h-4 w-48" /></div>
           </div>
-          <Skeleton className="h-[400px] rounded-xl" />
-          <Skeleton className="h-[200px] rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-[300px] rounded-xl" />
         </div>
       </div>
     );
   }
 
-  const hasLegalContent = roles.includes('tenant') || roles.includes('agent') || roles.includes('supporter');
-
   return (
-    <div className="min-h-screen bg-background relative">
-      <div className="container mx-auto px-4 py-4 max-w-2xl pb-32">
-
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md pb-3 -mx-4 px-4 border-b border-border/30 mb-4">
-          <div className="flex items-center gap-3 pt-2 pb-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate('/dashboard')}
-              className="rounded-xl h-10 w-10 shrink-0"
-            >
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-4 max-w-2xl pb-24">
+        {/* Header */}
+        <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-2">
+          <div className="flex items-center gap-3 pt-2 pb-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl h-10 w-10 shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold tracking-tight">Settings</h1>
-              <p className="text-xs text-muted-foreground truncate">{profile?.full_name || 'Change how things work'}</p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-              className="rounded-xl gap-1.5 text-xs shrink-0"
-            >
-              <Home className="h-3.5 w-3.5" />
-              Home
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl gap-1.5 text-xs shrink-0">
+              <Home className="h-3.5 w-3.5" /> Home
             </Button>
           </div>
-        </div>
 
-        {/* ═══ PREMIUM PROFILE HERO CARD ═══ */}
-        <div className="mb-6">
-          <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-lg">
-            {/* Decorative mesh */}
-            <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
-            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-accent/10 blur-3xl" />
-            
-            <div className="relative flex items-center gap-4">
-              <div className="relative">
-                <Avatar className="h-20 w-20 border-3 border-primary/20 shadow-xl ring-2 ring-background">
-                  <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
-                  <AvatarFallback className="text-xl bg-gradient-to-br from-primary/20 to-accent/20 text-primary font-bold">
-                    {getInitials(fullName || 'U')}
-                  </AvatarFallback>
-                </Avatar>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg border-2 border-background"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingAvatar}
-                >
-                  {uploadingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                </Button>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="font-bold text-lg truncate">{fullName || 'Your Name'}</h2>
-                <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {roles.slice(0, 3).map((role) => {
-                    const config = roleConfig[role];
-                    return (
-                      <Badge key={role} className={`${config.color} text-[10px] px-2 py-0.5 border`}>
-                        {config.icon}
-                        <span className="ml-1">{config.label}</span>
-                      </Badge>
-                    );
-                  })}
-                  {roles.length > 3 && (
-                    <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-                      +{roles.length - 3}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 🔓 UNLOCK ALL ROLES — Only visible for Funders */}
-        {isFunder && (
-        <div className="mb-5">
-          <div className={cn(
-            "relative overflow-hidden rounded-2xl border-2 p-4 transition-all",
-            preferences.unlockAllRoles
-              ? "border-success/40 bg-gradient-to-r from-success/5 via-success/10 to-success/5"
-              : "border-primary/40 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5"
-          )}>
-            <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20" 
-              style={{ background: preferences.unlockAllRoles ? 'hsl(var(--success))' : 'hsl(var(--primary))' }} />
-            <div className="flex items-center gap-4 relative">
-              <div className={cn(
-                "p-3 rounded-xl shrink-0",
-                preferences.unlockAllRoles ? "bg-success/15" : "bg-primary/15"
-              )}>
-                {preferences.unlockAllRoles ? (
-                  <Unlock className="h-6 w-6 text-success" />
-                ) : (
-                  <Lock className="h-6 w-6 text-primary" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                 <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-bold text-sm">Open All Dashboards</p>
-                  {preferences.unlockAllRoles && (
-                    <Badge variant="outline" className="text-[10px] border-success/30 text-success bg-success/10 px-1.5 py-0">
-                      On
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  As a Funder, you can also use Tenant, Agent & Landlord dashboards
-                </p>
-              </div>
-              <Switch
-                checked={preferences.unlockAllRoles}
-                onCheckedChange={(checked) => {
-                  updatePreference('unlockAllRoles', checked);
-                  toast.success(checked ? 'All dashboards are now open for you!' : 'Back to Funder dashboard only');
-                }}
-                className="shrink-0"
-              />
-            </div>
-          </div>
-        </div>
-        )}
-
-        {/* ===== ACCOUNT SECTION ===== */}
-        <div ref={el => sectionRefs.current['account'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={User} label="Account" color="primary" />
-
-          <Card className="border-border/40 shadow-md rounded-2xl overflow-hidden">
-            <CardContent className="pt-6 space-y-4">
-              {/* Form Fields */}
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Type your full name here" className="pl-10 h-12 rounded-xl" />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email (cannot change)</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="email" value={profile?.email || ''} disabled className="pl-10 h-12 rounded-xl bg-muted/50" />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" />
-                  </div>
-                </div>
-
-                {/* Change Password */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</Label>
-                    <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setShowPasswordForm(!showPasswordForm)}>
-                      {showPasswordForm ? 'Cancel' : 'Change'}
-                    </Button>
-                  </div>
-                  {!showPasswordForm ? (
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input value="••••••••" disabled className="pl-10 h-12 rounded-xl bg-muted/50" />
-                    </div>
-                  ) : (
-                    <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border/50">
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-11 rounded-xl" />
-                        <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
-                          {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-11 rounded-xl" />
-                        <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowNewPassword(!showNewPassword)}>
-                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-11 rounded-xl" />
-                      </div>
-                      <Button
-                        size="sm"
-                        className="w-full gap-2 h-11 rounded-xl"
-                        disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
-                        onClick={async () => {
-                          if (newPassword.length < 6) { toast.error('New password must be at least 6 characters'); return; }
-                          if (newPassword !== confirmNewPassword) { toast.error("New passwords don't match"); return; }
-                          setChangingPassword(true);
-                          try {
-                            const { error: signInError } = await supabase.auth.signInWithPassword({ email: profile?.email || '', password: currentPassword });
-                            if (signInError) { toast.error('Current password is incorrect'); setChangingPassword(false); return; }
-                            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-                            if (updateError) { toast.error('Failed to update password: ' + updateError.message); }
-                            else { toast.success('Password updated!'); setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword(''); setShowPasswordForm(false); }
-                          } catch { toast.error('An error occurred'); }
-                          setChangingPassword(false);
-                        }}
-                      >
-                        {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                        Update Password
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save Changes
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Wallet — lazy loaded */}
-          <div className="mt-4">
-            <LazySection name="Wallet">
-              <WalletCard />
-            </LazySection>
-          </div>
-
-        </div>
-
-        {/* ===== ROLES & NAVIGATION SECTION ===== */}
-        <div ref={el => sectionRefs.current['roles'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Shield} label="Your Roles" color="accent" />
-
-          {/* Current Roles */}
-          <Card className="border-border/40 shadow-md rounded-2xl mb-4">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">What you do on Welile</CardTitle>
-              <CardDescription className="text-xs">These are the roles you have right now</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {roles.map((role) => {
+          {/* Compact profile */}
+          <div className="flex items-center gap-3 pb-2">
+            <Avatar className="h-9 w-9 border border-primary/20">
+              <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+              <AvatarFallback className="text-xs bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate">{fullName || 'Your Name'}</p>
+              <div className="flex flex-wrap gap-1">
+                {roles.slice(0, 2).map((role) => {
                   const config = roleConfig[role];
-                  return (
-                    <Badge key={role} className={`${config.color} flex items-center gap-1.5 px-3 py-1.5 border text-xs`}>
-                      {config.icon}
-                      {config.label}
-                      <Check className="h-3 w-3 ml-0.5" />
-                    </Badge>
-                  );
+                  return <Badge key={role} className={`${config.color} text-[9px] px-1.5 py-0 border`}>{config.label}</Badge>;
                 })}
-                {roles.length === 0 && <p className="text-sm text-muted-foreground">No roles yet</p>}
+                {roles.length > 2 && <Badge variant="outline" className="text-[9px] px-1.5 py-0">+{roles.length - 2}</Badge>}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Default Dashboard */}
-          <Card className="border-border/50 shadow-sm mb-4">
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <LayoutDashboard className="h-4 w-4 text-primary" />
-                <div>
-                  <CardTitle className="text-sm">Home Screen</CardTitle>
-                  <CardDescription className="text-xs">Pick which page opens when you log in</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup
-                value={preferences.defaultRole}
-                onValueChange={(value) => {
-                  updatePreference('defaultRole', value as any);
-                  const label = value === 'auto' ? 'Auto (Funder)' : roleConfig[value as AppRole]?.label || value;
-                  toast.success(`Default dashboard set to ${label}`);
-                }}
-                className="grid grid-cols-2 gap-2"
-              >
-                <div className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
-                  <RadioGroupItem value="auto" id="role-auto" />
-                  <Label htmlFor="role-auto" className="text-sm cursor-pointer flex items-center gap-1.5">
-                    <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-                    Auto
-                  </Label>
-                </div>
-                {roles.map((r) => {
-                  const rc = roleConfig[r];
-                  if (!rc) return null;
-                  return (
-                    <div key={r} className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors">
-                      <RadioGroupItem value={r} id={`role-${r}`} />
-                      <Label htmlFor={`role-${r}`} className="text-sm cursor-pointer flex items-center gap-1.5">
-                        {rc.icon}
-                        {rc.label}
-                      </Label>
-                    </div>
-                  );
-                })}
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
-          {/* Rent Discount for Tenants — lazy */}
-          {roles.includes('tenant') && (
-            <div className="mb-4">
-              <LazySection name="RentDiscount">
-                <RentDiscountToggle />
-              </LazySection>
             </div>
-          )}
-
-          {/* My Landlords / Tenants — lazy */}
-          {roles.includes('tenant') && (
-            <div className="mb-4">
-              <LazySection name="MyLandlords">
-                <MyLandlordsSection />
-              </LazySection>
-            </div>
-          )}
-          {roles.includes('landlord') && (
-            <div className="mb-4">
-              <LazySection name="MyTenants">
-                <MyTenantsSection />
-              </LazySection>
-            </div>
-          )}
-        </div>
-
-        {/* ===== APPEARANCE SECTION ===== */}
-        <div ref={el => sectionRefs.current['appearance'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={Palette} label="How It Looks & Sounds" color="primary" />
-
-          <Card className="border-border/40 shadow-md rounded-2xl">
-            <CardContent className="pt-5 space-y-5">
-              {/* Theme */}
-              <SettingsRow label="Dark / Light" description="Change the look of the app">
-                <ThemeToggle />
-              </SettingsRow>
-
-              {/* Font Size */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                   <Type className="h-4 w-4 text-primary" />
-                  <p className="font-medium text-sm">Text Size</p>
-                </div>
-                <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as typeof fontSize)} className="grid grid-cols-2 gap-2">
-                  {fontSizeOptions.map((opt) => (
-                    <Label
-                      key={opt.value}
-                      htmlFor={opt.value}
-                      className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm",
-                        fontSize === opt.value ? 'border-primary bg-primary/10' : 'border-border/50 hover:bg-muted/50'
-                      )}
-                    >
-                      <RadioGroupItem value={opt.value} id={opt.value} />
-                      <div>
-                        <p className="font-medium text-xs">{opt.label}</p>
-                        <p className="text-[10px] text-muted-foreground">{opt.description}</p>
-                      </div>
-                    </Label>
-                  ))}
-                </RadioGroup>
-              </div>
-
-              {/* Haptic */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                   <Vibrate className="h-4 w-4 text-primary" />
-                  <p className="font-medium text-sm">Vibration</p>
-                </div>
-                <RadioGroup 
-                  value={hapticIntensity} 
-                  onValueChange={(v) => { setHapticIntensity(v as typeof hapticIntensity); if (v !== 'off') setTimeout(() => hapticSelection(), 100); }}
-                  className="grid grid-cols-2 gap-2"
-                >
-                  {hapticIntensityOptions.map((opt) => (
-                    <Label
-                      key={opt.value}
-                      htmlFor={`haptic-${opt.value}`}
-                      className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-all text-sm",
-                        hapticIntensity === opt.value ? 'border-primary bg-primary/10' : 'border-border/50 hover:bg-muted/50'
-                      )}
-                    >
-                      <RadioGroupItem value={opt.value} id={`haptic-${opt.value}`} />
-                      <div>
-                        <p className="font-medium text-xs">{opt.label}</p>
-                        <p className="text-[10px] text-muted-foreground">{opt.description}</p>
-                      </div>
-                    </Label>
-                  ))}
-                </RadioGroup>
-              </div>
-
-              {/* Notification Sounds */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                     <Volume2 className="h-4 w-4 text-primary" />
-                    <p className="font-medium text-sm">Alert Sounds</p>
-                  </div>
-                  <Switch
-                    checked={preferences.notificationSounds}
-                    onCheckedChange={(checked) => {
-                      updatePreference('notificationSounds', checked);
-                      if (checked) playNotificationSound(preferences.notificationSoundType);
-                      toast.success(checked ? 'Sounds enabled' : 'Sounds disabled');
-                    }}
-                  />
-                </div>
-                {preferences.notificationSounds && (
-                  <div className="space-y-3 pl-6 border-l-2 border-primary/20">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">General Sound</p>
-                      <RadioGroup 
-                        value={preferences.notificationSoundType} 
-                        onValueChange={(v) => { updatePreference('notificationSoundType', v as any); playNotificationSound(v as any); }}
-                        className="grid grid-cols-3 gap-2"
-                      >
-                        {(['ding', 'pop', 'chime'] as const).map((s) => (
-                          <Label key={s} htmlFor={`sound-${s}`} className={cn(
-                            "flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all capitalize text-xs",
-                            preferences.notificationSoundType === s ? 'border-primary bg-primary/10 font-semibold' : 'border-border/50 hover:bg-muted/50'
-                          )}>
-                            <RadioGroupItem value={s} id={`sound-${s}`} className="sr-only" />
-                            {s}
-                          </Label>
-                        ))}
-                      </RadioGroup>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-2">💰 Opportunity Sound</p>
-                      <RadioGroup 
-                        value={preferences.opportunitySoundType} 
-                        onValueChange={(v) => {
-                          updatePreference('opportunitySoundType', v as any);
-                          if (v === 'opportunity') import('@/lib/notificationSound').then(m => m.playOpportunitySound('opportunity'));
-                          else playNotificationSound(v as any);
-                        }}
-                        className="grid grid-cols-2 gap-2"
-                      >
-                        {(['opportunity', 'ding', 'pop', 'chime'] as const).map((s) => (
-                          <Label key={s} htmlFor={`opp-sound-${s}`} className={cn(
-                            "flex items-center justify-center p-2 rounded-lg border cursor-pointer transition-all capitalize text-xs",
-                            preferences.opportunitySoundType === s ? 'border-success bg-success/10 font-semibold' : 'border-border/50 hover:bg-muted/50'
-                          )}>
-                            <RadioGroupItem value={s} id={`opp-sound-${s}`} className="sr-only" />
-                            {s === 'opportunity' ? '💰 Money' : s}
-                          </Label>
-                        ))}
-                      </RadioGroup>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Remember Login */}
-              <SettingsRow label="Stay Logged In" description="Don't ask me to sign in every time" icon={LogIn}>
-                <Switch
-                  checked={preferences.rememberLogin}
-                  onCheckedChange={(checked) => { updatePreference('rememberLogin', checked); toast.success(checked ? 'Login will be remembered' : 'Login will not be remembered'); }}
-                />
-              </SettingsRow>
-
-              {/* Skip Splash */}
-              <SettingsRow label="Skip Welcome Screen" description={preferences.skipSplash ? 'Goes straight to your dashboard' : 'Shows the welcome page first'} icon={RotateCcw}>
-                <Switch
-                  checked={preferences.skipSplash}
-                  onCheckedChange={(checked) => { updatePreference('skipSplash', checked); toast.success(checked ? 'Splash skipped' : 'Splash enabled'); }}
-                />
-              </SettingsRow>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ===== SECURITY SECTION — lazy loaded ===== */}
-        <div ref={el => sectionRefs.current['security'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={ShieldCheck} label="Keep Your Account Safe" color="destructive" />
-          <div className="space-y-4">
-            <LazySection name="PinSecurity">
-              <PinSecuritySection />
-            </LazySection>
-            <LazySection name="BiometricSecurity">
-              <BiometricSecuritySection />
-            </LazySection>
           </div>
-        </div>
 
-        {/* ===== LEGAL SECTION — deferred + lazy ===== */}
-        {hasLegalContent && deferredReady && (
-          <DeferredLegalSection roles={roles} sectionRef={el => sectionRefs.current['legal'] = el} />
-        )}
-
-        {/* ===== ADVANCED SECTION ===== */}
-        <div ref={el => sectionRefs.current['advanced'] = el} className="scroll-mt-28 mb-6">
-          <SectionHeader icon={SettingsIcon} label="Other Options" color="muted-foreground" />
-
-          {/* Reset Preferences */}
-          <Card className="border-border/50 shadow-sm mb-4">
-            <CardContent className="py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                     <p className="font-medium text-sm">Start Fresh</p>
-                    <p className="text-xs text-muted-foreground">Put everything back to how it was</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { resetPreferences(); toast.success('Preferences reset'); }}
-                  className="gap-1.5 text-xs"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  Reset
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Diagnostics — lazy loaded */}
-          <LazySection name="Diagnostics">
-            <DiagnosticsSection />
-          </LazySection>
-        </div>
-
-        {/* Version */}
-        <div className="mb-8 text-center text-xs text-muted-foreground/50 space-y-0.5 pb-20">
-          <p>Welile v1.11 • SW v11</p>
-          <p>Build {new Date((globalThis as any).__BUILD_TIME__ || Date.now()).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-        </div>
-        {/* ═══ FLOATING QUICK-JUMP BAR ═══ */}
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 md:bottom-6">
-          <div className="flex gap-1 bg-card/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-2xl p-1.5">
-            {SECTIONS.filter(s => s.id !== 'legal' || hasLegalContent).map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => scrollToSection(id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[40px] touch-manipulation active:scale-95",
-                  activeSection === id
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span className="hidden xs:inline">{label}</span>
+          {/* Tab bar */}
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+            {visibleSections.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => setActiveSection(id)} className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-h-[40px] shrink-0 touch-manipulation active:scale-95",
+                activeSection === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground bg-muted/30 hover:bg-muted"
+              )}>
+                <Icon className="h-3.5 w-3.5" />{label}
               </button>
             ))}
           </div>
         </div>
 
+        {/* Active section content — ONLY one section renders at a time */}
+        <div className="mt-3">
+          <SectionBoundary name={activeSection}>
+            {activeSection === 'account' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 rounded-2xl border border-border/40 bg-card">
+                  <div className="relative">
+                    <Avatar className="h-16 w-16 border-2 border-primary/20">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+                      <AvatarFallback className="text-lg bg-primary/10 text-primary font-bold">{getInitials(fullName || 'U')}</AvatarFallback>
+                    </Avatar>
+                    <Button size="icon" variant="secondary" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full shadow border-2 border-background" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+                      {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                    </Button>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                  </div>
+                  <div className="min-w-0"><p className="font-bold truncate">{fullName || 'Your Name'}</p><p className="text-xs text-muted-foreground truncate">{profile?.email}</p></div>
+                </div>
+                <Card className="border-border/40 rounded-2xl">
+                  <CardContent className="pt-5 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
+                      <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 rounded-xl" /></div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
+                      <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="email" value={profile?.email || ''} disabled className="pl-10 h-12 rounded-xl bg-muted/50" /></div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
+                      <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</Label>
+                        <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setShowPasswordForm(!showPasswordForm)}>{showPasswordForm ? 'Cancel' : 'Change'}</Button>
+                      </div>
+                      {!showPasswordForm ? (
+                        <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input value="••••••••" disabled className="pl-10 h-12 rounded-xl bg-muted/50" /></div>
+                      ) : (
+                        <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border/50">
+                          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Current password" className="pl-10 pr-10 h-11 rounded-xl" /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>{showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div>
+                          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-10 pr-10 h-11 rounded-xl" /><Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8" onClick={() => setShowNewPassword(!showNewPassword)}>{showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button></div>
+                          <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirm new password" className="pl-10 h-11 rounded-xl" /></div>
+                          <Button size="sm" className="w-full gap-2 h-11 rounded-xl" disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword} onClick={async () => {
+                            if (newPassword.length < 6) { toast.error('Min 6 characters'); return; }
+                            if (newPassword !== confirmNewPassword) { toast.error("Passwords don't match"); return; }
+                            setChangingPassword(true);
+                            try {
+                              const { error: signInError } = await supabase.auth.signInWithPassword({ email: profile?.email || '', password: currentPassword });
+                              if (signInError) { toast.error('Current password is incorrect'); setChangingPassword(false); return; }
+                              const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+                              if (updateError) toast.error('Failed: ' + updateError.message);
+                              else { toast.success('Password updated!'); setCurrentPassword(''); setNewPassword(''); setConfirmNewPassword(''); setShowPasswordForm(false); }
+                            } catch { toast.error('An error occurred'); }
+                            setChangingPassword(false);
+                          }}>{changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Update Password</Button>
+                        </div>
+                      )}
+                    </div>
+                    <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Changes</Button>
+                  </CardContent>
+                </Card>
+                <LazySection name="Wallet"><WalletCard /></LazySection>
+              </div>
+            )}
+
+            {activeSection === 'roles' && (
+              <div className="space-y-4">
+                <Card className="border-border/40 rounded-2xl">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {preferences.unlockAllRoles ? <Unlock className="h-5 w-5 text-success shrink-0" /> : <Lock className="h-5 w-5 text-primary shrink-0" />}
+                        <div className="min-w-0"><p className="font-bold text-sm">Open All Dashboards</p><p className="text-xs text-muted-foreground">Use all role views</p></div>
+                      </div>
+                      <Switch checked={preferences.unlockAllRoles} onCheckedChange={(c) => { updatePreference('unlockAllRoles', c); toast.success(c ? 'All dashboards open!' : 'Back to default'); }} className="shrink-0" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/40 rounded-2xl">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Your Roles</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {roles.map((role) => { const c = roleConfig[role]; return c ? <Badge key={role} className={`${c.color} flex items-center gap-1.5 px-3 py-1.5 border text-xs`}>{c.icon}{c.label}<Check className="h-3 w-3 ml-0.5" /></Badge> : null; })}
+                      {roles.length === 0 && <p className="text-sm text-muted-foreground">No roles yet</p>}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/40 rounded-2xl">
+                  <CardHeader className="pb-2"><div className="flex items-center gap-2"><LayoutDashboard className="h-4 w-4 text-primary" /><div><CardTitle className="text-sm">Home Screen</CardTitle><CardDescription className="text-xs">Pick which page opens when you log in</CardDescription></div></div></CardHeader>
+                  <CardContent>
+                    <RadioGroup value={preferences.defaultRole} onValueChange={(v) => { updatePreference('defaultRole', v as any); toast.success(`Default set to ${v}`); }} className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50"><RadioGroupItem value="auto" id="role-auto" /><Label htmlFor="role-auto" className="text-sm cursor-pointer flex items-center gap-1.5"><RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />Auto</Label></div>
+                      {roles.map((r) => { const rc = roleConfig[r]; if (!rc) return null; return (<div key={r} className="flex items-center space-x-2 p-2.5 rounded-lg border border-border/50"><RadioGroupItem value={r} id={`role-${r}`} /><Label htmlFor={`role-${r}`} className="text-sm cursor-pointer flex items-center gap-1.5">{rc.icon}{rc.label}</Label></div>); })}
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+                {roles.includes('tenant') && <LazySection name="RentDiscount"><RentDiscountToggle /></LazySection>}
+                {roles.includes('tenant') && <LazySection name="MyLandlords"><MyLandlordsSection /></LazySection>}
+                {roles.includes('landlord') && <LazySection name="MyTenants"><MyTenantsSection /></LazySection>}
+              </div>
+            )}
+
+            {activeSection === 'appearance' && (
+              <Card className="border-border/40 rounded-2xl">
+                <CardContent className="pt-5 space-y-5">
+                  <SettingsRow label="Dark / Light" description="Change the look"><ThemeToggle /></SettingsRow>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2"><Type className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Text Size</p></div>
+                    <RadioGroup value={fontSize} onValueChange={(v) => setFontSize(v as any)} className="grid grid-cols-2 gap-2">
+                      {fontSizeOptions.map((opt) => (<Label key={opt.value} htmlFor={opt.value} className={cn("flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm", fontSize === opt.value ? 'border-primary bg-primary/10' : 'border-border/50')}><RadioGroupItem value={opt.value} id={opt.value} /><div><p className="font-medium text-xs">{opt.label}</p><p className="text-[10px] text-muted-foreground">{opt.description}</p></div></Label>))}
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2"><Vibrate className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Vibration</p></div>
+                    <RadioGroup value={hapticIntensity} onValueChange={(v) => { setHapticIntensity(v as any); if (v !== 'off') setTimeout(() => hapticSelection(), 100); }} className="grid grid-cols-2 gap-2">
+                      {hapticIntensityOptions.map((opt) => (<Label key={opt.value} htmlFor={`haptic-${opt.value}`} className={cn("flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer text-sm", hapticIntensity === opt.value ? 'border-primary bg-primary/10' : 'border-border/50')}><RadioGroupItem value={opt.value} id={`haptic-${opt.value}`} /><div><p className="font-medium text-xs">{opt.label}</p><p className="text-[10px] text-muted-foreground">{opt.description}</p></div></Label>))}
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Volume2 className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Alert Sounds</p></div><Switch checked={preferences.notificationSounds} onCheckedChange={(c) => { updatePreference('notificationSounds', c); if (c) playNotificationSound(preferences.notificationSoundType); toast.success(c ? 'Sounds on' : 'Sounds off'); }} /></div>
+                    {preferences.notificationSounds && (
+                      <div className="space-y-3 pl-6 border-l-2 border-primary/20">
+                        <div><p className="text-xs text-muted-foreground mb-2">General Sound</p><RadioGroup value={preferences.notificationSoundType} onValueChange={(v) => { updatePreference('notificationSoundType', v as any); playNotificationSound(v as any); }} className="grid grid-cols-3 gap-2">{(['ding', 'pop', 'chime'] as const).map((s) => (<Label key={s} htmlFor={`sound-${s}`} className={cn("flex items-center justify-center p-2 rounded-lg border cursor-pointer capitalize text-xs", preferences.notificationSoundType === s ? 'border-primary bg-primary/10 font-semibold' : 'border-border/50')}><RadioGroupItem value={s} id={`sound-${s}`} className="sr-only" />{s}</Label>))}</RadioGroup></div>
+                        <div><p className="text-xs text-muted-foreground mb-2">💰 Opportunity Sound</p><RadioGroup value={preferences.opportunitySoundType} onValueChange={(v) => { updatePreference('opportunitySoundType', v as any); if (v === 'opportunity') import('@/lib/notificationSound').then(m => m.playOpportunitySound('opportunity')); else playNotificationSound(v as any); }} className="grid grid-cols-2 gap-2">{(['opportunity', 'ding', 'pop', 'chime'] as const).map((s) => (<Label key={s} htmlFor={`opp-sound-${s}`} className={cn("flex items-center justify-center p-2 rounded-lg border cursor-pointer capitalize text-xs", preferences.opportunitySoundType === s ? 'border-success bg-success/10 font-semibold' : 'border-border/50')}><RadioGroupItem value={s} id={`opp-sound-${s}`} className="sr-only" />{s === 'opportunity' ? '💰 Money' : s}</Label>))}</RadioGroup></div>
+                      </div>
+                    )}
+                  </div>
+                  <SettingsRow label="Stay Logged In" description="Don't ask to sign in every time" icon={LogIn}><Switch checked={preferences.rememberLogin} onCheckedChange={(c) => { updatePreference('rememberLogin', c); toast.success(c ? 'Login remembered' : 'Login not remembered'); }} /></SettingsRow>
+                  <SettingsRow label="Skip Welcome Screen" description={preferences.skipSplash ? 'Goes straight to dashboard' : 'Shows welcome first'} icon={RotateCcw}><Switch checked={preferences.skipSplash} onCheckedChange={(c) => { updatePreference('skipSplash', c); toast.success(c ? 'Splash skipped' : 'Splash enabled'); }} /></SettingsRow>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeSection === 'security' && (
+              <div className="space-y-4">
+                <LazySection name="PinSecurity"><PinSecuritySection /></LazySection>
+                <LazySection name="BiometricSecurity"><BiometricSecuritySection /></LazySection>
+              </div>
+            )}
+
+            {activeSection === 'legal' && hasLegalContent && deferredReady && (
+              <LazySection name="Legal"><DeferredLegalSectionInner roles={roles} /></LazySection>
+            )}
+            {activeSection === 'legal' && (!hasLegalContent || !deferredReady) && <SectionSkeleton />}
+
+            {activeSection === 'advanced' && (
+              <div className="space-y-4">
+                <Card className="border-border/40 rounded-2xl">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2"><RefreshCw className="h-4 w-4 text-muted-foreground" /><div><p className="font-medium text-sm">Start Fresh</p><p className="text-xs text-muted-foreground">Reset all preferences</p></div></div>
+                      <Button variant="outline" size="sm" onClick={() => { resetPreferences(); toast.success('Preferences reset'); }} className="gap-1.5 text-xs"><RefreshCw className="h-3 w-3" />Reset</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+                <LazySection name="Diagnostics"><DiagnosticsSection /></LazySection>
+              </div>
+            )}
+          </SectionBoundary>
+        </div>
+
+        <div className="mt-8 text-center text-xs text-muted-foreground/50 pb-20"><p>Welile v1.11 • SW v11</p></div>
       </div>
     </div>
   );
 }
 
-/* ===== Deferred Legal Section — lazy wrapper so agreement hooks don't block first paint ===== */
 const DeferredLegalSectionInner = lazy(() => import('@/components/settings/LegalSection'));
-
-function DeferredLegalSection({ roles, sectionRef }: { roles: AppRole[]; sectionRef: (el: HTMLDivElement | null) => void }) {
-  return (
-    <LazySection name="Legal">
-      <div ref={sectionRef} className="scroll-mt-28 mb-6">
-        <SectionHeader icon={Scale} label="Agreements You Signed" color="warning" />
-        <DeferredLegalSectionInner roles={roles} />
-      </div>
-    </LazySection>
-  );
-}
-
-/* ===== Reusable Sub-components ===== */
-
-function SectionHeader({ icon: Icon, label, color = 'primary' }: { icon: typeof User; label: string; color?: string }) {
-  return (
-    <div className="flex items-center gap-2.5 mb-4">
-      <div className={cn("p-2 rounded-xl", `bg-${color}/10`)}>
-        <Icon className={cn("h-4 w-4", `text-${color}`)} />
-      </div>
-      <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{label}</h2>
-    </div>
-  );
-}
 
 function SettingsRow({ label, description, icon: Icon, children }: { label: string; description: string; icon?: typeof User; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-1">
       <div className="flex items-center gap-2 flex-1 min-w-0">
         {Icon && <Icon className="h-4 w-4 text-primary shrink-0" />}
-        <div className="min-w-0">
-          <p className="font-medium text-sm">{label}</p>
-          <p className="text-xs text-muted-foreground truncate">{description}</p>
-        </div>
+        <div className="min-w-0"><p className="font-medium text-sm">{label}</p><p className="text-xs text-muted-foreground truncate">{description}</p></div>
       </div>
       {children}
-    </div>
-  );
-}
-
-function AgreementRow({ label, accepted, acceptedAt, onView, note }: { label: string; accepted: boolean; acceptedAt?: string | null; onView: () => void; note?: string }) {
-  return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
-      <div className="flex items-center gap-2.5 min-w-0">
-        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-        <div className="min-w-0">
-          <p className="font-medium text-sm">{label}</p>
-          <p className="text-xs text-muted-foreground truncate">
-            {accepted && acceptedAt ? `Accepted ${new Date(acceptedAt).toLocaleDateString()}` : note || (accepted ? 'Accepted' : 'Not yet accepted')}
-          </p>
-        </div>
-      </div>
-      <Button variant={accepted ? "outline" : "default"} size="sm" onClick={onView} className="shrink-0 text-xs h-8">
-        {accepted ? 'View' : 'Accept'}
-      </Button>
     </div>
   );
 }
