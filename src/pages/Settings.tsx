@@ -296,11 +296,7 @@ export default function Settings() {
 
         {/* 🔓 UNLOCK ALL ROLES — Only visible for Funders */}
         {isFunder && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5"
-        >
+        <div className="mb-5">
           <div className={cn(
             "relative overflow-hidden rounded-2xl border-2 p-4 transition-all",
             preferences.unlockAllRoles
