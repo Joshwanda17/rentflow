@@ -292,7 +292,7 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* 🔓 UNLOCK ALL ROLES — Only visible for Funders */}
         {isFunder && (
