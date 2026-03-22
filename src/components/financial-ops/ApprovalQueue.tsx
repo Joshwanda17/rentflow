@@ -43,6 +43,7 @@ export function ApprovalQueue() {
   const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
   const [reason, setReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
 
   const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
     queryKey: ['approval-queue-deposits'],
