@@ -96,9 +96,21 @@ export default function SupporterDashboard({
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
 
-  // Virtual houses data (from funded rent_requests)
-  const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>([]);
-  const [totalRentContributed, setTotalRentContributed] = useState(0);
+  // Local-first: read cache synchronously in useState init
+  const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>(() => {
+    try {
+      const raw = localStorage.getItem(`supporter_houses_${user.id}`);
+      if (raw) return JSON.parse(raw).houses || [];
+    } catch {}
+    return [];
+  });
+  const [totalRentContributed, setTotalRentContributed] = useState(() => {
+    try {
+      const raw = localStorage.getItem(`supporter_houses_${user.id}`);
+      if (raw) return JSON.parse(raw).totalRent || 0;
+    } catch {}
+    return 0;
+  });
   const [totalRoiEarned, setTotalRoiEarned] = useState(0);
 
   // Agreement
