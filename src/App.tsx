@@ -254,6 +254,7 @@ function AppRoutes() {
           <Route path="/tv-dashboard" element={<TVDashboard />} />
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
+          <Route path="/staff" element={<StaffPortal />} />
           {/* Role-isolated executive dashboards */}
           <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin', 'manager']}><CTODashboardPage /></RoleGuard>} />
           <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']}><CEODashboardPage /></RoleGuard>} />
