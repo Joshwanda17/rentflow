@@ -222,33 +222,65 @@ export function AgentVerificationOpportunitiesCard() {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Tenant previews */}
               {tenantCount > 0 && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-primary" />
-                    <div>
-                      <p className="text-xs font-semibold">{tenantCount} tenant{tenantCount > 1 ? 's' : ''} to verify</p>
-                      <p className="text-[10px] text-success font-medium">💰 UGX 10,000 + 5% commission each</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <UserCheck className="h-3.5 w-3.5 text-primary" />
+                      <p className="text-xs font-bold text-foreground">{tenantCount} Tenant{tenantCount > 1 ? 's' : ''} to Verify</p>
                     </div>
+                    <p className="text-[10px] text-success font-medium">💰 UGX 10,000 each</p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  {previewTenants.map(req => (
+                    <div key={req.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/30">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold truncate">{(req.tenant as any)?.full_name || 'Unknown Tenant'}</p>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <MapPin className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{(req.landlord as any)?.property_address || (req.tenant as any)?.city || 'N/A'}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-primary shrink-0 ml-2">{formatUGX(req.rent_amount)}</span>
+                    </div>
+                  ))}
+                  {tenantCount > 3 && (
+                    <p className="text-[10px] text-muted-foreground text-center">+{tenantCount - 3} more tenants</p>
+                  )}
                 </div>
               )}
+
+              {/* House previews */}
               {houseCount > 0 && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                  <div className="flex items-center gap-2">
-                    <Home className="h-4 w-4 text-chart-4" />
-                    <div>
-                      <p className="text-xs font-semibold">{houseCount} house{houseCount > 1 ? 's' : ''} to verify</p>
-                      <p className="text-[10px] text-success font-medium">💰 UGX 5,000 listing bonus each</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Home className="h-3.5 w-3.5 text-chart-4" />
+                      <p className="text-xs font-bold text-foreground">{houseCount} House{houseCount > 1 ? 's' : ''} to Verify</p>
                     </div>
+                    <p className="text-[10px] text-success font-medium">💰 UGX 5,000 each</p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  {previewHouses.map(house => (
+                    <div key={house.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/30">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold truncate">{house.title}</p>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <MapPin className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{house.address}, {house.region}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-primary shrink-0 ml-2">{formatUGX(house.monthly_rent)}</span>
+                    </div>
+                  ))}
+                  {houseCount > 3 && (
+                    <p className="text-[10px] text-muted-foreground text-center">+{houseCount - 3} more houses</p>
+                  )}
                 </div>
               )}
+
               <Button onClick={handleOpen} className="w-full h-11 font-bold gap-2 text-sm">
                 <Shield className="h-4 w-4" />
-                View All Opportunities
+                View All & Verify
               </Button>
             </div>
           )}
