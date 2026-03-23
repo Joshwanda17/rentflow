@@ -488,6 +488,9 @@ export function LandlordOpsDashboard() {
 
         {/* ──────── VERIFICATION TAB ──────── */}
         <TabsContent value="verification" className="space-y-4 mt-4">
+          {/* Bonus approval tracking */}
+          <ListingBonusApprovalQueue filter="all" />
+
           {unverifiedListings.length > 0 ? (
             <ExecutiveDataTable
               data={unverifiedListings}
