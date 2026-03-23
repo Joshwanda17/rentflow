@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { UserPlus, Send, Wallet, Users, DollarSign, Loader2, Trash2 } from 'lucide-react';
+import { UserPlus, Send, Wallet, DollarSign, Loader2, Trash2 } from 'lucide-react';
+import { UserSearchPicker } from './UserSearchPicker';
 
 const EXPENSE_CATEGORIES = [
   { value: 'operations', label: '⚙️ Operations' },
@@ -30,7 +31,7 @@ export function FinancialAgentsPanel() {
   const [showAssign, setShowAssign] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
-  const [agentPhone, setAgentPhone] = useState('');
+  const [pickedUser, setPickedUser] = useState<any>(null);
   const [category, setCategory] = useState('operations');
   const [label, setLabel] = useState('');
   const [amount, setAmount] = useState('');
@@ -64,15 +65,9 @@ export function FinancialAgentsPanel() {
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-      const cleaned = agentPhone.replace(/\D/g, '');
-      const last9 = cleaned.slice(-9);
-      if (last9.length < 9) throw new Error('Invalid phone');
-
-      const { data: profiles } = await supabase.from('profiles').select('id, full_name').ilike('phone', `%${last9}`).limit(1);
-      if (!profiles?.length) throw new Error('Agent not found');
-
+      if (!pickedUser) throw new Error('Please select an agent');
       const { error } = await supabase.from('financial_agents').insert({
-        agent_id: profiles[0].id,
+        agent_id: pickedUser.id,
         assigned_by: user!.id,
         expense_category: category as any,
         label: label || `${EXPENSE_CATEGORIES.find(c => c.value === category)?.label} Agent`,
@@ -83,7 +78,7 @@ export function FinancialAgentsPanel() {
       toast({ title: '✅ Financial Agent assigned' });
       qc.invalidateQueries({ queryKey: ['financial-agents'] });
       setShowAssign(false);
-      setAgentPhone('');
+      setPickedUser(null);
       setLabel('');
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -94,7 +89,6 @@ export function FinancialAgentsPanel() {
       const amt = parseFloat(amount);
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!description || description.length < 5) throw new Error('Description must be at least 5 characters');
-
       const { data, error } = await supabase.functions.invoke('platform-expense-transfer', {
         body: {
           action: 'transfer',
@@ -131,25 +125,25 @@ export function FinancialAgentsPanel() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="text-lg font-bold flex items-center gap-2">
           <DollarSign className="h-5 w-5 text-primary" />
           Financial Agents
         </h2>
-        <Dialog open={showAssign} onOpenChange={setShowAssign}>
+        <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) setPickedUser(null); }}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5">
-              <UserPlus className="h-4 w-4" /> Assign Agent
-            </Button>
+            <Button size="sm" className="gap-1.5"><UserPlus className="h-4 w-4" /> Assign Agent</Button>
           </DialogTrigger>
           <DialogContent className="max-w-sm">
             <DialogHeader><DialogTitle>Assign Financial Agent</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <div>
-                <Label>Agent Phone</Label>
-                <Input placeholder="0771234567" value={agentPhone} onChange={e => setAgentPhone(e.target.value)} />
-              </div>
+              <UserSearchPicker
+                label="Search Agent"
+                placeholder="Search by name or phone..."
+                selectedUser={pickedUser}
+                onSelect={setPickedUser}
+                roleFilter="agent"
+              />
               <div>
                 <Label>Expense Category</Label>
                 <Select value={category} onValueChange={setCategory}>
@@ -165,7 +159,7 @@ export function FinancialAgentsPanel() {
                 <Label>Label (optional)</Label>
                 <Input placeholder="e.g. Operations Finance Lead" value={label} onChange={e => setLabel(e.target.value)} />
               </div>
-              <Button className="w-full" onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending || !agentPhone}>
+              <Button className="w-full" onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending || !pickedUser}>
                 {assignMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Assign
               </Button>
@@ -174,7 +168,6 @@ export function FinancialAgentsPanel() {
         </Dialog>
       </div>
 
-      {/* Active Financial Agents */}
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : financialAgents.length === 0 ? (
@@ -195,11 +188,7 @@ export function FinancialAgentsPanel() {
                 </div>
                 <p className="text-xs text-muted-foreground">{fa.label}</p>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    className="flex-1 gap-1"
-                    onClick={() => { setSelectedAgent(fa); setShowTransfer(true); }}
-                  >
+                  <Button size="sm" className="flex-1 gap-1" onClick={() => { setSelectedAgent(fa); setShowTransfer(true); }}>
                     <Send className="h-3.5 w-3.5" /> Transfer
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => deactivateMutation.mutate(fa.id)}>
@@ -246,7 +235,6 @@ export function FinancialAgentsPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* Recent Transfers */}
       {recentTransfers.length > 0 && (
         <Card>
           <CardHeader className="pb-2">

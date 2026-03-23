@@ -3,22 +3,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Handshake, UserPlus, Loader2, XCircle, Phone, Smartphone } from 'lucide-react';
+import { Handshake, UserPlus, Loader2, XCircle, Smartphone } from 'lucide-react';
+import { UserSearchPicker } from './UserSearchPicker';
 
 export function ProxyAgentManager() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showAssign, setShowAssign] = useState(false);
-  const [agentPhone, setAgentPhone] = useState('');
-  const [beneficiaryPhone, setBeneficiaryPhone] = useState('');
+  const [pickedAgent, setPickedAgent] = useState<any>(null);
+  const [pickedBeneficiary, setPickedBeneficiary] = useState<any>(null);
   const [beneficiaryRole, setBeneficiaryRole] = useState('landlord');
   const [reason, setReason] = useState('No smartphone access');
 
@@ -37,21 +38,11 @@ export function ProxyAgentManager() {
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-      const lookupPhone = async (phone: string) => {
-        const cleaned = phone.replace(/\D/g, '');
-        const last9 = cleaned.slice(-9);
-        if (last9.length < 9) throw new Error('Invalid phone');
-        const { data } = await supabase.from('profiles').select('id, full_name').ilike('phone', `%${last9}`).limit(1);
-        if (!data?.length) throw new Error(`User with phone ${phone} not found`);
-        return data[0];
-      };
-
-      const agent = await lookupPhone(agentPhone);
-      const beneficiary = await lookupPhone(beneficiaryPhone);
-
+      if (!pickedAgent) throw new Error('Please select an agent');
+      if (!pickedBeneficiary) throw new Error('Please select a beneficiary');
       const { error } = await supabase.from('proxy_agent_assignments').insert({
-        agent_id: agent.id,
-        beneficiary_id: beneficiary.id,
+        agent_id: pickedAgent.id,
+        beneficiary_id: pickedBeneficiary.id,
         beneficiary_role: beneficiaryRole,
         assigned_by: user!.id,
         reason,
@@ -62,8 +53,8 @@ export function ProxyAgentManager() {
       toast({ title: '✅ Proxy agent linked' });
       qc.invalidateQueries({ queryKey: ['proxy-assignments'] });
       setShowAssign(false);
-      setAgentPhone('');
-      setBeneficiaryPhone('');
+      setPickedAgent(null);
+      setPickedBeneficiary(null);
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -86,7 +77,7 @@ export function ProxyAgentManager() {
           <Handshake className="h-5 w-5 text-primary" />
           Proxy Agents
         </h2>
-        <Dialog open={showAssign} onOpenChange={setShowAssign}>
+        <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) { setPickedAgent(null); setPickedBeneficiary(null); } }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5"><UserPlus className="h-4 w-4" /> Link Agent</Button>
           </DialogTrigger>
@@ -96,14 +87,19 @@ export function ProxyAgentManager() {
               Assign an agent to act on behalf of a landlord or partner who doesn't have smartphone access.
             </p>
             <div className="space-y-3">
-              <div>
-                <Label>Agent Phone</Label>
-                <Input placeholder="0771234567" value={agentPhone} onChange={e => setAgentPhone(e.target.value)} />
-              </div>
-              <div>
-                <Label>Beneficiary Phone (landlord/partner)</Label>
-                <Input placeholder="0781234567" value={beneficiaryPhone} onChange={e => setBeneficiaryPhone(e.target.value)} />
-              </div>
+              <UserSearchPicker
+                label="Search Agent"
+                placeholder="Search agent by name or phone..."
+                selectedUser={pickedAgent}
+                onSelect={setPickedAgent}
+                roleFilter="agent"
+              />
+              <UserSearchPicker
+                label="Search Beneficiary (landlord/partner)"
+                placeholder="Search beneficiary by name or phone..."
+                selectedUser={pickedBeneficiary}
+                onSelect={setPickedBeneficiary}
+              />
               <div>
                 <Label>Beneficiary Role</Label>
                 <Select value={beneficiaryRole} onValueChange={setBeneficiaryRole}>
@@ -118,7 +114,7 @@ export function ProxyAgentManager() {
                 <Label>Reason</Label>
                 <Input value={reason} onChange={e => setReason(e.target.value)} />
               </div>
-              <Button className="w-full" onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending || !agentPhone || !beneficiaryPhone}>
+              <Button className="w-full" onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending || !pickedAgent || !pickedBeneficiary}>
                 {assignMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Link Proxy
               </Button>
