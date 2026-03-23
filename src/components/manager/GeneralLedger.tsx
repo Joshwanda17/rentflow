@@ -110,7 +110,7 @@ export function GeneralLedger() {
   }, [searchTerm]);
 
   // Reset page on filter change
-  useEffect(() => { setPage(0); }, [startDate, endDate, categoryFilter, directionFilter]);
+  useEffect(() => { setPage(0); }, [startDate, endDate, categoryFilter, directionFilter, scopeFilter]);
 
   // Fetch data when filters or page change
   useEffect(() => {
