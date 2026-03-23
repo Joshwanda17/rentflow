@@ -394,47 +394,50 @@ export default function ActivePartnersDetail() {
     )},
     {
       key: 'actions',
-      label: 'Action',
+      label: 'Actions',
       sortable: false,
       render: (r) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              disabled={r.walletBalance < MIN_INVEST}
-              onClick={(e) => { e.stopPropagation(); setInvestPartner(r); }}
-              className="gap-2"
-            >
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span>Invest ({r.walletBalance >= MIN_INVEST ? 'Ready' : 'Low bal'})</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); openEditDialog(r); }}
-              className="gap-2"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              <span>Edit Partner</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); setSuspendPartner(r); setSuspendReason(''); }}
-              className="gap-2 text-amber-600 focus:text-amber-600"
-            >
-              <ShieldOff className="h-3.5 w-3.5" />
-              <span>Suspend Partner</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); setDeletePartner(r); setDeleteReason(''); }}
-              className="gap-2 text-destructive focus:text-destructive"
-            >
-              <UserX className="h-3.5 w-3.5" />
-              <span>Delete Partner</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                disabled={r.walletBalance < MIN_INVEST}
+                onClick={() => setInvestPartner(r)}
+                className="gap-2"
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>Invest</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openEditDialog(r)} className="gap-2">
+                <Pencil className="h-3.5 w-3.5" />
+                <span>Edit</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+            onClick={() => { setSuspendPartner(r); setSuspendReason(''); }}
+          >
+            <ShieldOff className="h-3 w-3 mr-1" />
+            Suspend
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+            onClick={() => { setDeletePartner(r); setDeleteReason(''); }}
+          >
+            <UserX className="h-3 w-3 mr-1" />
+            Delete
+          </Button>
+        </div>
       ),
     },
   ];
@@ -647,8 +650,17 @@ export default function ActivePartnersDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-2">
-            <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
-            <Input value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Why is this account being deleted?" className="mt-1" />
+            <Label className="text-xs font-medium">Reason for deletion (min 10 chars) *</Label>
+            <textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Provide a detailed reason for permanently deleting this partner account..."
+              rows={3}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {deleteReason.length > 0 && deleteReason.length < 10 && (
+              <p className="text-xs text-destructive mt-1">{10 - deleteReason.length} more characters needed</p>
+            )}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
