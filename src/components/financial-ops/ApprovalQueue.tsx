@@ -250,7 +250,7 @@ export function ApprovalQueue() {
       );
     }
     return list;
-  }, [activeQueue, search, deposits, withdrawals, walletOps]);
+  }, [activeQueue, search, deposits, withdrawals, walletWithdrawals, walletOps]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
