@@ -17,7 +17,7 @@ import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine,
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
-type QueueType = 'deposits' | 'withdrawals' | 'wallet_ops';
+type QueueType = 'deposits' | 'withdrawals' | 'wallet_withdrawals' | 'wallet_ops';
 
 interface QueueItem {
   id: string;
@@ -32,6 +32,17 @@ interface QueueItem {
   ageHours: number;
   urgency: 'green' | 'amber' | 'red';
   rawData: any;
+  payoutDetails?: {
+    method: string;
+    provider?: string;
+    number?: string;
+    name?: string;
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankAccountName?: string;
+    agentLocation?: string;
+    status?: string;
+  };
 }
 
 export function ApprovalQueue() {
