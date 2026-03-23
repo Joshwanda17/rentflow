@@ -219,13 +219,13 @@ export function TidVerification() {
         {/* Single input form */}
         <div className="space-y-2">
           <div className="space-y-1">
-            <Label className="text-xs font-medium">Transaction ID (TID) *</Label>
+            <Label className="text-xs font-medium">Transaction ID / Receipt No. *</Label>
             <div className="relative">
               <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 value={tid}
                 onChange={(e) => setTid(e.target.value.toUpperCase())}
-                placeholder="e.g. MP241231.1234.K56789"
+                placeholder="e.g. MP241231... or WEL-00001"
                 className="pl-8 h-10 font-mono text-sm tracking-wide"
                 onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
               />
@@ -242,15 +242,17 @@ export function TidVerification() {
                 className="h-10"
               />
             </div>
-            <div className="space-y-1">
+             <div className="space-y-1 min-w-0">
               <Label className="text-xs font-medium">Provider</Label>
               <Select value={provider} onValueChange={setProvider}>
-                <SelectTrigger className="h-10 w-[90px]">
+                <SelectTrigger className="h-10 w-[100px]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+              <SelectContent>
                   <SelectItem value="mtn">MTN</SelectItem>
                   <SelectItem value="airtel">Airtel</SelectItem>
+                  <SelectItem value="bank_transfer">Bank</SelectItem>
+                  <SelectItem value="agent_cash">Cash/Rcpt</SelectItem>
                 </SelectContent>
               </Select>
             </div>
