@@ -32,12 +32,27 @@ export function UserSearchPicker({ label, placeholder = 'Search by name or phone
       try {
         let userIds: string[] | null = null;
         if (roleFilter) {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('user_id')
-            .eq('role', roleFilter as any)
-            .limit(200);
-          userIds = roleData?.map(r => r.user_id) || [];
+          // Paginate to get ALL users with this role
+          const allRoleIds: string[] = [];
+          let offset = 0;
+          const PAGE = 1000;
+          let hasMore = true;
+          while (hasMore) {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('user_id')
+              .eq('role', roleFilter as any)
+              .eq('enabled', true)
+              .range(offset, offset + PAGE - 1);
+            if (roleData && roleData.length > 0) {
+              allRoleIds.push(...roleData.map(r => r.user_id));
+              offset += PAGE;
+              hasMore = roleData.length === PAGE;
+            } else {
+              hasMore = false;
+            }
+          }
+          userIds = allRoleIds;
           if (userIds.length === 0) { setResults([]); setLoading(false); return; }
         }
 
