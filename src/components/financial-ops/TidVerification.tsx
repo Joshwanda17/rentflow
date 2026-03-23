@@ -196,18 +196,18 @@ export function TidVerification() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
+      <CardHeader className="pb-3 px-3 sm:px-6">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
-          TID Verification & Auto-Approve
+          TID Verify
         </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Enter the Transaction ID from the mobile money confirmation. If it matches a pending deposit, it auto-approves.
+        <p className="text-[10px] sm:text-xs text-muted-foreground">
+          Enter the MoMo Transaction ID. Matching deposits auto-approve.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
         {/* Input Fields */}
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+        <div className="space-y-2">
           <div className="space-y-1">
             <Label className="text-xs font-medium">Transaction ID (TID) *</Label>
             <div className="relative">
@@ -221,28 +221,32 @@ export function TidVerification() {
               />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs font-medium">Amount (optional)</Label>
-            <Input
-              type="number"
-              value={operatorAmount}
-              onChange={(e) => setOperatorAmount(e.target.value)}
-              placeholder="e.g. 15000"
-              className="h-10 w-full sm:w-32"
-            />
+          <div className="flex gap-2">
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs font-medium">Amount (optional)</Label>
+              <Input
+                type="number"
+                value={operatorAmount}
+                onChange={(e) => setOperatorAmount(e.target.value)}
+                placeholder="e.g. 15000"
+                className="h-10"
+              />
+            </div>
+            <div className="self-end">
+              <Button
+                onClick={handleSearch}
+                disabled={searching || !tid.trim()}
+                className="h-10 px-4 sm:px-5"
+              >
+                {searching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span className="ml-1.5">Verify</span>
+              </Button>
+            </div>
           </div>
-          <Button
-            onClick={handleSearch}
-            disabled={searching || !tid.trim()}
-            className="h-10"
-          >
-            {searching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-            Verify
-          </Button>
         </div>
 
         {/* Results */}
