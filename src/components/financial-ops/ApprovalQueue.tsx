@@ -56,6 +56,7 @@ export function ApprovalQueue() {
   const [processing, setProcessing] = useState(false);
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
   const [payoutProof, setPayoutProof] = useState('');
+  const [sortNewest, setSortNewest] = useState(false);
 
   const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
     queryKey: ['approval-queue-deposits'],
