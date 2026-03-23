@@ -269,10 +269,32 @@ export function ApprovalQueue() {
     }
   };
 
+  // Determine required proof label for wallet withdrawals
+  const getProofLabel = () => {
+    if (activeQueue !== 'wallet_withdrawals' || selected.size !== 1) return null;
+    const item = items.find(i => selected.has(i.id));
+    if (!item?.payoutDetails) return null;
+    const m = item.payoutDetails.method;
+    if (m === 'bank_transfer') return { label: 'Bank Reference', placeholder: 'Enter bank transfer reference number…', type: 'bank_reference' };
+    if (m === 'cash') return { label: 'Payment Voucher #', placeholder: 'Enter payment voucher number…', type: 'payment_voucher' };
+    return { label: 'Transaction ID (TID)', placeholder: 'Enter MoMo transaction ID…', type: 'momo_tid' };
+  };
+
+  const proofConfig = getProofLabel();
+
+  // For bulk wallet_withdrawals approval, all must have proof
+  const walletWithdrawalApproveBlocked = activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && !payoutProof.trim();
+
   const handleBulkAction = useCallback(async () => {
     if (!bulkAction || selected.size === 0 || !user) return;
     if (bulkAction === 'reject' && reason.length < 10) {
       toast.error('Rejection reason must be at least 10 characters');
+      return;
+    }
+
+    // Wallet cashout approval requires proof of payout
+    if (activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && !payoutProof.trim()) {
+      toast.error('Proof of payout is required to approve a cash-out');
       return;
     }
 
@@ -290,7 +312,6 @@ export function ApprovalQueue() {
         const { error } = await supabase.from('deposit_requests').update(updateFields).in('id', ids);
         if (error) throw error;
       } else if (activeQueue === 'wallet_ops') {
-        // Use the approve-wallet-operation edge function for proper ledger entries
         const response = await supabase.functions.invoke('approve-wallet-operation', {
           body: { ids, action: bulkAction, reason: bulkAction === 'reject' ? reason : undefined },
         });
@@ -307,7 +328,6 @@ export function ApprovalQueue() {
           .in('id', ids);
         if (error) throw error;
       } else if (activeQueue === 'wallet_withdrawals') {
-        // For wallet withdrawals, update manager_approved status
         const updateFields: Record<string, unknown> = {
           manager_approved_by: user.id,
           manager_approved_at: new Date().toISOString(),
@@ -315,6 +335,11 @@ export function ApprovalQueue() {
         };
         if (bulkAction === 'approve') {
           updateFields.status = 'manager_approved';
+          updateFields.payout_proof = payoutProof.trim();
+          // Determine proof type from selected items
+          const selectedItem = items.find(i => selected.has(i.id));
+          const method = selectedItem?.payoutDetails?.method || 'mobile_money';
+          updateFields.payout_proof_type = method === 'bank_transfer' ? 'bank_reference' : method === 'cash' ? 'payment_voucher' : 'momo_tid';
         } else {
           updateFields.status = 'rejected';
           updateFields.rejection_reason = reason;
@@ -329,12 +354,11 @@ export function ApprovalQueue() {
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: `bulk_${bulkAction}_${activeQueue}`,
-        metadata: { ids, reason: reason || undefined, count: ids.length },
+        metadata: { ids, reason: reason || undefined, payout_proof: payoutProof || undefined, count: ids.length },
       });
 
       toast.success(`${bulkAction === 'approve' ? 'Approved' : 'Rejected'} ${ids.length} items`);
 
-      // Optimistically remove processed items from the queue instantly
       const cacheKey = `approval-queue-${activeQueue}`;
       queryClient.setQueryData<QueueItem[]>([cacheKey], (old) =>
         (old || []).filter(item => !ids.includes(item.id))
@@ -343,6 +367,7 @@ export function ApprovalQueue() {
       setSelected(new Set());
       setBulkAction(null);
       setReason('');
+      setPayoutProof('');
       queryClient.invalidateQueries({ queryKey: [cacheKey] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
     } catch (err: any) {
@@ -350,7 +375,7 @@ export function ApprovalQueue() {
     } finally {
       setProcessing(false);
     }
-  }, [bulkAction, selected, activeQueue, user, reason, queryClient]);
+  }, [bulkAction, selected, activeQueue, user, reason, payoutProof, queryClient, items]);
 
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
   const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, withdrawals: ArrowUpFromLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
