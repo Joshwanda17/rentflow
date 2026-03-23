@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
@@ -80,6 +81,8 @@ import { AgentVisitPaymentWizard } from '@/components/agent/AgentVisitPaymentWiz
 import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
 import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
+import { AgentCashPayoutsTab } from '@/components/agent/AgentCashPayoutsTab';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface AgentDashboardProps {
   user: User;
@@ -139,6 +142,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [creditOpen, setCreditOpen] = useState(false);
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
+  const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
+
+  // Check if this agent is a CFO-assigned cashout agent
+  const { data: isCashoutAgent } = useQuery({
+    queryKey: ['is-cashout-agent', user.id],
+    queryFn: async () => {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase
+        .from('cashout_agents')
+        .select('*')
+        .eq('agent_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      return data;
+    },
+  });
 
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
@@ -259,6 +278,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Action Insights: Daily Rent, Forecast, Streak, Priority Queue */}
         <AgentActionInsights agentId={user.id} />
 
+        {/* Cash Payouts - Only visible for CFO-assigned cashout agents */}
+        {isCashoutAgent && (
+          <button
+            onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
+            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/15 transition-all touch-manipulation active:scale-[0.98] animate-fade-in"
+          >
+            <div className="p-2.5 rounded-lg bg-orange-500/20">
+              <Banknote className="h-5 w-5 text-orange-600" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-sm text-orange-700 dark:text-orange-400">Cash Payouts</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
+              </p>
+            </div>
+            <span className="text-lg text-orange-500">›</span>
+          </button>
+        )}
+
         {/* 5 Key Action Buttons + Hub */}
         <div className="grid grid-cols-3 gap-2 animate-fade-in">
           {[
@@ -372,6 +410,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
+
+      {/* Cash Payouts Dialog - only rendered for cashout agents */}
+      <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-orange-500" />
+              Cash & Bank Payouts
+            </DialogTitle>
+          </DialogHeader>
+          <AgentCashPayoutsTab />
+        </DialogContent>
+      </Dialog>
 
       <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
     </div>
