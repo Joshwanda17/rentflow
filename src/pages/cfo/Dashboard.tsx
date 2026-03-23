@@ -75,6 +75,16 @@ export default function CFODashboardPage() {
         return <DeliveryPipelineTracker />;
       case 'cash-reconciliation':
         return <AgentCashReconciliation />;
+      case 'landlord-payouts':
+        return (
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold">🏠 Agent Landlord Payout Verification</h1>
+            <p className="text-sm text-muted-foreground">
+              Review and sign off on agent-to-landlord MoMo payouts after Landlord Ops approval.
+            </p>
+            <LandlordOpsPayoutReview reviewRole="cfo" />
+          </div>
+        );
       default:
         return (
           <div className="space-y-6">
