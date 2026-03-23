@@ -114,9 +114,11 @@ Deno.serve(async (req) => {
           }
         } else {
           // Create auth user
-          const phoneLast6 = partner.phone.replace(/\D/g, '').slice(-6);
-          const tempPassword = `Welile${phoneLast6}!`;
-          const emailAddr = partner.email || `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
+          // Create auth user with standard default password
+          const tempPassword = `Welile1234!`;
+          const emailAddr = partner.email && !partner.email.includes('@noapp.welile') && !partner.email.includes('@welile.user')
+            ? partner.email
+            : `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
 
           const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
             email: emailAddr,
