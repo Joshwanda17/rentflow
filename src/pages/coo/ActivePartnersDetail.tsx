@@ -394,47 +394,50 @@ export default function ActivePartnersDetail() {
     )},
     {
       key: 'actions',
-      label: 'Action',
+      label: 'Actions',
       sortable: false,
       render: (r) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              disabled={r.walletBalance < MIN_INVEST}
-              onClick={(e) => { e.stopPropagation(); setInvestPartner(r); }}
-              className="gap-2"
-            >
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span>Invest ({r.walletBalance >= MIN_INVEST ? 'Ready' : 'Low bal'})</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); openEditDialog(r); }}
-              className="gap-2"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              <span>Edit Partner</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); setSuspendPartner(r); setSuspendReason(''); }}
-              className="gap-2 text-amber-600 focus:text-amber-600"
-            >
-              <ShieldOff className="h-3.5 w-3.5" />
-              <span>Suspend Partner</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); setDeletePartner(r); setDeleteReason(''); }}
-              className="gap-2 text-destructive focus:text-destructive"
-            >
-              <UserX className="h-3.5 w-3.5" />
-              <span>Delete Partner</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                disabled={r.walletBalance < MIN_INVEST}
+                onClick={() => setInvestPartner(r)}
+                className="gap-2"
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>Invest</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openEditDialog(r)} className="gap-2">
+                <Pencil className="h-3.5 w-3.5" />
+                <span>Edit</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+            onClick={() => { setSuspendPartner(r); setSuspendReason(''); }}
+          >
+            <ShieldOff className="h-3 w-3 mr-1" />
+            Suspend
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+            onClick={() => { setDeletePartner(r); setDeleteReason(''); }}
+          >
+            <UserX className="h-3 w-3 mr-1" />
+            Delete
+          </Button>
+        </div>
       ),
     },
   ];
