@@ -348,6 +348,26 @@ export function ApprovalQueue() {
           .update(updateFields)
           .in('id', ids);
         if (error) throw error;
+
+        // Generate payout codes for cash withdrawals
+        const cashItems = items.filter(i => selected.has(i.id) && i.payoutDetails?.method === 'cash');
+        if (bulkAction === 'approve' && cashItems.length > 0) {
+          for (const ci of cashItems) {
+            const code = 'WPO-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+            const qrData = JSON.stringify({ code, amount: ci.amount, userId: ci.userId, withdrawalId: ci.id });
+            await supabase.from('payout_codes').insert({
+              withdrawal_request_id: ci.id,
+              user_id: ci.userId!,
+              code,
+              qr_data: qrData,
+              amount: ci.amount,
+            });
+            // Save code on withdrawal request
+            await supabase.from('withdrawal_requests')
+              .update({ payout_code: code })
+              .eq('id', ci.id);
+          }
+        }
       }
 
       // Log audit
