@@ -18,7 +18,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller is authenticated manager
     const authHeader = req.headers.get("authorization") || "";
     const anonClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -32,7 +31,7 @@ serve(async (req) => {
     const managerId = caller.id;
 
     const body = await req.json();
-    const { listing_id } = body;
+    const { listing_id, notes } = body;
 
     if (!listing_id || typeof listing_id !== "string") {
       return new Response(JSON.stringify({ error: "listing_id is required" }), {
@@ -42,7 +41,7 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify manager role
+    // Verify Landlord Ops / manager role
     const { data: roleCheck } = await adminClient
       .from("user_roles")
       .select("role")
@@ -82,22 +81,36 @@ serve(async (req) => {
       });
     }
 
-    // Verify the listing and mark bonus as paid
+    // Check if approval already exists
+    const { data: existingApproval } = await adminClient
+      .from("listing_bonus_approvals")
+      .select("id, status")
+      .eq("listing_id", listing_id)
+      .maybeSingle();
+
+    if (existingApproval) {
+      return new Response(JSON.stringify({
+        message: `Bonus approval already ${existingApproval.status}`,
+        approval_id: existingApproval.id,
+        status: existingApproval.status,
+      }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const now = new Date().toISOString();
-    const { error: updateErr } = await adminClient
+
+    // Step 1: Verify the listing (mark as verified)
+    await adminClient
       .from("house_listings")
       .update({
         verified: true,
         verified_at: now,
         verified_by: managerId,
-        listing_bonus_paid: true,
-        listing_bonus_paid_at: now,
       })
       .eq("id", listing_id);
 
-    if (updateErr) throw updateErr;
-
-    // Also verify the linked landlord if present
+    // Also verify landlord if present
     if (listing.landlord_id) {
       await adminClient
         .from("landlords")
@@ -105,57 +118,56 @@ serve(async (req) => {
         .eq("id", listing.landlord_id);
     }
 
-    // Credit agent wallet via ledger
-    const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
+    // Step 2: Create approval record (pending_cfo) — Landlord Ops approves, forwards to CFO
+    const { data: approval, error: approvalErr } = await adminClient
+      .from("listing_bonus_approvals")
+      .insert({
+        listing_id: listing_id,
+        agent_id: agentId,
+        amount: LISTING_BONUS,
+        status: "pending_cfo",
+        landlord_ops_approved_by: managerId,
+        landlord_ops_approved_at: now,
+        landlord_ops_notes: notes || `Verified by Landlord Ops`,
+      })
+      .select("id")
+      .single();
+
+    if (approvalErr) throw approvalErr;
+
+    // Notify agent that bonus is pending CFO approval
+    await adminClient.from("notifications").insert({
       user_id: agentId,
-      amount: LISTING_BONUS,
-      direction: "credit",
-      category: "agent_bonus",
-      source_table: "house_listings",
-      source_id: listing_id,
-      description: `UGX 5,000 house listing bonus: ${listing.title}`,
-      ledger_scope: "wallet",
-      transaction_date: now,
-      transaction_group_id: crypto.randomUUID(),
-    });
-
-    if (ledgerErr) throw ledgerErr;
-
-    // Record in agent_earnings for tracking
-    await adminClient.from("agent_earnings").insert({
-      agent_id: agentId,
-      amount: LISTING_BONUS,
-      earning_type: "listing_bonus",
-      source_user_id: managerId,
-      description: `House listing verified bonus: ${listing.title}`,
-    });
-
-    // Record wallet transaction for visibility
-    await adminClient.from("wallet_transactions").insert({
-      sender_id: agentId,
-      recipient_id: agentId,
-      amount: LISTING_BONUS,
-      description: `House listing bonus: ${listing.title}`,
+      title: "Listing Verified! 🏠",
+      message: `Your listing "${listing.title}" has been verified! UGX ${LISTING_BONUS.toLocaleString()} bonus is pending CFO approval.`,
+      type: "info",
+      metadata: {
+        listing_id,
+        bonus_amount: LISTING_BONUS,
+        approval_id: approval?.id,
+      },
     });
 
     // Audit log
     await adminClient.from("audit_logs").insert({
       user_id: managerId,
-      action_type: "listing_verification_bonus",
-      table_name: "house_listings",
-      record_id: listing_id,
+      action_type: "listing_verification_bonus_queued",
+      table_name: "listing_bonus_approvals",
+      record_id: approval?.id || listing_id,
       metadata: {
         agent_id: agentId,
         bonus_amount: LISTING_BONUS,
         listing_title: listing.title,
-        reason: `Manager verified house listing and credited UGX ${LISTING_BONUS} bonus to agent`,
+        reason: `Landlord Ops verified listing and queued UGX ${LISTING_BONUS} bonus for CFO approval`,
       },
     });
 
-    console.log(`[credit-listing-bonus] Credited UGX ${LISTING_BONUS} to agent ${agentId} for listing ${listing.title}`);
+    console.log(`[credit-listing-bonus] Listing ${listing.title} verified, bonus queued for CFO approval`);
 
     return new Response(JSON.stringify({
       success: true,
+      message: "Listing verified — bonus forwarded to CFO for approval",
+      approval_id: approval?.id,
       bonus: LISTING_BONUS,
       agent_id: agentId,
       listing_title: listing.title,

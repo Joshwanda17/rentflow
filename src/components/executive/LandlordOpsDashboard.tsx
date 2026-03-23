@@ -22,6 +22,7 @@ import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
+import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
 
 interface ListingWithLandlord {
   id: string;
@@ -187,8 +188,8 @@ export function LandlordOpsDashboard() {
         toast({ title: '✅ Already Verified', description: 'This listing was already verified and bonus paid.' });
       } else {
         toast({
-          title: '✅ Listing Verified & Bonus Paid!',
-          description: `${listing.title} verified. UGX 5,000 credited to agent ${listing.agent_name}.`,
+          title: '✅ Verified → Forwarded to CFO',
+          description: `${listing.title} verified. UGX 5,000 bonus sent to CFO for approval.`,
         });
       }
       refetch();
@@ -326,7 +327,7 @@ export function LandlordOpsDashboard() {
       key: 'id', label: 'Action', render: (v, row) => (
         <Button size="sm" variant="default" className="h-8 text-xs gap-1.5 whitespace-nowrap" onClick={() => handleVerifyListing(row)} disabled={verifying === v}>
           {verifying === v ? <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-          Verify & Pay 5K
+          Verify → CFO
         </Button>
       ),
     },
@@ -487,6 +488,9 @@ export function LandlordOpsDashboard() {
 
         {/* ──────── VERIFICATION TAB ──────── */}
         <TabsContent value="verification" className="space-y-4 mt-4">
+          {/* Bonus approval tracking */}
+          <ListingBonusApprovalQueue filter="all" />
+
           {unverifiedListings.length > 0 ? (
             <ExecutiveDataTable
               data={unverifiedListings}
