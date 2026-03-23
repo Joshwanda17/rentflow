@@ -81,6 +81,8 @@ import { AgentVisitPaymentWizard } from '@/components/agent/AgentVisitPaymentWiz
 import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
 import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
+import { AgentCashPayoutsTab } from '@/components/agent/AgentCashPayoutsTab';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface AgentDashboardProps {
   user: User;
