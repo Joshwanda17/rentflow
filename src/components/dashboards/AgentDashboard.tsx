@@ -411,6 +411,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
 
+      {/* Cash Payouts Dialog - only rendered for cashout agents */}
+      <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-orange-500" />
+              Cash & Bank Payouts
+            </DialogTitle>
+          </DialogHeader>
+          <AgentCashPayoutsTab />
+        </DialogContent>
+      </Dialog>
+
       <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
     </div>
   );
