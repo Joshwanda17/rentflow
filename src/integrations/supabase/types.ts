@@ -6667,6 +6667,8 @@ export type Database = {
           mobile_money_number: string | null
           mobile_money_provider: string | null
           payout_method: string
+          payout_proof: string | null
+          payout_proof_type: string | null
           processed_at: string | null
           processed_by: string | null
           rejection_reason: string | null
@@ -6695,6 +6697,8 @@ export type Database = {
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           payout_method?: string
+          payout_proof?: string | null
+          payout_proof_type?: string | null
           processed_at?: string | null
           processed_by?: string | null
           rejection_reason?: string | null
@@ -6723,6 +6727,8 @@ export type Database = {
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           payout_method?: string
+          payout_proof?: string | null
+          payout_proof_type?: string | null
           processed_at?: string | null
           processed_by?: string | null
           rejection_reason?: string | null
