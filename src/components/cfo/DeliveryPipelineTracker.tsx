@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Truck, Clock, CheckCircle2, AlertTriangle, Phone, MapPin, User, RefreshCw } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, Truck, Clock, CheckCircle2, AlertTriangle, Phone, User, RefreshCw } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
-import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface DeliveryItem {
