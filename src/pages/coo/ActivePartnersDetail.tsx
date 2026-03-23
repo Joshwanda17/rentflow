@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil } from 'lucide-react';
+import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil, ShieldOff, UserX } from 'lucide-react';
 import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
 import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
