@@ -73,17 +73,37 @@ export function AgentVerificationOpportunitiesCard() {
 
   const totalCount = tenantCount + houseCount;
 
+  // Preview items shown on the card itself
+  const [previewTenants, setPreviewTenants] = useState<UnverifiedRequest[]>([]);
+  const [previewHouses, setPreviewHouses] = useState<UnverifiedHouse[]>([]);
+
   useEffect(() => {
-    fetchCounts();
+    fetchCountsAndPreviews();
   }, []);
 
-  const fetchCounts = async () => {
-    const [rentRes, houseRes] = await Promise.all([
+  const fetchCountsAndPreviews = async () => {
+    const [rentRes, houseRes, tenantPreview, housePreview] = await Promise.all([
       supabase.from('rent_requests').select('*', { count: 'exact', head: true }).eq('agent_verified', false).in('status', ['pending', 'approved']),
       supabase.from('house_listings').select('*', { count: 'exact', head: true }).or('verified.is.null,verified.eq.false').in('status', ['pending', 'available']),
+      supabase
+        .from('rent_requests')
+        .select('id, rent_amount, created_at, landlord_id, tenant_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address, latitude, longitude)')
+        .eq('agent_verified', false)
+        .in('status', ['pending', 'approved'])
+        .order('created_at', { ascending: false })
+        .limit(3),
+      supabase
+        .from('house_listings')
+        .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified, latitude, longitude')
+        .or('verified.is.null,verified.eq.false')
+        .in('status', ['pending', 'available'])
+        .order('created_at', { ascending: false })
+        .limit(3),
     ]);
     setTenantCount(rentRes.count || 0);
     setHouseCount(houseRes.count || 0);
+    setPreviewTenants((tenantPreview.data as any) || []);
+    setPreviewHouses((housePreview.data as any) || []);
   };
 
   const fetchAll = async () => {
@@ -124,7 +144,7 @@ export function AgentVerificationOpportunitiesCard() {
       });
       if (error) throw error;
       toast.success(data?.already_paid ? 'Already verified.' : 'House verified! UGX 5,000 bonus credited.');
-      fetchCounts();
+      fetchCountsAndPreviews();
       fetchAll();
     } catch (err: any) {
       toast.error(err.message || 'Verification failed');
@@ -169,7 +189,7 @@ export function AgentVerificationOpportunitiesCard() {
     setGuaranteeDialog({ open: false, request: null });
     setGuaranteeNote('');
     setGuaranteeing(false);
-    fetchCounts();
+    fetchCountsAndPreviews();
     fetchAll();
   };
 
@@ -202,33 +222,65 @@ export function AgentVerificationOpportunitiesCard() {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Tenant previews */}
               {tenantCount > 0 && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-primary" />
-                    <div>
-                      <p className="text-xs font-semibold">{tenantCount} tenant{tenantCount > 1 ? 's' : ''} to verify</p>
-                      <p className="text-[10px] text-success font-medium">💰 UGX 10,000 + 5% commission each</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <UserCheck className="h-3.5 w-3.5 text-primary" />
+                      <p className="text-xs font-bold text-foreground">{tenantCount} Tenant{tenantCount > 1 ? 's' : ''} to Verify</p>
                     </div>
+                    <p className="text-[10px] text-success font-medium">💰 UGX 10,000 each</p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  {previewTenants.map(req => (
+                    <div key={req.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/30">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold truncate">{(req.tenant as any)?.full_name || 'Unknown Tenant'}</p>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <MapPin className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{(req.landlord as any)?.property_address || (req.tenant as any)?.city || 'N/A'}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-primary shrink-0 ml-2">{formatUGX(req.rent_amount)}</span>
+                    </div>
+                  ))}
+                  {tenantCount > 3 && (
+                    <p className="text-[10px] text-muted-foreground text-center">+{tenantCount - 3} more tenants</p>
+                  )}
                 </div>
               )}
+
+              {/* House previews */}
               {houseCount > 0 && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                  <div className="flex items-center gap-2">
-                    <Home className="h-4 w-4 text-chart-4" />
-                    <div>
-                      <p className="text-xs font-semibold">{houseCount} house{houseCount > 1 ? 's' : ''} to verify</p>
-                      <p className="text-[10px] text-success font-medium">💰 UGX 5,000 listing bonus each</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Home className="h-3.5 w-3.5 text-chart-4" />
+                      <p className="text-xs font-bold text-foreground">{houseCount} House{houseCount > 1 ? 's' : ''} to Verify</p>
                     </div>
+                    <p className="text-[10px] text-success font-medium">💰 UGX 5,000 each</p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  {previewHouses.map(house => (
+                    <div key={house.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/30">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold truncate">{house.title}</p>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <MapPin className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{house.address}, {house.region}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-primary shrink-0 ml-2">{formatUGX(house.monthly_rent)}</span>
+                    </div>
+                  ))}
+                  {houseCount > 3 && (
+                    <p className="text-[10px] text-muted-foreground text-center">+{houseCount - 3} more houses</p>
+                  )}
                 </div>
               )}
+
               <Button onClick={handleOpen} className="w-full h-11 font-bold gap-2 text-sm">
                 <Shield className="h-4 w-4" />
-                View All Opportunities
+                View All & Verify
               </Button>
             </div>
           )}
@@ -364,7 +416,7 @@ export function AgentVerificationOpportunitiesCard() {
                                     variant="agent"
                                     onVerified={() => {
                                       setExpandedId(null);
-                                      fetchCounts();
+                                      fetchCountsAndPreviews();
                                       fetchAll();
                                     }}
                                   />
