@@ -35,7 +35,7 @@ export function UserSearchPicker({ label, placeholder = 'Search by name or phone
           const { data: roleData } = await supabase
             .from('user_roles')
             .select('user_id')
-            .eq('role', roleFilter)
+            .eq('role', roleFilter as any)
             .limit(200);
           userIds = roleData?.map(r => r.user_id) || [];
           if (userIds.length === 0) { setResults([]); setLoading(false); return; }
