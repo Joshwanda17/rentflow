@@ -242,10 +242,10 @@ export function TidVerification() {
                 className="h-10"
               />
             </div>
-            <div className="space-y-1">
+             <div className="space-y-1 min-w-0">
               <Label className="text-xs font-medium">Provider</Label>
               <Select value={provider} onValueChange={setProvider}>
-                <SelectTrigger className="h-10 w-[90px]">
+                <SelectTrigger className="h-10 w-[100px]">
                   <SelectValue />
                 </SelectTrigger>
               <SelectContent>
