@@ -48,6 +48,7 @@ interface LedgerSummary {
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year';
 type CategoryFilter = 'all' | string;
 type DirectionFilter = 'all' | 'cash_in' | 'cash_out';
+type ScopeFilter = 'all' | 'wallet' | 'platform' | 'bridge';
 
 const PAGE_SIZE = 50;
 
@@ -86,6 +87,7 @@ export function GeneralLedger() {
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('all');
   const printRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
@@ -108,30 +110,31 @@ export function GeneralLedger() {
   }, [searchTerm]);
 
   // Reset page on filter change
-  useEffect(() => { setPage(0); }, [startDate, endDate, categoryFilter, directionFilter]);
+  useEffect(() => { setPage(0); }, [startDate, endDate, categoryFilter, directionFilter, scopeFilter]);
 
   // Fetch data when filters or page change
   useEffect(() => {
     fetchLedgerData();
     fetchSummary();
-  }, [startDate, endDate, categoryFilter, directionFilter, debouncedSearch, page]);
+  }, [startDate, endDate, categoryFilter, directionFilter, scopeFilter, debouncedSearch, page]);
 
   const buildQuery = useCallback(() => {
     let query = supabase
       .from('general_ledger')
-      .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, running_balance');
+      .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, running_balance, ledger_scope');
 
     if (startDate) query = query.gte('transaction_date', startDate.toISOString());
     if (endDate) query = query.lte('transaction_date', endDate.toISOString());
     if (categoryFilter !== 'all') query = query.eq('category', categoryFilter);
     if (directionFilter !== 'all') query = query.eq('direction', directionFilter);
+    if (scopeFilter !== 'all') query = query.eq('ledger_scope', scopeFilter);
     if (debouncedSearch) {
       query = query.or(
         `description.ilike.%${debouncedSearch}%,linked_party.ilike.%${debouncedSearch}%,category.ilike.%${debouncedSearch}%,reference_id.ilike.%${debouncedSearch}%`
       );
     }
     return query;
-  }, [startDate, endDate, categoryFilter, directionFilter, debouncedSearch]);
+  }, [startDate, endDate, categoryFilter, directionFilter, scopeFilter, debouncedSearch]);
 
   const fetchLedgerData = async () => {
     setLoading(true);
@@ -450,6 +453,35 @@ export function GeneralLedger() {
         </TabsList>
 
         <TabsContent value="ledger" className="space-y-4 mt-4">
+          {/* Ledger Scope Selector */}
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit">
+            {([
+              { value: 'all', label: '📊 All Scopes' },
+              { value: 'wallet', label: '👛 Wallet Ledger' },
+              { value: 'platform', label: '🏢 Platform Ledger' },
+              { value: 'bridge', label: '🔗 Bridge' },
+            ] as { value: ScopeFilter; label: string }[]).map(s => (
+              <Button
+                key={s.value}
+                size="sm"
+                variant={scopeFilter === s.value ? 'default' : 'ghost'}
+                onClick={() => setScopeFilter(s.value)}
+                className="text-xs h-8 px-3"
+              >
+                {s.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Scope Description */}
+          {scopeFilter !== 'all' && (
+            <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+              {scopeFilter === 'wallet' && '👛 Wallet Ledger — User-owned fund movements: deposits, withdrawals, transfers, commissions'}
+              {scopeFilter === 'platform' && '🏢 Platform Ledger — Internal operations: pool deployments, platform expenses, revenue recognition'}
+              {scopeFilter === 'bridge' && '🔗 Bridge — Events affecting both user wallets and platform: capital inflows, rent disbursements'}
+            </div>
+          )}
+
           {/* Date Presets */}
           <div className="flex flex-wrap gap-2">
             {presets.map(p => (
