@@ -8,7 +8,7 @@ import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
@@ -405,38 +405,35 @@ export default function ActivePartnersDetail() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => openEditDialog(r)} className="gap-2">
+                <Pencil className="h-3.5 w-3.5" />
+                <span>Edit Partner</span>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={r.walletBalance < MIN_INVEST}
                 onClick={() => setInvestPartner(r)}
                 className="gap-2"
               >
                 <TrendingUp className="h-3.5 w-3.5" />
-                <span>Invest</span>
+                <span>Invest {r.walletBalance < MIN_INVEST ? '(Low bal)' : ''}</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openEditDialog(r)} className="gap-2">
-                <Pencil className="h-3.5 w-3.5" />
-                <span>Edit</span>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => { setSuspendPartner(r); setSuspendReason(''); }}
+                className="gap-2 text-amber-600 focus:text-amber-700"
+              >
+                <ShieldOff className="h-3.5 w-3.5" />
+                <span>Suspend</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => { setDeletePartner(r); setDeleteReason(''); }}
+                className="gap-2 text-destructive focus:text-destructive"
+              >
+                <UserX className="h-3.5 w-3.5" />
+                <span>Delete</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
-            onClick={() => { setSuspendPartner(r); setSuspendReason(''); }}
-          >
-            <ShieldOff className="h-3 w-3 mr-1" />
-            Suspend
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
-            onClick={() => { setDeletePartner(r); setDeleteReason(''); }}
-          >
-            <UserX className="h-3 w-3 mr-1" />
-            Delete
-          </Button>
         </div>
       ),
     },
