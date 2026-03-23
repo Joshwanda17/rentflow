@@ -110,7 +110,7 @@ export default function ActivePartnersDetail() {
       const roiMap = new Map<string, number>();
       const payoutDayMap = new Map<string, number>();
       const roiModeMap = new Map<string, string>();
-      (portfoliosRes.data || []).forEach(p => {
+      (portfoliosList as any[]).forEach(p => {
         const userId = p.investor_id || p.agent_id;
         if (userId && !roiMap.has(userId)) {
           roiMap.set(userId, p.roi_percentage ?? 15);
