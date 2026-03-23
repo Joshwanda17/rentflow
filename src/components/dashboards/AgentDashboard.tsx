@@ -144,6 +144,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
   const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
+  const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
 
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
