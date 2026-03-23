@@ -390,8 +390,12 @@ export function ApprovalQueue() {
                   {deposits.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{deposits.length}</Badge>}
                 </TabsTrigger>
                 <TabsTrigger value="withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
-                  <ArrowUpFromLine className="h-3 w-3" /> <span className="hidden xs:inline">Withdrawals</span><span className="xs:hidden">W/D</span>
+                  <ArrowUpFromLine className="h-3 w-3" /> <span className="hidden xs:inline">Invest W/D</span><span className="xs:hidden">Inv</span>
                   {withdrawals.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{withdrawals.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="wallet_withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
+                  <Banknote className="h-3 w-3" /> <span className="hidden xs:inline">Cash Out</span><span className="xs:hidden">Cash</span>
+                  {walletWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{walletWithdrawals.length}</Badge>}
                 </TabsTrigger>
                 <TabsTrigger value="wallet_ops" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
                   <Wallet className="h-3 w-3" /> <span className="hidden xs:inline">Wallet Ops</span><span className="xs:hidden">Wallet</span>
