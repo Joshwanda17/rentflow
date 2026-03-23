@@ -566,7 +566,7 @@ export default function Auth() {
                   </div>
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    disabled={isGoogleLoading || isAppleLoading || emailLoginLoading}
                     isLoading={isGoogleLoading}
                     variant="standard"
                   />
