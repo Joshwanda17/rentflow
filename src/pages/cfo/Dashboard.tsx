@@ -11,6 +11,7 @@ import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
+import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
