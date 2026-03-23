@@ -190,19 +190,58 @@ export default function ActivePartnersDetail() {
     }
   }
 
-  // --- Delete handler ---
-  async function handleDelete() {
-    if (!deletePartner) return;
-    setDeleting(true);
+  // --- Suspend handler (soft-disable role) ---
+  async function handleSuspend() {
+    if (!suspendPartner || suspendReason.length < 10) return;
+    setSuspending(true);
     try {
       const { error } = await supabase
         .from('user_roles')
         .update({ enabled: false })
-        .eq('user_id', deletePartner.id)
+        .eq('user_id', suspendPartner.id)
         .eq('role', 'supporter');
       if (error) throw error;
-      toast.success(`Removed supporter role from ${deletePartner.name}`);
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'partner_suspended',
+        table_name: 'user_roles',
+        record_id: suspendPartner.id,
+        metadata: { partner_name: suspendPartner.name, reason: suspendReason },
+      });
+
+      toast.success(`Suspended partner: ${suspendPartner.name}`);
+      setSuspendPartner(null);
+      setSuspendReason('');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Suspend failed');
+    } finally {
+      setSuspending(false);
+    }
+  }
+
+  // --- Delete handler (full account deletion) ---
+  async function handleDelete() {
+    if (!deletePartner || deleteReason.length < 10) return;
+    setDeleting(true);
+    try {
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'partner_deleted',
+        table_name: 'profiles',
+        record_id: deletePartner.id,
+        metadata: { partner_name: deletePartner.name, reason: deleteReason },
+      });
+
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: deletePartner.id },
+      });
+      if (error) throw error;
+
+      toast.success(`Deleted partner account: ${deletePartner.name}`);
       setDeletePartner(null);
+      setDeleteReason('');
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Delete failed');
