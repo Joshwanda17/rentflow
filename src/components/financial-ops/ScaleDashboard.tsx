@@ -19,20 +19,20 @@ function AnomalyAlerts() {
   const { data: anomalies = [], isLoading } = useQuery({
     queryKey: ['financial-anomalies'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('financial_anomalies')
         .select('*')
         .eq('acknowledged', false)
         .order('created_at', { ascending: false })
         .limit(20);
-      return data || [];
+      return (data || []) as any[];
     },
     refetchInterval: 30000,
   });
 
   const acknowledge = async (id: string) => {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('financial_anomalies').update({
+    await (supabase as any).from('financial_anomalies').update({
       acknowledged: true, acknowledged_by: user?.id, acknowledged_at: new Date().toISOString()
     }).eq('id', id);
     queryClient.invalidateQueries({ queryKey: ['financial-anomalies'] });
@@ -69,7 +69,7 @@ function AnomalyAlerts() {
   }
 
   return (
-    <Card className={anomalies.some(a => a.severity === 'critical') ? 'border-destructive/40' : 'border-amber-500/30'}>
+    <Card className={anomalies.some((a: any) => a.severity === 'critical') ? 'border-destructive/40' : 'border-amber-500/30'}>
       <CardHeader className="pb-2 px-3 sm:px-4">
         <CardTitle className="text-sm flex items-center gap-2">
           <Bell className="h-4 w-4 text-amber-600" />
@@ -80,7 +80,7 @@ function AnomalyAlerts() {
       <CardContent className="px-3 sm:px-4">
         <ScrollArea className="max-h-[220px]">
           <div className="space-y-2">
-            {anomalies.map(a => {
+            {anomalies.map((a: any) => {
               const Icon = typeIcon[a.anomaly_type] || AlertTriangle;
               return (
                 <div key={a.id} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 border border-border">
@@ -115,7 +115,7 @@ function ChannelHealth() {
   const { data, isLoading } = useQuery({
     queryKey: ['channel-health-live'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_channel_health_live');
+      const { data, error } = await (supabase.rpc as any)('get_channel_health_live');
       if (error) throw error;
       return data as any;
     },
@@ -166,7 +166,6 @@ function ChannelHealth() {
             );
           })}
         </div>
-        {/* Withdrawal channels */}
         {data?.withdrawals && (
           <div className="mt-2 grid grid-cols-4 gap-1">
             {[
@@ -192,7 +191,7 @@ function AgentWorkload() {
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ['agent-workload'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_agent_workload_summary');
+      const { data, error } = await (supabase.rpc as any)('get_agent_workload_summary');
       if (error) throw error;
       return (data as any[]) || [];
     },
@@ -270,12 +269,12 @@ function BatchStatus() {
   const { data: runs = [] } = useQuery({
     queryKey: ['batch-runs'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('batch_processing_runs')
         .select('*')
         .order('started_at', { ascending: false })
         .limit(5);
-      return data || [];
+      return (data || []) as any[];
     },
     refetchInterval: 60000,
   });
@@ -334,12 +333,12 @@ function BatchStatus() {
   );
 }
 
-// ─── Reconciliation (Server-side) ───
+// ─── Auto Reconciliation ───
 function AutoRecon() {
   const { data, isLoading } = useQuery({
     queryKey: ['recon-summary-server'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_reconciliation_summary', { p_days: 7 });
+      const { data, error } = await (supabase.rpc as any)('get_reconciliation_summary', { p_days: 7 });
       if (error) throw error;
       return data as any;
     },
