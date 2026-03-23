@@ -25,6 +25,8 @@ import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionRepor
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 import { ThresholdAlerts } from '@/components/cfo/ThresholdAlerts';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
+import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
+import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -60,6 +62,7 @@ export default function CFODashboard() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'cash', label: 'Cash Position', icon: Wallet },
+    { id: 'channels', label: 'Channels', icon: Receipt },
     { id: 'revenue', label: 'P&L', icon: DollarSign },
     { id: 'disbursements', label: 'Disbursements', icon: Receipt },
     { id: 'statements', label: 'Statements', icon: BookOpen },
@@ -113,6 +116,12 @@ export default function CFODashboard() {
           {/* Cash Position Tab */}
           <TabsContent value="cash" className="space-y-6">
             <DailyCashPositionReport />
+          </TabsContent>
+
+          {/* Channel Balances & Direct Credit Tab */}
+          <TabsContent value="channels" className="space-y-6">
+            <ChannelBalanceTracker />
+            <DirectCreditTool />
           </TabsContent>
 
           {/* Revenue vs Expense (P&L) Tab */}
