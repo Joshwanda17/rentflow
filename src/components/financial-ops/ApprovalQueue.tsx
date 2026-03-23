@@ -276,7 +276,7 @@ export function ApprovalQueue() {
               <Clock className="h-4 w-4 text-primary" /> Approval Queue
             </CardTitle>
             <div className="flex items-center gap-2">
-              {selected.size > 0 && (
+              {selected.size > 0 && activeQueue !== 'deposits' && (
                 <div className="flex gap-1.5">
                   <Button size="sm" variant="default" className="h-7 text-[11px] sm:text-xs px-2 sm:px-3" onClick={() => setBulkAction('approve')}>
                     <CheckCircle2 className="h-3 w-3 mr-0.5" /> Approve ({selected.size})
@@ -285,6 +285,11 @@ export function ApprovalQueue() {
                     <XCircle className="h-3 w-3 mr-0.5" /> Reject ({selected.size})
                   </Button>
                 </div>
+              )}
+              {activeQueue === 'deposits' && (
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <Hash className="h-3 w-3" /> Review only — approve via TID
+                </Badge>
               )}
             </div>
           </div>
