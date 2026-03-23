@@ -299,6 +299,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </button>
         )}
 
+        {/* Pay Landlord - visible for agents with assigned rent requests */}
+        <button
+          onClick={() => { hapticTap(); setLandlordPayoutFlowOpen(true); }}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-success/40 bg-success/10 hover:bg-success/15 transition-all touch-manipulation active:scale-[0.98] animate-fade-in"
+        >
+          <div className="p-2.5 rounded-lg bg-success/20">
+            <Banknote className="h-5 w-5 text-success" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-sm text-success">Pay Landlord via MoMo</p>
+            <p className="text-[10px] text-muted-foreground">Withdraw from wallet → Pay landlord → Upload receipt + GPS</p>
+          </div>
+          <span className="text-lg text-success">›</span>
+        </button>
+
         {/* 5 Key Action Buttons + Hub */}
         <div className="grid grid-cols-3 gap-2 animate-fade-in">
           {[
