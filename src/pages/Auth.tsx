@@ -56,7 +56,8 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signIn: authSignIn } = useAuth();
+  const [emailLoginLoading, setEmailLoginLoading] = useState(false);
 
   // ========== Feature 4: Auto-login for returning users ==========
   useEffect(() => {
