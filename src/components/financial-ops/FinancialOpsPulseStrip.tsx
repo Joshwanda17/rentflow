@@ -99,7 +99,7 @@ export function FinancialOpsPulseStrip() {
           <span className="hidden sm:inline text-xs">Refresh</span>
         </Button>
       </div>
-      <div className="grid grid-cols-4 gap-1 sm:gap-2">
+      <div className="grid grid-cols-5 gap-1 sm:gap-2">
         {pulseItems.map((item) => {
           const Icon = item.icon;
           const isUrgent = item.value > 0 && item.label !== 'Today';
