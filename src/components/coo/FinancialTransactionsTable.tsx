@@ -19,7 +19,7 @@ export default function FinancialTransactionsTable() {
   const [directionFilter, setDirectionFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [page, setPage] = useState(0);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
