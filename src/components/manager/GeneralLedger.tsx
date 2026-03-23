@@ -453,6 +453,35 @@ export function GeneralLedger() {
         </TabsList>
 
         <TabsContent value="ledger" className="space-y-4 mt-4">
+          {/* Ledger Scope Selector */}
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-fit">
+            {([
+              { value: 'all', label: '📊 All Scopes' },
+              { value: 'wallet', label: '👛 Wallet Ledger' },
+              { value: 'platform', label: '🏢 Platform Ledger' },
+              { value: 'bridge', label: '🔗 Bridge' },
+            ] as { value: ScopeFilter; label: string }[]).map(s => (
+              <Button
+                key={s.value}
+                size="sm"
+                variant={scopeFilter === s.value ? 'default' : 'ghost'}
+                onClick={() => setScopeFilter(s.value)}
+                className="text-xs h-8 px-3"
+              >
+                {s.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Scope Description */}
+          {scopeFilter !== 'all' && (
+            <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+              {scopeFilter === 'wallet' && '👛 Wallet Ledger — User-owned fund movements: deposits, withdrawals, transfers, commissions'}
+              {scopeFilter === 'platform' && '🏢 Platform Ledger — Internal operations: pool deployments, platform expenses, revenue recognition'}
+              {scopeFilter === 'bridge' && '🔗 Bridge — Events affecting both user wallets and platform: capital inflows, rent disbursements'}
+            </div>
+          )}
+
           {/* Date Presets */}
           <div className="flex flex-wrap gap-2">
             {presets.map(p => (
