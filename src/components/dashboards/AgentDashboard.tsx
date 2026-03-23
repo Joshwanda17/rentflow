@@ -82,7 +82,7 @@ import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTo
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
 import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
 import { AgentCashPayoutsTab } from '@/components/agent/AgentCashPayoutsTab';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface AgentDashboardProps {
   user: User;
