@@ -248,9 +248,11 @@ export function TidVerification() {
                 <SelectTrigger className="h-10 w-[90px]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+              <SelectContent>
                   <SelectItem value="mtn">MTN</SelectItem>
                   <SelectItem value="airtel">Airtel</SelectItem>
+                  <SelectItem value="bank_transfer">Bank</SelectItem>
+                  <SelectItem value="agent_cash">Cash/Rcpt</SelectItem>
                 </SelectContent>
               </Select>
             </div>
