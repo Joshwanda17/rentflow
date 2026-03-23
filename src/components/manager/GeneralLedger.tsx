@@ -116,7 +116,7 @@ export function GeneralLedger() {
   useEffect(() => {
     fetchLedgerData();
     fetchSummary();
-  }, [startDate, endDate, categoryFilter, directionFilter, debouncedSearch, page]);
+  }, [startDate, endDate, categoryFilter, directionFilter, scopeFilter, debouncedSearch, page]);
 
   const buildQuery = useCallback(() => {
     let query = supabase
