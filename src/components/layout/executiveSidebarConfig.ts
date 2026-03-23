@@ -2,7 +2,7 @@ import {
   BarChart3, Shield, Banknote, ClipboardList, BookOpen, Server, Code, Lock, Wrench,
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
-  Crown, LayoutDashboard, Globe
+  Crown, LayoutDashboard, Globe, DollarSign, UserCog
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -42,6 +42,14 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'General Ledger', icon: ClipboardList, id: 'ledger' },
         { label: 'Commission Payouts', icon: Banknote, id: 'commissions' },
         { label: 'Withdrawals', icon: Wallet, id: 'withdrawals' },
+      ],
+    },
+    {
+      title: 'Disbursements',
+      items: [
+        { label: 'Financial Agents', icon: DollarSign, id: 'financial-agents' },
+        { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
+        { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
       ],
     },
   ],

@@ -12,6 +12,9 @@ import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
+import { FinancialAgentsPanel } from '@/components/cfo/FinancialAgentsPanel';
+import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
+import { PayrollPanel } from '@/components/cfo/PayrollPanel';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -51,13 +54,17 @@ export default function CFODashboardPage() {
             <CFOWithdrawalApprovals />
           </div>
         );
+      case 'financial-agents':
+        return <FinancialAgentsPanel />;
+      case 'proxy-agents':
+        return <ProxyAgentManager />;
+      case 'payroll':
+        return <PayrollPanel />;
       default:
         return (
           <div className="space-y-6">
             <FinancialOverview />
-            {/* 🔥 PRIORITY: Listing Bonus Approvals */}
             <ListingBonusApprovalQueue filter="pending_cfo" />
-            {/* 🔥 PRIORITY: Rent Payout Queue on overview */}
             <RentPipelineQueue stage="coo_approved" />
           </div>
         );
