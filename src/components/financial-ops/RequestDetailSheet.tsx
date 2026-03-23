@@ -18,7 +18,7 @@ interface RequestDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string | null;
-  requestType: 'deposits' | 'withdrawals' | 'wallet_ops';
+  requestType: 'deposits' | 'withdrawals' | 'wallet_withdrawals' | 'wallet_ops';
   requestData: any;
 }
 
