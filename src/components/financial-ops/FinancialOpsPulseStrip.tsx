@@ -58,16 +58,16 @@ export function FinancialOpsPulseStrip() {
       value: metrics?.pendingWalletWithdrawals.count || 0,
       amount: metrics?.pendingWalletWithdrawals.amount,
       icon: Banknote,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-500/10',
-    },
-    {
-      label: 'Invest W/D',
-      value: metrics?.pendingWithdrawals.count || 0,
-      amount: metrics?.pendingWithdrawals.amount,
-      icon: ArrowUpFromLine,
       color: 'text-destructive',
       bgColor: 'bg-destructive/10',
+    },
+    {
+      label: "Today",
+      value: metrics?.todayVolume.count || 0,
+      amount: metrics?.todayVolume.amount,
+      icon: Activity,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-500/10',
     },
     {
       label: 'Wallet Ops',
@@ -78,12 +78,12 @@ export function FinancialOpsPulseStrip() {
       bgColor: 'bg-amber-500/10',
     },
     {
-      label: "Today",
-      value: metrics?.todayVolume.count || 0,
-      amount: metrics?.todayVolume.amount,
-      icon: Activity,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-500/10',
+      label: 'Invest W/D',
+      value: metrics?.pendingWithdrawals.count || 0,
+      amount: metrics?.pendingWithdrawals.amount,
+      icon: ArrowUpFromLine,
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted',
     },
   ];
 
