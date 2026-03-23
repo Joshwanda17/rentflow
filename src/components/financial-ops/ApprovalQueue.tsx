@@ -452,8 +452,8 @@ export function ApprovalQueue() {
                           className="mt-0.5 sm:mt-0 shrink-0"
                         />
                       )}
-                      <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
-                        <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
+                      <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'wallet_withdrawals' ? 'bg-orange-500/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
+                        <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'wallet_withdrawals' ? 'text-orange-600' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-1">
@@ -461,6 +461,11 @@ export function ApprovalQueue() {
                           <p className="text-xs sm:text-sm font-bold tabular-nums shrink-0">{formatUGX(item.amount)}</p>
                         </div>
                         <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{item.description}</p>
+                        {item.payoutDetails?.status && (
+                          <Badge variant="outline" className="h-4 px-1 text-[9px] mt-0.5">
+                            {item.payoutDetails.status.replace(/_/g, ' ')}
+                          </Badge>
+                        )}
                         <p className="text-[9px] sm:text-[10px] text-muted-foreground/70">
                           {item.userPhone && `${item.userPhone} · `}
                           {format(new Date(item.createdAt), 'MMM d, HH:mm')}
