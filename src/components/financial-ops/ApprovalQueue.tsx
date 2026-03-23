@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2 } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
@@ -276,7 +276,7 @@ export function ApprovalQueue() {
               <Clock className="h-4 w-4 text-primary" /> Approval Queue
             </CardTitle>
             <div className="flex items-center gap-2">
-              {selected.size > 0 && (
+              {selected.size > 0 && activeQueue !== 'deposits' && (
                 <div className="flex gap-1.5">
                   <Button size="sm" variant="default" className="h-7 text-[11px] sm:text-xs px-2 sm:px-3" onClick={() => setBulkAction('approve')}>
                     <CheckCircle2 className="h-3 w-3 mr-0.5" /> Approve ({selected.size})
@@ -285,6 +285,11 @@ export function ApprovalQueue() {
                     <XCircle className="h-3 w-3 mr-0.5" /> Reject ({selected.size})
                   </Button>
                 </div>
+              )}
+              {activeQueue === 'deposits' && (
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <Hash className="h-3 w-3" /> Review only — approve via TID
+                </Badge>
               )}
             </div>
           </div>
@@ -328,12 +333,18 @@ export function ApprovalQueue() {
               </div>
             ) : (
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-2 pb-1">
-                  <Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} />
-                  <span className="text-[11px] text-muted-foreground">
-                    {selected.size > 0 ? `${selected.size} selected` : `${items.length} pending`}
-                  </span>
-                </div>
+                {activeQueue !== 'deposits' ? (
+                  <div className="flex items-center gap-2 px-2 pb-1">
+                    <Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} />
+                    <span className="text-[11px] text-muted-foreground">
+                      {selected.size > 0 ? `${selected.size} selected` : `${items.length} pending`}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="px-2 pb-1">
+                    <span className="text-[11px] text-muted-foreground">{items.length} pending — use TID tab to verify & approve</span>
+                  </div>
+                )}
                 {items.map((item) => {
                   const Icon = queueIcon[item.type];
                   return (
@@ -342,12 +353,14 @@ export function ApprovalQueue() {
                       className={`flex items-start sm:items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border-l-4 ${urgencyBg[item.urgency]} bg-card hover:bg-muted/40 transition-colors cursor-pointer`}
                       onClick={() => setInspectItem(item)}
                     >
-                      <Checkbox
-                        checked={selected.has(item.id)}
-                        onCheckedChange={() => toggleSelect(item.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-0.5 sm:mt-0 shrink-0"
-                      />
+                      {activeQueue !== 'deposits' && (
+                        <Checkbox
+                          checked={selected.has(item.id)}
+                          onCheckedChange={() => toggleSelect(item.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-0.5 sm:mt-0 shrink-0"
+                        />
+                      )}
                       <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
                         <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
                       </div>

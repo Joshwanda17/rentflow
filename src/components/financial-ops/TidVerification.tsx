@@ -134,22 +134,24 @@ export function TidVerification() {
     setApproving(match.id);
 
     try {
-      const { error } = await supabase
-        .from('deposit_requests')
-        .update({
-          status: 'approved',
-          processed_by: user.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq('id', match.id)
-        .eq('status', 'pending');
+      // Use the approve-deposit edge function for proper ledger processing
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
+        body: {
+          deposit_request_id: match.id,
+          action: 'approve',
+        },
+      });
 
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to approve deposit');
+        throw new Error(msg);
+      }
 
-      // Audit log
+      // Audit log with TID verification context
       await supabase.from('audit_logs').insert({
         user_id: user.id,
-        action_type: 'tid_auto_approve',
+        action_type: 'tid_verified_approve',
         table_name: 'deposit_requests',
         record_id: match.id,
         metadata: {
