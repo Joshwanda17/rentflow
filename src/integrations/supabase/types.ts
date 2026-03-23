@@ -1971,6 +1971,99 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_agents: {
+        Row: {
+          agent_id: string
+          assigned_by: string
+          created_at: string
+          expense_category: Database["public"]["Enums"]["expense_category"]
+          id: string
+          is_active: boolean
+          label: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_by: string
+          created_at?: string
+          expense_category?: Database["public"]["Enums"]["expense_category"]
+          id?: string
+          is_active?: boolean
+          label?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_by?: string
+          created_at?: string
+          expense_category?: Database["public"]["Enums"]["expense_category"]
+          id?: string
+          is_active?: boolean
+          label?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       float_requests: {
         Row: {
           agent_id: string
@@ -3573,6 +3666,149 @@ export type Database = {
           },
         ]
       }
+      payroll_batches: {
+        Row: {
+          batch_month: string
+          created_at: string
+          created_by: string
+          id: string
+          processed_at: string | null
+          processed_count: number
+          status: string
+          total_amount: number
+          total_employees: number
+          updated_at: string
+        }
+        Insert: {
+          batch_month: string
+          created_at?: string
+          created_by: string
+          id?: string
+          processed_at?: string | null
+          processed_count?: number
+          status?: string
+          total_amount?: number
+          total_employees?: number
+          updated_at?: string
+        }
+        Update: {
+          batch_month?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          processed_at?: string | null
+          processed_count?: number
+          status?: string
+          total_amount?: number
+          total_employees?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      payroll_items: {
+        Row: {
+          amount: number
+          batch_id: string
+          category: string
+          created_at: string
+          description: string | null
+          employee_id: string
+          id: string
+          ledger_reference_id: string | null
+          paid_at: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          batch_id: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          ledger_reference_id?: string | null
+          paid_at?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          batch_id?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          ledger_reference_id?: string | null
+          paid_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       pending_wallet_operations: {
         Row: {
           account: string | null
@@ -3638,6 +3874,106 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      platform_expense_transfers: {
+        Row: {
+          agent_id: string
+          amount: number
+          approved_by: string
+          created_at: string
+          description: string
+          expense_category: Database["public"]["Enums"]["expense_category"]
+          financial_agent_id: string
+          id: string
+          ledger_reference_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          approved_by: string
+          created_at?: string
+          description: string
+          expense_category: Database["public"]["Enums"]["expense_category"]
+          financial_agent_id: string
+          id?: string
+          ledger_reference_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          approved_by?: string
+          created_at?: string
+          description?: string
+          expense_category?: Database["public"]["Enums"]["expense_category"]
+          financial_agent_id?: string
+          id?: string
+          ledger_reference_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_expense_transfers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_financial_agent_id_fkey"
+            columns: ["financial_agent_id"]
+            isOneToOne: false
+            referencedRelation: "financial_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       portfolio_renewals: {
         Row: {
@@ -4181,6 +4517,130 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "landlords"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      proxy_agent_assignments: {
+        Row: {
+          agent_id: string
+          assigned_by: string
+          beneficiary_id: string
+          beneficiary_role: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_by: string
+          beneficiary_id: string
+          beneficiary_role: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_by?: string
+          beneficiary_id?: string
+          beneficiary_role?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -6659,6 +7119,14 @@ export type Database = {
         | "apply_late_fee"
         | "restrict_access"
       collection_payment_method: "mobile_money" | "cash" | "in_app_wallet"
+      expense_category:
+        | "operations"
+        | "marketing"
+        | "research_and_development"
+        | "salaries"
+        | "agent_advances"
+        | "employee_advances"
+        | "general"
       flag_severity: "low" | "medium" | "high" | "critical"
       system_event_type:
         | "payment_missed"
@@ -6841,6 +7309,15 @@ export const Constants = {
         "restrict_access",
       ],
       collection_payment_method: ["mobile_money", "cash", "in_app_wallet"],
+      expense_category: [
+        "operations",
+        "marketing",
+        "research_and_development",
+        "salaries",
+        "agent_advances",
+        "employee_advances",
+        "general",
+      ],
       flag_severity: ["low", "medium", "high", "critical"],
       system_event_type: [
         "payment_missed",
