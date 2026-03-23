@@ -307,7 +307,7 @@ export default function Auth() {
 
             <CardHeader className={!isForgotPassword && !isForgotPhone ? 'pt-4 pb-2' : ''}>
               <CardTitle className="flex items-center gap-2 text-xl">
-                {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : loginMode === 'otp' ? 'Login with SMS Code' : 'Sign in with Phone'}
+                {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : loginMode === 'otp' ? 'Login with SMS Code' : loginMode === 'email' ? 'Sign in with Email' : 'Sign in with Phone'}
               </CardTitle>
               <CardDescription className="text-sm">
                 {isForgotPassword
@@ -320,7 +320,9 @@ export default function Auth() {
                       ? 'Join Welile to get started'
                       : loginMode === 'otp'
                         ? 'No password needed — we\'ll send you a code'
-                        : 'Enter your phone number and password'}
+                        : loginMode === 'email'
+                          ? 'Use your email address and password'
+                          : 'Enter your phone number and password'}
               </CardDescription>
             </CardHeader>
 
