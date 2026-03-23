@@ -3056,6 +3056,69 @@ export type Database = {
           },
         ]
       }
+      listing_bonus_approvals: {
+        Row: {
+          agent_id: string
+          amount: number
+          cfo_approved_at: string | null
+          cfo_approved_by: string | null
+          cfo_notes: string | null
+          created_at: string
+          id: string
+          landlord_ops_approved_at: string | null
+          landlord_ops_approved_by: string | null
+          landlord_ops_notes: string | null
+          ledger_entry_id: string | null
+          listing_id: string
+          paid_at: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount?: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          cfo_notes?: string | null
+          created_at?: string
+          id?: string
+          landlord_ops_approved_at?: string | null
+          landlord_ops_approved_by?: string | null
+          landlord_ops_notes?: string | null
+          ledger_entry_id?: string | null
+          listing_id: string
+          paid_at?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          cfo_notes?: string | null
+          created_at?: string
+          id?: string
+          landlord_ops_approved_at?: string | null
+          landlord_ops_approved_by?: string | null
+          landlord_ops_notes?: string | null
+          ledger_entry_id?: string | null
+          listing_id?: string
+          paid_at?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       loan_applications: {
         Row: {
           amount: number
