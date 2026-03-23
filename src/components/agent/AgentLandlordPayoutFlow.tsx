@@ -50,15 +50,26 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
   const [payoutId, setPayoutId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Fetch disbursed rent requests assigned to this agent
+  // Fetch disbursed rent requests for landlords assigned to this agent
   const { data: assignedRequests = [], isLoading } = useQuery({
     queryKey: ['agent-landlord-payout-requests', user?.id],
     queryFn: async () => {
       if (!user) return [];
+      
+      // Get assigned landlord IDs for this agent
+      const { data: assignments } = await supabase
+        .from('agent_landlord_assignments')
+        .select('landlord_id')
+        .eq('agent_id', user.id)
+        .eq('status', 'active');
+      
+      const assignedLandlordIds = (assignments || []).map(a => a.landlord_id);
+      if (assignedLandlordIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from('rent_requests')
         .select('id, rent_amount, tenant_id, landlord_id, status, request_latitude, request_longitude, created_at, daily_repayment, duration_days')
-        .or(`assigned_agent_id.eq.${user.id},agent_id.eq.${user.id}`)
+        .in('landlord_id', assignedLandlordIds)
         .in('status', ['disbursed', 'coo_approved', 'funded'])
         .order('created_at', { ascending: false });
       if (error) throw error;
