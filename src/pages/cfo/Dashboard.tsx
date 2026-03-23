@@ -64,6 +64,7 @@ export default function CFODashboardPage() {
       default:
         return (
           <div className="space-y-6">
+            <ChannelBalanceTracker />
             <FinancialOverview />
             <ListingBonusApprovalQueue filter="pending_cfo" />
             <RentPipelineQueue stage="coo_approved" />
