@@ -1410,6 +1410,99 @@ export type Database = {
           },
         ]
       }
+      cashout_agents: {
+        Row: {
+          agent_id: string
+          assigned_by: string
+          created_at: string
+          handles_bank: boolean
+          handles_cash: boolean
+          id: string
+          is_active: boolean
+          label: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_by: string
+          created_at?: string
+          handles_bank?: boolean
+          handles_cash?: boolean
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_by?: string
+          created_at?: string
+          handles_bank?: boolean
+          handles_cash?: boolean
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       cfo_threshold_alerts: {
         Row: {
           acknowledged: boolean | null
@@ -3662,6 +3755,146 @@ export type Database = {
             columns: ["visit_id"]
             isOneToOne: false
             referencedRelation: "agent_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payout_codes: {
+        Row: {
+          amount: number
+          claimed_at: string | null
+          claimed_by: string | null
+          code: string
+          created_at: string
+          expires_at: string
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          qr_data: string
+          status: string
+          user_id: string
+          withdrawal_request_id: string
+        }
+        Insert: {
+          amount: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          code: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          qr_data: string
+          status?: string
+          user_id: string
+          withdrawal_request_id: string
+        }
+        Update: {
+          amount?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          qr_data?: string
+          status?: string
+          user_id?: string
+          withdrawal_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_codes_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_codes_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_codes_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
+            columns: ["withdrawal_request_id"]
+            isOneToOne: false
+            referencedRelation: "withdrawal_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -6652,6 +6885,7 @@ export type Database = {
           agent_id: string | null
           agent_location: string | null
           amount: number
+          assigned_cashout_agent_id: string | null
           bank_account_name: string | null
           bank_account_number: string | null
           bank_name: string | null
@@ -6666,6 +6900,7 @@ export type Database = {
           mobile_money_name: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
+          payout_code: string | null
           payout_method: string
           payout_proof: string | null
           payout_proof_type: string | null
@@ -6682,6 +6917,7 @@ export type Database = {
           agent_id?: string | null
           agent_location?: string | null
           amount: number
+          assigned_cashout_agent_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
@@ -6696,6 +6932,7 @@ export type Database = {
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
+          payout_code?: string | null
           payout_method?: string
           payout_proof?: string | null
           payout_proof_type?: string | null
@@ -6712,6 +6949,7 @@ export type Database = {
           agent_id?: string | null
           agent_location?: string | null
           amount?: number
+          assigned_cashout_agent_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
@@ -6726,6 +6964,7 @@ export type Database = {
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
+          payout_code?: string | null
           payout_method?: string
           payout_proof?: string | null
           payout_proof_type?: string | null
@@ -6738,7 +6977,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "withdrawal_requests_assigned_cashout_agent_id_fkey"
+            columns: ["assigned_cashout_agent_id"]
+            isOneToOne: false
+            referencedRelation: "cashout_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
