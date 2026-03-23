@@ -225,7 +225,7 @@ export function TidVerification() {
               <Input
                 value={tid}
                 onChange={(e) => setTid(e.target.value.toUpperCase())}
-                placeholder="e.g. MP241231.1234.K56789"
+                placeholder="e.g. MP241231... or WEL-00001"
                 className="pl-8 h-10 font-mono text-sm tracking-wide"
                 onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
               />
