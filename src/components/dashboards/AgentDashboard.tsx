@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
