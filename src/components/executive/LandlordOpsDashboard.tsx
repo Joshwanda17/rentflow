@@ -22,6 +22,7 @@ import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
+import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
 
 interface ListingWithLandlord {
   id: string;
