@@ -234,6 +234,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           assigned_agent_name: r.assigned_agent_id ? (profileMap.get(r.assigned_agent_id)?.full_name || '') : '',
           landlord_name: landlordMap.get(r.landlord_id)?.name || 'Unknown',
           landlord_phone: landlordMap.get(r.landlord_id)?.phone || '',
+          landlord_momo: landlordMap.get(r.landlord_id)?.mobile_money_number || landlordMap.get(r.landlord_id)?.phone || '',
           lc1_name: r.lc1_id ? (lc1Map.get(r.lc1_id)?.name || '') : '',
           lc1_phone: r.lc1_id ? (lc1Map.get(r.lc1_id)?.phone || '') : '',
           lc1_village: r.lc1_id ? (lc1Map.get(r.lc1_id)?.village || '') : '',
