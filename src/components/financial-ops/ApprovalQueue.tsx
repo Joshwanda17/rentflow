@@ -136,6 +136,65 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
+  // Wallet withdrawal requests (from withdrawal_requests table)
+  const { data: walletWithdrawals = [], isLoading: loadingWalletWithdrawals } = useQuery({
+    queryKey: ['approval-queue-wallet-withdrawals'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .in('status', ['requested', 'manager_approved', 'cfo_approved'])
+        .order('created_at', { ascending: true })
+        .limit(200);
+      if (!data?.length) return [];
+
+      const userIds = [...new Set(data.map(d => d.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+      const pm = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      return data.map(w => {
+        const profile = pm.get(w.user_id);
+        const ageH = differenceInHours(new Date(), new Date(w.created_at));
+        const method = w.payout_method || 'mobile_money';
+        const payoutLabel = method === 'bank_transfer'
+          ? `🏦 Bank: ${w.bank_name || '—'} · ${w.bank_account_number || '—'}`
+          : method === 'cash'
+          ? `💵 Cash at: ${w.agent_location || 'Agent'}`
+          : `📱 ${w.mobile_money_provider || 'MoMo'}: ${w.mobile_money_number || '—'}`;
+
+        return {
+          id: w.id,
+          type: 'wallet_withdrawals' as QueueType,
+          userId: w.user_id,
+          userName: profile?.full_name || 'Unknown',
+          userPhone: profile?.phone || '',
+          amount: w.amount,
+          description: payoutLabel,
+          category: 'wallet_withdrawal',
+          createdAt: w.created_at,
+          ageHours: ageH,
+          urgency: ageH < 1 ? 'green' as const : ageH < 4 ? 'amber' as const : 'red' as const,
+          rawData: w,
+          payoutDetails: {
+            method,
+            provider: w.mobile_money_provider || undefined,
+            number: w.mobile_money_number || undefined,
+            name: w.mobile_money_name || undefined,
+            bankName: w.bank_name || undefined,
+            bankAccountNumber: w.bank_account_number || undefined,
+            bankAccountName: w.bank_account_name || undefined,
+            agentLocation: w.agent_location || undefined,
+            status: w.status,
+          },
+        };
+      });
+    },
+    staleTime: 15000,
+  });
+
   const { data: walletOps = [], isLoading: loadingWalletOps } = useQuery({
     queryKey: ['approval-queue-wallet-ops'],
     queryFn: async () => {
@@ -176,8 +235,8 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
-  const queues: Record<QueueType, QueueItem[]> = { deposits, withdrawals, wallet_ops: walletOps };
-  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'withdrawals' ? loadingWithdrawals : loadingWalletOps;
+  const queues: Record<QueueType, QueueItem[]> = { deposits, withdrawals, wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
+  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'withdrawals' ? loadingWithdrawals : activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
 
   const items = useMemo(() => {
     let list = queues[activeQueue];
