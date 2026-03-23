@@ -21,6 +21,7 @@ import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { DeliveryPipelineTracker } from '@/components/cfo/DeliveryPipelineTracker';
 import { AgentCashReconciliation } from '@/components/cfo/AgentCashReconciliation';
+import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
