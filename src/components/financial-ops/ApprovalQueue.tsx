@@ -55,6 +55,7 @@ export function ApprovalQueue() {
   const [reason, setReason] = useState('');
   const [processing, setProcessing] = useState(false);
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
+  const [payoutProof, setPayoutProof] = useState('');
 
   const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
     queryKey: ['approval-queue-deposits'],
@@ -268,10 +269,32 @@ export function ApprovalQueue() {
     }
   };
 
+  // Determine required proof label for wallet withdrawals
+  const getProofLabel = () => {
+    if (activeQueue !== 'wallet_withdrawals' || selected.size !== 1) return null;
+    const item = items.find(i => selected.has(i.id));
+    if (!item?.payoutDetails) return null;
+    const m = item.payoutDetails.method;
+    if (m === 'bank_transfer') return { label: 'Bank Reference', placeholder: 'Enter bank transfer reference number…', type: 'bank_reference' };
+    if (m === 'cash') return { label: 'Payment Voucher #', placeholder: 'Enter payment voucher number…', type: 'payment_voucher' };
+    return { label: 'Transaction ID (TID)', placeholder: 'Enter MoMo transaction ID…', type: 'momo_tid' };
+  };
+
+  const proofConfig = getProofLabel();
+
+  // For bulk wallet_withdrawals approval, all must have proof
+  const walletWithdrawalApproveBlocked = activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && !payoutProof.trim();
+
   const handleBulkAction = useCallback(async () => {
     if (!bulkAction || selected.size === 0 || !user) return;
     if (bulkAction === 'reject' && reason.length < 10) {
       toast.error('Rejection reason must be at least 10 characters');
+      return;
+    }
+
+    // Wallet cashout approval requires proof of payout
+    if (activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && !payoutProof.trim()) {
+      toast.error('Proof of payout is required to approve a cash-out');
       return;
     }
 
@@ -289,7 +312,6 @@ export function ApprovalQueue() {
         const { error } = await supabase.from('deposit_requests').update(updateFields).in('id', ids);
         if (error) throw error;
       } else if (activeQueue === 'wallet_ops') {
-        // Use the approve-wallet-operation edge function for proper ledger entries
         const response = await supabase.functions.invoke('approve-wallet-operation', {
           body: { ids, action: bulkAction, reason: bulkAction === 'reject' ? reason : undefined },
         });
@@ -306,7 +328,6 @@ export function ApprovalQueue() {
           .in('id', ids);
         if (error) throw error;
       } else if (activeQueue === 'wallet_withdrawals') {
-        // For wallet withdrawals, update manager_approved status
         const updateFields: Record<string, unknown> = {
           manager_approved_by: user.id,
           manager_approved_at: new Date().toISOString(),
@@ -314,6 +335,11 @@ export function ApprovalQueue() {
         };
         if (bulkAction === 'approve') {
           updateFields.status = 'manager_approved';
+          updateFields.payout_proof = payoutProof.trim();
+          // Determine proof type from selected items
+          const selectedItem = items.find(i => selected.has(i.id));
+          const method = selectedItem?.payoutDetails?.method || 'mobile_money';
+          updateFields.payout_proof_type = method === 'bank_transfer' ? 'bank_reference' : method === 'cash' ? 'payment_voucher' : 'momo_tid';
         } else {
           updateFields.status = 'rejected';
           updateFields.rejection_reason = reason;
@@ -328,12 +354,11 @@ export function ApprovalQueue() {
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: `bulk_${bulkAction}_${activeQueue}`,
-        metadata: { ids, reason: reason || undefined, count: ids.length },
+        metadata: { ids, reason: reason || undefined, payout_proof: payoutProof || undefined, count: ids.length },
       });
 
       toast.success(`${bulkAction === 'approve' ? 'Approved' : 'Rejected'} ${ids.length} items`);
 
-      // Optimistically remove processed items from the queue instantly
       const cacheKey = `approval-queue-${activeQueue}`;
       queryClient.setQueryData<QueueItem[]>([cacheKey], (old) =>
         (old || []).filter(item => !ids.includes(item.id))
@@ -342,6 +367,7 @@ export function ApprovalQueue() {
       setSelected(new Set());
       setBulkAction(null);
       setReason('');
+      setPayoutProof('');
       queryClient.invalidateQueries({ queryKey: [cacheKey] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
     } catch (err: any) {
@@ -349,7 +375,7 @@ export function ApprovalQueue() {
     } finally {
       setProcessing(false);
     }
-  }, [bulkAction, selected, activeQueue, user, reason, queryClient]);
+  }, [bulkAction, selected, activeQueue, user, reason, payoutProof, queryClient, items]);
 
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
   const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, withdrawals: ArrowUpFromLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
@@ -501,7 +527,35 @@ export function ApprovalQueue() {
                 className="text-sm min-h-[80px]"
               />
             )}
-            {bulkAction === 'approve' && (
+            {bulkAction === 'approve' && activeQueue === 'wallet_withdrawals' && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <Banknote className="h-4 w-4 text-amber-600 shrink-0" />
+                  <p className="text-[11px] text-amber-700 font-medium">
+                    Proof of payout is <strong>mandatory</strong> before approval
+                  </p>
+                </div>
+                <label className="text-xs font-medium text-foreground">
+                  {proofConfig?.label || 'Payout Reference'}
+                </label>
+                <Input
+                  placeholder={proofConfig?.placeholder || 'Enter payout reference…'}
+                  value={payoutProof}
+                  onChange={e => setPayoutProof(e.target.value)}
+                  className="text-sm h-9"
+                />
+                {proofConfig?.type === 'momo_tid' && (
+                  <p className="text-[10px] text-muted-foreground">Enter the MTN/Airtel Transaction ID from the confirmation SMS</p>
+                )}
+                {proofConfig?.type === 'bank_reference' && (
+                  <p className="text-[10px] text-muted-foreground">Enter the bank transfer reference number</p>
+                )}
+                {proofConfig?.type === 'payment_voucher' && (
+                  <p className="text-[10px] text-muted-foreground">Enter the physical payment voucher number (PV-XXXX)</p>
+                )}
+              </div>
+            )}
+            {bulkAction === 'approve' && activeQueue !== 'wallet_withdrawals' && (
               <Textarea
                 placeholder="Optional note…"
                 value={reason}
@@ -511,12 +565,12 @@ export function ApprovalQueue() {
             )}
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" size="sm" onClick={() => setBulkAction(null)} className="w-full sm:w-auto">Cancel</Button>
+            <Button variant="outline" size="sm" onClick={() => { setBulkAction(null); setPayoutProof(''); }} className="w-full sm:w-auto">Cancel</Button>
             <Button
               size="sm"
               variant={bulkAction === 'approve' ? 'default' : 'destructive'}
               onClick={handleBulkAction}
-              disabled={processing || (bulkAction === 'reject' && reason.length < 10)}
+              disabled={processing || (bulkAction === 'reject' && reason.length < 10) || walletWithdrawalApproveBlocked}
               className="w-full sm:w-auto"
             >
               {processing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
