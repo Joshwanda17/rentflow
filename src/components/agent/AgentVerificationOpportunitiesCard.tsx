@@ -144,7 +144,7 @@ export function AgentVerificationOpportunitiesCard() {
       });
       if (error) throw error;
       toast.success(data?.already_paid ? 'Already verified.' : 'House verified! UGX 5,000 bonus credited.');
-      fetchCounts();
+      fetchCountsAndPreviews();
       fetchAll();
     } catch (err: any) {
       toast.error(err.message || 'Verification failed');
@@ -189,7 +189,7 @@ export function AgentVerificationOpportunitiesCard() {
     setGuaranteeDialog({ open: false, request: null });
     setGuaranteeNote('');
     setGuaranteeing(false);
-    fetchCounts();
+    fetchCountsAndPreviews();
     fetchAll();
   };
 
@@ -384,7 +384,7 @@ export function AgentVerificationOpportunitiesCard() {
                                     variant="agent"
                                     onVerified={() => {
                                       setExpandedId(null);
-                                      fetchCounts();
+                                      fetchCountsAndPreviews();
                                       fetchAll();
                                     }}
                                   />
