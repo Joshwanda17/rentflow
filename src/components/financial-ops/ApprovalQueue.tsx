@@ -374,22 +374,22 @@ export function ApprovalQueue() {
 
       {/* Bulk Action Dialog */}
       <Dialog open={!!bulkAction} onOpenChange={() => { setBulkAction(null); setReason(''); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-sm sm:text-base">
               {bulkAction === 'approve' ? '✅ Approve' : '❌ Reject'} {selected.size} item(s)
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Total amount: <strong>{formatUGX(items.filter(i => selected.has(i.id)).reduce((s, i) => s + i.amount, 0))}</strong>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Total: <strong>{formatUGX(items.filter(i => selected.has(i.id)).reduce((s, i) => s + i.amount, 0))}</strong>
             </p>
             {bulkAction === 'reject' && (
               <Textarea
                 placeholder="Reason for rejection (min 10 characters)…"
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                className="text-sm"
+                className="text-sm min-h-[80px]"
               />
             )}
             {bulkAction === 'approve' && (
@@ -397,17 +397,18 @@ export function ApprovalQueue() {
                 placeholder="Optional note…"
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                className="text-sm"
+                className="text-sm min-h-[60px]"
               />
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setBulkAction(null)}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" size="sm" onClick={() => setBulkAction(null)} className="w-full sm:w-auto">Cancel</Button>
             <Button
               size="sm"
               variant={bulkAction === 'approve' ? 'default' : 'destructive'}
               onClick={handleBulkAction}
               disabled={processing || (bulkAction === 'reject' && reason.length < 10)}
+              className="w-full sm:w-auto"
             >
               {processing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
               Confirm {bulkAction === 'approve' ? 'Approval' : 'Rejection'}
