@@ -487,12 +487,36 @@ export function ApprovalQueue() {
                           <p className="text-xs sm:text-sm font-bold tabular-nums shrink-0">{formatUGX(item.amount)}</p>
                         </div>
                         <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{item.description}</p>
-                        {item.payoutDetails?.status && (
+                        {/* Enhanced payout details for wallet withdrawals */}
+                        {item.payoutDetails && item.type === 'wallet_withdrawals' && (
+                          <div className="mt-1 p-1.5 rounded bg-muted/60 border border-border/50 space-y-0.5">
+                            {item.payoutDetails.method === 'mobile_money' && (
+                              <>
+                                <p className="text-[10px] font-medium">📱 {item.payoutDetails.provider || 'MoMo'}: {item.payoutDetails.number}</p>
+                                {item.payoutDetails.name && <p className="text-[10px] text-muted-foreground">Name: {item.payoutDetails.name}</p>}
+                              </>
+                            )}
+                            {item.payoutDetails.method === 'bank_transfer' && (
+                              <>
+                                <p className="text-[10px] font-medium">🏦 {item.payoutDetails.bankName}</p>
+                                <p className="text-[10px] text-muted-foreground">Acc: {item.payoutDetails.bankAccountNumber}</p>
+                                {item.payoutDetails.bankAccountName && <p className="text-[10px] text-muted-foreground">Name: {item.payoutDetails.bankAccountName}</p>}
+                              </>
+                            )}
+                            {item.payoutDetails.method === 'cash' && (
+                              <p className="text-[10px] font-medium">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent location'}</p>
+                            )}
+                            <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                              {item.payoutDetails.status?.replace(/_/g, ' ')}
+                            </Badge>
+                          </div>
+                        )}
+                        {item.payoutDetails?.status && item.type !== 'wallet_withdrawals' && (
                           <Badge variant="outline" className="h-4 px-1 text-[9px] mt-0.5">
                             {item.payoutDetails.status.replace(/_/g, ' ')}
                           </Badge>
                         )}
-                        <p className="text-[9px] sm:text-[10px] text-muted-foreground/70">
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground/70 mt-0.5">
                           {item.userPhone && `${item.userPhone} · `}
                           {format(new Date(item.createdAt), 'MMM d, HH:mm')}
                           {item.ageHours >= 1 && ` · ${Math.round(item.ageHours)}h`}
