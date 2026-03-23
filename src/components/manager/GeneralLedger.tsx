@@ -48,6 +48,7 @@ interface LedgerSummary {
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year';
 type CategoryFilter = 'all' | string;
 type DirectionFilter = 'all' | 'cash_in' | 'cash_out';
+type ScopeFilter = 'all' | 'wallet' | 'platform' | 'bridge';
 
 const PAGE_SIZE = 50;
 
