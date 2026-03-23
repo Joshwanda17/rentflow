@@ -47,9 +47,15 @@ export default function ActivePartnersDetail() {
   const [investAmount, setInvestAmount] = useState('');
   const [investing, setInvesting] = useState(false);
 
+  // Suspend dialog state
+  const [suspendPartner, setSuspendPartner] = useState<PartnerRow | null>(null);
+  const [suspending, setSuspending] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
+
   // Delete dialog state
   const [deletePartner, setDeletePartner] = useState<PartnerRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   // Edit dialog state
   const [editPartner, setEditPartner] = useState<PartnerRow | null>(null);
