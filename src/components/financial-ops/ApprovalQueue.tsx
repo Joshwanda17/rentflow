@@ -251,8 +251,12 @@ export function ApprovalQueue() {
         i.id.startsWith(q)
       );
     }
+    // Sort by date: default oldest first, toggle for newest first
+    if (sortNewest) {
+      list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
     return list;
-  }, [activeQueue, search, deposits, withdrawals, walletWithdrawals, walletOps]);
+  }, [activeQueue, search, sortNewest, deposits, withdrawals, walletWithdrawals, walletOps]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
