@@ -23,13 +23,12 @@ export default function FinancialTransactionsTable() {
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
-    if (searchTimeout) clearTimeout(searchTimeout);
-    const t = setTimeout(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(value);
       setPage(0);
     }, 400);
-    setSearchTimeout(t);
-  }, [searchTimeout]);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ['coo-ledger-transactions', debouncedSearch, directionFilter, categoryFilter, page],
