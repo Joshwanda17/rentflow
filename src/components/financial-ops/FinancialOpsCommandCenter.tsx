@@ -12,53 +12,53 @@ export function FinancialOpsCommandCenter() {
   const [tab, setTab] = useState('queue');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <div>
-        <h1 className="text-xl font-bold flex items-center gap-2">
+        <h1 className="text-lg sm:text-xl font-bold flex items-center gap-2">
           <LayoutDashboard className="h-5 w-5 text-primary" />
-          Financial Operations Center
+          Financial Ops
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Manage deposits, withdrawals, and ledger operations at scale
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+          Manage deposits, withdrawals & ledger operations
         </p>
       </div>
 
-      {/* Live Pulse Strip — always visible */}
       <FinancialOpsPulseStrip />
 
-      {/* Tab Navigation */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="h-9 w-full justify-start overflow-x-auto">
-          <TabsTrigger value="queue" className="text-xs gap-1.5">
-            <ClipboardList className="h-3.5 w-3.5" /> Queue
-          </TabsTrigger>
-          <TabsTrigger value="tid" className="text-xs gap-1.5">
-            <Hash className="h-3.5 w-3.5" /> TID Verify
-          </TabsTrigger>
-          <TabsTrigger value="search" className="text-xs gap-1.5">
-            <Search className="h-3.5 w-3.5" /> Search
-          </TabsTrigger>
-          <TabsTrigger value="reconciliation" className="text-xs gap-1.5">
-            <Scale className="h-3.5 w-3.5" /> Reconciliation
-          </TabsTrigger>
-          <TabsTrigger value="audit" className="text-xs gap-1.5">
-            <Shield className="h-3.5 w-3.5" /> Audit
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
+          <TabsList className="h-9 w-max sm:w-full justify-start">
+            <TabsTrigger value="queue" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
+              <ClipboardList className="h-3.5 w-3.5" /> Queue
+            </TabsTrigger>
+            <TabsTrigger value="tid" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
+              <Hash className="h-3.5 w-3.5" /> TID
+            </TabsTrigger>
+            <TabsTrigger value="search" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
+              <Search className="h-3.5 w-3.5" /> Search
+            </TabsTrigger>
+            <TabsTrigger value="reconciliation" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
+              <Scale className="h-3.5 w-3.5" /> Recon
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
+              <Shield className="h-3.5 w-3.5" /> Audit
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <TabsContent value="queue" className="mt-3">
+        <TabsContent value="queue" className="mt-2 sm:mt-3">
           <ApprovalQueue />
         </TabsContent>
-        <TabsContent value="tid" className="mt-3">
+        <TabsContent value="tid" className="mt-2 sm:mt-3">
           <TidVerification />
         </TabsContent>
-        <TabsContent value="search" className="mt-3">
+        <TabsContent value="search" className="mt-2 sm:mt-3">
           <TransactionSearch />
         </TabsContent>
-        <TabsContent value="reconciliation" className="mt-3">
+        <TabsContent value="reconciliation" className="mt-2 sm:mt-3">
           <ReconciliationDashboard />
         </TabsContent>
-        <TabsContent value="audit" className="mt-3">
+        <TabsContent value="audit" className="mt-2 sm:mt-3">
           <AuditFeed />
         </TabsContent>
       </Tabs>
