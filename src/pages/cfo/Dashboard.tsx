@@ -55,6 +55,8 @@ export default function CFODashboardPage() {
         return (
           <div className="space-y-6">
             <FinancialOverview />
+            {/* 🔥 PRIORITY: Listing Bonus Approvals */}
+            <ListingBonusApprovalQueue filter="pending_cfo" />
             {/* 🔥 PRIORITY: Rent Payout Queue on overview */}
             <RentPipelineQueue stage="coo_approved" />
           </div>
