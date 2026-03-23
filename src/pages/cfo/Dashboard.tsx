@@ -69,6 +69,8 @@ export default function CFODashboardPage() {
         return <CashoutAgentActivity />;
       case 'payroll':
         return <PayrollPanel />;
+      case 'delivery-pipeline':
+        return <DeliveryPipelineTracker />;
       default:
         return (
           <div className="space-y-6">
