@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowDownToLine, ArrowUpFromLine, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Activity, AlertTriangle, RefreshCw, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 
