@@ -51,9 +51,10 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Cash-Out Agents', icon: Banknote, id: 'cashout-agents' },
         { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
-        { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
-      ],
-    },
+      { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
+      { label: 'Delivery Pipeline', icon: Truck, id: 'delivery-pipeline' },
+    ],
+  },
   ],
   coo: [
     {
