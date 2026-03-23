@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Eye } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
@@ -270,54 +270,56 @@ export function ApprovalQueue() {
   return (
     <>
       <Card>
-        <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+        <CardHeader className="pb-2 px-3 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 justify-between">
+            <CardTitle className="text-sm sm:text-base flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" /> Approval Queue
             </CardTitle>
             <div className="flex items-center gap-2">
               {selected.size > 0 && (
                 <div className="flex gap-1.5">
-                  <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => setBulkAction('approve')}>
-                    <CheckCircle2 className="h-3 w-3 mr-1" /> Approve ({selected.size})
+                  <Button size="sm" variant="default" className="h-7 text-[11px] sm:text-xs px-2 sm:px-3" onClick={() => setBulkAction('approve')}>
+                    <CheckCircle2 className="h-3 w-3 mr-0.5" /> Approve ({selected.size})
                   </Button>
-                  <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => setBulkAction('reject')}>
-                    <XCircle className="h-3 w-3 mr-1" /> Reject ({selected.size})
+                  <Button size="sm" variant="destructive" className="h-7 text-[11px] sm:text-xs px-2 sm:px-3" onClick={() => setBulkAction('reject')}>
+                    <XCircle className="h-3 w-3 mr-0.5" /> Reject ({selected.size})
                   </Button>
                 </div>
               )}
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <Tabs value={activeQueue} onValueChange={(v) => { setActiveQueue(v as QueueType); setSelected(new Set()); }}>
-            <TabsList className="h-8">
-              <TabsTrigger value="deposits" className="text-xs gap-1 h-7">
-                <ArrowDownToLine className="h-3 w-3" /> Deposits
-                {deposits.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{deposits.length}</Badge>}
-              </TabsTrigger>
-              <TabsTrigger value="withdrawals" className="text-xs gap-1 h-7">
-                <ArrowUpFromLine className="h-3 w-3" /> Withdrawals
-                {withdrawals.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{withdrawals.length}</Badge>}
-              </TabsTrigger>
-              <TabsTrigger value="wallet_ops" className="text-xs gap-1 h-7">
-                <Wallet className="h-3 w-3" /> Wallet Ops
-                {walletOps.length > 0 && <Badge variant="outline" className="h-4 px-1 text-[10px]">{walletOps.length}</Badge>}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6">
+          <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
+            <Tabs value={activeQueue} onValueChange={(v) => { setActiveQueue(v as QueueType); setSelected(new Set()); }}>
+              <TabsList className="h-8 w-max sm:w-auto">
+                <TabsTrigger value="deposits" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
+                  <ArrowDownToLine className="h-3 w-3" /> Deposits
+                  {deposits.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{deposits.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
+                  <ArrowUpFromLine className="h-3 w-3" /> <span className="hidden xs:inline">Withdrawals</span><span className="xs:hidden">W/D</span>
+                  {withdrawals.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{withdrawals.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="wallet_ops" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
+                  <Wallet className="h-3 w-3" /> <span className="hidden xs:inline">Wallet Ops</span><span className="xs:hidden">Wallet</span>
+                  {walletOps.length > 0 && <Badge variant="outline" className="h-4 px-1 text-[10px]">{walletOps.length}</Badge>}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search name, phone, TID, or ID…"
+              placeholder="Search name, phone, TID…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-9 h-8 text-xs"
             />
           </div>
 
-          <ScrollArea className="max-h-[500px]">
+          <ScrollArea className="max-h-[60vh] sm:max-h-[500px]">
             {isLoading ? (
               <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
             ) : items.length === 0 ? (
@@ -337,32 +339,29 @@ export function ApprovalQueue() {
                   return (
                     <div
                       key={item.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border-l-4 ${urgencyBg[item.urgency]} bg-card hover:bg-muted/40 transition-colors cursor-pointer`}
+                      className={`flex items-start sm:items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border-l-4 ${urgencyBg[item.urgency]} bg-card hover:bg-muted/40 transition-colors cursor-pointer`}
                       onClick={() => setInspectItem(item)}
                     >
                       <Checkbox
                         checked={selected.has(item.id)}
                         onCheckedChange={() => toggleSelect(item.id)}
                         onClick={(e) => e.stopPropagation()}
+                        className="mt-0.5 sm:mt-0 shrink-0"
                       />
-                      <div className={`p-1.5 rounded-lg ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
-                        <Icon className={`h-3.5 w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
+                      <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
+                        <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.userName}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-                        <p className="text-[10px] text-muted-foreground/70">
+                        <div className="flex items-baseline justify-between gap-1">
+                          <p className="text-xs sm:text-sm font-medium truncate">{item.userName}</p>
+                          <p className="text-xs sm:text-sm font-bold tabular-nums shrink-0">{formatUGX(item.amount)}</p>
+                        </div>
+                        <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{item.description}</p>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground/70">
                           {item.userPhone && `${item.userPhone} · `}
                           {format(new Date(item.createdAt), 'MMM d, HH:mm')}
-                          {item.ageHours >= 1 && ` · ${Math.round(item.ageHours)}h ago`}
+                          {item.ageHours >= 1 && ` · ${Math.round(item.ageHours)}h`}
                         </p>
-                      </div>
-                      <div className="text-right flex flex-col items-end gap-1">
-                        <p className="text-sm font-bold tabular-nums">{formatUGX(item.amount)}</p>
-                        <Badge variant="outline" className="text-[9px] px-1">
-                          {item.category.replace(/_/g, ' ')}
-                        </Badge>
-                        <Eye className="h-3 w-3 text-muted-foreground/50" />
                       </div>
                     </div>
                   );
@@ -375,22 +374,22 @@ export function ApprovalQueue() {
 
       {/* Bulk Action Dialog */}
       <Dialog open={!!bulkAction} onOpenChange={() => { setBulkAction(null); setReason(''); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-sm sm:text-base">
               {bulkAction === 'approve' ? '✅ Approve' : '❌ Reject'} {selected.size} item(s)
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Total amount: <strong>{formatUGX(items.filter(i => selected.has(i.id)).reduce((s, i) => s + i.amount, 0))}</strong>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Total: <strong>{formatUGX(items.filter(i => selected.has(i.id)).reduce((s, i) => s + i.amount, 0))}</strong>
             </p>
             {bulkAction === 'reject' && (
               <Textarea
                 placeholder="Reason for rejection (min 10 characters)…"
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                className="text-sm"
+                className="text-sm min-h-[80px]"
               />
             )}
             {bulkAction === 'approve' && (
@@ -398,17 +397,18 @@ export function ApprovalQueue() {
                 placeholder="Optional note…"
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                className="text-sm"
+                className="text-sm min-h-[60px]"
               />
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setBulkAction(null)}>Cancel</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" size="sm" onClick={() => setBulkAction(null)} className="w-full sm:w-auto">Cancel</Button>
             <Button
               size="sm"
               variant={bulkAction === 'approve' ? 'default' : 'destructive'}
               onClick={handleBulkAction}
               disabled={processing || (bulkAction === 'reject' && reason.length < 10)}
+              className="w-full sm:w-auto"
             >
               {processing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
               Confirm {bulkAction === 'approve' ? 'Approval' : 'Rejection'}

@@ -196,18 +196,18 @@ export function TidVerification() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
+      <CardHeader className="pb-3 px-3 sm:px-6">
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-primary" />
-          TID Verification & Auto-Approve
+          TID Verify
         </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Enter the Transaction ID from the mobile money confirmation. If it matches a pending deposit, it auto-approves.
+        <p className="text-[10px] sm:text-xs text-muted-foreground">
+          Enter the MoMo Transaction ID. Matching deposits auto-approve.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
         {/* Input Fields */}
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+        <div className="space-y-2">
           <div className="space-y-1">
             <Label className="text-xs font-medium">Transaction ID (TID) *</Label>
             <div className="relative">
@@ -221,28 +221,32 @@ export function TidVerification() {
               />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs font-medium">Amount (optional)</Label>
-            <Input
-              type="number"
-              value={operatorAmount}
-              onChange={(e) => setOperatorAmount(e.target.value)}
-              placeholder="e.g. 15000"
-              className="h-10 w-full sm:w-32"
-            />
+          <div className="flex gap-2">
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs font-medium">Amount (optional)</Label>
+              <Input
+                type="number"
+                value={operatorAmount}
+                onChange={(e) => setOperatorAmount(e.target.value)}
+                placeholder="e.g. 15000"
+                className="h-10"
+              />
+            </div>
+            <div className="self-end">
+              <Button
+                onClick={handleSearch}
+                disabled={searching || !tid.trim()}
+                className="h-10 px-4 sm:px-5"
+              >
+                {searching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span className="ml-1.5">Verify</span>
+              </Button>
+            </div>
           </div>
-          <Button
-            onClick={handleSearch}
-            disabled={searching || !tid.trim()}
-            className="h-10"
-          >
-            {searching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-            Verify
-          </Button>
         </div>
 
         {/* Results */}
@@ -277,43 +281,40 @@ export function TidVerification() {
               className="space-y-3"
             >
               {/* Summary bar */}
-              <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2.5">
-                <div className="flex items-center gap-2 text-xs">
-                  <Badge variant="outline" className="gap-1">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/50 rounded-lg p-2">
+                <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                  <Badge variant="outline" className="gap-1 text-[10px]">
                     {matches.length} found
                   </Badge>
                   {pendingMatches.length > 0 && (
-                    <Badge className="gap-1 bg-emerald-600">
-                      <Zap className="h-3 w-3" /> {pendingMatches.length} ready to auto-approve
+                    <Badge className="gap-1 bg-emerald-600 text-[10px]">
+                      <Zap className="h-2.5 w-2.5" /> {pendingMatches.length} ready
                     </Badge>
                   )}
                 </div>
                 {pendingMatches.length > 1 && (
                   <Button
                     size="sm"
-                    className="h-7 text-xs gap-1"
+                    className="h-7 text-[11px] gap-1"
                     onClick={handleAutoApproveAll}
                     disabled={!!approving}
                   >
-                    <CheckCircle2 className="h-3 w-3" /> Approve All ({pendingMatches.length})
+                    <CheckCircle2 className="h-3 w-3" /> Approve All
                   </Button>
                 )}
               </div>
 
               {/* Match list */}
-              <ScrollArea className="max-h-[400px]">
+              <ScrollArea className="max-h-[60vh] sm:max-h-[400px]">
                 <div className="space-y-2">
                   {matches.map((m) => {
                     const isApproved = approvedIds.has(m.id);
                     const isProcessing = approving === m.id;
 
                     return (
-                      <motion.div
+                      <div
                         key={m.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.97 }}
-                        animate={{ opacity: isApproved ? 0.6 : 1, scale: 1 }}
-                        className={`rounded-lg border p-3 transition-colors ${
+                        className={`rounded-lg border p-2.5 sm:p-3 transition-colors ${
                           isApproved
                             ? 'border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20'
                             : m.status === 'matched'
@@ -321,59 +322,59 @@ export function TidVerification() {
                             : 'border-amber-200 bg-amber-50/30 dark:bg-amber-950/10'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold">{m.userName}</span>
-                              <span className="text-xs text-muted-foreground">{m.userPhone}</span>
-                              {m.status === 'matched' ? (
-                                <Badge className="bg-emerald-600 text-[10px] h-4 gap-0.5">
-                                  <CheckCircle2 className="h-2.5 w-2.5" /> TID & Amount Match
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px] h-4 gap-0.5">
-                                  <AlertTriangle className="h-2.5 w-2.5" /> Amount Mismatch
-                                </Badge>
-                              )}
-                              {isApproved && (
-                                <Badge className="bg-emerald-700 text-[10px] h-4">
-                                  Approved ✓
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span className="font-mono">TID: {m.transaction_id || '—'}</span>
-                              <span>•</span>
-                              <span>{m.provider || 'MoMo'}</span>
-                              <span>•</span>
-                              <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
-                            </div>
-                            {m.notes && (
-                              <p className="text-xs text-muted-foreground italic">"{m.notes}"</p>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className="text-sm font-bold text-foreground">
+                        <div className="space-y-1.5">
+                          {/* Top row: name + amount */}
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-xs sm:text-sm font-semibold truncate">{m.userName}</span>
+                            <span className="text-xs sm:text-sm font-bold text-foreground shrink-0 tabular-nums">
                               {formatUGX(m.amount)}
                             </span>
-                            {!isApproved && m.status === 'matched' && (
-                              <Button
-                                size="sm"
-                                className="h-7 text-xs gap-1"
-                                disabled={isProcessing}
-                                onClick={() => handleAutoApprove(m)}
-                              >
-                                {isProcessing ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <ArrowRight className="h-3 w-3" />
-                                )}
-                                Auto-Approve
-                              </Button>
+                          </div>
+                          {/* Badges */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] text-muted-foreground">{m.userPhone}</span>
+                            {m.status === 'matched' ? (
+                              <Badge className="bg-emerald-600 text-[9px] sm:text-[10px] h-4 gap-0.5 px-1">
+                                <CheckCircle2 className="h-2.5 w-2.5" /> Match
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-amber-600 border-amber-300 text-[9px] sm:text-[10px] h-4 gap-0.5 px-1">
+                                <AlertTriangle className="h-2.5 w-2.5" /> Mismatch
+                              </Badge>
+                            )}
+                            {isApproved && (
+                              <Badge className="bg-emerald-700 text-[9px] h-4 px-1">
+                                Approved ✓
+                              </Badge>
                             )}
                           </div>
+                          {/* TID & metadata */}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-muted-foreground">
+                            <span className="font-mono truncate max-w-[180px]">TID: {m.transaction_id || '—'}</span>
+                            <span>{m.provider || 'MoMo'}</span>
+                            <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
+                          </div>
+                          {m.notes && (
+                            <p className="text-[10px] text-muted-foreground italic truncate">"{m.notes}"</p>
+                          )}
+                          {/* Action button */}
+                          {!isApproved && m.status === 'matched' && (
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs gap-1 w-full sm:w-auto mt-1"
+                              disabled={isProcessing}
+                              onClick={() => handleAutoApprove(m)}
+                            >
+                              {isProcessing ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <ArrowRight className="h-3 w-3" />
+                              )}
+                              Auto-Approve
+                            </Button>
+                          )}
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>
