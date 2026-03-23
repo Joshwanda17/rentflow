@@ -115,9 +115,7 @@ export default function DepositFlow({
         return;
       }
 
-      // manager_recorded_transactions table removed - skip auto-verify
-      let autoVerified = false;
-      const managerRecord: any = null;
+      // Auto-verify via pre-registered TIDs (checked after insert below)
 
       // Create deposit request - cast to any to handle new columns not yet in types
       const { error: depositError } = await supabase
@@ -125,7 +123,7 @@ export default function DepositFlow({
         .insert({
           user_id: user.id,
           amount: parseFloat(amount),
-          status: autoVerified ? 'approved' : 'pending',
+          status: 'pending',
           provider: provider,
           transaction_id: normalizedTxId,
           transaction_date: txDateTime.toISOString(),
@@ -134,34 +132,52 @@ export default function DepositFlow({
 
       if (depositError) throw depositError;
 
-      // If auto-verified, credit wallet immediately
-      if (autoVerified && managerRecord) {
-        // Update wallet balance
-        const { data: wallet } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', user.id)
-          .single();
+      // Check for pre-registered TID match (operator entered TID before depositor)
+      let autoMatchApproved = false;
+      try {
+        const tidVariants = [normalizedTxId, normalizedTxId.replace(/^TID/, ''), transactionId.trim().toUpperCase()];
+        const { data: preMatch } = await supabase
+          .from('pre_registered_tids' as any)
+          .select('*')
+          .eq('status', 'waiting')
+          .in('transaction_id', tidVariants)
+          .limit(1);
 
-        if (wallet) {
-          await supabase
-            .from('wallets')
-            .update({ balance: wallet.balance + parseFloat(amount) })
-            .eq('user_id', user.id);
-        } else {
-          await supabase
-            .from('wallets')
-            .insert({ user_id: user.id, balance: parseFloat(amount) });
+        if (preMatch && preMatch.length > 0) {
+          const match = preMatch[0] as any;
+          if (Math.abs(match.amount - parseFloat(amount)) < 1) {
+            const { data: newDeposit } = await supabase
+              .from('deposit_requests')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('transaction_id', normalizedTxId)
+              .eq('status', 'pending')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+
+            if (newDeposit) {
+              const { error: approveErr } = await supabase.functions.invoke('approve-deposit', {
+                body: { deposit_request_id: newDeposit.id, action: 'approve' },
+              });
+
+              if (!approveErr) {
+                await supabase
+                  .from('pre_registered_tids' as any)
+                  .update({ status: 'matched', matched_deposit_id: newDeposit.id, matched_at: new Date().toISOString() })
+                  .eq('id', match.id);
+                autoMatchApproved = true;
+              }
+            }
+          }
         }
+      } catch (matchErr) {
+        console.error('Pre-registered TID auto-match check failed:', matchErr);
+      }
 
-        // manager_recorded_transactions table removed - skip
-
-        // Notification removed - table dropped
-
-        toast.success('Deposit verified and added to your wallet!');
+      if (autoMatchApproved) {
+        toast.success('Deposit verified automatically and added to your wallet!');
       } else {
-        // Notification removed - table dropped
-
         toast.success('Deposit request submitted for verification');
       }
 
