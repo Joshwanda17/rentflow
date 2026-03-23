@@ -545,10 +545,10 @@ export default function Auth() {
                   <Button
                     type="submit"
                     className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium"
-                    disabled={isLoading || !emailLoginAddress.trim() || !password.trim()}
+                    disabled={emailLoginLoading || !emailLoginAddress.trim() || !password.trim()}
                     style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                   >
-                    {isLoading ? (
+                    {emailLoginLoading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <>
