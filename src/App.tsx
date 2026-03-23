@@ -99,6 +99,7 @@ const ExecutiveHubPage = lazy(() => import('./pages/ExecutiveHub'));
 const ROITrendsPage = lazy(() => import('./components/executive/ROITrendsPage'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
+const AgentCashPayoutsPage = lazy(() => import('./pages/agent/CashPayouts'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
 const EarningAgentsDetail = lazy(() => import('./pages/coo/EarningAgentsDetail'));
 const TenantsBalancesDetail = lazy(() => import('./pages/coo/TenantsBalancesDetail'));
