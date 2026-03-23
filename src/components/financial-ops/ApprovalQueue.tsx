@@ -527,7 +527,35 @@ export function ApprovalQueue() {
                 className="text-sm min-h-[80px]"
               />
             )}
-            {bulkAction === 'approve' && (
+            {bulkAction === 'approve' && activeQueue === 'wallet_withdrawals' && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <Banknote className="h-4 w-4 text-amber-600 shrink-0" />
+                  <p className="text-[11px] text-amber-700 font-medium">
+                    Proof of payout is <strong>mandatory</strong> before approval
+                  </p>
+                </div>
+                <label className="text-xs font-medium text-foreground">
+                  {proofConfig?.label || 'Payout Reference'}
+                </label>
+                <Input
+                  placeholder={proofConfig?.placeholder || 'Enter payout reference…'}
+                  value={payoutProof}
+                  onChange={e => setPayoutProof(e.target.value)}
+                  className="text-sm h-9"
+                />
+                {proofConfig?.type === 'momo_tid' && (
+                  <p className="text-[10px] text-muted-foreground">Enter the MTN/Airtel Transaction ID from the confirmation SMS</p>
+                )}
+                {proofConfig?.type === 'bank_reference' && (
+                  <p className="text-[10px] text-muted-foreground">Enter the bank transfer reference number</p>
+                )}
+                {proofConfig?.type === 'payment_voucher' && (
+                  <p className="text-[10px] text-muted-foreground">Enter the physical payment voucher number (PV-XXXX)</p>
+                )}
+              </div>
+            )}
+            {bulkAction === 'approve' && activeQueue !== 'wallet_withdrawals' && (
               <Textarea
                 placeholder="Optional note…"
                 value={reason}
@@ -537,12 +565,12 @@ export function ApprovalQueue() {
             )}
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" size="sm" onClick={() => setBulkAction(null)} className="w-full sm:w-auto">Cancel</Button>
+            <Button variant="outline" size="sm" onClick={() => { setBulkAction(null); setPayoutProof(''); }} className="w-full sm:w-auto">Cancel</Button>
             <Button
               size="sm"
               variant={bulkAction === 'approve' ? 'default' : 'destructive'}
               onClick={handleBulkAction}
-              disabled={processing || (bulkAction === 'reject' && reason.length < 10)}
+              disabled={processing || (bulkAction === 'reject' && reason.length < 10) || walletWithdrawalApproveBlocked}
               className="w-full sm:w-auto"
             >
               {processing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
