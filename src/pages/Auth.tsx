@@ -56,7 +56,8 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signIn: authSignIn } = useAuth();
+  const [emailLoginLoading, setEmailLoginLoading] = useState(false);
 
   // ========== Feature 4: Auto-login for returning users ==========
   useEffect(() => {
@@ -71,7 +72,8 @@ export default function Auth() {
   const hadSession = localStorage.getItem('welile_had_session') === 'true';
 
   // ========== Feature 1: Phone OTP Login ==========
-  const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
+  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('password');
+  const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const [otpLoginCode, setOtpLoginCode] = useState('');
   const [otpLoginStep, setOtpLoginStep] = useState<'phone' | 'code'>('phone');
@@ -216,6 +218,7 @@ export default function Auth() {
                 <p className="text-xs text-muted-foreground">
                   {lastLoginMethod === 'google' ? 'Tap "Continue with Google" to sign in' :
                    lastLoginMethod === 'otp' ? 'Use SMS code for quick login' :
+                   lastLoginMethod === 'email' ? 'Sign in with your email and password' :
                    'Enter your password to continue'}
                 </p>
               </div>
@@ -265,20 +268,33 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={() => setLoginMode('password')}
-                  className={`flex-1 py-3 text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-2 ${
+                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
                     loginMode === 'password'
                       ? 'text-primary border-b-2 border-primary bg-primary/5'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                   style={{ minHeight: '48px' }}
                 >
-                  <Lock className="h-4 w-4" />
-                  Password
+                  <Phone className="h-4 w-4" />
+                  Phone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMode('email')}
+                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
+                    loginMode === 'email'
+                      ? 'text-primary border-b-2 border-primary bg-primary/5'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  style={{ minHeight: '48px' }}
+                >
+                  <Mail className="h-4 w-4" />
+                  Email
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoginMode('otp')}
-                  className={`flex-1 py-3 text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-2 ${
+                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
                     loginMode === 'otp'
                       ? 'text-primary border-b-2 border-primary bg-primary/5'
                       : 'text-muted-foreground hover:text-foreground'
@@ -286,14 +302,14 @@ export default function Auth() {
                   style={{ minHeight: '48px' }}
                 >
                   <Smartphone className="h-4 w-4" />
-                  SMS Code
+                  SMS
                 </button>
               </div>
             )}
 
             <CardHeader className={!isForgotPassword && !isForgotPhone ? 'pt-4 pb-2' : ''}>
               <CardTitle className="flex items-center gap-2 text-xl">
-                {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : loginMode === 'otp' ? 'Login with SMS Code' : 'Sign in with Phone'}
+                {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : loginMode === 'otp' ? 'Login with SMS Code' : loginMode === 'email' ? 'Sign in with Email' : 'Sign in with Phone'}
               </CardTitle>
               <CardDescription className="text-sm">
                 {isForgotPassword
@@ -306,7 +322,9 @@ export default function Auth() {
                       ? 'Join Welile to get started'
                       : loginMode === 'otp'
                         ? 'No password needed — we\'ll send you a code'
-                        : 'Enter your phone number and password'}
+                        : loginMode === 'email'
+                          ? 'Use your email address and password'
+                          : 'Enter your phone number and password'}
               </CardDescription>
             </CardHeader>
 
@@ -423,6 +441,137 @@ export default function Auth() {
                     variant="standard"
                   />
                 </div>
+              ) : !isSignUp && !isForgotPassword && !isForgotPhone && loginMode === 'email' ? (
+                /* ========== Email + Password Login Mode ========== */
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!emailLoginAddress.trim() || !password.trim()) return;
+                  setEmailLoginLoading(true);
+                  const safetyTimer = setTimeout(() => setEmailLoginLoading(false), 6000);
+                  try {
+                    const { error } = await authSignIn(emailLoginAddress.trim(), password);
+                    if (error) {
+                      let msg = error.message;
+                      if (msg.includes('Invalid login credentials')) {
+                        msg = 'Incorrect email or password. If you signed in with Google, use the Google button below.';
+                      }
+                      setLoginError({ message: msg, triedFormats: [] });
+                      toast({ title: 'Sign In Failed', description: msg, variant: 'destructive' });
+                    } else {
+                      setLoginError(null);
+                      localStorage.setItem('welile_last_login_method', 'email');
+                    }
+                  } finally {
+                    clearTimeout(safetyTimer);
+                    setEmailLoginLoading(false);
+                  }
+                }} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="emailLogin" className="text-sm font-medium">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="emailLogin"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        value={emailLoginAddress}
+                        onChange={(e) => { setEmailLoginAddress(e.target.value); setLoginError(null); }}
+                        placeholder="you@example.com"
+                        className={`pl-11 h-14 text-base rounded-xl ${loginError ? 'border-destructive focus:ring-destructive' : ''}`}
+                        style={{ fontSize: '16px' }}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="emailPassword" className="text-sm font-medium">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="emailPassword"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="pl-11 h-14 text-base rounded-xl"
+                        style={{ fontSize: '16px' }}
+                        required
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Checkbox
+                        id="showEmailPassword"
+                        checked={showPassword}
+                        onCheckedChange={(checked) => setShowPassword(!!checked)}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="showEmailPassword" className="text-xs text-muted-foreground cursor-pointer select-none">
+                        Show password
+                      </Label>
+                    </div>
+                  </div>
+
+                  {loginError && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                      <p className="text-sm text-destructive">{loginError.message}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between py-1">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="rememberEmail"
+                        checked={rememberMe}
+                        onCheckedChange={(checked) => {
+                          setRememberMe(!!checked);
+                          localStorage.setItem('welile_remember_me', String(!!checked));
+                        }}
+                        className="h-5 w-5"
+                      />
+                      <Label htmlFor="rememberEmail" className="text-sm cursor-pointer">Remember me</Label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPassword(true)}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium"
+                    disabled={emailLoginLoading || !emailLoginAddress.trim() || !password.trim()}
+                    style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    {emailLoginLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <LogIn className="h-5 w-5" />
+                        Sign In
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Social divider */}
+                  <div className="relative flex items-center py-2">
+                    <div className="flex-1 border-t border-border/50" />
+                    <span className="px-3 text-xs text-muted-foreground">or</span>
+                    <div className="flex-1 border-t border-border/50" />
+                  </div>
+                  <GoogleSignInButton
+                    onClick={wrappedHandleGoogleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || emailLoginLoading}
+                    isLoading={isGoogleLoading}
+                    variant="standard"
+                  />
+                </form>
               ) : (
                 /* ========== Original Password Login / Signup / Forgot flows ========== */
                 <form onSubmit={wrappedHandleSubmit} className="space-y-4">
