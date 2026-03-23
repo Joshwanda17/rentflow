@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, XCircle, Loader2, Home, Banknote, Clock } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Home, Banknote } from 'lucide-react';
 
 interface BonusApproval {
   id: string;
