@@ -245,10 +245,17 @@ export function ApprovalQueue() {
       });
 
       toast.success(`${bulkAction === 'approve' ? 'Approved' : 'Rejected'} ${ids.length} items`);
+
+      // Optimistically remove processed items from the queue instantly
+      const cacheKey = `approval-queue-${activeQueue}`;
+      queryClient.setQueryData<QueueItem[]>([cacheKey], (old) =>
+        (old || []).filter(item => !ids.includes(item.id))
+      );
+
       setSelected(new Set());
       setBulkAction(null);
       setReason('');
-      queryClient.invalidateQueries({ queryKey: [`approval-queue-${activeQueue}`] });
+      queryClient.invalidateQueries({ queryKey: [cacheKey] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
     } catch (err: any) {
       toast.error(err.message || 'Action failed');
