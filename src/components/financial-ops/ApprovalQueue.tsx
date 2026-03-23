@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
@@ -56,6 +56,7 @@ export function ApprovalQueue() {
   const [processing, setProcessing] = useState(false);
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
   const [payoutProof, setPayoutProof] = useState('');
+  const [sortNewest, setSortNewest] = useState(false);
 
   const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
     queryKey: ['approval-queue-deposits'],
@@ -250,8 +251,12 @@ export function ApprovalQueue() {
         i.id.startsWith(q)
       );
     }
+    // Sort by date: default oldest first, toggle for newest first
+    if (sortNewest) {
+      list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
     return list;
-  }, [activeQueue, search, deposits, withdrawals, walletWithdrawals, walletOps]);
+  }, [activeQueue, search, sortNewest, deposits, withdrawals, walletWithdrawals, walletOps]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -451,14 +456,25 @@ export function ApprovalQueue() {
             </Tabs>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search name, phone, TID…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9 h-8 text-xs"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search name, phone, TID…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 h-8 text-xs"
+              />
+            </div>
+            <Button
+              variant={sortNewest ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 text-[10px] sm:text-xs gap-1 px-2 sm:px-3 shrink-0"
+              onClick={() => setSortNewest(!sortNewest)}
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              {sortNewest ? 'Newest' : 'Oldest'}
+            </Button>
           </div>
 
           <ScrollArea className="max-h-[60vh] sm:max-h-[500px]">
