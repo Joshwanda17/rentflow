@@ -36,7 +36,7 @@ export function DirectCreditTool() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({ title: '✅ Credit applied', description: `UGX ${parseFloat(amount).toLocaleString()} credited to ${selectedUser?.full_name}` });
       qc.invalidateQueries({ queryKey: ['expense-transfers'] });
       setSelectedUser(null);

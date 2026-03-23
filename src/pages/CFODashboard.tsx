@@ -118,6 +118,12 @@ export default function CFODashboard() {
             <DailyCashPositionReport />
           </TabsContent>
 
+          {/* Channel Balances & Direct Credit Tab */}
+          <TabsContent value="channels" className="space-y-6">
+            <ChannelBalanceTracker />
+            <DirectCreditTool />
+          </TabsContent>
+
           {/* Revenue vs Expense (P&L) Tab */}
           <TabsContent value="revenue" className="space-y-6">
             <RevenueExpenseDashboard />
