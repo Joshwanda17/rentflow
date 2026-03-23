@@ -294,7 +294,21 @@ export function UserWithdrawalRequests() {
                           cfoApprovedAt={request.cfo_approved_at}
                           cooApprovedAt={request.coo_approved_at}
                           processedAt={request.processed_at}
-                        />
+                         />
+                        {/* Show payout code for cash withdrawals */}
+                        {request.payout_code && request.payout_method === 'cash' && (
+                          <div className="mt-3 p-3 rounded-lg bg-primary/5 border-2 border-primary/20 text-center space-y-2">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                              Your Cash Payout Code
+                            </p>
+                            <p className="text-2xl font-mono font-bold text-primary tracking-widest">
+                              {request.payout_code}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              Show this code to any Welile agent to receive your cash. Expires in 72 hours.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )}
