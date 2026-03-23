@@ -420,11 +420,18 @@ export default function ActivePartnersDetail() {
               <span>Edit Partner</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); setDeletePartner(r); }}
+              onClick={(e) => { e.stopPropagation(); setSuspendPartner(r); setSuspendReason(''); }}
+              className="gap-2 text-amber-600 focus:text-amber-600"
+            >
+              <ShieldOff className="h-3.5 w-3.5" />
+              <span>Suspend Partner</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); setDeletePartner(r); setDeleteReason(''); }}
               className="gap-2 text-destructive focus:text-destructive"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Remove Partner</span>
+              <UserX className="h-3.5 w-3.5" />
+              <span>Delete Partner</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
