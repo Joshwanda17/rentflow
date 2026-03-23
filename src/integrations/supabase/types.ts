@@ -1415,33 +1415,48 @@ export type Database = {
           agent_id: string
           assigned_by: string
           created_at: string
+          current_queue_count: number | null
+          handles_airtel: boolean | null
           handles_bank: boolean
           handles_cash: boolean
+          handles_mtn: boolean | null
           id: string
           is_active: boolean
           label: string | null
+          max_daily_payouts: number | null
+          priority_threshold: number | null
           updated_at: string
         }
         Insert: {
           agent_id: string
           assigned_by: string
           created_at?: string
+          current_queue_count?: number | null
+          handles_airtel?: boolean | null
           handles_bank?: boolean
           handles_cash?: boolean
+          handles_mtn?: boolean | null
           id?: string
           is_active?: boolean
           label?: string | null
+          max_daily_payouts?: number | null
+          priority_threshold?: number | null
           updated_at?: string
         }
         Update: {
           agent_id?: string
           assigned_by?: string
           created_at?: string
+          current_queue_count?: number | null
+          handles_airtel?: boolean | null
           handles_bank?: boolean
           handles_cash?: boolean
+          handles_mtn?: boolean | null
           id?: string
           is_active?: boolean
           label?: string | null
+          max_daily_payouts?: number | null
+          priority_threshold?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -1889,6 +1904,9 @@ export type Database = {
           agent_id: string | null
           amount: number
           approved_at: string | null
+          audit_flagged: boolean | null
+          auto_approved: boolean | null
+          batch_run_id: string | null
           created_at: string
           id: string
           notes: string | null
@@ -1906,6 +1924,9 @@ export type Database = {
           agent_id?: string | null
           amount: number
           approved_at?: string | null
+          audit_flagged?: boolean | null
+          auto_approved?: boolean | null
+          batch_run_id?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -1923,6 +1944,9 @@ export type Database = {
           agent_id?: string | null
           amount?: number
           approved_at?: string | null
+          audit_flagged?: boolean | null
+          auto_approved?: boolean | null
+          batch_run_id?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -6886,6 +6910,7 @@ export type Database = {
           agent_location: string | null
           amount: number
           assigned_cashout_agent_id: string | null
+          auto_dispatched: boolean | null
           bank_account_name: string | null
           bank_account_number: string | null
           bank_name: string | null
@@ -6894,6 +6919,7 @@ export type Database = {
           coo_approved_at: string | null
           coo_approved_by: string | null
           created_at: string
+          dispatched_at: string | null
           id: string
           manager_approved_at: string | null
           manager_approved_by: string | null
@@ -6904,6 +6930,7 @@ export type Database = {
           payout_method: string
           payout_proof: string | null
           payout_proof_type: string | null
+          priority_level: string | null
           processed_at: string | null
           processed_by: string | null
           rejection_reason: string | null
@@ -6918,6 +6945,7 @@ export type Database = {
           agent_location?: string | null
           amount: number
           assigned_cashout_agent_id?: string | null
+          auto_dispatched?: boolean | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
@@ -6926,6 +6954,7 @@ export type Database = {
           coo_approved_at?: string | null
           coo_approved_by?: string | null
           created_at?: string
+          dispatched_at?: string | null
           id?: string
           manager_approved_at?: string | null
           manager_approved_by?: string | null
@@ -6936,6 +6965,7 @@ export type Database = {
           payout_method?: string
           payout_proof?: string | null
           payout_proof_type?: string | null
+          priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
           rejection_reason?: string | null
@@ -6950,6 +6980,7 @@ export type Database = {
           agent_location?: string | null
           amount?: number
           assigned_cashout_agent_id?: string | null
+          auto_dispatched?: boolean | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
@@ -6958,6 +6989,7 @@ export type Database = {
           coo_approved_at?: string | null
           coo_approved_by?: string | null
           created_at?: string
+          dispatched_at?: string | null
           id?: string
           manager_approved_at?: string | null
           manager_approved_by?: string | null
@@ -6968,6 +7000,7 @@ export type Database = {
           payout_method?: string
           payout_proof?: string | null
           payout_proof_type?: string | null
+          priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
           rejection_reason?: string | null
@@ -7057,6 +7090,10 @@ export type Database = {
     }
     Functions: {
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
+      auto_dispatch_withdrawals: {
+        Args: { p_batch_size?: number }
+        Returns: Json
+      }
       check_phone_exists: {
         Args: { phone_suffix: string }
         Returns: {
@@ -7132,6 +7169,7 @@ export type Database = {
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
       generate_portfolio_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_agent_workload_summary: { Args: never; Returns: Json }
       get_approximate_user_count: { Args: never; Returns: number }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
