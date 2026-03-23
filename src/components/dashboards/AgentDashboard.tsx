@@ -142,6 +142,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [creditOpen, setCreditOpen] = useState(false);
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
+  const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
+
+  // Check if this agent is a CFO-assigned cashout agent
+  const { data: isCashoutAgent } = useQuery({
+    queryKey: ['is-cashout-agent', user.id],
+    queryFn: async () => {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data } = await supabase
+        .from('cashout_agents')
+        .select('*')
+        .eq('agent_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      return data;
+    },
+  });
 
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
