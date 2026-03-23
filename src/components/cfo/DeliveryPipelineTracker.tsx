@@ -182,6 +182,30 @@ export function DeliveryPipelineTracker() {
           )}
         </div>
 
+        {/* Escalation actions for overdue deliveries */}
+        {!item.confirmed && item.hours_elapsed > 24 && (
+          <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] flex-1 gap-1"
+              onClick={() => handleEscalate(item)}
+            >
+              <AlertTriangle className="h-3 w-3" />
+              Escalate to Manager
+            </Button>
+            {item.agent_phone && (
+              <a
+                href={`tel:${item.agent_phone}`}
+                className="inline-flex items-center justify-center h-7 px-3 rounded-md border border-input bg-background text-[10px] gap-1 hover:bg-muted transition-colors"
+              >
+                <Phone className="h-3 w-3" />
+                Call Agent
+              </a>
+            )}
+          </div>
+        )}
+
         {item.confirmed && item.confirmed_at && (
           <div className="flex items-center gap-1 text-emerald-600 text-[10px] bg-emerald-500/10 rounded px-2 py-1">
             <CheckCircle2 className="h-3 w-3" />
