@@ -3635,6 +3635,53 @@ export type Database = {
           },
         ]
       }
+      pre_registered_tids: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          matched_at: string | null
+          matched_deposit_id: string | null
+          notes: string | null
+          provider: string | null
+          registered_by: string
+          status: string
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          matched_at?: string | null
+          matched_deposit_id?: string | null
+          notes?: string | null
+          provider?: string | null
+          registered_by: string
+          status?: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          matched_at?: string | null
+          matched_deposit_id?: string | null
+          notes?: string | null
+          provider?: string | null
+          registered_by?: string
+          status?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_registered_tids_matched_deposit_id_fkey"
+            columns: ["matched_deposit_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_categories: {
         Row: {
           agent_id: string
