@@ -50,6 +50,7 @@ import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
+import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
