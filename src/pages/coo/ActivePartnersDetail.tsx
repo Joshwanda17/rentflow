@@ -433,6 +433,7 @@ export default function ActivePartnersDetail() {
                 <span>Delete</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
     },
