@@ -595,8 +595,30 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
               {/* Payout Fields - only for CFO */}
               {config.showPayoutFields && (
-                <div className="space-y-3 rounded-xl border border-border p-3 bg-muted/30">
-                  <h4 className="text-sm font-semibold">💳 Payout Details</h4>
+                <div className="space-y-3 rounded-xl border-2 border-primary/30 p-3 bg-primary/5">
+                  <h4 className="text-sm font-bold flex items-center gap-2">💳 Payout Details</h4>
+                  
+                  {/* Landlord MoMo Info - Prominent */}
+                  <div className="rounded-lg border border-border bg-background p-3 space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Landlord Payment Info</p>
+                    <p className="font-bold text-sm">{selectedRequest.landlord_name}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {selectedRequest.landlord_momo && (
+                        <span className="inline-flex items-center gap-1 text-xs font-mono bg-primary/10 text-primary px-2 py-1 rounded-md">
+                          📱 MoMo: {selectedRequest.landlord_momo}
+                        </span>
+                      )}
+                      {selectedRequest.landlord_phone && selectedRequest.landlord_phone !== selectedRequest.landlord_momo && (
+                        <span className="inline-flex items-center gap-1 text-xs font-mono bg-muted px-2 py-1 rounded-md">
+                          📞 {selectedRequest.landlord_phone}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Call or send MoMo directly to the landlord's number above, then enter the TID below.
+                    </p>
+                  </div>
+
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Payout Method</label>
                     <Select value={payoutMethod} onValueChange={setPayoutMethod}>
@@ -606,18 +628,28 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                       <SelectContent>
                         <SelectItem value="wallet">Wallet (Landlord has Rent Money)</SelectItem>
                         <SelectItem value="cash">Cash Payout (No Wallet)</SelectItem>
-                        <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                        <SelectItem value="mobile_money">Mobile Money (Direct to Landlord)</SelectItem>
                         <SelectItem value="bank">Bank Transfer</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Transaction Reference *</label>
+                    <label className="text-xs font-semibold mb-1 block">
+                      {payoutMethod === 'mobile_money' ? 'MoMo Transaction ID (TID) *' :
+                       payoutMethod === 'bank' ? 'Bank Reference *' :
+                       payoutMethod === 'cash' ? 'Payment Voucher Number *' :
+                       'Transaction Reference *'}
+                    </label>
                     <Input
-                      placeholder="Enter transaction ID or reference"
+                      placeholder={
+                        payoutMethod === 'mobile_money' ? 'Enter MoMo TID after sending' :
+                        payoutMethod === 'bank' ? 'Enter bank transfer reference' :
+                        payoutMethod === 'cash' ? 'Enter payment voucher number' :
+                        'Enter transaction ID or reference'
+                      }
                       value={payoutRef}
                       onChange={e => setPayoutRef(e.target.value)}
-                      className="h-9"
+                      className="h-9 font-mono"
                     />
                   </div>
                 </div>
