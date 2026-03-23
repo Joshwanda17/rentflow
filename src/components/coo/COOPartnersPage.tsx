@@ -231,24 +231,24 @@ export default function COOPartnersPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data: supporterRoles } = await supabase
-        .from('user_roles').select('user_id').eq('role', 'supporter');
-      const supporterIds = (supporterRoles || []).map(r => r.user_id);
+      const supporterIds = await fetchAllUserIdsByRole('supporter');
       if (supporterIds.length === 0) {
         setRows([]);
         setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
         return;
       }
 
-      const ids = supporterIds.slice(0, 200);
-      const [profilesRes, walletsRes, portfoliosRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at').in('id', ids),
-        supabase.from('wallets').select('user_id, balance').in('user_id', ids),
-        supabase.from('investor_portfolios')
-          .select('investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at')
-          .or(`investor_id.in.(${ids.join(',')}),agent_id.in.(${ids.join(',')})`)
-          .in('status', ['active', 'pending_approval', 'pending'])
-          .order('created_at', { ascending: false }),
+      const ids = supporterIds;
+      const [profiles, wallets, portfolios] = await Promise.all([
+        batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at').in('id', batch)),
+        batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
+        batchedQuery<any>(ids, (batch) =>
+          supabase.from('investor_portfolios')
+            .select('investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at')
+            .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
+            .in('status', ['active', 'pending_approval', 'pending'])
+            .order('created_at', { ascending: false })
+        ),
       ]);
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
