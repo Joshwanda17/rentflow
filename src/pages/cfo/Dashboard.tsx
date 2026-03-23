@@ -61,6 +61,8 @@ export default function CFODashboardPage() {
         return <FinancialAgentsPanel />;
       case 'proxy-agents':
         return <ProxyAgentManager />;
+      case 'cashout-agents':
+        return <CashoutAgentManager />;
       case 'payroll':
         return <PayrollPanel />;
       default:

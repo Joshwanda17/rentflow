@@ -552,31 +552,57 @@ export function ApprovalQueue() {
               />
             )}
             {bulkAction === 'approve' && activeQueue === 'wallet_withdrawals' && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                  <Banknote className="h-4 w-4 text-amber-600 shrink-0" />
-                  <p className="text-[11px] text-amber-700 font-medium">
-                    Proof of payout is <strong>mandatory</strong> before approval
-                  </p>
+              <div className="space-y-3">
+                {/* Payout details summary */}
+                {items.filter(i => selected.has(i.id)).map(item => (
+                  <div key={item.id} className="p-3 rounded-lg border-2 border-primary/20 bg-primary/5 space-y-1">
+                    <p className="text-sm font-bold">{item.userName} — {formatUGX(item.amount)}</p>
+                    {item.payoutDetails?.method === 'mobile_money' && (
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-medium">📱 {item.payoutDetails.provider}: {item.payoutDetails.number}</p>
+                        {item.payoutDetails.name && <p className="text-muted-foreground">Registered name: {item.payoutDetails.name}</p>}
+                      </div>
+                    )}
+                    {item.payoutDetails?.method === 'bank_transfer' && (
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-medium">🏦 {item.payoutDetails.bankName}</p>
+                        <p>Account: <span className="font-mono font-bold">{item.payoutDetails.bankAccountNumber}</span></p>
+                        {item.payoutDetails.bankAccountName && <p>Name: {item.payoutDetails.bankAccountName}</p>}
+                      </div>
+                    )}
+                    {item.payoutDetails?.method === 'cash' && (
+                      <p className="text-xs font-medium">💵 Cash payout — code will be generated for the user</p>
+                    )}
+                  </div>
+                ))}
+
+                <div className="p-3 rounded-lg bg-amber-500/10 border-2 border-amber-500/40">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Banknote className="h-5 w-5 text-amber-600 shrink-0" />
+                    <p className="text-sm text-amber-700 font-bold">
+                      ⚠️ Enter Proof of Payout
+                    </p>
+                  </div>
+                  <label className="text-sm font-bold text-foreground block mb-1">
+                    {proofConfig?.label || 'Payout Reference'}
+                  </label>
+                  <Input
+                    placeholder={proofConfig?.placeholder || 'Enter payout reference…'}
+                    value={payoutProof}
+                    onChange={e => setPayoutProof(e.target.value)}
+                    className="text-base h-12 font-mono tracking-wider border-2 border-amber-500/30 bg-background"
+                    autoFocus
+                  />
+                  {proofConfig?.type === 'momo_tid' && (
+                    <p className="text-xs text-muted-foreground mt-1">Enter the MTN/Airtel Transaction ID from the confirmation SMS</p>
+                  )}
+                  {proofConfig?.type === 'bank_reference' && (
+                    <p className="text-xs text-muted-foreground mt-1">Enter the bank transfer reference number</p>
+                  )}
+                  {proofConfig?.type === 'payment_voucher' && (
+                    <p className="text-xs text-muted-foreground mt-1">Enter the physical payment voucher # — a Payout Code (QR) will be generated for the user</p>
+                  )}
                 </div>
-                <label className="text-xs font-medium text-foreground">
-                  {proofConfig?.label || 'Payout Reference'}
-                </label>
-                <Input
-                  placeholder={proofConfig?.placeholder || 'Enter payout reference…'}
-                  value={payoutProof}
-                  onChange={e => setPayoutProof(e.target.value)}
-                  className="text-sm h-9"
-                />
-                {proofConfig?.type === 'momo_tid' && (
-                  <p className="text-[10px] text-muted-foreground">Enter the MTN/Airtel Transaction ID from the confirmation SMS</p>
-                )}
-                {proofConfig?.type === 'bank_reference' && (
-                  <p className="text-[10px] text-muted-foreground">Enter the bank transfer reference number</p>
-                )}
-                {proofConfig?.type === 'payment_voucher' && (
-                  <p className="text-[10px] text-muted-foreground">Enter the physical payment voucher number (PV-XXXX)</p>
-                )}
               </div>
             )}
             {bulkAction === 'approve' && activeQueue !== 'wallet_withdrawals' && (
