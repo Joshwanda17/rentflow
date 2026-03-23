@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
+import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
