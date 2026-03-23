@@ -145,7 +145,7 @@ export function ApprovalQueue() {
       const { data } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .in('status', ['requested', 'manager_approved', 'cfo_approved'])
+        .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved'])
         .order('created_at', { ascending: true })
         .limit(200);
       if (!data?.length) return [];
