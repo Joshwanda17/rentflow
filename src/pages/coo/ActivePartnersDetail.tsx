@@ -614,21 +614,47 @@ export default function ActivePartnersDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Suspend Confirmation */}
+      <AlertDialog open={!!suspendPartner} onOpenChange={(open) => { if (!open) setSuspendPartner(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><ShieldOff className="h-5 w-5 text-amber-600" /> Suspend Partner</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disable the supporter role for <strong>{suspendPartner?.name}</strong>. They will lose access to partner features but their account and data remain intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
+            <Input value={suspendReason} onChange={(e) => setSuspendReason(e.target.value)} placeholder="Why is this partner being suspended?" className="mt-1" />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSuspend} disabled={suspending || suspendReason.length < 10} className="bg-amber-600 text-white hover:bg-amber-700">
+              {suspending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Suspend
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deletePartner} onOpenChange={(open) => { if (!open) setDeletePartner(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Partner</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive"><UserX className="h-5 w-5" /> Delete Partner Account</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the supporter role from <strong>{deletePartner?.name}</strong>. 
-              They will lose access to partner features. This cannot be undone easily.
+              This will <strong>permanently delete</strong> the account for <strong>{deletePartner?.name}</strong>, including all auth credentials, wallet, and profile data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
+            <Input value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Why is this account being deleted?" className="mt-1" />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} disabled={deleting || deleteReason.length < 10} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Remove
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
