@@ -73,7 +73,7 @@ export function ApprovalQueue() {
           userName: profile?.full_name || 'Unknown',
           userPhone: profile?.phone || '',
           amount: d.amount,
-          description: `TID: ${d.transaction_id || '—'} · ${d.provider || 'MoMo'}`,
+          description: `${d.status === 'approved' ? `TID: ${d.transaction_id || '—'} · ` : ''}${d.provider || 'MoMo'}`,
           category: 'deposit',
           createdAt: d.created_at,
           ageHours: ageH,
