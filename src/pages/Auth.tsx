@@ -266,20 +266,33 @@ export default function Auth() {
                 <button
                   type="button"
                   onClick={() => setLoginMode('password')}
-                  className={`flex-1 py-3 text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-2 ${
+                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
                     loginMode === 'password'
                       ? 'text-primary border-b-2 border-primary bg-primary/5'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                   style={{ minHeight: '48px' }}
                 >
-                  <Lock className="h-4 w-4" />
-                  Password
+                  <Phone className="h-4 w-4" />
+                  Phone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMode('email')}
+                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
+                    loginMode === 'email'
+                      ? 'text-primary border-b-2 border-primary bg-primary/5'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  style={{ minHeight: '48px' }}
+                >
+                  <Mail className="h-4 w-4" />
+                  Email
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoginMode('otp')}
-                  className={`flex-1 py-3 text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-2 ${
+                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
                     loginMode === 'otp'
                       ? 'text-primary border-b-2 border-primary bg-primary/5'
                       : 'text-muted-foreground hover:text-foreground'
@@ -287,7 +300,7 @@ export default function Auth() {
                   style={{ minHeight: '48px' }}
                 >
                   <Smartphone className="h-4 w-4" />
-                  SMS Code
+                  SMS
                 </button>
               </div>
             )}
