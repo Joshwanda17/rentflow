@@ -123,7 +123,7 @@ export default function DepositFlow({
         .insert({
           user_id: user.id,
           amount: parseFloat(amount),
-          status: autoVerified ? 'approved' : 'pending',
+          status: 'pending',
           provider: provider,
           transaction_id: normalizedTxId,
           transaction_date: txDateTime.toISOString(),
