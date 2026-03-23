@@ -121,19 +121,20 @@ export function GeneralLedger() {
   const buildQuery = useCallback(() => {
     let query = supabase
       .from('general_ledger')
-      .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, running_balance');
+      .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, running_balance, ledger_scope');
 
     if (startDate) query = query.gte('transaction_date', startDate.toISOString());
     if (endDate) query = query.lte('transaction_date', endDate.toISOString());
     if (categoryFilter !== 'all') query = query.eq('category', categoryFilter);
     if (directionFilter !== 'all') query = query.eq('direction', directionFilter);
+    if (scopeFilter !== 'all') query = query.eq('ledger_scope', scopeFilter);
     if (debouncedSearch) {
       query = query.or(
         `description.ilike.%${debouncedSearch}%,linked_party.ilike.%${debouncedSearch}%,category.ilike.%${debouncedSearch}%,reference_id.ilike.%${debouncedSearch}%`
       );
     }
     return query;
-  }, [startDate, endDate, categoryFilter, directionFilter, debouncedSearch]);
+  }, [startDate, endDate, categoryFilter, directionFilter, scopeFilter, debouncedSearch]);
 
   const fetchLedgerData = async () => {
     setLoading(true);
