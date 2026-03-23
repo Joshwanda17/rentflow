@@ -6,10 +6,11 @@ import { TransactionSearch } from './TransactionSearch';
 import { ReconciliationDashboard } from './ReconciliationDashboard';
 import { AuditFeed } from './AuditFeed';
 import { TidVerification } from './TidVerification';
-import { ClipboardList, Search, Scale, Shield, LayoutDashboard, Hash, ShieldCheck } from 'lucide-react';
+import { ScaleDashboard } from './ScaleDashboard';
+import { ClipboardList, Search, Scale, Shield, LayoutDashboard, ShieldCheck, Gauge } from 'lucide-react';
 
 export function FinancialOpsCommandCenter() {
-  const [tab, setTab] = useState('tid');
+  const [tab, setTab] = useState('ops');
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -19,7 +20,7 @@ export function FinancialOpsCommandCenter() {
           Financial Ops
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-          Wallet deposits & withdrawals
+          Wallet deposits & withdrawals · Scale engine
         </p>
       </div>
 
@@ -28,7 +29,10 @@ export function FinancialOpsCommandCenter() {
       <Tabs value={tab} onValueChange={setTab}>
         <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
           <TabsList className="h-9 w-max sm:w-full justify-start">
-            <TabsTrigger value="tid" className="text-[11px] sm:text-xs gap-1 px-3 sm:px-4 shrink-0 min-h-[36px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-semibold">
+            <TabsTrigger value="ops" className="text-[11px] sm:text-xs gap-1 px-3 sm:px-4 shrink-0 min-h-[36px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-semibold">
+              <Gauge className="h-3.5 w-3.5" /> Ops Center
+            </TabsTrigger>
+            <TabsTrigger value="tid" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
               <ShieldCheck className="h-3.5 w-3.5" /> TID Verify
             </TabsTrigger>
             <TabsTrigger value="queue" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
@@ -46,6 +50,9 @@ export function FinancialOpsCommandCenter() {
           </TabsList>
         </div>
 
+        <TabsContent value="ops" className="mt-2 sm:mt-3">
+          <ScaleDashboard />
+        </TabsContent>
         <TabsContent value="tid" className="mt-2 sm:mt-3">
           <TidVerification />
         </TabsContent>
