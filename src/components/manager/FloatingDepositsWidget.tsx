@@ -196,13 +196,7 @@ export function FloatingDepositsWidget() {
                           animate={{ opacity: 1, x: 0 }}
                           className="p-3 rounded-lg bg-muted/50 border border-border/50"
                         >
-                          {/* Transaction ID — top priority */}
-                          <div className="p-2 rounded-md bg-warning/10 border border-warning/30 mb-2">
-                            <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-0.5">Transaction ID — Verify First</p>
-                            <p className="font-mono text-lg font-black text-foreground break-all leading-tight">
-                              {deposit.transaction_id || <span className="text-destructive text-xs italic font-sans font-medium">No Transaction ID</span>}
-                            </p>
-                          </div>
+                          {/* Transaction ID hidden until verified via TID Verification */}
 
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
