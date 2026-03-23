@@ -650,8 +650,17 @@ export default function ActivePartnersDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-2">
-            <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
-            <Input value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Why is this account being deleted?" className="mt-1" />
+            <Label className="text-xs font-medium">Reason for deletion (min 10 chars) *</Label>
+            <textarea
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Provide a detailed reason for permanently deleting this partner account..."
+              rows={3}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {deleteReason.length > 0 && deleteReason.length < 10 && (
+              <p className="text-xs text-destructive mt-1">{10 - deleteReason.length} more characters needed</p>
+            )}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
