@@ -11,6 +11,7 @@ import {
   Plus, FileText, Share2
 } from 'lucide-react';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
+import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
