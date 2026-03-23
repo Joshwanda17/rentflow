@@ -76,7 +76,7 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
   const handleAction = async (approvalId: string, action: 'approve' | 'reject') => {
     setProcessingId(approvalId);
     try {
-      const { data, error } = await supabase.functions.invoke('approve-listing-bonus', {
+      const { error } = await supabase.functions.invoke('approve-listing-bonus', {
         body: {
           approval_id: approvalId,
           action,
