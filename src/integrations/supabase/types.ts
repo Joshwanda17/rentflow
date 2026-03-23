@@ -7155,6 +7155,7 @@ export type Database = {
           email: string
         }[]
       }
+      get_financial_ops_pulse: { Args: never; Returns: Json }
       get_flagged_tenants_for_transfer: {
         Args: never
         Returns: {
@@ -7210,6 +7211,29 @@ export type Database = {
         }[]
       }
       get_my_ai_id_summary: { Args: never; Returns: Json }
+      get_paginated_transactions: {
+        Args: {
+          p_category?: string
+          p_direction?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+        }
+        Returns: {
+          amount: number
+          category: string
+          description: string
+          direction: string
+          id: string
+          ledger_scope: string
+          linked_party: string
+          reference_id: string
+          source_table: string
+          total_count: number
+          transaction_date: string
+          user_id: string
+        }[]
+      }
       get_pending_wallet_ops: {
         Args: { p_page?: number; p_page_size?: number }
         Returns: Json
