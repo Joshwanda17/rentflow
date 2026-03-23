@@ -207,7 +207,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           ? supabase.from('profiles').select('id, full_name, phone, email').in('id', [...ids])
           : { data: [] },
         landlordIds.length > 0
-          ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
+          ? supabase.from('landlords').select('id, name, phone, mobile_money_number').in('id', landlordIds)
           : { data: [] },
         lc1Ids.length > 0
           ? supabase.from('lc1_chairpersons').select('id, name, phone, village').in('id', lc1Ids)
