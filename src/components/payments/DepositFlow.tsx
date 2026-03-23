@@ -115,9 +115,7 @@ export default function DepositFlow({
         return;
       }
 
-      // manager_recorded_transactions table removed - skip auto-verify
-      let autoVerified = false;
-      const managerRecord: any = null;
+      // Auto-verify via pre-registered TIDs (checked after insert below)
 
       // Create deposit request - cast to any to handle new columns not yet in types
       const { error: depositError } = await supabase
