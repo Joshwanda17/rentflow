@@ -73,17 +73,37 @@ export function AgentVerificationOpportunitiesCard() {
 
   const totalCount = tenantCount + houseCount;
 
+  // Preview items shown on the card itself
+  const [previewTenants, setPreviewTenants] = useState<UnverifiedRequest[]>([]);
+  const [previewHouses, setPreviewHouses] = useState<UnverifiedHouse[]>([]);
+
   useEffect(() => {
-    fetchCounts();
+    fetchCountsAndPreviews();
   }, []);
 
-  const fetchCounts = async () => {
-    const [rentRes, houseRes] = await Promise.all([
+  const fetchCountsAndPreviews = async () => {
+    const [rentRes, houseRes, tenantPreview, housePreview] = await Promise.all([
       supabase.from('rent_requests').select('*', { count: 'exact', head: true }).eq('agent_verified', false).in('status', ['pending', 'approved']),
       supabase.from('house_listings').select('*', { count: 'exact', head: true }).or('verified.is.null,verified.eq.false').in('status', ['pending', 'available']),
+      supabase
+        .from('rent_requests')
+        .select('id, rent_amount, created_at, landlord_id, tenant_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address, latitude, longitude)')
+        .eq('agent_verified', false)
+        .in('status', ['pending', 'approved'])
+        .order('created_at', { ascending: false })
+        .limit(3),
+      supabase
+        .from('house_listings')
+        .select('id, title, address, region, monthly_rent, daily_rate, number_of_rooms, house_category, status, created_at, verified, latitude, longitude')
+        .or('verified.is.null,verified.eq.false')
+        .in('status', ['pending', 'available'])
+        .order('created_at', { ascending: false })
+        .limit(3),
     ]);
     setTenantCount(rentRes.count || 0);
     setHouseCount(houseRes.count || 0);
+    setPreviewTenants((tenantPreview.data as any) || []);
+    setPreviewHouses((housePreview.data as any) || []);
   };
 
   const fetchAll = async () => {
