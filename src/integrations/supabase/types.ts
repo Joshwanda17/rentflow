@@ -6649,7 +6649,12 @@ export type Database = {
       }
       withdrawal_requests: {
         Row: {
+          agent_id: string | null
+          agent_location: string | null
           amount: number
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
           cfo_approved_at: string | null
           cfo_approved_by: string | null
           coo_approved_at: string | null
@@ -6661,6 +6666,7 @@ export type Database = {
           mobile_money_name: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
+          payout_method: string
           processed_at: string | null
           processed_by: string | null
           rejection_reason: string | null
@@ -6671,7 +6677,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_id?: string | null
+          agent_location?: string | null
           amount: number
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
           coo_approved_at?: string | null
@@ -6683,6 +6694,7 @@ export type Database = {
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
+          payout_method?: string
           processed_at?: string | null
           processed_by?: string | null
           rejection_reason?: string | null
@@ -6693,7 +6705,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_id?: string | null
+          agent_location?: string | null
           amount?: number
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
           coo_approved_at?: string | null
@@ -6705,6 +6722,7 @@ export type Database = {
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
+          payout_method?: string
           processed_at?: string | null
           processed_by?: string | null
           rejection_reason?: string | null

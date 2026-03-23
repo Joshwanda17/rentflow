@@ -18,7 +18,7 @@ interface RequestDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string | null;
-  requestType: 'deposits' | 'withdrawals' | 'wallet_ops';
+  requestType: 'deposits' | 'withdrawals' | 'wallet_withdrawals' | 'wallet_ops';
   requestData: any;
 }
 
@@ -131,12 +131,42 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
     }
     if (requestType === 'withdrawals') {
       return {
-        label: 'Withdrawal Request',
+        label: 'Investment Withdrawal',
         fields: [
           { key: 'Amount', value: formatUGX(requestData.amount) },
           { key: 'Reason', value: requestData.reason || '—' },
           { key: 'Earliest Process Date', value: requestData.earliest_process_date ? format(new Date(requestData.earliest_process_date), 'MMM d, yyyy') : '—' },
           { key: 'Requested', value: requestData.requested_at ? formatDistanceToNow(new Date(requestData.requested_at), { addSuffix: true }) : '—' },
+        ],
+      };
+    }
+    if (requestType === 'wallet_withdrawals') {
+      const method = requestData.payout_method || 'mobile_money';
+      const payoutFields = method === 'bank_transfer'
+        ? [
+            { key: 'Payout Method', value: '🏦 Bank Transfer' },
+            { key: 'Bank', value: requestData.bank_name || '—' },
+            { key: 'Account Name', value: requestData.bank_account_name || '—' },
+            { key: 'Account Number', value: requestData.bank_account_number || '—' },
+          ]
+        : method === 'cash'
+        ? [
+            { key: 'Payout Method', value: '💵 Cash at Agent' },
+            { key: 'Agent Location', value: requestData.agent_location || '—' },
+          ]
+        : [
+            { key: 'Payout Method', value: '📱 Mobile Money' },
+            { key: 'Provider', value: (requestData.mobile_money_provider || '—').toUpperCase() },
+            { key: 'MoMo Number', value: requestData.mobile_money_number || '—' },
+            { key: 'MoMo Name', value: requestData.mobile_money_name || '—' },
+          ];
+      return {
+        label: 'Wallet Withdrawal',
+        fields: [
+          { key: 'Amount', value: formatUGX(requestData.amount) },
+          ...payoutFields,
+          { key: 'Status', value: (requestData.status || '—').replace(/_/g, ' ').toUpperCase() },
+          { key: 'Submitted', value: requestData.created_at ? formatDistanceToNow(new Date(requestData.created_at), { addSuffix: true }) : '—' },
         ],
       };
     }

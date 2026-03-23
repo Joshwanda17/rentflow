@@ -13,11 +13,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
-type QueueType = 'deposits' | 'withdrawals' | 'wallet_ops';
+type QueueType = 'deposits' | 'withdrawals' | 'wallet_withdrawals' | 'wallet_ops';
 
 interface QueueItem {
   id: string;
@@ -32,6 +32,17 @@ interface QueueItem {
   ageHours: number;
   urgency: 'green' | 'amber' | 'red';
   rawData: any;
+  payoutDetails?: {
+    method: string;
+    provider?: string;
+    number?: string;
+    name?: string;
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankAccountName?: string;
+    agentLocation?: string;
+    status?: string;
+  };
 }
 
 export function ApprovalQueue() {
@@ -125,6 +136,65 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
+  // Wallet withdrawal requests (from withdrawal_requests table)
+  const { data: walletWithdrawals = [], isLoading: loadingWalletWithdrawals } = useQuery({
+    queryKey: ['approval-queue-wallet-withdrawals'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .in('status', ['requested', 'manager_approved', 'cfo_approved'])
+        .order('created_at', { ascending: true })
+        .limit(200);
+      if (!data?.length) return [];
+
+      const userIds = [...new Set(data.map(d => d.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+      const pm = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      return data.map(w => {
+        const profile = pm.get(w.user_id);
+        const ageH = differenceInHours(new Date(), new Date(w.created_at));
+        const method = w.payout_method || 'mobile_money';
+        const payoutLabel = method === 'bank_transfer'
+          ? `🏦 Bank: ${w.bank_name || '—'} · ${w.bank_account_number || '—'}`
+          : method === 'cash'
+          ? `💵 Cash at: ${w.agent_location || 'Agent'}`
+          : `📱 ${w.mobile_money_provider || 'MoMo'}: ${w.mobile_money_number || '—'}`;
+
+        return {
+          id: w.id,
+          type: 'wallet_withdrawals' as QueueType,
+          userId: w.user_id,
+          userName: profile?.full_name || 'Unknown',
+          userPhone: profile?.phone || '',
+          amount: w.amount,
+          description: payoutLabel,
+          category: 'wallet_withdrawal',
+          createdAt: w.created_at,
+          ageHours: ageH,
+          urgency: ageH < 1 ? 'green' as const : ageH < 4 ? 'amber' as const : 'red' as const,
+          rawData: w,
+          payoutDetails: {
+            method,
+            provider: w.mobile_money_provider || undefined,
+            number: w.mobile_money_number || undefined,
+            name: w.mobile_money_name || undefined,
+            bankName: w.bank_name || undefined,
+            bankAccountNumber: w.bank_account_number || undefined,
+            bankAccountName: w.bank_account_name || undefined,
+            agentLocation: w.agent_location || undefined,
+            status: w.status,
+          },
+        };
+      });
+    },
+    staleTime: 15000,
+  });
+
   const { data: walletOps = [], isLoading: loadingWalletOps } = useQuery({
     queryKey: ['approval-queue-wallet-ops'],
     queryFn: async () => {
@@ -165,8 +235,8 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
-  const queues: Record<QueueType, QueueItem[]> = { deposits, withdrawals, wallet_ops: walletOps };
-  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'withdrawals' ? loadingWithdrawals : loadingWalletOps;
+  const queues: Record<QueueType, QueueItem[]> = { deposits, withdrawals, wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
+  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'withdrawals' ? loadingWithdrawals : activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
 
   const items = useMemo(() => {
     let list = queues[activeQueue];
@@ -180,7 +250,7 @@ export function ApprovalQueue() {
       );
     }
     return list;
-  }, [activeQueue, search, deposits, withdrawals, walletOps]);
+  }, [activeQueue, search, deposits, withdrawals, walletWithdrawals, walletOps]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -235,6 +305,23 @@ export function ApprovalQueue() {
           })
           .in('id', ids);
         if (error) throw error;
+      } else if (activeQueue === 'wallet_withdrawals') {
+        // For wallet withdrawals, update manager_approved status
+        const updateFields: Record<string, unknown> = {
+          manager_approved_by: user.id,
+          manager_approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        if (bulkAction === 'approve') {
+          updateFields.status = 'manager_approved';
+        } else {
+          updateFields.status = 'rejected';
+          updateFields.rejection_reason = reason;
+        }
+        const { error } = await supabase.from('withdrawal_requests')
+          .update(updateFields)
+          .in('id', ids);
+        if (error) throw error;
       }
 
       // Log audit
@@ -265,7 +352,7 @@ export function ApprovalQueue() {
   }, [bulkAction, selected, activeQueue, user, reason, queryClient]);
 
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
-  const queueIcon = { deposits: ArrowDownToLine, withdrawals: ArrowUpFromLine, wallet_ops: Wallet };
+  const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, withdrawals: ArrowUpFromLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
 
   return (
     <>
@@ -303,8 +390,12 @@ export function ApprovalQueue() {
                   {deposits.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{deposits.length}</Badge>}
                 </TabsTrigger>
                 <TabsTrigger value="withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
-                  <ArrowUpFromLine className="h-3 w-3" /> <span className="hidden xs:inline">Withdrawals</span><span className="xs:hidden">W/D</span>
+                  <ArrowUpFromLine className="h-3 w-3" /> <span className="hidden xs:inline">Invest W/D</span><span className="xs:hidden">Inv</span>
                   {withdrawals.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{withdrawals.length}</Badge>}
+                </TabsTrigger>
+                <TabsTrigger value="wallet_withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
+                  <Banknote className="h-3 w-3" /> <span className="hidden xs:inline">Cash Out</span><span className="xs:hidden">Cash</span>
+                  {walletWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{walletWithdrawals.length}</Badge>}
                 </TabsTrigger>
                 <TabsTrigger value="wallet_ops" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
                   <Wallet className="h-3 w-3" /> <span className="hidden xs:inline">Wallet Ops</span><span className="xs:hidden">Wallet</span>
@@ -361,8 +452,8 @@ export function ApprovalQueue() {
                           className="mt-0.5 sm:mt-0 shrink-0"
                         />
                       )}
-                      <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
-                        <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
+                      <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'wallet_withdrawals' ? 'bg-orange-500/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
+                        <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'wallet_withdrawals' ? 'text-orange-600' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-1">
@@ -370,6 +461,11 @@ export function ApprovalQueue() {
                           <p className="text-xs sm:text-sm font-bold tabular-nums shrink-0">{formatUGX(item.amount)}</p>
                         </div>
                         <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{item.description}</p>
+                        {item.payoutDetails?.status && (
+                          <Badge variant="outline" className="h-4 px-1 text-[9px] mt-0.5">
+                            {item.payoutDetails.status.replace(/_/g, ' ')}
+                          </Badge>
+                        )}
                         <p className="text-[9px] sm:text-[10px] text-muted-foreground/70">
                           {item.userPhone && `${item.userPhone} · `}
                           {format(new Date(item.createdAt), 'MMM d, HH:mm')}

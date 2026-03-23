@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowDownToLine, ArrowUpFromLine, Activity, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Activity, AlertTriangle, RefreshCw, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 
@@ -17,9 +17,10 @@ export function FinancialOpsPulseStrip() {
   const { data: metrics, isLoading, refetch } = useQuery({
     queryKey: ['financial-ops-pulse'],
     queryFn: async () => {
-      const [deposits, withdrawals, walletOps, todayLedger] = await Promise.all([
+      const [deposits, withdrawals, walletWithdrawals, walletOps, todayLedger] = await Promise.all([
         supabase.from('deposit_requests').select('amount', { count: 'exact' }).eq('status', 'pending'),
         supabase.from('investment_withdrawal_requests').select('amount', { count: 'exact' }).eq('status', 'pending'),
+        supabase.from('withdrawal_requests').select('amount', { count: 'exact' }).in('status', ['requested', 'manager_approved', 'cfo_approved']),
         supabase.from('pending_wallet_operations').select('amount', { count: 'exact' }).eq('status', 'pending'),
         supabase.from('general_ledger').select('amount, direction', { count: 'exact' })
           .gte('transaction_date', new Date().toISOString().split('T')[0]),
@@ -27,12 +28,14 @@ export function FinancialOpsPulseStrip() {
 
       const pendingDepositAmt = (deposits.data || []).reduce((s, d) => s + (d.amount || 0), 0);
       const pendingWithdrawAmt = (withdrawals.data || []).reduce((s, w) => s + (w.amount || 0), 0);
+      const pendingWalletWdAmt = (walletWithdrawals.data || []).reduce((s, w) => s + (w.amount || 0), 0);
       const pendingWalletAmt = (walletOps.data || []).reduce((s, w) => s + (w.amount || 0), 0);
       const todayVolume = (todayLedger.data || []).reduce((s, t) => s + (t.amount || 0), 0);
 
       return {
         pendingDeposits: { count: deposits.count || 0, amount: pendingDepositAmt },
         pendingWithdrawals: { count: withdrawals.count || 0, amount: pendingWithdrawAmt },
+        pendingWalletWithdrawals: { count: walletWithdrawals.count || 0, amount: pendingWalletWdAmt },
         pendingWalletOps: { count: walletOps.count || 0, amount: pendingWalletAmt },
         todayVolume: { count: todayLedger.count || 0, amount: todayVolume },
       };
@@ -51,7 +54,15 @@ export function FinancialOpsPulseStrip() {
       bgColor: 'bg-primary/10',
     },
     {
-      label: 'Withdrawals',
+      label: 'Cash Out',
+      value: metrics?.pendingWalletWithdrawals.count || 0,
+      amount: metrics?.pendingWalletWithdrawals.amount,
+      icon: Banknote,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-500/10',
+    },
+    {
+      label: 'Invest W/D',
       value: metrics?.pendingWithdrawals.count || 0,
       amount: metrics?.pendingWithdrawals.amount,
       icon: ArrowUpFromLine,
@@ -88,7 +99,7 @@ export function FinancialOpsPulseStrip() {
           <span className="hidden sm:inline text-xs">Refresh</span>
         </Button>
       </div>
-      <div className="grid grid-cols-4 gap-1 sm:gap-2">
+      <div className="grid grid-cols-5 gap-1 sm:gap-2">
         {pulseItems.map((item) => {
           const Icon = item.icon;
           const isUrgent = item.value > 0 && item.label !== 'Today';
