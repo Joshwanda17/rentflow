@@ -71,7 +71,8 @@ export default function Auth() {
   const hadSession = localStorage.getItem('welile_had_session') === 'true';
 
   // ========== Feature 1: Phone OTP Login ==========
-  const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
+  const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('password');
+  const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
   const [otpLoginCode, setOtpLoginCode] = useState('');
   const [otpLoginStep, setOtpLoginStep] = useState<'phone' | 'code'>('phone');
