@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
+import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
@@ -63,6 +64,7 @@ export default function CFODashboardPage() {
       default:
         return (
           <div className="space-y-6">
+            <ChannelBalanceTracker />
             <FinancialOverview />
             <ListingBonusApprovalQueue filter="pending_cfo" />
             <RentPipelineQueue stage="coo_approved" />
