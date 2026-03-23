@@ -118,6 +118,36 @@ export function DeliveryPipelineTracker() {
     setLoading(false);
   };
 
+  const handleEscalate = async (item: DeliveryItem) => {
+    try {
+      await supabase.from('notifications').insert({
+        user_id: item.agent_id || item.tenant_id,
+        title: '⚠️ Delivery Overdue',
+        message: `Rent delivery to ${item.landlord_name} (${formatUGX(item.amount)}) is overdue. Disbursed ${item.hours_elapsed}h ago. Please confirm delivery or report issues.`,
+        type: 'escalation',
+        metadata: {
+          disbursement_id: item.id,
+          rent_request_id: item.rent_request_id,
+          hours_overdue: item.hours_elapsed,
+        },
+      });
+      
+      await supabase.from('agent_escalations').insert({
+        agent_id: item.agent_id || item.tenant_id,
+        tenant_id: item.tenant_id,
+        title: `Overdue delivery: ${item.landlord_name}`,
+        description: `Rent of ${formatUGX(item.amount)} disbursed ${item.hours_elapsed}h ago but no delivery confirmation received.`,
+        escalation_type: 'delivery_overdue',
+        severity: item.hours_elapsed > 72 ? 'critical' : 'high',
+        metadata: { disbursement_id: item.id, rent_request_id: item.rent_request_id },
+      });
+
+      toast.success('Escalation created and agent notified');
+    } catch (err) {
+      toast.error('Failed to create escalation');
+    }
+  };
+
   useEffect(() => { fetchDeliveries(); }, []);
 
   const pending = items.filter(i => !i.confirmed);
