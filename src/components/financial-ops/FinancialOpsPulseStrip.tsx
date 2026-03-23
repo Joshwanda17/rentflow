@@ -17,27 +17,16 @@ export function FinancialOpsPulseStrip() {
   const { data: metrics, isLoading, refetch } = useQuery({
     queryKey: ['financial-ops-pulse'],
     queryFn: async () => {
-      const [deposits, withdrawals, walletWithdrawals, walletOps, todayLedger] = await Promise.all([
-        supabase.from('deposit_requests').select('amount', { count: 'exact' }).eq('status', 'pending'),
-        supabase.from('investment_withdrawal_requests').select('amount', { count: 'exact' }).eq('status', 'pending'),
-        supabase.from('withdrawal_requests').select('amount', { count: 'exact' }).in('status', ['requested', 'manager_approved', 'cfo_approved']),
-        supabase.from('pending_wallet_operations').select('amount', { count: 'exact' }).eq('status', 'pending'),
-        supabase.from('general_ledger').select('amount, direction', { count: 'exact' })
-          .gte('transaction_date', new Date().toISOString().split('T')[0]),
-      ]);
-
-      const pendingDepositAmt = (deposits.data || []).reduce((s, d) => s + (d.amount || 0), 0);
-      const pendingWithdrawAmt = (withdrawals.data || []).reduce((s, w) => s + (w.amount || 0), 0);
-      const pendingWalletWdAmt = (walletWithdrawals.data || []).reduce((s, w) => s + (w.amount || 0), 0);
-      const pendingWalletAmt = (walletOps.data || []).reduce((s, w) => s + (w.amount || 0), 0);
-      const todayVolume = (todayLedger.data || []).reduce((s, t) => s + (t.amount || 0), 0);
-
+      // Single RPC call instead of 5 separate queries - handles 1M+ scale
+      const { data, error } = await supabase.rpc('get_financial_ops_pulse');
+      if (error) throw error;
+      const d = data as any;
       return {
-        pendingDeposits: { count: deposits.count || 0, amount: pendingDepositAmt },
-        pendingWithdrawals: { count: withdrawals.count || 0, amount: pendingWithdrawAmt },
-        pendingWalletWithdrawals: { count: walletWithdrawals.count || 0, amount: pendingWalletWdAmt },
-        pendingWalletOps: { count: walletOps.count || 0, amount: pendingWalletAmt },
-        todayVolume: { count: todayLedger.count || 0, amount: todayVolume },
+        pendingDeposits: d.pending_deposits,
+        pendingWithdrawals: d.pending_withdrawals,
+        pendingWalletWithdrawals: d.pending_wallet_withdrawals,
+        pendingWalletOps: d.pending_wallet_ops,
+        todayVolume: d.today_volume,
       };
     },
     refetchInterval: 30000,
