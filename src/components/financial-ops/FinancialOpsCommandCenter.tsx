@@ -5,7 +5,8 @@ import { ApprovalQueue } from './ApprovalQueue';
 import { TransactionSearch } from './TransactionSearch';
 import { ReconciliationDashboard } from './ReconciliationDashboard';
 import { AuditFeed } from './AuditFeed';
-import { ClipboardList, Search, Scale, Shield, LayoutDashboard } from 'lucide-react';
+import { TidVerification } from './TidVerification';
+import { ClipboardList, Search, Scale, Shield, LayoutDashboard, Hash } from 'lucide-react';
 
 export function FinancialOpsCommandCenter() {
   const [tab, setTab] = useState('queue');
@@ -29,7 +30,10 @@ export function FinancialOpsCommandCenter() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-9 w-full justify-start overflow-x-auto">
           <TabsTrigger value="queue" className="text-xs gap-1.5">
-            <ClipboardList className="h-3.5 w-3.5" /> Approval Queue
+            <ClipboardList className="h-3.5 w-3.5" /> Queue
+          </TabsTrigger>
+          <TabsTrigger value="tid" className="text-xs gap-1.5">
+            <Hash className="h-3.5 w-3.5" /> TID Verify
           </TabsTrigger>
           <TabsTrigger value="search" className="text-xs gap-1.5">
             <Search className="h-3.5 w-3.5" /> Search
@@ -38,12 +42,15 @@ export function FinancialOpsCommandCenter() {
             <Scale className="h-3.5 w-3.5" /> Reconciliation
           </TabsTrigger>
           <TabsTrigger value="audit" className="text-xs gap-1.5">
-            <Shield className="h-3.5 w-3.5" /> Audit Trail
+            <Shield className="h-3.5 w-3.5" /> Audit
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="queue" className="mt-3">
           <ApprovalQueue />
+        </TabsContent>
+        <TabsContent value="tid" className="mt-3">
+          <TidVerification />
         </TabsContent>
         <TabsContent value="search" className="mt-3">
           <TransactionSearch />
