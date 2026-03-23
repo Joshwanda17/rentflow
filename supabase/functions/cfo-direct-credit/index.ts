@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check CFO/manager role
     const adminClient = createClient(supabaseUrl, serviceKey);
     const { data: roles } = await adminClient
       .from("user_roles")
@@ -38,7 +37,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount, reason } = await req.json();
+    const { target_user_id, amount, reason, operation } = await req.json();
+    const op = operation === "debit" ? "debit" : "credit";
 
     if (!target_user_id || typeof target_user_id !== "string") {
       throw new Error("Invalid target user");
@@ -50,7 +50,6 @@ Deno.serve(async (req) => {
       throw new Error("Reason must be at least 10 characters");
     }
 
-    // Verify target user exists
     const { data: targetProfile } = await adminClient
       .from("profiles")
       .select("id, full_name")
@@ -70,34 +69,66 @@ Deno.serve(async (req) => {
       await adminClient.from("wallets").insert({ user_id: target_user_id, balance: 0 });
     }
 
+    // For debit: check sufficient balance
+    if (op === "debit") {
+      const bal = existingWallet?.balance ?? 0;
+      if (bal < amount) {
+        throw new Error(`Insufficient balance. User has UGX ${bal.toLocaleString()}`);
+      }
+    }
+
     const groupId = crypto.randomUUID();
 
-    // Credit entry in general_ledger (triggers wallet sync)
-    await adminClient.from("general_ledger").insert({
-      user_id: target_user_id,
-      amount,
-      direction: "cash_in",
-      type: "cfo_direct_credit",
-      description: `CFO Direct Credit: ${reason}`,
-      transaction_group_id: groupId,
-      ledger_scope: "wallet",
-    });
-
-    // Platform debit entry
-    await adminClient.from("general_ledger").insert({
-      user_id: null,
-      amount,
-      direction: "cash_out",
-      type: "platform_expense",
-      description: `CFO Direct Credit to ${targetProfile.full_name}: ${reason}`,
-      transaction_group_id: groupId,
-      ledger_scope: "platform",
-    });
+    if (op === "credit") {
+      // Platform → Wallet: credit user, debit platform
+      await adminClient.from("general_ledger").insert([
+        {
+          user_id: target_user_id,
+          amount,
+          direction: "cash_in",
+          type: "cfo_direct_credit",
+          description: `CFO Credit: ${reason}`,
+          transaction_group_id: groupId,
+          ledger_scope: "bridge",
+        },
+        {
+          user_id: null,
+          amount,
+          direction: "cash_out",
+          type: "platform_expense",
+          description: `Platform → ${targetProfile.full_name}: ${reason}`,
+          transaction_group_id: groupId,
+          ledger_scope: "platform",
+        },
+      ]);
+    } else {
+      // Wallet → Platform: debit user, credit platform
+      await adminClient.from("general_ledger").insert([
+        {
+          user_id: target_user_id,
+          amount,
+          direction: "cash_out",
+          type: "cfo_direct_debit",
+          description: `CFO Debit: ${reason}`,
+          transaction_group_id: groupId,
+          ledger_scope: "bridge",
+        },
+        {
+          user_id: null,
+          amount,
+          direction: "cash_in",
+          type: "platform_income",
+          description: `${targetProfile.full_name} → Platform: ${reason}`,
+          transaction_group_id: groupId,
+          ledger_scope: "platform",
+        },
+      ]);
+    }
 
     // Audit log
     await adminClient.from("audit_logs").insert({
       user_id: user.id,
-      action_type: "cfo_direct_credit",
+      action_type: `cfo_direct_${op}`,
       table_name: "general_ledger",
       record_id: groupId,
       metadata: {
@@ -105,12 +136,14 @@ Deno.serve(async (req) => {
         target_name: targetProfile.full_name,
         amount,
         reason,
+        operation: op,
       },
     });
 
+    const verb = op === "credit" ? "credited to" : "debited from";
     return new Response(JSON.stringify({
       success: true,
-      message: `UGX ${amount.toLocaleString()} credited to ${targetProfile.full_name}`,
+      message: `UGX ${amount.toLocaleString()} ${verb} ${targetProfile.full_name}`,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
