@@ -445,10 +445,10 @@ export default function Auth() {
                 <form onSubmit={async (e) => {
                   e.preventDefault();
                   if (!emailLoginAddress.trim() || !password.trim()) return;
-                  setIsLoading(true);
-                  const safetyTimer = setTimeout(() => setIsLoading(false), 6000);
+                  setEmailLoginLoading(true);
+                  const safetyTimer = setTimeout(() => setEmailLoginLoading(false), 6000);
                   try {
-                    const { error } = await signIn(emailLoginAddress.trim(), password);
+                    const { error } = await authSignIn(emailLoginAddress.trim(), password);
                     if (error) {
                       let msg = error.message;
                       if (msg.includes('Invalid login credentials')) {
@@ -459,16 +459,10 @@ export default function Auth() {
                     } else {
                       setLoginError(null);
                       localStorage.setItem('welile_last_login_method', 'email');
-                      try {
-                        const { data: { user: currentUser } } = await supabase.auth.getUser();
-                        if (currentUser?.user_metadata?.full_name) {
-                          localStorage.setItem('welile_last_user_name', currentUser.user_metadata.full_name);
-                        }
-                      } catch {}
                     }
                   } finally {
                     clearTimeout(safetyTimer);
-                    setIsLoading(false);
+                    setEmailLoginLoading(false);
                   }
                 }} className="space-y-4">
                   <div className="space-y-2">
