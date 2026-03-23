@@ -10,7 +10,7 @@ export async function fetchAllAgentIds(): Promise<string[]> {
 /**
  * Fetch ALL user IDs with a given role, paginating past the 1000-row default limit.
  */
-export async function fetchAllUserIdsByRole(role: string): Promise<string[]> {
+export async function fetchAllUserIdsByRole(role: 'agent' | 'ceo' | 'cfo' | 'cmo' | 'coo' | 'crm' | 'cto' | 'employee' | 'landlord' | 'manager' | 'operations' | 'super_admin' | 'supporter' | 'tenant'): Promise<string[]> {
   const allIds: string[] = [];
   const PAGE_SIZE = 1000;
   let offset = 0;
