@@ -898,6 +898,79 @@ export type Database = {
           },
         ]
       }
+      agent_landlord_assignments: {
+        Row: {
+          agent_id: string
+          assigned_at: string
+          created_at: string
+          id: string
+          landlord_id: string
+          rent_request_id: string | null
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_at?: string
+          created_at?: string
+          id?: string
+          landlord_id: string
+          rent_request_id?: string | null
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_at?: string
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          rent_request_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_landlord_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_landlord_payouts: {
         Row: {
           agent_id: string
