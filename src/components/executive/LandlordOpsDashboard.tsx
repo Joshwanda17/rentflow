@@ -345,6 +345,9 @@ export function LandlordOpsDashboard() {
       {/* 🔥 PRIORITY: Rent Pipeline Review */}
       <RentPipelineQueue stage="agent_verified" />
 
+      {/* Agent Landlord Payout Verification */}
+      <LandlordOpsPayoutReview reviewRole="landlord_ops" />
+
       {/* Overview KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <KPICard title="Total Properties" value={rows.length} icon={Home} loading={isLoading} />
