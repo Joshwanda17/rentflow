@@ -141,6 +141,7 @@ export function AgentMenuDrawer({
         { icon: Receipt, label: 'Issue Receipt', description: 'Record cash payment', onClick: onIssueReceipt, accent: 'amber-500', badge: 'New' },
         { icon: Wallet, label: 'Top Up Wallet', description: 'Deposit to tenant wallet', onClick: onTopUpTenant, accent: 'emerald-500' },
         { icon: HandCoins, label: 'Invest for Partner', description: 'Proxy investment', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
+        { icon: Banknote, label: 'Cash Payouts', description: 'Verify & pay cash-outs', path: '/agent/cash-payouts', accent: 'orange-500', badge: '💵' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
