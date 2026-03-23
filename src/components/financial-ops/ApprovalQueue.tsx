@@ -305,6 +305,23 @@ export function ApprovalQueue() {
           })
           .in('id', ids);
         if (error) throw error;
+      } else if (activeQueue === 'wallet_withdrawals') {
+        // For wallet withdrawals, update manager_approved status
+        const updateFields: Record<string, unknown> = {
+          manager_approved_by: user.id,
+          manager_approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        if (bulkAction === 'approve') {
+          updateFields.status = 'manager_approved';
+        } else {
+          updateFields.status = 'rejected';
+          updateFields.rejection_reason = reason;
+        }
+        const { error } = await supabase.from('withdrawal_requests')
+          .update(updateFields)
+          .in('id', ids);
+        if (error) throw error;
       }
 
       // Log audit
