@@ -101,14 +101,24 @@ Deno.serve(async (req) => {
           }
 
           // Reset password to the predictable format so they can log in
-          const phoneLast6 = partner.phone.replace(/\D/g, '').slice(-6);
-          const tempPwd = `Welile${phoneLast6}!`;
+          // Reset password to the standard default
+          const tempPwd = `Welile1234!`;
           await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
+
+          // If a real email was provided and user has a placeholder email, update it
+          if (partner.email && !partner.email.includes('@noapp.welile') && !partner.email.includes('@welile.user')) {
+            await adminClient.auth.admin.updateUserById(userId, {
+              email: partner.email,
+              email_confirm: true,
+            });
+          }
         } else {
           // Create auth user
-          const phoneLast6 = partner.phone.replace(/\D/g, '').slice(-6);
-          const tempPassword = `Welile${phoneLast6}!`;
-          const emailAddr = partner.email || `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
+          // Create auth user with standard default password
+          const tempPassword = `Welile1234!`;
+          const emailAddr = partner.email && !partner.email.includes('@noapp.welile') && !partner.email.includes('@welile.user')
+            ? partner.email
+            : `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
 
           const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
             email: emailAddr,
