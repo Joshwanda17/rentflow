@@ -326,7 +326,7 @@ export function LandlordOpsDashboard() {
       key: 'id', label: 'Action', render: (v, row) => (
         <Button size="sm" variant="default" className="h-8 text-xs gap-1.5 whitespace-nowrap" onClick={() => handleVerifyListing(row)} disabled={verifying === v}>
           {verifying === v ? <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-          Verify & Pay 5K
+          Verify → CFO
         </Button>
       ),
     },
