@@ -31,8 +31,8 @@ export function FinancialOpsCommandCenter() {
             <TabsTrigger value="queue" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
               <ClipboardList className="h-3.5 w-3.5" /> Queue
             </TabsTrigger>
-            <TabsTrigger value="tid" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
-              <Hash className="h-3.5 w-3.5" /> TID
+            <TabsTrigger value="tid" className="text-[11px] sm:text-xs gap-1 px-3 sm:px-4 shrink-0 min-h-[36px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-semibold">
+              <ShieldCheck className="h-3.5 w-3.5" /> TID Verify
             </TabsTrigger>
             <TabsTrigger value="search" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
               <Search className="h-3.5 w-3.5" /> Search
