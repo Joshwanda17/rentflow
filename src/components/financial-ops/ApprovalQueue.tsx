@@ -333,12 +333,18 @@ export function ApprovalQueue() {
               </div>
             ) : (
               <div className="space-y-1">
-                <div className="flex items-center gap-2 px-2 pb-1">
-                  <Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} />
-                  <span className="text-[11px] text-muted-foreground">
-                    {selected.size > 0 ? `${selected.size} selected` : `${items.length} pending`}
-                  </span>
-                </div>
+                {activeQueue !== 'deposits' ? (
+                  <div className="flex items-center gap-2 px-2 pb-1">
+                    <Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} />
+                    <span className="text-[11px] text-muted-foreground">
+                      {selected.size > 0 ? `${selected.size} selected` : `${items.length} pending`}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="px-2 pb-1">
+                    <span className="text-[11px] text-muted-foreground">{items.length} pending — use TID tab to verify & approve</span>
+                  </div>
+                )}
                 {items.map((item) => {
                   const Icon = queueIcon[item.type];
                   return (
