@@ -34,6 +34,8 @@ interface WithdrawalRequest {
   manager_approved_at: string | null;
   cfo_approved_at: string | null;
   coo_approved_at: string | null;
+  payout_code: string | null;
+  payout_method: string | null;
 }
 
 export function UserWithdrawalRequests() {
