@@ -251,14 +251,14 @@ export default function COOPartnersPage() {
         ),
       ]);
 
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-      const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance || 0]));
+      const profileMap = new Map((profiles as any[]).map(p => [p.id, p]));
+      const walletMap = new Map((wallets as any[]).map(w => [w.user_id, w.balance || 0]));
 
       // Aggregate portfolios per supporter
       const supporterIdSet = new Set(ids);
       const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string }>();
 
-      (portfoliosRes.data || []).forEach(p => {
+      (portfolios as any[]).forEach(p => {
         // Determine which supporter this portfolio belongs to
         const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
           ? p.investor_id
