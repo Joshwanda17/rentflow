@@ -353,12 +353,14 @@ export function ApprovalQueue() {
                       className={`flex items-start sm:items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border-l-4 ${urgencyBg[item.urgency]} bg-card hover:bg-muted/40 transition-colors cursor-pointer`}
                       onClick={() => setInspectItem(item)}
                     >
-                      <Checkbox
-                        checked={selected.has(item.id)}
-                        onCheckedChange={() => toggleSelect(item.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-0.5 sm:mt-0 shrink-0"
-                      />
+                      {activeQueue !== 'deposits' && (
+                        <Checkbox
+                          checked={selected.has(item.id)}
+                          onCheckedChange={() => toggleSelect(item.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-0.5 sm:mt-0 shrink-0"
+                        />
+                      )}
                       <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
                         <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
                       </div>
