@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil } from 'lucide-react';
+import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil, ShieldOff, UserX } from 'lucide-react';
 import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
 import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -47,9 +47,15 @@ export default function ActivePartnersDetail() {
   const [investAmount, setInvestAmount] = useState('');
   const [investing, setInvesting] = useState(false);
 
+  // Suspend dialog state
+  const [suspendPartner, setSuspendPartner] = useState<PartnerRow | null>(null);
+  const [suspending, setSuspending] = useState(false);
+  const [suspendReason, setSuspendReason] = useState('');
+
   // Delete dialog state
   const [deletePartner, setDeletePartner] = useState<PartnerRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   // Edit dialog state
   const [editPartner, setEditPartner] = useState<PartnerRow | null>(null);
@@ -184,19 +190,58 @@ export default function ActivePartnersDetail() {
     }
   }
 
-  // --- Delete handler ---
-  async function handleDelete() {
-    if (!deletePartner) return;
-    setDeleting(true);
+  // --- Suspend handler (soft-disable role) ---
+  async function handleSuspend() {
+    if (!suspendPartner || suspendReason.length < 10) return;
+    setSuspending(true);
     try {
       const { error } = await supabase
         .from('user_roles')
         .update({ enabled: false })
-        .eq('user_id', deletePartner.id)
+        .eq('user_id', suspendPartner.id)
         .eq('role', 'supporter');
       if (error) throw error;
-      toast.success(`Removed supporter role from ${deletePartner.name}`);
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'partner_suspended',
+        table_name: 'user_roles',
+        record_id: suspendPartner.id,
+        metadata: { partner_name: suspendPartner.name, reason: suspendReason },
+      });
+
+      toast.success(`Suspended partner: ${suspendPartner.name}`);
+      setSuspendPartner(null);
+      setSuspendReason('');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Suspend failed');
+    } finally {
+      setSuspending(false);
+    }
+  }
+
+  // --- Delete handler (full account deletion) ---
+  async function handleDelete() {
+    if (!deletePartner || deleteReason.length < 10) return;
+    setDeleting(true);
+    try {
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'partner_deleted',
+        table_name: 'profiles',
+        record_id: deletePartner.id,
+        metadata: { partner_name: deletePartner.name, reason: deleteReason },
+      });
+
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: deletePartner.id },
+      });
+      if (error) throw error;
+
+      toast.success(`Deleted partner account: ${deletePartner.name}`);
       setDeletePartner(null);
+      setDeleteReason('');
       fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Delete failed');
@@ -375,11 +420,18 @@ export default function ActivePartnersDetail() {
               <span>Edit Partner</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={(e) => { e.stopPropagation(); setDeletePartner(r); }}
+              onClick={(e) => { e.stopPropagation(); setSuspendPartner(r); setSuspendReason(''); }}
+              className="gap-2 text-amber-600 focus:text-amber-600"
+            >
+              <ShieldOff className="h-3.5 w-3.5" />
+              <span>Suspend Partner</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); setDeletePartner(r); setDeleteReason(''); }}
               className="gap-2 text-destructive focus:text-destructive"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span>Remove Partner</span>
+              <UserX className="h-3.5 w-3.5" />
+              <span>Delete Partner</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -562,21 +614,47 @@ export default function ActivePartnersDetail() {
         </DialogContent>
       </Dialog>
 
+      {/* Suspend Confirmation */}
+      <AlertDialog open={!!suspendPartner} onOpenChange={(open) => { if (!open) setSuspendPartner(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><ShieldOff className="h-5 w-5 text-amber-600" /> Suspend Partner</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will disable the supporter role for <strong>{suspendPartner?.name}</strong>. They will lose access to partner features but their account and data remain intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
+            <Input value={suspendReason} onChange={(e) => setSuspendReason(e.target.value)} placeholder="Why is this partner being suspended?" className="mt-1" />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSuspend} disabled={suspending || suspendReason.length < 10} className="bg-amber-600 text-white hover:bg-amber-700">
+              {suspending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Suspend
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Delete Confirmation */}
       <AlertDialog open={!!deletePartner} onOpenChange={(open) => { if (!open) setDeletePartner(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Partner</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive"><UserX className="h-5 w-5" /> Delete Partner Account</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the supporter role from <strong>{deletePartner?.name}</strong>. 
-              They will lose access to partner features. This cannot be undone easily.
+              This will <strong>permanently delete</strong> the account for <strong>{deletePartner?.name}</strong>, including all auth credentials, wallet, and profile data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <Label className="text-xs font-medium">Reason (min 10 chars) *</Label>
+            <Input value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Why is this account being deleted?" className="mt-1" />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDelete} disabled={deleting || deleteReason.length < 10} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Remove
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
