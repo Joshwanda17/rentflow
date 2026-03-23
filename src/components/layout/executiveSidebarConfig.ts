@@ -53,6 +53,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
       { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
       { label: 'Delivery Pipeline', icon: Truck, id: 'delivery-pipeline' },
+      { label: 'Cash Reconciliation', icon: Scale, id: 'cash-reconciliation' },
     ],
   },
   ],

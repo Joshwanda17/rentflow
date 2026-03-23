@@ -72,6 +72,8 @@ export default function CFODashboardPage() {
         return <PayrollPanel />;
       case 'delivery-pipeline':
         return <DeliveryPipelineTracker />;
+      case 'cash-reconciliation':
+        return <AgentCashReconciliation />;
       default:
         return (
           <div className="space-y-6">
