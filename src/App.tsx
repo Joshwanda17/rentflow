@@ -99,6 +99,7 @@ const ExecutiveHubPage = lazy(() => import('./pages/ExecutiveHub'));
 const ROITrendsPage = lazy(() => import('./components/executive/ROITrendsPage'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
+const AgentCashPayoutsPage = lazy(() => import('./pages/agent/CashPayouts'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
 const EarningAgentsDetail = lazy(() => import('./pages/coo/EarningAgentsDetail'));
 const TenantsBalancesDetail = lazy(() => import('./pages/coo/TenantsBalancesDetail'));
@@ -270,8 +271,9 @@ function AppRoutes() {
           <Route path="/cfo-dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'manager']}><CFODashboardPage /></RoleGuard>} />
           <Route path="/executive-hub" element={<RoleGuard allowedRoles={['ceo', 'cto', 'cmo', 'crm', 'coo', 'cfo', 'super_admin', 'manager', 'employee', 'operations']}><ExecutiveHubPage /></RoleGuard>} />
           <Route path="/roi-trends" element={<RoleGuard allowedRoles={['ceo', 'coo', 'cfo', 'super_admin', 'manager', 'operations']}><ROITrendsPage /></RoleGuard>} />
-          <Route path="/agent-advances" element={<AgentAdvances />} />
-          <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
+           <Route path="/agent-advances" element={<AgentAdvances />} />
+           <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
+           <Route path="/agent/cash-payouts" element={<AgentCashPayoutsPage />} />
           <Route path="/coo/active-users" element={<ActiveUsersDetail />} />
           <Route path="/coo/earning-agents" element={<EarningAgentsDetail />} />
           <Route path="/coo/tenants-balances" element={<TenantsBalancesDetail />} />

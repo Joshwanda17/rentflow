@@ -348,6 +348,26 @@ export function ApprovalQueue() {
           .update(updateFields)
           .in('id', ids);
         if (error) throw error;
+
+        // Generate payout codes for cash withdrawals
+        const cashItems = items.filter(i => selected.has(i.id) && i.payoutDetails?.method === 'cash');
+        if (bulkAction === 'approve' && cashItems.length > 0) {
+          for (const ci of cashItems) {
+            const code = 'WPO-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+            const qrData = JSON.stringify({ code, amount: ci.amount, userId: ci.userId, withdrawalId: ci.id });
+            await supabase.from('payout_codes').insert({
+              withdrawal_request_id: ci.id,
+              user_id: ci.userId!,
+              code,
+              qr_data: qrData,
+              amount: ci.amount,
+            });
+            // Save code on withdrawal request
+            await supabase.from('withdrawal_requests')
+              .update({ payout_code: code })
+              .eq('id', ci.id);
+          }
+        }
       }
 
       // Log audit
@@ -487,12 +507,36 @@ export function ApprovalQueue() {
                           <p className="text-xs sm:text-sm font-bold tabular-nums shrink-0">{formatUGX(item.amount)}</p>
                         </div>
                         <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{item.description}</p>
-                        {item.payoutDetails?.status && (
+                        {/* Enhanced payout details for wallet withdrawals */}
+                        {item.payoutDetails && item.type === 'wallet_withdrawals' && (
+                          <div className="mt-1 p-1.5 rounded bg-muted/60 border border-border/50 space-y-0.5">
+                            {item.payoutDetails.method === 'mobile_money' && (
+                              <>
+                                <p className="text-[10px] font-medium">📱 {item.payoutDetails.provider || 'MoMo'}: {item.payoutDetails.number}</p>
+                                {item.payoutDetails.name && <p className="text-[10px] text-muted-foreground">Name: {item.payoutDetails.name}</p>}
+                              </>
+                            )}
+                            {item.payoutDetails.method === 'bank_transfer' && (
+                              <>
+                                <p className="text-[10px] font-medium">🏦 {item.payoutDetails.bankName}</p>
+                                <p className="text-[10px] text-muted-foreground">Acc: {item.payoutDetails.bankAccountNumber}</p>
+                                {item.payoutDetails.bankAccountName && <p className="text-[10px] text-muted-foreground">Name: {item.payoutDetails.bankAccountName}</p>}
+                              </>
+                            )}
+                            {item.payoutDetails.method === 'cash' && (
+                              <p className="text-[10px] font-medium">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent location'}</p>
+                            )}
+                            <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                              {item.payoutDetails.status?.replace(/_/g, ' ')}
+                            </Badge>
+                          </div>
+                        )}
+                        {item.payoutDetails?.status && item.type !== 'wallet_withdrawals' && (
                           <Badge variant="outline" className="h-4 px-1 text-[9px] mt-0.5">
                             {item.payoutDetails.status.replace(/_/g, ' ')}
                           </Badge>
                         )}
-                        <p className="text-[9px] sm:text-[10px] text-muted-foreground/70">
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground/70 mt-0.5">
                           {item.userPhone && `${item.userPhone} · `}
                           {format(new Date(item.createdAt), 'MMM d, HH:mm')}
                           {item.ageHours >= 1 && ` · ${Math.round(item.ageHours)}h`}
@@ -528,31 +572,57 @@ export function ApprovalQueue() {
               />
             )}
             {bulkAction === 'approve' && activeQueue === 'wallet_withdrawals' && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                  <Banknote className="h-4 w-4 text-amber-600 shrink-0" />
-                  <p className="text-[11px] text-amber-700 font-medium">
-                    Proof of payout is <strong>mandatory</strong> before approval
-                  </p>
+              <div className="space-y-3">
+                {/* Payout details summary */}
+                {items.filter(i => selected.has(i.id)).map(item => (
+                  <div key={item.id} className="p-3 rounded-lg border-2 border-primary/20 bg-primary/5 space-y-1">
+                    <p className="text-sm font-bold">{item.userName} — {formatUGX(item.amount)}</p>
+                    {item.payoutDetails?.method === 'mobile_money' && (
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-medium">📱 {item.payoutDetails.provider}: {item.payoutDetails.number}</p>
+                        {item.payoutDetails.name && <p className="text-muted-foreground">Registered name: {item.payoutDetails.name}</p>}
+                      </div>
+                    )}
+                    {item.payoutDetails?.method === 'bank_transfer' && (
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-medium">🏦 {item.payoutDetails.bankName}</p>
+                        <p>Account: <span className="font-mono font-bold">{item.payoutDetails.bankAccountNumber}</span></p>
+                        {item.payoutDetails.bankAccountName && <p>Name: {item.payoutDetails.bankAccountName}</p>}
+                      </div>
+                    )}
+                    {item.payoutDetails?.method === 'cash' && (
+                      <p className="text-xs font-medium">💵 Cash payout — code will be generated for the user</p>
+                    )}
+                  </div>
+                ))}
+
+                <div className="p-3 rounded-lg bg-amber-500/10 border-2 border-amber-500/40">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Banknote className="h-5 w-5 text-amber-600 shrink-0" />
+                    <p className="text-sm text-amber-700 font-bold">
+                      ⚠️ Enter Proof of Payout
+                    </p>
+                  </div>
+                  <label className="text-sm font-bold text-foreground block mb-1">
+                    {proofConfig?.label || 'Payout Reference'}
+                  </label>
+                  <Input
+                    placeholder={proofConfig?.placeholder || 'Enter payout reference…'}
+                    value={payoutProof}
+                    onChange={e => setPayoutProof(e.target.value)}
+                    className="text-base h-12 font-mono tracking-wider border-2 border-amber-500/30 bg-background"
+                    autoFocus
+                  />
+                  {proofConfig?.type === 'momo_tid' && (
+                    <p className="text-xs text-muted-foreground mt-1">Enter the MTN/Airtel Transaction ID from the confirmation SMS</p>
+                  )}
+                  {proofConfig?.type === 'bank_reference' && (
+                    <p className="text-xs text-muted-foreground mt-1">Enter the bank transfer reference number</p>
+                  )}
+                  {proofConfig?.type === 'payment_voucher' && (
+                    <p className="text-xs text-muted-foreground mt-1">Enter the physical payment voucher # — a Payout Code (QR) will be generated for the user</p>
+                  )}
                 </div>
-                <label className="text-xs font-medium text-foreground">
-                  {proofConfig?.label || 'Payout Reference'}
-                </label>
-                <Input
-                  placeholder={proofConfig?.placeholder || 'Enter payout reference…'}
-                  value={payoutProof}
-                  onChange={e => setPayoutProof(e.target.value)}
-                  className="text-sm h-9"
-                />
-                {proofConfig?.type === 'momo_tid' && (
-                  <p className="text-[10px] text-muted-foreground">Enter the MTN/Airtel Transaction ID from the confirmation SMS</p>
-                )}
-                {proofConfig?.type === 'bank_reference' && (
-                  <p className="text-[10px] text-muted-foreground">Enter the bank transfer reference number</p>
-                )}
-                {proofConfig?.type === 'payment_voucher' && (
-                  <p className="text-[10px] text-muted-foreground">Enter the physical payment voucher number (PV-XXXX)</p>
-                )}
               </div>
             )}
             {bulkAction === 'approve' && activeQueue !== 'wallet_withdrawals' && (

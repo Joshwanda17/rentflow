@@ -17,6 +17,7 @@ import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusAp
 import { FinancialAgentsPanel } from '@/components/cfo/FinancialAgentsPanel';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 import { PayrollPanel } from '@/components/cfo/PayrollPanel';
+import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -60,6 +61,8 @@ export default function CFODashboardPage() {
         return <FinancialAgentsPanel />;
       case 'proxy-agents':
         return <ProxyAgentManager />;
+      case 'cashout-agents':
+        return <CashoutAgentManager />;
       case 'payroll':
         return <PayrollPanel />;
       default:
