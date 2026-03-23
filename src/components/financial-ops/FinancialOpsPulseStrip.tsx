@@ -54,7 +54,15 @@ export function FinancialOpsPulseStrip() {
       bgColor: 'bg-primary/10',
     },
     {
-      label: 'Withdrawals',
+      label: 'Cash Out',
+      value: metrics?.pendingWalletWithdrawals.count || 0,
+      amount: metrics?.pendingWalletWithdrawals.amount,
+      icon: Banknote,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-500/10',
+    },
+    {
+      label: 'Invest W/D',
       value: metrics?.pendingWithdrawals.count || 0,
       amount: metrics?.pendingWithdrawals.amount,
       icon: ArrowUpFromLine,
