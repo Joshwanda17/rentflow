@@ -80,7 +80,7 @@ export function CashoutAgentManager() {
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5"><UserPlus className="h-4 w-4" /> Assign Agent</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-sm overflow-visible" onInteractOutside={e => e.preventDefault()} onPointerDownOutside={e => e.preventDefault()}>
             <DialogHeader><DialogTitle>Assign Cash-Out Agent</DialogTitle></DialogHeader>
             <p className="text-xs text-muted-foreground">
               This agent will handle cash and/or bank withdrawal payouts at their location.
