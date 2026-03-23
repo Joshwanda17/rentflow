@@ -44,6 +44,14 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Withdrawals', icon: Wallet, id: 'withdrawals' },
       ],
     },
+    {
+      title: 'Disbursements',
+      items: [
+        { label: 'Financial Agents', icon: DollarSign, id: 'financial-agents' },
+        { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
+        { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
+      ],
+    },
   ],
   coo: [
     {
