@@ -12,7 +12,6 @@ import { Loader2, Send, CreditCard } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 
 export function DirectCreditTool() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [selectedUser, setSelectedUser] = useState<any>(null);
