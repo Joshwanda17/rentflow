@@ -1,9 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Fetch ALL rows from a table, paginating past the 1000-row default limit.
+ * Fetch ALL agent IDs, paginating past the 1000-row default limit.
  */
 export async function fetchAllAgentIds(): Promise<string[]> {
+  return fetchAllUserIdsByRole('agent');
+}
+
+/**
+ * Fetch ALL user IDs with a given role, paginating past the 1000-row default limit.
+ */
+export async function fetchAllUserIdsByRole(role: 'agent' | 'ceo' | 'cfo' | 'cmo' | 'coo' | 'crm' | 'cto' | 'employee' | 'landlord' | 'manager' | 'operations' | 'super_admin' | 'supporter' | 'tenant'): Promise<string[]> {
   const allIds: string[] = [];
   const PAGE_SIZE = 1000;
   let offset = 0;
@@ -13,7 +20,8 @@ export async function fetchAllAgentIds(): Promise<string[]> {
     const { data } = await supabase
       .from('user_roles')
       .select('user_id')
-      .eq('role', 'agent')
+      .eq('role', role)
+      .eq('enabled', true)
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (data && data.length > 0) {

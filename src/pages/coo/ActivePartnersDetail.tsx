@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
 import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil, ShieldOff, UserX } from 'lucide-react';
 import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
 import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
@@ -74,37 +75,42 @@ export default function ActivePartnersDetail() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data: supporterRoles } = await supabase
-        .from('user_roles').select('user_id').eq('role', 'supporter');
-      const supporterIds = (supporterRoles || []).map(r => r.user_id);
+      const supporterIds = await fetchAllUserIdsByRole('supporter');
       if (supporterIds.length === 0) {
         setData({ activePartners: 0, totalSupporters: 0, totalFunded: 0, totalWalletBalance: 0, tableRows: [] });
         return;
       }
 
-      const ids = supporterIds.slice(0, 200);
-      const [ledgerRes, profilesRes, walletsRes, portfoliosRes] = await Promise.all([
-        supabase.from('general_ledger')
-          .select('user_id, amount, direction, category')
-          .in('user_id', ids)
-          .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment']),
-        supabase.from('profiles').select('id, full_name, phone').in('id', ids),
-        supabase.from('wallets').select('user_id, balance').in('user_id', ids),
-        supabase.from('investor_portfolios')
-          .select('investor_id, agent_id, roi_percentage, payout_day, roi_mode, created_at')
-          .or(`investor_id.in.(${ids.join(',')}),agent_id.in.(${ids.join(',')})`)
-          .order('created_at', { ascending: false }),
+      const ids = supporterIds;
+      const [ledgerData, profilesList, walletsList, portfoliosList] = await Promise.all([
+        batchedQuery<any>(ids, (batch) =>
+          supabase.from('general_ledger')
+            .select('user_id, amount, direction, category')
+            .in('user_id', batch)
+            .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment'])
+        ),
+        batchedQuery<any>(ids, (batch) =>
+          supabase.from('profiles').select('id, full_name, phone').in('id', batch)
+        ),
+        batchedQuery<any>(ids, (batch) =>
+          supabase.from('wallets').select('user_id, balance').in('user_id', batch)
+        ),
+        batchedQuery<any>(ids, (batch) =>
+          supabase.from('investor_portfolios')
+            .select('investor_id, agent_id, roi_percentage, payout_day, roi_mode, created_at')
+            .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
+            .order('created_at', { ascending: false })
+        ),
       ]);
 
-      const ledgerData = ledgerRes.data || [];
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, { name: p.full_name, phone: p.phone }]));
-      const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance || 0]));
+      const profileMap = new Map(profilesList.map((p: any) => [p.id, { name: p.full_name, phone: p.phone }]));
+      const walletMap = new Map(walletsList.map((w: any) => [w.user_id, w.balance || 0]));
 
       // ROI: use the most recent portfolio per investor (check both investor_id and agent_id)
       const roiMap = new Map<string, number>();
       const payoutDayMap = new Map<string, number>();
       const roiModeMap = new Map<string, string>();
-      (portfoliosRes.data || []).forEach(p => {
+      (portfoliosList as any[]).forEach(p => {
         const userId = p.investor_id || p.agent_id;
         if (userId && !roiMap.has(userId)) {
           roiMap.set(userId, p.roi_percentage ?? 15);
