@@ -218,6 +218,7 @@ export default function Auth() {
                 <p className="text-xs text-muted-foreground">
                   {lastLoginMethod === 'google' ? 'Tap "Continue with Google" to sign in' :
                    lastLoginMethod === 'otp' ? 'Use SMS code for quick login' :
+                   lastLoginMethod === 'email' ? 'Sign in with your email and password' :
                    'Enter your password to continue'}
                 </p>
               </div>
