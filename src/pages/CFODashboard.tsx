@@ -25,6 +25,8 @@ import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionRepor
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 import { ThresholdAlerts } from '@/components/cfo/ThresholdAlerts';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
+import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
+import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
