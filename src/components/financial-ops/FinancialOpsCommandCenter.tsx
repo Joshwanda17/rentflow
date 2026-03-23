@@ -6,7 +6,7 @@ import { TransactionSearch } from './TransactionSearch';
 import { ReconciliationDashboard } from './ReconciliationDashboard';
 import { AuditFeed } from './AuditFeed';
 import { TidVerification } from './TidVerification';
-import { ClipboardList, Search, Scale, Shield, LayoutDashboard, Hash } from 'lucide-react';
+import { ClipboardList, Search, Scale, Shield, LayoutDashboard, Hash, ShieldCheck } from 'lucide-react';
 
 export function FinancialOpsCommandCenter() {
   const [tab, setTab] = useState('queue');
