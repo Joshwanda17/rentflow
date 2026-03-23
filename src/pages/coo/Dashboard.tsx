@@ -11,6 +11,7 @@ import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
+import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 
 export default function COODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -41,6 +42,8 @@ export default function COODashboardPage() {
         );
       case 'wallets':
         return <FinancialOpsCommandCenter />;
+      case 'agent-activity':
+        return <CashoutAgentActivity />;
       case 'analytics':
         return (
           <div className="space-y-4">

@@ -18,6 +18,7 @@ import { FinancialAgentsPanel } from '@/components/cfo/FinancialAgentsPanel';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
 import { PayrollPanel } from '@/components/cfo/PayrollPanel';
 import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
+import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -63,6 +64,8 @@ export default function CFODashboardPage() {
         return <ProxyAgentManager />;
       case 'cashout-agents':
         return <CashoutAgentManager />;
+      case 'agent-activity':
+        return <CashoutAgentActivity />;
       case 'payroll':
         return <PayrollPanel />;
       default:

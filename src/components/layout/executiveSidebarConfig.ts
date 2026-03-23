@@ -49,6 +49,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Financial Agents', icon: DollarSign, id: 'financial-agents' },
         { label: 'Cash-Out Agents', icon: Banknote, id: 'cashout-agents' },
+        { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
         { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
       ],
@@ -63,6 +64,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Transactions', icon: ClipboardList, id: 'transactions' },
         { label: 'Agent Collections', icon: Users, id: 'collections' },
         { label: 'Wallets', icon: Wallet, id: 'wallets' },
+        { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Payment Analytics', icon: BarChart3, id: 'analytics' },
       ],
     },
