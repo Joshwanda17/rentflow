@@ -1,0 +1,184 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Africa's Talking USSD callback handler
+// Tenants without smartphones can dial a shortcode to:
+// 1. Check rent balance
+// 2. Confirm a payment
+// 3. Request help / escalate
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const serviceClient = createClient(supabaseUrl, serviceKey)
+
+    // Africa's Talking sends form-encoded data
+    const formData = await req.formData()
+    const sessionId = formData.get('sessionId') as string
+    const serviceCode = formData.get('serviceCode') as string
+    const phoneNumber = formData.get('phoneNumber') as string
+    const text = formData.get('text') as string || ''
+
+    // Normalize phone: +256... -> 0...
+    const normalizedPhone = phoneNumber.startsWith('+256')
+      ? '0' + phoneNumber.slice(4)
+      : phoneNumber.startsWith('256')
+        ? '0' + phoneNumber.slice(3)
+        : phoneNumber
+
+    // Find user by phone
+    const { data: profile } = await serviceClient
+      .from('profiles')
+      .select('id, full_name, phone')
+      .or(`phone.eq.${normalizedPhone},phone.eq.${phoneNumber}`)
+      .limit(1)
+      .single()
+
+    if (!profile) {
+      return new Response('END Sorry, this phone number is not registered on Welile. Please ask your agent to register you.', {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+
+    const textParts = text.split('*').filter(Boolean)
+    const level = textParts.length
+
+    // Level 0: Main menu
+    if (level === 0) {
+      const response = `CON Welcome to Welile, ${profile.full_name || 'User'}!
+1. Check Rent Balance
+2. Last Payment
+3. Request Help`
+      return new Response(response, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+
+    const choice = textParts[0]
+
+    // Option 1: Check rent balance
+    if (choice === '1') {
+      // Get active rent request
+      const { data: rentReq } = await serviceClient
+        .from('rent_requests')
+        .select('rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status')
+        .eq('tenant_id', profile.id)
+        .in('status', ['funded', 'disbursed', 'repaying'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!rentReq) {
+        return new Response('END You have no active rent balance. Contact your agent for more info.', {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
+
+      const remaining = (rentReq.total_repayment || 0) - (rentReq.amount_repaid || 0)
+      const response = `END Rent Balance:
+Rent: UGX ${(rentReq.rent_amount || 0).toLocaleString()}
+Total Due: UGX ${(rentReq.total_repayment || 0).toLocaleString()}
+Paid: UGX ${(rentReq.amount_repaid || 0).toLocaleString()}
+Remaining: UGX ${remaining.toLocaleString()}
+Daily: UGX ${(rentReq.daily_repayment || 0).toLocaleString()}/day`
+
+      return new Response(response, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+
+    // Option 2: Last payment
+    if (choice === '2') {
+      const { data: lastPayment } = await serviceClient
+        .from('general_ledger')
+        .select('amount, created_at, description')
+        .eq('user_id', profile.id)
+        .eq('category', 'rent_repayment')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!lastPayment) {
+        return new Response('END No recent payments found. Contact your agent for assistance.', {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
+
+      const date = new Date(lastPayment.created_at)
+      const response = `END Last Payment:
+Amount: UGX ${(lastPayment.amount || 0).toLocaleString()}
+Date: ${date.toLocaleDateString('en-UG')}
+Thank you for paying on time!`
+
+      return new Response(response, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+
+    // Option 3: Request help
+    if (choice === '3') {
+      if (level === 1) {
+        return new Response('CON What do you need help with?\n1. Agent not collecting\n2. Payment dispute\n3. Speak to manager', {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
+
+      const helpChoice = textParts[1]
+      const helpTypes: Record<string, string> = {
+        '1': 'agent_not_collecting',
+        '2': 'payment_dispute',
+        '3': 'manager_request',
+      }
+
+      const escalationType = helpTypes[helpChoice] || 'general'
+
+      // Find linked agent
+      const { data: rentReq } = await serviceClient
+        .from('rent_requests')
+        .select('agent_id, assigned_agent_id')
+        .eq('tenant_id', profile.id)
+        .in('status', ['funded', 'disbursed', 'repaying'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      const agentId = rentReq?.assigned_agent_id || rentReq?.agent_id
+
+      if (agentId) {
+        await serviceClient.from('agent_escalations').insert({
+          agent_id: agentId,
+          tenant_id: profile.id,
+          title: `USSD Help Request: ${escalationType.replace(/_/g, ' ')}`,
+          description: `Tenant ${profile.full_name} (${phoneNumber}) requested help via USSD shortcode. Type: ${escalationType}`,
+          escalation_type: escalationType,
+          severity: helpChoice === '3' ? 'high' : 'medium',
+          metadata: { source: 'ussd', session_id: sessionId, phone: phoneNumber },
+        })
+      }
+
+      return new Response('END Your request has been submitted. A Welile agent will contact you shortly. Thank you!', {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+
+    // Invalid option
+    return new Response('END Invalid option. Please dial again and select 1, 2, or 3.', {
+      headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+    })
+
+  } catch (err) {
+    console.error('[ussd-callback] Error:', err)
+    return new Response('END An error occurred. Please try again later.', {
+      headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+    })
+  }
+})
