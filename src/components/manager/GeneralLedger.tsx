@@ -87,6 +87,7 @@ export function GeneralLedger() {
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('all');
   const printRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
