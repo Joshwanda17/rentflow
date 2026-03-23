@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Search, X, User } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+
 
 interface UserResult {
   id: string;
