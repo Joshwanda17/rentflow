@@ -21,6 +21,7 @@ import { CashoutAgentManager } from '@/components/cfo/CashoutAgentManager';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { DeliveryPipelineTracker } from '@/components/cfo/DeliveryPipelineTracker';
 import { AgentCashReconciliation } from '@/components/cfo/AgentCashReconciliation';
+import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -74,6 +75,16 @@ export default function CFODashboardPage() {
         return <DeliveryPipelineTracker />;
       case 'cash-reconciliation':
         return <AgentCashReconciliation />;
+      case 'landlord-payouts':
+        return (
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold">🏠 Agent Landlord Payout Verification</h1>
+            <p className="text-sm text-muted-foreground">
+              Review and sign off on agent-to-landlord MoMo payouts after Landlord Ops approval.
+            </p>
+            <LandlordOpsPayoutReview reviewRole="cfo" />
+          </div>
+        );
       default:
         return (
           <div className="space-y-6">

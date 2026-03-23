@@ -898,6 +898,131 @@ export type Database = {
           },
         ]
       }
+      agent_landlord_payouts: {
+        Row: {
+          agent_id: string
+          amount: number
+          cfo_approved_at: string | null
+          cfo_approved_by: string | null
+          cfo_notes: string | null
+          created_at: string
+          gps_distance_meters: number | null
+          gps_match: boolean | null
+          id: string
+          landlord_id: string
+          landlord_name: string
+          landlord_ops_approved_at: string | null
+          landlord_ops_approved_by: string | null
+          landlord_ops_notes: string | null
+          landlord_phone: string
+          latitude: number | null
+          location_accuracy: number | null
+          longitude: number | null
+          mobile_money_provider: string
+          notes: string | null
+          property_latitude: number | null
+          property_longitude: number | null
+          receipt_photo_urls: string[] | null
+          rejection_reason: string | null
+          rent_request_id: string
+          status: string
+          tenant_id: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          cfo_notes?: string | null
+          created_at?: string
+          gps_distance_meters?: number | null
+          gps_match?: boolean | null
+          id?: string
+          landlord_id: string
+          landlord_name: string
+          landlord_ops_approved_at?: string | null
+          landlord_ops_approved_by?: string | null
+          landlord_ops_notes?: string | null
+          landlord_phone: string
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
+          mobile_money_provider: string
+          notes?: string | null
+          property_latitude?: number | null
+          property_longitude?: number | null
+          receipt_photo_urls?: string[] | null
+          rejection_reason?: string | null
+          rent_request_id: string
+          status?: string
+          tenant_id: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          cfo_notes?: string | null
+          created_at?: string
+          gps_distance_meters?: number | null
+          gps_match?: boolean | null
+          id?: string
+          landlord_id?: string
+          landlord_name?: string
+          landlord_ops_approved_at?: string | null
+          landlord_ops_approved_by?: string | null
+          landlord_ops_notes?: string | null
+          landlord_phone?: string
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
+          mobile_money_provider?: string
+          notes?: string | null
+          property_latitude?: number | null
+          property_longitude?: number | null
+          receipt_photo_urls?: string[] | null
+          rejection_reason?: string | null
+          rent_request_id?: string
+          status?: string
+          tenant_id?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_landlord_payouts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_payouts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_payouts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_payouts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_rebalance_records: {
         Row: {
           agent_id: string

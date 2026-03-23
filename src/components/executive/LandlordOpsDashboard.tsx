@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
+import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
@@ -343,6 +344,9 @@ export function LandlordOpsDashboard() {
     <div className="space-y-6">
       {/* 🔥 PRIORITY: Rent Pipeline Review */}
       <RentPipelineQueue stage="agent_verified" />
+
+      {/* Agent Landlord Payout Verification */}
+      <LandlordOpsPayoutReview reviewRole="landlord_ops" />
 
       {/* Overview KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
