@@ -42,6 +42,8 @@ export default function COODashboardPage() {
         );
       case 'wallets':
         return <FinancialOpsCommandCenter />;
+      case 'agent-activity':
+        return <CashoutAgentActivity />;
       case 'analytics':
         return (
           <div className="space-y-4">
