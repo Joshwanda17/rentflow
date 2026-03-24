@@ -31,6 +31,7 @@ import { WalletLedgerStatement } from './WalletLedgerStatement';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
+import { AgentRentRequestsWalletSection } from './AgentRentRequestsWalletSection';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
