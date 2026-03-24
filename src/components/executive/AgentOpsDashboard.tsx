@@ -139,6 +139,9 @@ export function AgentOpsDashboard() {
         <AgentEscalationQueue />
       </div>
 
+      {/* Landlord Float Payout Reviews */}
+      <AgentOpsFloatPayoutReview />
+
       {/* Alerts */}
       <AgentAlertFeed />
 
