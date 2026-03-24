@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       const userId = withdrawal_type === 'float' ? wr.agent_id : wr.user_id;
       let refunded = false;
 
-      // For float withdrawals, the balance was already deducted from agent_landlord_float
+      // For float withdrawals, the balance was already deducted from agent_landlord_float — restore it
       // We need to restore it
       if (withdrawal_type === 'float') {
         const { error: restoreErr } = await admin
