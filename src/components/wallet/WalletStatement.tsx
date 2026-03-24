@@ -26,7 +26,9 @@ import {
   Coins,
   ArrowUpDown,
   Download,
-  Loader2
+  Loader2,
+  Filter,
+  X
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -83,6 +85,9 @@ export function WalletStatement() {
   const [totals, setTotals] = useState({ totalIn: 0, totalOut: 0 });
   const [breakdown, setBreakdown] = useState<Record<string, number>>({});
   const [userName, setUserName] = useState('');
+  // Filters
+  const [directionFilter, setDirectionFilter] = useState<'all' | 'credit' | 'debit'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   useEffect(() => {
     if (open && user) {
@@ -351,8 +356,20 @@ export function WalletStatement() {
     }
   }, [entries, totals, userName]);
 
+  // Apply filters
+  const filteredEntries = entries.filter(entry => {
+    if (directionFilter !== 'all' && entry.type !== directionFilter) return false;
+    if (categoryFilter !== 'all' && entry.category !== categoryFilter) return false;
+    return true;
+  });
+
+  // Get unique categories for filter chips
+  const uniqueCategories = [...new Set(entries.map(e => e.category))];
+
+  const hasActiveFilters = directionFilter !== 'all' || categoryFilter !== 'all';
+
   // Group by date
-  const groupedEntries = entries.reduce((groups, entry) => {
+  const groupedEntries = filteredEntries.reduce((groups, entry) => {
     const key = format(new Date(entry.date), 'yyyy-MM-dd');
     if (!groups[key]) groups[key] = [];
     groups[key].push(entry);
@@ -459,12 +476,86 @@ export function WalletStatement() {
               </div>
             )}
 
+            {/* ── Filter Bar ── */}
+            <div className="mb-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Filter Transactions</p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={() => { setDirectionFilter('all'); setCategoryFilter('all'); }}
+                    className="ml-auto flex items-center gap-1 text-[10px] text-destructive font-medium"
+                  >
+                    <X className="h-3 w-3" /> Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Direction filter */}
+              <div className="flex gap-1.5 p-1 bg-muted rounded-lg">
+                {[
+                  { value: 'all' as const, label: 'All', count: entries.length },
+                  { value: 'credit' as const, label: '💰 Money In', count: entries.filter(e => e.type === 'credit').length },
+                  { value: 'debit' as const, label: '📤 Money Out', count: entries.filter(e => e.type === 'debit').length },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setDirectionFilter(opt.value)}
+                    className={`flex-1 py-2 px-2 rounded-md text-[11px] font-semibold transition-all ${
+                      directionFilter === opt.value
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {opt.label} ({opt.count})
+                  </button>
+                ))}
+              </div>
+
+              {/* Category filter chips */}
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setCategoryFilter('all')}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
+                    categoryFilter === 'all'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  All Types
+                </button>
+                {uniqueCategories.map(cat => {
+                  const { label } = getCategoryMeta(cat, 'cash_in');
+                  const count = entries.filter(e => e.category === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setCategoryFilter(cat === categoryFilter ? 'all' : cat)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
+                        categoryFilter === cat
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      {label} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {hasActiveFilters && (
+                <p className="text-[10px] text-muted-foreground">
+                  Showing {filteredEntries.length} of {entries.length} transactions
+                </p>
+              )}
+            </div>
+
             {/* ── Transaction Timeline ── */}
             {Object.keys(groupedEntries).length > 0 ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</p>
-                  <span className="text-[10px] text-muted-foreground">{entries.length} entries</span>
+                  <span className="text-[10px] text-muted-foreground">{filteredEntries.length} entries</span>
                 </div>
                 {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => (
                   <div key={dateKey}>
