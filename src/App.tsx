@@ -116,6 +116,7 @@ const ShareLocation = lazy(() => import('./pages/ShareLocation'));
 const InvestorPortfolioPublic = lazy(() => import('./pages/InvestorPortfolioPublic'));
 const RentMoney = lazy(() => import('./pages/RentMoney'));
 const FindAHouse = lazy(() => import('./pages/FindAHouse'));
+const LandlordAgreement = lazy(() => import('./pages/LandlordAgreement'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
