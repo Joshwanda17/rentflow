@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useMemo } from 'react';
+import { formatUGX } from '@/lib/rentCalculations';
 
 const CHANNELS = [
-  { key: 'mtn', label: 'MTN MoMo', color: 'bg-yellow-500', emoji: '📱' },
-  { key: 'airtel', label: 'Airtel Money', color: 'bg-red-500', emoji: '📲' },
-  { key: 'bank', label: 'Bank Transfer', color: 'bg-blue-500', emoji: '🏦' },
-  { key: 'cash', label: 'Agent Cash', color: 'bg-green-500', emoji: '💵' },
+  { key: 'mtn', label: 'MTN', color: 'bg-amber-500', emoji: '📱' },
+  { key: 'airtel', label: 'Airtel', color: 'bg-red-500', emoji: '📲' },
+  { key: 'bank', label: 'Bank', color: 'bg-blue-500', emoji: '🏦' },
+  { key: 'cash', label: 'Cash', color: 'bg-emerald-500', emoji: '💵' },
 ];
 
 export function ChannelBalanceTracker() {
@@ -95,52 +95,47 @@ export function ChannelBalanceTracker() {
   const grandTotal = channelData.reduce((s, c) => s + c.netBalance, 0);
 
   if (isLoading) {
-    return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">Channel Balances</h2>
-        <Badge variant="outline" className="text-sm font-bold">
-          Net: UGX {grandTotal.toLocaleString()}
-        </Badge>
+        <h3 className="text-sm font-semibold text-foreground">Channels</h3>
+        <span className="text-xs font-mono font-semibold text-muted-foreground">
+          Net {formatUGX(grandTotal)}
+        </span>
       </div>
 
-      <div className="grid gap-3 grid-cols-2">
-        {channelData.map(ch => (
-          <Card key={ch.key} className="relative overflow-hidden">
-            <div className={`absolute top-0 left-0 w-1 h-full ${ch.color}`} />
-            <CardContent className="p-3 pl-4 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">{ch.emoji} {ch.label}</span>
-                {ch.trend > 5 ? (
-                  <TrendingUp className="h-3.5 w-3.5 text-green-500" />
-                ) : ch.trend < -5 ? (
-                  <TrendingDown className="h-3.5 w-3.5 text-red-500" />
-                ) : (
-                  <Minus className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
+      {/* Channel rows — single column, clean list */}
+      <div className="rounded-xl border border-border bg-card divide-y divide-border">
+        {channelData.map(ch => {
+          const TrendIcon = ch.trend > 5 ? TrendingUp : ch.trend < -5 ? TrendingDown : Minus;
+          const trendColor = ch.trend > 5 ? 'text-emerald-500' : ch.trend < -5 ? 'text-destructive' : 'text-muted-foreground';
+
+          return (
+            <div key={ch.key} className="flex items-center gap-3 px-3 py-2.5">
+              {/* Color dot + label */}
+              <div className={`w-2 h-2 rounded-full shrink-0 ${ch.color}`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">{ch.emoji} {ch.label}</span>
+                  <span className="text-xs font-bold font-mono text-foreground">{formatUGX(ch.netBalance)}</span>
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="text-[10px] text-muted-foreground">
+                    +{formatUGX(ch.todayIn)} today · {ch.txCount} txns
+                  </span>
+                  <span className={`flex items-center gap-0.5 text-[10px] font-medium ${trendColor}`}>
+                    <TrendIcon className="h-2.5 w-2.5" />
+                    {Math.abs(ch.trend).toFixed(0)}%
+                  </span>
+                </div>
               </div>
-              <p className="text-lg font-bold text-primary">
-                UGX {ch.netBalance.toLocaleString()}
-              </p>
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>In: {ch.totalIn.toLocaleString()}</span>
-                <span>Out: {ch.totalOut.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-green-600">Today: +{ch.todayIn.toLocaleString()}</span>
-                <span className="text-muted-foreground">{ch.txCount} txns</span>
-              </div>
-              {ch.trend !== 0 && (
-                <p className={`text-[10px] font-medium ${ch.trend > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  {ch.trend > 0 ? '↑' : '↓'} {Math.abs(ch.trend).toFixed(0)}% vs prev week
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
