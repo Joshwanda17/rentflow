@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
-  Landmark, Image, CheckCircle2, XCircle, Loader2,
+  Landmark, CheckCircle2, XCircle, Loader2,
   Phone, User2, Clock, Hash, AlertCircle, Upload, Camera, Banknote
 } from 'lucide-react';
 import { toast } from 'sonner';
