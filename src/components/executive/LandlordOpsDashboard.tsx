@@ -376,7 +376,7 @@ export function LandlordOpsDashboard() {
       )}
 
       {/* Tabbed Management Sections */}
-      <Tabs defaultValue="matching" className="w-full">
+      <Tabs defaultValue="map" className="w-full">
         <TabsList className="grid w-full grid-cols-8 h-auto">
           <TabsTrigger value="map" className="text-xs py-2 gap-1 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700">
             <MapIcon className="h-3.5 w-3.5" />
