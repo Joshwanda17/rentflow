@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { ArrowDownLeft, ArrowUpRight, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, TrendingUp } from 'lucide-react';
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   inflow: { label: 'Capital In', color: 'text-emerald-600', icon: ArrowDownLeft },

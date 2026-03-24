@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { CheckCircle2, Clock, Coins, XCircle, Wallet } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {

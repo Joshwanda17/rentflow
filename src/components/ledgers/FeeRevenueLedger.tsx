@@ -51,7 +51,7 @@ export function FeeRevenueLedger() {
     value,
   }));
 
-  const recognitionRate = totals.total > 0 ? ((totals.recognized / totals.total) * 100).toFixed(1) : '0';
+  const _recognitionRate = totals.total > 0 ? ((totals.recognized / totals.total) * 100).toFixed(1) : '0';
 
   return (
     <div className="space-y-3">

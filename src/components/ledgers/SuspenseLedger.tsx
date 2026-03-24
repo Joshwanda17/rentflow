@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle2, XCircle, Plus, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<string, string> = {
