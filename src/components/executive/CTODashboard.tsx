@@ -256,9 +256,9 @@ export function CTODashboard() {
 
       {/* Pipeline Health */}
       {pipelineHealth && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Rent Request Pipeline Health</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
             {[
               { label: 'Total', value: pipelineHealth.total, color: 'text-foreground' },
               { label: 'Pending', value: pipelineHealth.pending, color: 'text-amber-600' },
