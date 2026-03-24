@@ -7743,6 +7743,22 @@ export type Database = {
       get_approximate_user_count: { Args: never; Returns: number }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
+      get_chain_health_summary: {
+        Args: never
+        Returns: {
+          fully_linked: number
+          missing_photos: number
+          total_properties: number
+          unverified: number
+          with_agent: number
+          with_gps: number
+          with_landlord: number
+          with_tenant: number
+          without_agent: number
+          without_gps: number
+          without_landlord: number
+        }[]
+      }
       get_deposits_paginated: {
         Args: {
           p_agent_id?: string

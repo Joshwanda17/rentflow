@@ -8,8 +8,9 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
-  Building2, UserCheck, Smartphone, Handshake, GitBranch,
+  Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
 } from 'lucide-react';
+import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { differenceInDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -217,9 +218,20 @@ export function LandlordOpsDashboard() {
       <div>
         <p className="font-semibold text-sm leading-tight">{row.title}</p>
         <p className="text-[10px] text-muted-foreground">{row.address}</p>
-        <div className="flex gap-1 mt-0.5">
+        <div className="flex gap-1 mt-0.5 flex-wrap">
           <Badge variant="outline" className="text-[9px] h-4 px-1">{row.house_category}</Badge>
           <Badge variant="outline" className="text-[9px] h-4 px-1">{row.number_of_rooms} rooms</Badge>
+          {/* Chain badges */}
+          {row.latitude && row.longitude ? (
+            <Badge className="bg-emerald-500/20 text-emerald-700 border-0 text-[8px] h-3.5 px-1">📍</Badge>
+          ) : (
+            <Badge className="bg-red-500/20 text-red-700 border-0 text-[8px] h-3.5 px-1">❌ GPS</Badge>
+          )}
+          {row.landlord_id ? (
+            <Badge className="bg-blue-500/20 text-blue-700 border-0 text-[8px] h-3.5 px-1">🏠</Badge>
+          ) : (
+            <Badge className="bg-red-500/20 text-red-700 border-0 text-[8px] h-3.5 px-1">❌ Landlord</Badge>
+          )}
         </div>
       </div>
     </div>
@@ -376,8 +388,12 @@ export function LandlordOpsDashboard() {
       )}
 
       {/* Tabbed Management Sections */}
-      <Tabs defaultValue="empty" className="w-full">
-        <TabsList className="grid w-full grid-cols-7 h-auto">
+      <Tabs defaultValue="chain" className="w-full">
+        <TabsList className="grid w-full grid-cols-8 h-auto">
+          <TabsTrigger value="chain" className="text-xs py-2 gap-1 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700">
+            <Link2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Chain</span>
+          </TabsTrigger>
           <TabsTrigger value="matching" className="text-xs py-2 gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
             <Handshake className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Match</span>
@@ -410,6 +426,11 @@ export function LandlordOpsDashboard() {
             <span className="hidden sm:inline">Analytics</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* ──────── CHAIN HEALTH TAB ──────── */}
+        <TabsContent value="chain" className="space-y-4 mt-4">
+          <ChainHealthTab />
+        </TabsContent>
 
         {/* ──────── MATCHING TAB ──────── */}
         <TabsContent value="matching" className="space-y-4 mt-4">
