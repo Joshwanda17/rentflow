@@ -10,6 +10,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
 } from 'lucide-react';
+import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { differenceInDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
