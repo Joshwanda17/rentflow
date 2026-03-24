@@ -175,8 +175,6 @@ function InitialFit({ done }: { done: React.MutableRefObject<boolean> }) {
     if (!done.current) {
       done.current = true;
       // Trigger initial viewport load after map mounts
-      const bounds = map.getBounds();
-      const zoom = map.getZoom();
       map.fire('moveend', { target: map });
     }
   }, [map, done]);
