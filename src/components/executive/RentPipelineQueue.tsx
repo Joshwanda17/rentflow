@@ -260,10 +260,6 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       toast({ title: 'Please assign an agent', variant: 'destructive' });
       return;
     }
-    if (config.showPayoutFields && !payoutRef.trim()) {
-      toast({ title: 'Transaction reference is required', variant: 'destructive' });
-      return;
-    }
 
     setProcessing(true);
     try {
