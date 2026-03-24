@@ -194,9 +194,9 @@ export function CTODashboard() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* System KPIs - all real */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard
           title="DB Response Time"
           value={dbLatency ? `${dbLatency}ms` : '...'}
