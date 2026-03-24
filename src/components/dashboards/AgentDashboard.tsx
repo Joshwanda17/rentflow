@@ -51,6 +51,8 @@ import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPrope
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
 import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
+import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
+import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
@@ -145,6 +147,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
   const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
   const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
+  const [floatPayoutOpen, setFloatPayoutOpen] = useState(false);
 
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
@@ -299,7 +302,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </button>
         )}
 
-        {/* Pay Landlord - visible for agents with assigned rent requests */}
+        {/* Landlord Float Card — separate escrow balance */}
+        <AgentLandlordFloatCard onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }} />
+
+        {/* Pay Landlord from personal wallet - legacy flow */}
         <button
           onClick={() => { hapticTap(); setLandlordPayoutFlowOpen(true); }}
           className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-success/40 bg-success/10 hover:bg-success/15 transition-all touch-manipulation active:scale-[0.98] animate-fade-in"
@@ -407,6 +413,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentManagedPropertiesSheet open={managedPropertiesSheetOpen} onOpenChange={setManagedPropertiesSheetOpen} onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }} />
       <AgentLandlordPayoutDialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen} property={payoutProperty} />
       <AgentLandlordPayoutFlow open={landlordPayoutFlowOpen} onOpenChange={setLandlordPayoutFlowOpen} />
+      <AgentFloatPayoutWizard open={floatPayoutOpen} onOpenChange={setFloatPayoutOpen} />
       <VerificationOpportunitiesButton />
       <CreditVerificationButton />
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
