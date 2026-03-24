@@ -267,7 +267,23 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
           {/* Step 1: Select rent request */}
           {step === 'select' && (
             <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-              <p className="text-sm text-muted-foreground">Select a rent request to pay the landlord:</p>
+              {/* Float Balance Banner */}
+              <div className={`rounded-xl p-3 border text-sm ${
+                (floatData?.balance || 0) > 0
+                  ? 'bg-success/5 border-success/30'
+                  : 'bg-destructive/5 border-destructive/30'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Landlord Float Balance</span>
+                  <span className={`font-bold font-mono ${(floatData?.balance || 0) > 0 ? 'text-success' : 'text-destructive'}`}>
+                    {formatUGX(floatData?.balance || 0)}
+                  </span>
+                </div>
+                {(floatData?.balance || 0) <= 0 && (
+                  <p className="text-[10px] text-destructive mt-1">⚠️ Float is empty. Request a top-up from your manager before paying landlords.</p>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">Select a rent request to pay the landlord (from your float):</p>
               {isLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : assignedRequests.length === 0 ? (
