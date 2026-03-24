@@ -60,8 +60,8 @@ export function BatchPayoutProcessor() {
     mutationFn: async () => {
       if (!batchRef.trim()) throw new Error('Enter a batch reference');
       for (const id of selected) {
-        const { error } = await supabase.functions.invoke('disburse-rent-to-landlord', {
-          body: { requestId: id, transactionReference: `BATCH-${batchRef}-${id.slice(0, 8)}` },
+        const { error } = await supabase.functions.invoke('fund-agent-landlord-float', {
+          body: { rent_request_id: id, notes: `Batch: ${batchRef}` },
         });
         if (error) throw error;
       }
