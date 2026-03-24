@@ -367,7 +367,7 @@ export function FloatPayoutVerification() {
                                 <Input
                                   value={verifyTid[p.id] || ''}
                                   onChange={e => setVerifyTid(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                  placeholder={p.transaction_id ? `Agent TID: ${p.transaction_id} — re-enter to confirm` : 'Enter verified TID'}
+                                  placeholder={p.transaction_id ? `Hint: ••••${p.transaction_id.slice(-2)} — enter full TID to verify` : 'Enter verified TID'}
                                   className="font-mono text-base h-10 border-2 border-amber-500/30"
                                 />
                               </div>
