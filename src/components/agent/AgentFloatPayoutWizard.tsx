@@ -179,11 +179,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         transaction_id: tid.trim(),
         notes: notes || null,
         receipt_photo_urls: photoUrls.length > 0 ? photoUrls : null,
-        agent_latitude: loc?.latitude ?? null,
-        agent_longitude: loc?.longitude ?? null,
-        agent_location_accuracy: loc?.accuracy ?? null,
-        property_latitude: req.landlord?.latitude ?? null,
-        property_longitude: req.landlord?.longitude ?? null,
+        agent_latitude: loc.latitude,
+        agent_longitude: loc.longitude,
+        agent_location_accuracy: loc.accuracy,
+        property_latitude: propLat ?? null,
+        property_longitude: propLng ?? null,
+        gps_distance_meters: gpsDistanceMeters,
+        gps_match: gpsMatch,
         status: 'pending_agent_ops',
       } as any);
 
