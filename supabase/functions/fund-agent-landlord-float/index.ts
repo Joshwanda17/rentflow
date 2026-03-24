@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       category: 'rent_float_funding',
       direction: 'cash_in',
       amount: request.rent_amount,
-      description: `Landlord float credited – ${landlord?.name || 'Unknown'} (${formatUGX(request.rent_amount)})`,
+      description: `Landlord float credited – ${landlord?.name || 'Unknown'} (UGX ${request.rent_amount.toLocaleString()})`,
       user_id: bonusAgentId,
       linked_party: request.landlord_id,
       ledger_scope: 'bridge',
