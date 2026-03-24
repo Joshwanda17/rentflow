@@ -24,7 +24,7 @@ import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
-import { PropertyMapView } from './landlord-ops/PropertyMapView';
+
 
 interface ListingWithLandlord {
   id: string;
