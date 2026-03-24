@@ -493,7 +493,8 @@ export function WalletStatement() {
                     {/* Entries */}
                     <div className="space-y-2 pl-2 border-l-2 border-muted ml-2">
                       {dayEntries.map((entry) => {
-                        const { label, Icon, colorClass } = getCategoryMeta(entry.category, entry.type === 'credit' ? 'cash_in' : 'cash_out');
+                        const meta = getCategoryMeta(entry.category, entry.type === 'credit' ? 'cash_in' : 'cash_out');
+                        const { label, Icon, colorClass, plainExplanation } = meta;
                         const isCredit = entry.type === 'credit';
 
                         return (
@@ -511,7 +512,7 @@ export function WalletStatement() {
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <p className="font-semibold text-sm">{entry.description || label}</p>
+                                      <p className="font-semibold text-sm">{label}</p>
                                       <Badge
                                         variant="outline"
                                         className={`text-[10px] px-1.5 py-0 shrink-0 ${
@@ -520,15 +521,33 @@ export function WalletStatement() {
                                             : 'border-destructive/30 text-destructive'
                                         }`}
                                       >
-                                        {isCredit ? 'IN' : 'OUT'}
+                                        {isCredit ? 'MONEY IN' : 'MONEY OUT'}
                                       </Badge>
                                     </div>
+
+                                    {/* Plain-English explanation */}
+                                    <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                                      {plainExplanation}
+                                    </p>
+
+                                    {/* Show description if different from label */}
+                                    {entry.description && entry.description !== label && (
+                                      <p className="text-[10px] font-medium text-foreground/70 mt-0.5 italic">
+                                        "{entry.description}"
+                                      </p>
+                                    )}
+
                                     {entry.linked_party && entry.category === 'tenant_default_charge' && (
                                       <p className="text-[10px] font-semibold text-warning mt-0.5">
                                         🏠 Tenant: {entry.linked_party}
                                       </p>
                                     )}
-                                    {entry.linked_party && entry.category !== 'tenant_default_charge' && entry.linked_party !== 'platform' && (
+                                    {entry.linked_party && entry.linked_party !== 'platform' && entry.category === 'agent_commission' && (
+                                      <p className="text-[10px] font-semibold text-success mt-0.5">
+                                        👤 Tenant who paid: {entry.linked_party}
+                                      </p>
+                                    )}
+                                    {entry.linked_party && entry.linked_party !== 'platform' && !['tenant_default_charge', 'agent_commission'].includes(entry.category) && (
                                       <p className="text-[10px] text-muted-foreground/80 mt-0.5">
                                         → {entry.linked_party}
                                       </p>
