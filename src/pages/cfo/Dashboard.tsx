@@ -87,6 +87,8 @@ export default function CFODashboardPage() {
             <LandlordOpsPayoutReview reviewRole="cfo" />
           </div>
         );
+      case 'advanced-ledgers':
+        return <LedgerHub />;
       default:
         return (
           <div className="space-y-4">
