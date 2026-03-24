@@ -52,7 +52,6 @@ export function NoSmartphoneScheduleManager({
   // Build schedule
   const schedule: ScheduleDay[] = [];
   const start = startOfDay(new Date(startDate));
-  const today = startOfDay(new Date());
 
   for (let i = 0; i < durationDays; i++) {
     const day = addDays(start, i);

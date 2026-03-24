@@ -25,7 +25,7 @@ interface LandlordResult {
 }
 
 function PersonSearch({
-  label,
+  label: _label,
   role,
   selected,
   onSelect,
