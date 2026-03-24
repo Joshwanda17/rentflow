@@ -146,10 +146,10 @@ export function AgentOpsDashboard() {
       <AgentAlertFeed />
 
       {/* Leaderboard & Earnings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 overflow-x-auto">
           <h3 className="text-sm font-semibold mb-3">🏆 Agent Leaderboard</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={leaderboard} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis type="number" className="text-xs" />
