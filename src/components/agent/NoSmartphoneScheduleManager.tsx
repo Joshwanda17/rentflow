@@ -4,9 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Calendar, Banknote, CheckCircle2, AlertTriangle, Phone } from 'lucide-react';
+import { Loader2, Calendar, Banknote, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, startOfDay, addDays, isToday, isPast, isFuture } from 'date-fns';
+import { format, startOfDay, addDays, isToday, isPast } from 'date-fns';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
