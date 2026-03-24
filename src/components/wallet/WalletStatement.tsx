@@ -26,7 +26,9 @@ import {
   Coins,
   ArrowUpDown,
   Download,
-  Loader2
+  Loader2,
+  Filter,
+  X
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
