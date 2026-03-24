@@ -218,9 +218,20 @@ export function LandlordOpsDashboard() {
       <div>
         <p className="font-semibold text-sm leading-tight">{row.title}</p>
         <p className="text-[10px] text-muted-foreground">{row.address}</p>
-        <div className="flex gap-1 mt-0.5">
+        <div className="flex gap-1 mt-0.5 flex-wrap">
           <Badge variant="outline" className="text-[9px] h-4 px-1">{row.house_category}</Badge>
           <Badge variant="outline" className="text-[9px] h-4 px-1">{row.number_of_rooms} rooms</Badge>
+          {/* Chain badges */}
+          {row.latitude && row.longitude ? (
+            <Badge className="bg-emerald-500/20 text-emerald-700 border-0 text-[8px] h-3.5 px-1">📍</Badge>
+          ) : (
+            <Badge className="bg-red-500/20 text-red-700 border-0 text-[8px] h-3.5 px-1">❌ GPS</Badge>
+          )}
+          {row.landlord_id ? (
+            <Badge className="bg-blue-500/20 text-blue-700 border-0 text-[8px] h-3.5 px-1">🏠</Badge>
+          ) : (
+            <Badge className="bg-red-500/20 text-red-700 border-0 text-[8px] h-3.5 px-1">❌ Landlord</Badge>
+          )}
         </div>
       </div>
     </div>
