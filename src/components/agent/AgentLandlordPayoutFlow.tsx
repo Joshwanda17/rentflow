@@ -326,6 +326,19 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
           {/* Step 2: Pay landlord */}
           {step === 'pay' && req && (
             <motion.div key="pay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              {/* Float deduction notice */}
+              <div className={`rounded-lg p-2 text-xs flex items-center justify-between ${
+                (floatData?.balance || 0) >= (req?.rent_amount || 0)
+                  ? 'bg-success/10 border border-success/20'
+                  : 'bg-destructive/10 border border-destructive/20'
+              }`}>
+                <span className="text-muted-foreground">Float after payout:</span>
+                <span className={`font-bold font-mono ${
+                  (floatData?.balance || 0) >= (req?.rent_amount || 0) ? 'text-success' : 'text-destructive'
+                }`}>
+                  {formatUGX(Math.max(0, (floatData?.balance || 0) - (req?.rent_amount || 0)))}
+                </span>
+              </div>
               {/* Landlord details - prominent */}
               <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-2">
                 <h3 className="font-bold text-sm text-primary">Landlord Details</h3>
