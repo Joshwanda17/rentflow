@@ -143,10 +143,10 @@ export function ApprovedRequestsFundingWidget() {
     setFundingId(pendingRequest.id);
 
     try {
-      const { data, error } = await supabase.functions.invoke('fund-tenant-from-pool', {
+      const { data, error } = await supabase.functions.invoke('fund-agent-landlord-float', {
         body: {
           rent_request_id: pendingRequest.id,
-          transaction_id: transactionId,
+          notes: `Manager funded – TID: ${transactionId}`,
         },
       });
 
@@ -154,8 +154,8 @@ export function ApprovedRequestsFundingWidget() {
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: '✅ Tenant Funded!',
-        description: `${formatUGX(data.amount)} sent to landlord ${data.landlord_name}. Pool remaining: ${formatUGX(data.pool_remaining)}`,
+        title: '✅ Float Funded!',
+        description: `${formatUGX(data.float_funded)} credited to ${data.message}. Agent must pay landlord & submit receipt.`,
       });
 
       setRequests(prev => prev.filter(r => r.id !== pendingRequest.id));
