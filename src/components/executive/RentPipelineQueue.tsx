@@ -74,11 +74,11 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   coo_approved: {
     stage: 'coo_approved',
     title: '💰 CFO Payout Authorization',
-    approveLabel: 'Authorize Payout',
+    approveLabel: 'Authorize & Fund Agent Float',
     nextStatus: 'funded',
     reviewerColumn: 'cfo_reviewed_by',
     reviewerAtColumn: 'cfo_reviewed_at',
-    showPayoutFields: true,
+    showPayoutFields: false,
   },
 };
 
@@ -260,10 +260,6 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       toast({ title: 'Please assign an agent', variant: 'destructive' });
       return;
     }
-    if (config.showPayoutFields && !payoutRef.trim()) {
-      toast({ title: 'Transaction reference is required', variant: 'destructive' });
-      return;
-    }
 
     setProcessing(true);
     try {
@@ -303,19 +299,17 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         }
       }
 
-      // Trigger disbursement when CFO authorizes payout
+      // Fund agent's landlord float when CFO authorizes
       if (stage === 'coo_approved') {
         try {
-          await supabase.functions.invoke('disburse-rent-to-landlord', {
+          await supabase.functions.invoke('fund-agent-landlord-float', {
             body: {
               rent_request_id: selectedRequest.id,
-              transaction_reference: payoutRef.trim(),
-              payout_method: payoutMethod,
               notes: comment || null,
             },
           });
         } catch (disbErr) {
-          console.warn('Disbursement function failed:', disbErr);
+          console.warn('Agent float funding failed:', disbErr);
         }
       }
 
