@@ -173,6 +173,11 @@ export default function COOPartnersPage() {
   const [suspendPartner, setSuspendPartner] = useState<PartnerRow | null>(null);
   const [suspending, setSuspending] = useState(false);
 
+  // Delete partner dialog
+  const [deletePartnerTarget, setDeletePartnerTarget] = useState<PartnerRow | null>(null);
+  const [deletePartnerReason, setDeletePartnerReason] = useState('');
+  const [deletingPartner, setDeletingPartner] = useState(false);
+
   // Partner Detail view
   const [detailPartner, setDetailPartner] = useState<PartnerDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -866,6 +871,53 @@ export default function COOPartnersPage() {
     finally { setSuspending(false); }
   }
 
+  /* ─── Delete Partner (Permanent) ─── */
+  async function handleDeletePartner() {
+    if (!deletePartnerTarget || deletePartnerReason.length < 10) return;
+    setDeletingPartner(true);
+    try {
+      // Remove supporter role
+      const { error: roleErr } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', deletePartnerTarget.id)
+        .eq('role', 'supporter');
+      if (roleErr) throw roleErr;
+
+      // Freeze the profile with deletion reason
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({
+          frozen_at: new Date().toISOString(),
+          frozen_reason: `Deleted by COO: ${deletePartnerReason}`,
+        })
+        .eq('id', deletePartnerTarget.id);
+      if (profileErr) throw profileErr;
+
+      // Audit log
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        user_id: currentUser?.id,
+        action_type: 'partner_deleted',
+        table_name: 'user_roles',
+        record_id: deletePartnerTarget.id,
+        metadata: {
+          partner_name: deletePartnerTarget.name,
+          reason: deletePartnerReason,
+        },
+      });
+
+      toast.success(`${deletePartnerTarget.name} has been permanently deleted as a partner`);
+      setDeletePartnerTarget(null);
+      setDeletePartnerReason('');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete partner');
+    } finally {
+      setDeletingPartner(false);
+    }
+  }
+
   /* ─── Sort Icon ─── */
   function SortIcon({ colKey }: { colKey: string }) {
     if (sortKey !== colKey) return <ChevronsUpDown className="h-2.5 w-2.5 opacity-30" />;
@@ -938,10 +990,16 @@ export default function COOPartnersPage() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={e => { e.stopPropagation(); setSuspendPartner(r); }}
-              className={cn('gap-2', r.status === 'active' ? 'text-destructive focus:text-destructive' : 'text-primary focus:text-primary')}
+              className={cn('gap-2', r.status === 'active' ? 'text-amber-600 focus:text-amber-600' : 'text-primary focus:text-primary')}
             >
               {r.status === 'active' ? <Ban className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
               {r.status === 'active' ? 'Suspend' : 'Reactivate'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeletePartnerReason(''); }}
+              className="gap-2 text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Partner
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -1637,6 +1695,46 @@ export default function COOPartnersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ─── Delete Partner Confirm ─── */}
+      <Dialog open={!!deletePartnerTarget} onOpenChange={open => { if (!open) { setDeletePartnerTarget(null); setDeletePartnerReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> Delete Partner
+            </DialogTitle>
+            <DialogDescription>
+              This will <strong>permanently remove</strong> <strong>{deletePartnerTarget?.name}</strong> as a partner. Their supporter role will be revoked and account frozen. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs font-semibold">Deletion Reason <span className="text-destructive">*</span></Label>
+              <Textarea
+                placeholder="Provide a detailed reason (min 10 characters)..."
+                value={deletePartnerReason}
+                onChange={e => setDeletePartnerReason(e.target.value)}
+                className="mt-1 text-sm"
+                rows={3}
+              />
+              {deletePartnerReason.length > 0 && deletePartnerReason.length < 10 && (
+                <p className="text-[10px] text-destructive mt-1">Reason must be at least 10 characters</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setDeletePartnerTarget(null); setDeletePartnerReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePartner}
+              disabled={deletingPartner || deletePartnerReason.length < 10}
+            >
+              {deletingPartner && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
