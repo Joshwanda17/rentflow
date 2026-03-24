@@ -356,8 +356,20 @@ export function WalletStatement() {
     }
   }, [entries, totals, userName]);
 
+  // Apply filters
+  const filteredEntries = entries.filter(entry => {
+    if (directionFilter !== 'all' && entry.type !== directionFilter) return false;
+    if (categoryFilter !== 'all' && entry.category !== categoryFilter) return false;
+    return true;
+  });
+
+  // Get unique categories for filter chips
+  const uniqueCategories = [...new Set(entries.map(e => e.category))];
+
+  const hasActiveFilters = directionFilter !== 'all' || categoryFilter !== 'all';
+
   // Group by date
-  const groupedEntries = entries.reduce((groups, entry) => {
+  const groupedEntries = filteredEntries.reduce((groups, entry) => {
     const key = format(new Date(entry.date), 'yyyy-MM-dd');
     if (!groups[key]) groups[key] = [];
     groups[key].push(entry);
