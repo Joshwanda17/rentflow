@@ -309,7 +309,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         {/* Landlord Funds — Pay Landlord via MoMo (escrow float) */}
-        <AgentLandlordFloatCard onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }} />
+        <AgentLandlordFloatCard
+          onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }}
+          onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
+          onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
+          onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
+        />
 
         {/* 5 Key Action Buttons + Hub */}
         <div className="grid grid-cols-3 gap-2 animate-fade-in">
