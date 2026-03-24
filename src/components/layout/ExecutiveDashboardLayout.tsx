@@ -128,7 +128,7 @@ export default function ExecutiveDashboardLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0 p-4 lg:p-6 max-w-7xl mx-auto w-full">
+        <main className="flex-1 min-w-0 p-2 sm:p-4 lg:p-6 max-w-7xl mx-auto w-full overflow-x-hidden">
           {children}
         </main>
       </div>

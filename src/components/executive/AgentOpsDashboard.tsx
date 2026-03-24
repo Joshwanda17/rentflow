@@ -110,7 +110,7 @@ export function AgentOpsDashboard() {
   const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Rent Pipeline */}
       <RentPipelineQueue stage="tenant_ops_approved" />
 
@@ -118,7 +118,7 @@ export function AgentOpsDashboard() {
       <AgentOpsBrief />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
         <KPICard title="Active Agents" value={uniqueAgents} icon={Users} loading={isLoading} />
         <KPICard title="Total Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
         <KPICard title="Commissions Paid" value={fmt(totalCommissions)} icon={DollarSign} color="bg-blue-500/10 text-blue-600" />
@@ -128,13 +128,13 @@ export function AgentOpsDashboard() {
       <AgentDirectory />
 
       {/* Performance & Lifecycle */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <AgentPerformanceTiers />
         <AgentLifecyclePipeline />
       </div>
 
       {/* Tasks & Escalations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <AgentTaskManager />
         <AgentEscalationQueue />
       </div>
@@ -146,10 +146,10 @@ export function AgentOpsDashboard() {
       <AgentAlertFeed />
 
       {/* Leaderboard & Earnings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 overflow-x-auto">
           <h3 className="text-sm font-semibold mb-3">🏆 Agent Leaderboard</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={leaderboard} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis type="number" className="text-xs" />
@@ -188,7 +188,7 @@ export function AgentOpsDashboard() {
       </div>
 
       {/* Tenant Transfer */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <TenantTransferPanel />
       </div>
 
