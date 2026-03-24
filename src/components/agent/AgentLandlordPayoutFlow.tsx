@@ -148,6 +148,21 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
       if (photos.length === 0) throw new Error('Please add at least one receipt photo');
       if (!transactionId.trim()) throw new Error('Please enter the transaction ID');
 
+      const payoutAmount = selectedRequest.rent_amount;
+
+      // Check float balance FIRST — money comes from float, NOT personal wallet
+      const { data: currentFloat, error: floatErr } = await supabase
+        .from('agent_landlord_float')
+        .select('id, balance, total_paid_out')
+        .eq('agent_id', user.id)
+        .maybeSingle();
+
+      if (floatErr) throw new Error('Failed to check float balance');
+      if (!currentFloat) throw new Error('No landlord float account found. Ask your manager to fund your float.');
+      if (currentFloat.balance < payoutAmount) {
+        throw new Error(`Insufficient float balance. You have ${formatUGX(currentFloat.balance)} but need ${formatUGX(payoutAmount)}. Request a float top-up.`);
+      }
+
       // Upload photos
       const photoUrls: string[] = [];
       for (const file of photos) {
@@ -169,15 +184,27 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         gpsMatch = distance <= GPS_MATCH_THRESHOLD_METERS;
       }
 
-      // Determine initial status based on GPS match
       const initialStatus = gpsMatch ? 'landlord_ops_approved' : 'pending_landlord_ops';
 
+      // Deduct from landlord float (NOT personal wallet)
+      const { error: deductErr } = await supabase
+        .from('agent_landlord_float')
+        .update({
+          balance: currentFloat.balance - payoutAmount,
+          total_paid_out: (currentFloat.total_paid_out || 0) + payoutAmount,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', currentFloat.id);
+
+      if (deductErr) throw new Error('Failed to deduct from float. Please try again.');
+
+      // Record the payout
       const { data: payout, error } = await supabase.from('agent_landlord_payouts').insert({
         agent_id: user.id,
         rent_request_id: selectedRequest.id,
         landlord_id: selectedRequest.landlord_id,
         tenant_id: selectedRequest.tenant_id,
-        amount: selectedRequest.rent_amount,
+        amount: payoutAmount,
         landlord_phone: selectedRequest.landlord?.mobile_money_number || selectedRequest.landlord?.phone || '',
         landlord_name: selectedRequest.landlord?.name || 'Unknown',
         mobile_money_provider: provider,
@@ -194,17 +221,31 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         notes: notes || null,
       } as any).select('id').single();
 
-      if (error) throw error;
+      if (error) {
+        // Rollback float deduction if payout insert fails
+        await supabase
+          .from('agent_landlord_float')
+          .update({
+            balance: currentFloat.balance,
+            total_paid_out: currentFloat.total_paid_out,
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq('id', currentFloat.id);
+        throw error;
+      }
+
       return { id: payout?.id, gpsMatch, distance };
     },
     onSuccess: (result) => {
       setPayoutId(result?.id || '');
       setStep('done');
       qc.invalidateQueries({ queryKey: ['agent-landlord-payout-requests'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float-balance'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
       if (result?.gpsMatch) {
-        toast.success('Payout submitted & auto-approved! GPS matched property location.');
+        toast.success('Payout submitted & auto-approved! Float deducted. GPS matched.');
       } else {
-        toast.success('Payout submitted! Awaiting Landlord Ops approval.');
+        toast.success('Payout submitted from float! Awaiting Landlord Ops approval.');
       }
     },
     onError: (e: any) => toast.error(e.message || 'Failed to submit payout'),
