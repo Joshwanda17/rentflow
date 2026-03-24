@@ -46,8 +46,8 @@ Deno.serve(async (req) => {
       .single()
 
     if (reqErr || !request) throw new Error('Rent request not found')
-    if (!['coo_approved', 'funded'].includes(request.status)) {
-      throw new Error(`Invalid status: ${request.status}. Expected coo_approved or funded.`)
+    if (!['approved', 'coo_approved', 'funded'].includes(request.status)) {
+      throw new Error(`Invalid status: ${request.status}. Expected approved, coo_approved, or funded.`)
     }
 
     const bonusAgentId = request.assigned_agent_id || request.agent_id
