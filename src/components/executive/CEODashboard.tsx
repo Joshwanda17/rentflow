@@ -174,9 +174,9 @@ export function CEODashboard() {
       </div>
 
       {/* Growth Metrics */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <h3 className="text-sm font-semibold mb-3">Growth Metrics</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           {[
             { label: 'Active Users', value: growthMetrics?.activeUsers ?? '—', icon: Activity, color: 'bg-primary/10 text-primary' },
             { label: 'New Users Today', value: growthMetrics?.newUsersToday ?? '—', icon: UserPlus, color: 'bg-green-500/10 text-green-600' },
