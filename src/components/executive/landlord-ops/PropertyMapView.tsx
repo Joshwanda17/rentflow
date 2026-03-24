@@ -1,39 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, Home, MapPin, Layers } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
+import { MapPin, Layers } from 'lucide-react';
 
-// Color-coded marker icons
-function createIcon(color: string) {
-  return L.divIcon({
-    className: '',
-    iconSize: [28, 28],
-    iconAnchor: [14, 28],
-    popupAnchor: [0, -30],
-    html: `<div style="
-      width:28px;height:28px;border-radius:50% 50% 50% 0;
-      background:${color};transform:rotate(-45deg);
-      border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);
-      display:flex;align-items:center;justify-content:center;
-    "><div style="transform:rotate(45deg);color:white;font-size:12px;font-weight:bold;">🏠</div></div>`,
-  });
-}
-
-const ICONS = {
-  empty: createIcon('#ef4444'),       // red - empty/available
-  requested: createIcon('#f59e0b'),   // amber - rent requested
-  paid: createIcon('#22c55e'),        // green - rent paid
-  occupied: createIcon('#3b82f6'),    // blue - occupied (no active rent request)
-};
+// Lazy-load Leaflet deps to avoid blocking initial render
+const LeafletMap = lazy(() => import('./PropertyMapLeaflet'));
 
 type StatusFilter = 'all' | 'empty' | 'occupied' | 'requested' | 'paid';
 
-interface MapProperty {
+export interface MapProperty {
   id: string;
   title: string;
   address: string;
@@ -53,37 +30,6 @@ interface MapProperty {
   rent_status: 'empty' | 'occupied' | 'requested' | 'paid';
 }
 
-// Auto-fit bounds
-function FitBounds({ positions }: { positions: [number, number][] }) {
-  const map = useMap();
-  useMemo(() => {
-    if (positions.length > 0) {
-      const bounds = L.latLngBounds(positions.map(p => L.latLng(p[0], p[1])));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-    }
-  }, [positions, map]);
-  return null;
-}
-
-function PhoneLink({ phone, name }: { phone: string; name?: string }) {
-  const clean = phone.replace(/\s/g, '');
-  const intl = clean.startsWith('0') ? `+256${clean.slice(1)}` : clean.startsWith('+') ? clean : `+256${clean}`;
-  return (
-    <div className="flex items-center gap-1.5">
-      <a href={`tel:${intl}`} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
-        <Phone className="h-3 w-3" />{phone}
-      </a>
-      <a
-        href={`https://wa.me/${intl.replace('+', '')}?text=${encodeURIComponent(`Hello ${name || ''}, Welile Operations.`)}`}
-        target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500/20 text-green-600 hover:bg-green-500/30"
-      >
-        <MessageCircle className="h-3 w-3" />
-      </a>
-    </div>
-  );
-}
-
 const FILTER_OPTIONS: { value: StatusFilter; label: string; color: string; dot: string }[] = [
   { value: 'all', label: 'All', color: 'bg-muted text-foreground', dot: 'bg-foreground' },
   { value: 'empty', label: 'Empty', color: 'bg-red-500/10 text-red-700', dot: 'bg-red-500' },
@@ -98,7 +44,6 @@ export function PropertyMapView() {
   const { data: properties = [], isLoading } = useQuery({
     queryKey: ['property-map-all'],
     queryFn: async () => {
-      // Fetch all listings with GPS
       const { data: listings } = await supabase
         .from('house_listings')
         .select(`
@@ -108,11 +53,10 @@ export function PropertyMapView() {
         `)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
-        .limit(1000);
+        .limit(500);
 
       if (!listings?.length) return [];
 
-      // Get agent profiles
       const agentIds = [...new Set(listings.map(l => l.agent_id))];
       const { data: agents } = await supabase
         .from('profiles')
@@ -120,9 +64,8 @@ export function PropertyMapView() {
         .in('id', agentIds);
       const agentMap = new Map((agents || []).map(a => [a.id, a]));
 
-      // Get active rent requests for tenant_ids to determine rent status
       const tenantIds = listings.filter(l => l.tenant_id).map(l => l.tenant_id!);
-      let rentMap = new Map<string, { status: string; amount_repaid: number; total_repayment: number }>();
+      const rentMap = new Map<string, { status: string; amount_repaid: number; total_repayment: number }>();
       if (tenantIds.length > 0) {
         const { data: rentReqs } = await supabase
           .from('rent_requests')
@@ -131,7 +74,6 @@ export function PropertyMapView() {
           .in('status', ['approved', 'disbursed', 'active', 'repaying', 'completed', 'fully_paid'])
           .order('created_at', { ascending: false });
 
-        // Latest rent request per tenant
         for (const rr of (rentReqs || [])) {
           if (!rentMap.has(rr.tenant_id)) {
             rentMap.set(rr.tenant_id, rr);
@@ -183,22 +125,18 @@ export function PropertyMapView() {
     staleTime: 120000,
   });
 
-  const filtered = filter === 'all' ? properties : properties.filter(p => p.rent_status === filter);
+  const filtered = useMemo(
+    () => filter === 'all' ? properties : properties.filter(p => p.rent_status === filter),
+    [filter, properties]
+  );
 
-  const positions = filtered.map(p => [p.latitude, p.longitude] as [number, number]);
-
-  // Uganda center fallback
-  const center: [number, number] = positions.length > 0
-    ? [positions.reduce((s, p) => s + p[0], 0) / positions.length, positions.reduce((s, p) => s + p[1], 0) / positions.length]
-    : [0.3476, 32.5825];
-
-  const counts = {
+  const counts = useMemo(() => ({
     all: properties.length,
     empty: properties.filter(p => p.rent_status === 'empty').length,
     occupied: properties.filter(p => p.rent_status === 'occupied').length,
     requested: properties.filter(p => p.rent_status === 'requested').length,
     paid: properties.filter(p => p.rent_status === 'paid').length,
-  };
+  }), [properties]);
 
   if (isLoading) {
     return (
@@ -238,7 +176,7 @@ export function PropertyMapView() {
         </div>
       </div>
 
-      {/* Map Container */}
+      {/* Map Container - lazy loaded */}
       <div className="rounded-2xl overflow-hidden border-2 border-border shadow-lg" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
         {filtered.length === 0 ? (
           <div className="flex items-center justify-center h-full bg-muted/20">
@@ -249,105 +187,16 @@ export function PropertyMapView() {
             </div>
           </div>
         ) : (
-          <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <FitBounds positions={positions} />
-            {filtered.map(prop => (
-              <Marker
-                key={prop.id}
-                position={[prop.latitude, prop.longitude]}
-                icon={ICONS[prop.rent_status]}
-              >
-                <Popup maxWidth={280} minWidth={220}>
-                  <div className="space-y-2 p-1">
-                    {/* Header with image */}
-                    <div className="flex gap-2">
-                      {prop.image_url ? (
-                        <img src={prop.image_url} alt="" className="h-14 w-14 rounded-lg object-cover shrink-0" />
-                      ) : (
-                        <div className="h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                          <Home className="h-6 w-6 text-gray-400" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-sm leading-tight truncate">{prop.title}</p>
-                        <p className="text-[10px] text-gray-500 truncate">{prop.address}</p>
-                        <div className="flex gap-1 mt-1 flex-wrap">
-                          <span className="inline-flex items-center text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 font-medium">{prop.house_category}</span>
-                          <span className="inline-flex items-center text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 font-medium">{prop.number_of_rooms} rooms</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Rent info */}
-                    <div className="flex items-center justify-between bg-gray-50 rounded-lg px-2 py-1.5">
-                      <div>
-                        <p className="text-[9px] text-gray-500 uppercase tracking-wider">Monthly</p>
-                        <p className="font-bold text-sm">UGX {prop.monthly_rent.toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] text-gray-500 uppercase tracking-wider">Daily</p>
-                        <p className="font-bold text-sm text-blue-600">UGX {prop.daily_rate.toLocaleString()}</p>
-                      </div>
-                    </div>
-
-                    {/* Status Badge */}
-                    <div className="flex justify-center">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-3 py-1 rounded-full ${
-                        prop.rent_status === 'empty' ? 'bg-red-100 text-red-700' :
-                        prop.rent_status === 'requested' ? 'bg-amber-100 text-amber-700' :
-                        prop.rent_status === 'paid' ? 'bg-green-100 text-green-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {prop.rent_status === 'empty' ? '🏚️ Empty / Available' :
-                         prop.rent_status === 'requested' ? '⏳ Rent Requested' :
-                         prop.rent_status === 'paid' ? '✅ Rent Paid' :
-                         '🏠 Occupied'}
-                      </span>
-                    </div>
-
-                    {/* Agent & Landlord */}
-                    <div className="space-y-1 border-t pt-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] text-gray-500 font-medium">Agent:</span>
-                        <span className="text-xs font-medium">{prop.agent_name}</span>
-                      </div>
-                      {prop.agent_phone && (
-                        <div className="flex justify-end">
-                          <PhoneLink phone={prop.agent_phone} name={prop.agent_name} />
-                        </div>
-                      )}
-                      {prop.landlord_name && (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] text-gray-500 font-medium">Landlord:</span>
-                            <span className="text-xs font-medium">{prop.landlord_name}</span>
-                          </div>
-                          {prop.landlord_phone && (
-                            <div className="flex justify-end">
-                              <PhoneLink phone={prop.landlord_phone} name={prop.landlord_name} />
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Google Maps link */}
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${prop.latitude},${prop.longitude}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="block text-center text-[10px] text-blue-600 hover:underline font-medium py-1"
-                    >
-                      📍 Get Directions
-                    </a>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full bg-muted/10">
+              <div className="text-center space-y-3">
+                <div className="h-8 w-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-sm text-muted-foreground">Loading map…</p>
+              </div>
+            </div>
+          }>
+            <LeafletMap properties={filtered} />
+          </Suspense>
         )}
       </div>
 
