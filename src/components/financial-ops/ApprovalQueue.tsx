@@ -522,7 +522,12 @@ export function ApprovalQueue() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-1">
                           <p className="text-xs sm:text-sm font-medium truncate">{item.userName}</p>
-                          <p className="text-xs sm:text-sm font-bold tabular-nums shrink-0">{formatUGX(item.amount)}</p>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs sm:text-sm font-bold tabular-nums">{formatUGX(item.amount)}</p>
+                            {item.type === 'deposits' && item.rawData?.transaction_id && (
+                              <p className="text-[9px] font-mono text-muted-foreground">TID: ••••{item.rawData.transaction_id.slice(-2)}</p>
+                            )}
+                          </div>
                         </div>
                         <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{item.description}</p>
                         {/* Enhanced payout details for wallet withdrawals */}
