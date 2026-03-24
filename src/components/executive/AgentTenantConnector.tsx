@@ -88,15 +88,16 @@ export function AgentTenantConnector() {
 
       // Log the audit
       await supabase.from('audit_logs').insert({
-        action: 'connect_tenant_to_agent',
-        performed_by: user?.id || '',
-        target_user_id: selectedTenant.id,
-        reason,
+        action_type: 'connect_tenant_to_agent',
+        user_id: user?.id || '',
+        record_id: selectedTenant.id,
+        table_name: 'profiles',
         metadata: {
           agent_id: selectedAgent.id,
           agent_name: selectedAgent.full_name,
           tenant_id: selectedTenant.id,
           tenant_name: selectedTenant.full_name,
+          reason,
         },
       });
     },
