@@ -371,6 +371,11 @@ export function TidVerification() {
                           </div>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[10px] text-muted-foreground">{m.userPhone}</span>
+                            {m.transaction_id && (
+                              <Badge variant="outline" className="font-mono text-[9px] h-4 px-1 gap-0.5 border-primary/30 text-primary">
+                                <Hash className="h-2.5 w-2.5" /> ••••{m.transaction_id.slice(-2)}
+                              </Badge>
+                            )}
                             {m.status === 'matched' ? (
                               <Badge className="bg-emerald-600 text-[9px] h-4 gap-0.5 px-1">
                                 <CheckCircle2 className="h-2.5 w-2.5" /> Match
