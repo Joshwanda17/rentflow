@@ -44,7 +44,7 @@ export function LandlordRecoveryLedger({ open, onOpenChange }: Props) {
       // Get all rent requests for these landlords by this agent
       const { data: requests } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, landlord_id, rent_amount, amount_repaid, status, created_at, daily_amount')
+        .select('id, tenant_id, landlord_id, rent_amount, amount_repaid, status, created_at')
         .in('landlord_id', landlordIds)
         .in('status', ['disbursed', 'repaying', 'fully_repaid', 'funded', 'coo_approved']);
 
