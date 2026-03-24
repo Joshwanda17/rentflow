@@ -88,10 +88,10 @@ export default function CFODashboardPage() {
         );
       default:
         return (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <PlatformVsWalletSummary />
-            <CFOReceivablesTracker />
             <ChannelBalanceTracker />
+            <CFOReceivablesTracker />
             <FinancialOverview />
             <ListingBonusApprovalQueue filter="pending_cfo" />
             <RentPipelineQueue stage="coo_approved" />
