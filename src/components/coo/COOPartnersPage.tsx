@@ -871,6 +871,53 @@ export default function COOPartnersPage() {
     finally { setSuspending(false); }
   }
 
+  /* ─── Delete Partner (Permanent) ─── */
+  async function handleDeletePartner() {
+    if (!deletePartnerTarget || deletePartnerReason.length < 10) return;
+    setDeletingPartner(true);
+    try {
+      // Remove supporter role
+      const { error: roleErr } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', deletePartnerTarget.id)
+        .eq('role', 'supporter');
+      if (roleErr) throw roleErr;
+
+      // Freeze the profile with deletion reason
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({
+          frozen_at: new Date().toISOString(),
+          frozen_reason: `Deleted by COO: ${deletePartnerReason}`,
+        })
+        .eq('id', deletePartnerTarget.id);
+      if (profileErr) throw profileErr;
+
+      // Audit log
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from('audit_logs').insert({
+        user_id: currentUser?.id,
+        action_type: 'partner_deleted',
+        table_name: 'user_roles',
+        record_id: deletePartnerTarget.id,
+        metadata: {
+          partner_name: deletePartnerTarget.name,
+          reason: deletePartnerReason,
+        },
+      });
+
+      toast.success(`${deletePartnerTarget.name} has been permanently deleted as a partner`);
+      setDeletePartnerTarget(null);
+      setDeletePartnerReason('');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete partner');
+    } finally {
+      setDeletingPartner(false);
+    }
+  }
+
   /* ─── Sort Icon ─── */
   function SortIcon({ colKey }: { colKey: string }) {
     if (sortKey !== colKey) return <ChevronsUpDown className="h-2.5 w-2.5 opacity-30" />;
