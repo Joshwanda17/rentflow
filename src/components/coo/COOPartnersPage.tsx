@@ -173,6 +173,11 @@ export default function COOPartnersPage() {
   const [suspendPartner, setSuspendPartner] = useState<PartnerRow | null>(null);
   const [suspending, setSuspending] = useState(false);
 
+  // Delete dialog
+  const [deletePartnerTarget, setDeletePartnerTarget] = useState<PartnerRow | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   // Partner Detail view
   const [detailPartner, setDetailPartner] = useState<PartnerDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
