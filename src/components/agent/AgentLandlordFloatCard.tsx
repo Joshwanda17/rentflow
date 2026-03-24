@@ -40,10 +40,8 @@ export function AgentLandlordFloatCard({ onPayLandlord }: AgentLandlordFloatCard
     enabled: !!user,
   });
 
-  // Don't show card if agent has no float allocated
-  if (!isLoading && !floatData) return null;
-
   const balance = floatData?.balance ?? 0;
+  const hasFloat = !!floatData;
 
   return (
     <button
@@ -65,10 +63,14 @@ export function AgentLandlordFloatCard({ onPayLandlord }: AgentLandlordFloatCard
           </div>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mt-1" />
-          ) : (
+          ) : hasFloat ? (
             <p className="font-bold text-xl text-foreground truncate mt-0.5">{formatUGX(balance)}</p>
+          ) : (
+            <p className="font-bold text-sm text-foreground mt-0.5">Pay Landlord via MoMo</p>
           )}
-          <p className="text-[10px] text-muted-foreground">Ring-fenced for landlord payouts only</p>
+          <p className="text-[10px] text-muted-foreground">
+            {hasFloat ? 'Ring-fenced for landlord payouts only' : 'Withdraw from float → Pay landlord → Upload receipt + GPS'}
+          </p>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-xs text-chart-4 font-semibold">Pay</span>
