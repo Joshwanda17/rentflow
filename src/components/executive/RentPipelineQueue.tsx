@@ -74,11 +74,11 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   coo_approved: {
     stage: 'coo_approved',
     title: '💰 CFO Payout Authorization',
-    approveLabel: 'Authorize Payout',
+    approveLabel: 'Authorize & Fund Agent Float',
     nextStatus: 'funded',
     reviewerColumn: 'cfo_reviewed_by',
     reviewerAtColumn: 'cfo_reviewed_at',
-    showPayoutFields: true,
+    showPayoutFields: false,
   },
 };
 
