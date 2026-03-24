@@ -7906,6 +7906,19 @@ export type Database = {
       }
       get_rent_requests_summary: { Args: never; Returns: Json }
       get_supporter_pool_stats: { Args: never; Returns: Json }
+      get_tenant_behavior_segments: {
+        Args: never
+        Returns: {
+          critical_count: number
+          first_default_count: number
+          healthy_count: number
+          overdue_count: number
+          recovering_count: number
+          total_overdue_amount: number
+          total_with_requests: number
+          warning_count: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -7995,6 +8008,33 @@ export type Database = {
           full_name: string
           id: string
           phone: string
+        }[]
+      }
+      search_tenant_behavior: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_segment?: string
+        }
+        Returns: {
+          active_requests: number
+          current_overdue_amount: number
+          defaulted_count: number
+          first_request_date: string
+          full_name: string
+          fully_repaid_count: number
+          health_score: number
+          last_payment_date: string
+          missed_payments: number
+          on_time_payments: number
+          phone: string
+          repayment_pct: number
+          risk_level: string
+          tenant_id: string
+          total_rent_amount: number
+          total_repaid: number
+          total_requests: number
         }[]
       }
       search_users_paginated: {
