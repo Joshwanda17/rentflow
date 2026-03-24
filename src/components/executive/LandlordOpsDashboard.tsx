@@ -8,7 +8,7 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
-  Building2, UserCheck, Smartphone, Handshake, GitBranch,
+  Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
