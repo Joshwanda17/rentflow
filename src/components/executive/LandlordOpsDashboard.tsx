@@ -377,8 +377,12 @@ export function LandlordOpsDashboard() {
       )}
 
       {/* Tabbed Management Sections */}
-      <Tabs defaultValue="empty" className="w-full">
-        <TabsList className="grid w-full grid-cols-7 h-auto">
+      <Tabs defaultValue="chain" className="w-full">
+        <TabsList className="grid w-full grid-cols-8 h-auto">
+          <TabsTrigger value="chain" className="text-xs py-2 gap-1 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700">
+            <Link2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Chain</span>
+          </TabsTrigger>
           <TabsTrigger value="matching" className="text-xs py-2 gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
             <Handshake className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Match</span>
