@@ -427,20 +427,32 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                     </div>
                   </div>
                 </button>
-                {/* Quick Approve Button */}
-                <Button
-                  size="sm"
-                  onClick={(e) => handleQuickApprove(req, e)}
-                  disabled={quickProcessingId === req.id}
-                  className="shrink-0 h-8 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {quickProcessingId === req.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  )}
-                  Approve
-                </Button>
+                {/* Quick Actions */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => { e.stopPropagation(); setSelectedRequest(req); }}
+                    disabled={quickProcessingId === req.id}
+                    className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                    title="Reject"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={(e) => handleQuickApprove(req, e)}
+                    disabled={quickProcessingId === req.id}
+                    className="h-8 px-3 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    {quickProcessingId === req.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+                    Approve
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
