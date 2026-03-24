@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { CheckCircle2, Clock, Coins, XCircle, Wallet } from 'lucide-react';
