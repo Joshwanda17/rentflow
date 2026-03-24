@@ -85,7 +85,7 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         .from('rent_requests')
         .select('id, rent_amount, tenant_id, landlord_id, status, request_latitude, request_longitude, created_at, daily_repayment, duration_days')
         .in('landlord_id', assignedLandlordIds)
-        .in('status', ['disbursed', 'coo_approved', 'funded'])
+        .in('status', ['funded'])
         .order('created_at', { ascending: false });
       if (error) throw error;
 
