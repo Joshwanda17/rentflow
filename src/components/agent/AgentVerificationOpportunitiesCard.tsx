@@ -82,12 +82,18 @@ export function AgentVerificationOpportunitiesCard() {
   }, []);
 
   const fetchCountsAndPreviews = async () => {
-    const [rentRes, houseRes, tenantPreview, housePreview] = await Promise.all([
+    const [rentRes, houseRes] = await Promise.all([
       supabase.from('rent_requests').select('*', { count: 'exact', head: true }).eq('agent_verified', false).in('status', ['pending', 'approved']),
       supabase.from('house_listings').select('*', { count: 'exact', head: true }).or('verified.is.null,verified.eq.false').in('status', ['pending', 'available']),
+    ]);
+    setTenantCount(rentRes.count || 0);
+    setHouseCount(houseRes.count || 0);
+
+    // Fetch preview data — use separate queries to avoid RLS join issues
+    const [tenantPreview, housePreview] = await Promise.all([
       supabase
         .from('rent_requests')
-        .select('id, rent_amount, created_at, landlord_id, tenant_id, tenant:profiles!rent_requests_tenant_id_fkey(full_name, city), landlord:landlords!rent_requests_landlord_id_fkey(name, property_address, latitude, longitude)')
+        .select('id, rent_amount, created_at, landlord_id, tenant_id')
         .eq('agent_verified', false)
         .in('status', ['pending', 'approved'])
         .order('created_at', { ascending: false })
@@ -100,9 +106,32 @@ export function AgentVerificationOpportunitiesCard() {
         .order('created_at', { ascending: false })
         .limit(3),
     ]);
-    setTenantCount(rentRes.count || 0);
-    setHouseCount(houseRes.count || 0);
-    setPreviewTenants((tenantPreview.data as any) || []);
+
+    if (tenantPreview.data && tenantPreview.data.length > 0) {
+      const tenantIds = [...new Set(tenantPreview.data.map(r => r.tenant_id).filter(Boolean))];
+      const landlordIds = [...new Set(tenantPreview.data.map(r => r.landlord_id).filter(Boolean))];
+
+      const [profilesRes, landlordsRes] = await Promise.all([
+        tenantIds.length > 0
+          ? supabase.from('profiles').select('id, full_name, city').in('id', tenantIds)
+          : Promise.resolve({ data: [] }),
+        landlordIds.length > 0
+          ? supabase.from('landlords').select('id, name, property_address, latitude, longitude').in('id', landlordIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
+      const landlordMap = new Map((landlordsRes.data || []).map((l: any) => [l.id, l]));
+
+      setPreviewTenants(tenantPreview.data.map((r: any) => ({
+        ...r,
+        tenant: profileMap.get(r.tenant_id) || null,
+        landlord: landlordMap.get(r.landlord_id) || null,
+      })));
+    } else {
+      setPreviewTenants([]);
+    }
+
     setPreviewHouses((housePreview.data as any) || []);
   };
 
