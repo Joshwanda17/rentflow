@@ -128,6 +128,9 @@ export function AgentOpsDashboard() {
       {/* 🔍 Agent Directory — PROMINENT */}
       <AgentDirectory />
 
+      {/* Connect Tenant to Agent */}
+      <AgentTenantConnector />
+
       {/* Performance & Lifecycle */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <AgentPerformanceTiers />
