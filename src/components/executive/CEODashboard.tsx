@@ -202,8 +202,8 @@ export function CEODashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Tenant Growth</h3>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={monthlyGrowth || []}>

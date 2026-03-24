@@ -276,8 +276,8 @@ export function CTODashboard() {
       )}
 
       {/* Charts - real data */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Daily Active Users (14d)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dauTrend || []}>
