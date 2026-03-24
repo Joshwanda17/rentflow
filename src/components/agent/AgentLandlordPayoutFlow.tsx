@@ -50,6 +50,21 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
   const [payoutId, setPayoutId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Fetch agent's landlord float balance
+  const { data: floatData } = useQuery({
+    queryKey: ['agent-landlord-float-balance', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('agent_landlord_float')
+        .select('balance, total_funded, total_paid_out')
+        .eq('agent_id', user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user && open,
+  });
+
   // Fetch disbursed rent requests for landlords assigned to this agent
   const { data: assignedRequests = [], isLoading } = useQuery({
     queryKey: ['agent-landlord-payout-requests', user?.id],
@@ -133,6 +148,21 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
       if (photos.length === 0) throw new Error('Please add at least one receipt photo');
       if (!transactionId.trim()) throw new Error('Please enter the transaction ID');
 
+      const payoutAmount = selectedRequest.rent_amount;
+
+      // Check float balance FIRST — money comes from float, NOT personal wallet
+      const { data: currentFloat, error: floatErr } = await supabase
+        .from('agent_landlord_float')
+        .select('id, balance, total_paid_out')
+        .eq('agent_id', user.id)
+        .maybeSingle();
+
+      if (floatErr) throw new Error('Failed to check float balance');
+      if (!currentFloat) throw new Error('No landlord float account found. Ask your manager to fund your float.');
+      if (currentFloat.balance < payoutAmount) {
+        throw new Error(`Insufficient float balance. You have ${formatUGX(currentFloat.balance)} but need ${formatUGX(payoutAmount)}. Request a float top-up.`);
+      }
+
       // Upload photos
       const photoUrls: string[] = [];
       for (const file of photos) {
@@ -154,15 +184,27 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         gpsMatch = distance <= GPS_MATCH_THRESHOLD_METERS;
       }
 
-      // Determine initial status based on GPS match
       const initialStatus = gpsMatch ? 'landlord_ops_approved' : 'pending_landlord_ops';
 
+      // Deduct from landlord float (NOT personal wallet)
+      const { error: deductErr } = await supabase
+        .from('agent_landlord_float')
+        .update({
+          balance: currentFloat.balance - payoutAmount,
+          total_paid_out: (currentFloat.total_paid_out || 0) + payoutAmount,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', currentFloat.id);
+
+      if (deductErr) throw new Error('Failed to deduct from float. Please try again.');
+
+      // Record the payout
       const { data: payout, error } = await supabase.from('agent_landlord_payouts').insert({
         agent_id: user.id,
         rent_request_id: selectedRequest.id,
         landlord_id: selectedRequest.landlord_id,
         tenant_id: selectedRequest.tenant_id,
-        amount: selectedRequest.rent_amount,
+        amount: payoutAmount,
         landlord_phone: selectedRequest.landlord?.mobile_money_number || selectedRequest.landlord?.phone || '',
         landlord_name: selectedRequest.landlord?.name || 'Unknown',
         mobile_money_provider: provider,
@@ -179,17 +221,31 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
         notes: notes || null,
       } as any).select('id').single();
 
-      if (error) throw error;
+      if (error) {
+        // Rollback float deduction if payout insert fails
+        await supabase
+          .from('agent_landlord_float')
+          .update({
+            balance: currentFloat.balance,
+            total_paid_out: currentFloat.total_paid_out,
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq('id', currentFloat.id);
+        throw error;
+      }
+
       return { id: payout?.id, gpsMatch, distance };
     },
     onSuccess: (result) => {
       setPayoutId(result?.id || '');
       setStep('done');
       qc.invalidateQueries({ queryKey: ['agent-landlord-payout-requests'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float-balance'] });
+      qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
       if (result?.gpsMatch) {
-        toast.success('Payout submitted & auto-approved! GPS matched property location.');
+        toast.success('Payout submitted & auto-approved! Float deducted. GPS matched.');
       } else {
-        toast.success('Payout submitted! Awaiting Landlord Ops approval.');
+        toast.success('Payout submitted from float! Awaiting Landlord Ops approval.');
       }
     },
     onError: (e: any) => toast.error(e.message || 'Failed to submit payout'),
@@ -211,7 +267,23 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
           {/* Step 1: Select rent request */}
           {step === 'select' && (
             <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-              <p className="text-sm text-muted-foreground">Select a rent request to pay the landlord:</p>
+              {/* Float Balance Banner */}
+              <div className={`rounded-xl p-3 border text-sm ${
+                (floatData?.balance || 0) > 0
+                  ? 'bg-success/5 border-success/30'
+                  : 'bg-destructive/5 border-destructive/30'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Landlord Float Balance</span>
+                  <span className={`font-bold font-mono ${(floatData?.balance || 0) > 0 ? 'text-success' : 'text-destructive'}`}>
+                    {formatUGX(floatData?.balance || 0)}
+                  </span>
+                </div>
+                {(floatData?.balance || 0) <= 0 && (
+                  <p className="text-[10px] text-destructive mt-1">⚠️ Float is empty. Request a top-up from your manager before paying landlords.</p>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">Select a rent request to pay the landlord (from your float):</p>
               {isLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               ) : assignedRequests.length === 0 ? (
@@ -254,6 +326,19 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
           {/* Step 2: Pay landlord */}
           {step === 'pay' && req && (
             <motion.div key="pay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              {/* Float deduction notice */}
+              <div className={`rounded-lg p-2 text-xs flex items-center justify-between ${
+                (floatData?.balance || 0) >= (req?.rent_amount || 0)
+                  ? 'bg-success/10 border border-success/20'
+                  : 'bg-destructive/10 border border-destructive/20'
+              }`}>
+                <span className="text-muted-foreground">Float after payout:</span>
+                <span className={`font-bold font-mono ${
+                  (floatData?.balance || 0) >= (req?.rent_amount || 0) ? 'text-success' : 'text-destructive'
+                }`}>
+                  {formatUGX(Math.max(0, (floatData?.balance || 0) - (req?.rent_amount || 0)))}
+                </span>
+              </div>
               {/* Landlord details - prominent */}
               <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-2">
                 <h3 className="font-bold text-sm text-primary">Landlord Details</h3>
