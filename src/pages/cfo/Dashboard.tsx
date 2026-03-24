@@ -22,6 +22,7 @@ import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { DeliveryPipelineTracker } from '@/components/cfo/DeliveryPipelineTracker';
 import { AgentCashReconciliation } from '@/components/cfo/AgentCashReconciliation';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
+import { CFOReceivablesTracker } from '@/components/cfo/CFOReceivablesTracker';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -89,6 +90,7 @@ export default function CFODashboardPage() {
         return (
           <div className="space-y-6">
             <PlatformVsWalletSummary />
+            <CFOReceivablesTracker />
             <ChannelBalanceTracker />
             <FinancialOverview />
             <ListingBonusApprovalQueue filter="pending_cfo" />
