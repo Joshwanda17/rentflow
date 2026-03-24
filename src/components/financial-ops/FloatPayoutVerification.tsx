@@ -13,7 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, CheckCircle2, XCircle, Loader2,
-  Phone, User2, Clock, Hash, AlertCircle, Upload, Camera, Banknote
+  Phone, User2, Clock, Hash, AlertCircle, Upload, Camera, Banknote, MapPin
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -261,17 +261,77 @@ export function FloatPayoutVerification() {
 
                       {expanded && (
                         <div className="space-y-3 pt-2 border-t">
+                          {/* GPS Proximity — HIGH VISIBILITY */}
+                          <div className={`p-3 rounded-lg border-2 ${
+                            p.gps_distance_meters == null
+                              ? 'bg-muted/50 border-muted'
+                              : p.gps_match
+                              ? 'bg-success/10 border-success/40'
+                              : 'bg-destructive/10 border-destructive/40'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              <MapPin className={`h-4 w-4 shrink-0 ${
+                                p.gps_distance_meters == null ? 'text-muted-foreground' : p.gps_match ? 'text-success' : 'text-destructive'
+                              }`} />
+                              <div className="flex-1">
+                                <p className={`text-xs font-bold ${
+                                  p.gps_distance_meters == null ? 'text-muted-foreground' : p.gps_match ? 'text-success' : 'text-destructive'
+                                }`}>
+                                  {p.gps_distance_meters == null
+                                    ? '⚠ No GPS Data — Property coordinates missing'
+                                    : p.gps_match
+                                    ? `✅ GPS Verified — Agent was ${p.gps_distance_meters}m from property (within 500m)`
+                                    : `❌ GPS MISMATCH — Agent was ${p.gps_distance_meters}m from property (>500m threshold)`
+                                  }
+                                </p>
+                                {p.agent_latitude && (
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    Agent: {p.agent_latitude?.toFixed(5)}, {p.agent_longitude?.toFixed(5)}
+                                    {p.property_latitude && <> · Property: {p.property_latitude?.toFixed(5)}, {p.property_longitude?.toFixed(5)}</>}
+                                    {p.agent_location_accuracy && <> · Accuracy: ±{Math.round(p.agent_location_accuracy)}m</>}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {!p.gps_match && p.gps_distance_meters != null && (
+                              <p className="text-[10px] text-destructive font-medium mt-1 ml-6">
+                                ⚠ Manual review required — agent may not have been at the property when paying
+                              </p>
+                            )}
+                          </div>
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
                             <div className="flex items-center gap-1"><Phone className="h-3 w-3 shrink-0" /> Landlord: {p.landlord_phone}</div>
                             <div className="flex items-center gap-1"><User2 className="h-3 w-3 shrink-0" /> Agent: {p.agent?.phone || 'N/A'}</div>
                             <div className="flex items-center gap-1"><Clock className="h-3 w-3 shrink-0" /> {format(new Date(p.created_at), 'dd MMM HH:mm')}</div>
                             <div className="flex items-center gap-1"><Hash className="h-3 w-3 shrink-0" /> Mode: {p.mobile_money_provider}</div>
+                            {p.transaction_id && (
+                              <div className="flex items-center gap-1 col-span-full">
+                                <Hash className="h-3 w-3 shrink-0 text-chart-4" />
+                                <span className="text-muted-foreground">Agent TID:</span>
+                                <span className="font-mono font-bold">{p.transaction_id}</span>
+                              </div>
+                            )}
                             <div className="flex items-center gap-1 col-span-full">
                               <Banknote className="h-3 w-3 shrink-0 text-chart-4" />
                               <span className="text-muted-foreground">Type:</span>
                               <Badge variant="outline" className="text-[9px] border-chart-4/40 text-chart-4">Landlord Float Withdrawal</Badge>
                             </div>
                           </div>
+
+                          {/* Agent receipt photos */}
+                          {(p.receipt_photo_urls?.length > 0) && (
+                            <div>
+                              <p className="text-[10px] font-bold text-muted-foreground mb-1">Agent Receipt Photos:</p>
+                              <div className="flex gap-2 flex-wrap">
+                                {p.receipt_photo_urls.map((url: string, i: number) => (
+                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                    <img src={url} alt={`Receipt ${i + 1}`} className="h-16 w-16 object-cover rounded border hover:ring-2 ring-chart-4" />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           {p.notes && <p className="text-xs text-muted-foreground">Agent Notes: {p.notes}</p>}
 

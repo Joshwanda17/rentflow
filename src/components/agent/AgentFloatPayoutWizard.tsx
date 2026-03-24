@@ -111,8 +111,26 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
       const req = selectedRequest;
       if (req.rent_amount > floatBalance) throw new Error('Insufficient landlord float balance');
 
-      // Capture GPS
+      // Capture GPS — MANDATORY
       const loc = await geo.captureLocation();
+      if (!loc) throw new Error('GPS location is required. Please enable location services and try again.');
+
+      // Calculate distance to property if property coords exist
+      let gpsDistanceMeters: number | null = null;
+      let gpsMatch = false;
+      const propLat = req.landlord?.latitude;
+      const propLng = req.landlord?.longitude;
+
+      if (propLat && propLng) {
+        const R = 6371000; // Earth radius in meters
+        const dLat = (propLat - loc.latitude) * Math.PI / 180;
+        const dLon = (propLng - loc.longitude) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(loc.latitude * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
+          Math.sin(dLon / 2) ** 2;
+        gpsDistanceMeters = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        gpsMatch = gpsDistanceMeters <= 500; // 500m threshold
+      }
 
       // Deduct from float
       const { data: floatData } = await supabase
@@ -161,11 +179,13 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         transaction_id: tid.trim(),
         notes: notes || null,
         receipt_photo_urls: photoUrls.length > 0 ? photoUrls : null,
-        agent_latitude: loc?.latitude ?? null,
-        agent_longitude: loc?.longitude ?? null,
-        agent_location_accuracy: loc?.accuracy ?? null,
-        property_latitude: req.landlord?.latitude ?? null,
-        property_longitude: req.landlord?.longitude ?? null,
+        agent_latitude: loc.latitude,
+        agent_longitude: loc.longitude,
+        agent_location_accuracy: loc.accuracy,
+        property_latitude: propLat ?? null,
+        property_longitude: propLng ?? null,
+        gps_distance_meters: gpsDistanceMeters,
+        gps_match: gpsMatch,
         status: 'pending_agent_ops',
       } as any);
 
