@@ -10,6 +10,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
+import { NoSmartphoneScheduleManager } from './NoSmartphoneScheduleManager';
 import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useToast } from '@/hooks/use-toast';
