@@ -118,7 +118,7 @@ export function AgentOpsDashboard() {
       <AgentOpsBrief />
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
         <KPICard title="Active Agents" value={uniqueAgents} icon={Users} loading={isLoading} />
         <KPICard title="Total Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
         <KPICard title="Commissions Paid" value={fmt(totalCommissions)} icon={DollarSign} color="bg-blue-500/10 text-blue-600" />
