@@ -949,7 +949,7 @@ export default function COOPartnersPage() {
               {r.status === 'active' ? 'Suspend' : 'Reactivate'}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeleteReason(''); }}
+              onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeletePartnerReason(''); }}
               className="gap-2 text-destructive focus:text-destructive"
             >
               <Trash2 className="h-3.5 w-3.5" /> Delete Partner
