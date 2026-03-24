@@ -7846,6 +7846,48 @@ export type Database = {
         Args: { p_page?: number; p_page_size?: number }
         Returns: Json
       }
+      get_property_clusters: {
+        Args: {
+          max_lat: number
+          max_lng: number
+          min_lat: number
+          min_lng: number
+          status_filter?: string
+          zoom_level?: number
+        }
+        Returns: {
+          address: string
+          agent_id: string
+          cluster_id: string
+          daily_rate: number
+          empty_count: number
+          house_category: string
+          image_url: string
+          is_cluster: boolean
+          landlord_id: string
+          lat: number
+          lng: number
+          monthly_rent: number
+          number_of_rooms: number
+          occupied_count: number
+          paid_count: number
+          property_count: number
+          property_id: string
+          requested_count: number
+          status: string
+          tenant_id: string
+          title: string
+        }[]
+      }
+      get_property_status_counts: {
+        Args: never
+        Returns: {
+          empty_count: number
+          occupied_count: number
+          total_count: number
+          with_gps: number
+        }[]
+      }
       get_rent_requests_summary: { Args: never; Returns: Json }
       get_supporter_pool_stats: { Args: never; Returns: Json }
       get_user_role: {
