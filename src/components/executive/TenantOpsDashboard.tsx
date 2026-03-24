@@ -49,11 +49,11 @@ export function TenantOpsDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 🔥 PRIORITY: Review Queue at the top */}
       <RentPipelineQueue stage="pending" />
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
         <KPICard title="Pending Review" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
         <KPICard title="In Pipeline" value={inPipeline} icon={ArrowRight} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
         <KPICard title="Funded / Disbursed" value={funded} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />

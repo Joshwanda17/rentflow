@@ -160,9 +160,9 @@ export function CEODashboard() {
   const loading = loadingProfiles || loadingLandlords || loadingRent;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Users" value={fmt(profiles || 0)} icon={Users} loading={loading} />
         <KPICard title="Tenants Funded" value={fmt(rentStats?.funded || 0)} icon={UserCheck} loading={loading} color="bg-green-500/10 text-green-600" />
         <KPICard title="Rent Financed" value={`${fmt(rentStats?.totalFinanced || 0)}`} icon={Banknote} loading={loading} color="bg-blue-500/10 text-blue-600" />
@@ -174,9 +174,9 @@ export function CEODashboard() {
       </div>
 
       {/* Growth Metrics */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
         <h3 className="text-sm font-semibold mb-3">Growth Metrics</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           {[
             { label: 'Active Users', value: growthMetrics?.activeUsers ?? '—', icon: Activity, color: 'bg-primary/10 text-primary' },
             { label: 'New Users Today', value: growthMetrics?.newUsersToday ?? '—', icon: UserPlus, color: 'bg-green-500/10 text-green-600' },
@@ -202,8 +202,8 @@ export function CEODashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Tenant Growth</h3>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={monthlyGrowth || []}>

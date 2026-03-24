@@ -362,7 +362,7 @@ export function LandlordOpsDashboard() {
       <LandlordOpsPayoutReview reviewRole="landlord_ops" />
 
       {/* Overview KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Properties" value={rows.length} icon={Home} loading={isLoading} />
         <KPICard title="Occupied" value={occupiedHouses.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo revenue`} />
         <KPICard title="Empty Houses" value={emptyHouses.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
@@ -389,7 +389,7 @@ export function LandlordOpsDashboard() {
 
       {/* Tabbed Management Sections */}
       <Tabs defaultValue="chain" className="w-full">
-        <TabsList className="grid w-full grid-cols-8 h-auto">
+        <TabsList className="w-full h-auto flex-wrap gap-1 bg-muted/50 p-1 rounded-xl">
           <TabsTrigger value="chain" className="text-xs py-2 gap-1 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700">
             <Link2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Chain</span>

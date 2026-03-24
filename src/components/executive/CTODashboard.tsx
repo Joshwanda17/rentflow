@@ -194,9 +194,9 @@ export function CTODashboard() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* System KPIs - all real */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard
           title="DB Response Time"
           value={dbLatency ? `${dbLatency}ms` : '...'}
@@ -256,9 +256,9 @@ export function CTODashboard() {
 
       {/* Pipeline Health */}
       {pipelineHealth && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Rent Request Pipeline Health</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
             {[
               { label: 'Total', value: pipelineHealth.total, color: 'text-foreground' },
               { label: 'Pending', value: pipelineHealth.pending, color: 'text-amber-600' },
@@ -276,8 +276,8 @@ export function CTODashboard() {
       )}
 
       {/* Charts - real data */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
           <h3 className="text-sm font-semibold mb-3">Daily Active Users (14d)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={dauTrend || []}>
