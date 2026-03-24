@@ -348,7 +348,7 @@ export function FloatPayoutVerification() {
                                 </div>
                                 <p className="text-xs text-muted-foreground mb-3">
                                   Agent paid <strong>{formatUGX(p.amount)}</strong> to <strong>{p.landlord_name}</strong> via <strong>{p.mobile_money_provider}</strong>.
-                                  {p.transaction_id && <> Agent TID: <strong className="font-mono">{p.transaction_id}</strong></>}
+                                  {p.transaction_id && <> Agent TID hint: <strong className="font-mono">••••{p.transaction_id.slice(-2)}</strong></>}
                                 </p>
                                 {(p.receipt_photo_urls?.length > 0) && (
                                   <div className="mb-3">
