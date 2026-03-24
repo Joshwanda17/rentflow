@@ -18,7 +18,7 @@ export function FloatingWalletButton() {
   const fetchPendingCount = useCallback(async () => {
     if (!user) return;
     const counts = await fetchPendingCounts(user.id);
-    setPendingCount(counts.moneyRequests);
+    setPendingCount(counts.moneyRequests + counts.agentRentRequests);
   }, [user]);
 
   useEffect(() => {
