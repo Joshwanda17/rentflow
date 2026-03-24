@@ -365,6 +365,9 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               </CardContent>
             </Card>
 
+            {/* Agent Rent Requests — verify inline */}
+            <AgentRentRequestsWalletSection />
+
             {/* User's Pending Requests */}
             <UserDepositRequests />
             <UserWithdrawalRequests />

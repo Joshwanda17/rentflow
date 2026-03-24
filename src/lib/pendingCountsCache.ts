@@ -7,6 +7,7 @@ let pendingCountsCache: {
   moneyRequests: number;
   deposits: number;
   withdrawals: number;
+  agentRentRequests: number;
   timestamp: number;
 } | null = null;
 
@@ -23,10 +24,11 @@ export async function fetchPendingCounts(userId: string) {
       moneyRequests: pendingCountsCache.moneyRequests,
       deposits: pendingCountsCache.deposits,
       withdrawals: pendingCountsCache.withdrawals,
+      agentRentRequests: pendingCountsCache.agentRentRequests,
     };
   }
 
-  const [moneyRes, depositRes, withdrawRes] = await Promise.all([
+  const [moneyRes, depositRes, withdrawRes, agentRentRes] = await Promise.all([
     supabase
       .from('money_requests')
       .select('*', { count: 'exact', head: true })
@@ -42,12 +44,19 @@ export async function fetchPendingCounts(userId: string) {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('status', 'pending'),
+    supabase
+      .from('rent_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('agent_id', userId)
+      .in('status', ['pending', 'approved'])
+      .eq('agent_verified', false),
   ]);
 
   const result = {
     moneyRequests: moneyRes.count || 0,
     deposits: depositRes.count || 0,
     withdrawals: withdrawRes.count || 0,
+    agentRentRequests: agentRentRes.count || 0,
   };
 
   pendingCountsCache = {
