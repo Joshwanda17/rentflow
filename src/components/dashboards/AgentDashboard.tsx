@@ -302,7 +302,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </button>
         )}
 
-        {/* Pay Landlord - visible for agents with assigned rent requests */}
+        {/* Landlord Float Card — separate escrow balance */}
+        <AgentLandlordFloatCard onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }} />
+
+        {/* Pay Landlord from personal wallet - legacy flow */}
         <button
           onClick={() => { hapticTap(); setLandlordPayoutFlowOpen(true); }}
           className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-success/40 bg-success/10 hover:bg-success/15 transition-all touch-manipulation active:scale-[0.98] animate-fade-in"
