@@ -263,30 +263,36 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
     setProcessing(true);
     try {
-      const updateData: any = {
-        status: config.nextStatus,
-        [config.reviewerColumn]: user.id,
-        [config.reviewerAtColumn]: new Date().toISOString(),
-        approval_comment: comment || null,
-        updated_at: new Date().toISOString(),
-      };
+      // For CFO stage: let the edge function handle status + float atomically
+      if (stage === 'coo_approved') {
+        const { data: floatRes, error: floatErr } = await supabase.functions.invoke('fund-agent-landlord-float', {
+          body: {
+            rent_request_id: selectedRequest.id,
+            notes: comment || null,
+          },
+        });
+        if (floatErr) throw new Error(floatErr.message || 'Failed to fund agent float');
+        if (floatRes?.error) throw new Error(floatRes.error);
+      } else {
+        const updateData: any = {
+          status: config.nextStatus,
+          [config.reviewerColumn]: user.id,
+          [config.reviewerAtColumn]: new Date().toISOString(),
+          approval_comment: comment || null,
+          updated_at: new Date().toISOString(),
+        };
 
-      if (config.showAgentSelector && assignedAgentId) {
-        updateData.assigned_agent_id = assignedAgentId;
+        if (config.showAgentSelector && assignedAgentId) {
+          updateData.assigned_agent_id = assignedAgentId;
+        }
+
+        const { error } = await supabase
+          .from('rent_requests')
+          .update(updateData)
+          .eq('id', selectedRequest.id);
+
+        if (error) throw error;
       }
-
-      if (config.showPayoutFields) {
-        updateData.payout_transaction_reference = payoutRef.trim();
-        updateData.payout_method = payoutMethod;
-        updateData.funded_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('rent_requests')
-        .update(updateData)
-        .eq('id', selectedRequest.id);
-
-      if (error) throw error;
 
       // Trigger landlord verification bonus when Landlord Ops approves
       if (stage === 'agent_verified') {
@@ -296,20 +302,6 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           });
         } catch (bonusErr) {
           console.warn('Landlord verification bonus failed:', bonusErr);
-        }
-      }
-
-      // Fund agent's landlord float when CFO authorizes
-      if (stage === 'coo_approved') {
-        try {
-          await supabase.functions.invoke('fund-agent-landlord-float', {
-            body: {
-              rent_request_id: selectedRequest.id,
-              notes: comment || null,
-            },
-          });
-        } catch (disbErr) {
-          console.warn('Agent float funding failed:', disbErr);
         }
       }
 
