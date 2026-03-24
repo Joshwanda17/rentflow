@@ -322,11 +322,11 @@ export function FloatPayoutVerification() {
                                   </div>
                                 )}
 
-                                <Label className="text-xs font-bold block mb-1">Transaction ID (TID) *</Label>
+                                <Label className="text-xs font-bold block mb-1">Confirm TID (re-enter to verify) *</Label>
                                 <Input
                                   value={verifyTid[p.id] || ''}
                                   onChange={e => setVerifyTid(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                  placeholder="Enter TID from payment confirmation"
+                                  placeholder={p.transaction_id ? `Agent TID: ${p.transaction_id} — re-enter to confirm` : 'Enter verified TID'}
                                   className="font-mono text-base h-10 border-2 border-amber-500/30"
                                 />
                               </div>
