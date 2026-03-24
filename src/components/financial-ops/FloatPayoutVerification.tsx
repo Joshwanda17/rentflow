@@ -221,7 +221,7 @@ export function FloatPayoutVerification() {
             {readyToPayCount > 0 && <Badge className="text-[10px] h-5 bg-amber-500">{readyToPayCount} ready to pay</Badge>}
           </div>
         </CardTitle>
-        <p className="text-xs text-muted-foreground">Agent landlord payout requests — approve, pay landlord, then enter TID & receipt</p>
+        <p className="text-xs text-muted-foreground">Verify agent-submitted TID & receipts for landlord payouts from their float</p>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
         {isLoading ? (
