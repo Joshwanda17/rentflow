@@ -23,6 +23,7 @@ import { DeliveryPipelineTracker } from '@/components/cfo/DeliveryPipelineTracke
 import { AgentCashReconciliation } from '@/components/cfo/AgentCashReconciliation';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { CFOReceivablesTracker } from '@/components/cfo/CFOReceivablesTracker';
+import { LedgerHub } from '@/components/ledgers/LedgerHub';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
