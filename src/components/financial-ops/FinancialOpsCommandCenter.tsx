@@ -7,7 +7,8 @@ import { ReconciliationDashboard } from './ReconciliationDashboard';
 import { AuditFeed } from './AuditFeed';
 import { TidVerification } from './TidVerification';
 import { ScaleDashboard } from './ScaleDashboard';
-import { ClipboardList, Search, Scale, Shield, LayoutDashboard, ShieldCheck, Gauge } from 'lucide-react';
+import { FloatPayoutVerification } from './FloatPayoutVerification';
+import { ClipboardList, Search, Scale, Shield, LayoutDashboard, ShieldCheck, Gauge, Landmark } from 'lucide-react';
 
 export function FinancialOpsCommandCenter() {
   const [tab, setTab] = useState('ops');
@@ -20,7 +21,7 @@ export function FinancialOpsCommandCenter() {
           Financial Ops
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-          Wallet deposits & withdrawals · Scale engine
+          Wallet deposits & withdrawals · Scale engine · Float payouts
         </p>
       </div>
 
@@ -34,6 +35,9 @@ export function FinancialOpsCommandCenter() {
             </TabsTrigger>
             <TabsTrigger value="tid" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
               <ShieldCheck className="h-3.5 w-3.5" /> TID Verify
+            </TabsTrigger>
+            <TabsTrigger value="float" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px] data-[state=active]:bg-chart-4 data-[state=active]:text-white">
+              <Landmark className="h-3.5 w-3.5" /> Float Payouts
             </TabsTrigger>
             <TabsTrigger value="queue" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
               <ClipboardList className="h-3.5 w-3.5" /> Queue
@@ -55,6 +59,9 @@ export function FinancialOpsCommandCenter() {
         </TabsContent>
         <TabsContent value="tid" className="mt-2 sm:mt-3">
           <TidVerification />
+        </TabsContent>
+        <TabsContent value="float" className="mt-2 sm:mt-3">
+          <FloatPayoutVerification />
         </TabsContent>
         <TabsContent value="queue" className="mt-2 sm:mt-3">
           <ApprovalQueue />
