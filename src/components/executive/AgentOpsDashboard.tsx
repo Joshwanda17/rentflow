@@ -110,7 +110,7 @@ export function AgentOpsDashboard() {
   const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Rent Pipeline */}
       <RentPipelineQueue stage="tenant_ops_approved" />
 
