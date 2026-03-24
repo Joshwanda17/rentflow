@@ -411,11 +411,6 @@ export function LandlordOpsDashboard() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ──────── MAP TAB ──────── */}
-        <TabsContent value="map" className="space-y-4 mt-4">
-          <PropertyMapView />
-        </TabsContent>
-
         {/* ──────── MATCHING TAB ──────── */}
         <TabsContent value="matching" className="space-y-4 mt-4">
           <TenantMatchingQueue onViewingCreated={() => refetch()} />
