@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { ApprovalHistoryLog } from './ApprovalHistoryLog';
-import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight } from 'lucide-react';
+import { TenantBehaviorDashboard } from './TenantBehaviorDashboard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight, Activity, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 
 
