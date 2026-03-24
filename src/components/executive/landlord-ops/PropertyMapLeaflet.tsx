@@ -2,7 +2,7 @@ import { useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 
-import { Phone, MessageCircle, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 export interface ClusterData {
