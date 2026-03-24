@@ -112,9 +112,35 @@ Deno.serve(async (req) => {
             logStatus = "agent_direct_no_smartphone";
             results.agent_charged++;
           } else {
-            debtAdded = chargeAmount;
-            logStatus = "agent_insufficient_no_smartphone";
+            // Don't record debt immediately — let the 3-hour retry function handle it
+            // Just mark this attempt as pending retry and skip advancing the charge
+            logStatus = "agent_insufficient_no_smartphone_retry_pending";
             results.insufficient++;
+
+            // Log the failed attempt
+            await supabase.from("subscription_charge_logs").insert({
+              subscription_id: charge.id,
+              tenant_id: charge.tenant_id,
+              charge_amount: chargeAmount,
+              amount_deducted: 0,
+              debt_added: 0,
+              wallet_balance_before: 0,
+              wallet_balance_after: 0,
+              status: logStatus,
+              charge_date: today,
+            });
+
+            // Notify agent
+            await supabase.from("notifications").insert({
+              user_id: charge.agent_id,
+              title: "⚠️ Insufficient Funds — Retrying in 3 Hours",
+              message: `Couldn't deduct UGX ${chargeAmount.toLocaleString()} for ${tenantName} (${tenantPhone}). System will retry every 3 hours until covered.`,
+              type: "warning",
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, amount: chargeAmount },
+            });
+
+            console.log(`[auto-charge-wallets] ${charge.tenant_id}: agent insufficient (no-smartphone), will retry in 3h`);
+            continue;
           }
 
           await logAndUpdateCharge(supabase, charge, {
