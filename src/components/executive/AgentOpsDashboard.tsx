@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
+import { AgentTenantConnector } from './AgentTenantConnector';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { AgentDirectory } from './AgentDirectory';
 import { AgentPerformanceTiers } from './AgentPerformanceTiers';
@@ -126,6 +127,9 @@ export function AgentOpsDashboard() {
 
       {/* 🔍 Agent Directory — PROMINENT */}
       <AgentDirectory />
+
+      {/* Connect Tenant to Agent */}
+      <AgentTenantConnector />
 
       {/* Performance & Lifecycle */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
