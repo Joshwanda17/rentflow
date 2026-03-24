@@ -10,6 +10,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
+import { NoSmartphoneScheduleManager } from './NoSmartphoneScheduleManager';
 import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useToast } from '@/hooks/use-toast';
@@ -501,34 +502,52 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         <div className="p-3.5 space-y-3 bg-muted/10">
                           {/* No-smartphone tools */}
                           {isNoSmartphone && (
-                            <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-2">
-                              <p className="text-xs font-semibold text-warning">📵 No smartphone — you manage their payments</p>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm" variant="outline"
-                                  className="text-xs h-8 flex-1 border-success/30 text-success hover:bg-success/10"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${tenant.full_name}, this is your agent from Welile. Tap this link to check your rent schedule: ${appLink}`)}`, '_blank');
-                                    toast({ title: 'WhatsApp opened — if it works, they have a smartphone!' });
-                                  }}
-                                >
-                                  <MessageCircle className="h-3 w-3 mr-1" />
-                                  Check WhatsApp
-                                </Button>
-                                <Button
-                                  size="sm" variant="outline"
-                                  className="text-xs h-8 flex-1 border-primary/30 text-primary hover:bg-primary/10"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigator.clipboard.writeText(appLink);
-                                    toast({ title: 'Link copied!' });
-                                  }}
-                                >
-                                  <Share2 className="h-3 w-3 mr-1" />
-                                  Copy Link
-                                </Button>
+                            <div className="space-y-2">
+                              <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-2">
+                                <p className="text-xs font-semibold text-warning">📵 No smartphone — you manage their payments</p>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="text-xs h-8 flex-1 border-success/30 text-success hover:bg-success/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(`Hi ${tenant.full_name}, this is your agent from Welile. Tap this link to check your rent schedule: ${appLink}`)}`, '_blank');
+                                      toast({ title: 'WhatsApp opened — if it works, they have a smartphone!' });
+                                    }}
+                                  >
+                                    <MessageCircle className="h-3 w-3 mr-1" />
+                                    Check WhatsApp
+                                  </Button>
+                                  <Button
+                                    size="sm" variant="outline"
+                                    className="text-xs h-8 flex-1 border-primary/30 text-primary hover:bg-primary/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(appLink);
+                                      toast({ title: 'Link copied!' });
+                                    }}
+                                  >
+                                    <Share2 className="h-3 w-3 mr-1" />
+                                    Copy Link
+                                  </Button>
+                                </div>
                               </div>
+
+                              {/* Schedule manager for active requests */}
+                              {requests.filter(r => ['approved', 'disbursed', 'repaying'].includes(r.status || '')).map(req => (
+                                <NoSmartphoneScheduleManager
+                                  key={req.id}
+                                  tenantId={tenant.id}
+                                  tenantName={tenant.full_name}
+                                  tenantPhone={tenant.phone}
+                                  rentRequestId={req.id}
+                                  dailyRepayment={req.daily_repayment}
+                                  totalRepayment={req.total_repayment}
+                                  amountRepaid={req.amount_repaid}
+                                  durationDays={req.duration_days}
+                                  startDate={req.disbursed_at || req.created_at}
+                                />
+                              ))}
                             </div>
                           )}
 
