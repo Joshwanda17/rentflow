@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { Banknote, Clock, CheckCircle2, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Banknote, Clock, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface Receivable {
   id: string;
@@ -52,7 +52,7 @@ export function CFOReceivablesTracker() {
       })) as Receivable[];
     },
     staleTime: 60000,
-    refetchInterval: 30000, // Auto-refresh every 30s for live visibility
+    refetchInterval: 30000,
   });
 
   const rows = receivables || [];
@@ -62,118 +62,88 @@ export function CFOReceivablesTracker() {
   const fundedAwaitingPayout = rows.filter(r => r.status === 'funded').length;
   const activeRepaying = rows.filter(r => r.status === 'repaying').length;
 
-  const getStatusBadge = (status: string) => {
+  const getStatusDot = (status: string) => {
     switch (status) {
-      case 'funded':
-        return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]">Float Funded</Badge>;
-      case 'disbursed':
-        return <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 text-[10px]">Disbursed</Badge>;
-      case 'repaying':
-        return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">Repaying</Badge>;
-      default:
-        return <Badge className="bg-muted text-muted-foreground text-[10px]">{status}</Badge>;
+      case 'funded': return 'bg-amber-500';
+      case 'disbursed': return 'bg-blue-500';
+      case 'repaying': return 'bg-emerald-500';
+      default: return 'bg-muted-foreground';
     }
   };
 
+  if (isLoading) {
+    return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
-    <Card className="border shadow-sm">
-      <CardHeader className="pb-2 px-3 sm:px-4">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          Receivables — Funded to Float
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-3 sm:px-4 space-y-3">
-        {/* KPI Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase">Total Funded</p>
-            <p className="text-sm font-bold">{formatUGX(totalFunded)}</p>
+    <div className="space-y-2.5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+          <TrendingUp className="h-3.5 w-3.5 text-primary" />
+          Receivables
+        </h3>
+        <span className="text-[10px] text-muted-foreground">{rows.length} active</span>
+      </div>
+
+      {/* KPI Strip — compact 4-col */}
+      <div className="grid grid-cols-4 gap-1.5">
+        {[
+          { label: 'Funded', value: formatUGX(totalFunded) },
+          { label: 'Outstanding', value: formatUGX(totalOutstanding), accent: true },
+          { label: 'Awaiting', value: String(fundedAwaitingPayout) },
+          { label: 'Repaying', value: String(activeRepaying) },
+        ].map(k => (
+          <div key={k.label} className="rounded-lg bg-muted/40 px-2 py-1.5 text-center">
+            <p className="text-[8px] uppercase tracking-wider text-muted-foreground">{k.label}</p>
+            <p className={`text-[11px] font-bold font-mono truncate ${k.accent ? 'text-amber-600' : ''}`}>{k.value}</p>
           </div>
-          <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase">Outstanding</p>
-            <p className="text-sm font-bold text-amber-600">{formatUGX(totalOutstanding)}</p>
-          </div>
-          <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase">Awaiting Payout</p>
-            <p className="text-sm font-bold text-orange-600">{fundedAwaitingPayout}</p>
-          </div>
-          <div className="bg-muted/50 rounded-lg p-2 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase">Repaying</p>
-            <p className="text-sm font-bold text-emerald-600">{activeRepaying}</p>
-          </div>
+        ))}
+      </div>
+
+      {/* List */}
+      {rows.length === 0 ? (
+        <div className="text-center py-6 text-muted-foreground">
+          <Banknote className="h-6 w-6 mx-auto mb-1.5 opacity-30" />
+          <p className="text-xs">No active receivables</p>
         </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-card divide-y divide-border max-h-72 overflow-y-auto">
+          {rows.map((r) => {
+            const pct = r.rent_amount > 0 ? Math.round((r.amount_repaid / r.rent_amount) * 100) : 0;
 
-        {/* List */}
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary/20 border-t-primary" />
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Banknote className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm">No active receivables</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border max-h-96 overflow-y-auto">
-            {rows.map((r) => {
-              const pct = r.rent_amount > 0 ? Math.round((r.amount_repaid / r.rent_amount) * 100) : 0;
-              const outstanding = r.rent_amount - r.amount_repaid;
-
-              return (
-                <div key={r.id} className="py-2.5 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{r.tenant_name}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">
-                        Agent: {r.agent_name} → Landlord: {r.landlord_name}
-                      </p>
-                    </div>
-                    {getStatusBadge(r.status)}
+            return (
+              <div key={r.id} className="px-3 py-2.5 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getStatusDot(r.status)}`} />
+                    <span className="text-xs font-medium truncate">{r.tenant_name}</span>
                   </div>
+                  <span className="text-[10px] font-mono font-semibold shrink-0">{formatUGX(r.rent_amount)}</span>
+                </div>
 
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      {formatUGX(r.amount_repaid)} / {formatUGX(r.rent_amount)}
-                    </span>
-                    <span className={`font-medium ${pct >= 80 ? 'text-emerald-600' : pct >= 40 ? 'text-amber-600' : 'text-destructive'}`}>
-                      {pct}%
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full bg-muted rounded-full h-1.5">
+                {/* Progress bar */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-muted rounded-full h-1">
                     <div
-                      className={`h-1.5 rounded-full transition-all ${
+                      className={`h-1 rounded-full transition-all ${
                         pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-destructive'
                       }`}
                       style={{ width: `${Math.min(pct, 100)}%` }}
                     />
                   </div>
-
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                    {r.funded_at && (
-                      <span className="flex items-center gap-0.5">
-                        <Clock className="h-2.5 w-2.5" />
-                        Funded {format(new Date(r.funded_at), 'dd MMM yy')}
-                      </span>
-                    )}
-                    {outstanding > 0 && (
-                      <span className="flex items-center gap-0.5 text-amber-600">
-                        <AlertTriangle className="h-2.5 w-2.5" />
-                        {formatUGX(outstanding)} remaining
-                      </span>
-                    )}
-                    {r.daily_repayment && (
-                      <span>{formatUGX(r.daily_repayment)}/day</span>
-                    )}
-                  </div>
+                  <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">{pct}%</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span className="truncate">→ {r.landlord_name}</span>
+                  {r.funded_at && <span>{format(new Date(r.funded_at), 'dd MMM')}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
