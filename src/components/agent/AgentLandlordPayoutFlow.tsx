@@ -50,6 +50,21 @@ export function AgentLandlordPayoutFlow({ open, onOpenChange }: AgentLandlordPay
   const [payoutId, setPayoutId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Fetch agent's landlord float balance
+  const { data: floatData } = useQuery({
+    queryKey: ['agent-landlord-float-balance', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('agent_landlord_float')
+        .select('balance, total_funded, total_paid_out')
+        .eq('agent_id', user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user && open,
+  });
+
   // Fetch disbursed rent requests for landlords assigned to this agent
   const { data: assignedRequests = [], isLoading } = useQuery({
     queryKey: ['agent-landlord-payout-requests', user?.id],
