@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, Home, MapPin, Layers } from 'lucide-react';
+import { MapPin, Layers } from 'lucide-react';
 
 // Lazy-load Leaflet deps to avoid blocking initial render
 const LeafletMap = lazy(() => import('./PropertyMapLeaflet'));

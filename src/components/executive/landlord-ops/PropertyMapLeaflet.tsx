@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, memo } from 'react';
+import { useEffect, useMemo, memo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Phone, MessageCircle, Home } from 'lucide-react';
