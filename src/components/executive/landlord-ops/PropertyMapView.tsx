@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, Home, MapPin, Filter, Layers } from 'lucide-react';
+import { Phone, MessageCircle, Home, MapPin, Layers } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 // Color-coded marker icons
