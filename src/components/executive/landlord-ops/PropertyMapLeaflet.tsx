@@ -89,24 +89,6 @@ const ClusterBubble = memo(({ item }: { item: ClusterData }) => {
 });
 ClusterBubble.displayName = 'ClusterBubble';
 
-function PhoneLink({ phone, name }: { phone: string; name?: string }) {
-  const clean = phone.replace(/\s/g, '');
-  const intl = clean.startsWith('0') ? `+256${clean.slice(1)}` : clean.startsWith('+') ? clean : `+256${clean}`;
-  return (
-    <div className="flex items-center gap-1.5">
-      <a href={`tel:${intl}`} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
-        <Phone className="h-3 w-3" />{phone}
-      </a>
-      <a
-        href={`https://wa.me/${intl.replace('+', '')}?text=${encodeURIComponent(`Hello ${name || ''}, Welile Operations.`)}`}
-        target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500/20 text-green-600 hover:bg-green-500/30"
-      >
-        <MessageCircle className="h-3 w-3" />
-      </a>
-    </div>
-  );
-}
 
 const PropertyMarker = memo(({ item }: { item: ClusterData }) => {
   const status = getPropertyStatus(item);
