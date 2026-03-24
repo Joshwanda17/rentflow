@@ -172,34 +172,15 @@ export function FloatPayoutVerification() {
         });
 
       } else if (action === 'reject') {
-        const { error } = await supabase
-          .from('agent_float_withdrawals')
-          .update({
-            status: 'agent_ops_rejected',
-            agent_ops_reviewed_by: user!.id,
-            agent_ops_reviewed_at: new Date().toISOString(),
-            agent_ops_notes: notes || null,
-            updated_at: new Date().toISOString(),
-          } as any)
-          .eq('id', id);
-        if (error) throw error;
-
-        // Refund float
-        const { data: floatData } = await supabase
-          .from('agent_landlord_float')
-          .select('balance, total_paid_out')
-          .eq('agent_id', payout.agent_id)
-          .single();
-        if (floatData) {
-          await supabase
-            .from('agent_landlord_float')
-            .update({
-              balance: floatData.balance + payout.amount,
-              total_paid_out: floatData.total_paid_out - payout.amount,
-              updated_at: new Date().toISOString(),
-            } as any)
-            .eq('agent_id', payout.agent_id);
-        }
+        // Use edge function for proper rejection with refund, notification & audit
+        const { error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
+          body: {
+            withdrawal_ids: [id],
+            reason: notes,
+            withdrawal_type: 'float',
+          },
+        });
+        if (rejectErr) throw rejectErr;
       }
     },
     onSuccess: (_, { action }) => {
