@@ -1,11 +1,36 @@
-import { useEffect, useMemo, memo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { Phone, MessageCircle, Home } from 'lucide-react';
-import type { MapProperty } from './PropertyMapView';
+
+import { Home } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
-// Pre-create icons once (not per render)
+export interface ClusterData {
+  cluster_id: string;
+  lat: number;
+  lng: number;
+  property_count: number;
+  empty_count: number;
+  occupied_count: number;
+  requested_count: number;
+  paid_count: number;
+  is_cluster: boolean;
+  // Individual property fields
+  property_id?: string;
+  title?: string;
+  address?: string;
+  monthly_rent?: number;
+  daily_rate?: number;
+  house_category?: string;
+  number_of_rooms?: number;
+  status?: string;
+  tenant_id?: string;
+  agent_id?: string;
+  landlord_id?: string;
+  image_url?: string;
+}
+
+// Pre-create icons
 const ICON_CACHE = new Map<string, L.DivIcon>();
 function getIcon(status: string): L.DivIcon {
   if (ICON_CACHE.has(status)) return ICON_CACHE.get(status)!;
@@ -27,144 +52,192 @@ function getIcon(status: string): L.DivIcon {
   return icon;
 }
 
-// Fit bounds with useEffect (not useMemo)
-function FitBounds({ positions }: { positions: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (positions.length > 0) {
-      const bounds = L.latLngBounds(positions.map(p => L.latLng(p[0], p[1])));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-    }
-  }, [positions, map]);
+function getPropertyStatus(item: ClusterData): string {
+  if (!item.tenant_id) return 'empty';
+  return 'occupied';
+}
+
+// Cluster bubble component
+const ClusterBubble = memo(({ item }: { item: ClusterData }) => {
+  const radius = Math.min(40, Math.max(16, Math.sqrt(item.property_count) * 4));
+  const dominant = item.empty_count > item.occupied_count ? '#ef4444' : '#3b82f6';
+  
+  return (
+    <CircleMarker
+      center={[item.lat, item.lng]}
+      radius={radius}
+      pathOptions={{
+        color: 'white',
+        weight: 2,
+        fillColor: dominant,
+        fillOpacity: 0.75,
+      }}
+    >
+      <Popup>
+        <div className="text-center space-y-1 p-1">
+          <p className="font-bold text-lg">{item.property_count.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground">Properties in area</p>
+          <div className="flex gap-2 justify-center text-[10px]">
+            <span className="text-red-600">🏚️ {item.empty_count}</span>
+            <span className="text-blue-600">🏠 {item.occupied_count}</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">Zoom in for details</p>
+        </div>
+      </Popup>
+    </CircleMarker>
+  );
+});
+ClusterBubble.displayName = 'ClusterBubble';
+
+
+const PropertyMarker = memo(({ item }: { item: ClusterData }) => {
+  const status = getPropertyStatus(item);
+  return (
+    <Marker position={[item.lat, item.lng]} icon={getIcon(status)}>
+      <Popup maxWidth={260} minWidth={200}>
+        <div className="space-y-2 p-1">
+          <div className="flex gap-2">
+            {item.image_url ? (
+              <img src={item.image_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" loading="lazy" />
+            ) : (
+              <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                <Home className="h-5 w-5 text-gray-400" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm leading-tight truncate">{item.title}</p>
+              <p className="text-[10px] text-gray-500 truncate">{item.address}</p>
+              <div className="flex gap-1 mt-0.5">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 font-medium">{item.house_category}</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 font-medium">{item.number_of_rooms}rm</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-2 py-1.5">
+            <div>
+              <p className="text-[9px] text-gray-500">Monthly</p>
+              <p className="font-bold text-xs">UGX {(item.monthly_rent || 0).toLocaleString()}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] text-gray-500">Daily</p>
+              <p className="font-bold text-xs text-blue-600">UGX {(item.daily_rate || 0).toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+              status === 'empty' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+            }`}>
+              {status === 'empty' ? '🏚️ Empty' : '🏠 Occupied'}
+            </span>
+          </div>
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}`}
+            target="_blank" rel="noopener noreferrer"
+            className="block text-center text-[10px] text-blue-600 hover:underline font-medium py-0.5"
+          >
+            📍 Get Directions
+          </a>
+        </div>
+      </Popup>
+    </Marker>
+  );
+});
+PropertyMarker.displayName = 'PropertyMarker';
+
+// Viewport change listener
+function ViewportListener({ onViewportChange }: { onViewportChange: (bounds: L.LatLngBounds, zoom: number) => void }) {
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  
+  useMapEvents({
+    moveend: (e) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        const map = e.target;
+        onViewportChange(map.getBounds(), map.getZoom());
+      }, 300);
+    },
+    zoomend: (e) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        const map = e.target;
+        onViewportChange(map.getBounds(), map.getZoom());
+      }, 300);
+    },
+  });
+  
   return null;
 }
 
-function PhoneLink({ phone, name }: { phone: string; name?: string }) {
-  const clean = phone.replace(/\s/g, '');
-  const intl = clean.startsWith('0') ? `+256${clean.slice(1)}` : clean.startsWith('+') ? clean : `+256${clean}`;
-  return (
-    <div className="flex items-center gap-1.5">
-      <a href={`tel:${intl}`} className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
-        <Phone className="h-3 w-3" />{phone}
-      </a>
-      <a
-        href={`https://wa.me/${intl.replace('+', '')}?text=${encodeURIComponent(`Hello ${name || ''}, Welile Operations.`)}`}
-        target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500/20 text-green-600 hover:bg-green-500/30"
-      >
-        <MessageCircle className="h-3 w-3" />
-      </a>
-    </div>
-  );
+// Initial bounds fit
+function InitialFit({ done }: { done: React.MutableRefObject<boolean> }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!done.current) {
+      done.current = true;
+      // Trigger initial viewport load after map mounts
+      map.fire('moveend', { target: map });
+    }
+  }, [map, done]);
+  return null;
 }
-
-// Memoized individual marker to prevent re-renders
-const PropertyMarker = memo(({ prop }: { prop: MapProperty }) => (
-  <Marker position={[prop.latitude, prop.longitude]} icon={getIcon(prop.rent_status)}>
-    <Popup maxWidth={260} minWidth={200}>
-      <div className="space-y-2 p-1">
-        <div className="flex gap-2">
-          {prop.image_url ? (
-            <img src={prop.image_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" loading="lazy" />
-          ) : (
-            <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-              <Home className="h-5 w-5 text-gray-400" />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-sm leading-tight truncate">{prop.title}</p>
-            <p className="text-[10px] text-gray-500 truncate">{prop.address}</p>
-            <div className="flex gap-1 mt-0.5">
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 font-medium">{prop.house_category}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 font-medium">{prop.number_of_rooms}rm</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between bg-gray-50 rounded-lg px-2 py-1.5">
-          <div>
-            <p className="text-[9px] text-gray-500">Monthly</p>
-            <p className="font-bold text-xs">UGX {prop.monthly_rent.toLocaleString()}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] text-gray-500">Daily</p>
-            <p className="font-bold text-xs text-blue-600">UGX {prop.daily_rate.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className="flex justify-center">
-          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-            prop.rent_status === 'empty' ? 'bg-red-100 text-red-700' :
-            prop.rent_status === 'requested' ? 'bg-amber-100 text-amber-700' :
-            prop.rent_status === 'paid' ? 'bg-green-100 text-green-700' :
-            'bg-blue-100 text-blue-700'
-          }`}>
-            {prop.rent_status === 'empty' ? '🏚️ Empty' :
-             prop.rent_status === 'requested' ? '⏳ Rent Requested' :
-             prop.rent_status === 'paid' ? '✅ Rent Paid' :
-             '🏠 Occupied'}
-          </span>
-        </div>
-
-        <div className="space-y-1 border-t pt-1.5 text-xs">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Agent:</span>
-            <span className="font-medium">{prop.agent_name}</span>
-          </div>
-          {prop.agent_phone && <PhoneLink phone={prop.agent_phone} name={prop.agent_name} />}
-          {prop.landlord_name && (
-            <>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Landlord:</span>
-                <span className="font-medium">{prop.landlord_name}</span>
-              </div>
-              {prop.landlord_phone && <PhoneLink phone={prop.landlord_phone} name={prop.landlord_name} />}
-            </>
-          )}
-        </div>
-
-        <a
-          href={`https://www.google.com/maps/dir/?api=1&destination=${prop.latitude},${prop.longitude}`}
-          target="_blank" rel="noopener noreferrer"
-          className="block text-center text-[10px] text-blue-600 hover:underline font-medium py-0.5"
-        >
-          📍 Get Directions
-        </a>
-      </div>
-    </Popup>
-  </Marker>
-));
-PropertyMarker.displayName = 'PropertyMarker';
 
 interface Props {
-  properties: MapProperty[];
+  data: ClusterData[];
+  onViewportChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }, zoom: number) => void;
+  isLoading?: boolean;
 }
 
-function PropertyMapLeaflet({ properties }: Props) {
-  const positions = useMemo(
-    () => properties.map(p => [p.latitude, p.longitude] as [number, number]),
-    [properties]
-  );
+function PropertyMapLeaflet({ data, onViewportChange, isLoading }: Props) {
+  const initDone = useRef(false);
+  
+  const handleViewportChange = useCallback((bounds: L.LatLngBounds, zoom: number) => {
+    onViewportChange({
+      minLat: bounds.getSouth(),
+      maxLat: bounds.getNorth(),
+      minLng: bounds.getWest(),
+      maxLng: bounds.getEast(),
+    }, zoom);
+  }, [onViewportChange]);
 
-  const center: [number, number] = useMemo(() => {
-    if (positions.length === 0) return [0.3476, 32.5825];
-    return [
-      positions.reduce((s, p) => s + p[0], 0) / positions.length,
-      positions.reduce((s, p) => s + p[1], 0) / positions.length,
-    ];
-  }, [positions]);
+  const clusters = useMemo(() => data.filter(d => d.is_cluster), [data]);
+  const properties = useMemo(() => data.filter(d => !d.is_cluster), [data]);
 
   return (
-    <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <FitBounds positions={positions} />
-      {properties.map(prop => (
-        <PropertyMarker key={prop.id} prop={prop} />
-      ))}
-    </MapContainer>
+    <div className="relative h-full w-full">
+      <MapContainer
+        center={[0.3476, 32.5825]}
+        zoom={7}
+        style={{ height: '100%', width: '100%' }}
+        scrollWheelZoom={true}
+        maxZoom={18}
+        minZoom={3}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ViewportListener onViewportChange={handleViewportChange} />
+        <InitialFit done={initDone} />
+        
+        {/* Render cluster bubbles at low zoom */}
+        {clusters.map(c => (
+          <ClusterBubble key={c.cluster_id} item={c} />
+        ))}
+        
+        {/* Render individual markers at high zoom */}
+        {properties.map(p => (
+          <PropertyMarker key={p.cluster_id} item={p} />
+        ))}
+      </MapContainer>
+      
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-border flex items-center gap-2">
+          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium text-muted-foreground">Loading…</span>
+        </div>
+      )}
+    </div>
   );
 }
 
