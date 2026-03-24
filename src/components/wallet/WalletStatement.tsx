@@ -66,8 +66,8 @@ const CATEGORY_META: Record<string, { label: string; Icon: React.ElementType; co
 function getCategoryMeta(category: string, direction: string) {
   const meta = CATEGORY_META[category];
   if (meta) return meta;
-  if (direction === 'cash_out') return { label: category.replace(/_/g, ' '), Icon: ArrowDownToLine, colorClass: 'text-destructive bg-destructive/10' };
-  return { label: category.replace(/_/g, ' '), Icon: Banknote, colorClass: 'text-muted-foreground bg-muted' };
+  if (direction === 'cash_out') return { label: category.replace(/_/g, ' '), Icon: ArrowDownToLine, colorClass: 'text-destructive bg-destructive/10', plainExplanation: 'Money was deducted from your wallet.' };
+  return { label: category.replace(/_/g, ' '), Icon: Banknote, colorClass: 'text-muted-foreground bg-muted', plainExplanation: 'Money was added to your wallet.' };
 }
 
 function formatAmount(amount: number): string {
