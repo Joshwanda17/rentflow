@@ -290,7 +290,7 @@ export function FloatPayoutVerification() {
                               <div className="flex items-center gap-1 col-span-full">
                                 <Hash className="h-3 w-3 shrink-0 text-chart-4" />
                                 <span className="text-muted-foreground">Agent TID:</span>
-                                <span className="font-mono font-bold">{p.transaction_id}</span>
+                                <span className="font-mono font-bold">••••{p.transaction_id.slice(-2)}</span>
                               </div>
                             )}
                             <div className="flex items-center gap-1 col-span-full">
