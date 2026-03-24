@@ -55,6 +55,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       { label: 'Delivery Pipeline', icon: Truck, id: 'delivery-pipeline' },
       { label: 'Cash Reconciliation', icon: Scale, id: 'cash-reconciliation' },
       { label: 'Landlord Payouts', icon: Home, id: 'landlord-payouts' },
+      { label: 'Advanced Ledgers', icon: BookOpen, id: 'advanced-ledgers' },
     ],
   },
   ],
