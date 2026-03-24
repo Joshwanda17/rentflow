@@ -2,14 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Landmark, ArrowRight, Loader2 } from 'lucide-react';
+import { Landmark, ArrowRight, Loader2, TrendingUp, History, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface AgentLandlordFloatCardProps {
   onPayLandlord: () => void;
+  onOpenRecovery?: () => void;
+  onOpenHistory?: () => void;
+  onOpenStatusTracker?: () => void;
 }
 
-export function AgentLandlordFloatCard({ onPayLandlord }: AgentLandlordFloatCardProps) {
+export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHistory, onOpenStatusTracker }: AgentLandlordFloatCardProps) {
   const { user } = useAuth();
 
   const { data: floatData, isLoading } = useQuery({
@@ -44,39 +47,67 @@ export function AgentLandlordFloatCard({ onPayLandlord }: AgentLandlordFloatCard
   const hasFloat = !!floatData;
 
   return (
-    <button
-      onClick={onPayLandlord}
-      className="w-full rounded-2xl border-2 border-chart-4/30 bg-gradient-to-br from-chart-4/10 via-chart-4/5 to-transparent p-4 hover:border-chart-4/50 hover:shadow-lg transition-all touch-manipulation active:scale-[0.98] animate-fade-in text-left"
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-chart-4/15 shrink-0">
-          <Landmark className="h-5 w-5 text-chart-4" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Landlord Funds</p>
-            {pendingCount > 0 && (
-              <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                {pendingCount} pending
-              </Badge>
-            )}
+    <div className="rounded-2xl border-2 border-chart-4/30 bg-gradient-to-br from-chart-4/10 via-chart-4/5 to-transparent overflow-hidden animate-fade-in">
+      {/* Main Pay Button */}
+      <button
+        onClick={onPayLandlord}
+        className="w-full p-4 hover:bg-chart-4/5 transition-all touch-manipulation active:scale-[0.98] text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-chart-4/15 shrink-0">
+            <Landmark className="h-5 w-5 text-chart-4" />
           </div>
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mt-1" />
-          ) : hasFloat ? (
-            <p className="font-bold text-xl text-foreground truncate mt-0.5">{formatUGX(balance)}</p>
-          ) : (
-            <p className="font-bold text-sm text-foreground mt-0.5">Pay Landlord via MoMo</p>
-          )}
-          <p className="text-[10px] text-muted-foreground">
-            {hasFloat ? 'Ring-fenced for landlord payouts only' : 'Withdraw from float → Pay landlord → Upload receipt + GPS'}
-          </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Landlord Float</p>
+              {pendingCount > 0 && (
+                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+                  {pendingCount} pending
+                </Badge>
+              )}
+            </div>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mt-1" />
+            ) : hasFloat ? (
+              <p className="font-bold text-xl text-foreground truncate mt-0.5">{formatUGX(balance)}</p>
+            ) : (
+              <p className="font-bold text-sm text-foreground mt-0.5">Pay Landlord via MoMo</p>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              {hasFloat ? 'Ring-fenced for landlord payouts — not your money' : 'Withdraw from float → Pay landlord → Upload receipt + GPS'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-chart-4 font-semibold">Pay</span>
+            <ArrowRight className="h-4 w-4 text-chart-4" />
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-chart-4 font-semibold">Pay</span>
-          <ArrowRight className="h-4 w-4 text-chart-4" />
-        </div>
+      </button>
+
+      {/* Quick Action Strip */}
+      <div className="border-t border-chart-4/20 grid grid-cols-3 divide-x divide-chart-4/20">
+        <button
+          onClick={onOpenRecovery}
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-chart-4 hover:bg-chart-4/5 transition-colors touch-manipulation"
+        >
+          <TrendingUp className="h-3 w-3" />
+          Recovery
+        </button>
+        <button
+          onClick={onOpenStatusTracker}
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-chart-4 hover:bg-chart-4/5 transition-colors touch-manipulation"
+        >
+          <ShieldCheck className="h-3 w-3" />
+          Status
+        </button>
+        <button
+          onClick={onOpenHistory}
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-chart-4 hover:bg-chart-4/5 transition-colors touch-manipulation"
+        >
+          <History className="h-3 w-3" />
+          History
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
