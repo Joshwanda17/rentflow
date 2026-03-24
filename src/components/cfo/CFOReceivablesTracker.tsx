@@ -27,18 +27,29 @@ export function CFOReceivablesTracker() {
         .from('rent_requests')
         .select(`
           id, rent_amount, amount_repaid, status, funded_at,
-          daily_repayment, duration_days,
-          tenant:profiles!rent_requests_user_id_fkey(full_name),
-          agent:profiles!rent_requests_assigned_agent_id_fkey(full_name),
-          landlord:landlords!rent_requests_landlord_id_fkey(name)
+          daily_repayment, duration_days, tenant_id, assigned_agent_id, landlord_id
         `)
         .in('status', ['funded', 'disbursed', 'repaying'])
         .order('funded_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
+      if (!data || data.length === 0) return [] as Receivable[];
 
-      return (data || []).map((r: any) => ({
+      // Batch-fetch names
+      const tenantIds = [...new Set(data.map(r => r.tenant_id).filter(Boolean))] as string[];
+      const agentIds = [...new Set(data.map(r => r.assigned_agent_id).filter(Boolean))] as string[];
+      const landlordIds = [...new Set(data.map(r => r.landlord_id).filter(Boolean))] as string[];
+
+      const [profilesRes, landlordsRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name').in('id', [...tenantIds, ...agentIds]),
+        supabase.from('landlords').select('id, name').in('id', landlordIds),
+      ]);
+
+      const profileMap = Object.fromEntries((profilesRes.data || []).map(p => [p.id, p.full_name]));
+      const landlordMap = Object.fromEntries((landlordsRes.data || []).map(l => [l.id, l.name]));
+
+      return data.map((r: any) => ({
         id: r.id,
         rent_amount: r.rent_amount || 0,
         amount_repaid: r.amount_repaid || 0,
@@ -46,9 +57,9 @@ export function CFOReceivablesTracker() {
         funded_at: r.funded_at,
         daily_repayment: r.daily_repayment,
         duration_days: r.duration_days,
-        tenant_name: r.tenant?.full_name || 'Unknown',
-        agent_name: r.agent?.full_name || 'Unassigned',
-        landlord_name: r.landlord?.name || 'Unknown',
+        tenant_name: profileMap[r.tenant_id] || 'Unknown',
+        agent_name: profileMap[r.assigned_agent_id] || 'Unassigned',
+        landlord_name: landlordMap[r.landlord_id] || 'Unknown',
       })) as Receivable[];
     },
     staleTime: 60000,
