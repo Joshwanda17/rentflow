@@ -255,6 +255,7 @@ function AppRoutes() {
           <Route path="/house/:id" element={<HouseDetail />} />
           <Route path="/tv-dashboard" element={<TVDashboard />} />
           <Route path="/shop" element={<ShopEntry />} />
+          <Route path="/landlord-agreement" element={<LandlordAgreement />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/staff" element={<StaffPortal />} />
           {/* Role-isolated executive dashboards */}
