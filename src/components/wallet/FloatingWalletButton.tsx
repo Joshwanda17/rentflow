@@ -52,8 +52,8 @@ export function FloatingWalletButton() {
         className="fixed bottom-24 sm:bottom-28 left-4 z-40 flex items-center gap-4 px-10 py-6 rounded-full bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 hover:scale-105 active:scale-95 transition-all animate-scale-in"
         aria-label="Open Rent Money"
       >
-        <span className={`inline-block h-3 w-3 rounded-full ${dotColor}`} />
-        <Wallet className="h-6 w-6" />
+        <span className={`inline-block h-5 w-5 rounded-full ${dotColor}`} />
+        <Wallet className="h-10 w-10" />
         {wallet && (
           <span className="text-sm font-bold">
             {formatCompact(balance)}
