@@ -299,19 +299,17 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         }
       }
 
-      // Trigger disbursement when CFO authorizes payout
+      // Fund agent's landlord float when CFO authorizes
       if (stage === 'coo_approved') {
         try {
-          await supabase.functions.invoke('disburse-rent-to-landlord', {
+          await supabase.functions.invoke('fund-agent-landlord-float', {
             body: {
               rent_request_id: selectedRequest.id,
-              transaction_reference: payoutRef.trim(),
-              payout_method: payoutMethod,
               notes: comment || null,
             },
           });
         } catch (disbErr) {
-          console.warn('Disbursement function failed:', disbErr);
+          console.warn('Agent float funding failed:', disbErr);
         }
       }
 
