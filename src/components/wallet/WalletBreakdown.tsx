@@ -328,27 +328,44 @@ export function WalletBreakdown() {
                     return (
                       <div 
                         key={earning.id} 
-                        className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border"
+                        className="p-3 rounded-xl bg-muted/30 border"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${typeInfo.color}`}>
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-sm">{typeInfo.label}</p>
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                {earning.earning_type.replace(/_/g, ' ')}
-                              </Badge>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${typeInfo.color}`}>
+                              <Icon className="h-5 w-5" />
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              {earning.source_user_name 
-                                ? `From ${earning.source_user_name}` 
-                                : earning.description || format(new Date(earning.created_at), 'MMM d, yyyy')}
-                            </p>
+                            <div>
+                              <p className="font-semibold text-sm">{typeInfo.label}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {earning.source_user_name 
+                                  ? `From ${earning.source_user_name}` 
+                                  : format(new Date(earning.created_at), 'MMM d, yyyy')}
+                              </p>
+                            </div>
                           </div>
+                          <p className="font-bold text-success">+{formatUGX(earning.amount)}</p>
                         </div>
-                        <p className="font-bold text-success">+{formatUGX(earning.amount)}</p>
+                        {/* Plain-English breakdown */}
+                        <div className="mt-2 ml-[52px] p-2 rounded-lg bg-muted/50 border border-border/50">
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {earning.earning_type === 'commission' && earning.source_user_name
+                              ? `💡 ${earning.source_user_name} made a rent repayment. You earned 5% = ${formatUGX(earning.amount)} because you registered this tenant.`
+                              : earning.earning_type === 'commission'
+                              ? `💡 A tenant you registered made a rent repayment. You earned 5% = ${formatUGX(earning.amount)}.`
+                              : earning.earning_type === 'subagent_commission' && earning.source_user_name
+                              ? `💡 ${earning.source_user_name} (your sub-agent) collected rent. You earned 1% = ${formatUGX(earning.amount)} as their parent agent.`
+                              : earning.earning_type === 'subagent_commission'
+                              ? `💡 A sub-agent under you collected rent. You earned 1% = ${formatUGX(earning.amount)}.`
+                              : earning.earning_type === 'approval_bonus'
+                              ? `💡 A tenant you registered was approved for rent facilitation. You earned UGX 5,000 approval bonus.`
+                              : earning.earning_type === 'referral_bonus'
+                              ? `💡 Someone you referred joined Welile and you earned a referral bonus.`
+                              : earning.earning_type === 'referral_first_transaction'
+                              ? `💡 Your referred user completed their first transaction, earning you a bonus.`
+                              : earning.description || `💡 Earning credited to your wallet.`}
+                          </p>
+                        </div>
                       </div>
                     );
                   })}
