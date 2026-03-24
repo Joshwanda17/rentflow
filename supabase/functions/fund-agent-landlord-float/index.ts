@@ -110,7 +110,15 @@ Deno.serve(async (req) => {
 
     if (updateErr) throw new Error(`Failed to update request: ${updateErr.message}`)
 
-    // Record in general ledger — platform cash out to agent float
+    // Record agent_float_funding so it shows in agent's float history
+    await serviceClient.from('agent_float_funding').insert({
+      agent_id: bonusAgentId,
+      amount: request.rent_amount,
+      funded_by: user.id,
+      notes: `CFO funded rent for landlord ${landlord?.name || 'Unknown'} – Request: ${rent_request_id.slice(0, 8)}`,
+    })
+
+    // Record in general ledger — platform cash out to agent float (platform scope)
     const transactionGroupId = crypto.randomUUID()
     await serviceClient.from('general_ledger').insert({
       source_table: 'rent_requests',
@@ -122,6 +130,21 @@ Deno.serve(async (req) => {
       user_id: bonusAgentId,
       linked_party: request.landlord_id,
       ledger_scope: 'platform',
+      transaction_group_id: transactionGroupId,
+      transaction_date: now,
+    })
+
+    // Bridge ledger entry — visible to agent in their landlord float ledger
+    await serviceClient.from('general_ledger').insert({
+      source_table: 'rent_requests',
+      source_id: rent_request_id,
+      category: 'rent_float_funding',
+      direction: 'cash_in',
+      amount: request.rent_amount,
+      description: `Landlord float credited – ${landlord?.name || 'Unknown'} (UGX ${request.rent_amount.toLocaleString()})`,
+      user_id: bonusAgentId,
+      linked_party: request.landlord_id,
+      ledger_scope: 'bridge',
       transaction_group_id: transactionGroupId,
       transaction_date: now,
     })
