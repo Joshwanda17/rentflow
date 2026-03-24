@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
+import { AgentTenantConnector } from './AgentTenantConnector';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { AgentDirectory } from './AgentDirectory';
 import { AgentPerformanceTiers } from './AgentPerformanceTiers';
