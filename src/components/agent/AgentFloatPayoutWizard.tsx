@@ -69,7 +69,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         .from('rent_requests')
         .select('id, rent_amount, tenant_id, landlord_id, status, created_at')
         .in('landlord_id', landlordIds)
-        .in('status', ['disbursed', 'coo_approved', 'funded'])
+        .in('status', ['funded'])
         .order('created_at', { ascending: false });
 
       const enriched = await Promise.all((data || []).map(async (r: any) => {
