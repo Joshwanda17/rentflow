@@ -233,11 +233,9 @@ export function LandlordRecoveryLedger({ open, onOpenChange }: Props) {
                               <span>Rent: {formatUGX(t.rent_amount)}</span>
                               <span>Repaid: <span className="text-foreground font-medium">{formatUGX(t.amount_repaid || 0)}</span></span>
                             </div>
-                            {t.daily_amount > 0 && (
-                              <p className="text-[10px] text-muted-foreground">
-                                Daily: {formatUGX(t.daily_amount)} · Since {format(new Date(t.created_at), 'dd MMM yy')}
-                              </p>
-                            )}
+                            <p className="text-[10px] text-muted-foreground">
+                              Since {format(new Date(t.created_at), 'dd MMM yy')}
+                            </p>
                             <div className="space-y-0.5">
                               <div className="flex justify-between text-[10px]">
                                 <span>{t.recoveryPct.toFixed(0)}%</span>
