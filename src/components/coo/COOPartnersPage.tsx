@@ -943,10 +943,16 @@ export default function COOPartnersPage() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={e => { e.stopPropagation(); setSuspendPartner(r); }}
-              className={cn('gap-2', r.status === 'active' ? 'text-destructive focus:text-destructive' : 'text-primary focus:text-primary')}
+              className={cn('gap-2', r.status === 'active' ? 'text-amber-600 focus:text-amber-600' : 'text-primary focus:text-primary')}
             >
               {r.status === 'active' ? <Ban className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
               {r.status === 'active' ? 'Suspend' : 'Reactivate'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeleteReason(''); }}
+              className="gap-2 text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Partner
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
