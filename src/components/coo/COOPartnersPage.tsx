@@ -1696,6 +1696,46 @@ export default function COOPartnersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ─── Delete Partner Confirm ─── */}
+      <Dialog open={!!deletePartnerTarget} onOpenChange={open => { if (!open) { setDeletePartnerTarget(null); setDeletePartnerReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> Delete Partner
+            </DialogTitle>
+            <DialogDescription>
+              This will <strong>permanently remove</strong> <strong>{deletePartnerTarget?.name}</strong> as a partner. Their supporter role will be revoked and account frozen. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs font-semibold">Deletion Reason <span className="text-destructive">*</span></Label>
+              <Textarea
+                placeholder="Provide a detailed reason (min 10 characters)..."
+                value={deletePartnerReason}
+                onChange={e => setDeletePartnerReason(e.target.value)}
+                className="mt-1 text-sm"
+                rows={3}
+              />
+              {deletePartnerReason.length > 0 && deletePartnerReason.length < 10 && (
+                <p className="text-[10px] text-destructive mt-1">Reason must be at least 10 characters</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setDeletePartnerTarget(null); setDeletePartnerReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePartner}
+              disabled={deletingPartner || deletePartnerReason.length < 10}
+            >
+              {deletingPartner && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
 
