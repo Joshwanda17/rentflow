@@ -33,7 +33,7 @@ interface Props {
 export function NoSmartphoneScheduleManager({
   tenantId,
   tenantName,
-  tenantPhone,
+  tenantPhone: _tenantPhone,
   rentRequestId,
   dailyRepayment,
   totalRepayment,
