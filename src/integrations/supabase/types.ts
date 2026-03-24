@@ -2130,6 +2130,145 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_accrual_ledger: {
+        Row: {
+          agent_id: string
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          description: string | null
+          earned_at: string
+          id: string
+          paid_at: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
+          source_id: string | null
+          source_type: string
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          paid_at?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          source_id?: string | null
+          source_type: string
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          paid_at?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_accrual_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       conversation_participants: {
         Row: {
           conversation_id: string
@@ -2469,6 +2608,155 @@ export type Database = {
         }
         Relationships: []
       }
+      default_recovery_ledger: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          default_amount: number
+          default_date: string
+          id: string
+          last_recovery_date: string | null
+          notes: string | null
+          platform_loss: number
+          recovered_amount: number
+          rent_request_id: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+          write_off_approved_by: string | null
+          write_off_date: string | null
+          written_off_amount: number
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          default_amount?: number
+          default_date?: string
+          id?: string
+          last_recovery_date?: string | null
+          notes?: string | null
+          platform_loss?: number
+          recovered_amount?: number
+          rent_request_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          write_off_approved_by?: string | null
+          write_off_date?: string | null
+          written_off_amount?: number
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          default_amount?: number
+          default_date?: string
+          id?: string
+          last_recovery_date?: string | null
+          notes?: string | null
+          platform_loss?: number
+          recovered_amount?: number
+          rent_request_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          write_off_approved_by?: string | null
+          write_off_date?: string | null
+          written_off_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "default_recovery_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
+            columns: ["write_off_approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
+            columns: ["write_off_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
+            columns: ["write_off_approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
+            columns: ["write_off_approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       deposit_requests: {
         Row: {
           agent_id: string | null
@@ -2657,6 +2945,87 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      fee_revenue_ledger: {
+        Row: {
+          created_at: string
+          deferred_amount: number
+          fee_type: string
+          id: string
+          notes: string | null
+          recognition_date: string | null
+          recognized_amount: number
+          rent_request_id: string | null
+          status: string
+          tenant_id: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deferred_amount?: number
+          fee_type: string
+          id?: string
+          notes?: string | null
+          recognition_date?: string | null
+          recognized_amount?: number
+          rent_request_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deferred_amount?: number
+          fee_type?: string
+          id?: string
+          notes?: string | null
+          recognition_date?: string | null
+          recognized_amount?: number
+          rent_request_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_revenue_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       financial_agents: {
         Row: {
@@ -6150,6 +6519,83 @@ export type Database = {
           },
         ]
       }
+      settlement_reconciliation_ledger: {
+        Row: {
+          channel: string
+          created_at: string
+          discrepancy_amount: number
+          external_amount: number
+          external_reference: string | null
+          id: string
+          notes: string | null
+          period_date: string
+          reconciled_at: string | null
+          reconciled_by: string | null
+          status: string
+          system_amount: number
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          discrepancy_amount?: number
+          external_amount?: number
+          external_reference?: string | null
+          id?: string
+          notes?: string | null
+          period_date: string
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          status?: string
+          system_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          discrepancy_amount?: number
+          external_amount?: number
+          external_reference?: string | null
+          id?: string
+          notes?: string | null
+          period_date?: string
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          status?: string
+          system_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settlement_reconciliation_ledger_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "settlement_reconciliation_ledger_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settlement_reconciliation_ledger_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "settlement_reconciliation_ledger_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       staff_profiles: {
         Row: {
           created_at: string | null
@@ -6352,6 +6798,78 @@ export type Database = {
         }
         Relationships: []
       }
+      supporter_capital_ledger: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          rent_request_id: string | null
+          supporter_id: string
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          rent_request_id?: string | null
+          supporter_id: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          rent_request_id?: string | null
+          supporter_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supporter_capital_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       supporter_invites: {
         Row: {
           account_name: string | null
@@ -6525,6 +7043,148 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      suspense_ledger: {
+        Row: {
+          amount: number
+          created_at: string
+          depositor_name: string | null
+          depositor_phone: string | null
+          id: string
+          matched_at: string | null
+          matched_by: string | null
+          matched_to_user_id: string | null
+          notes: string | null
+          reference_id: string | null
+          refunded_at: string | null
+          source_channel: string
+          status: string
+          updated_at: string
+          written_off_at: string | null
+          written_off_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          depositor_name?: string | null
+          depositor_phone?: string | null
+          id?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_to_user_id?: string | null
+          notes?: string | null
+          reference_id?: string | null
+          refunded_at?: string | null
+          source_channel?: string
+          status?: string
+          updated_at?: string
+          written_off_at?: string | null
+          written_off_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          depositor_name?: string | null
+          depositor_phone?: string | null
+          id?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_to_user_id?: string | null
+          notes?: string | null
+          reference_id?: string | null
+          refunded_at?: string | null
+          source_channel?: string
+          status?: string
+          updated_at?: string
+          written_off_at?: string | null
+          written_off_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suspense_ledger_matched_by_fkey"
+            columns: ["matched_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_by_fkey"
+            columns: ["matched_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_by_fkey"
+            columns: ["matched_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_by_fkey"
+            columns: ["matched_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
+            columns: ["matched_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
+            columns: ["matched_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
+            columns: ["matched_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
+            columns: ["matched_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_written_off_by_fkey"
+            columns: ["written_off_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_written_off_by_fkey"
+            columns: ["written_off_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_written_off_by_fkey"
+            columns: ["written_off_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_written_off_by_fkey"
+            columns: ["written_off_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
           },
         ]
       }
