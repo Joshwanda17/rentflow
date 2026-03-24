@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,18 +12,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
-  Landmark, MapPin, Image, CheckCircle2, XCircle, Loader2,
-  Phone, User2, ExternalLink, Clock, Navigation, Hash, AlertCircle
+  Landmark, Image, CheckCircle2, XCircle, Loader2,
+  Phone, User2, Clock, Hash, AlertCircle, Upload, Camera, Banknote
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 const statusColors: Record<string, string> = {
   pending_agent_ops: 'bg-amber-500/20 text-amber-700',
@@ -34,9 +26,16 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   pending_agent_ops: 'Pending Review',
-  agent_ops_approved: 'Ops Approved – Needs TID Verify',
+  agent_ops_approved: 'Ready to Pay – Enter TID',
   agent_ops_rejected: 'Rejected',
   completed: 'Completed',
+};
+
+const providerColors: Record<string, string> = {
+  MTN: 'bg-yellow-500/20 text-yellow-700',
+  Airtel: 'bg-red-500/20 text-red-700',
+  Bank: 'bg-blue-500/20 text-blue-700',
+  Cash: 'bg-emerald-500/20 text-emerald-700',
 };
 
 export function FloatPayoutVerification() {
@@ -45,8 +44,9 @@ export function FloatPayoutVerification() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [verifyTid, setVerifyTid] = useState<Record<string, string>>({});
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [receiptFiles, setReceiptFiles] = useState<Record<string, File[]>>({});
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Fetch float withdrawals needing TID verification (agent_ops_approved or pending)
   const { data: payouts = [], isLoading } = useQuery({
     queryKey: ['finops-float-payout-verification'],
     queryFn: async () => {
@@ -71,21 +71,37 @@ export function FloatPayoutVerification() {
   });
 
   const pendingCount = payouts.filter((p: any) => p.status === 'pending_agent_ops').length;
-  const approvedCount = payouts.filter((p: any) => p.status === 'agent_ops_approved').length;
+  const readyToPayCount = payouts.filter((p: any) => p.status === 'agent_ops_approved').length;
+
+  const handleFiles = (id: string, files: FileList | null) => {
+    if (!files) return;
+    const arr = Array.from(files);
+    setReceiptFiles(prev => {
+      const existing = prev[id] || [];
+      return { ...prev, [id]: [...existing, ...arr].slice(0, 3) };
+    });
+  };
+
+  const removeFile = (id: string, idx: number) => {
+    setReceiptFiles(prev => ({
+      ...prev,
+      [id]: (prev[id] || []).filter((_, i) => i !== idx),
+    }));
+  };
 
   const completeMutation = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: 'approve' | 'reject' | 'complete' }) => {
       const notes = reviewNotes[id] || '';
       const tid = verifyTid[id] || '';
+      const files = receiptFiles[id] || [];
 
       if (action === 'reject' && notes.length < 10) throw new Error('Rejection reason required (min 10 chars)');
-      if (action === 'complete' && !tid.trim()) throw new Error('Transaction ID (TID) is required to complete verification');
+      if (action === 'complete' && !tid.trim()) throw new Error('Transaction ID (TID) is required');
 
       const payout = payouts.find((p: any) => p.id === id);
       if (!payout) throw new Error('Payout not found');
 
       if (action === 'approve') {
-        // Agent Ops approval (moves from pending_agent_ops → agent_ops_approved)
         const { error } = await supabase
           .from('agent_float_withdrawals')
           .update({
@@ -97,13 +113,26 @@ export function FloatPayoutVerification() {
           } as any)
           .eq('id', id);
         if (error) throw error;
+
       } else if (action === 'complete') {
-        // Final verification with TID — mark as completed and trigger disbursement
+        // Upload receipt photos from Financial Ops
+        const photoUrls: string[] = [];
+        for (const file of files) {
+          const ext = file.name.split('.').pop() || 'jpg';
+          const path = `landlord-float-payouts/${payout.rent_request_id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+          const { error: upErr } = await supabase.storage.from('receipts').upload(path, file);
+          if (!upErr) {
+            const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(path);
+            photoUrls.push(urlData.publicUrl);
+          }
+        }
+
         const { error } = await supabase
           .from('agent_float_withdrawals')
           .update({
             status: 'completed',
             transaction_id: tid.trim(),
+            receipt_photo_urls: photoUrls.length > 0 ? photoUrls : null,
             manager_reviewed_by: user!.id,
             manager_reviewed_at: new Date().toISOString(),
             manager_notes: notes || null,
@@ -112,21 +141,20 @@ export function FloatPayoutVerification() {
           .eq('id', id);
         if (error) throw error;
 
-        // Now trigger the actual disbursement edge function to finalize ledger entries
+        // Trigger disbursement
         try {
           await supabase.functions.invoke('disburse-rent-to-landlord', {
             body: {
               rent_request_id: payout.rent_request_id,
               transaction_reference: tid.trim(),
-              payout_method: payout.mobile_money_provider === 'MTN' ? 'mobile_money' : 'mobile_money',
-              notes: `Agent float payout verified. TID: ${tid.trim()}. ${notes}`.trim(),
+              payout_method: payout.mobile_money_provider === 'Bank' ? 'bank_transfer' : 'mobile_money',
+              notes: `Landlord float payout verified. TID: ${tid.trim()}. ${notes}`.trim(),
             },
           });
         } catch (disbErr) {
           console.warn('Disbursement finalization failed:', disbErr);
         }
 
-        // Audit log
         await supabase.from('audit_logs').insert({
           user_id: user!.id,
           action_type: 'float_payout_tid_verified',
@@ -137,9 +165,12 @@ export function FloatPayoutVerification() {
             amount: payout.amount,
             landlord_name: payout.landlord_name,
             agent_id: payout.agent_id,
+            payment_mode: payout.mobile_money_provider,
+            receipt_count: photoUrls.length,
             notes,
           },
         });
+
       } else if (action === 'reject') {
         const { error } = await supabase
           .from('agent_float_withdrawals')
@@ -153,7 +184,7 @@ export function FloatPayoutVerification() {
           .eq('id', id);
         if (error) throw error;
 
-        // Refund float balance
+        // Refund float
         const { data: floatData } = await supabase
           .from('agent_landlord_float')
           .select('balance, total_paid_out')
@@ -173,7 +204,7 @@ export function FloatPayoutVerification() {
     },
     onSuccess: (_, { action }) => {
       qc.invalidateQueries({ queryKey: ['finops-float-payout-verification'] });
-      const msg = action === 'complete' ? 'TID verified & disbursement finalized!' : action === 'approve' ? 'Payout approved!' : 'Payout rejected & float refunded.';
+      const msg = action === 'complete' ? 'Payment completed & TID recorded!' : action === 'approve' ? 'Approved – ready for payment!' : 'Rejected & float refunded.';
       toast.success(msg);
     },
     onError: (e: any) => toast.error(e.message),
@@ -184,35 +215,41 @@ export function FloatPayoutVerification() {
       <CardHeader className="pb-2 px-3 sm:px-6">
         <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
           <Landmark className="h-4 w-4 text-chart-4" />
-          Landlord Float Payouts
+          Landlord Float Withdrawals
           <div className="flex gap-1 ml-auto">
             {pendingCount > 0 && <Badge variant="destructive" className="text-[10px] h-5">{pendingCount} pending</Badge>}
-            {approvedCount > 0 && <Badge className="text-[10px] h-5 bg-amber-500">{approvedCount} needs TID</Badge>}
+            {readyToPayCount > 0 && <Badge className="text-[10px] h-5 bg-amber-500">{readyToPayCount} ready to pay</Badge>}
           </div>
         </CardTitle>
+        <p className="text-xs text-muted-foreground">Agent landlord payout requests — approve, pay landlord, then enter TID & receipt</p>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
         {isLoading ? (
           <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : payouts.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No pending float payout verifications</p>
+          <p className="text-sm text-muted-foreground text-center py-6">No pending landlord float withdrawals</p>
         ) : (
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-2">
               {payouts.map((p: any) => {
                 const expanded = expandedId === p.id;
-                const agentToLandlordDist = p.agent_latitude && p.landlord_latitude
-                  ? Math.round(haversineDistance(p.agent_latitude, p.agent_longitude, p.landlord_latitude, p.landlord_longitude))
-                  : null;
-                const needsTid = p.status === 'agent_ops_approved';
+                const needsPayment = p.status === 'agent_ops_approved';
+                const files = receiptFiles[p.id] || [];
 
                 return (
-                  <Card key={p.id} className={`border ${needsTid ? 'border-amber-500/50 bg-amber-500/5' : ''}`}>
+                  <Card key={p.id} className={`border ${needsPayment ? 'border-amber-500/50 bg-amber-500/5' : ''}`}>
                     <CardContent className="p-3 space-y-2">
-                      <div className="flex items-start sm:items-center justify-between cursor-pointer gap-2" onClick={() => setExpandedId(expanded ? null : p.id)}>
+                      <div className="flex items-start justify-between cursor-pointer gap-2" onClick={() => setExpandedId(expanded ? null : p.id)}>
                         <div className="min-w-0">
-                          <p className="font-bold text-sm truncate">{p.landlord_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">Agent: {p.agent?.full_name || 'Unknown'}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm truncate">{p.landlord_name}</p>
+                            <Badge className={`text-[9px] h-4 ${providerColors[p.mobile_money_provider] || 'bg-muted'}`}>
+                              {p.mobile_money_provider}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            Agent: {p.agent?.full_name || 'Unknown'} · Tenant: {p.tenant?.full_name || 'Unknown'}
+                          </p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-sm">{formatUGX(p.amount)}</p>
@@ -224,76 +261,21 @@ export function FloatPayoutVerification() {
 
                       {expanded && (
                         <div className="space-y-3 pt-2 border-t">
-                          {/* Contact Details */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
                             <div className="flex items-center gap-1"><Phone className="h-3 w-3 shrink-0" /> Landlord: {p.landlord_phone}</div>
-                            <div className="flex items-center gap-1"><User2 className="h-3 w-3 shrink-0" /> Tenant: {p.tenant?.full_name}</div>
+                            <div className="flex items-center gap-1"><User2 className="h-3 w-3 shrink-0" /> Agent: {p.agent?.phone || 'N/A'}</div>
                             <div className="flex items-center gap-1"><Clock className="h-3 w-3 shrink-0" /> {format(new Date(p.created_at), 'dd MMM HH:mm')}</div>
-                            <div className="flex items-center gap-1"><Hash className="h-3 w-3 shrink-0" /> Provider: {p.mobile_money_provider}</div>
-                            {p.transaction_id && (
-                              <div className="flex items-center gap-1 col-span-full">
-                                <span className="text-muted-foreground">Agent TID:</span>
-                                <span className="font-mono font-bold">{p.transaction_id}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* GPS Analysis */}
-                          <div className="p-2 rounded-lg bg-muted/50 space-y-1">
-                            <p className="text-xs font-bold flex items-center gap-1"><Navigation className="h-3 w-3" /> GPS Analysis</p>
-                            <div className="grid grid-cols-1 gap-1 text-[11px]">
-                              {p.agent_latitude && (
-                                <div className="flex items-center justify-between">
-                                  <span>Agent GPS:</span>
-                                  <a href={`https://www.google.com/maps?q=${p.agent_latitude},${p.agent_longitude}`} target="_blank" rel="noopener noreferrer" className="text-primary flex items-center gap-0.5 hover:underline">
-                                    {Number(p.agent_latitude).toFixed(5)}, {Number(p.agent_longitude).toFixed(5)}
-                                    <ExternalLink className="h-2.5 w-2.5" />
-                                  </a>
-                                </div>
-                              )}
-                              {p.landlord_latitude && (
-                                <div className="flex items-center justify-between">
-                                  <span>Landlord GPS:</span>
-                                  <a href={`https://www.google.com/maps?q=${p.landlord_latitude},${p.landlord_longitude}`} target="_blank" rel="noopener noreferrer" className="text-primary flex items-center gap-0.5 hover:underline">
-                                    {Number(p.landlord_latitude).toFixed(5)}, {Number(p.landlord_longitude).toFixed(5)}
-                                    <ExternalLink className="h-2.5 w-2.5" />
-                                  </a>
-                                </div>
-                              )}
-                              {p.gps_distance_meters !== null && (
-                                <div className="flex items-center justify-between">
-                                  <span>Landlord ↔ Property:</span>
-                                  <Badge variant={p.gps_match ? 'default' : 'destructive'} className="text-[10px]">
-                                    {p.gps_distance_meters}m {p.gps_match ? '✓ Match' : '✗ Too far'}
-                                  </Badge>
-                                </div>
-                              )}
-                              {agentToLandlordDist !== null && (
-                                <div className="flex items-center justify-between">
-                                  <span>Agent ↔ Landlord:</span>
-                                  <span className="font-mono text-[10px]">{agentToLandlordDist}m</span>
-                                </div>
-                              )}
+                            <div className="flex items-center gap-1"><Hash className="h-3 w-3 shrink-0" /> Mode: {p.mobile_money_provider}</div>
+                            <div className="flex items-center gap-1 col-span-full">
+                              <Banknote className="h-3 w-3 shrink-0 text-chart-4" />
+                              <span className="text-muted-foreground">Type:</span>
+                              <Badge variant="outline" className="text-[9px] border-chart-4/40 text-chart-4">Landlord Float Withdrawal</Badge>
                             </div>
                           </div>
-
-                          {/* Receipt Photos */}
-                          {p.receipt_photo_urls?.length > 0 && (
-                            <div>
-                              <p className="text-xs font-bold mb-1 flex items-center gap-1"><Image className="h-3 w-3" /> Receipts</p>
-                              <div className="flex gap-2 flex-wrap">
-                                {p.receipt_photo_urls.map((url: string, i: number) => (
-                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                    <img src={url} alt={`Receipt ${i + 1}`} className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded border hover:opacity-80" />
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
 
                           {p.notes && <p className="text-xs text-muted-foreground">Agent Notes: {p.notes}</p>}
 
-                          {/* Actions */}
+                          {/* Pending: Approve or Reject */}
                           {p.status === 'pending_agent_ops' && (
                             <div className="space-y-2 pt-2 border-t">
                               <Textarea
@@ -315,44 +297,79 @@ export function FloatPayoutVerification() {
                             </div>
                           )}
 
+                          {/* Approved: Pay landlord → Enter TID + Receipt */}
                           {p.status === 'agent_ops_approved' && (
                             <div className="space-y-3 pt-2 border-t">
                               <div className="p-3 rounded-lg bg-amber-500/10 border-2 border-amber-500/40">
                                 <div className="flex items-center gap-2 mb-2">
                                   <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                                  <p className="text-sm font-bold text-amber-700">⚠️ Verify TID & Receipt</p>
+                                  <p className="text-sm font-bold text-amber-700">Pay Landlord & Enter TID</p>
                                 </div>
-                                <p className="text-xs text-muted-foreground mb-2">
-                                  Verify the agent's transaction ID matches the MoMo payment and the landlord receipt is legitimate before finalizing.
+                                <p className="text-xs text-muted-foreground mb-3">
+                                  Send <strong>{formatUGX(p.amount)}</strong> to <strong>{p.landlord_name}</strong> via <strong>{p.mobile_money_provider}</strong> ({p.landlord_phone}), then enter the TID and upload receipt.
                                 </p>
-                                <Label className="text-xs font-bold block mb-1">Verified Transaction ID (TID) *</Label>
+
+                                <Label className="text-xs font-bold block mb-1">Transaction ID (TID) *</Label>
                                 <Input
                                   value={verifyTid[p.id] || ''}
                                   onChange={e => setVerifyTid(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                  placeholder="Enter verified TID from MoMo statement"
+                                  placeholder="Enter TID from payment confirmation"
                                   className="font-mono text-base h-10 border-2 border-amber-500/30"
                                 />
-                                {p.transaction_id && (
-                                  <p className="text-[10px] text-muted-foreground mt-1">
-                                    Agent submitted TID: <span className="font-mono font-bold">{p.transaction_id}</span>
-                                  </p>
+                              </div>
+
+                              {/* Receipt upload */}
+                              <div>
+                                <Label className="text-xs font-bold mb-1 block flex items-center gap-1">
+                                  <Camera className="h-3 w-3" /> Receipt Photos (optional)
+                                </Label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="hidden"
+                                  ref={el => { fileRefs.current[p.id] = el; }}
+                                  onChange={e => handleFiles(p.id, e.target.files)}
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-xs"
+                                  onClick={() => fileRefs.current[p.id]?.click()}
+                                >
+                                  <Upload className="h-3 w-3 mr-1" />
+                                  Upload Receipt ({files.length}/3)
+                                </Button>
+                                {files.length > 0 && (
+                                  <div className="flex gap-2 mt-2 flex-wrap">
+                                    {files.map((f, i) => (
+                                      <div key={i} className="relative">
+                                        <img src={URL.createObjectURL(f)} alt={`Receipt ${i + 1}`} className="h-14 w-14 object-cover rounded border" />
+                                        <button
+                                          onClick={() => removeFile(p.id, i)}
+                                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-[10px]"
+                                        >×</button>
+                                      </div>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
+
                               <Textarea
-                                placeholder="Verification notes (optional)…"
+                                placeholder="Payment notes…"
                                 value={reviewNotes[p.id] || ''}
                                 onChange={e => setReviewNotes(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                className="h-14 text-sm"
+                                className="h-12 text-sm"
                               />
+
                               <div className="flex gap-2">
-                                <Button size="sm" variant="destructive" className="flex-1 h-8 text-xs" disabled={completeMutation.isPending}
+                                <Button size="sm" variant="destructive" className="flex-1 h-9 text-xs" disabled={completeMutation.isPending}
                                   onClick={() => completeMutation.mutate({ id: p.id, action: 'reject' })}>
                                   <XCircle className="h-3 w-3 mr-1" /> Reject
                                 </Button>
-                                <Button size="sm" className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={completeMutation.isPending || !(verifyTid[p.id] || '').trim()}
+                                <Button size="sm" className="flex-1 h-9 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={completeMutation.isPending || !(verifyTid[p.id] || '').trim()}
                                   onClick={() => completeMutation.mutate({ id: p.id, action: 'complete' })}>
-                                  {completeMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
-                                  Verify & Complete
+                                  <CheckCircle2 className="h-3 w-3 mr-1" /> Complete Payment
                                 </Button>
                               </div>
                             </div>
