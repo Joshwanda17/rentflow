@@ -698,6 +698,90 @@ export type Database = {
           },
         ]
       }
+      agent_float_funding: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          funded_by: string
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          funded_by: string
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          funded_by?: string
+          id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_float_funding_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_funded_by_fkey"
+            columns: ["funded_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_funded_by_fkey"
+            columns: ["funded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_funded_by_fkey"
+            columns: ["funded_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_funded_by_fkey"
+            columns: ["funded_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_float_limits: {
         Row: {
           agent_id: string
@@ -797,6 +881,235 @@ export type Database = {
           {
             foreignKeyName: "agent_float_limits_assigned_by_fkey"
             columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      agent_float_withdrawals: {
+        Row: {
+          agent_id: string
+          agent_latitude: number | null
+          agent_location_accuracy: number | null
+          agent_longitude: number | null
+          agent_ops_notes: string | null
+          agent_ops_reviewed_at: string | null
+          agent_ops_reviewed_by: string | null
+          amount: number
+          created_at: string
+          gps_distance_meters: number | null
+          gps_match: boolean | null
+          id: string
+          landlord_id: string
+          landlord_latitude: number | null
+          landlord_location_accuracy: number | null
+          landlord_longitude: number | null
+          landlord_name: string
+          landlord_phone: string
+          manager_notes: string | null
+          manager_reviewed_at: string | null
+          manager_reviewed_by: string | null
+          mobile_money_provider: string
+          notes: string | null
+          property_latitude: number | null
+          property_longitude: number | null
+          receipt_photo_urls: string[] | null
+          rent_request_id: string
+          status: string
+          tenant_id: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          agent_latitude?: number | null
+          agent_location_accuracy?: number | null
+          agent_longitude?: number | null
+          agent_ops_notes?: string | null
+          agent_ops_reviewed_at?: string | null
+          agent_ops_reviewed_by?: string | null
+          amount: number
+          created_at?: string
+          gps_distance_meters?: number | null
+          gps_match?: boolean | null
+          id?: string
+          landlord_id: string
+          landlord_latitude?: number | null
+          landlord_location_accuracy?: number | null
+          landlord_longitude?: number | null
+          landlord_name: string
+          landlord_phone: string
+          manager_notes?: string | null
+          manager_reviewed_at?: string | null
+          manager_reviewed_by?: string | null
+          mobile_money_provider: string
+          notes?: string | null
+          property_latitude?: number | null
+          property_longitude?: number | null
+          receipt_photo_urls?: string[] | null
+          rent_request_id: string
+          status?: string
+          tenant_id: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          agent_latitude?: number | null
+          agent_location_accuracy?: number | null
+          agent_longitude?: number | null
+          agent_ops_notes?: string | null
+          agent_ops_reviewed_at?: string | null
+          agent_ops_reviewed_by?: string | null
+          amount?: number
+          created_at?: string
+          gps_distance_meters?: number | null
+          gps_match?: boolean | null
+          id?: string
+          landlord_id?: string
+          landlord_latitude?: number | null
+          landlord_location_accuracy?: number | null
+          landlord_longitude?: number | null
+          landlord_name?: string
+          landlord_phone?: string
+          manager_notes?: string | null
+          manager_reviewed_at?: string | null
+          manager_reviewed_by?: string | null
+          mobile_money_provider?: string
+          notes?: string | null
+          property_latitude?: number | null
+          property_longitude?: number | null
+          receipt_photo_urls?: string[] | null
+          rent_request_id?: string
+          status?: string
+          tenant_id?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
+            columns: ["agent_ops_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
+            columns: ["agent_ops_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
+            columns: ["agent_ops_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
+            columns: ["agent_ops_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
+            columns: ["manager_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
+            columns: ["manager_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
+            columns: ["manager_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
+            columns: ["manager_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
@@ -968,6 +1281,65 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_landlord_float: {
+        Row: {
+          agent_id: string
+          balance: number
+          created_at: string
+          id: string
+          total_funded: number
+          total_paid_out: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          balance?: number
+          created_at?: string
+          id?: string
+          total_funded?: number
+          total_paid_out?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          balance?: number
+          created_at?: string
+          id?: string
+          total_funded?: number
+          total_paid_out?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
           },
         ]
       }
