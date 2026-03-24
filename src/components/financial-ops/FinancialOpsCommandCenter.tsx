@@ -8,7 +8,8 @@ import { AuditFeed } from './AuditFeed';
 import { TidVerification } from './TidVerification';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
-import { ClipboardList, Search, Scale, Shield, LayoutDashboard, ShieldCheck, Gauge, Landmark } from 'lucide-react';
+import { LedgerHub } from '@/components/ledgers/LedgerHub';
+import { ClipboardList, Search, Scale, Shield, LayoutDashboard, ShieldCheck, Gauge, Landmark, BookOpen } from 'lucide-react';
 
 export function FinancialOpsCommandCenter() {
   const [tab, setTab] = useState('ops');
