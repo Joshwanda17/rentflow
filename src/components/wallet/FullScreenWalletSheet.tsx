@@ -279,10 +279,10 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 <Button 
                   onClick={() => { hapticTap(); setDepositOpen(true); }} 
                   variant="outline" 
-                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all"
+                  className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-purple-500/50 hover:bg-purple-500/10"
                 >
-                  <Plus className="h-4 w-4" />
-                  <span className="text-[10px] font-semibold">Deposit</span>
+                  <Plus className="h-5 w-5 text-purple-600" />
+                  <span className="text-sm font-bold text-purple-600">Deposit</span>
                 </Button>
                 <Button 
                   onClick={() => { hapticTap(); setWithdrawOpen(true); }} 
