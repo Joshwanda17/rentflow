@@ -12,6 +12,7 @@ import { AgentOpsBrief } from './AgentOpsBrief';
 import { AgentAlertFeed } from './AgentAlertFeed';
 import { AgentTaskManager } from './AgentTaskManager';
 import { AgentEscalationQueue } from './AgentEscalationQueue';
+import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Users, Banknote, DollarSign } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
