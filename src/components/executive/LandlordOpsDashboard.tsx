@@ -8,7 +8,7 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
-  Building2, UserCheck, Smartphone, Handshake, GitBranch, Map as MapIcon,
+  Building2, UserCheck, Smartphone, Handshake, GitBranch,
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
-import { PropertyMapView } from './landlord-ops/PropertyMapView';
+
 
 interface ListingWithLandlord {
   id: string;
@@ -376,12 +376,8 @@ export function LandlordOpsDashboard() {
       )}
 
       {/* Tabbed Management Sections */}
-      <Tabs defaultValue="map" className="w-full">
-        <TabsList className="grid w-full grid-cols-8 h-auto">
-          <TabsTrigger value="map" className="text-xs py-2 gap-1 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700">
-            <MapIcon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Map</span>
-          </TabsTrigger>
+      <Tabs defaultValue="empty" className="w-full">
+        <TabsList className="grid w-full grid-cols-7 h-auto">
           <TabsTrigger value="matching" className="text-xs py-2 gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
             <Handshake className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Match</span>
@@ -414,11 +410,6 @@ export function LandlordOpsDashboard() {
             <span className="hidden sm:inline">Analytics</span>
           </TabsTrigger>
         </TabsList>
-
-        {/* ──────── MAP TAB ──────── */}
-        <TabsContent value="map" className="space-y-4 mt-4">
-          <PropertyMapView />
-        </TabsContent>
 
         {/* ──────── MATCHING TAB ──────── */}
         <TabsContent value="matching" className="space-y-4 mt-4">
