@@ -49,6 +49,9 @@ export function FinancialOpsCommandCenter() {
             <TabsTrigger value="reconciliation" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
               <Scale className="h-3.5 w-3.5" /> Recon
             </TabsTrigger>
+            <TabsTrigger value="ledgers" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px] data-[state=active]:bg-chart-1 data-[state=active]:text-white">
+              <BookOpen className="h-3.5 w-3.5" /> Ledgers
+            </TabsTrigger>
             <TabsTrigger value="audit" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
               <Shield className="h-3.5 w-3.5" /> Audit
             </TabsTrigger>
@@ -72,6 +75,9 @@ export function FinancialOpsCommandCenter() {
         </TabsContent>
         <TabsContent value="reconciliation" className="mt-2 sm:mt-3">
           <ReconciliationDashboard />
+        </TabsContent>
+        <TabsContent value="ledgers" className="mt-2 sm:mt-3">
+          <LedgerHub />
         </TabsContent>
         <TabsContent value="audit" className="mt-2 sm:mt-3">
           <AuditFeed />
