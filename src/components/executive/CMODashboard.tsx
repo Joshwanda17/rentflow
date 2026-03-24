@@ -80,8 +80,8 @@ export function CMODashboard() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Users" value={(totalUsers || 0).toLocaleString()} icon={Users} loading={isLoading} />
         <KPICard title="Monthly Signups" value={lastMonth} icon={UserPlus} loading={isLoading} color="bg-green-500/10 text-green-600" trend={{ value: growthRate, label: 'vs prev month' }} />
         <KPICard title="Referral Signups" value={referralStats?.totalReferrals || 0} icon={Megaphone} color="bg-purple-500/10 text-purple-600" />
