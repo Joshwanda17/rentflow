@@ -66,6 +66,20 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
         });
       });
 
+      // Add ledger-based float funding entries (bridge scope from CFO approval)
+      const fundingIds = new Set((funding || []).map(f => f.id));
+      (ledgerEntries || []).forEach(le => {
+        if (!fundingIds.has(le.id)) {
+          entries.push({
+            id: le.id,
+            type: le.direction === 'cash_in' ? 'credit' : 'debit',
+            amount: le.amount,
+            description: le.description || 'Float funded from platform',
+            date: le.created_at,
+          });
+        }
+      });
+
       (withdrawals || []).forEach(w => {
         entries.push({
           id: w.id,
