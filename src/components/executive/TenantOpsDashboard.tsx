@@ -49,7 +49,7 @@ export function TenantOpsDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* 🔥 PRIORITY: Review Queue at the top */}
       <RentPipelineQueue stage="pending" />
 
