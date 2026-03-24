@@ -30,8 +30,8 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
     queryFn: async () => {
       if (!user) return [];
 
-      // Fetch credits (funding) and debits (withdrawals) in parallel
-      const [{ data: funding }, { data: withdrawals }] = await Promise.all([
+      // Fetch credits (funding), debits (withdrawals), and ledger entries in parallel
+      const [{ data: funding }, { data: withdrawals }, { data: ledgerEntries }] = await Promise.all([
         supabase
           .from('agent_float_funding')
           .select('id, amount, created_at, notes')
@@ -42,6 +42,14 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
           .from('agent_float_withdrawals')
           .select('id, amount, landlord_name, status, created_at')
           .eq('agent_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase
+          .from('general_ledger')
+          .select('id, amount, description, direction, created_at, category')
+          .eq('user_id', user.id)
+          .eq('category', 'rent_float_funding')
+          .in('ledger_scope', ['bridge', 'wallet'])
           .order('created_at', { ascending: false })
           .limit(30),
       ]);
