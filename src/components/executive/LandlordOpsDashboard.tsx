@@ -416,6 +416,11 @@ export function LandlordOpsDashboard() {
           </TabsTrigger>
         </TabsList>
 
+        {/* ──────── CHAIN HEALTH TAB ──────── */}
+        <TabsContent value="chain" className="space-y-4 mt-4">
+          <ChainHealthTab />
+        </TabsContent>
+
         {/* ──────── MATCHING TAB ──────── */}
         <TabsContent value="matching" className="space-y-4 mt-4">
           <TenantMatchingQueue onViewingCreated={() => refetch()} />
