@@ -160,9 +160,9 @@ export function CEODashboard() {
   const loading = loadingProfiles || loadingLandlords || loadingRent;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Users" value={fmt(profiles || 0)} icon={Users} loading={loading} />
         <KPICard title="Tenants Funded" value={fmt(rentStats?.funded || 0)} icon={UserCheck} loading={loading} color="bg-green-500/10 text-green-600" />
         <KPICard title="Rent Financed" value={`${fmt(rentStats?.totalFinanced || 0)}`} icon={Banknote} loading={loading} color="bg-blue-500/10 text-blue-600" />
