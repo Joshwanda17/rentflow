@@ -333,44 +333,46 @@ export function ApprovalQueue() {
           .in('id', ids);
         if (error) throw error;
       } else if (activeQueue === 'wallet_withdrawals') {
-        const updateFields: Record<string, unknown> = {
-          manager_approved_by: user.id,
-          manager_approved_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        if (bulkAction === 'approve') {
-          updateFields.status = 'manager_approved';
-          updateFields.payout_proof = payoutProof.trim();
-          // Determine proof type from selected items
+        if (bulkAction === 'reject') {
+          // Use edge function for proper rejection with notification & audit
+          const { error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
+            body: { withdrawal_ids: ids, reason, withdrawal_type: 'wallet' },
+          });
+          if (rejectErr) throw rejectErr;
+        } else {
+          const updateFields: Record<string, unknown> = {
+            status: 'manager_approved',
+            manager_approved_by: user.id,
+            manager_approved_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            payout_proof: payoutProof.trim(),
+          };
           const selectedItem = items.find(i => selected.has(i.id));
           const method = selectedItem?.payoutDetails?.method || 'mobile_money';
           updateFields.payout_proof_type = method === 'bank_transfer' ? 'bank_reference' : method === 'cash' ? 'payment_voucher' : 'momo_tid';
-        } else {
-          updateFields.status = 'rejected';
-          updateFields.rejection_reason = reason;
-        }
-        const { error } = await supabase.from('withdrawal_requests')
-          .update(updateFields)
-          .in('id', ids);
-        if (error) throw error;
 
-        // Generate payout codes for cash withdrawals
-        const cashItems = items.filter(i => selected.has(i.id) && i.payoutDetails?.method === 'cash');
-        if (bulkAction === 'approve' && cashItems.length > 0) {
-          for (const ci of cashItems) {
-            const code = 'WPO-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-            const qrData = JSON.stringify({ code, amount: ci.amount, userId: ci.userId, withdrawalId: ci.id });
-            await supabase.from('payout_codes').insert({
-              withdrawal_request_id: ci.id,
-              user_id: ci.userId!,
-              code,
-              qr_data: qrData,
-              amount: ci.amount,
-            });
-            // Save code on withdrawal request
-            await supabase.from('withdrawal_requests')
-              .update({ payout_code: code })
-              .eq('id', ci.id);
+          const { error } = await supabase.from('withdrawal_requests')
+            .update(updateFields)
+            .in('id', ids);
+          if (error) throw error;
+
+          // Generate payout codes for cash withdrawals
+          const cashItems = items.filter(i => selected.has(i.id) && i.payoutDetails?.method === 'cash');
+          if (cashItems.length > 0) {
+            for (const ci of cashItems) {
+              const code = 'WPO-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+              const qrData = JSON.stringify({ code, amount: ci.amount, userId: ci.userId, withdrawalId: ci.id });
+              await supabase.from('payout_codes').insert({
+                withdrawal_request_id: ci.id,
+                user_id: ci.userId!,
+                code,
+                qr_data: qrData,
+                amount: ci.amount,
+              });
+              await supabase.from('withdrawal_requests')
+                .update({ payout_code: code })
+                .eq('id', ci.id);
+            }
           }
         }
       }
