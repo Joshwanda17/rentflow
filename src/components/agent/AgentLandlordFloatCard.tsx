@@ -48,31 +48,31 @@ export function AgentLandlordFloatCard({ onPayLandlord }: AgentLandlordFloatCard
   return (
     <button
       onClick={onPayLandlord}
-      className="w-full rounded-2xl border-2 border-purple-400/50 bg-gradient-to-br from-purple-600/15 via-purple-500/10 to-purple-400/5 p-4 hover:border-purple-400/70 hover:shadow-lg hover:shadow-purple-500/10 transition-all touch-manipulation active:scale-[0.98] animate-fade-in text-left ring-1 ring-purple-500/20"
+      className="w-full rounded-2xl border-2 border-chart-4/30 bg-gradient-to-br from-chart-4/10 via-chart-4/5 to-transparent p-4 hover:border-chart-4/50 hover:shadow-lg transition-all touch-manipulation active:scale-[0.98] animate-fade-in text-left"
     >
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-purple-500/15 shrink-0">
-          <Landmark className="h-5 w-5 text-purple-500" />
+        <div className="p-2.5 rounded-xl bg-chart-4/15 shrink-0">
+          <Landmark className="h-5 w-5 text-chart-4" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-[11px] text-purple-400 font-bold uppercase tracking-wider">Welile Capital</p>
+            <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Landlord Funds</p>
             {pendingCount > 0 && (
-              <Badge className="text-[9px] px-1.5 py-0 bg-purple-500/20 text-purple-300 border-purple-500/30">
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
                 {pendingCount} pending
               </Badge>
             )}
           </div>
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-purple-400 mt-1" />
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mt-1" />
           ) : (
             <p className="font-bold text-xl text-foreground truncate mt-0.5">{formatUGX(balance)}</p>
           )}
           <p className="text-[10px] text-muted-foreground">Ring-fenced for landlord payouts only</p>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-purple-400 font-semibold">Pay</span>
-          <ArrowRight className="h-4 w-4 text-purple-400" />
+          <span className="text-xs text-chart-4 font-semibold">Pay</span>
+          <ArrowRight className="h-4 w-4 text-chart-4" />
         </div>
       </div>
     </button>
