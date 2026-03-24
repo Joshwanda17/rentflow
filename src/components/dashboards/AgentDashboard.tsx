@@ -53,6 +53,9 @@ import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayou
 import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
+import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
+import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
+import { FloatTransactionHistory } from '@/components/agent/FloatTransactionHistory';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
@@ -148,6 +151,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
   const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
   const [floatPayoutOpen, setFloatPayoutOpen] = useState(false);
+  const [recoveryLedgerOpen, setRecoveryLedgerOpen] = useState(false);
+  const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
+  const [floatHistoryOpen, setFloatHistoryOpen] = useState(false);
 
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
@@ -303,7 +309,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         )}
 
         {/* Landlord Funds — Pay Landlord via MoMo (escrow float) */}
-        <AgentLandlordFloatCard onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }} />
+        <AgentLandlordFloatCard
+          onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }}
+          onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
+          onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
+          onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
+        />
 
         {/* 5 Key Action Buttons + Hub */}
         <div className="grid grid-cols-3 gap-2 animate-fade-in">
@@ -399,6 +410,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentLandlordPayoutDialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen} property={payoutProperty} />
       <AgentLandlordPayoutFlow open={landlordPayoutFlowOpen} onOpenChange={setLandlordPayoutFlowOpen} />
       <AgentFloatPayoutWizard open={floatPayoutOpen} onOpenChange={setFloatPayoutOpen} />
+      <LandlordRecoveryLedger open={recoveryLedgerOpen} onOpenChange={setRecoveryLedgerOpen} />
+      <FloatPayoutStatusTracker open={payoutStatusOpen} onOpenChange={setPayoutStatusOpen} />
+      <FloatTransactionHistory open={floatHistoryOpen} onOpenChange={setFloatHistoryOpen} />
       <VerificationOpportunitiesButton />
       <CreditVerificationButton />
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
