@@ -301,13 +301,26 @@ export function FloatPayoutVerification() {
                           {p.status === 'agent_ops_approved' && (
                             <div className="space-y-3 pt-2 border-t">
                               <div className="p-3 rounded-lg bg-amber-500/10 border-2 border-amber-500/40">
-                                <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-2 mb-2">
                                   <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-                                  <p className="text-sm font-bold text-amber-700">Pay Landlord & Enter TID</p>
+                                  <p className="text-sm font-bold text-amber-700">Verify Agent Payment</p>
                                 </div>
                                 <p className="text-xs text-muted-foreground mb-3">
-                                  Send <strong>{formatUGX(p.amount)}</strong> to <strong>{p.landlord_name}</strong> via <strong>{p.mobile_money_provider}</strong> ({p.landlord_phone}), then enter the TID and upload receipt.
+                                  Agent paid <strong>{formatUGX(p.amount)}</strong> to <strong>{p.landlord_name}</strong> via <strong>{p.mobile_money_provider}</strong>.
+                                  {p.transaction_id && <> Agent TID: <strong className="font-mono">{p.transaction_id}</strong></>}
                                 </p>
+                                {(p.receipt_photo_urls?.length > 0) && (
+                                  <div className="mb-3">
+                                    <p className="text-[10px] font-bold text-muted-foreground mb-1">Agent Receipts:</p>
+                                    <div className="flex gap-2 flex-wrap">
+                                      {p.receipt_photo_urls.map((url: string, i: number) => (
+                                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                          <img src={url} alt={`Receipt ${i + 1}`} className="h-16 w-16 object-cover rounded border hover:ring-2 ring-chart-4" />
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
 
                                 <Label className="text-xs font-bold block mb-1">Transaction ID (TID) *</Label>
                                 <Input
