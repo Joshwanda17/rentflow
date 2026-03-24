@@ -55,7 +55,7 @@ export function FloatingWalletButton() {
         <span className={`inline-block h-5 w-5 rounded-full ${dotColor}`} />
         <Wallet className="h-10 w-10" />
         {wallet && (
-          <span className="text-sm font-bold">
+          <span className="text-xl font-bold">
             {formatCompact(balance)}
           </span>
         )}
