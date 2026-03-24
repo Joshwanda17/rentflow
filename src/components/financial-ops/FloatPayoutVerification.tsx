@@ -290,7 +290,7 @@ export function FloatPayoutVerification() {
                               <div className="flex items-center gap-1 col-span-full">
                                 <Hash className="h-3 w-3 shrink-0 text-chart-4" />
                                 <span className="text-muted-foreground">Agent TID:</span>
-                                <span className="font-mono font-bold">{p.transaction_id}</span>
+                                <span className="font-mono font-bold">••••{p.transaction_id.slice(-2)}</span>
                               </div>
                             )}
                             <div className="flex items-center gap-1 col-span-full">
@@ -348,7 +348,7 @@ export function FloatPayoutVerification() {
                                 </div>
                                 <p className="text-xs text-muted-foreground mb-3">
                                   Agent paid <strong>{formatUGX(p.amount)}</strong> to <strong>{p.landlord_name}</strong> via <strong>{p.mobile_money_provider}</strong>.
-                                  {p.transaction_id && <> Agent TID: <strong className="font-mono">{p.transaction_id}</strong></>}
+                                  {p.transaction_id && <> Agent TID hint: <strong className="font-mono">••••{p.transaction_id.slice(-2)}</strong></>}
                                 </p>
                                 {(p.receipt_photo_urls?.length > 0) && (
                                   <div className="mb-3">
@@ -367,7 +367,7 @@ export function FloatPayoutVerification() {
                                 <Input
                                   value={verifyTid[p.id] || ''}
                                   onChange={e => setVerifyTid(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                  placeholder={p.transaction_id ? `Agent TID: ${p.transaction_id} — re-enter to confirm` : 'Enter verified TID'}
+                                  placeholder={p.transaction_id ? `Hint: ••••${p.transaction_id.slice(-2)} — enter full TID to verify` : 'Enter verified TID'}
                                   className="font-mono text-base h-10 border-2 border-amber-500/30"
                                 />
                               </div>

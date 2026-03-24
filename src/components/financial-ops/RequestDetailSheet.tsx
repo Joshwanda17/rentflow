@@ -122,7 +122,7 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
         fields: [
           { key: 'Amount', value: formatUGX(requestData.amount) },
           { key: 'Provider', value: requestData.provider?.toUpperCase() || '—' },
-          { key: 'Transaction ID', value: requestData.transaction_id || '—' },
+          { key: 'Transaction ID (hint)', value: requestData.transaction_id ? `••••${requestData.transaction_id.slice(-2)}` : '—' },
           { key: 'Date', value: requestData.transaction_date ? format(new Date(requestData.transaction_date), 'MMM d, yyyy HH:mm') : '—' },
           { key: 'Notes', value: requestData.notes || '—' },
           { key: 'Submitted', value: requestData.created_at ? formatDistanceToNow(new Date(requestData.created_at), { addSuffix: true }) : '—' },
