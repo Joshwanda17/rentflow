@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
+import { useAuth } from "@/hooks/useAuth";
 
 const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 
