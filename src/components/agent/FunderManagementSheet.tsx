@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FunderPortfolioCard } from './FunderPortfolioCard';
+import { AgentDepositDialog } from './AgentDepositDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
