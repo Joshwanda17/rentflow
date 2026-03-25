@@ -89,8 +89,8 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
           const [portfoliosRes, walletRes] = await Promise.all([
             supabase
               .from('investor_portfolios')
-              .select('amount_invested, total_roi_earned, status')
-              .eq('user_id', bid)
+              .select('investment_amount, total_roi_earned, status')
+              .eq('investor_id', bid)
               .in('status', ['active', 'matured']),
             supabase
               .from('wallets')
@@ -101,9 +101,9 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
 
           const portfolios = portfoliosRes.data || [];
           statsMap[bid] = {
-            totalInvested: portfolios.reduce((s, p) => s + (p.amount_invested || 0), 0),
-            totalROI: portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0),
-            activeCount: portfolios.filter(p => p.status === 'active').length,
+            totalInvested: portfolios.reduce((s: number, p: any) => s + (p.investment_amount || 0), 0),
+            totalROI: portfolios.reduce((s: number, p: any) => s + (p.total_roi_earned || 0), 0),
+            activeCount: portfolios.filter((p: any) => p.status === 'active').length,
             walletBalance: walletRes.data?.balance || 0,
           };
         }
