@@ -369,7 +369,7 @@ export function AgentMenuDrawer({
                               <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{item.description}</p>
                             )}
                           </div>
-                        </motion.button>
+                        </button>
                       );
                     })}
                   </div>
