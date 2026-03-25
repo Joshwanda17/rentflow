@@ -5,9 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const PAYOUT_PAUSED = true;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (PAYOUT_PAUSED) {
+    console.log('[process-supporter-roi] Payout is currently PAUSED. Skipping all processing.');
+    return new Response(
+      JSON.stringify({ success: true, paused: true, message: 'Partner auto-payout is currently paused by administrator' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
   }
 
   try {

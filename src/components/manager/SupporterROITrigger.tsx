@@ -136,11 +136,16 @@ export function SupporterROITrigger() {
 
           <Button 
             onClick={() => setConfirmOpen(true)} 
-            disabled={loading}
+            disabled={loading || isPaused}
             className="w-full gap-2"
-            variant="default"
+            variant={isPaused ? "outline" : "default"}
           >
-            {loading ? (
+            {isPaused ? (
+              <>
+                <PauseCircle className="h-4 w-4" />
+                Payout Paused
+              </>
+            ) : loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Processing...
