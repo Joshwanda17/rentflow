@@ -59,6 +59,8 @@ export function TenantOpsDashboard() {
 
   const columns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
+    { key: 'tenant_name', label: 'Tenant' },
+    { key: 'tenant_phone', label: 'Phone' },
     { key: 'status', label: 'Status', render: (v) => {
       const colors: Record<string, string> = {
         pending: 'bg-amber-100 text-amber-700',
@@ -76,6 +78,8 @@ export function TenantOpsDashboard() {
     }},
     { key: 'rent_amount', label: 'Amount', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'landlord_name', label: 'Landlord' },
+    { key: 'landlord_phone', label: 'L. Phone' },
   ];
 
   return (
