@@ -67,6 +67,7 @@ interface AgentMenuDrawerProps {
   onViewMyListings?: () => void;
   onViewSubAgents?: () => void;
   onShareSubAgentLink?: () => void;
+  onManageFunders?: () => void;
 }
 
 interface MenuItem {
