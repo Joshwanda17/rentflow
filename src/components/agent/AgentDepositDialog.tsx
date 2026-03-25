@@ -13,6 +13,7 @@ interface AgentDepositDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  prefillPhone?: string;
 }
 
 type DepositMode = 'cash_collected' | 'customer_paid';
