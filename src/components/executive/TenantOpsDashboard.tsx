@@ -6,8 +6,9 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { ApprovalHistoryLog } from './ApprovalHistoryLog';
 import { TenantBehaviorDashboard } from './TenantBehaviorDashboard';
+import { DailyPaymentTracker } from './DailyPaymentTracker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight, Activity, ClipboardList } from 'lucide-react';
+import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight, Activity, ClipboardList, CalendarCheck } from 'lucide-react';
 import { format } from 'date-fns';
 
 
