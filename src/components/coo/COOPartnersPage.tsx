@@ -1460,6 +1460,17 @@ export default function COOPartnersPage() {
                                     <Wallet className="h-3.5 w-3.5" /> Top Up
                                   </Button>
                                 )}
+                                {pendingTopUps[p.id] && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 font-semibold min-h-[44px]"
+                                    onClick={() => handleApplyPendingTopUps(p.id)}
+                                    disabled={applyingTopUps === p.id}
+                                  >
+                                    {applyingTopUps === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                    Apply {pendingTopUps[p.id].count} Pending
+                                  </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
