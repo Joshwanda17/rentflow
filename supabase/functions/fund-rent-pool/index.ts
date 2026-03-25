@@ -1,6 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidatePoolFunding } from "../_shared/shadowValidation.ts";
+import { fetchShadowConfig, shouldSample } from "../_shared/shadowConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,11 +13,15 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
+  // Fetch shadow config once (cached 60s)
+  const shadowConfig = await fetchShadowConfig(adminClient);
+
+  try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -37,9 +42,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Enforce supporter role — agents, tenants, landlords cannot fund
+    // Enforce supporter role
     const { data: userRoles } = await adminClient
       .from("user_roles")
       .select("role")
@@ -48,6 +51,10 @@ Deno.serve(async (req) => {
 
     const roles = (userRoles || []).map((r: any) => r.role);
     if (!roles.includes("supporter")) {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('fund-rent-pool', { userId: user.id }, false,
+          () => shadowValidatePoolFunding({ amount: 0, callerRoles: roles }), adminClient);
+      }
       return new Response(
         JSON.stringify({ error: "Only supporter accounts can fund rent requests. Please use a dedicated supporter account." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -60,21 +67,23 @@ Deno.serve(async (req) => {
     };
 
     if (!amount || amount <= 0) {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('fund-rent-pool', { amount, userId: user.id }, false,
+          () => shadowValidatePoolFunding({ amount, callerRoles: roles }), adminClient);
+      }
       return new Response(
         JSON.stringify({ error: "Invalid amount" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Phase 3: Shadow audit — non-blocking, fire-and-forget
-    runShadowAudit('fund-rent-pool', { amount, userId: user.id },
-      true, () => shadowValidatePoolFunding({ amount, callerRoles: roles })
-    );
+    // Phase 5: Shadow audit on success path — sampled
+    if (shouldSample(shadowConfig)) {
+      runShadowAudit('fund-rent-pool', { amount, userId: user.id },
+        true, () => shadowValidatePoolFunding({ amount, callerRoles: roles }), adminClient);
+    }
 
-    // Payout day is auto-calculated (30-day cycle from investment date)
     const payout_day = new Date().getDate();
-
-    // adminClient already created above for role check
 
     // Check wallet balance with optimistic locking
     const { data: wallet, error: walletErr } = await adminClient
@@ -97,14 +106,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Balance check only — actual deduction happens via ledger trigger
-    if (wallet.balance < amount) {
-      return new Response(
-        JSON.stringify({ error: "Insufficient balance" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Generate reference ID
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -118,7 +119,7 @@ Deno.serve(async (req) => {
     const candidate = new Date(firstPayoutMs);
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
 
-    // Reduce the opportunity summary so "RENT NEEDED NOW" decreases
+    // Reduce the opportunity summary
     if (summary_id) {
       const { error: summaryErr } = await adminClient.rpc('decrement_rent_requested', {
         p_summary_id: summary_id,
@@ -126,11 +127,10 @@ Deno.serve(async (req) => {
       });
       if (summaryErr) {
         console.error("[fund-rent-pool] Failed to decrement opportunity summary:", summaryErr.message);
-        // Non-blocking: funding still succeeds even if summary update fails
       }
     }
 
-    // Record in general_ledger — trigger handles wallet deduction via transaction_group_id
+    // Record in general_ledger
     const txGroupId = crypto.randomUUID();
     const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
       user_id: user.id,
@@ -153,12 +153,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create a new investor_portfolios record for this funding
+    // Create investor_portfolios record
     const portfolioCode = `WPF-${String(Math.floor(1000 + Math.random() * 9000))}`;
     const maturityDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
     const maturityStr = `${maturityDate.getFullYear()}-${String(maturityDate.getMonth() + 1).padStart(2, "0")}-${String(maturityDate.getDate()).padStart(2, "0")}`;
 
-    // Find the agent_id from existing portfolio or use a system default
     const { data: existingPortfolio } = await adminClient
       .from("investor_portfolios")
       .select("agent_id")
@@ -186,7 +185,6 @@ Deno.serve(async (req) => {
 
     if (portfolioErr) {
       console.error("[fund-rent-pool] Portfolio creation failed:", portfolioErr.message);
-      // Non-blocking — ledger is the source of truth, portfolio is for display
     }
 
     // Read updated balance after trigger
@@ -197,7 +195,7 @@ Deno.serve(async (req) => {
       .single();
     const newBalance = updatedWallet?.balance ?? (wallet.balance - amount);
 
-    // Notify user with 15% monthly reward info
+    // Notify user
     const monthlyReward = Math.round(amount * 0.15);
     await adminClient.from("notifications").insert({
       user_id: user.id,
