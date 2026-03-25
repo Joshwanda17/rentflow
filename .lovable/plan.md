@@ -1,21 +1,26 @@
 
 
-## Plan: Move Wallet Approvals from Partner Ops to Financial Ops
+## Pause Partner Auto-Payout
 
-### What Changes
+### What's happening now
+The `process-supporter-roi` edge function runs daily (6:00 AM UTC via cron) and also has a manual trigger button in the manager dashboard (`SupporterROITrigger.tsx`). It credits 15% monthly ROI from the platform ledger to supporter wallets.
 
-The `PendingWalletOperationsWidget` is currently rendered in the **Partner Operations Dashboard** (`PartnersOpsDashboard.tsx`). It will be removed from there and added to the **Financial Ops Command Center** (`FinancialOpsCommandCenter.tsx`) under the "Ops Center" tab.
+### Plan
 
-### Files to Change
+**Phase 1 — Add a feature flag to gate the payout** (safe, reversible)
 
-| File | Action |
-|------|--------|
-| `src/components/executive/PartnersOpsDashboard.tsx` | Remove `PendingWalletOperationsWidget` import and usage (line 331) |
-| `src/components/financial-ops/FinancialOpsCommandCenter.tsx` | Add `PendingWalletOperationsWidget` to the Ops Center tab content |
+1. **Add `enablePartnerAutoPayout` flag** to `FeatureFlagsContext.tsx` — default: `false` (paused).
 
-### Technical Details
+2. **Update `process-supporter-roi/index.ts`** — Add an early-exit check at the top of the function. Before processing any payouts, query a lightweight config source (e.g., a `system_settings` table row or simply return immediately with a "paused" message). The simplest approach: add a hardcoded `PAYOUT_PAUSED = true` constant at the top of the edge function that causes it to return `{ success: true, paused: true, message: "Partner auto-payout is currently paused" }` without processing anything.
 
-1. **PartnersOpsDashboard.tsx**: Remove the import of `PendingWalletOperationsWidget` and delete the `<PendingWalletOperationsWidget />` line (~line 331).
+3. **Update `SupporterROITrigger.tsx`** — Disable the manual "Process Supporter ROI" button and show a "Paused" badge instead of "Auto-pay enabled". This prevents managers from manually triggering payouts while the pause is active.
 
-2. **FinancialOpsCommandCenter.tsx**: Import `PendingWalletOperationsWidget` from `@/components/manager/PendingWalletOperationsWidget` and render it inside the "ops" tab content, placed prominently near the top (after the existing approval/ops components).
+### What stays untouched
+- The cron job schedule remains in place (no DB changes needed)
+- All existing ledger entries, portfolios, and wallet data are unaffected
+- The function still deploys and responds — it just short-circuits with a paused response
+- `next_roi_due_date` values are preserved so payouts resume correctly when re-enabled
+
+### Re-enabling
+To resume, set `PAYOUT_PAUSED = false` in the edge function and flip the feature flag back. All due payouts will process on the next run.
 
