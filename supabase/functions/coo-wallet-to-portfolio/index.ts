@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       source_table: "investor_portfolios",
       source_id: portfolio_id,
       transaction_group_id: txGroupId,
-      description: `COO wallet-to-portfolio: ${accountLabel} — ${safeReason}`,
+      description: `Tenant Partnership Operations: wallet → ${accountLabel}`,
       linked_party: "platform",
       status: "pending",
       operation_type: "portfolio_topup",
