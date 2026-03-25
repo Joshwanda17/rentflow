@@ -43,6 +43,12 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone
   } | null>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (open && prefillPhone) {
+      setPhone(prefillPhone);
+    }
+  }, [open, prefillPhone]);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', { 
       style: 'currency', 
