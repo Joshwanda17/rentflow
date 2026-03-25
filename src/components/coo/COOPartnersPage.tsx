@@ -217,6 +217,10 @@ export default function COOPartnersPage() {
   const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
 
+  // Pending top-ups per portfolio
+  const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
+
   // Portfolio name editing
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [editingNameValue, setEditingNameValue] = useState('');
