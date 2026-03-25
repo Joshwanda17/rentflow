@@ -12,11 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FunderPortfolioCard } from './FunderPortfolioCard';
+import { AgentDepositDialog } from './AgentDepositDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
-  Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle,
+  Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle, Banknote,
 } from 'lucide-react';
 
 interface LinkedFunder {
@@ -47,6 +48,8 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   const [selectedFunder, setSelectedFunder] = useState<LinkedFunder | null>(null);
   const [funderStats, setFunderStats] = useState<Record<string, FunderStats>>({});
   const [sendingSMS, setSendingSMS] = useState<string | null>(null);
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
+  const [depositPhone, setDepositPhone] = useState('');
 
   // Register dialog state
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -269,7 +272,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   />
                 )}
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Button
                     variant="outline"
                     className="h-auto py-3 flex-col gap-1.5 text-xs"
@@ -282,6 +285,19 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                       <MessageSquare className="h-5 w-5 text-primary" />
                     )}
                     Send SMS
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-3 flex-col gap-1.5 text-xs"
+                    onClick={() => {
+                      if (selectedFunder.beneficiary?.phone) {
+                        setDepositPhone(selectedFunder.beneficiary.phone);
+                        setDepositDialogOpen(true);
+                      }
+                    }}
+                  >
+                    <Banknote className="h-5 w-5 text-success" />
+                    Deposit
                   </Button>
                   <Button
                     variant="outline"
@@ -389,6 +405,16 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Deposit on behalf of funder */}
+      <AgentDepositDialog
+        open={depositDialogOpen}
+        onOpenChange={setDepositDialogOpen}
+        prefillPhone={depositPhone}
+        onSuccess={() => {
+          fetchFunders();
+        }}
+      />
     </>
   );
 }

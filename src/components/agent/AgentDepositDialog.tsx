@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +13,12 @@ interface AgentDepositDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  prefillPhone?: string;
 }
 
 type DepositMode = 'cash_collected' | 'customer_paid';
 
-export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepositDialogProps) {
+export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone }: AgentDepositDialogProps) {
   const { profile } = useProfile();
   const [mode, setMode] = useState<DepositMode | null>(null);
   const [phone, setPhone] = useState('');
@@ -41,6 +42,12 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
     };
   } | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open && prefillPhone) {
+      setPhone(prefillPhone);
+    }
+  }, [open, prefillPhone]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', { 
