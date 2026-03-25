@@ -5,7 +5,7 @@ import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
 
 const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
-const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
+
 // GlobalSettingsToolbar moved to FloatingToolbar
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
 const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
@@ -50,7 +50,7 @@ export default function DeferredExtras() {
         <IOSLinkHandler />
         <IOSShareReceiver />
         {shouldShowGlobalPrompts && <PWAInstallPrompt />}
-        {shouldShowGlobalPrompts && <WhatsNewModal />}
+        
         {/* GlobalSettingsToolbar now in FloatingToolbar */}
       </Suspense>
     </ExtrasBoundary>
