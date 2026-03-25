@@ -239,17 +239,14 @@ export function AgentMenuDrawer({
     return map[accent] || map['primary'];
   };
 
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
         <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-black/60 z-[100] animate-fade-in"
           />
 
           {/* Bottom Sheet */}
