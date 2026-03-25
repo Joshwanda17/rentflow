@@ -76,14 +76,20 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
 function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
   return (
     <div className="space-y-1">
-      <SectionHeader>Operating Activities</SectionHeader>
+      <SectionHeader>Platform Operating Activities</SectionHeader>
       <LineItem label="Tenant Fees Received" value={d.operatingActivities.tenantFeesReceived} indent />
       <LineItem label="Rent Repayments" value={d.operatingActivities.rentRepayments} indent />
-      <LineItem label="Deposits Received" value={d.operatingActivities.depositsReceived} indent />
+      <LineItem label="Other Platform Income" value={d.operatingActivities.depositsReceived} indent />
       <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
       <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
-      <LineItem label="Withdrawals Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
-      <LineItem label="Net Operating Cash" value={d.operatingActivities.netOperating} bold />
+      <LineItem label="Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
+      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
+
+      <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits and withdrawals by users</p>
+      <LineItem label="User Deposits Received" value={d.custodialActivities.userDeposits} indent />
+      <LineItem label="User Withdrawals Processed" value={d.custodialActivities.userWithdrawals} negative indent />
+      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
 
       <SectionHeader>Financing Activities</SectionHeader>
       <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
@@ -91,13 +97,13 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold />
 
       <div className="pt-3 mt-2 border-t-2 border-primary/30 space-y-1">
-        <LineItem label="Opening Balance" value={d.openingBalance} />
+        <LineItem label="Opening Platform Balance" value={d.openingBalance} />
         <div className={cn('flex justify-between text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
-          <span>Net Cash Movement</span>
+          <span>Net Platform Cash Movement</span>
           <span className="font-mono">{d.netCashMovement >= 0 ? '+' : ''}{formatUGX(d.netCashMovement)}</span>
         </div>
         <div className="flex justify-between text-base font-bold">
-          <span>Closing Balance</span>
+          <span>Closing Platform Balance</span>
           <span className="font-mono text-primary">{formatUGX(d.closingBalance)}</span>
         </div>
       </div>
@@ -110,11 +116,14 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
   return (
     <div className="space-y-1">
       <SectionHeader>Assets</SectionHeader>
-      <LineItem label="Cash & Equivalents" value={d.assets.cashAndEquivalents} indent />
-      <LineItem label="Receivables" value={d.assets.receivables} indent />
+      <LineItem label="Platform Cash (Earned Revenue)" value={d.assets.platformCash} indent />
+      <LineItem label="User Funds Held in Custody" value={d.assets.userFundsHeld} indent />
+      <LineItem label="Rent Receivables (Funded)" value={d.assets.receivables} indent />
       <LineItem label="Total Assets" value={d.assets.totalAssets} bold />
 
-      <SectionHeader>Platform Obligations</SectionHeader>
+      <SectionHeader>Obligations (Liabilities)</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">User wallets are custodial — these funds belong to users, not the platform</p>
+      <LineItem label="User Wallet Balances (Custody)" value={d.platformObligations.userWalletCustody} negative indent />
       <LineItem label="Pending Withdrawal Provisions" value={d.platformObligations.pendingWithdrawals} negative indent />
       <LineItem label="Accrued Platform Rewards" value={d.platformObligations.accruedPlatformRewards} negative indent />
       <LineItem label="Agent Commissions Payable" value={d.platformObligations.agentCommissionsPayable} negative indent />
@@ -125,7 +134,7 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Total Equity" value={d.platformEquity.totalEquity} bold />
 
       <p className={cn('text-xs text-center pt-2 mt-1', balanced ? 'text-success' : 'text-destructive')}>
-        {balanced ? '✓ Balance sheet is balanced' : '⚠ Requires reconciliation'}
+        {balanced ? '✓ Balance sheet is balanced (Assets = Obligations + Equity)' : '⚠ Requires reconciliation'}
       </p>
     </div>
   );
@@ -258,24 +267,31 @@ export function FinancialStatementsPanel() {
       rows.push(['Withdrawals Paid', '', -d.operatingActivities.withdrawalsPaid]);
       rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
       rows.push(['', '', '']);
+      rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
+      rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
+      rows.push(['User Withdrawals Processed', '', -d.custodialActivities.userWithdrawals]);
+      rows.push(['Net Change in Custody', '', d.custodialActivities.netCustodial]);
+      rows.push(['', '', '']);
       rows.push(['FINANCING ACTIVITIES', '', '']);
       rows.push(['Supporter Capital Inflows', '', d.financingActivities.supporterCapitalInflows]);
       rows.push(['Supporter Capital Withdrawals', '', -d.financingActivities.supporterCapitalWithdrawals]);
       rows.push(['Net Financing Cash', '', d.financingActivities.netFinancing]);
       rows.push(['', '', '']);
-      rows.push(['Opening Balance', '', d.openingBalance]);
-      rows.push(['Net Cash Movement', '', d.netCashMovement]);
-      rows.push(['CLOSING BALANCE', '', d.closingBalance]);
+      rows.push(['Opening Platform Balance', '', d.openingBalance]);
+      rows.push(['Net Platform Cash Movement', '', d.netCashMovement]);
+      rows.push(['CLOSING PLATFORM BALANCE', '', d.closingBalance]);
     } else if (activeTab === 'balance') {
       const d = data.balanceSheet;
       rows.push(['WELILE — Balance Sheet', '', period]);
       rows.push(['', '', '']);
       rows.push(['ASSETS', '', '']);
-      rows.push(['Cash & Equivalents', '', d.assets.cashAndEquivalents]);
-      rows.push(['Receivables', '', d.assets.receivables]);
+      rows.push(['Platform Cash (Earned Revenue)', '', d.assets.platformCash]);
+      rows.push(['User Funds Held in Custody', '', d.assets.userFundsHeld]);
+      rows.push(['Rent Receivables (Funded)', '', d.assets.receivables]);
       rows.push(['Total Assets', '', d.assets.totalAssets]);
       rows.push(['', '', '']);
-      rows.push(['PLATFORM OBLIGATIONS', '', '']);
+      rows.push(['OBLIGATIONS (LIABILITIES)', '', '']);
+      rows.push(['User Wallet Balances (Custody)', '', d.platformObligations.userWalletCustody]);
       rows.push(['Pending Withdrawal Provisions', '', d.platformObligations.pendingWithdrawals]);
       rows.push(['Accrued Platform Rewards', '', d.platformObligations.accruedPlatformRewards]);
       rows.push(['Agent Commissions Payable', '', d.platformObligations.agentCommissionsPayable]);
@@ -386,14 +402,19 @@ export function FinancialStatementsPanel() {
         pdf.text(formatUGX(d.netOperatingIncome), pw - margin, y, { align: 'right' });
       } else if (activeTab === 'cashflow') {
         const d = data.cashFlow;
-        addSection('Operating Activities');
+        addSection('Platform Operating Activities');
         addRow('Tenant Fees Received', d.operatingActivities.tenantFeesReceived, false, false, true);
         addRow('Rent Repayments', d.operatingActivities.rentRepayments, false, false, true);
-        addRow('Deposits Received', d.operatingActivities.depositsReceived, false, false, true);
+        addRow('Other Platform Income', d.operatingActivities.depositsReceived, false, false, true);
         addRow('Platform Rewards Paid', d.operatingActivities.platformRewardsPaid, false, true, true);
         addRow('Agent Commissions Paid', d.operatingActivities.agentCommissionsPaid, false, true, true);
-        addRow('Withdrawals Paid', d.operatingActivities.withdrawalsPaid, false, true, true);
-        addRow('Net Operating Cash', d.operatingActivities.netOperating, true);
+        addRow('Operating Expenses Paid', d.operatingActivities.withdrawalsPaid, false, true, true);
+        addRow('Net Platform Operating Cash', d.operatingActivities.netOperating, true);
+        y += 3;
+        addSection('User Custody Flows (Not Revenue)');
+        addRow('User Deposits Received', d.custodialActivities.userDeposits, false, false, true);
+        addRow('User Withdrawals Processed', d.custodialActivities.userWithdrawals, false, true, true);
+        addRow('Net Change in Custody', d.custodialActivities.netCustodial, true);
         y += 3;
         addSection('Financing Activities');
         addRow('Supporter Capital Inflows', d.financingActivities.supporterCapitalInflows, false, false, true);
@@ -403,17 +424,19 @@ export function FinancialStatementsPanel() {
         pdf.setDrawColor(37, 99, 235);
         pdf.line(margin, y, pw - margin, y);
         y += 5;
-        addRow('Opening Balance', d.openingBalance);
-        addRow('Net Cash Movement', d.netCashMovement);
-        addRow('CLOSING BALANCE', d.closingBalance, true);
+        addRow('Opening Platform Balance', d.openingBalance);
+        addRow('Net Platform Cash Movement', d.netCashMovement);
+        addRow('CLOSING PLATFORM BALANCE', d.closingBalance, true);
       } else if (activeTab === 'balance') {
         const d = data.balanceSheet;
         addSection('Assets');
-        addRow('Cash & Equivalents', d.assets.cashAndEquivalents, false, false, true);
-        addRow('Receivables', d.assets.receivables, false, false, true);
+        addRow('Platform Cash (Earned Revenue)', d.assets.platformCash, false, false, true);
+        addRow('User Funds Held in Custody', d.assets.userFundsHeld, false, false, true);
+        addRow('Rent Receivables (Funded)', d.assets.receivables, false, false, true);
         addRow('Total Assets', d.assets.totalAssets, true);
         y += 3;
-        addSection('Platform Obligations');
+        addSection('Obligations (Liabilities)');
+        addRow('User Wallet Balances (Custody)', d.platformObligations.userWalletCustody, false, true, true);
         addRow('Pending Withdrawal Provisions', d.platformObligations.pendingWithdrawals, false, true, true);
         addRow('Accrued Platform Rewards', d.platformObligations.accruedPlatformRewards, false, true, true);
         addRow('Agent Commissions Payable', d.platformObligations.agentCommissionsPayable, false, true, true);

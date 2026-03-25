@@ -39,6 +39,12 @@ export interface CashFlowData {
     withdrawalsPaid: number;
     netOperating: number;
   };
+  custodialActivities: {
+    userDeposits: number;
+    userWithdrawals: number;
+    userTransfers: number;
+    netCustodial: number;
+  };
   financingActivities: {
     supporterCapitalInflows: number;
     supporterCapitalWithdrawals: number;
@@ -51,11 +57,13 @@ export interface CashFlowData {
 
 export interface BalanceSheetData {
   assets: {
-    cashAndEquivalents: number;
+    platformCash: number;
+    userFundsHeld: number;
     receivables: number;
     totalAssets: number;
   };
   platformObligations: {
+    userWalletCustody: number;
     pendingWithdrawals: number;
     accruedPlatformRewards: number;
     agentCommissionsPayable: number;
@@ -130,86 +138,137 @@ export function useFinancialStatements() {
       const startDate = activeFilters.startDate || start;
       const endDate = activeFilters.endDate || end;
 
-      // Build ledger query helper
-      const buildLedgerQuery = (category?: string | string[], direction?: 'cash_in' | 'cash_out') => {
-        let q = supabase.from('general_ledger').select('amount, direction, category');
+      // Helper: build scoped ledger query
+      const buildScopedQuery = (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
+        let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
         if (startDate) q = q.gte('transaction_date', startDate.toISOString());
         if (endDate) q = q.lte('transaction_date', endDate.toISOString());
+        q = q.eq('ledger_scope', scope);
         if (direction) q = q.eq('direction', direction);
-        if (category) {
-          if (Array.isArray(category)) q = q.in('category', category);
-          else q = q.eq('category', category);
-        }
         return q;
       };
 
-      // Fetch all ledger entries in period
       const [
-        cashInRes,
-        cashOutRes,
+        // Platform-scoped (revenue & expenses)
+        platformInRes,
+        platformOutRes,
+        // Wallet-scoped (user custody flows)
+        walletInRes,
+        walletOutRes,
+        // Bridge-scoped (capital flows affecting both)
+        bridgeInRes,
+        bridgeOutRes,
+        // Current user wallet balances (custodial liability)
+        walletsRes,
+        // Rent requests for facilitated volume
         rentRequestsRes,
-        allTimeBalanceRes,
+        // All-time platform balance for opening balance
+        prevPlatformRes,
       ] = await Promise.all([
-        buildLedgerQuery(undefined, 'cash_in'),
-        buildLedgerQuery(undefined, 'cash_out'),
+        buildScopedQuery('platform', 'cash_in'),
+        buildScopedQuery('platform', 'cash_out'),
+        buildScopedQuery('wallet', 'cash_in'),
+        buildScopedQuery('wallet', 'cash_out'),
+        buildScopedQuery('bridge', 'cash_in'),
+        buildScopedQuery('bridge', 'cash_out'),
+        supabase.from('wallets').select('balance'),
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
-        // All-time balance for opening balance
-        supabase.from('general_ledger').select('amount, direction').lte('transaction_date', startDate?.toISOString() || new Date(0).toISOString()),
+        (() => {
+          let q = supabase.from('general_ledger').select('amount, direction, ledger_scope');
+          if (startDate) q = q.lt('transaction_date', startDate.toISOString());
+          return q.eq('ledger_scope', 'platform');
+        })(),
       ]);
 
-      const cashInRows = cashInRes.data || [];
-      const cashOutRows = cashOutRes.data || [];
+      const platformIn = platformInRes.data || [];
+      const platformOut = platformOutRes.data || [];
+      const walletIn = walletInRes.data || [];
+      const walletOut = walletOutRes.data || [];
+      const bridgeIn = bridgeInRes.data || [];
+      const bridgeOut = bridgeOutRes.data || [];
+      const wallets = walletsRes.data || [];
       const rentRequests = rentRequestsRes.data || [];
-      const prevRows = allTimeBalanceRes.data || [];
+      const prevPlatform = prevPlatformRes.data || [];
 
       const sumBy = (rows: any[], cats: string[]) =>
         rows.filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
-
       const sumAll = (rows: any[]) => rows.reduce((s, r) => s + Number(r.amount), 0);
 
-      // ── INCOME STATEMENT ──
-      const accessFees = sumBy(cashInRows, ['tenant_access_fee', 'access_fee']);
-      const requestFees = sumBy(cashInRows, ['tenant_request_fee', 'request_fee']);
-      const otherServiceIncome = sumBy(cashInRows, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
-      const platformRewards = sumBy(cashOutRows, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward']);
-      const agentCommissions = sumBy(cashOutRows, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
-      const transactionExpenses = sumBy(cashOutRows, ['transaction_platform_expenses']);
-      const operatingExpenses = sumBy(cashOutRows, ['operational_expenses', 'wallet_withdrawal']);
+      // ══════════════════════════════════════════════════════════════
+      // INCOME STATEMENT — Platform scope ONLY (earned revenue & costs)
+      // User wallet deposits/withdrawals are NOT revenue or expenses.
+      // ══════════════════════════════════════════════════════════════
+      const accessFees = sumBy(platformIn, ['tenant_access_fee', 'access_fee']);
+      const requestFees = sumBy(platformIn, ['tenant_request_fee', 'request_fee']);
+      const otherServiceIncome = sumBy(platformIn, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
+      const platformRewards = sumBy(platformOut, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward']);
+      const agentCommissions = sumBy(platformOut, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
+      const transactionExpenses = sumBy(platformOut, ['transaction_platform_expenses']);
+      const operatingExpenses = sumBy(platformOut, ['operational_expenses', 'platform_expense']);
 
       const totalRevenue = accessFees + requestFees + otherServiceIncome;
       const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
       const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpenses;
 
-      // ── CASH FLOW ──
-      const tenantFeesReceived = sumBy(cashInRows, ['tenant_access_fee', 'tenant_request_fee', 'access_fee', 'request_fee']);
-      const rentRepayments = sumBy(cashInRows, ['rent_repayment', 'loan_repayment']);
-      const depositsReceived = sumBy(cashInRows, ['deposit', 'wallet_deposit', 'agent_deposit', 'wallet_transfer']);
-      const platformRewardsPaid = sumBy(cashOutRows, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward']);
-      const agentCommissionsPaid = sumBy(cashOutRows, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
-      const withdrawalsPaid = sumBy(cashOutRows, ['wallet_withdrawal', 'landlord_payout', 'landlord_payout_request']);
+      // ══════════════════════════════════════════════════════════════
+      // CASH FLOW — Separated into platform ops, custodial, & financing
+      // ══════════════════════════════════════════════════════════════
+
+      // Operating (platform scope only)
+      const tenantFeesReceived = sumBy(platformIn, ['tenant_access_fee', 'tenant_request_fee', 'access_fee', 'request_fee']);
+      const rentRepayments = sumBy(platformIn, ['rent_repayment', 'loan_repayment']);
+      const depositsReceived = sumBy(platformIn, ['platform_service_income']);
+      const platformRewardsPaid = sumBy(platformOut, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward']);
+      const agentCommissionsPaid = sumBy(platformOut, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
+      const withdrawalsPaid = sumBy(platformOut, ['operational_expenses', 'platform_expense']);
       const netOperating = tenantFeesReceived + rentRepayments + depositsReceived - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
 
-      const supporterCapitalInflows = sumBy(cashInRows, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
-      const supporterCapitalWithdrawals = sumBy(cashOutRows, ['supporter_withdrawal', 'investment_withdrawal']);
-      const netFinancing = supporterCapitalInflows - supporterCapitalWithdrawals;
-      const netCashMovement = netOperating + netFinancing;
+      // Custodial (wallet scope — user money in/out of platform custody)
+      const userDeposits = sumAll(walletIn);
+      const userWithdrawals = sumAll(walletOut);
+      const userTransfers = 0; // internal wallet-to-wallet are net zero
+      const netCustodial = userDeposits - userWithdrawals;
 
-      const openingBalance = prevRows.reduce((s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0);
+      // Financing (bridge scope — supporter capital)
+      const supporterCapitalInflows = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
+      const supporterCapitalWithdrawals = sumBy(bridgeOut, ['supporter_withdrawal', 'investment_withdrawal']);
+      const netFinancing = supporterCapitalInflows - supporterCapitalWithdrawals;
+
+      // Platform cash movement only (excludes custodial)
+      const netCashMovement = netOperating + netFinancing;
+      const openingBalance = prevPlatform.reduce(
+        (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
+      );
       const closingBalance = openingBalance + netCashMovement;
 
-      // ── BALANCE SHEET ──
-      const totalCashIn = sumAll(cashInRows);
-      const totalCashOut = sumAll(cashOutRows);
-      const cashAndEquivalents = Math.max(0, totalCashIn - totalCashOut);
-      const pendingWithdrawals = sumBy(cashOutRows, ['wallet_withdrawal']);
+      // ══════════════════════════════════════════════════════════════
+      // BALANCE SHEET — Platform assets vs obligations
+      // User wallet balances = custodial LIABILITY (not our money)
+      // ══════════════════════════════════════════════════════════════
+      const platformCashIn = sumAll(platformIn);
+      const platformCashOut = sumAll(platformOut);
+      const platformCash = Math.max(0, platformCashIn - platformCashOut);
+
+      const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
+
+      // Receivables: outstanding rent that's been funded but not fully repaid
+      const outstandingRent = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => s + Number(r.rent_amount || 0), 0);
+
+      const totalAssets = platformCash + userFundsHeld + outstandingRent;
+
+      // Obligations
+      const userWalletCustody = userFundsHeld; // We owe this back to users
+      const pendingWithdrawals = sumBy(platformOut, ['wallet_withdrawal']) * 0.1;
       const accruedPlatformRewards = platformRewards * 0.1;
       const agentCommissionsPayable = agentCommissions * 0.05;
-      const totalObligations = pendingWithdrawals * 0.1 + accruedPlatformRewards + agentCommissionsPayable;
-      const totalAssets = cashAndEquivalents;
+      const totalObligations = userWalletCustody + pendingWithdrawals + accruedPlatformRewards + agentCommissionsPayable;
+
       const retainedOperatingSurplus = totalAssets - totalObligations;
 
       // ── FACILITATED VOLUME ──
-      const approvedRequests = rentRequests.filter(r => r.status === 'approved' || r.status === 'funded' || r.status === 'disbursed');
+      const approvedRequests = rentRequests.filter(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
       const pendingRequestsList = rentRequests.filter(r => r.status === 'pending');
       const totalFacilitatedRentVolume = approvedRequests.reduce((s, r) => s + Number(r.rent_amount), 0);
       const totalAccessFeeIncome = approvedRequests.reduce((s, r) => s + Number(r.access_fee || 0), 0);
@@ -217,7 +276,7 @@ export function useFinancialStatements() {
       const uniqueTenants = new Set(rentRequests.map(r => r.tenant_id)).size;
       const uniqueAgents = new Set(rentRequests.filter(r => r.agent_id).map(r => r.agent_id)).size;
       const averageRentAmount = approvedRequests.length > 0 ? totalFacilitatedRentVolume / approvedRequests.length : 0;
-      const supporterCapitalDeployed = sumBy(cashInRows, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
+      const supporterCapitalDeployed = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
 
       const result: FinancialStatementsData = {
         generatedAt: new Date(),
@@ -232,14 +291,15 @@ export function useFinancialStatements() {
         cashFlow: {
           period: formatPeriodLabel(activeFilters),
           operatingActivities: { tenantFeesReceived, rentRepayments, depositsReceived, platformRewardsPaid, agentCommissionsPaid, withdrawalsPaid, netOperating },
+          custodialActivities: { userDeposits, userWithdrawals, userTransfers, netCustodial },
           financingActivities: { supporterCapitalInflows, supporterCapitalWithdrawals, netFinancing },
           netCashMovement,
           openingBalance: Math.max(0, openingBalance),
           closingBalance: Math.max(0, closingBalance),
         },
         balanceSheet: {
-          assets: { cashAndEquivalents, receivables: 0, totalAssets },
-          platformObligations: { pendingWithdrawals: pendingWithdrawals * 0.1, accruedPlatformRewards, agentCommissionsPayable, totalObligations },
+          assets: { platformCash, userFundsHeld, receivables: outstandingRent, totalAssets },
+          platformObligations: { userWalletCustody, pendingWithdrawals, accruedPlatformRewards, agentCommissionsPayable, totalObligations },
           platformEquity: { retainedOperatingSurplus, totalEquity: retainedOperatingSurplus },
         },
         facilitatedVolume: {
