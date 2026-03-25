@@ -55,14 +55,18 @@ export function TenantOpsDashboard() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <Tabs defaultValue="pipeline" className="w-full">
-        <TabsList className="w-full grid grid-cols-2 h-9">
+        <TabsList className="w-full grid grid-cols-3 h-9">
           <TabsTrigger value="pipeline" className="text-xs gap-1">
             <ClipboardList className="h-3.5 w-3.5" />
             Pipeline
           </TabsTrigger>
+          <TabsTrigger value="daily" className="text-xs gap-1">
+            <CalendarCheck className="h-3.5 w-3.5" />
+            Daily Tracker
+          </TabsTrigger>
           <TabsTrigger value="behavior" className="text-xs gap-1">
             <Activity className="h-3.5 w-3.5" />
-            Tenant Behavior
+            Behavior
           </TabsTrigger>
         </TabsList>
 
