@@ -48,6 +48,8 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   const [selectedFunder, setSelectedFunder] = useState<LinkedFunder | null>(null);
   const [funderStats, setFunderStats] = useState<Record<string, FunderStats>>({});
   const [sendingSMS, setSendingSMS] = useState<string | null>(null);
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
+  const [depositPhone, setDepositPhone] = useState('');
 
   // Register dialog state
   const [registerOpen, setRegisterOpen] = useState(false);
