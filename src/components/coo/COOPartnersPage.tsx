@@ -483,6 +483,26 @@ export default function COOPartnersPage() {
     finally { setDetailLoading(false); }
   }
 
+  /* ─── Apply Pending Top-Ups ─── */
+  async function handleApplyPendingTopUps(portfolioId: string) {
+    setApplyingTopUps(portfolioId);
+    try {
+      const { data, error } = await supabase.functions.invoke('apply-pending-topups', {
+        body: { portfolio_id: portfolioId },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(`${data.count} pending deposit(s) applied`, {
+        description: `${formatUGX(data.total_applied)} added to portfolio. New capital: ${formatUGX(data.new_investment_total)}`,
+      });
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+    } catch (e: any) {
+      toast.error('Failed to apply pending top-ups', { description: e.message });
+    } finally {
+      setApplyingTopUps(null);
+    }
+  }
+
   /* ─── Save portfolio account name ─── */
   async function handleSavePortfolioName(portfolioId: string) {
     const trimmed = editingNameValue.trim();
