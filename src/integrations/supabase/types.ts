@@ -3216,6 +3216,102 @@ export type Database = {
           },
         ]
       }
+      funder_visits: {
+        Row: {
+          accuracy: number | null
+          agent_id: string
+          created_at: string
+          funder_id: string
+          id: string
+          latitude: number
+          location_name: string | null
+          longitude: number
+          notes: string | null
+          visit_type: string
+        }
+        Insert: {
+          accuracy?: number | null
+          agent_id: string
+          created_at?: string
+          funder_id: string
+          id?: string
+          latitude: number
+          location_name?: string | null
+          longitude: number
+          notes?: string | null
+          visit_type?: string
+        }
+        Update: {
+          accuracy?: number | null
+          agent_id?: string
+          created_at?: string
+          funder_id?: string
+          id?: string
+          latitude?: number
+          location_name?: string | null
+          longitude?: number
+          notes?: string | null
+          visit_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funder_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "funder_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funder_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "funder_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "funder_visits_funder_id_fkey"
+            columns: ["funder_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "funder_visits_funder_id_fkey"
+            columns: ["funder_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "funder_visits_funder_id_fkey"
+            columns: ["funder_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "funder_visits_funder_id_fkey"
+            columns: ["funder_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       general_ledger: {
         Row: {
           account: string | null

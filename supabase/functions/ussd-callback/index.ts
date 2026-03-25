@@ -6,9 +6,9 @@ const corsHeaders = {
 }
 
 // Africa's Talking USSD callback handler
-// Tenants without smartphones can dial a shortcode to:
-// 1. Check rent balance
-// 2. Confirm a payment
+// Tenants AND Funders without smartphones can dial a shortcode to:
+// 1. Check rent balance (tenants) / investment balance (funders)
+// 2. Confirm a payment / view last return
 // 3. Request help / escalate
 
 Deno.serve(async (req) => {
@@ -49,25 +49,165 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Determine if user is a funder/supporter
+    const { data: roles } = await serviceClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', profile.id)
+
+    const userRoles = (roles || []).map(r => r.role)
+    const isFunder = userRoles.includes('supporter')
+
     const textParts = text.split('*').filter(Boolean)
     const level = textParts.length
 
-    // Level 0: Main menu
+    // Level 0: Main menu — different for funders vs tenants
     if (level === 0) {
-      const response = `CON Welcome to Welile, ${profile.full_name || 'User'}!
+      if (isFunder) {
+        const response = `CON Welcome to Welile, ${profile.full_name || 'Partner'}!
+1. Investment Balance
+2. Last Return Payment
+3. Wallet Balance
+4. Request Help`
+        return new Response(response, {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      } else {
+        const response = `CON Welcome to Welile, ${profile.full_name || 'User'}!
 1. Check Rent Balance
 2. Last Payment
 3. Request Help`
-      return new Response(response, {
-        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
-      })
+        return new Response(response, {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
     }
 
     const choice = textParts[0]
 
+    // ========================
+    // FUNDER FLOW
+    // ========================
+    if (isFunder) {
+      // Option 1: Investment Balance
+      if (choice === '1') {
+        const { data: portfolios } = await serviceClient
+          .from('investor_portfolios')
+          .select('amount_invested, total_roi_earned, status')
+          .eq('user_id', profile.id)
+          .in('status', ['active', 'matured'])
+
+        if (!portfolios || portfolios.length === 0) {
+          return new Response('END No active investments found. Contact your agent for more info.', {
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          })
+        }
+
+        const totalInvested = portfolios.reduce((s, p) => s + (p.amount_invested || 0), 0)
+        const totalROI = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0)
+        const activeCount = portfolios.filter(p => p.status === 'active').length
+
+        return new Response(`END Investment Summary:
+Total Invested: UGX ${totalInvested.toLocaleString()}
+Returns Earned: UGX ${totalROI.toLocaleString()}
+Active Accounts: ${activeCount}
+Your money is safe & working!`, {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
+
+      // Option 2: Last ROI payment
+      if (choice === '2') {
+        const { data: lastROI } = await serviceClient
+          .from('supporter_roi_payments')
+          .select('amount, paid_at')
+          .eq('supporter_id', profile.id)
+          .order('paid_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (!lastROI) {
+          return new Response('END No return payments found yet. Returns are paid monthly. Contact your agent for details.', {
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          })
+        }
+
+        const date = new Date(lastROI.paid_at)
+        return new Response(`END Last Return Payment:
+Amount: UGX ${(lastROI.amount || 0).toLocaleString()}
+Date: ${date.toLocaleDateString('en-UG')}
+Returns are credited monthly.`, {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
+
+      // Option 3: Wallet balance
+      if (choice === '3') {
+        const { data: wallet } = await serviceClient
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', profile.id)
+          .maybeSingle()
+
+        return new Response(`END Wallet Balance: UGX ${(wallet?.balance || 0).toLocaleString()}
+To withdraw, contact your Welile agent.`, {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
+
+      // Option 4: Help
+      if (choice === '4') {
+        if (level === 1) {
+          return new Response('CON What do you need help with?\n1. Missing returns\n2. Withdrawal request\n3. Speak to manager', {
+            headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+          })
+        }
+
+        const helpChoice = textParts[1]
+        const helpTypes: Record<string, string> = {
+          '1': 'missing_returns',
+          '2': 'withdrawal_request',
+          '3': 'manager_request',
+        }
+        const escalationType = helpTypes[helpChoice] || 'general'
+
+        // Find linked agent via proxy_agent_assignments
+        const { data: proxyAssignment } = await serviceClient
+          .from('proxy_agent_assignments')
+          .select('agent_id')
+          .eq('beneficiary_id', profile.id)
+          .eq('is_active', true)
+          .limit(1)
+          .single()
+
+        if (proxyAssignment?.agent_id) {
+          await serviceClient.from('agent_escalations').insert({
+            agent_id: proxyAssignment.agent_id,
+            tenant_id: profile.id,
+            title: `USSD Funder Help: ${escalationType.replace(/_/g, ' ')}`,
+            description: `Funder ${profile.full_name} (${phoneNumber}) requested help via USSD. Type: ${escalationType}`,
+            escalation_type: escalationType,
+            severity: helpChoice === '3' ? 'high' : 'medium',
+            metadata: { source: 'ussd_funder', session_id: sessionId, phone: phoneNumber },
+          })
+        }
+
+        return new Response('END Your request has been submitted. Your Welile agent will contact you shortly. Thank you!', {
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+        })
+      }
+
+      return new Response('END Invalid option. Please dial again and select 1-4.', {
+        headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
+      })
+    }
+
+    // ========================
+    // TENANT FLOW (existing)
+    // ========================
+
     // Option 1: Check rent balance
     if (choice === '1') {
-      // Get active rent request
       const { data: rentReq } = await serviceClient
         .from('rent_requests')
         .select('rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status')

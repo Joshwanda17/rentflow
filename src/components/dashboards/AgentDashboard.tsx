@@ -73,6 +73,7 @@ import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
 import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
 import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
+import { FunderManagementSheet } from '@/components/agent/FunderManagementSheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { staggerDelay } from '@/lib/cssAnimations';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
@@ -148,6 +149,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [creditOpen, setCreditOpen] = useState(false);
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
+  const [funderSheetOpen, setFunderSheetOpen] = useState(false);
   const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
   const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
   const [floatPayoutOpen, setFloatPayoutOpen] = useState(false);
@@ -385,6 +387,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewMyListings={() => { setMenuOpen(false); setMyListingsOpen(true); }}
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
+        onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
       />
 
       {/* Existing Dialogs */}
@@ -434,6 +437,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
+      <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
 
       {/* Cash Payouts Dialog - only rendered for cashout agents */}
       <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
