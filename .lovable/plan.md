@@ -1,22 +1,20 @@
 
 
-## Filter COO Partners to Active Portfolios/Wallets Only
+## Filter Partners to Only Those with Active/Funded Portfolios
 
 ### Problem
-Currently, the COO Partners page fetches **all** users with the `supporter` role, including those with no portfolios and empty wallets. This clutters the view with inactive partners.
-
-### Solution
-Filter the partner list after aggregation to only include partners who have:
-- **Active portfolios** (`funded > 0` or `activeDeals > 0`), OR
-- **Active wallet balance** (`walletBalance > 0`)
+Users with the `supporter` role but no portfolio funds appear in the COO Partners page and the Partners Ops directory. The COO Partners page currently includes users with just a wallet balance (no portfolio), which is also undesired.
 
 ### Changes
 
-**File: `src/components/coo/COOPartnersPage.tsx`**
+**1. `src/components/coo/COOPartnersPage.tsx`** (~line 309)
+- Tighten the filter from `r.funded > 0 || r.activeDeals > 0 || r.walletBalance > 0` to **`r.funded > 0 || r.activeDeals > 0`** — removing the wallet-balance-only condition. A supporter must have funded portfolio capital to appear.
 
-1. After building `tableRows` (around line 290–309), add a `.filter()` before `.sort()` to exclude partners with zero funded amount AND zero wallet balance.
+**2. `src/components/executive/PartnerDirectory.tsx`** (~line 157–176)
+- After building the partner rows from `allProfiles.map(...)`, add a `.filter()` to exclude partners with no portfolio activity: **`totalInvested > 0 || activePortfolios > 0`**.
+- This ensures the Partner Ops directory only lists supporters who have actual capital deployed.
 
-2. Update the summary metrics to reflect the filtered list (total partners count, active/suspended counts, etc.) while keeping `totalPartners` as the raw supporter count for context.
-
-3. Add a small info badge in the summary showing "X of Y supporters shown (with active portfolios or wallets)" so the COO knows filtering is applied.
+### What stays the same
+- The `PartnersOpsDashboard` main table already fetches from `investor_portfolios` directly, so it naturally only shows funded accounts.
+- No database changes needed.
 
