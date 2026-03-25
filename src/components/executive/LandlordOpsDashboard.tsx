@@ -458,11 +458,11 @@ export function LandlordOpsDashboard() {
         <TabsContent value="empty" className="space-y-4 mt-4">
           {emptyHouses.length > 0 ? (
             <>
-              <div className="rounded-2xl border-2 border-red-400/40 bg-red-50 dark:bg-red-950/20 p-3 flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-red-500/20 shrink-0"><DoorOpen className="h-5 w-5 text-red-600" /></div>
+              <div className="rounded-2xl border-2 border-destructive/30 p-3 flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-destructive/10 shrink-0"><DoorOpen className="h-5 w-5 text-destructive" /></div>
                 <div className="flex-1">
-                  <p className="font-bold text-red-800 dark:text-red-300">🏚️ {emptyHouses.length} Empty — UGX {lostMonthlyRevenue.toLocaleString()}/mo potential revenue lost</p>
-                  <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">Reduce rent on long-vacant houses to attract tenants faster.</p>
+                  <p className="font-bold text-destructive">{emptyHouses.length} Empty — UGX {lostMonthlyRevenue.toLocaleString()}/mo potential revenue lost</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Reduce rent on long-vacant houses to attract tenants faster.</p>
                 </div>
               </div>
 
