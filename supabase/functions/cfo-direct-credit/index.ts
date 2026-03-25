@@ -1,6 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidateCfoAdjustment } from "../_shared/shadowValidation.ts";
+import { fetchShadowConfig, shouldSample } from "../_shared/shadowConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,11 +11,15 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const adminClient = createClient(supabaseUrl, serviceKey);
 
+  // Fetch shadow config once (cached 60s)
+  const shadowConfig = await fetchShadowConfig(adminClient);
+
+  try {
     const authHeader = req.headers.get("authorization") || "";
     const anonClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { authorization: authHeader } },
@@ -26,7 +31,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const adminClient = createClient(supabaseUrl, serviceKey);
     const { data: roles } = await adminClient
       .from("user_roles")
       .select("role")
@@ -41,22 +45,36 @@ Deno.serve(async (req) => {
 
     const { target_user_id, amount, reason, operation } = await req.json();
     const op = operation === "debit" ? "debit" : "credit";
+    const callerRoles = (roles || []).map((r: any) => r.role);
 
+    // Validate inputs — shadow on failure paths
     if (!target_user_id || typeof target_user_id !== "string") {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation }, false,
+          () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles }), adminClient);
+      }
       throw new Error("Invalid target user");
     }
     if (!amount || typeof amount !== "number" || amount <= 0 || amount > 50000000) {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation }, false,
+          () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles }), adminClient);
+      }
       throw new Error("Invalid amount (1 - 50,000,000)");
     }
     if (!reason || typeof reason !== "string" || reason.length < 10) {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('cfo-direct-credit', { target_user_id, amount, reason, operation }, false,
+          () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles }), adminClient);
+      }
       throw new Error("Reason must be at least 10 characters");
     }
 
-    // Phase 3: Shadow audit — non-blocking, fire-and-forget
-    const callerRoles = (roles || []).map((r: any) => r.role);
-    runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation },
-      true, () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles })
-    );
+    // Phase 5: Shadow audit on success path — sampled
+    if (shouldSample(shadowConfig)) {
+      runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation },
+        true, () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles }), adminClient);
+    }
 
     const { data: targetProfile } = await adminClient
       .from("profiles")
@@ -88,7 +106,6 @@ Deno.serve(async (req) => {
     const groupId = crypto.randomUUID();
 
     if (op === "credit") {
-      // Platform → Wallet: credit user, debit platform
       await adminClient.from("general_ledger").insert([
         {
           user_id: target_user_id,
@@ -110,7 +127,6 @@ Deno.serve(async (req) => {
         },
       ]);
     } else {
-      // Wallet → Platform: debit user, credit platform
       await adminClient.from("general_ledger").insert([
         {
           user_id: target_user_id,

@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidateWalletTransfer } from "../_shared/shadowValidation.ts";
+import { fetchShadowConfig, shouldSample } from "../_shared/shadowConfig.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +14,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+  // Fetch shadow config once (cached 60s)
+  const shadowConfig = await fetchShadowConfig(adminClient);
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -50,17 +55,19 @@ serve(async (req) => {
     // UUID validation
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    
     // Resolve recipient by ID or phone number
     let resolvedRecipientId = recipient_id;
     
     if (!resolvedRecipientId && recipient_phone) {
-      // Normalize phone to last 9 digits
       const cleaned = recipient_phone.replace(/\D/g, '');
       const last9 = cleaned.slice(-9);
       
       if (last9.length < 9) {
+        // Shadow on failure path
+        if (shouldSample(shadowConfig)) {
+          runShadowAudit('wallet-transfer', { senderId, amount }, false,
+            () => shadowValidateWalletTransfer({ senderId, recipientId: '', amount: amount ?? 0, description: '' }), adminClient);
+        }
         return new Response(
           JSON.stringify({ error: 'Invalid phone number' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -83,6 +90,10 @@ serve(async (req) => {
     }
 
     if (!resolvedRecipientId || !UUID_REGEX.test(resolvedRecipientId)) {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('wallet-transfer', { senderId, amount }, false,
+          () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId ?? '', amount: amount ?? 0, description: '' }), adminClient);
+      }
       return new Response(
         JSON.stringify({ error: 'Invalid recipient' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -90,6 +101,10 @@ serve(async (req) => {
     }
 
     if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000000) {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount }, false,
+          () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount: amount ?? 0, description: '' }), adminClient);
+      }
       return new Response(
         JSON.stringify({ error: 'Amount must be between 1 and 100,000,000' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -100,16 +115,21 @@ serve(async (req) => {
 
     console.log(`Processing transfer: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
 
-    // Phase 3: Shadow audit — non-blocking, fire-and-forget
-    runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
-      true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription })
-    );
-
     if (senderId === resolvedRecipientId) {
+      if (shouldSample(shadowConfig)) {
+        runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount }, false,
+          () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription }), adminClient);
+      }
       return new Response(
         JSON.stringify({ error: 'Cannot transfer to yourself' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Phase 5: Shadow audit on success path — sampled
+    if (shouldSample(shadowConfig)) {
+      runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
+        true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription }), adminClient);
     }
 
     // Get sender's wallet
