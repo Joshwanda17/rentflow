@@ -5,6 +5,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const VALID_METHODS = ["cash", "mobile_money", "bank"] as const;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function jsonRes(body: Record<string, unknown>, status: number) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,57 +27,54 @@ Deno.serve(async (req) => {
 
     // Authenticate caller
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!authHeader) return jsonRes({ error: "Unauthorized" }, 401);
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (authErr || !user) return jsonRes({ error: "Unauthorized" }, 401);
 
-    // Verify caller is COO or manager
+    // Verify caller role
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id);
 
     const allowedRoles = ["coo", "manager", "cfo", "super_admin"];
-    const hasRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
-    if (!hasRole) {
-      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!(roles || []).some((r: any) => allowedRoles.includes(r.role))) {
+      return jsonRes({ error: "Insufficient permissions" }, 403);
     }
 
     const body = await req.json();
-    const { portfolio_id, amount, notes } = body;
+    const { portfolio_id, amount, notes, payment_method, transaction_reference } = body;
 
-    // Validate inputs
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    // Validate portfolio_id
     if (!portfolio_id || !UUID_RE.test(portfolio_id)) {
-      return new Response(JSON.stringify({ error: "Invalid portfolio_id" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ error: "Invalid portfolio_id" }, 400);
     }
 
+    // Validate amount
     const topupAmount = Number(amount);
     if (!topupAmount || topupAmount < 1000) {
-      return new Response(JSON.stringify({ error: "Minimum top-up is UGX 1,000" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ error: "Minimum top-up is UGX 1,000" }, 400);
     }
     if (topupAmount > 200_000_000_000) {
-      return new Response(JSON.stringify({ error: "Amount exceeds maximum" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ error: "Amount exceeds maximum" }, 400);
+    }
+
+    // Validate payment method
+    if (!payment_method || !VALID_METHODS.includes(payment_method)) {
+      return jsonRes({ error: "Invalid payment method. Use: cash, mobile_money, or bank" }, 400);
+    }
+
+    // Validate transaction reference for non-cash methods
+    const safeRef = typeof transaction_reference === "string" ? transaction_reference.trim().slice(0, 50) : "";
+    if (payment_method === "mobile_money" && safeRef.length < 8) {
+      return jsonRes({ error: "Mobile Money TID must be at least 8 characters" }, 400);
+    }
+    if (payment_method === "bank" && safeRef.length < 6) {
+      return jsonRes({ error: "Bank reference must be at least 6 characters" }, 400);
     }
 
     const safeNotes = typeof notes === "string" ? notes.slice(0, 500) : "";
@@ -79,88 +86,49 @@ Deno.serve(async (req) => {
       .eq("id", portfolio_id)
       .single();
 
-    if (pErr || !portfolio) {
-      return new Response(JSON.stringify({ error: "Portfolio not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (pErr || !portfolio) return jsonRes({ error: "Portfolio not found" }, 404);
 
     if (portfolio.status === "cancelled") {
-      return new Response(JSON.stringify({ error: "Cannot top up a cancelled portfolio" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonRes({ error: "Cannot top up a cancelled portfolio" }, 400);
     }
 
-    // The partner whose wallet we deduct from
     const partnerId = portfolio.investor_id || portfolio.agent_id;
-
-    // Fetch partner wallet with optimistic lock
-    const { data: wallet, error: wErr } = await supabase
-      .from("wallets")
-      .select("balance")
-      .eq("user_id", partnerId)
-      .single();
-
-    if (wErr || !wallet) {
-      return new Response(JSON.stringify({ error: "Partner wallet not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const currentBalance = Number(wallet.balance);
-    if (currentBalance < topupAmount) {
-      return new Response(JSON.stringify({ error: `Insufficient wallet balance. Partner has UGX ${currentBalance.toLocaleString()}` }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const txGroupId = crypto.randomUUID();
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
     const now = new Date().toISOString();
 
-    // 1. Deduct from partner wallet (optimistic lock)
-    const { data: deductResult, error: deductErr } = await supabase
-      .from("wallets")
-      .update({ balance: currentBalance - topupAmount, updated_at: now })
-      .eq("user_id", partnerId)
-      .eq("balance", currentBalance)
-      .select("user_id");
+    const methodLabel = payment_method === "mobile_money" ? "Mobile Money" : payment_method === "bank" ? "Bank Transfer" : "Cash";
+    const refLabel = safeRef ? ` (${payment_method === "mobile_money" ? "TID" : "Ref"}: ${safeRef})` : "";
 
-    if (deductErr || !deductResult?.length) {
-      return new Response(JSON.stringify({ error: "Balance changed concurrently, please retry" }), {
-        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 2. DO NOT increase investment_amount directly — deposit is pending until maturity
-    // Insert into pending_wallet_operations with operation_type = 'portfolio_topup' and status = 'pending'
+    // 1. Record pending operation
     const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
       user_id: partnerId,
       amount: topupAmount,
-      direction: "cash_out",
+      direction: "cash_in",
       category: "pending_portfolio_topup",
       source_table: "investor_portfolios",
       source_id: portfolio_id,
       transaction_group_id: txGroupId,
-      description: `Pending top-up for ${accountLabel} — awaiting maturity`,
+      description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
       linked_party: "platform",
       status: "pending",
       operation_type: "portfolio_topup",
+      reference_id: safeRef || null,
+      account: payment_method,
+      metadata: {
+        payment_method,
+        transaction_reference: safeRef || null,
+        initiated_by: user.id,
+        portfolio_code: portfolio.portfolio_code,
+      },
     });
 
     if (pendingErr) {
-      // Rollback wallet
-      await supabase
-        .from("wallets")
-        .update({ balance: currentBalance, updated_at: now })
-        .eq("user_id", partnerId);
-
-      return new Response(JSON.stringify({ error: "Failed to record pending top-up. Wallet restored." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
+      return jsonRes({ error: "Failed to record pending top-up" }, 500);
     }
 
-    // 3. Double-entry ledger: Debit partner wallet, Credit platform (pending)
+    // 2. Ledger entries
     await supabase.from("general_ledger").insert([
       {
         user_id: partnerId,
@@ -170,7 +138,7 @@ Deno.serve(async (req) => {
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Manager pending top-up for portfolio: ${accountLabel}`,
+        description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
         ledger_scope: "wallet",
         transaction_date: now,
       },
@@ -182,13 +150,13 @@ Deno.serve(async (req) => {
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Pending capital for ${accountLabel} — applied at maturity`,
+        description: `Pending capital via ${methodLabel} for ${accountLabel}`,
         ledger_scope: "platform",
         transaction_date: now,
       },
     ]);
 
-    // 4. Audit trail with mandatory reason
+    // 3. Audit trail
     await supabase.from("audit_logs").insert({
       user_id: user.id,
       action_type: "manager_portfolio_topup_pending",
@@ -198,39 +166,35 @@ Deno.serve(async (req) => {
         partner_id: partnerId,
         amount: topupAmount,
         current_capital: Number(portfolio.investment_amount),
-        previous_balance: currentBalance,
-        new_balance: currentBalance - topupAmount,
+        payment_method,
+        transaction_reference: safeRef || null,
         notes: safeNotes,
-        status: "pending_until_maturity",
+        status: "pending_verification",
       },
     });
 
-    // 5. Notify partner
+    // 4. Notify partner
     await supabase.from("notifications").insert({
       user_id: partnerId,
       title: "⏳ Portfolio Top-Up Pending",
-      message: `UGX ${topupAmount.toLocaleString()} has been deducted from your wallet for "${accountLabel}". This deposit will be added to your portfolio at maturity.`,
+      message: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for "${accountLabel}".${refLabel} Awaiting verification.`,
       type: "info",
-      metadata: { portfolio_id, amount: topupAmount, status: "pending", initiated_by: user.id },
+      metadata: { portfolio_id, amount: topupAmount, payment_method, status: "pending", initiated_by: user.id },
     });
 
-    console.log(`[manager-portfolio-topup] Manager ${user.id} created pending top-up for ${portfolio_id} (partner: ${partnerId}) amount ${topupAmount}`);
+    console.log(`[manager-portfolio-topup] Manager ${user.id} submitted ${methodLabel} top-up for ${portfolio_id} (partner: ${partnerId}) amount ${topupAmount}${refLabel}`);
 
-    return new Response(JSON.stringify({
+    return jsonRes({
       success: true,
       amount: topupAmount,
       status: "pending",
+      payment_method,
       current_capital: Number(portfolio.investment_amount),
-      new_wallet_balance: currentBalance - topupAmount,
       portfolio_code: portfolio.portfolio_code,
-    }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }, 200);
 
   } catch (error) {
     console.error("[manager-portfolio-topup] Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonRes({ error: "Internal server error" }, 500);
   }
 });
