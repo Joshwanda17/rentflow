@@ -7,6 +7,7 @@ interface FeatureFlags {
   enableAutoFund: boolean;
   enableBankTransfer: boolean;
   enableCardPayments: boolean;
+  enablePartnerAutoPayout: boolean;
 }
 
 interface FeatureFlagsContextType {
@@ -21,6 +22,7 @@ const defaultFlags: FeatureFlags = {
   enableAutoFund: false,
   enableBankTransfer: true,
   enableCardPayments: true,
+  enablePartnerAutoPayout: false,
 };
 
 const FeatureFlagsContext = createContext<FeatureFlagsContextType | undefined>(undefined);

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TrendingUp, Loader2, CheckCircle2, Calendar, Users } from 'lucide-react';
+import { TrendingUp, Loader2, CheckCircle2, Calendar, Users, PauseCircle } from 'lucide-react';
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -29,6 +30,8 @@ export function SupporterROITrigger() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastResults, setLastResults] = useState<ProcessingResults | null>(null);
   const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
+  const { flags } = useFeatureFlags();
+  const isPaused = !flags.enablePartnerAutoPayout;
 
   const handleProcessROI = async () => {
     setLoading(true);
@@ -79,10 +82,17 @@ export function SupporterROITrigger() {
           <p className="text-sm text-muted-foreground">
             ROI is <strong>automatically paid daily at 6:00 AM</strong> to supporter wallets via the platform ledger. Use the button below to manually trigger processing if needed.
           </p>
-          <Badge variant="secondary" className="text-xs gap-1">
-            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-            Auto-pay enabled — runs daily at 6:00 AM UTC
-          </Badge>
+          {isPaused ? (
+            <Badge variant="destructive" className="text-xs gap-1">
+              <PauseCircle className="h-3 w-3" />
+              Auto-payout PAUSED by administrator
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-xs gap-1">
+              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+              Auto-pay enabled — runs daily at 6:00 AM UTC
+            </Badge>
+          )}
           
           <div className="flex flex-wrap gap-2 text-xs">
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
@@ -126,11 +136,16 @@ export function SupporterROITrigger() {
 
           <Button 
             onClick={() => setConfirmOpen(true)} 
-            disabled={loading}
+            disabled={loading || isPaused}
             className="w-full gap-2"
-            variant="default"
+            variant={isPaused ? "outline" : "default"}
           >
-            {loading ? (
+            {isPaused ? (
+              <>
+                <PauseCircle className="h-4 w-4" />
+                Payout Paused
+              </>
+            ) : loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Processing...
