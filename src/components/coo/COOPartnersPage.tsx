@@ -7,8 +7,8 @@ import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar,
-  CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload, Trash2,
-  Plus, FileText, Share2
+  CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
+  Plus, FileText, Share2, ArrowRightLeft
 } from 'lucide-react';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
@@ -213,9 +213,15 @@ export default function COOPartnersPage() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
 
-  // Wallet top-up dialog
+  // Wallet top-up dialog (external deposit)
   const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
+
+  // Wallet → Portfolio transfer dialog
+  const [walletToPortfolio, setWalletToPortfolio] = useState<PortfolioRow | null>(null);
+  const [walletToPortfolioAmount, setWalletToPortfolioAmount] = useState('');
+  const [walletToPortfolioReason, setWalletToPortfolioReason] = useState('');
+  const [walletToPortfolioSaving, setWalletToPortfolioSaving] = useState(false);
 
   // Pending top-ups per portfolio
   const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
@@ -858,7 +864,34 @@ export default function COOPartnersPage() {
     finally { setInvesting(false); }
   }
 
-  /* ─── Edit ─── */
+  /* ─── Wallet → Portfolio Transfer ─── */
+  async function handleWalletToPortfolio() {
+    if (!walletToPortfolio || !detailPartner) return;
+    const amt = Number(walletToPortfolioAmount);
+    if (isNaN(amt) || amt < 1000) { toast.error('Minimum: UGX 1,000'); return; }
+    if (amt > detailPartner.walletBalance) { toast.error(`Only ${formatUGX(detailPartner.walletBalance)} available in wallet`); return; }
+    if (walletToPortfolioReason.trim().length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+
+    setWalletToPortfolioSaving(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('coo-wallet-to-portfolio', {
+        body: { portfolio_id: walletToPortfolio.id, amount: amt, reason: walletToPortfolioReason.trim() },
+      });
+      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (result?.error) throw new Error(result.error);
+
+      toast.success(`${formatUGX(amt)} moved from wallet → ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
+        description: `New wallet balance: ${formatUGX(result.wallet_balance_after)}`,
+      });
+      setWalletToPortfolio(null);
+      setWalletToPortfolioAmount('');
+      setWalletToPortfolioReason('');
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      fetchData();
+    } catch (e: any) { toast.error(e.message || 'Transfer failed'); }
+    finally { setWalletToPortfolioSaving(false); }
+  }
+
   function openEdit(r: PartnerRow) {
     setEditPartner(r);
     setEditName(r.name);
@@ -1460,6 +1493,20 @@ export default function COOPartnersPage() {
                                     <Wallet className="h-3.5 w-3.5" /> Top Up
                                   </Button>
                                 )}
+                                {p.status === 'active' && detailPartner && detailPartner.walletBalance > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-primary hover:text-primary hover:bg-primary/10 gap-1.5 min-h-[44px]"
+                                    onClick={() => {
+                                      setWalletToPortfolio(p);
+                                      setWalletToPortfolioAmount('');
+                                      setWalletToPortfolioReason('');
+                                    }}
+                                  >
+                                    <ArrowRightLeft className="h-3.5 w-3.5" /> Wallet → Portfolio
+                                  </Button>
+                                )}
                                 {pendingTopUps[p.id] && (
                                   <Button
                                     variant="ghost"
@@ -1991,6 +2038,109 @@ export default function COOPartnersPage() {
           if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
         }}
       />
+
+      {/* Wallet → Portfolio Transfer Dialog */}
+      <Dialog open={!!walletToPortfolio} onOpenChange={(open) => { if (!open) { setWalletToPortfolio(null); setWalletToPortfolioAmount(''); setWalletToPortfolioReason(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" />
+              Wallet → Portfolio Transfer
+            </DialogTitle>
+            <DialogDescription>
+              Move funds from {detailPartner?.profile?.full_name}'s wallet directly into this portfolio.
+            </DialogDescription>
+          </DialogHeader>
+
+          {walletToPortfolio && detailPartner && (
+            <div className="space-y-4 py-2">
+              {/* Portfolio info */}
+              <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
+                <p className="text-sm font-semibold text-foreground">{walletToPortfolio.account_name || walletToPortfolio.portfolio_code}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Current Capital: {formatUGX(walletToPortfolio.investment_amount)}
+                </p>
+              </div>
+
+              {/* Wallet balance */}
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/60">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Wallet Balance:</span>
+                <span className="text-sm font-bold">{formatUGX(detailPartner.walletBalance)}</span>
+              </div>
+
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Amount (UGX)</Label>
+                <Input
+                  type="number"
+                  min={1000}
+                  max={detailPartner.walletBalance}
+                  value={walletToPortfolioAmount}
+                  onChange={e => setWalletToPortfolioAmount(e.target.value)}
+                  placeholder="e.g. 5,000,000"
+                  className="h-9"
+                  autoFocus
+                />
+                <div className="flex gap-2 flex-wrap">
+                  {[50000, 100000, 500000, 1000000].filter(a => a <= detailPartner.walletBalance).map(a => (
+                    <Button key={a} variant="outline" size="sm" className="text-xs h-7"
+                      onClick={() => setWalletToPortfolioAmount(String(a))}>
+                      {formatUGX(a)}
+                    </Button>
+                  ))}
+                  <Button variant="outline" size="sm" className="text-xs h-7"
+                    onClick={() => setWalletToPortfolioAmount(String(detailPartner.walletBalance))}>
+                    Max
+                  </Button>
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Reason (required, min 10 chars)</Label>
+                <Input
+                  value={walletToPortfolioReason}
+                  onChange={e => setWalletToPortfolioReason(e.target.value)}
+                  placeholder="e.g. Partner requested wallet-to-portfolio transfer"
+                  className="h-9"
+                />
+              </div>
+
+              {/* Preview */}
+              {Number(walletToPortfolioAmount) >= 1000 && walletToPortfolioReason.trim().length >= 10 && (
+                <div className="rounded-lg bg-accent/50 border border-accent p-3 space-y-2">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Transfer amount</span>
+                    <span className="font-bold text-foreground">{formatUGX(Number(walletToPortfolioAmount))}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Remaining wallet</span>
+                    <span className="font-medium text-foreground">{formatUGX(detailPartner.walletBalance - Number(walletToPortfolioAmount))}</span>
+                  </div>
+                  <div className="flex items-start gap-1.5 pt-1 border-t border-border/50">
+                    <Clock className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-[10px] text-muted-foreground">
+                      Funds will be deducted from wallet and added to portfolio capital at maturity.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWalletToPortfolio(null)}>Cancel</Button>
+            <Button
+              onClick={handleWalletToPortfolio}
+              disabled={walletToPortfolioSaving || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10}
+            >
+              {walletToPortfolioSaving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+              Transfer from Wallet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
