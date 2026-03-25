@@ -7,8 +7,9 @@ import { RentPipelineQueue } from './RentPipelineQueue';
 import { ApprovalHistoryLog } from './ApprovalHistoryLog';
 import { TenantBehaviorDashboard } from './TenantBehaviorDashboard';
 import { DailyPaymentTracker } from './DailyPaymentTracker';
+import { MissedDaysTracker } from './MissedDaysTracker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight, Activity, ClipboardList, CalendarCheck } from 'lucide-react';
+import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 
@@ -55,14 +56,21 @@ export function TenantOpsDashboard() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <Tabs defaultValue="pipeline" className="w-full">
-        <TabsList className="w-full grid grid-cols-3 h-9">
+        <TabsList className="w-full grid grid-cols-4 h-9">
           <TabsTrigger value="pipeline" className="text-xs gap-1">
             <ClipboardList className="h-3.5 w-3.5" />
-            Pipeline
+            <span className="hidden sm:inline">Pipeline</span>
+            <span className="sm:hidden">Pipe</span>
           </TabsTrigger>
           <TabsTrigger value="daily" className="text-xs gap-1">
             <CalendarCheck className="h-3.5 w-3.5" />
-            Daily Tracker
+            <span className="hidden sm:inline">Daily Tracker</span>
+            <span className="sm:hidden">Daily</span>
+          </TabsTrigger>
+          <TabsTrigger value="missed" className="text-xs gap-1">
+            <CalendarX2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Missed Days</span>
+            <span className="sm:hidden">Missed</span>
           </TabsTrigger>
           <TabsTrigger value="behavior" className="text-xs gap-1">
             <Activity className="h-3.5 w-3.5" />
@@ -110,6 +118,10 @@ export function TenantOpsDashboard() {
 
         <TabsContent value="daily" className="mt-3">
           <DailyPaymentTracker />
+        </TabsContent>
+
+        <TabsContent value="missed" className="mt-3">
+          <MissedDaysTracker />
         </TabsContent>
 
         <TabsContent value="behavior" className="mt-3">
