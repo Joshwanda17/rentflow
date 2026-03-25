@@ -141,17 +141,16 @@ export function VerificationOpportunitiesButton() {
 
   return (
     <>
-      <motion.button
-        whileTap={{ scale: 0.95 }}
+      <button
         onClick={handleOpen}
-        className="fixed bottom-24 sm:bottom-28 right-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 touch-manipulation text-xs"
+        className="fixed bottom-24 sm:bottom-28 right-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 touch-manipulation text-xs active:scale-95 transition-transform"
       >
         <Shield className="h-3.5 w-3.5" />
         <span className="font-bold">Verify & Earn</span>
         <Badge variant="outline" className="bg-white/20 border-white/30 text-primary-foreground text-[10px] px-1 py-0">
           {totalCount}
         </Badge>
-      </motion.button>
+      </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl p-0">
