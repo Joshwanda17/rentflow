@@ -190,10 +190,10 @@ Deno.serve(async (req) => {
     // 5. Notify partner
     await supabase.from("notifications").insert({
       user_id: partnerId,
-      title: "💰 Wallet → Portfolio Transfer",
-      message: `UGX ${topupAmount.toLocaleString()} has been moved from your wallet to "${accountLabel}". This deposit will be applied at maturity.`,
+      title: "💰 Wallet → Support Account Transfer",
+      message: `UGX ${topupAmount.toLocaleString()} has been moved from your wallet to "${accountLabel}" by Tenant Partnership Operations. This deposit will be applied at maturity.`,
       type: "info",
-      metadata: { portfolio_id, amount: topupAmount, status: "pending", initiated_by: user.id },
+      metadata: { portfolio_id, amount: topupAmount, status: "pending" },
     });
 
     console.log(`[coo-wallet-to-portfolio] COO ${user.id} moved ${topupAmount} from partner ${partnerId} wallet to portfolio ${portfolio_id}`);
