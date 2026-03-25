@@ -1493,7 +1493,20 @@ export default function COOPartnersPage() {
                                     <Wallet className="h-3.5 w-3.5" /> Top Up
                                   </Button>
                                 )}
-                                {pendingTopUps[p.id] && (
+                                {p.status === 'active' && detailPartner && detailPartner.walletBalance > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-primary hover:text-primary hover:bg-primary/10 gap-1.5 min-h-[44px]"
+                                    onClick={() => {
+                                      setWalletToPortfolio(p);
+                                      setWalletToPortfolioAmount('');
+                                      setWalletToPortfolioReason('');
+                                    }}
+                                  >
+                                    <ArrowRightLeft className="h-3.5 w-3.5" /> Wallet → Portfolio
+                                  </Button>
+                                )
                                   <Button
                                     variant="ghost"
                                     size="sm"
