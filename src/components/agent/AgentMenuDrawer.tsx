@@ -42,7 +42,7 @@ import {
   BookOpen,
   LucideIcon,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 
 interface AgentMenuDrawerProps {
