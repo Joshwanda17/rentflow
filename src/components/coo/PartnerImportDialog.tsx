@@ -272,9 +272,12 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
       setParsedRows(validated);
       setFileName(file.name);
 
-      // Check duplicates against existing profiles (only for rows with phones)
+      // Check duplicates against existing profiles (phones and emails)
       const phones = [...new Set(validated.map(r => r.phone).filter(Boolean))];
+      const emails = [...new Set(validated.map(r => r.email?.toLowerCase().trim()).filter(Boolean))];
       let existingPhones = new Set<string>();
+      let existingEmails = new Set<string>();
+
       if (phones.length > 0) {
         const { data: existingProfiles } = await supabase
           .from('profiles')
@@ -282,6 +285,9 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
           .in('phone', phones);
         existingPhones = new Set((existingProfiles || []).map(p => p.phone));
       }
+      // Note: emails live in auth.users, not profiles — we can't query auth directly from client.
+      // The edge function handles email dedup server-side. Here we just detect in-file email grouping.
+
       const grouped = groupByPartner(validated);
       grouped.forEach(g => {
         if (g.phone && existingPhones.has(g.phone)) g.isDuplicate = true;
