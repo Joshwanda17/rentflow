@@ -87,8 +87,8 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: `${formatUGX(topUpAmount)} moved to ${account.account_name || account.portfolio_code}`,
-        description: `New capital: ${formatUGX(data.new_investment_total)}`,
+        title: `${formatUGX(topUpAmount)} deducted — pending until maturity`,
+        description: `Deposit secured for ${account.account_name || account.portfolio_code}. Will be added at portfolio maturity.`,
       });
       setAmount('');
       setNotes('');
