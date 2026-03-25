@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Pending capital from wallet for ${accountLabel} — applied at maturity`,
+        description: `Pending capital for ${accountLabel} — applied at maturity`,
         ledger_scope: "platform",
         transaction_date: now,
       },
