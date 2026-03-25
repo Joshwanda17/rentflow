@@ -25,6 +25,8 @@ import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
+import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
+import { Trash2, XCircle } from 'lucide-react';
 
 
 interface ListingWithLandlord {
@@ -131,6 +133,7 @@ export function LandlordOpsDashboard() {
   const [verifying, setVerifying] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
+  const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' } | null>(null);
 
   const { data: listings, isLoading, refetch } = useQuery({
     queryKey: ['exec-house-listings-ops'],
@@ -268,10 +271,10 @@ export function LandlordOpsDashboard() {
   // Empty houses columns
   const emptyColumns: Column<ListingWithLandlord>[] = [
     { key: 'title', label: 'Property', render: (_, row) => propertyCell(row) },
-    { key: 'monthly_rent', label: 'Rent/mo', render: (v) => <span className="font-semibold text-sm">UGX {Number(v || 0).toLocaleString()}</span> },
-    { key: 'landlord_id', label: 'Landlord', render: (_, row) => landlordCell(row) },
-    { key: 'agent_id', label: 'Listed By', render: (_, row) => agentCell(row) },
-    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row) },
+    { key: 'monthly_rent', label: 'Rent/mo', render: (v) => <span className="font-semibold text-sm">UGX {Number(v || 0).toLocaleString()}</span>, className: 'hidden sm:table-cell' },
+    { key: 'landlord_id', label: 'Landlord', render: (_, row) => landlordCell(row), className: 'hidden md:table-cell' },
+    { key: 'agent_id', label: 'Listed By', render: (_, row) => agentCell(row), className: 'hidden lg:table-cell' },
+    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row), className: 'hidden lg:table-cell' },
     {
       key: 'created_at', label: 'Days Empty', render: (v) => {
         const days = differenceInDays(new Date(), new Date(v as string));
@@ -279,10 +282,18 @@ export function LandlordOpsDashboard() {
       },
     },
     {
-      key: 'id', label: 'Action', render: (_, row) => (
-        <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => setAdjustListing(row)}>
-          <TrendingDown className="h-3 w-3" /> Reduce Rent
-        </Button>
+      key: 'id', label: 'Actions', render: (_, row) => (
+        <div className="flex items-center gap-1 flex-wrap">
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => setAdjustListing(row)}>
+            <TrendingDown className="h-3 w-3" /> Reduce
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-warning hover:text-warning" onClick={() => setActionDialog({ listing: row, type: 'delist' })}>
+            <XCircle className="h-3 w-3" /> Delist
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={() => setActionDialog({ listing: row, type: 'delete' })}>
+            <Trash2 className="h-3 w-3" /> Delete
+          </Button>
+        </div>
       ),
     },
   ];
@@ -447,11 +458,11 @@ export function LandlordOpsDashboard() {
         <TabsContent value="empty" className="space-y-4 mt-4">
           {emptyHouses.length > 0 ? (
             <>
-              <div className="rounded-2xl border-2 border-red-400/40 bg-red-50 dark:bg-red-950/20 p-3 flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-red-500/20 shrink-0"><DoorOpen className="h-5 w-5 text-red-600" /></div>
+              <div className="rounded-2xl border-2 border-destructive/30 p-3 flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-destructive/10 shrink-0"><DoorOpen className="h-5 w-5 text-destructive" /></div>
                 <div className="flex-1">
-                  <p className="font-bold text-red-800 dark:text-red-300">🏚️ {emptyHouses.length} Empty — UGX {lostMonthlyRevenue.toLocaleString()}/mo potential revenue lost</p>
-                  <p className="text-xs text-red-700 dark:text-red-400 mt-0.5">Reduce rent on long-vacant houses to attract tenants faster.</p>
+                  <p className="font-bold text-destructive">{emptyHouses.length} Empty — UGX {lostMonthlyRevenue.toLocaleString()}/mo potential revenue lost</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Reduce rent on long-vacant houses to attract tenants faster.</p>
                 </div>
               </div>
 
@@ -590,6 +601,17 @@ export function LandlordOpsDashboard() {
       )}
       {adjustListing && (
         <RentAdjustmentDialog open={!!adjustListing} onOpenChange={(open) => !open && setAdjustListing(null)} listing={adjustListing} onSuccess={() => refetch()} />
+      )}
+      {actionDialog && (
+        <EmptyHouseActionDialog
+          open={!!actionDialog}
+          onOpenChange={(open) => !open && setActionDialog(null)}
+          listingId={actionDialog.listing.id}
+          listingTitle={actionDialog.listing.title}
+          actionType={actionDialog.type}
+          userId={user?.id || ''}
+          onComplete={() => refetch()}
+        />
       )}
     </div>
   );
