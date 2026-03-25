@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
+import { useAuth } from "@/hooks/useAuth";
 
 const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 
@@ -29,6 +30,8 @@ export default function DeferredExtras() {
   useForceRefresh();
   useIOSCacheInvalidation();
 
+  const { user } = useAuth();
+
   useEffect(() => {
     const activate = () => setReady(true);
     if ('requestIdleCallback' in window) {
@@ -49,7 +52,7 @@ export default function DeferredExtras() {
         <IOSOptimizations />
         <IOSLinkHandler />
         <IOSShareReceiver />
-        {shouldShowGlobalPrompts && <PWAInstallPrompt />}
+        {shouldShowGlobalPrompts && !user && <PWAInstallPrompt />}
         
         {/* GlobalSettingsToolbar now in FloatingToolbar */}
       </Suspense>
