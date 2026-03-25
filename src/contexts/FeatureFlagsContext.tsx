@@ -24,6 +24,7 @@ const defaultFlags: FeatureFlags = {
   enableBankTransfer: true,
   enableCardPayments: true,
   enablePartnerAutoPayout: false,
+  useNewServices: false,
 };
 
 const FeatureFlagsContext = createContext<FeatureFlagsContextType | undefined>(undefined);
