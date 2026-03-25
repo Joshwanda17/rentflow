@@ -44,6 +44,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (request.method !== "GET") return;
+  if (!url.protocol.startsWith("http")) return;
 
   // ===================================================
   // 1️⃣ BYPASS AUTH, OAUTH & SUPABASE COMPLETELY
