@@ -117,37 +117,47 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Increase portfolio investment_amount
-    const newInvestment = Number(portfolio.investment_amount) + topupAmount;
-    const { error: topupErr } = await supabase
-      .from("investor_portfolios")
-      .update({ investment_amount: newInvestment })
-      .eq("id", portfolio_id);
+    // 2. DO NOT increase investment_amount directly — deposit is pending until maturity
+    const now = new Date().toISOString();
 
-    if (topupErr) {
+    // Insert into pending_wallet_operations with operation_type = 'portfolio_topup'
+    const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
+      user_id: user.id,
+      amount: topupAmount,
+      direction: "cash_out",
+      category: "pending_portfolio_topup",
+      source_table: "investor_portfolios",
+      source_id: portfolio_id,
+      transaction_group_id: txGroupId,
+      description: `Pending top-up for ${accountLabel} — awaiting maturity`,
+      linked_party: "platform",
+      status: "pending",
+      operation_type: "portfolio_topup",
+    });
+
+    if (pendingErr) {
       // Rollback wallet
       await supabase
         .from("wallets")
         .update({ balance: currentBalance, updated_at: new Date().toISOString() })
         .eq("user_id", user.id);
 
-      return new Response(JSON.stringify({ error: "Failed to update portfolio. Wallet restored." }), {
+      return new Response(JSON.stringify({ error: "Failed to record pending top-up. Wallet restored." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // 3. Record double-entry ledger
-    const now = new Date().toISOString();
     await supabase.from("general_ledger").insert([
       {
         user_id: user.id,
         amount: topupAmount,
         direction: "debit",
-        category: "portfolio_topup",
+        category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Portfolio top-up: ${accountLabel}`,
+        description: `Pending portfolio top-up: ${accountLabel}`,
         ledger_scope: "wallet",
         transaction_date: now,
       },
@@ -155,45 +165,32 @@ Deno.serve(async (req) => {
         user_id: user.id,
         amount: topupAmount,
         direction: "credit",
-        category: "portfolio_topup",
+        category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Capital added to ${accountLabel}`,
+        description: `Pending capital for ${accountLabel} — applied at maturity`,
         ledger_scope: "platform",
         transaction_date: now,
       },
     ]);
 
-    // 4. Record in pending_wallet_operations for audit
-    await supabase.from("pending_wallet_operations").insert({
-      user_id: user.id,
-      amount: topupAmount,
-      direction: "cash_out",
-      category: "portfolio_topup",
-      source_table: "investor_portfolios",
-      source_id: portfolio_id,
-      transaction_group_id: txGroupId,
-      description: `Self-serve top-up: ${accountLabel}`,
-      linked_party: "platform",
-      status: "approved",
-    });
-
-    // 5. Notify user
+    // 4. Notify user
     await supabase.from("notifications").insert({
       user_id: user.id,
-      title: "✅ Portfolio Top-Up Successful",
-      message: `UGX ${topupAmount.toLocaleString()} has been added to your account "${accountLabel}". New capital: UGX ${newInvestment.toLocaleString()}.`,
-      type: "success",
-      metadata: { portfolio_id, amount: topupAmount, new_total: newInvestment },
+      title: "⏳ Portfolio Top-Up Pending",
+      message: `UGX ${topupAmount.toLocaleString()} has been deducted from your wallet for "${accountLabel}". This deposit will be added to your portfolio at maturity.`,
+      type: "info",
+      metadata: { portfolio_id, amount: topupAmount, status: "pending" },
     });
 
-    console.log(`[portfolio-topup] User ${user.id} topped up ${portfolio_id} with ${topupAmount}. New total: ${newInvestment}`);
+    console.log(`[portfolio-topup] User ${user.id} created pending top-up for ${portfolio_id} with ${topupAmount}`);
 
     return new Response(JSON.stringify({
       success: true,
       amount: topupAmount,
-      new_investment_total: newInvestment,
+      status: "pending",
+      current_capital: Number(portfolio.investment_amount),
       portfolio_code: portfolio.portfolio_code,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

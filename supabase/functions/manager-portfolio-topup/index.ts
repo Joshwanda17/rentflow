@@ -132,36 +132,45 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Increase portfolio investment_amount
-    const newInvestment = Number(portfolio.investment_amount) + topupAmount;
-    const { error: topupErr } = await supabase
-      .from("investor_portfolios")
-      .update({ investment_amount: newInvestment })
-      .eq("id", portfolio_id);
+    // 2. DO NOT increase investment_amount directly — deposit is pending until maturity
+    // Insert into pending_wallet_operations with operation_type = 'portfolio_topup' and status = 'pending'
+    const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
+      user_id: partnerId,
+      amount: topupAmount,
+      direction: "cash_out",
+      category: "pending_portfolio_topup",
+      source_table: "investor_portfolios",
+      source_id: portfolio_id,
+      transaction_group_id: txGroupId,
+      description: `Pending top-up for ${accountLabel} — awaiting maturity`,
+      linked_party: "platform",
+      status: "pending",
+      operation_type: "portfolio_topup",
+    });
 
-    if (topupErr) {
+    if (pendingErr) {
       // Rollback wallet
       await supabase
         .from("wallets")
         .update({ balance: currentBalance, updated_at: now })
         .eq("user_id", partnerId);
 
-      return new Response(JSON.stringify({ error: "Failed to update portfolio. Wallet restored." }), {
+      return new Response(JSON.stringify({ error: "Failed to record pending top-up. Wallet restored." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 3. Double-entry ledger: Debit partner wallet, Credit platform (portfolio)
+    // 3. Double-entry ledger: Debit partner wallet, Credit platform (pending)
     await supabase.from("general_ledger").insert([
       {
         user_id: partnerId,
         amount: topupAmount,
         direction: "debit",
-        category: "portfolio_topup",
+        category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Manager top-up to portfolio: ${accountLabel}`,
+        description: `Manager pending top-up for portfolio: ${accountLabel}`,
         ledger_scope: "wallet",
         transaction_date: now,
       },
@@ -169,11 +178,11 @@ Deno.serve(async (req) => {
         user_id: partnerId,
         amount: topupAmount,
         direction: "credit",
-        category: "portfolio_topup",
+        category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Capital added to ${accountLabel}`,
+        description: `Pending capital for ${accountLabel} — applied at maturity`,
         ledger_scope: "platform",
         transaction_date: now,
       },
@@ -182,34 +191,36 @@ Deno.serve(async (req) => {
     // 4. Audit trail with mandatory reason
     await supabase.from("audit_logs").insert({
       user_id: user.id,
-      action_type: "manager_portfolio_topup",
+      action_type: "manager_portfolio_topup_pending",
       table_name: "investor_portfolios",
       record_id: portfolio_id,
       metadata: {
         partner_id: partnerId,
         amount: topupAmount,
-        new_total: newInvestment,
+        current_capital: Number(portfolio.investment_amount),
         previous_balance: currentBalance,
         new_balance: currentBalance - topupAmount,
         notes: safeNotes,
+        status: "pending_until_maturity",
       },
     });
 
     // 5. Notify partner
     await supabase.from("notifications").insert({
       user_id: partnerId,
-      title: "✅ Portfolio Top-Up",
-      message: `UGX ${topupAmount.toLocaleString()} has been moved from your wallet to "${accountLabel}". New capital: UGX ${newInvestment.toLocaleString()}.`,
-      type: "success",
-      metadata: { portfolio_id, amount: topupAmount, new_total: newInvestment, initiated_by: user.id },
+      title: "⏳ Portfolio Top-Up Pending",
+      message: `UGX ${topupAmount.toLocaleString()} has been deducted from your wallet for "${accountLabel}". This deposit will be added to your portfolio at maturity.`,
+      type: "info",
+      metadata: { portfolio_id, amount: topupAmount, status: "pending", initiated_by: user.id },
     });
 
-    console.log(`[manager-portfolio-topup] Manager ${user.id} topped up ${portfolio_id} (partner: ${partnerId}) with ${topupAmount}. New total: ${newInvestment}`);
+    console.log(`[manager-portfolio-topup] Manager ${user.id} created pending top-up for ${portfolio_id} (partner: ${partnerId}) amount ${topupAmount}`);
 
     return new Response(JSON.stringify({
       success: true,
       amount: topupAmount,
-      new_investment_total: newInvestment,
+      status: "pending",
+      current_capital: Number(portfolio.investment_amount),
       new_wallet_balance: currentBalance - topupAmount,
       portfolio_code: portfolio.portfolio_code,
     }), {

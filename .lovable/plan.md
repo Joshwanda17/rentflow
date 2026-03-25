@@ -1,67 +1,121 @@
+## Phase 3: Dual Execution — Shadow Audit in Edge Functions ✅
 
+### What this does
+Adds non-blocking shadow validation calls inside 3 edge functions (`wallet-transfer`, `cfo-direct-credit`, `fund-rent-pool`). Shadow logic runs after the primary validation, logs match/divergence, and **never** affects the primary response.
 
-## Pending Portfolio Top-Up — Clean Column Approach
+### New files
 
-### Summary
-Add an `operation_type` column to `pending_wallet_operations` to cleanly distinguish top-up deposits from regular operations. Top-ups are wallet-debited immediately but held as "pending" until portfolio maturity, then applied.
+**1. `supabase/functions/_shared/shadowValidation.ts`**
+Port of Phase 2 pure validation functions for Deno runtime. Contains:
+- `shadowValidateWalletTransfer()` — amount range, UUID, self-transfer, phone checks
+- `shadowValidateCfoAdjustment()` — role check, amount 1–50M, reason length
+- `shadowValidatePoolFunding()` — supporter role, positive amount
 
-### Database Change
+These are standalone pure functions (no imports from `src/`).
 
-**Add column to `pending_wallet_operations`:**
-```sql
-ALTER TABLE public.pending_wallet_operations
-  ADD COLUMN operation_type text NOT NULL DEFAULT 'standard';
+**2. `supabase/functions/_shared/shadowLogger.ts`**
+- `runShadowAudit(fnName, inputs, primaryPassed, shadowFn)` — wraps shadow in try/catch
+- Executes as fire-and-forget (non-awaited promise)
+- Logs `[SHADOW] MATCH` or `[SHADOW] DIVERGENCE` with both results
+- Shadow errors logged as `[SHADOW] ERROR` — never propagated
+
+### Edge function changes (minimal, additive only)
+
+**3. `wallet-transfer/index.ts`**
+- Add import of `runShadowAudit` and `shadowValidateWalletTransfer`
+- After all primary validations pass (before wallet DB operations ~line 100), insert:
+```ts
+runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
+  true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription })
+);
 ```
-- Values: `'standard'` (all existing records), `'portfolio_topup'` (new top-ups)
-- Clean filtering: `WHERE operation_type = 'portfolio_topup' AND status = 'pending'`
-- No impact on existing data — default covers all current rows
+- Zero changes to primary logic, responses, or error paths
 
-### Edge Function Changes
+**4. `cfo-direct-credit/index.ts`**
+- Same pattern after role+input validation succeeds
+- Shadow validates CFO adjustment inputs
 
-**1. `manager-portfolio-topup/index.ts`** — Stop increasing `investment_amount` directly. Instead:
-- Deduct wallet immediately (existing behavior)
-- Insert into `pending_wallet_operations` with `operation_type: 'portfolio_topup'`, `status: 'pending'`
-- Record ledger entries with category `pending_portfolio_topup`
-- Notification says "pending until maturity"
+**5. `fund-rent-pool/index.ts`**
+- Same pattern after role+amount validation succeeds
+- Shadow validates pool funding inputs
 
-**2. `portfolio-topup/index.ts`** — Same change for self-serve partner top-ups
+### What stays the same
+- All primary execution paths, responses, DB operations — untouched
+- No frontend changes, no database changes
+- Shadow calls are detached promises — add zero latency to user responses
+- Any shadow failure is swallowed silently (logged only)
 
-**3. New: `apply-pending-topups/index.ts`** — Called at maturity/renewal:
-- Query `pending_wallet_operations` WHERE `operation_type = 'portfolio_topup'` AND `source_id = portfolio_id` AND `status = 'pending'`
-- Sum amounts → increase portfolio `investment_amount`
-- Update each record: `status = 'approved'`, set `reviewed_at`, `reviewed_by`
-- Record activation ledger entries + notify partner
+### Technical details
+- `_shared/` imports via relative path: `import { ... } from "../_shared/shadowValidation.ts"`
+- Shadow functions are pure (no DB, no Supabase client)
+- `runShadowAudit` catches all errors internally — the `.catch(() => {})` on the caller side is a double safety net
+- Log output format: `[SHADOW] wallet-transfer | MATCH | primary=true shadow=true`
 
-### Frontend Changes
+## Phase 4: Optional Read from New Service Layer ✅
 
-**4. `COOPartnersPage.tsx`** — In the partner detail portfolio cards:
-- Fetch pending top-ups per portfolio from `pending_wallet_operations` WHERE `operation_type = 'portfolio_topup'` AND `status = 'pending'`
-- Show badge: "2 pending top-ups: UGX 5,000,000"
-- Add "Apply Pending Deposits" button (visible when portfolio has matured and has pending top-ups)
-- Button calls `apply-pending-topups` edge function
+### What was done
+Added `useNewServices` feature flag (default: `false`) and created `useServiceValidation` hook that conditionally runs TransactionService/WalletService validation before edge function calls. Wired into `useWallet.sendMoney()` for fail-fast pre-validation.
 
-**5. `FundInvestmentAccountDialog.tsx`** — Update UI copy:
-- Preview section shows "Pending until maturity" instead of "New Capital"
-- Success toast indicates funds are secured but held
+### Files changed
+- `src/contexts/FeatureFlagsContext.tsx` — added `useNewServices` flag
+- `src/core/services/useServiceValidation.ts` — new hook with `preValidateTransfer()` and `checkBalance()`
+- `src/hooks/useWallet.ts` — integrated pre-validation into `sendMoney()`
+
+### Safety
+- Flag defaults to `false` — zero behavior change for users
+- Service errors always fallback to `shouldProceed: true`
+- Edge function remains sole transaction authority
+
+## Phase 5: Gradual Migration — Percentage-Based Traffic Routing with Monitoring ✅
+
+### What was done
+Upgraded shadow audit from log-only to a persistent, percentage-controlled dual execution system with DB-backed monitoring and instant rollback via config table.
+
+### Database changes
+- `shadow_audit_logs` — persists shadow comparison results (function_name, primary/shadow passed, is_match, errors)
+- `shadow_config` — single-row config with `sample_percentage` (default 10%) and `enabled` toggle
+- `get_shadow_match_rate(p_hours)` — SQL function returning match rate per function over configurable time window
+
+### Files created
+- `supabase/functions/_shared/shadowConfig.ts` — reads config with 60-second in-memory cache, falls back to disabled on error
+
+### Files changed
+- `supabase/functions/_shared/shadowLogger.ts` — upgraded with DB persistence via adminClient parameter
+- `supabase/functions/wallet-transfer/index.ts` — shadow on both success and failure validation paths, sampled
+- `supabase/functions/cfo-direct-credit/index.ts` — same pattern
+- `supabase/functions/fund-rent-pool/index.ts` — same pattern, removed duplicate balance check
+
+### Safety & rollback
+- All primary paths unchanged — shadow is fire-and-forget
+- Rollback: set `shadow_config.enabled = false` or `sample_percentage = 0` (no code deploy needed)
+- Config cached 60s to avoid per-request DB reads
+- Shadow persistence errors swallowed — never affect primary response
+
+### Rollout strategy
+1. Deployed with `sample_percentage = 10` (10% of traffic)
+2. Monitor `shadow_audit_logs` for divergences
+3. If match rate > 99% after 48h, increase to 25% → 50% → 100%
+4. Phase 6 (future) can safely swap primary to new services
+
+## Pending Portfolio Top-Up System ✅
+
+### What was done
+Top-up deposits (via COO/manager or self-serve) are now held as "pending" until portfolio maturity. Wallet is debited immediately but `investment_amount` is NOT increased until explicitly applied.
+
+### Database changes
+- Added `operation_type` column (text, default `'standard'`) to `pending_wallet_operations`
+- New top-ups use `operation_type = 'portfolio_topup'` with `status = 'pending'`
+
+### Edge function changes
+- `manager-portfolio-topup` — creates pending record instead of instant `investment_amount` increase
+- `portfolio-topup` — same change for self-serve partner top-ups
+- `apply-pending-topups` (new) — sums pending deposits, increases portfolio capital, marks as approved
+
+### Frontend changes
+- `FundInvestmentAccountDialog` — shows "Pending until maturity" preview instead of "New Capital"
+- `COOPartnersPage` — shows pending top-up badge per portfolio, "Apply Pending" button calls `apply-pending-topups`
 
 ### Architecture
-
-```text
-Top-up initiated (COO or Partner)
-  ├─ Wallet debited immediately
-  ├─ pending_wallet_operations row created:
-  │    operation_type = 'portfolio_topup'
-  │    status = 'pending'
-  │    source_id = portfolio_id
-  │
-  └─ On maturity/renewal:
-       ├─ apply-pending-topups called
-       ├─ SUM pending amounts → add to investment_amount
-       └─ status → 'approved'
 ```
-
-### Files affected
-- **Migration**: Add `operation_type` column to `pending_wallet_operations`
-- **Edge functions**: `manager-portfolio-topup` (update), `portfolio-topup` (update), `apply-pending-topups` (new)
-- **Frontend**: `COOPartnersPage.tsx` (pending badge + apply button), `FundInvestmentAccountDialog.tsx` (copy updates)
-
+Top-up → Wallet debited → pending_wallet_operations (pending) → At maturity → apply-pending-topups → investment_amount increased
+```

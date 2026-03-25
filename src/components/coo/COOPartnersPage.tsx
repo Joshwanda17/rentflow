@@ -217,6 +217,10 @@ export default function COOPartnersPage() {
   const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
 
+  // Pending top-ups per portfolio
+  const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
+
   // Portfolio name editing
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [editingNameValue, setEditingNameValue] = useState('');
@@ -432,16 +436,34 @@ export default function COOPartnersPage() {
       const portfolios = (portfolioRes.data || []) as PortfolioRow[];
       const totalROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
 
-      // Fetch renewal counts for these portfolios
+      // Fetch renewal counts and pending top-ups for these portfolios
       const portfolioIds = portfolios.map(p => p.id);
       if (portfolioIds.length > 0) {
-        const { data: renewals } = await supabase
-          .from('portfolio_renewals')
-          .select('portfolio_id')
-          .in('portfolio_id', portfolioIds);
+        const [renewalsRes, pendingRes] = await Promise.all([
+          supabase
+            .from('portfolio_renewals')
+            .select('portfolio_id')
+            .in('portfolio_id', portfolioIds),
+          supabase
+            .from('pending_wallet_operations')
+            .select('source_id, amount')
+            .in('source_id', portfolioIds)
+            .eq('source_table', 'investor_portfolios')
+            .eq('operation_type', 'portfolio_topup')
+            .eq('status', 'pending'),
+        ]);
         const counts: Record<string, number> = {};
-        (renewals || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
+        (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
         setRenewalCounts(counts);
+
+        const pending: Record<string, { count: number; total: number }> = {};
+        (pendingRes.data || []).forEach((op: any) => {
+          const key = op.source_id;
+          if (!pending[key]) pending[key] = { count: 0, total: 0 };
+          pending[key].count += 1;
+          pending[key].total += Number(op.amount);
+        });
+        setPendingTopUps(pending);
       }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
@@ -459,6 +481,26 @@ export default function COOPartnersPage() {
       });
     } catch (e) { console.error(e); toast.error('Failed to load partner details'); }
     finally { setDetailLoading(false); }
+  }
+
+  /* ─── Apply Pending Top-Ups ─── */
+  async function handleApplyPendingTopUps(portfolioId: string) {
+    setApplyingTopUps(portfolioId);
+    try {
+      const { data, error } = await supabase.functions.invoke('apply-pending-topups', {
+        body: { portfolio_id: portfolioId },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(`${data.count} pending deposit(s) applied`, {
+        description: `${formatUGX(data.total_applied)} added to portfolio. New capital: ${formatUGX(data.new_investment_total)}`,
+      });
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+    } catch (e: any) {
+      toast.error('Failed to apply pending top-ups', { description: e.message });
+    } finally {
+      setApplyingTopUps(null);
+    }
   }
 
   /* ─── Save portfolio account name ─── */
@@ -1284,7 +1326,14 @@ export default function COOPartnersPage() {
                                 </div>
                               </div>
                               {/* Investment amount - full width on mobile */}
-                              <p className="text-lg font-black tabular-nums mb-2.5">{formatUGX(p.investment_amount)}</p>
+                              <p className="text-lg font-black tabular-nums mb-1">{formatUGX(p.investment_amount)}</p>
+                              {pendingTopUps[p.id] && (
+                                <div className="flex items-center gap-1.5 mb-2.5">
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-500/40 text-amber-600 bg-amber-500/5">
+                                    ⏳ {pendingTopUps[p.id].count} pending top-up{pendingTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(pendingTopUps[p.id].total)}
+                                  </Badge>
+                                </div>
+                              )}
 
                               {/* Details grid */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs bg-muted/30 rounded-lg p-2.5">
@@ -1409,6 +1458,18 @@ export default function COOPartnersPage() {
                                     }}
                                   >
                                     <Wallet className="h-3.5 w-3.5" /> Top Up
+                                  </Button>
+                                )}
+                                {pendingTopUps[p.id] && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 font-semibold min-h-[44px]"
+                                    onClick={() => handleApplyPendingTopUps(p.id)}
+                                    disabled={applyingTopUps === p.id}
+                                  >
+                                    {applyingTopUps === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                    Apply {pendingTopUps[p.id].count} Pending
                                   </Button>
                                 )}
                                 <Button
