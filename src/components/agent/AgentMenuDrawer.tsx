@@ -348,11 +348,8 @@ export function AgentMenuDrawer({
                       const colors = getAccentClasses(item.accent);
                       const Icon = item.icon;
                       return (
-                        <motion.button
+                        <button
                           key={item.label + idx}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: idx * 0.03 }}
                           onClick={() => handleItemClick(item)}
                           className={cn(
                             "relative flex flex-col items-center gap-2 p-4 rounded-2xl border border-border/50 bg-card hover:bg-muted/40 active:scale-95 transition-all touch-manipulation",
