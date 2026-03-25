@@ -96,3 +96,26 @@ Upgraded shadow audit from log-only to a persistent, percentage-controlled dual 
 2. Monitor `shadow_audit_logs` for divergences
 3. If match rate > 99% after 48h, increase to 25% → 50% → 100%
 4. Phase 6 (future) can safely swap primary to new services
+
+## Pending Portfolio Top-Up System ✅
+
+### What was done
+Top-up deposits (via COO/manager or self-serve) are now held as "pending" until portfolio maturity. Wallet is debited immediately but `investment_amount` is NOT increased until explicitly applied.
+
+### Database changes
+- Added `operation_type` column (text, default `'standard'`) to `pending_wallet_operations`
+- New top-ups use `operation_type = 'portfolio_topup'` with `status = 'pending'`
+
+### Edge function changes
+- `manager-portfolio-topup` — creates pending record instead of instant `investment_amount` increase
+- `portfolio-topup` — same change for self-serve partner top-ups
+- `apply-pending-topups` (new) — sums pending deposits, increases portfolio capital, marks as approved
+
+### Frontend changes
+- `FundInvestmentAccountDialog` — shows "Pending until maturity" preview instead of "New Capital"
+- `COOPartnersPage` — shows pending top-up badge per portfolio, "Apply Pending" button calls `apply-pending-topups`
+
+### Architecture
+```
+Top-up → Wallet debited → pending_wallet_operations (pending) → At maturity → apply-pending-topups → investment_amount increased
+```
