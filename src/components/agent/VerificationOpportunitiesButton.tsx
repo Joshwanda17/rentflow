@@ -222,9 +222,7 @@ export function VerificationOpportunitiesButton() {
                             </div>
 
                             {promptHouseId === house.id && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
+                              <div
                                 className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2"
                               >
                                 <p className="text-xs font-semibold text-foreground">📍 Visit this house physically to verify it</p>
