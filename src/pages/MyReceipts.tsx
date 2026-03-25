@@ -505,12 +505,7 @@ export default function MyReceipts() {
 
           {/* History Tab */}
           <TabsContent value="history" className="mt-0">
-            <PullToRefresh 
-              onRefresh={async () => {
-                await fetchData();
-              }}
-              className="min-h-[200px] -mx-4 px-4"
-            >
+            <div className="min-h-[200px] -mx-4 px-4">
               <div className="space-y-4 pt-2">
                 {receipts.length === 0 ? (
                   <motion.div
