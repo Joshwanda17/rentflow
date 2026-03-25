@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   ArrowLeft, TrendingUp, Calendar, Wallet, CheckCircle2, Target, BarChart3,
-  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Edit2, Check, X, Loader2, Sparkles, Eye
+  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Edit2, Check, X, Loader2, Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { InvestmentTransactionHistory } from '@/components/investment/InvestmentTransactionHistory';
