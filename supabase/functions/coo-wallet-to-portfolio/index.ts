@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Wallet → Portfolio (COO): ${accountLabel}`,
+        description: `Wallet deduction for ${accountLabel} — Tenant Partnership Operations`,
         ledger_scope: "wallet",
         transaction_date: now,
       },
