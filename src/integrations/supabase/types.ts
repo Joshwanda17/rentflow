@@ -6692,6 +6692,57 @@ export type Database = {
           },
         ]
       }
+      shadow_audit_logs: {
+        Row: {
+          created_at: string
+          function_name: string
+          id: string
+          is_match: boolean
+          primary_passed: boolean
+          shadow_errors: Json | null
+          shadow_passed: boolean
+        }
+        Insert: {
+          created_at?: string
+          function_name: string
+          id?: string
+          is_match?: boolean
+          primary_passed: boolean
+          shadow_errors?: Json | null
+          shadow_passed: boolean
+        }
+        Update: {
+          created_at?: string
+          function_name?: string
+          id?: string
+          is_match?: boolean
+          primary_passed?: boolean
+          shadow_errors?: Json | null
+          shadow_passed?: boolean
+        }
+        Relationships: []
+      }
+      shadow_config: {
+        Row: {
+          enabled: boolean
+          id: string
+          sample_percentage: number
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: string
+          sample_percentage?: number
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: string
+          sample_percentage?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_profiles: {
         Row: {
           created_at: string | null
@@ -8661,6 +8712,16 @@ export type Database = {
         }[]
       }
       get_rent_requests_summary: { Args: never; Returns: Json }
+      get_shadow_match_rate: {
+        Args: { p_hours?: number }
+        Returns: {
+          divergences: number
+          function_name: string
+          match_rate_pct: number
+          matches: number
+          total_samples: number
+        }[]
+      }
       get_supporter_pool_stats: { Args: never; Returns: Json }
       get_tenant_behavior_segments: {
         Args: never
