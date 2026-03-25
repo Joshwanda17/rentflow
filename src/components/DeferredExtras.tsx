@@ -52,7 +52,7 @@ export default function DeferredExtras() {
         <IOSOptimizations />
         <IOSLinkHandler />
         <IOSShareReceiver />
-        {shouldShowGlobalPrompts && <PWAInstallPrompt />}
+        {shouldShowGlobalPrompts && !user && <PWAInstallPrompt />}
         
         {/* GlobalSettingsToolbar now in FloatingToolbar */}
       </Suspense>
