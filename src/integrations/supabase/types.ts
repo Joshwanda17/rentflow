@@ -5112,6 +5112,7 @@ export type Database = {
           id: string
           linked_party: string | null
           metadata: Json | null
+          operation_type: string
           reference_id: string | null
           rejection_reason: string | null
           reviewed_at: string | null
@@ -5133,6 +5134,7 @@ export type Database = {
           id?: string
           linked_party?: string | null
           metadata?: Json | null
+          operation_type?: string
           reference_id?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
@@ -5154,6 +5156,7 @@ export type Database = {
           id?: string
           linked_party?: string | null
           metadata?: Json | null
+          operation_type?: string
           reference_id?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
