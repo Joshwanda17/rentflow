@@ -18,7 +18,7 @@ export function AgentActionInsights({ agentId, hideDailyRent }: Props) {
     <>
       <div className="space-y-3 animate-fade-in">
         {/* Daily Rent Expected */}
-        <DailyRentExpectedCard userId={agentId} />
+        {!hideDailyRent && <DailyRentExpectedCard userId={agentId} />}
 
         {/* Earnings Forecast */}
         <EarningsForecastCard agentId={agentId} />
