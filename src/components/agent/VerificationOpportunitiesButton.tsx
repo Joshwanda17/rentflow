@@ -367,7 +367,7 @@ export function VerificationOpportunitiesButton() {
                                   }}
                                 />
                               </div>
-                            </motion.div>
+                            </div>
                           )}
                         </CardContent>
                       </Card>
