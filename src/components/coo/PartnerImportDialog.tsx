@@ -90,7 +90,7 @@ function downloadTemplate() {
     ['Ssenkaali Pius', '0700123456', 'pius@example.com', 500000, '2025-03-09', 15, 12, 'monthly_compounding'],
     ['Ssenkaali Pius', '0700123456', 'pius@example.com', 300000, '2025-01-15', 15, 12, 'monthly_payout'],
     ['Namukisha Esther', '0754155112', 'esther@example.com', 1000000, '2024-11-20', 15, 12, 'monthly_compounding'],
-    ['John Doe', '0771234567', '', 200000, '', 15, 6, 'monthly_payout'],
+    ['John Doe', '', '', 200000, '', 15, 6, 'monthly_payout'],
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...samples]);
   ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 16 }, { wch: 8 }, { wch: 18 }, { wch: 22 }];
@@ -175,7 +175,7 @@ function validateRow(row: any, rowNum: number): ParsedRow {
   const contributionDate = parseContributionDate(mapped['Contribution Date']);
 
   if (!name) errors.push('Missing partner name');
-  if (!phone || phone.length < 10) errors.push('Invalid phone');
+  if (phone && phone.length < 10) errors.push('Invalid phone (must be 10+ digits or blank)');
   if (isNaN(amount) || amount < 50000) errors.push('Amount must be ≥ 50,000');
   if (isNaN(roi) || roi < 1 || roi > 30) errors.push('ROI must be 1-30%');
   if (isNaN(duration) || duration < 1 || duration > 36) errors.push('Duration must be 1-36 months');
@@ -186,8 +186,10 @@ function validateRow(row: any, rowNum: number): ParsedRow {
 
 function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
   const map = new Map<string, ImportGroup>();
+  let noPhoneCounter = 0;
   for (const row of rows) {
-    const key = row.phone;
+    // Group by phone if available, otherwise each row is its own group (keyed by name+counter)
+    const key = row.phone ? row.phone : `__no_phone_${noPhoneCounter++}_${row.partnerName}`;
     if (!map.has(key)) {
       map.set(key, {
         partnerName: row.partnerName,
@@ -208,7 +210,6 @@ function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
         contributionDate: row.contributionDate,
       });
     }
-    // Collect portfolio-level errors
     const portfolioErrors = row.errors.filter(e => !e.includes('name') && !e.includes('phone'));
     if (portfolioErrors.length > 0) {
       group.errors.push(`Row ${row.rowNum}: ${portfolioErrors.join(', ')}`);
@@ -263,17 +264,19 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
       setParsedRows(validated);
       setFileName(file.name);
 
-      // Check duplicates against existing profiles
+      // Check duplicates against existing profiles (only for rows with phones)
       const phones = [...new Set(validated.map(r => r.phone).filter(Boolean))];
-      const { data: existingProfiles } = await supabase
-        .from('profiles')
-        .select('phone')
-        .in('phone', phones);
-
-      const existingPhones = new Set((existingProfiles || []).map(p => p.phone));
+      let existingPhones = new Set<string>();
+      if (phones.length > 0) {
+        const { data: existingProfiles } = await supabase
+          .from('profiles')
+          .select('phone')
+          .in('phone', phones);
+        existingPhones = new Set((existingProfiles || []).map(p => p.phone));
+      }
       const grouped = groupByPartner(validated);
       grouped.forEach(g => {
-        if (existingPhones.has(g.phone)) g.isDuplicate = true;
+        if (g.phone && existingPhones.has(g.phone)) g.isDuplicate = true;
       });
 
       setGroups(grouped);
@@ -368,7 +371,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                   <p className="font-semibold text-sm">Drop Excel file here or click to browse</p>
                   <p className="text-xs text-muted-foreground mt-1">Supports .xlsx files, max 500 rows</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Accepts flexible headers: "Supporter Name", "Principal (UGX)", "Rate", "Contribution Date", etc.</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-2 px-4">💡 Multiple portfolios per partner? Use the <strong>same phone number</strong> on each row — they'll be grouped automatically as one partner with multiple investments.</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-2 px-4">💡 Phone is optional. Multiple portfolios per partner? Use the <strong>same phone number</strong> on each row — they'll be grouped automatically.</p>
                 </>
               )}
               <input
@@ -414,7 +417,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                        g.errors.length > 0 ? <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" /> :
                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
                       <span className="font-semibold truncate">{g.partnerName}</span>
-                      <span className="text-muted-foreground">{g.phone}</span>
+                      <span className="text-muted-foreground">{g.phone || 'No phone'}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Badge variant="outline" className="text-[9px]">{g.portfolios.length} portfolio{g.portfolios.length !== 1 ? 's' : ''}</Badge>
