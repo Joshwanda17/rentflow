@@ -186,6 +186,25 @@ export function useWallet() {
 
   const sendMoney = useCallback(async (recipientPhone: string, amount: number, description?: string) => {
     if (!user) return { error: new Error('Please log in first') };
+
+    // Phase 4: Optional pre-validation via new service layer
+    const transferCheck = preValidateTransfer({
+      senderId: user.id,
+      recipientPhone,
+      amount,
+      description,
+    });
+    if (!transferCheck.shouldProceed) {
+      return { error: new Error(transferCheck.errors?.[0] || 'Validation failed') };
+    }
+
+    // Optional balance pre-check (fail-fast)
+    if (wallet) {
+      const balanceCheck = checkBalance(wallet.balance, amount);
+      if (!balanceCheck.shouldProceed) {
+        return { error: new Error(balanceCheck.errors?.[0] || 'Insufficient balance') };
+      }
+    }
     
     try {
       const { data, error } = await supabase.functions.invoke('wallet-transfer', {
@@ -205,7 +224,7 @@ export function useWallet() {
     } catch (e: any) {
       return { error: new Error(e.message || 'Transfer failed') };
     }
-  }, [user, fetchWallet]);
+  }, [user, fetchWallet, wallet, preValidateTransfer, checkBalance]);
 
   const depositMoney = useCallback(async (_amount: number) => {
     // Direct client-side wallet updates are not allowed for security.
