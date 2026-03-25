@@ -863,7 +863,7 @@ export default function UserProfilesTable() {
         </div>
 
         {/* Scrollable User List - Extra padding for mobile */}
-        <div>
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-40 overscroll-contain touch-pan-y">
           <div ref={tableRef} className="space-y-3 pb-8">
             <AnimatePresence mode="popLayout">
               {filteredUsers.length === 0 ? (
