@@ -271,10 +271,10 @@ export function LandlordOpsDashboard() {
   // Empty houses columns
   const emptyColumns: Column<ListingWithLandlord>[] = [
     { key: 'title', label: 'Property', render: (_, row) => propertyCell(row) },
-    { key: 'monthly_rent', label: 'Rent/mo', render: (v) => <span className="font-semibold text-sm">UGX {Number(v || 0).toLocaleString()}</span> },
-    { key: 'landlord_id', label: 'Landlord', render: (_, row) => landlordCell(row) },
-    { key: 'agent_id', label: 'Listed By', render: (_, row) => agentCell(row) },
-    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row) },
+    { key: 'monthly_rent', label: 'Rent/mo', render: (v) => <span className="font-semibold text-sm">UGX {Number(v || 0).toLocaleString()}</span>, className: 'hidden sm:table-cell' },
+    { key: 'landlord_id', label: 'Landlord', render: (_, row) => landlordCell(row), className: 'hidden md:table-cell' },
+    { key: 'agent_id', label: 'Listed By', render: (_, row) => agentCell(row), className: 'hidden lg:table-cell' },
+    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row), className: 'hidden lg:table-cell' },
     {
       key: 'created_at', label: 'Days Empty', render: (v) => {
         const days = differenceInDays(new Date(), new Date(v as string));
@@ -282,10 +282,18 @@ export function LandlordOpsDashboard() {
       },
     },
     {
-      key: 'id', label: 'Action', render: (_, row) => (
-        <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => setAdjustListing(row)}>
-          <TrendingDown className="h-3 w-3" /> Reduce Rent
-        </Button>
+      key: 'id', label: 'Actions', render: (_, row) => (
+        <div className="flex items-center gap-1 flex-wrap">
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => setAdjustListing(row)}>
+            <TrendingDown className="h-3 w-3" /> Reduce
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-warning hover:text-warning" onClick={() => setActionDialog({ listing: row, type: 'delist' })}>
+            <XCircle className="h-3 w-3" /> Delist
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={() => setActionDialog({ listing: row, type: 'delete' })}>
+            <Trash2 className="h-3 w-3" /> Delete
+          </Button>
+        </div>
       ),
     },
   ];
