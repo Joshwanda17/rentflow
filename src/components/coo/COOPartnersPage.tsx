@@ -1326,7 +1326,14 @@ export default function COOPartnersPage() {
                                 </div>
                               </div>
                               {/* Investment amount - full width on mobile */}
-                              <p className="text-lg font-black tabular-nums mb-2.5">{formatUGX(p.investment_amount)}</p>
+                              <p className="text-lg font-black tabular-nums mb-1">{formatUGX(p.investment_amount)}</p>
+                              {pendingTopUps[p.id] && (
+                                <div className="flex items-center gap-1.5 mb-2.5">
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-500/40 text-amber-600 bg-amber-500/5">
+                                    ⏳ {pendingTopUps[p.id].count} pending top-up{pendingTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(pendingTopUps[p.id].total)}
+                                  </Badge>
+                                </div>
+                              )}
 
                               {/* Details grid */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs bg-muted/30 rounded-lg p-2.5">
