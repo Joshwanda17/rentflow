@@ -8,7 +8,6 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { UserAvatar } from '@/components/UserAvatar';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { 
   History, 
@@ -308,7 +307,7 @@ export function FundedHistory() {
 
   return (
     <>
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-[200px]">
+    <div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -615,7 +614,7 @@ export function FundedHistory() {
         </div>
       </div>
     </motion.div>
-    </PullToRefresh>
+    </div>
     
     {/* Scroll to top button */}
     <ScrollToTopButton scrollThreshold={400} />

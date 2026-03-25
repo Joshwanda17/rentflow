@@ -10,7 +10,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import {
   Popover,
   PopoverContent,
@@ -225,7 +224,7 @@ export default function FinancialStatement() {
   }
 
   return (
-    <PullToRefresh onRefresh={fetchAllTransactions} className="min-h-screen bg-background">
+    <div>
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -436,6 +435,6 @@ export default function FinancialStatement() {
           </p>
         </div>
       </div>
-    </PullToRefresh>
+    </div>
   );
 }

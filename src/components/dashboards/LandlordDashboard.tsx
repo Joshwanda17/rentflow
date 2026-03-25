@@ -17,7 +17,6 @@ import AiIdButton from '@/components/ai-id/AiIdButton';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
 import { LandlordMenuDrawer } from '@/components/landlord/LandlordMenuDrawer';
 import RegisterPropertyDialog from '@/components/landlord/RegisterPropertyDialog';
@@ -79,7 +78,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         menuItems={menuItems}
       />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
+      <div>
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
 
           {/* Profile + Wallet Hero Card */}
@@ -209,7 +208,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
 
           <WalletDisclaimer />
         </main>
-      </PullToRefresh>
+      </div>
 
       {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />

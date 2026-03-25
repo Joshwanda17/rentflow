@@ -11,7 +11,6 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserAvatar } from '@/components/UserAvatar';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { Input } from '@/components/ui/input';
 import { RequestManagerInvestDialog } from './RequestManagerInvestDialog';
@@ -1115,7 +1114,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
 
   return (
     <>
-      <PullToRefresh onRefresh={handleRefresh} className="min-h-[200px]">
+      <div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -2076,7 +2075,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </div>
         </div>
       </motion.div>
-      </PullToRefresh>
+      </div>
 
       {/* Opportunity Details Dialog */}
       <Dialog open={showDetails} onOpenChange={setShowDetails}>

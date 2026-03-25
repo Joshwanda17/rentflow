@@ -19,7 +19,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { TransactionReceipt } from '@/components/wallet/TransactionReceipt';
 import { TransactionHistorySkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { toast } from 'sonner';
 import {
   Popover,
@@ -233,7 +232,7 @@ export default function TransactionHistory() {
   };
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background">
+    <div>
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -519,6 +518,6 @@ export default function TransactionHistory() {
         transaction={selectedTransaction}
         currentUserId={user?.id || ''}
       />
-    </PullToRefresh>
+    </div>
   );
 }

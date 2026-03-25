@@ -23,7 +23,6 @@ import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 import { RewardHistoryBadges } from '@/components/RewardHistoryBadges';
 import { motion } from 'framer-motion';
 import { ReferralsSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 export default function Referrals() {
@@ -77,7 +76,7 @@ export default function Referrals() {
   }
 
   return (
-    <PullToRefresh onRefresh={refresh} className="min-h-screen bg-background">
+    <div>
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
@@ -270,6 +269,6 @@ export default function Referrals() {
           </Card>
         </motion.div>
       </main>
-    </PullToRefresh>
+    </div>
   );
 }

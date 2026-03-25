@@ -32,7 +32,6 @@ import { QuickUserActions } from './QuickUserActions';
 import { ManagerTip } from './ManagerTip';
 import { CreateUserInviteDialog } from './CreateUserInviteDialog';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -864,7 +863,7 @@ export default function UserProfilesTable() {
         </div>
 
         {/* Scrollable User List - Extra padding for mobile */}
-        <PullToRefresh onRefresh={handlePullToRefresh} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-40 overscroll-contain touch-pan-y ios-momentum-scroll">
+        <div>
           <div ref={tableRef} className="space-y-3 pb-8">
             <AnimatePresence mode="popLayout">
               {filteredUsers.length === 0 ? (
@@ -1138,7 +1137,7 @@ export default function UserProfilesTable() {
               </Button>
             </div>
           )}
-        </PullToRefresh>
+        </div>
       </div>
 
       <UserDetailsDialog

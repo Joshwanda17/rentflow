@@ -20,7 +20,6 @@ import {
 import { ReceiptStatusTimeline } from '@/components/receipts/ReceiptStatusTimeline';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { QRScanner } from '@/components/receipts/QRScanner';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { useConfetti } from '@/components/Confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptsSkeleton } from '@/components/skeletons/DashboardSkeletons';
@@ -639,7 +638,7 @@ export default function MyReceipts() {
                   </div>
                 )}
               </div>
-            </PullToRefresh>
+            </div>
           </TabsContent>
         </Tabs>
 

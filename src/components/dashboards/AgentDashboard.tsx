@@ -35,7 +35,6 @@ import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialo
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { PullToRefresh } from '@/components/PullToRefresh';
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
@@ -223,7 +222,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         menuItems={menuItems}
       />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
+      <div>
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
         {/* Offline Notice */}
         {!isOnline && (
@@ -361,7 +360,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <RecentAutoCharges />
 
         </main>
-      </PullToRefresh>
+      </div>
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       
