@@ -138,11 +138,12 @@ Deno.serve(async (req) => {
           userId = authData.user.id;
 
           // Create profile with phone
-          await adminClient.from("profiles").upsert({
+          const profileData: Record<string, any> = {
             id: userId,
             full_name: partner.partner_name.trim(),
-            phone: partner.phone,
-          });
+          };
+          if (hasPhone) profileData.phone = partner.phone;
+          await adminClient.from("profiles").upsert(profileData);
 
           // Assign supporter role
           await adminClient.from("user_roles").insert({
