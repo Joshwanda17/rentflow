@@ -108,6 +108,10 @@ export function TenantOpsDashboard() {
           />
         </TabsContent>
 
+        <TabsContent value="daily" className="mt-3">
+          <DailyPaymentTracker />
+        </TabsContent>
+
         <TabsContent value="behavior" className="mt-3">
           <TenantBehaviorDashboard />
         </TabsContent>
