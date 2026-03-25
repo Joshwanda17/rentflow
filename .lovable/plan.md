@@ -1,6 +1,4 @@
-
-
-## Phase 3: Dual Execution — Shadow Audit in Edge Functions
+## Phase 3: Dual Execution — Shadow Audit in Edge Functions ✅
 
 ### What this does
 Adds non-blocking shadow validation calls inside 3 edge functions (`wallet-transfer`, `cfo-direct-credit`, `fund-rent-pool`). Shadow logic runs after the primary validation, logs match/divergence, and **never** affects the primary response.
@@ -53,3 +51,17 @@ runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
 - `runShadowAudit` catches all errors internally — the `.catch(() => {})` on the caller side is a double safety net
 - Log output format: `[SHADOW] wallet-transfer | MATCH | primary=true shadow=true`
 
+## Phase 4: Optional Read from New Service Layer ✅
+
+### What was done
+Added `useNewServices` feature flag (default: `false`) and created `useServiceValidation` hook that conditionally runs TransactionService/WalletService validation before edge function calls. Wired into `useWallet.sendMoney()` for fail-fast pre-validation.
+
+### Files changed
+- `src/contexts/FeatureFlagsContext.tsx` — added `useNewServices` flag
+- `src/core/services/useServiceValidation.ts` — new hook with `preValidateTransfer()` and `checkBalance()`
+- `src/hooks/useWallet.ts` — integrated pre-validation into `sendMoney()`
+
+### Safety
+- Flag defaults to `false` — zero behavior change for users
+- Service errors always fallback to `shouldProceed: true`
+- Edge function remains sole transaction authority
