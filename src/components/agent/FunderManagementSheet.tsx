@@ -405,6 +405,16 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Deposit on behalf of funder */}
+      <AgentDepositDialog
+        open={depositDialogOpen}
+        onOpenChange={setDepositDialogOpen}
+        prefillPhone={depositPhone}
+        onSuccess={() => {
+          fetchFunders();
+        }}
+      />
     </>
   );
 }
