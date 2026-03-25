@@ -22,6 +22,7 @@ const BiometricAuthProvider = lazy(() => import("@/hooks/useBiometricAuth").then
 const CartProvider = lazy(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
 const ComparisonProvider = lazy(() => import("@/hooks/useProductComparison").then(m => ({ default: m.ComparisonProvider })));
 const OfflineProvider = lazy(() => import("@/contexts/OfflineContext").then(m => ({ default: m.OfflineProvider })));
+const FeatureFlagsProvider = lazy(() => import("@/contexts/FeatureFlagsContext").then(m => ({ default: m.FeatureFlagsProvider })));
 
 // Lazy load optional UI components
 const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
