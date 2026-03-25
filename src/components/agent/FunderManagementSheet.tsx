@@ -8,14 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { FunderVisitDialog } from './FunderVisitDialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FunderPortfolioCard } from './FunderPortfolioCard';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
-  Users, MapPin, MessageSquare, Loader2, Phone,
-  Send, Eye, Calendar, Clock, HandCoins, Wallet,
+  Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle,
 } from 'lucide-react';
 
 interface LinkedFunder {
@@ -38,16 +39,6 @@ interface FunderStats {
   walletBalance: number;
 }
 
-interface FunderVisit {
-  id: string;
-  visit_type: string;
-  location_name: string | null;
-  notes: string | null;
-  created_at: string;
-  latitude: number;
-  longitude: number;
-}
-
 export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -55,10 +46,15 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   const [loading, setLoading] = useState(true);
   const [selectedFunder, setSelectedFunder] = useState<LinkedFunder | null>(null);
   const [funderStats, setFunderStats] = useState<Record<string, FunderStats>>({});
-  const [funderVisits, setFunderVisits] = useState<FunderVisit[]>([]);
-  const [visitDialogOpen, setVisitDialogOpen] = useState(false);
   const [sendingSMS, setSendingSMS] = useState<string | null>(null);
-  const [tab, setTab] = useState('overview');
+
+  // Register dialog state
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regNotes, setRegNotes] = useState('');
+  const [registering, setRegistering] = useState(false);
+  const { isDuplicate, isChecking, duplicateMessage } = usePhoneDuplicateCheck(regPhone);
 
   useEffect(() => {
     if (open && user) fetchFunders();
@@ -79,13 +75,11 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
       if (error) throw error;
       setFunders((data as any) || []);
 
-      // Fetch stats for each funder
       if (data && data.length > 0) {
         const statsMap: Record<string, FunderStats> = {};
         for (const f of data) {
           const bid = (f as any).beneficiary?.id;
           if (!bid) continue;
-          
           const [portfoliosRes, walletRes] = await Promise.all([
             supabase
               .from('investor_portfolios')
@@ -98,7 +92,6 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
               .eq('user_id', bid)
               .maybeSingle(),
           ]);
-
           const portfolios = portfoliosRes.data || [];
           statsMap[bid] = {
             totalInvested: portfolios.reduce((s: number, p: any) => s + (p.investment_amount || 0), 0),
@@ -114,24 +107,6 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchVisits = async (funderId: string) => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('funder_visits')
-      .select('id, visit_type, location_name, notes, created_at, latitude, longitude')
-      .eq('agent_id', user.id)
-      .eq('funder_id', funderId)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    setFunderVisits((data as any) || []);
-  };
-
-  const handleSelectFunder = (f: LinkedFunder) => {
-    setSelectedFunder(f);
-    setTab('overview');
-    if (f.beneficiary?.id) fetchVisits(f.beneficiary.id);
   };
 
   const handleSendStatement = async (funder: LinkedFunder) => {
@@ -154,11 +129,33 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     }
   };
 
-  const visitTypeLabel: Record<string, string> = {
-    routine: '📋 Routine',
-    collection: '💰 Collection',
-    statement_delivery: '📄 Statement',
-    dispute_resolution: '⚠️ Dispute',
+  const handleRegister = async () => {
+    if (!user || !regName.trim() || !regPhone.trim()) return;
+    if (isDuplicate) {
+      toast({ title: 'Duplicate phone', description: duplicateMessage || 'This number is already registered', variant: 'destructive' });
+      return;
+    }
+    setRegistering(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('register-proxy-funder', {
+        body: { full_name: regName.trim(), phone: regPhone.trim(), agent_id: user.id, notes: regNotes.trim() || undefined },
+      });
+      if (error) {
+        const msg = await extractFromErrorObject(error);
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      toast({ title: '✅ Funder registered!', description: `${data.full_name} has been added to your funders` });
+      setRegisterOpen(false);
+      setRegName('');
+      setRegPhone('');
+      setRegNotes('');
+      fetchFunders();
+    } catch (err: any) {
+      toast({ title: 'Registration failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setRegistering(false);
+    }
   };
 
   return (
@@ -166,10 +163,15 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" className="h-[92vh] rounded-t-2xl p-0">
           <SheetHeader className="p-4 pb-3 border-b border-border">
-            <SheetTitle className="flex items-center gap-2 text-lg">
-              <HandCoins className="h-5 w-5 text-primary" />
-              My Funders (No Smartphone)
-            </SheetTitle>
+            <div className="flex items-center justify-between">
+              <SheetTitle className="flex items-center gap-2 text-lg">
+                <HandCoins className="h-5 w-5 text-primary" />
+                My Funders
+              </SheetTitle>
+              <Button size="sm" className="gap-1.5 text-xs" onClick={() => setRegisterOpen(true)}>
+                <UserPlus className="h-3.5 w-3.5" /> Add Funder
+              </Button>
+            </div>
           </SheetHeader>
 
           <ScrollArea className="h-[calc(92vh-60px)]">
@@ -180,16 +182,18 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
             ) : funders.length === 0 ? (
               <div className="p-8 text-center">
                 <Users className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-sm font-medium text-muted-foreground">No funders assigned</p>
+                <p className="text-sm font-medium text-muted-foreground">No funders yet</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Ask your manager to link you as proxy for a no-smartphone funder
+                  Register a funder who doesn't have a smartphone
                 </p>
+                <Button size="sm" className="mt-4 gap-1.5" onClick={() => setRegisterOpen(true)}>
+                  <UserPlus className="h-3.5 w-3.5" /> Register First Funder
+                </Button>
               </div>
             ) : !selectedFunder ? (
-              /* Funder List */
               <div className="p-4 space-y-2">
                 <p className="text-xs text-muted-foreground mb-2">
-                  {funders.length} funder{funders.length !== 1 ? 's' : ''} assigned to you
+                  {funders.length} funder{funders.length !== 1 ? 's' : ''} managed by you
                 </p>
                 {funders.map(f => {
                   const stats = f.beneficiary?.id ? funderStats[f.beneficiary.id] : null;
@@ -197,7 +201,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                     <Card
                       key={f.id}
                       className="cursor-pointer hover:bg-muted/30 transition-colors active:scale-[0.98]"
-                      onClick={() => handleSelectFunder(f)}
+                      onClick={() => setSelectedFunder(f)}
                     >
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between gap-2">
@@ -220,8 +224,6 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                             )}
                           </div>
                         </div>
-
-                        {/* Quick Actions */}
                         <div className="flex gap-1.5 mt-2">
                           <Button
                             size="sm"
@@ -243,12 +245,10 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                             className="h-7 text-[10px] gap-1 flex-1"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedFunder(f);
-                              setVisitDialogOpen(true);
+                              if (f.beneficiary?.phone) window.location.href = `tel:${f.beneficiary.phone}`;
                             }}
                           >
-                            <MapPin className="h-3 w-3" />
-                            Log Visit
+                            <Phone className="h-3 w-3" /> Call
                           </Button>
                         </div>
                       </CardContent>
@@ -257,14 +257,8 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                 })}
               </div>
             ) : (
-              /* Funder Detail View */
               <div className="p-4 space-y-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs -ml-2"
-                  onClick={() => setSelectedFunder(null)}
-                >
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs -ml-2" onClick={() => setSelectedFunder(null)}>
                   ← All Funders
                 </Button>
 
@@ -275,8 +269,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   />
                 )}
 
-                {/* Action Buttons */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"
                     className="h-auto py-3 flex-col gap-1.5 text-xs"
@@ -293,18 +286,8 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   <Button
                     variant="outline"
                     className="h-auto py-3 flex-col gap-1.5 text-xs"
-                    onClick={() => setVisitDialogOpen(true)}
-                  >
-                    <MapPin className="h-5 w-5 text-success" />
-                    Log Visit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-auto py-3 flex-col gap-1.5 text-xs"
                     onClick={() => {
-                      if (selectedFunder.beneficiary?.phone) {
-                        window.location.href = `tel:${selectedFunder.beneficiary.phone}`;
-                      }
+                      if (selectedFunder.beneficiary?.phone) window.location.href = `tel:${selectedFunder.beneficiary.phone}`;
                     }}
                   >
                     <Phone className="h-5 w-5 text-warning" />
@@ -312,107 +295,100 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   </Button>
                 </div>
 
-                {/* Tabs: Overview / Visits */}
-                <Tabs value={tab} onValueChange={setTab}>
-                  <TabsList className="w-full">
-                    <TabsTrigger value="overview" className="flex-1 text-xs gap-1">
-                      <Eye className="h-3 w-3" /> Overview
-                    </TabsTrigger>
-                    <TabsTrigger value="visits" className="flex-1 text-xs gap-1">
-                      <Calendar className="h-3 w-3" /> Visits
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="overview" className="mt-3 space-y-3">
-                    <Card>
-                      <CardContent className="p-3">
-                        <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5">
-                          <Wallet className="h-3.5 w-3.5 text-primary" /> What They Can Do via USSD
-                        </h4>
-                        <div className="space-y-1.5 text-xs text-muted-foreground">
-                          <p>📞 Dial the Welile shortcode to:</p>
-                          <div className="pl-4 space-y-1">
-                            <p>1️⃣ Check investment balance & returns</p>
-                            <p>2️⃣ View last return payment</p>
-                            <p>3️⃣ Check wallet balance</p>
-                            <p>4️⃣ Request help / report issues</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardContent className="p-3">
-                        <h4 className="text-xs font-semibold mb-2">📋 Your Responsibilities</h4>
-                        <div className="space-y-1.5 text-xs text-muted-foreground">
-                          <p>✅ Collect physical cash & deposit to their wallet</p>
-                          <p>✅ Invest collected funds on their behalf</p>
-                          <p>✅ Send SMS statements regularly</p>
-                          <p>✅ Log visits with GPS for accountability</p>
-                          <p>✅ Process withdrawal requests (needs 4-stage approval)</p>
-                          <p>⚠️ All proxy actions are audited & flagged</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="visits" className="mt-3 space-y-2">
-                    {funderVisits.length === 0 ? (
-                      <div className="text-center py-8">
-                        <MapPin className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                        <p className="text-sm text-muted-foreground">No visits logged yet</p>
-                        <Button
-                          size="sm"
-                          className="mt-3 gap-1.5"
-                          onClick={() => setVisitDialogOpen(true)}
-                        >
-                          <MapPin className="h-3.5 w-3.5" /> Log First Visit
-                        </Button>
+                <Card>
+                  <CardContent className="p-3">
+                    <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                      <Wallet className="h-3.5 w-3.5 text-primary" /> What They Can Do via USSD
+                    </h4>
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <p>📞 Dial the Welile shortcode to:</p>
+                      <div className="pl-4 space-y-1">
+                        <p>1️⃣ Check investment balance & returns</p>
+                        <p>2️⃣ View last return payment</p>
+                        <p>3️⃣ Check wallet balance</p>
+                        <p>4️⃣ Request help / report issues</p>
                       </div>
-                    ) : (
-                      funderVisits.map(v => (
-                        <Card key={v.id}>
-                          <CardContent className="p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-[10px]">
-                                  {visitTypeLabel[v.visit_type] || v.visit_type}
-                                </Badge>
-                                {v.location_name && (
-                                  <span className="text-xs text-muted-foreground">{v.location_name}</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {format(new Date(v.created_at), 'MMM d, HH:mm')}
-                              </div>
-                            </div>
-                            {v.notes && (
-                              <p className="text-xs text-muted-foreground mt-1.5">{v.notes}</p>
-                            )}
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              📍 {v.latitude.toFixed(4)}, {v.longitude.toFixed(4)}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </TabsContent>
-                </Tabs>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-3">
+                    <h4 className="text-xs font-semibold mb-2">📋 Your Responsibilities</h4>
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <p>✅ Collect physical cash & deposit to their wallet</p>
+                      <p>✅ Invest collected funds on their behalf</p>
+                      <p>✅ Send SMS statements regularly</p>
+                      <p>✅ Process withdrawal requests (needs approval)</p>
+                      <p>⚠️ All proxy actions are audited & flagged</p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </ScrollArea>
         </SheetContent>
       </Sheet>
 
-      <FunderVisitDialog
-        open={visitDialogOpen}
-        onOpenChange={setVisitDialogOpen}
-        funder={selectedFunder?.beneficiary || null}
-        onSuccess={() => {
-          if (selectedFunder?.beneficiary?.id) fetchVisits(selectedFunder.beneficiary.id);
-        }}
-      />
+      {/* Register Funder Dialog */}
+      <Dialog open={registerOpen} onOpenChange={setRegisterOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Register No-Smartphone Funder
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Full Name *</Label>
+              <Input
+                placeholder="e.g. John Mukasa"
+                value={regName}
+                onChange={e => setRegName(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div>
+              <Label>Phone Number *</Label>
+              <Input
+                placeholder="e.g. 0704825473"
+                value={regPhone}
+                onChange={e => setRegPhone(e.target.value)}
+                type="tel"
+                maxLength={15}
+              />
+              {isChecking && <p className="text-[10px] text-muted-foreground mt-1">Checking...</p>}
+              {isDuplicate && (
+                <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {duplicateMessage}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Input
+                placeholder="e.g. My uncle, lives in Kampala"
+                value={regNotes}
+                onChange={e => setRegNotes(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+            <div className="rounded-lg bg-muted/50 p-2.5 text-[10px] text-muted-foreground">
+              <p>📱 This person will be able to check their balance via USSD and receive SMS statements.</p>
+              <p className="mt-1">🔒 All actions you take on their behalf are audited.</p>
+            </div>
+            <Button
+              className="w-full"
+              onClick={handleRegister}
+              disabled={registering || !regName.trim() || !regPhone.trim() || isDuplicate || isChecking}
+            >
+              {registering ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Register Funder
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
