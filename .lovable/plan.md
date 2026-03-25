@@ -1,42 +1,61 @@
 
 
-## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
+## Plan: Agent Self-Registration of No-Smartphone Funders + Remove Visit Requirement
 
-This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
+### What Changes
 
----
+1. **Remove the "Visit" concept entirely** — Delete `FunderVisitDialog.tsx`, remove the Visits tab and Log Visit buttons from `FunderManagementSheet.tsx`, and drop visit-related state/fetches.
 
-### Database Tables Created
+2. **Add "Register New Funder" flow in the FunderManagementSheet** — A button at the top that opens a dialog where the agent enters:
+   - Funder's full name
+   - Funder's phone number
+   - Optional notes (e.g. "My uncle, lives in Kampala")
+   
+   On submit, the system:
+   - Creates a new profile in `profiles` (via an edge function, since agents can't write to auth)
+   - Assigns the `supporter` role
+   - Creates a wallet for the funder
+   - Auto-creates the `proxy_agent_assignments` record linking agent → funder
+   - All flagged as `is_proxy` in audit
 
-1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
-2. `agent_visits` — GPS visit check-ins
-3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
-4. `agent_collections` — Payments recorded against tokens
-5. Added `territory` column to `profiles` table
+3. **New Edge Function: `register-proxy-funder`** — Handles the backend logic securely:
+   - Creates auth user with phone (no password needed since they'll use USSD only)
+   - Inserts profile, role, wallet, and proxy assignment
+   - Returns the new funder ID
 
-### Database Functions Created
+4. **Simplify FunderManagementSheet UI**:
+   - Remove Visits tab, keep only Overview tab
+   - Remove all MapPin/visit references
+   - Add "Register Funder" button in the empty state and header
+   - Keep SMS statement and Call actions
+   - Keep the portfolio card and USSD info
 
-- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
-- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
+### Files to Change
 
-### UI Components Created
+| File | Action |
+|------|--------|
+| `src/components/agent/FunderVisitDialog.tsx` | Delete |
+| `src/components/agent/FunderManagementSheet.tsx` | Remove visits, add Register Funder dialog |
+| `src/components/agent/FunderPortfolioCard.tsx` | Keep as-is |
+| `supabase/functions/register-proxy-funder/index.ts` | Create — registers funder without smartphone |
+| `supabase/functions/ussd-callback/index.ts` | No changes needed |
 
-1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
-2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
-3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
-4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
-5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
+### Technical Details
 
-### Dashboard Updated
+**Edge Function `register-proxy-funder`**:
+```
+Input: { full_name, phone, agent_id, notes? }
+Steps:
+  1. Normalize phone to +256 format
+  2. Check if phone already exists in profiles
+  3. Create auth user via admin API (generateLink or createUser)
+  4. Insert profile record
+  5. Insert user_roles (supporter)
+  6. Create wallet (balance 0)
+  7. Insert proxy_agent_assignments (agent_id, beneficiary_id, role: supporter, assigned_by: agent_id)
+  8. Log to audit_logs with is_proxy = true
+  9. Return { success, funder_id }
+```
 
-- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
-- Daily Ops Card positioned prominently below profile
+**Register Dialog in FunderManagementSheet**: Inline form with name + phone fields, submit calls the edge function, then refreshes the funder list.
 
----
-
-### Phase 2 (Not Yet Implemented)
-
-- Automatic SMS confirmation to tenant
-- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
-- Fraud Prevention monitoring & manager alerts
-- Tenant navigation (call/WhatsApp/GPS directions)
