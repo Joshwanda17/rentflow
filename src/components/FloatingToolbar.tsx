@@ -155,6 +155,7 @@ export default function FloatingToolbar() {
 
   return (
     <>
+      {/* Desktop toolbar */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -243,6 +244,55 @@ export default function FloatingToolbar() {
           <span className="font-semibold text-xs whitespace-nowrap">Welile AI</span>
         </motion.button>
       </motion.div>
+
+      {/* Mobile-only currency button */}
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetTrigger asChild>
+          <button
+            className="md:hidden fixed bottom-24 left-4 z-[60] h-10 w-10 rounded-full bg-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform touch-manipulation"
+            aria-label="Language & Currency"
+          >
+            <div className="flex flex-col items-center">
+              <span className="text-xs leading-none">{languageFlags[language]}</span>
+              <span className="text-[7px] font-bold text-primary-foreground leading-none">{currency.code}</span>
+            </div>
+          </button>
+        </SheetTrigger>
+        <SheetContent side="bottom" className="h-[75vh] rounded-t-2xl">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-primary" />
+              Language & Currency
+            </SheetTitle>
+          </SheetHeader>
+          <Tabs defaultValue="language" className="h-full">
+            <TabsList className="w-full grid grid-cols-4">
+              <TabsTrigger value="language" className="gap-1.5">
+                <Globe className="h-4 w-4" />
+                <span className="hidden sm:inline">Language</span>
+              </TabsTrigger>
+              <TabsTrigger value="currency" className="gap-1.5">
+                <DollarSign className="h-4 w-4" />
+                <span className="hidden sm:inline">Currency</span>
+              </TabsTrigger>
+              <TabsTrigger value="converter" className="gap-1.5">
+                <ArrowLeftRight className="h-4 w-4" />
+                <span className="hidden sm:inline">Convert</span>
+              </TabsTrigger>
+              <TabsTrigger value="accessibility" className="gap-1.5">
+                <Eye className="h-4 w-4" />
+                <span className="hidden sm:inline">Vision</span>
+              </TabsTrigger>
+            </TabsList>
+            <div className="mt-4 overflow-y-auto max-h-[calc(75vh-140px)]">
+              <TabsContent value="language" className="mt-0"><LanguageSelectorGrid /></TabsContent>
+              <TabsContent value="currency" className="mt-0"><CurrencySelectorGrid /></TabsContent>
+              <TabsContent value="converter" className="mt-0"><CurrencyConverter /></TabsContent>
+              <TabsContent value="accessibility" className="mt-0"><AccessibilitySettings /></TabsContent>
+            </div>
+          </Tabs>
+        </SheetContent>
+      </Sheet>
 
       <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />
     </>
