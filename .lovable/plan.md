@@ -1,25 +1,68 @@
 
 
-## Phase 6A: Route-Level Code Splitting — Already Implemented
+## Portfolio Top-Up: Payment Method Selection (Cash / MoMo / Bank)
 
-After inspecting the codebase, **this task is already complete**. No changes needed.
+### What changes
 
-### Evidence
+The manager's `FundInvestmentAccountDialog` gets a payment method selector. Based on selection, different fields appear. No wallet deduction — funds are recorded as pending for verification.
 
-**`src/pages/Dashboard.tsx`** (lines 22–26):
-```typescript
-const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
-const AgentDashboard = lazy(() => import('@/components/dashboards/AgentDashboard'));
-const SupporterDashboard = lazy(() => import('@/components/dashboards/SupporterDashboard'));
-const LandlordDashboard = lazy(() => import('@/components/dashboards/LandlordDashboard'));
-const ManagerDashboard = lazy(() => import('@/components/dashboards/ManagerDashboard'));
+### UI Flow
+
+```text
+┌─────────────────────────────────┐
+│  Portfolio Top-Up               │
+│                                 │
+│  [Portfolio info card]          │
+│                                 │
+│  Payment Method:                │
+│  ┌──────┐ ┌──────┐ ┌──────┐   │
+│  │ 💵   │ │ 📱   │ │ 🏦   │   │
+│  │ Cash │ │ MoMo │ │ Bank │   │
+│  └──────┘ └──────┘ └──────┘   │
+│                                 │
+│  Amount: [___________]          │
+│                                 │
+│  IF MoMo → TID: [___________]  │
+│  IF Bank → Reference: [______] │
+│  IF Cash → (no extra field)    │
+│                                 │
+│  Notes: [___________]           │
+│                                 │
+│  [Preview: Pending deposit]     │
+│  [Cancel]  [Submit Top-Up]      │
+└─────────────────────────────────┘
 ```
 
-**`src/App.tsx`** (lines 35–54): All page routes are already lazy-loaded — `Dashboard`, `Auth`, `Landing`, `Settings`, `TransactionHistory`, `AgentEarnings`, `Marketplace`, executive dashboards, etc.
+### Technical Details
 
-**Suspense fallbacks** are also already in place in both files.
+**Frontend: `FundInvestmentAccountDialog.tsx`**
+- Remove wallet balance fetch and display (no wallet deduction)
+- Add `paymentMethod` state: `'cash' | 'mobile_money' | 'bank'`
+- Three styled selectable cards for payment method
+- Conditional fields:
+  - `mobile_money` → TID input (required, min 8 chars)
+  - `bank` → Bank reference input (required, min 6 chars)
+  - `cash` → No extra field needed
+- Remove `insufficientFunds` check entirely
+- Update preview section to show "Pending verification" instead of wallet math
+- Pass `payment_method`, `transaction_reference` (TID or bank ref) to the edge function
+- Update title from "Wallet → Portfolio Top-Up" to "Portfolio Top-Up"
 
-### Conclusion
+**Edge Function: `manager-portfolio-topup/index.ts`**
+- Accept new fields: `payment_method` (cash/mobile_money/bank), `transaction_reference`
+- Validate: if mobile_money, require `transaction_reference`; if bank, require `transaction_reference`
+- Remove wallet deduction logic entirely (no wallet fetch, no balance check, no optimistic lock)
+- Store payment details in `pending_wallet_operations` using existing columns:
+  - `reference_id` → TID or bank reference
+  - `metadata` → `{ payment_method, transaction_reference, initiated_by }`
+  - `operation_type` → `'portfolio_topup'`
+  - `status` → `'pending'`
+- Keep ledger entries, audit log, and notifications (update descriptions to reflect payment method)
 
-All five dashboards listed in the task (Tenant, Agent, Supporter, Landlord, Manager) plus all page-level routes are already using `React.lazy` with `Suspense` fallbacks. No changes required.
+### Files affected
+- `src/components/manager/FundInvestmentAccountDialog.tsx` — UI redesign with payment method cards
+- `supabase/functions/manager-portfolio-topup/index.ts` — Remove wallet deduction, accept payment method fields
+
+### No database changes
+Uses existing `reference_id`, `metadata`, and `operation_type` columns on `pending_wallet_operations`.
 
