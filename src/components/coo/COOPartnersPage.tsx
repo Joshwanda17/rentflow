@@ -436,16 +436,34 @@ export default function COOPartnersPage() {
       const portfolios = (portfolioRes.data || []) as PortfolioRow[];
       const totalROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
 
-      // Fetch renewal counts for these portfolios
+      // Fetch renewal counts and pending top-ups for these portfolios
       const portfolioIds = portfolios.map(p => p.id);
       if (portfolioIds.length > 0) {
-        const { data: renewals } = await supabase
-          .from('portfolio_renewals')
-          .select('portfolio_id')
-          .in('portfolio_id', portfolioIds);
+        const [renewalsRes, pendingRes] = await Promise.all([
+          supabase
+            .from('portfolio_renewals')
+            .select('portfolio_id')
+            .in('portfolio_id', portfolioIds),
+          supabase
+            .from('pending_wallet_operations')
+            .select('source_id, amount')
+            .in('source_id', portfolioIds)
+            .eq('source_table', 'investor_portfolios')
+            .eq('operation_type', 'portfolio_topup')
+            .eq('status', 'pending'),
+        ]);
         const counts: Record<string, number> = {};
-        (renewals || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
+        (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
         setRenewalCounts(counts);
+
+        const pending: Record<string, { count: number; total: number }> = {};
+        (pendingRes.data || []).forEach((op: any) => {
+          const key = op.source_id;
+          if (!pending[key]) pending[key] = { count: 0, total: 0 };
+          pending[key].count += 1;
+          pending[key].total += Number(op.amount);
+        });
+        setPendingTopUps(pending);
       }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
