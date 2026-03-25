@@ -21,7 +21,6 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
@@ -214,7 +213,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       />
 
       {/* Scrollable content area */}
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
+      <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
           {/* Offline Notice */}
           <AnimatePresence>
@@ -390,7 +389,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           <WalletDisclaimer />
         </main>
-      </PullToRefresh>
+      </div>
 
       {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />

@@ -20,7 +20,6 @@ import {
 import { ReceiptStatusTimeline } from '@/components/receipts/ReceiptStatusTimeline';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { QRScanner } from '@/components/receipts/QRScanner';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { useConfetti } from '@/components/Confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptsSkeleton } from '@/components/skeletons/DashboardSkeletons';
@@ -506,12 +505,7 @@ export default function MyReceipts() {
 
           {/* History Tab */}
           <TabsContent value="history" className="mt-0">
-            <PullToRefresh 
-              onRefresh={async () => {
-                await fetchData();
-              }}
-              className="min-h-[200px] -mx-4 px-4"
-            >
+            <div className="min-h-[200px] -mx-4 px-4">
               <div className="space-y-4 pt-2">
                 {receipts.length === 0 ? (
                   <motion.div
@@ -639,7 +633,7 @@ export default function MyReceipts() {
                   </div>
                 )}
               </div>
-            </PullToRefresh>
+            </div>
           </TabsContent>
         </Tabs>
 

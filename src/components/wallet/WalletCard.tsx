@@ -20,7 +20,6 @@ import { WalletStatement } from './WalletStatement';
 import { MyReferralsCount } from './MyReferralsCount';
 
 import { RecentAutoCharges } from './RecentAutoCharges';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -89,7 +88,7 @@ export function WalletCard() {
 
   return (
     <>
-      <PullToRefresh onRefresh={handleRefresh}>
+      <div>
         <Card className="overflow-hidden border-border/50 shadow-lg rounded-2xl">
         {/* Header with gradient */}
         <div className="bg-gradient-to-br from-primary via-primary to-primary/85 p-4 sm:p-5 text-primary-foreground">
@@ -284,7 +283,7 @@ export function WalletCard() {
           )}
         </CardContent>
       </Card>
-      </PullToRefresh>
+      </div>
 
       {/* User's Requests */}
       <UserDepositRequests />

@@ -19,7 +19,6 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { PullToRefresh } from '@/components/PullToRefresh';
 import { useWallet } from '@/hooks/useWallet';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
@@ -362,7 +361,7 @@ export default function SupporterDashboard({
         headerActions={<NotificationBell userId={user.id} />}
       />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 min-h-0 overflow-y-auto pb-28 md:pb-4 overscroll-contain -webkit-overflow-scrolling-touch">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-28 md:pb-4 overscroll-contain">
         <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-5 max-w-lg mx-auto pb-8">
           
           {/* ═══ INLINE GREETING BAR ═══ */}
@@ -499,7 +498,7 @@ export default function SupporterDashboard({
 
 
         </main>
-      </PullToRefresh>
+      </div>
       <SupporterMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
