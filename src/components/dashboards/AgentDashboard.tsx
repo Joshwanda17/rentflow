@@ -287,38 +287,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
 
+        {/* Daily Rent Expected — top priority visibility */}
+        <DailyRentExpectedCard userId={user.id} />
 
-        {/* Action Insights: Daily Rent, Forecast, Streak, Priority Queue */}
-        <AgentActionInsights agentId={user.id} />
-
-        {/* Cash Payouts - Only visible for CFO-assigned cashout agents */}
-        {isCashoutAgent && (
-          <button
-            onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/15 transition-all touch-manipulation active:scale-[0.98] animate-fade-in"
-          >
-            <div className="p-2.5 rounded-lg bg-orange-500/20">
-              <Banknote className="h-5 w-5 text-orange-600" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-sm text-orange-700 dark:text-orange-400">Cash Payouts</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
-              </p>
-            </div>
-            <span className="text-lg text-orange-500">›</span>
-          </button>
-        )}
-
-        {/* Landlord Funds — Pay Landlord via MoMo (escrow float) */}
-        <AgentLandlordFloatCard
-          onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }}
-          onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
-          onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
-          onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
-        />
-
-        {/* 5 Key Action Buttons + Hub */}
+        {/* 5 Key Action Buttons + Hub — immediately accessible */}
         <div className="grid grid-cols-3 gap-2 animate-fade-in">
           {[
             { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
@@ -357,6 +329,36 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Action Insights: Forecast, Streak, Priority Queue (Daily Rent already shown above) */}
+        <AgentActionInsights agentId={user.id} hideDailyRent />
+
+        {/* Cash Payouts - Only visible for CFO-assigned cashout agents */}
+        {isCashoutAgent && (
+          <button
+            onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
+            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/15 transition-all touch-manipulation active:scale-[0.98] animate-fade-in"
+          >
+            <div className="p-2.5 rounded-lg bg-orange-500/20">
+              <Banknote className="h-5 w-5 text-orange-600" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-sm text-orange-700 dark:text-orange-400">Cash Payouts</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
+              </p>
+            </div>
+            <span className="text-lg text-orange-500">›</span>
+          </button>
+        )}
+
+        {/* Landlord Funds — Pay Landlord via MoMo (escrow float) */}
+        <AgentLandlordFloatCard
+          onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }}
+          onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
+          onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
+          onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
+        />
 
         <RecentAutoCharges />
 
