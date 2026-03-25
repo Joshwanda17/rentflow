@@ -3,6 +3,7 @@ import { Users, ArrowRight, Calculator, Zap, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { motion } from 'framer-motion';
+import welileColoredLogo from '@/assets/welile-colored.png';
 
 
 interface IntentOption {
@@ -69,15 +70,14 @@ export default function Landing() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero — minimal, intent-first */}
       <header className="pt-safe-top px-5 pt-10 pb-6 text-center">
-        <motion.h1
-          className="text-5xl font-bold text-primary tracking-tight"
-          style={{ fontFamily: "'Chewy', cursive" }}
+        <motion.img
+          src={welileColoredLogo}
+          alt="Welile"
+          className="h-14 w-auto mx-auto"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-        >
-          Welile
-        </motion.h1>
+        />
         <motion.p
           className="text-muted-foreground text-sm mt-2 max-w-[260px] mx-auto leading-relaxed"
           initial={{ opacity: 0 }}
