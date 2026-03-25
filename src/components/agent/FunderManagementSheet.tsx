@@ -307,7 +307,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                       }
                     }}
                   >
-                    <Phone className="h-5 w-5 text-amber-500" />
+                    <Phone className="h-5 w-5 text-warning" />
                     Call
                   </Button>
                 </div>

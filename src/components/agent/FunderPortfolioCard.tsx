@@ -47,7 +47,7 @@ export function FunderPortfolioCard({ funder, stats }: FunderPortfolioCardProps)
             <p className="text-sm font-bold text-success">{formatUGX(stats.totalROI)}</p>
           </div>
           <div className="rounded-xl bg-background/80 p-3 text-center">
-            <Wallet className="h-4 w-4 mx-auto text-amber-500 mb-1" />
+            <Wallet className="h-4 w-4 mx-auto text-warning mb-1" />
             <p className="text-[10px] text-muted-foreground">Wallet</p>
             <p className="text-sm font-bold">{formatUGX(stats.walletBalance)}</p>
           </div>

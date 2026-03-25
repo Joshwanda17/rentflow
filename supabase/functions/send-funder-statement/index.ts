@@ -91,12 +91,12 @@ Deno.serve(async (req) => {
     // Get active portfolios
     const { data: portfolios } = await supabase
       .from("investor_portfolios")
-      .select("id, portfolio_code, account_name, amount_invested, total_roi_earned, status, created_at")
-      .eq("user_id", funder_id)
+      .select("id, portfolio_code, account_name, investment_amount, total_roi_earned, status, created_at")
+      .eq("investor_id", funder_id)
       .in("status", ["active", "matured"])
       .order("created_at", { ascending: false });
 
-    const totalInvested = (portfolios || []).reduce((s, p) => s + (p.amount_invested || 0), 0);
+    const totalInvested = (portfolios || []).reduce((s: number, p: any) => s + (p.investment_amount || 0), 0);
     const totalROI = (portfolios || []).reduce((s, p) => s + (p.total_roi_earned || 0), 0);
     const activeCount = (portfolios || []).filter(p => p.status === "active").length;
 
