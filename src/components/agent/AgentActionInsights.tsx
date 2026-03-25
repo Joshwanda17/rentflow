@@ -8,16 +8,17 @@ import { DailyRentExpectedCard } from './DailyRentExpectedCard';
 
 interface Props {
   agentId: string;
+  hideDailyRent?: boolean;
 }
 
-export function AgentActionInsights({ agentId }: Props) {
+export function AgentActionInsights({ agentId, hideDailyRent }: Props) {
   const [queueOpen, setQueueOpen] = useState(false);
 
   return (
     <>
       <div className="space-y-3 animate-fade-in">
         {/* Daily Rent Expected */}
-        <DailyRentExpectedCard userId={agentId} />
+        {!hideDailyRent && <DailyRentExpectedCard userId={agentId} />}
 
         {/* Earnings Forecast */}
         <EarningsForecastCard agentId={agentId} />
