@@ -416,6 +416,23 @@ export default function SupporterDashboard({
             totalReturn={totalRoiEarned}
           />
 
+          {/* ═══ MY PORTFOLIOS — Big, Unmissable Card ═══ */}
+          <button
+            onClick={() => { hapticTap(); navigate('/investment-portfolio'); }}
+            className="w-full rounded-2xl bg-card border-2 border-primary/20 p-4 flex items-center gap-4 active:scale-[0.98] transition-all touch-manipulation shadow-sm hover:border-primary/40 min-h-[72px]"
+          >
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Wallet className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="font-bold text-base text-foreground">My Portfolios</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {accounts.length > 0 ? `${accounts.length} active account${accounts.length > 1 ? 's' : ''} · Tap to view` : 'View & manage your investments'}
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
+          </button>
+
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
             <button
@@ -424,7 +441,7 @@ export default function SupporterDashboard({
                 if (!effectiveHasAccepted) { setShowAgreementModal(true); return; }
                 setShowPaymentPartners(true);
               }}
-              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation"
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
             >
               <CreditCard className="h-4.5 w-4.5" />
               Add Funds
@@ -432,7 +449,7 @@ export default function SupporterDashboard({
 
             <button
               onClick={() => { hapticTap(); setShowCalculator(true); }}
-              className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-foreground font-bold text-sm shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
+              className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-foreground font-bold text-sm shadow-sm active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
             >
               <Calculator className="h-4.5 w-4.5 text-primary" />
               ROI
@@ -440,7 +457,7 @@ export default function SupporterDashboard({
 
             <button
               onClick={handleOpenMenu}
-              className="flex items-center justify-center px-4 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-muted-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
+              className="flex items-center justify-center px-4 py-3.5 rounded-2xl bg-card border-2 border-border/60 text-muted-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation min-h-[48px]"
             >
               <Menu className="h-5 w-5" />
             </button>
