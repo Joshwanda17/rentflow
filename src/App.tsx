@@ -331,11 +331,13 @@ function DeferredProviders({ children }: { children: ReactNode }) {
         <PinAuthProvider>
           <BiometricAuthProvider>
             <OfflineProvider>
-              <CartProvider>
-                <ComparisonProvider>
-                  {children}
-                </ComparisonProvider>
-              </CartProvider>
+              <FeatureFlagsProvider>
+                <CartProvider>
+                  <ComparisonProvider>
+                    {children}
+                  </ComparisonProvider>
+                </CartProvider>
+              </FeatureFlagsProvider>
             </OfflineProvider>
           </BiometricAuthProvider>
         </PinAuthProvider>
