@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { runShadowAudit } from "../_shared/shadowLogger.ts";
+import { shadowValidateWalletTransfer } from "../_shared/shadowValidation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,6 +99,11 @@ serve(async (req) => {
     const safeDescription = typeof description === 'string' ? description.trim().slice(0, 500) : 'Wallet transfer';
 
     console.log(`Processing transfer: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
+
+    // Phase 3: Shadow audit — non-blocking, fire-and-forget
+    runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
+      true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription })
+    );
 
     if (senderId === resolvedRecipientId) {
       return new Response(

@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { runShadowAudit } from "../_shared/shadowLogger.ts";
+import { shadowValidateCfoAdjustment } from "../_shared/shadowValidation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,6 +51,12 @@ Deno.serve(async (req) => {
     if (!reason || typeof reason !== "string" || reason.length < 10) {
       throw new Error("Reason must be at least 10 characters");
     }
+
+    // Phase 3: Shadow audit — non-blocking, fire-and-forget
+    const callerRoles = (roles || []).map((r: any) => r.role);
+    runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation },
+      true, () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles })
+    );
 
     const { data: targetProfile } = await adminClient
       .from("profiles")
