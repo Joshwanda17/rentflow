@@ -328,7 +328,7 @@ export function PartnersOpsDashboard() {
       {/* Daily Brief */}
       <PartnerOpsBrief />
 
-      <PendingWalletOperationsWidget />
+      
 
       {/* ═══ ESCALATION ALERTS ═══ */}
       {openEscalations > 0 && (() => {

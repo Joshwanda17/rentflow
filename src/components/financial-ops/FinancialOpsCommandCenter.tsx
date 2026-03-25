@@ -60,6 +60,7 @@ export function FinancialOpsCommandCenter() {
         </div>
 
         <TabsContent value="ops" className="mt-2 sm:mt-3">
+          <PendingWalletOperationsWidget />
           <ScaleDashboard />
         </TabsContent>
         <TabsContent value="tid" className="mt-2 sm:mt-3">
