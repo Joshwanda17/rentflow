@@ -8,6 +8,7 @@ import {
   getCachedTransactions,
   addToSyncQueue 
 } from '@/lib/offlineDataStorage';
+import { useServiceValidation } from '@/core/services/useServiceValidation';
 
 interface WalletTransaction {
   id: string;
@@ -34,6 +35,7 @@ const WALLET_CACHE_TTL = 30_000; // 30 seconds
 
 export function useWallet() {
   const { user } = useAuth();
+  const { preValidateTransfer, checkBalance } = useServiceValidation();
   // Initialize from module cache OR localStorage for instant display (no flash)
   const [wallet, setWallet] = useState<Wallet | null>(() => {
     if (walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
@@ -185,6 +187,25 @@ export function useWallet() {
 
   const sendMoney = useCallback(async (recipientPhone: string, amount: number, description?: string) => {
     if (!user) return { error: new Error('Please log in first') };
+
+    // Phase 4: Optional pre-validation via new service layer
+    const transferCheck = preValidateTransfer({
+      senderId: user.id,
+      recipientPhone,
+      amount,
+      description,
+    });
+    if (!transferCheck.shouldProceed) {
+      return { error: new Error(transferCheck.errors?.[0] || 'Validation failed') };
+    }
+
+    // Optional balance pre-check (fail-fast)
+    if (wallet) {
+      const balanceCheck = checkBalance(wallet.balance, amount);
+      if (!balanceCheck.shouldProceed) {
+        return { error: new Error(balanceCheck.errors?.[0] || 'Insufficient balance') };
+      }
+    }
     
     try {
       const { data, error } = await supabase.functions.invoke('wallet-transfer', {
@@ -204,7 +225,7 @@ export function useWallet() {
     } catch (e: any) {
       return { error: new Error(e.message || 'Transfer failed') };
     }
-  }, [user, fetchWallet]);
+  }, [user, fetchWallet, wallet, preValidateTransfer, checkBalance]);
 
   const depositMoney = useCallback(async (_amount: number) => {
     // Direct client-side wallet updates are not allowed for security.

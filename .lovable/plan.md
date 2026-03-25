@@ -1,55 +1,67 @@
-
-
-## Phase 4: Optional Read from New Service Layer
+## Phase 3: Dual Execution — Shadow Audit in Edge Functions ✅
 
 ### What this does
-Adds a `useNewServices` feature flag and creates a hook (`useServiceValidation`) that conditionally runs the new service layer's validation logic before edge function calls. When the flag is off (default), nothing changes. When enabled, client-side pre-validation runs using `TransactionService` methods, providing instant feedback before the network call.
+Adds non-blocking shadow validation calls inside 3 edge functions (`wallet-transfer`, `cfo-direct-credit`, `fund-rent-pool`). Shadow logic runs after the primary validation, logs match/divergence, and **never** affects the primary response.
 
-### Changes
+### New files
 
-**1. `src/contexts/FeatureFlagsContext.tsx`**
-- Add `useNewServices: boolean` to the `FeatureFlags` interface (default: `false`)
+**1. `supabase/functions/_shared/shadowValidation.ts`**
+Port of Phase 2 pure validation functions for Deno runtime. Contains:
+- `shadowValidateWalletTransfer()` — amount range, UUID, self-transfer, phone checks
+- `shadowValidateCfoAdjustment()` — role check, amount 1–50M, reason length
+- `shadowValidatePoolFunding()` — supporter role, positive amount
 
-**2. `src/core/services/useServiceValidation.ts` (new)**
-- A hook that reads the `useNewServices` flag
-- Exposes methods like `preValidateTransfer(request)`, `preValidateDeposit(request)`, `checkBalance(balance, amount)`
-- Each method returns `{ shouldProceed: true }` when the flag is off (passthrough)
-- When the flag is on, runs the corresponding `TransactionService` / `WalletService` validation and returns `{ shouldProceed, errors }` 
-- Always non-blocking — if the service layer throws, it returns `shouldProceed: true` (safe fallback)
+These are standalone pure functions (no imports from `src/`).
 
-**3. `src/hooks/useWallet.ts`**
-- Import `useServiceValidation`
-- In `sendMoney()`, call `preValidateTransfer()` before invoking the edge function
-- If pre-validation fails (and flag is on), return the error immediately without the network call — faster UX
-- If pre-validation passes or flag is off, proceed to edge function as before (zero behavior change)
+**2. `supabase/functions/_shared/shadowLogger.ts`**
+- `runShadowAudit(fnName, inputs, primaryPassed, shadowFn)` — wraps shadow in try/catch
+- Executes as fire-and-forget (non-awaited promise)
+- Logs `[SHADOW] MATCH` or `[SHADOW] DIVERGENCE` with both results
+- Shadow errors logged as `[SHADOW] ERROR` — never propagated
 
-**4. `src/components/wallet/SendMoneyDialog.tsx`**
-- No changes needed — it already consumes `sendMoney` from `useWallet`
+### Edge function changes (minimal, additive only)
 
-### Architecture
-
-```text
-User clicks "Send Money"
-  │
-  ├─ useNewServices = false (default)
-  │    └─ Straight to edge function (current behavior, unchanged)
-  │
-  └─ useNewServices = true
-       ├─ TransactionService.validateWalletTransfer() runs locally
-       ├─ Pass → proceed to edge function as normal
-       └─ Fail → return error instantly (no network call)
-           └─ Edge function is NEVER bypassed for success — it remains the authority
+**3. `wallet-transfer/index.ts`**
+- Add import of `runShadowAudit` and `shadowValidateWalletTransfer`
+- After all primary validations pass (before wallet DB operations ~line 100), insert:
+```ts
+runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
+  true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription })
+);
 ```
+- Zero changes to primary logic, responses, or error paths
 
-### Key safety properties
-- Flag defaults to `false` — zero change for all users
-- New services only provide early rejection (fail-fast), never early approval
-- Edge function remains the sole authority for executing transactions
-- If service validation throws an exception, fallback is `shouldProceed: true`
-- No database changes, no edge function changes
+**4. `cfo-direct-credit/index.ts`**
+- Same pattern after role+input validation succeeds
+- Shadow validates CFO adjustment inputs
 
-### Files affected
-- `src/contexts/FeatureFlagsContext.tsx` — add flag
-- `src/core/services/useServiceValidation.ts` — new hook
-- `src/hooks/useWallet.ts` — wire pre-validation into `sendMoney`
+**5. `fund-rent-pool/index.ts`**
+- Same pattern after role+amount validation succeeds
+- Shadow validates pool funding inputs
 
+### What stays the same
+- All primary execution paths, responses, DB operations — untouched
+- No frontend changes, no database changes
+- Shadow calls are detached promises — add zero latency to user responses
+- Any shadow failure is swallowed silently (logged only)
+
+### Technical details
+- `_shared/` imports via relative path: `import { ... } from "../_shared/shadowValidation.ts"`
+- Shadow functions are pure (no DB, no Supabase client)
+- `runShadowAudit` catches all errors internally — the `.catch(() => {})` on the caller side is a double safety net
+- Log output format: `[SHADOW] wallet-transfer | MATCH | primary=true shadow=true`
+
+## Phase 4: Optional Read from New Service Layer ✅
+
+### What was done
+Added `useNewServices` feature flag (default: `false`) and created `useServiceValidation` hook that conditionally runs TransactionService/WalletService validation before edge function calls. Wired into `useWallet.sendMoney()` for fail-fast pre-validation.
+
+### Files changed
+- `src/contexts/FeatureFlagsContext.tsx` — added `useNewServices` flag
+- `src/core/services/useServiceValidation.ts` — new hook with `preValidateTransfer()` and `checkBalance()`
+- `src/hooks/useWallet.ts` — integrated pre-validation into `sendMoney()`
+
+### Safety
+- Flag defaults to `false` — zero behavior change for users
+- Service errors always fallback to `shouldProceed: true`
+- Edge function remains sole transaction authority
