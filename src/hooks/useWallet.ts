@@ -35,6 +35,7 @@ const WALLET_CACHE_TTL = 30_000; // 30 seconds
 
 export function useWallet() {
   const { user } = useAuth();
+  const { preValidateTransfer, checkBalance } = useServiceValidation();
   // Initialize from module cache OR localStorage for instant display (no flash)
   const [wallet, setWallet] = useState<Wallet | null>(() => {
     if (walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
