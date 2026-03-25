@@ -44,11 +44,10 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
 }
 
 export function useFeatureFlags() {
-  const context = useContext(FeatureFlagsContext);
-  if (!context) {
-    throw new Error('useFeatureFlags must be used within FeatureFlagsProvider');
-  }
-  return context;
+  return useContext(FeatureFlagsContext) ?? {
+    flags: defaultFlags,
+    setFlag: () => {},
+  };
 }
 
 interface FeatureFlagProps {
