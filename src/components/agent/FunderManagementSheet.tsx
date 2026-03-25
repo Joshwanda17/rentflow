@@ -17,7 +17,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
-  Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle,
+  Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle, Banknote,
 } from 'lucide-react';
 
 interface LinkedFunder {
