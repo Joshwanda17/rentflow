@@ -619,7 +619,7 @@ export function ApprovalQueue() {
                             variant="ghost"
                             className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
                             onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('reject'); }}
-                            disabled={processing === item.id}
+                            disabled={processing}
                           >
                             <XCircle className="h-4 w-4" />
                             Reject
