@@ -610,7 +610,7 @@ export function ApprovalQueue() {
                               isDeposit ? 'text-success hover:bg-success/10' : 'text-primary hover:bg-primary/10'
                             }`}
                             onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
-                            disabled={processing === item.id}
+                            disabled={processing}
                           >
                             <CheckCircle2 className="h-4 w-4" />
                             Approve
