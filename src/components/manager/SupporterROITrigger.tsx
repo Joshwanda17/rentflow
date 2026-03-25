@@ -30,6 +30,8 @@ export function SupporterROITrigger() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastResults, setLastResults] = useState<ProcessingResults | null>(null);
   const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
+  const { flags } = useFeatureFlags();
+  const isPaused = !flags.enablePartnerAutoPayout;
 
   const handleProcessROI = async () => {
     setLoading(true);
