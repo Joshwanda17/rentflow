@@ -864,7 +864,34 @@ export default function COOPartnersPage() {
     finally { setInvesting(false); }
   }
 
-  /* ─── Edit ─── */
+  /* ─── Wallet → Portfolio Transfer ─── */
+  async function handleWalletToPortfolio() {
+    if (!walletToPortfolio || !detailPartner) return;
+    const amt = Number(walletToPortfolioAmount);
+    if (isNaN(amt) || amt < 1000) { toast.error('Minimum: UGX 1,000'); return; }
+    if (amt > detailPartner.walletBalance) { toast.error(`Only ${formatUGX(detailPartner.walletBalance)} available in wallet`); return; }
+    if (walletToPortfolioReason.trim().length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+
+    setWalletToPortfolioSaving(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('coo-wallet-to-portfolio', {
+        body: { portfolio_id: walletToPortfolio.id, amount: amt, reason: walletToPortfolioReason.trim() },
+      });
+      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (result?.error) throw new Error(result.error);
+
+      toast.success(`${formatUGX(amt)} moved from wallet → ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
+        description: `New wallet balance: ${formatUGX(result.wallet_balance_after)}`,
+      });
+      setWalletToPortfolio(null);
+      setWalletToPortfolioAmount('');
+      setWalletToPortfolioReason('');
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      fetchData();
+    } catch (e: any) { toast.error(e.message || 'Transfer failed'); }
+    finally { setWalletToPortfolioSaving(false); }
+  }
+
   function openEdit(r: PartnerRow) {
     setEditPartner(r);
     setEditName(r.name);
