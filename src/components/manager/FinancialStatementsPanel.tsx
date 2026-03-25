@@ -76,14 +76,20 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
 function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
   return (
     <div className="space-y-1">
-      <SectionHeader>Operating Activities</SectionHeader>
+      <SectionHeader>Platform Operating Activities</SectionHeader>
       <LineItem label="Tenant Fees Received" value={d.operatingActivities.tenantFeesReceived} indent />
       <LineItem label="Rent Repayments" value={d.operatingActivities.rentRepayments} indent />
-      <LineItem label="Deposits Received" value={d.operatingActivities.depositsReceived} indent />
+      <LineItem label="Other Platform Income" value={d.operatingActivities.depositsReceived} indent />
       <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
       <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
-      <LineItem label="Withdrawals Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
-      <LineItem label="Net Operating Cash" value={d.operatingActivities.netOperating} bold />
+      <LineItem label="Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
+      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
+
+      <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits and withdrawals by users</p>
+      <LineItem label="User Deposits Received" value={d.custodialActivities.userDeposits} indent />
+      <LineItem label="User Withdrawals Processed" value={d.custodialActivities.userWithdrawals} negative indent />
+      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
 
       <SectionHeader>Financing Activities</SectionHeader>
       <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
@@ -91,13 +97,13 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold />
 
       <div className="pt-3 mt-2 border-t-2 border-primary/30 space-y-1">
-        <LineItem label="Opening Balance" value={d.openingBalance} />
+        <LineItem label="Opening Platform Balance" value={d.openingBalance} />
         <div className={cn('flex justify-between text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
-          <span>Net Cash Movement</span>
+          <span>Net Platform Cash Movement</span>
           <span className="font-mono">{d.netCashMovement >= 0 ? '+' : ''}{formatUGX(d.netCashMovement)}</span>
         </div>
         <div className="flex justify-between text-base font-bold">
-          <span>Closing Balance</span>
+          <span>Closing Platform Balance</span>
           <span className="font-mono text-primary">{formatUGX(d.closingBalance)}</span>
         </div>
       </div>
