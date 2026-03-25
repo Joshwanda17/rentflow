@@ -21,7 +21,7 @@ import {
   CheckCircle2, Calendar, Sparkles
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { motion } from 'framer-motion';
+
 
 interface AgentGoal {
   id: string;
