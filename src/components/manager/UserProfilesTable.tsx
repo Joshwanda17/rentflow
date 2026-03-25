@@ -256,9 +256,6 @@ export default function UserProfilesTable() {
     setRefreshing(false);
   }, [refetchDuplicates]);
 
-  const handlePullToRefresh = useCallback(async () => {
-    await Promise.all([fetchUsers(), refetchDuplicates()]);
-  }, [refetchDuplicates]);
 
   const handleExportCSV = () => {
     if (filteredUsers.length === 0) {
