@@ -116,11 +116,14 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
   return (
     <div className="space-y-1">
       <SectionHeader>Assets</SectionHeader>
-      <LineItem label="Cash & Equivalents" value={d.assets.cashAndEquivalents} indent />
-      <LineItem label="Receivables" value={d.assets.receivables} indent />
+      <LineItem label="Platform Cash (Earned Revenue)" value={d.assets.platformCash} indent />
+      <LineItem label="User Funds Held in Custody" value={d.assets.userFundsHeld} indent />
+      <LineItem label="Rent Receivables (Funded)" value={d.assets.receivables} indent />
       <LineItem label="Total Assets" value={d.assets.totalAssets} bold />
 
-      <SectionHeader>Platform Obligations</SectionHeader>
+      <SectionHeader>Obligations (Liabilities)</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">User wallets are custodial — these funds belong to users, not the platform</p>
+      <LineItem label="User Wallet Balances (Custody)" value={d.platformObligations.userWalletCustody} negative indent />
       <LineItem label="Pending Withdrawal Provisions" value={d.platformObligations.pendingWithdrawals} negative indent />
       <LineItem label="Accrued Platform Rewards" value={d.platformObligations.accruedPlatformRewards} negative indent />
       <LineItem label="Agent Commissions Payable" value={d.platformObligations.agentCommissionsPayable} negative indent />
@@ -131,7 +134,7 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Total Equity" value={d.platformEquity.totalEquity} bold />
 
       <p className={cn('text-xs text-center pt-2 mt-1', balanced ? 'text-success' : 'text-destructive')}>
-        {balanced ? '✓ Balance sheet is balanced' : '⚠ Requires reconciliation'}
+        {balanced ? '✓ Balance sheet is balanced (Assets = Obligations + Equity)' : '⚠ Requires reconciliation'}
       </p>
     </div>
   );
