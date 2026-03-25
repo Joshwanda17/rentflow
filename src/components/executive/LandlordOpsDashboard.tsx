@@ -133,6 +133,7 @@ export function LandlordOpsDashboard() {
   const [verifying, setVerifying] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
+  const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' } | null>(null);
 
   const { data: listings, isLoading, refetch } = useQuery({
     queryKey: ['exec-house-listings-ops'],
