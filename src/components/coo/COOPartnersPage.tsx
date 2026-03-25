@@ -306,7 +306,7 @@ export default function COOPartnersPage() {
           joinedAt: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '—',
           lastActivity: agg.lastActivity ? new Date(agg.lastActivity).toLocaleDateString() : '—',
         };
-      }).filter(r => r.funded > 0 || r.activeDeals > 0 || r.walletBalance > 0)
+      }).filter(r => r.funded > 0 || r.activeDeals > 0)
         .sort((a, b) => b.funded - a.funded);
 
       const totalFunded = tableRows.reduce((s, r) => s + r.funded, 0);
