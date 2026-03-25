@@ -119,7 +119,7 @@ function showErrorUI() {
 
 loadApp();
 
-// Show retry UI after 8s on slow networks
+// Show retry UI after 6s on slow networks
 setTimeout(() => {
   if (root.innerHTML.includes('animation:')) {
     const retryBtn = document.createElement('button');
