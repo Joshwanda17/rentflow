@@ -52,6 +52,12 @@ Deno.serve(async (req) => {
       throw new Error("Reason must be at least 10 characters");
     }
 
+    // Phase 3: Shadow audit — non-blocking, fire-and-forget
+    const callerRoles = (roles || []).map((r: any) => r.role);
+    runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation },
+      true, () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles })
+    );
+
     const { data: targetProfile } = await adminClient
       .from("profiles")
       .select("id, full_name")

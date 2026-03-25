@@ -66,6 +66,11 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Phase 3: Shadow audit — non-blocking, fire-and-forget
+    runShadowAudit('fund-rent-pool', { amount, userId: user.id },
+      true, () => shadowValidatePoolFunding({ amount, callerRoles: roles })
+    );
+
     // Payout day is auto-calculated (30-day cycle from investment date)
     const payout_day = new Date().getDate();
 

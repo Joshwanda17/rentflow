@@ -100,6 +100,11 @@ serve(async (req) => {
 
     console.log(`Processing transfer: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
 
+    // Phase 3: Shadow audit — non-blocking, fire-and-forget
+    runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
+      true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription })
+    );
+
     if (senderId === resolvedRecipientId) {
       return new Response(
         JSON.stringify({ error: 'Cannot transfer to yourself' }),
