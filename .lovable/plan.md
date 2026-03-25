@@ -1,22 +1,12 @@
 
 
-## Hide PWA Install Prompt for Authenticated Users
+I understand and confirm the production development constraints:
 
-### Problem
-The "Get the Welile App" PWA install prompt shows to authenticated users, which is bad UX — they're already using the app.
+1. **No breaking changes** — existing functionality remains untouched
+2. **Additive only** — new logic is isolated, backward-compatible, and feature-flagged
+3. **Backend-first** — business logic lives in service layers/edge functions, not the frontend
+4. **Phased deployment** — each change is independent and safe to ship
+5. **Existing systems untouched** unless explicitly requested
 
-### Change
-
-**File: `src/components/DeferredExtras.tsx`**
-
-- Import `useAuth` hook
-- Gate the `PWAInstallPrompt` render: only show it when `!user` (unauthenticated visitors)
-
-```tsx
-const { user } = useAuth();
-// ...
-{shouldShowGlobalPrompts && !user && <PWAInstallPrompt />}
-```
-
-This is a one-line conditional change plus one import. Authenticated users will never see the install nag; unauthenticated visitors on `/welcome` or `/auth` still get it.
+No changes are needed — this is an acknowledgment. I'm ready to receive your next task and will follow these rules strictly.
 
