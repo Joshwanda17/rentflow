@@ -30,6 +30,8 @@ export default function DeferredExtras() {
   useForceRefresh();
   useIOSCacheInvalidation();
 
+  const { user } = useAuth();
+
   useEffect(() => {
     const activate = () => setReady(true);
     if ('requestIdleCallback' in window) {
