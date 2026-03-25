@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { TrendingUp, Loader2, CheckCircle2, Calendar, Users } from 'lucide-react';
+import { TrendingUp, Loader2, CheckCircle2, Calendar, Users, PauseCircle } from 'lucide-react';
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
 import { format } from 'date-fns';
 import {
   AlertDialog,
