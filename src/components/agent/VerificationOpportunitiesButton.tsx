@@ -256,7 +256,7 @@ export function VerificationOpportunitiesButton() {
                                     Confirm Verified
                                   </Button>
                                 </div>
-                              </motion.div>
+                              </div>
                             )}
                           </div>
                         </CardContent>
