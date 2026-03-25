@@ -186,8 +186,10 @@ function validateRow(row: any, rowNum: number): ParsedRow {
 
 function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
   const map = new Map<string, ImportGroup>();
+  let noPhoneCounter = 0;
   for (const row of rows) {
-    const key = row.phone;
+    // Group by phone if available, otherwise each row is its own group (keyed by name+counter)
+    const key = row.phone ? row.phone : `__no_phone_${noPhoneCounter++}_${row.partnerName}`;
     if (!map.has(key)) {
       map.set(key, {
         partnerName: row.partnerName,
@@ -208,7 +210,6 @@ function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
         contributionDate: row.contributionDate,
       });
     }
-    // Collect portfolio-level errors
     const portfolioErrors = row.errors.filter(e => !e.includes('name') && !e.includes('phone'));
     if (portfolioErrors.length > 0) {
       group.errors.push(`Row ${row.rowNum}: ${portfolioErrors.join(', ')}`);
