@@ -602,6 +602,17 @@ export function LandlordOpsDashboard() {
       {adjustListing && (
         <RentAdjustmentDialog open={!!adjustListing} onOpenChange={(open) => !open && setAdjustListing(null)} listing={adjustListing} onSuccess={() => refetch()} />
       )}
+      {actionDialog && (
+        <EmptyHouseActionDialog
+          open={!!actionDialog}
+          onOpenChange={(open) => !open && setActionDialog(null)}
+          listingId={actionDialog.listing.id}
+          listingTitle={actionDialog.listing.title}
+          actionType={actionDialog.type}
+          userId={user?.id || ''}
+          onComplete={() => refetch()}
+        />
+      )}
     </div>
   );
 }
