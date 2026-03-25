@@ -5,7 +5,7 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle, Pencil, PlusCircle, Plus, RefreshCw, Zap, Bell, CheckCircle2, CalendarClock } from 'lucide-react';
 import { format, formatDistanceToNow, addMonths } from 'date-fns';
-import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
+
 import { ROIPaymentHistory } from './ROIPaymentHistory';
 import { PartnerDirectory } from './PartnerDirectory';
 import { PartnerCapitalFlow } from './PartnerCapitalFlow';
@@ -328,7 +328,7 @@ export function PartnersOpsDashboard() {
       {/* Daily Brief */}
       <PartnerOpsBrief />
 
-      <PendingWalletOperationsWidget />
+      
 
       {/* ═══ ESCALATION ALERTS ═══ */}
       {openEscalations > 0 && (() => {

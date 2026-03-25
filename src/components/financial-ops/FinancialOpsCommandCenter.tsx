@@ -9,6 +9,7 @@ import { TidVerification } from './TidVerification';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
+import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ClipboardList, Search, Scale, Shield, LayoutDashboard, ShieldCheck, Gauge, Landmark, BookOpen } from 'lucide-react';
 
 export function FinancialOpsCommandCenter() {
@@ -59,6 +60,7 @@ export function FinancialOpsCommandCenter() {
         </div>
 
         <TabsContent value="ops" className="mt-2 sm:mt-3">
+          <PendingWalletOperationsWidget />
           <ScaleDashboard />
         </TabsContent>
         <TabsContent value="tid" className="mt-2 sm:mt-3">
