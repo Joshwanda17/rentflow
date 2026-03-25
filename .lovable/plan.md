@@ -1,66 +1,55 @@
 
 
-## Phase 2: Shadow Service Layer — Mirror Existing Financial Logic
+## Phase 3: Dual Execution — Shadow Audit in Edge Functions
 
 ### What this does
-Adds new pure-logic methods to `transactionService.ts` and `walletService.ts` that replicate the validation and business rules currently embedded in five core edge functions. **No existing code is touched.** These methods are unused — shadow mode only.
+Adds non-blocking shadow validation calls inside 3 edge functions (`wallet-transfer`, `cfo-direct-credit`, `fund-rent-pool`). Shadow logic runs after the primary validation, logs match/divergence, and **never** affects the primary response.
 
-### Mapping: Edge Function → New Service Method
+### New files
 
-```text
-Edge Function                    → Service Method
-─────────────────────────────────────────────────────────
-wallet-transfer                  → TransactionService.validateWalletTransfer()
-                                 → TransactionService.buildTransferLedgerEntries()
-agent-deposit                    → TransactionService.validateAgentDeposit()
-                                 → TransactionService.calculateRepaymentSplit()
-                                 → TransactionService.buildDepositLedgerEntries()
-fund-rent-pool                   → TransactionService.validatePoolFunding()
-                                 → TransactionService.buildPoolFundingEntries()
-cfo-direct-credit                → TransactionService.validateCfoAdjustment()
-                                 → TransactionService.buildCfoAdjustmentEntries()
-approve-wallet-operation         → TransactionService.buildApprovalLedgerEntry()
+**1. `supabase/functions/_shared/shadowValidation.ts`**
+Port of Phase 2 pure validation functions for Deno runtime. Contains:
+- `shadowValidateWalletTransfer()` — amount range, UUID, self-transfer, phone checks
+- `shadowValidateCfoAdjustment()` — role check, amount 1–50M, reason length
+- `shadowValidatePoolFunding()` — supporter role, positive amount
 
-(wallet balance checks)          → WalletService.validateSufficientBalance()
-                                 → WalletService.ensureWalletExists() (type only)
-                                 → WalletService.computeOptimisticDebit()
+These are standalone pure functions (no imports from `src/`).
+
+**2. `supabase/functions/_shared/shadowLogger.ts`**
+- `runShadowAudit(fnName, inputs, primaryPassed, shadowFn)` — wraps shadow in try/catch
+- Executes as fire-and-forget (non-awaited promise)
+- Logs `[SHADOW] MATCH` or `[SHADOW] DIVERGENCE` with both results
+- Shadow errors logged as `[SHADOW] ERROR` — never propagated
+
+### Edge function changes (minimal, additive only)
+
+**3. `wallet-transfer/index.ts`**
+- Add import of `runShadowAudit` and `shadowValidateWalletTransfer`
+- After all primary validations pass (before wallet DB operations ~line 100), insert:
+```ts
+runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
+  true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription })
+);
 ```
+- Zero changes to primary logic, responses, or error paths
 
-### Changes (all additive)
+**4. `cfo-direct-credit/index.ts`**
+- Same pattern after role+input validation succeeds
+- Shadow validates CFO adjustment inputs
 
-**1. `src/core/services/transactionService.ts`**
-- Add new interfaces: `WalletTransferRequest`, `AgentDepositRequest`, `PoolFundingRequest`, `CfoAdjustmentRequest`, `RepaymentSplit`
-- Add methods mirroring each edge function's validation + ledger entry construction:
-  - `validateWalletTransfer()` — amount range (1–100M), self-transfer check, UUID format
-  - `buildTransferLedgerEntries()` — paired in/out entries with `wallet_transfer` category
-  - `validateAgentDeposit()` — amount validation, phone format check
-  - `calculateRepaymentSplit()` — 5% commission, landlord/wallet split logic
-  - `buildDepositLedgerEntries()` — `rent_payment_for_tenant` + `rent_repayment` entries
-  - `validatePoolFunding()` — supporter role check, positive amount
-  - `buildPoolFundingEntries()` — `supporter_rent_fund` category, reference ID generation
-  - `validateCfoAdjustment()` — amount range (1–50M), reason min 10 chars, operation type
-  - `buildCfoAdjustmentEntries()` — dual entries with `ledger_scope` (bridge + platform)
-  - `buildApprovalLedgerEntry()` — mirrors the pending→approved general_ledger insert
-
-**2. `src/core/services/walletService.ts`**
-- Add `validateSufficientBalance()` — returns `{ valid, balance, shortfall }` instead of boolean
-- Add `computeOptimisticDebit()` — pure function returning new balance and lock conditions
-- Add `WalletExistenceCheck` interface — typed representation of ensure-or-create pattern
-
-**3. `src/core/services/index.ts`**
-- No change needed — already re-exports both services
+**5. `fund-rent-pool/index.ts`**
+- Same pattern after role+amount validation succeeds
+- Shadow validates pool funding inputs
 
 ### What stays the same
-- All edge functions remain untouched and continue handling production traffic
-- No frontend changes
-- No database changes
-- New methods are pure functions with zero side effects — they receive data and return data
+- All primary execution paths, responses, DB operations — untouched
+- No frontend changes, no database changes
+- Shadow calls are detached promises — add zero latency to user responses
+- Any shadow failure is swallowed silently (logged only)
 
 ### Technical details
-- All new methods are pure/stateless — they take typed inputs and return typed outputs
-- They mirror the exact validation rules, amount limits, commission rates (5%), and ledger entry shapes from the live edge functions
-- `AGENT_COMMISSION_RATE = 0.05` is extracted as a named constant
-- Phone normalization logic (last-9-digits pattern) is replicated as a utility
-- UUID regex validation is replicated
-- Reference ID generation (`WRF${yy}${mm}${dd}${seq}`) is replicated
+- `_shared/` imports via relative path: `import { ... } from "../_shared/shadowValidation.ts"`
+- Shadow functions are pure (no DB, no Supabase client)
+- `runShadowAudit` catches all errors internally — the `.catch(() => {})` on the caller side is a double safety net
+- Log output format: `[SHADOW] wallet-transfer | MATCH | primary=true shadow=true`
 
