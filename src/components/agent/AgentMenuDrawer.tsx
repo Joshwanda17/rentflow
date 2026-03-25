@@ -250,12 +250,8 @@ export function AgentMenuDrawer({
           />
 
           {/* Bottom Sheet */}
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-[101] bg-background rounded-t-3xl shadow-2xl flex flex-col"
+          <div
+            className="fixed inset-x-0 bottom-0 z-[101] bg-background rounded-t-3xl shadow-2xl flex flex-col animate-slide-up"
             style={{ maxHeight: '88vh' }}
           >
             {/* Drag Handle */}
