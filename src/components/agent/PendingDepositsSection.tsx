@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Clock, CheckCircle2, XCircle, User, Wallet } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import {
   AlertDialog,
   AlertDialogAction,
