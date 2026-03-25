@@ -76,15 +76,17 @@ Deno.serve(async (req) => {
           errors.push({ partner: partner.phone || 'Unknown', error: 'Missing name' });
           continue;
         }
-        if (!partner.phone?.trim() || partner.phone.length < 10) {
-          errors.push({ partner: partner.partner_name, error: 'Invalid phone' });
-          continue;
-        }
+        // Phone is optional — validate only if provided
+        const hasPhone = partner.phone?.trim() && partner.phone.trim().length >= 10;
 
-        // Check for existing profile by phone
-        const { data: existing } = await adminClient
-          .from("profiles").select("id")
-          .eq("phone", partner.phone).maybeSingle();
+        // Check for existing profile by phone (only if phone provided)
+        let existing: { id: string } | null = null;
+        if (hasPhone) {
+          const { data: found } = await adminClient
+            .from("profiles").select("id")
+            .eq("phone", partner.phone).maybeSingle();
+          existing = found;
+        }
 
         let userId: string;
 
@@ -100,7 +102,6 @@ Deno.serve(async (req) => {
             await adminClient.from("user_roles").insert({ user_id: userId, role: "supporter" });
           }
 
-          // Reset password to the predictable format so they can log in
           // Reset password to the standard default
           const tempPwd = `Welile1234!`;
           await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
@@ -113,12 +114,14 @@ Deno.serve(async (req) => {
             });
           }
         } else {
-          // Create auth user
           // Create auth user with standard default password
           const tempPassword = `Welile1234!`;
+          // Generate email: use real email > phone-based > random UUID placeholder
           const emailAddr = partner.email && !partner.email.includes('@noapp.welile') && !partner.email.includes('@welile.user')
             ? partner.email
-            : `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
+            : hasPhone
+              ? `${partner.phone.replace(/^0/, '')}@noapp.welile.user`
+              : `${crypto.randomUUID().slice(0, 12)}@noapp.welile.user`;
 
           const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
             email: emailAddr,
