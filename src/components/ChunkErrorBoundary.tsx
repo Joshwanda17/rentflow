@@ -21,18 +21,21 @@ class ChunkErrorBoundary extends Component<Props, State> {
     const msg = (error?.message || "").toLowerCase();
     const name = (error?.name || "").toLowerCase();
     
+    const fullMsg = `${msg} ${name} ${(error?.stack || "").toLowerCase()}`;
+    
     const isChunkError = 
-      msg.includes("failed to fetch dynamically imported module") ||
-      msg.includes("error loading dynamically imported module") ||
-      msg.includes("loading chunk") ||
-      msg.includes("loading css chunk") ||
-      msg.includes("dynamically imported") ||
-      msg.includes("unable to preload") ||
-      msg.includes("failed to load") ||
-      msg.includes("network error") ||
-      msg.includes("timeout") ||
-      name.includes("chunkerror") ||
-      name.includes("loaderror");
+      fullMsg.includes("failed to fetch dynamically imported module") ||
+      fullMsg.includes("error loading dynamically imported module") ||
+      fullMsg.includes("loading chunk") ||
+      fullMsg.includes("loading css chunk") ||
+      fullMsg.includes("dynamically imported") ||
+      fullMsg.includes("unable to preload") ||
+      fullMsg.includes("failed to load") ||
+      fullMsg.includes("network error") ||
+      fullMsg.includes("timeout") ||
+      fullMsg.includes("chunkerror") ||
+      fullMsg.includes("loaderror") ||
+      fullMsg.includes("importing a module script failed");
     
     // Catch ALL errors — chunk errors get auto-retry, others get a friendly fallback
     return { hasError: true, isChunkError };
