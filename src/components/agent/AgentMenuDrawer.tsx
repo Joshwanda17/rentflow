@@ -43,7 +43,6 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
-import { hapticTap, hapticSuccess } from '@/lib/haptics';
 
 interface AgentMenuDrawerProps {
   open: boolean;
