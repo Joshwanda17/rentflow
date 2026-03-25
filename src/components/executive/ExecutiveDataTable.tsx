@@ -227,7 +227,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
                         key={col.key}
                         className={cn(
                           'px-3 py-2.5 whitespace-nowrap',
-                          ci === 0 && 'sticky left-0 bg-card z-10 font-medium',
+                          ci === 0 && 'sticky left-0 bg-background z-10 font-medium',
                           col.className
                         )}
                       >
