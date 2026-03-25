@@ -165,15 +165,18 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
             </div>
 
             {parsedAmount > 0 && !insufficientFunds && (
-              <div className="rounded-lg bg-success/10 border border-success/20 p-3 space-y-1">
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Wallet after</span>
                   <span className="font-medium text-foreground">{formatUGX((walletBalance ?? 0) - parsedAmount)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>New Capital</span>
-                  <span className="font-bold text-success">{formatUGX(account.investment_amount + parsedAmount)}</span>
+                  <span>⏳ Pending until maturity</span>
+                  <span className="font-bold text-amber-600">{formatUGX(parsedAmount)}</span>
                 </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Funds will be deducted now but added to portfolio capital at maturity.
+                </p>
               </div>
             )}
           </div>
