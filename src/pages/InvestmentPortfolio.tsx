@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,21 +13,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
   ArrowLeft, TrendingUp, Calendar, Wallet, CheckCircle2, Target, BarChart3,
-  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Filter, ArrowUpDown,
-  Edit2, Check, X, Loader2
+  ChevronRight, Users, Building2, Coins, ArrowUpRight, History, Edit2, Check, X, Loader2, Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
 import { InvestmentTransactionHistory } from '@/components/investment/InvestmentTransactionHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useToast } from '@/hooks/use-toast';
+import { hapticTap } from '@/lib/haptics';
 
-type SortOption = 'balance-desc' | 'balance-asc' | 'roi-desc' | 'roi-asc' | 'date-desc' | 'date-asc';
 type FilterOption = 'all' | 'approved' | 'pending' | 'pending_activation';
 
 interface LinkedFunding {
@@ -55,7 +50,6 @@ export default function InvestmentPortfolio() {
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccount | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -107,25 +101,12 @@ export default function InvestmentPortfolio() {
 
   const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
   const totalRoiEarned = accounts.reduce((s, a) => s + a.total_roi_earned, 0);
-  const totalFundings = accounts.reduce((s, a) => s + a.linked_fundings.length, 0);
   const expectedMonthlyRoi = totalBalance * 0.15;
 
-  const filteredAndSortedAccounts = useMemo(() => {
-    let result = [...accounts];
-    if (filterBy !== 'all') result = result.filter(a => a.status === filterBy);
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'balance-desc': return b.balance - a.balance;
-        case 'balance-asc': return a.balance - b.balance;
-        case 'roi-desc': return b.total_roi_earned - a.total_roi_earned;
-        case 'roi-asc': return a.total_roi_earned - b.total_roi_earned;
-        case 'date-desc': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'date-asc': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        default: return 0;
-      }
-    });
-    return result;
-  }, [accounts, filterBy, sortBy]);
+  const filteredAccounts = useMemo(() => {
+    if (filterBy === 'all') return accounts;
+    return accounts.filter(a => a.status === filterBy);
+  }, [accounts, filterBy]);
 
   const getStatusColor = (s: string) => {
     if (s === 'approved') return 'bg-success/10 text-success border-success/20';
@@ -141,226 +122,279 @@ export default function InvestmentPortfolio() {
     return s;
   };
 
+  const getStatusEmoji = (s: string) => {
+    if (s === 'approved') return '🟢';
+    if (['pending', 'pending_activation', 'pending_approval'].includes(s)) return '🟡';
+    return '🔴';
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-4 space-y-4">
         <Skeleton className="h-10 w-40" />
-        <Skeleton className="h-28 w-full rounded-2xl" />
-        <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
-        <Skeleton className="h-48 w-full rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-2xl" />
+        <div className="grid grid-cols-2 gap-3">{[1, 2].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh bg-background pb-20">
-      {/* Header */}
+    <div className="min-h-dvh bg-background pb-24">
+      {/* Header — sticky, large back button */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/40">
         <div className="flex items-center gap-3 px-4 py-3 max-w-2xl mx-auto">
-          <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 min-h-[44px] min-w-[44px]" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-base font-bold text-foreground truncate">Support Accounts</h1>
-          <Badge variant="secondary" className="ml-auto text-[10px] shrink-0">{accounts.length}</Badge>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold text-foreground truncate">My Portfolios</h1>
+            <p className="text-[10px] text-muted-foreground">Tap any account to see details</p>
+          </div>
+          <Badge variant="secondary" className="text-xs px-2.5 py-1 shrink-0 font-bold">{accounts.length}</Badge>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-5 space-y-5">
-        {/* Hero Balance */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground">
-          <p className="text-[10px] font-semibold opacity-60 uppercase tracking-[0.15em] mb-1">Total Value</p>
-          <p className="text-[clamp(1.15rem,5vw,1.75rem)] font-extrabold tracking-tight leading-none">
-            {formatAmount(totalBalance)}
-          </p>
-          <p className="text-[11px] opacity-70 mt-2">{totalFundings} fundings</p>
-        </motion.div>
-
-        {/* Stats Row */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-          className="grid grid-cols-3 gap-2">
-          {[
-            { label: 'Earned', value: totalRoiEarned, icon: TrendingUp, color: 'text-success' },
-            { label: 'Monthly', value: expectedMonthlyRoi, icon: Calendar, color: 'text-primary' },
-            { label: 'Rate', value: null, icon: Target, color: 'text-foreground' },
-          ].map((stat) => (
-            <Card key={stat.label} className="border border-border/40 shadow-none">
-              <CardContent className="p-2.5 text-center">
-                <stat.icon className={`h-3.5 w-3.5 mx-auto mb-1 ${stat.color} opacity-60`} />
-                <p className={`text-[clamp(0.65rem,2.8vw,0.8rem)] font-extrabold ${stat.color} leading-tight truncate`}>
-                  {stat.value !== null ? formatAmount(stat.value) : '15%'}
-                </p>
-                <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">{stat.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </motion.div>
-
-        {/* Accounts List */}
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-foreground">Accounts</h2>
-            <span className="text-[10px] text-muted-foreground">{filteredAndSortedAccounts.length} of {accounts.length}</span>
+        {/* Hero Balance Card — Big & Clear */}
+        <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-6 text-primary-foreground relative overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-white/[0.06] pointer-events-none" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="h-4 w-4 opacity-70" />
+              <p className="text-[11px] font-semibold opacity-70 uppercase tracking-[0.15em]">Total Portfolio Value</p>
+            </div>
+            <p className="text-[clamp(1.75rem,7vw,2.5rem)] font-black tracking-tight leading-none">
+              {formatAmount(totalBalance)}
+            </p>
+            {totalRoiEarned > 0 && (
+              <div className="flex items-center gap-1.5 mt-3">
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/15">
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <span className="text-[12px] font-bold">+{formatAmount(totalRoiEarned)} earned</span>
+                </div>
+              </div>
+            )}
           </div>
+        </div>
 
-          {accounts.length > 0 && (
-            <div className="flex gap-2">
-              <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterOption)}>
-                <SelectTrigger className="h-8 text-[11px] w-auto min-w-[90px] border-border/40">
-                  <Filter className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="approved">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                <SelectTrigger className="h-8 text-[11px] w-auto min-w-[100px] border-border/40">
-                  <ArrowUpDown className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date-desc">Newest</SelectItem>
-                  <SelectItem value="date-asc">Oldest</SelectItem>
-                  <SelectItem value="balance-desc">Highest</SelectItem>
-                  <SelectItem value="balance-asc">Lowest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+        {/* Quick Stats — 2 columns, bigger */}
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="border border-border/40 shadow-none">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center mx-auto mb-2">
+                <TrendingUp className="h-5 w-5 text-success" />
+              </div>
+              <p className="text-lg font-black text-success leading-tight truncate">
+                {formatAmount(expectedMonthlyRoi)}
+              </p>
+              <p className="text-[11px] text-muted-foreground font-medium mt-1">Monthly Returns</p>
+            </CardContent>
+          </Card>
+          <Card className="border border-border/40 shadow-none">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2">
+                <Target className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-lg font-black text-primary leading-tight">15%</p>
+              <p className="text-[11px] text-muted-foreground font-medium mt-1">Return Rate</p>
+            </CardContent>
+          </Card>
+        </div>
 
-          {accounts.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="p-8 text-center">
-                <Wallet className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="font-semibold text-sm mb-1">No Accounts Yet</p>
-                <p className="text-xs text-muted-foreground mb-4">Support tenants to build your account</p>
-                <Button size="sm" onClick={() => navigate('/dashboard')}><Target className="h-3.5 w-3.5 mr-1.5" />Browse</Button>
-              </CardContent>
-            </Card>
-          ) : filteredAndSortedAccounts.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="p-6 text-center">
-                <Filter className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-                <p className="text-sm font-medium mb-2">No matches</p>
-                <Button variant="outline" size="sm" onClick={() => setFilterBy('all')}>Clear</Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              <AnimatePresence mode="popLayout">
-                {filteredAndSortedAccounts.map((account, index) => (
-                  <motion.div key={account.id} layout
-                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                    transition={{ delay: index * 0.02 }}>
-                    <Card className="border border-border/40 shadow-none hover:border-border transition-colors cursor-pointer active:scale-[0.99]"
-                      onClick={() => { setSelectedAccount(account); setDetailsOpen(true); }}>
-                      <CardContent className="p-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: `${account.color}12` }}>
-                            <Wallet className="h-4 w-4" style={{ color: account.color }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            {editingId === account.id ? (
-                              <div className="flex items-center gap-1.5 mb-0.5" onClick={e => e.stopPropagation()}>
-                                <Input
-                                  value={editName}
-                                  onChange={e => setEditName(e.target.value)}
-                                  className="h-7 text-[13px] font-bold flex-1 min-w-0"
-                                  autoFocus
-                                  onKeyDown={e => {
-                                    if (e.key === 'Enter') handleSaveName(account.id);
-                                    if (e.key === 'Escape') setEditingId(null);
-                                  }}
-                                />
-                                <Button size="icon" variant="ghost" className="h-7 w-7 text-success shrink-0" onClick={() => handleSaveName(account.id)} disabled={savingName}>
-                                  {savingName ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingId(null)}>
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                  <p className="text-[13px] font-bold text-foreground truncate">{account.name}</p>
-                                  <Badge variant="outline" className={`text-[8px] px-1.5 py-0 shrink-0 ${getStatusColor(account.status)}`}>
-                                    {getStatusLabel(account.status)}
-                                  </Badge>
-                                </div>
-                                <p className="text-[clamp(0.8rem,3.5vw,0.95rem)] font-extrabold text-foreground leading-tight truncate">
-                                  {formatAmount(account.balance)}
-                                </p>
-                                <button
-                                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary mt-1 transition-colors"
-                                  onClick={e => { e.stopPropagation(); setEditingId(account.id); setEditName(account.name); }}
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                  <span>Rename</span>
-                                </button>
-                              </>
-                            )}
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+        {/* Filter Chips — Big, easy to tap */}
+        {accounts.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {([
+              { value: 'all' as FilterOption, label: 'All', count: accounts.length },
+              { value: 'approved' as FilterOption, label: '🟢 Active', count: accounts.filter(a => a.status === 'approved').length },
+              { value: 'pending' as FilterOption, label: '🟡 Pending', count: accounts.filter(a => ['pending', 'pending_activation', 'pending_approval'].includes(a.status)).length },
+            ]).filter(f => f.count > 0).map(f => (
+              <button
+                key={f.value}
+                onClick={() => { hapticTap(); setFilterBy(f.value); }}
+                className={`shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors touch-manipulation active:scale-95 min-h-[44px] ${
+                  filterBy === f.value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {f.label} ({f.count})
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Section Title */}
+        <div className="flex items-center gap-2 px-1">
+          <div className="w-1 h-5 rounded-full bg-primary" />
+          <h2 className="text-sm font-black text-foreground tracking-tight">Your Accounts</h2>
+        </div>
+
+        {/* Accounts List — Large, clear cards */}
+        {accounts.length === 0 ? (
+          <Card className="border-2 border-dashed border-border/60">
+            <CardContent className="p-8 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Wallet className="h-8 w-8 text-primary/50" />
+              </div>
+              <p className="font-bold text-base mb-1.5">No Portfolios Yet</p>
+              <p className="text-sm text-muted-foreground mb-5 max-w-[240px] mx-auto">
+                Start supporting tenants to build your investment portfolio
+              </p>
+              <Button size="lg" className="min-h-[48px] text-sm font-bold rounded-xl px-6" onClick={() => navigate('/dashboard')}>
+                <Target className="h-4 w-4 mr-2" />
+                Browse Opportunities
+              </Button>
+            </CardContent>
+          </Card>
+        ) : filteredAccounts.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="p-6 text-center">
+              <p className="text-sm font-medium mb-3">No accounts match this filter</p>
+              <Button variant="outline" size="sm" className="min-h-[44px]" onClick={() => setFilterBy('all')}>Show All</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {filteredAccounts.map((account) => (
+              <Card
+                key={account.id}
+                className="border border-border/50 shadow-sm hover:border-primary/30 transition-all cursor-pointer active:scale-[0.98] touch-manipulation"
+                onClick={() => { hapticTap(); setSelectedAccount(account); setDetailsOpen(true); }}
+              >
+                <CardContent className="p-4">
+                  {/* Top row: icon, name, status */}
+                  <div className="flex items-start gap-3.5 mb-3">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${account.color}15` }}
+                    >
+                      <Wallet className="h-5 w-5" style={{ color: account.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {editingId === account.id ? (
+                        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <Input
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            className="h-8 text-sm font-bold flex-1 min-w-0"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleSaveName(account.id);
+                              if (e.key === 'Escape') setEditingId(null);
+                            }}
+                          />
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-success shrink-0" onClick={() => handleSaveName(account.id)} disabled={savingName}>
+                            {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setEditingId(null)}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                        <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-border/20">
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Users className="h-3 w-3" />{account.linked_fundings.length}
-                          </span>
-                          <span className="text-[10px] text-success font-semibold flex items-center gap-0.5">
-                            <ArrowUpRight className="h-3 w-3" />+{formatAmount(account.total_roi_earned)}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground ml-auto">{format(new Date(account.created_at), 'MMM yyyy')}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </motion.section>
-
-        {/* Summary */}
-        {accounts.length > 0 && (
-          <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-            <Card className="border border-border/40 shadow-none">
-              <CardHeader className="pb-2 px-4 pt-4">
-                <CardTitle className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em] flex items-center gap-1.5">
-                  <BarChart3 className="h-3.5 w-3.5" />Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-2">
-                {[
-                  { l: 'Total Supported', v: formatAmount(totalBalance), c: '' },
-                  { l: 'Total Rewards', v: `+${formatAmount(totalRoiEarned)}`, c: 'text-success' },
-                  { l: 'Reward Rate', v: `${totalBalance > 0 ? ((totalRoiEarned / totalBalance) * 100).toFixed(1) : 0}%`, c: 'text-primary' },
-                ].map(r => (
-                  <div key={r.l} className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">{r.l}</span>
-                    <span className={`text-[12px] font-bold ${r.c}`}>{r.v}</span>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-bold text-foreground truncate">{account.name}</p>
+                            <span className="text-xs">{getStatusEmoji(account.status)}</span>
+                          </div>
+                          {account.portfolio_code && (
+                            <p className="text-[10px] text-muted-foreground font-mono">{account.portfolio_code}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-1" />
                   </div>
-                ))}
-                <Progress value={totalBalance > 0 ? Math.min((totalRoiEarned / totalBalance) * 100, 100) : 0} className="h-1.5 mt-1" />
-              </CardContent>
-            </Card>
-          </motion.section>
+
+                  {/* Balance — Big & Bold */}
+                  <div className="bg-muted/30 rounded-xl p-3 mb-3">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Balance</p>
+                        <p className="text-xl font-black text-foreground leading-tight truncate">
+                          {formatAmount(account.balance)}
+                        </p>
+                      </div>
+                      {account.total_roi_earned > 0 && (
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-success/10">
+                          <ArrowUpRight className="h-3 w-3 text-success" />
+                          <span className="text-[11px] font-bold text-success">+{formatAmount(account.total_roi_earned)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom info row */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(account.created_at), 'MMM yyyy')}
+                      </span>
+                      {account.roi_percentage && (
+                        <span className="flex items-center gap-1 text-primary font-semibold">
+                          <TrendingUp className="h-3 w-3" />
+                          {account.roi_percentage}%/mo
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors min-h-[36px] px-2"
+                      onClick={e => { e.stopPropagation(); hapticTap(); setEditingId(account.id); setEditName(account.name); }}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      <span className="text-[11px]">Rename</span>
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Summary Card */}
+        {accounts.length > 0 && (
+          <Card className="border border-border/40 shadow-none">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Summary</p>
+              </div>
+              {[
+                { l: 'Total Invested', v: formatAmount(totalBalance), c: 'text-foreground' },
+                { l: 'Total Rewards', v: `+${formatAmount(totalRoiEarned)}`, c: 'text-success' },
+                { l: 'Monthly Return', v: formatAmount(expectedMonthlyRoi), c: 'text-primary' },
+              ].map(r => (
+                <div key={r.l} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{r.l}</span>
+                  <span className={`text-sm font-bold ${r.c}`}>{r.v}</span>
+                </div>
+              ))}
+              <Progress value={totalBalance > 0 ? Math.min((totalRoiEarned / totalBalance) * 100, 100) : 0} className="h-2 mt-1" />
+            </CardContent>
+          </Card>
         )}
       </main>
 
-      {/* Details Dialog */}
+      {/* Details Dialog — Full-featured */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/40">
             <DialogTitle className="flex items-center gap-2.5 text-sm">
               {selectedAccount && (
                 <>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
                     style={{ backgroundColor: `${selectedAccount.color}15` }}>
-                    <Wallet className="h-4 w-4" style={{ color: selectedAccount.color }} />
+                    <Wallet className="h-4.5 w-4.5" style={{ color: selectedAccount.color }} />
                   </div>
-                  <span className="truncate">{selectedAccount.name}</span>
+                  <div className="min-w-0">
+                    <span className="block truncate font-bold">{selectedAccount.name}</span>
+                    {selectedAccount.portfolio_code && (
+                      <span className="block text-[10px] font-mono text-muted-foreground">{selectedAccount.portfolio_code}</span>
+                    )}
+                  </div>
                 </>
               )}
             </DialogTitle>
@@ -368,42 +402,47 @@ export default function InvestmentPortfolio() {
           {selectedAccount && (
             <ScrollArea className="flex-1 px-5 py-4">
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-primary/5 p-3">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Balance</p>
-                    <p className="text-[clamp(0.75rem,3.5vw,0.95rem)] font-extrabold text-primary leading-tight truncate">{formatAmount(selectedAccount.balance)}</p>
+                {/* Balance + Rewards — Side by side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-primary/5 p-4">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Balance</p>
+                    <p className="text-lg font-black text-primary leading-tight truncate">{formatAmount(selectedAccount.balance)}</p>
                   </div>
-                  <div className="rounded-xl bg-success/5 p-3">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-0.5">Rewards</p>
-                    <p className="text-[clamp(0.75rem,3.5vw,0.95rem)] font-extrabold text-success leading-tight truncate">+{formatAmount(selectedAccount.total_roi_earned)}</p>
+                  <div className="rounded-xl bg-success/5 p-4">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Rewards</p>
+                    <p className="text-lg font-black text-success leading-tight truncate">+{formatAmount(selectedAccount.total_roi_earned)}</p>
                   </div>
                 </div>
 
+                {/* Tabs — bigger touch targets */}
                 <Tabs defaultValue="history" className="w-full">
-                  <TabsList className="w-full grid grid-cols-3 h-9">
-                    <TabsTrigger value="history" className="text-[11px] gap-1"><History className="h-3 w-3" />History</TabsTrigger>
-                    <TabsTrigger value="fundings" className="text-[11px] gap-1"><Users className="h-3 w-3" />Fundings</TabsTrigger>
-                    <TabsTrigger value="roi" className="text-[11px] gap-1"><TrendingUp className="h-3 w-3" />Rewards</TabsTrigger>
+                  <TabsList className="w-full grid grid-cols-3 h-11">
+                    <TabsTrigger value="history" className="text-xs gap-1.5 min-h-[40px]"><History className="h-3.5 w-3.5" />History</TabsTrigger>
+                    <TabsTrigger value="fundings" className="text-xs gap-1.5 min-h-[40px]"><Users className="h-3.5 w-3.5" />Fundings</TabsTrigger>
+                    <TabsTrigger value="roi" className="text-xs gap-1.5 min-h-[40px]"><TrendingUp className="h-3.5 w-3.5" />Rewards</TabsTrigger>
                   </TabsList>
                   <TabsContent value="history" className="mt-3">
                     <InvestmentTransactionHistory accountId={selectedAccount.id} maxItems={20} showHeader={false} />
                   </TabsContent>
                   <TabsContent value="fundings" className="mt-3 space-y-2">
                     {selectedAccount.linked_fundings.length === 0 ? (
-                      <div className="text-center py-8"><Users className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" /><p className="text-xs text-muted-foreground">No linked fundings</p></div>
+                      <div className="text-center py-10">
+                        <Users className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                        <p className="text-sm text-muted-foreground">No linked fundings yet</p>
+                      </div>
                     ) : selectedAccount.linked_fundings.map(f => (
-                      <div key={f.id} className="rounded-xl bg-muted/30 p-3">
+                      <div key={f.id} className="rounded-xl bg-muted/30 p-3.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <Badge variant="outline" className={`text-[9px] mb-1 ${f.status === 'verified' ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
+                            <Badge variant="outline" className={`text-[10px] mb-1.5 ${f.status === 'verified' ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}>
                               {f.status === 'verified' ? 'Verified' : 'Pending'}
                             </Badge>
-                            <p className="text-sm font-medium truncate">{f.tenant_name}</p>
-                            <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Building2 className="h-3 w-3" />{f.landlord_name}</p>
+                            <p className="text-sm font-semibold truncate">{f.tenant_name}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Building2 className="h-3 w-3" />{f.landlord_name}</p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-[12px] font-bold">{formatAmount(f.rent_amount)}</p>
-                            {f.roi_earned > 0 && <p className="text-[10px] text-success">+{formatAmount(f.roi_earned)}</p>}
+                            <p className="text-sm font-bold">{formatAmount(f.rent_amount)}</p>
+                            {f.roi_earned > 0 && <p className="text-[11px] text-success font-semibold">+{formatAmount(f.roi_earned)}</p>}
                           </div>
                         </div>
                       </div>
@@ -411,17 +450,20 @@ export default function InvestmentPortfolio() {
                   </TabsContent>
                   <TabsContent value="roi" className="mt-3 space-y-2">
                     {selectedAccount.interest_payments.length === 0 ? (
-                      <div className="text-center py-8"><Coins className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" /><p className="text-xs text-muted-foreground">No reward payments yet</p></div>
+                      <div className="text-center py-10">
+                        <Coins className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+                        <p className="text-sm text-muted-foreground">No reward payments yet</p>
+                      </div>
                     ) : selectedAccount.interest_payments.map(p => (
-                      <div key={p.id} className="rounded-xl bg-success/5 p-3">
+                      <div key={p.id} className="rounded-xl bg-success/5 p-3.5">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium">{p.payment_month}</p>
-                            <p className="text-[10px] text-muted-foreground">{format(new Date(p.credited_at), 'MMM d, yyyy')}</p>
+                            <p className="text-sm font-semibold">{p.payment_month}</p>
+                            <p className="text-[11px] text-muted-foreground">{format(new Date(p.credited_at), 'MMM d, yyyy')}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-[13px] font-bold text-success">+{formatAmount(p.interest_amount)}</p>
-                            <Badge variant="outline" className="text-[8px] bg-success/10 text-success border-success/20">
+                            <p className="text-sm font-bold text-success">+{formatAmount(p.interest_amount)}</p>
+                            <Badge variant="outline" className="text-[9px] bg-success/10 text-success border-success/20">
                               <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Credited
                             </Badge>
                           </div>
@@ -431,13 +473,15 @@ export default function InvestmentPortfolio() {
                   </TabsContent>
                 </Tabs>
 
-                <div className="pt-3 border-t border-border/40 space-y-2">
+                {/* Account Info */}
+                <div className="pt-3 border-t border-border/40 space-y-2.5">
                   {[
                     { l: 'Created', v: format(new Date(selectedAccount.created_at), 'MMM d, yyyy') },
-                    { l: 'Status', v: selectedAccount.status === 'approved' ? 'Active' : selectedAccount.status },
-                    { l: 'Monthly Rate', v: '15%' },
+                    { l: 'Status', v: `${getStatusEmoji(selectedAccount.status)} ${getStatusLabel(selectedAccount.status)}` },
+                    { l: 'Monthly Rate', v: `${selectedAccount.roi_percentage || 15}%` },
+                    ...(selectedAccount.duration_months ? [{ l: 'Duration', v: `${selectedAccount.duration_months} months` }] : []),
                   ].map(r => (
-                    <div key={r.l} className="flex items-center justify-between text-[11px]">
+                    <div key={r.l} className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{r.l}</span>
                       <span className="font-semibold">{r.v}</span>
                     </div>
