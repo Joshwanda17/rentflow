@@ -1,21 +1,30 @@
 
 
-## Fix: Service Worker caching chrome-extension:// URLs
+## Fix: "Something went wrong" crash on Supporter Dashboard
 
-The service worker's image caching handler (stale-while-revalidate) doesn't filter out non-HTTP(S) requests. When a Chrome extension makes a request that the SW intercepts, it tries to `cache.put()` with a `chrome-extension://` scheme, which the Cache API rejects.
+### Root Cause
 
-### Change
+The `SupporterDashboard` component calls `useWallet` → `useServiceValidation` → `useFeatureFlags`, which throws because `FeatureFlagsProvider` is **never mounted** anywhere in the app's component tree (`App.tsx`).
 
-**`public/sw.js`** — Add an early return at the top of the fetch handler for non-http(s) schemes:
+### Fix
 
-```js
-// After: if (request.method !== "GET") return;
-// Add:
-if (!url.protocol.startsWith("http")) return;
+**`src/App.tsx`** — Add `FeatureFlagsProvider` inside the `DeferredProviders` wrapper, wrapping the existing provider chain:
+
+```text
+DeferredErrorBoundary
+  └─ Suspense
+       └─ PinAuthProvider
+            └─ BiometricAuthProvider
+                 └─ OfflineProvider
+                      └─ FeatureFlagsProvider   ← NEW
+                           └─ CartProvider
+                                └─ ComparisonProvider
+                                     └─ {children}
 ```
 
-This single line guards all five fetch strategies below it, preventing any attempt to cache or respond to `chrome-extension://`, `data:`, `blob:`, or other non-HTTP requests.
+- Import `FeatureFlagsProvider` from `@/contexts/FeatureFlagsContext` (lazy, like the other deferred providers)
+- Wrap it around `CartProvider` inside `DeferredProviders`
 
-### File
-- `public/sw.js` — one line added after the `GET` method check (~line 48)
+### Files
+- `src/App.tsx` — add lazy import + wrap in provider tree (~3 lines changed)
 
