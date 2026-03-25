@@ -17,9 +17,34 @@ export function TenantOpsDashboard() {
   const { data: rentRequests, isLoading } = useQuery({
     queryKey: ['exec-tenant-ops'],
     queryFn: async () => {
-      const { data } = await supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, created_at')
+      const { data } = await supabase.from('rent_requests')
+        .select('id, status, rent_amount, amount_repaid, created_at, tenant_id, landlord_id')
         .order('created_at', { ascending: false }).limit(200);
-      return data || [];
+      const items = data || [];
+
+      // Fetch tenant names & phones
+      const tenantIds = [...new Set(items.map(r => r.tenant_id).filter(Boolean))];
+      const landlordIds = [...new Set(items.map(r => r.landlord_id).filter(Boolean))];
+
+      const [profilesRes, landlordsRes] = await Promise.all([
+        tenantIds.length > 0
+          ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(0, 100))
+          : { data: [] },
+        landlordIds.length > 0
+          ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds.slice(0, 100))
+          : { data: [] },
+      ]);
+
+      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
+      const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
+
+      return items.map(r => ({
+        ...r,
+        tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
+        tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
+        landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
+        landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
+      }));
     },
     staleTime: 600000,
   });
@@ -34,6 +59,8 @@ export function TenantOpsDashboard() {
 
   const columns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
+    { key: 'tenant_name', label: 'Tenant' },
+    { key: 'tenant_phone', label: 'Phone' },
     { key: 'status', label: 'Status', render: (v) => {
       const colors: Record<string, string> = {
         pending: 'bg-amber-100 text-amber-700',
@@ -51,6 +78,8 @@ export function TenantOpsDashboard() {
     }},
     { key: 'rent_amount', label: 'Amount', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'landlord_name', label: 'Landlord' },
+    { key: 'landlord_phone', label: 'L. Phone' },
   ];
 
   return (
