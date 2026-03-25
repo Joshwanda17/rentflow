@@ -251,11 +251,10 @@ export function PendingDepositsSection() {
                         Reject
                       </Button>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             )}
-          </AnimatePresence>
         </CardContent>
       </Card>
 

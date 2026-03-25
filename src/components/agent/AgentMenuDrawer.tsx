@@ -442,20 +442,13 @@ function GuideAccordion({ id, icon: Icon, title, subtitle, accentClass, isOpen, 
         </div>
         <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", isOpen && "rotate-180")} />
       </button>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
+      {isOpen && (
+          <div className="overflow-hidden animate-fade-in">
             <div className="mt-2 px-2 py-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-2">
               {children}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </div>
   );
 }
