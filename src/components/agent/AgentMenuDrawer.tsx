@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { 
   X, 
   UserPlus, 
@@ -42,7 +42,6 @@ import {
   BookOpen,
   LucideIcon,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 
 interface AgentMenuDrawerProps {
@@ -239,26 +238,19 @@ export function AgentMenuDrawer({
     return map[accent] || map['primary'];
   };
 
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
         <>
           {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            className="fixed inset-0 bg-black/60 z-[100] animate-fade-in"
           />
 
           {/* Bottom Sheet */}
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-[101] bg-background rounded-t-3xl shadow-2xl flex flex-col"
+          <div
+            className="fixed inset-x-0 bottom-0 z-[101] bg-background rounded-t-3xl shadow-2xl flex flex-col animate-slide-up"
             style={{ maxHeight: '88vh' }}
           >
             {/* Drag Handle */}
@@ -307,14 +299,10 @@ export function AgentMenuDrawer({
 
             {/* Content Grid */}
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeCategory}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.15 }}
-                >
+              <div
+                key={activeCategory}
+                className="animate-fade-in"
+              >
                   {/* Build Your Team CTA — visible in People tab */}
                   {activeCategory === 'people' && (
                     <div className="mb-3 rounded-2xl border-2 border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-3">
@@ -359,11 +347,8 @@ export function AgentMenuDrawer({
                       const colors = getAccentClasses(item.accent);
                       const Icon = item.icon;
                       return (
-                        <motion.button
+                        <button
                           key={item.label + idx}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: idx * 0.03 }}
                           onClick={() => handleItemClick(item)}
                           className={cn(
                             "relative flex flex-col items-center gap-2 p-4 rounded-2xl border border-border/50 bg-card hover:bg-muted/40 active:scale-95 transition-all touch-manipulation",
@@ -383,7 +368,7 @@ export function AgentMenuDrawer({
                               <p className="text-[9px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{item.description}</p>
                             )}
                           </div>
-                        </motion.button>
+                        </button>
                       );
                     })}
                   </div>
@@ -429,13 +414,10 @@ export function AgentMenuDrawer({
                       </GuideAccordion>
                     </div>
                   )}
-                </motion.div>
-              </AnimatePresence>
+                </div>
             </div>
-          </motion.div>
+          </div>
         </>
-      )}
-    </AnimatePresence>
   );
 }
 
@@ -459,20 +441,13 @@ function GuideAccordion({ id, icon: Icon, title, subtitle, accentClass, isOpen, 
         </div>
         <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", isOpen && "rotate-180")} />
       </button>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
+      {isOpen && (
+          <div className="overflow-hidden animate-fade-in">
             <div className="mt-2 px-2 py-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-2">
               {children}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </div>
   );
 }

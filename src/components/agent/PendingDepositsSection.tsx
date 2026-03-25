@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Clock, CheckCircle2, XCircle, User, Wallet } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -192,26 +192,19 @@ export function PendingDepositsSection() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <AnimatePresence mode="popLayout">
-            {deposits.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+          {deposits.length === 0 ? (
+              <div
                 className="text-center py-8 text-muted-foreground"
               >
                 <Wallet className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>No pending deposit requests</p>
-              </motion.div>
+              </div>
             ) : (
               <div className="space-y-3">
                 {deposits.map((deposit) => (
-                  <motion.div
+                  <div
                     key={deposit.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -100 }}
-                    className="p-4 rounded-lg border bg-card"
+                    className="p-4 rounded-lg border bg-card animate-fade-in"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -258,11 +251,10 @@ export function PendingDepositsSection() {
                         Reject
                       </Button>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             )}
-          </AnimatePresence>
         </CardContent>
       </Card>
 

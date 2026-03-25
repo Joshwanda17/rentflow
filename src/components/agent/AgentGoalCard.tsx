@@ -21,7 +21,7 @@ import {
   CheckCircle2, Calendar, Sparkles
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { motion } from 'framer-motion';
+
 
 interface AgentGoal {
   id: string;
@@ -215,15 +215,11 @@ export function AgentGoalCard() {
                 <div className="relative">
                   <Progress value={registrationProgress} className="h-3" />
                   {isGoalMet && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute -right-1 -top-1"
-                    >
+                    <div className="absolute -right-1 -top-1 animate-scale-in">
                       <div className="bg-success text-success-foreground rounded-full p-0.5">
                         <CheckCircle2 className="h-4 w-4" />
                       </div>
-                    </motion.div>
+                    </div>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
