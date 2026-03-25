@@ -158,6 +158,80 @@ Deno.serve(async (req) => {
           }
         }
 
+        // ── Auto-deduct rent repayment for ANY cash_in deposit (wallet_deposit, etc.) ──
+        // When a user deposits money and has an active rent request, auto-deduct outstanding rent
+        if (op.direction === 'cash_in' && op.user_id && op.category !== 'rent_payment_for_tenant' && op.category !== 'supporter_facilitation_capital') {
+          try {
+            // Check for active rent request
+            const { data: activeRentRequest } = await adminClient
+              .from("rent_requests")
+              .select("id, total_repayment, amount_repaid, status")
+              .eq("tenant_id", op.user_id)
+              .in("status", ["funded", "disbursed", "approved"])
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (activeRentRequest) {
+              const outstanding = Number(activeRentRequest.total_repayment) - Number(activeRentRequest.amount_repaid);
+
+              if (outstanding > 0) {
+                // Re-read wallet balance after the ledger credit (trigger may have updated it)
+                const { data: freshWallet } = await adminClient
+                  .from("wallets")
+                  .select("balance")
+                  .eq("user_id", op.user_id)
+                  .single();
+
+                const availableBalance = freshWallet?.balance || 0;
+
+                if (availableBalance > 0) {
+                  const repaymentAmount = Math.min(availableBalance, outstanding);
+
+                  // Record repayment via RPC
+                  const { error: repaymentErr } = await adminClient.rpc(
+                    "record_rent_request_repayment",
+                    { p_tenant_id: op.user_id, p_amount: repaymentAmount }
+                  );
+
+                  if (!repaymentErr) {
+                    // Insert cash_out ledger entry → trigger auto-deducts from wallet
+                    const txGroupId = crypto.randomUUID();
+                    await adminClient.from("general_ledger").insert({
+                      user_id: op.user_id,
+                      amount: repaymentAmount,
+                      direction: "cash_out",
+                      category: "rent_repayment",
+                      source_table: "pending_wallet_operations",
+                      source_id: op.id,
+                      reference_id: op.reference_id || op.id,
+                      transaction_group_id: txGroupId,
+                      description: `Auto rent deduction from wallet deposit (Ref: ${op.reference_id || 'N/A'})`,
+                      linked_party: activeRentRequest.id,
+                      transaction_date: new Date().toISOString(),
+                    });
+
+                    const newOutstanding = outstanding - repaymentAmount;
+                    console.log(`[approve-wallet-op] Auto-deducted UGX ${repaymentAmount} for rent repayment. Remaining: ${newOutstanding}. Tenant: ${op.user_id}`);
+
+                    // Notify tenant
+                    await adminClient.from("notifications").insert({
+                      user_id: op.user_id,
+                      title: "Rent Auto-Deducted 🏠",
+                      message: `UGX ${repaymentAmount.toLocaleString()} auto-deducted for rent repayment from your deposit. Outstanding: UGX ${newOutstanding.toLocaleString()}.`,
+                      type: "info",
+                    });
+                  } else {
+                    console.error(`[approve-wallet-op] Rent repayment RPC failed for ${op.user_id}:`, repaymentErr.message);
+                  }
+                }
+              }
+            }
+          } catch (rentErr) {
+            console.error(`[approve-wallet-op] Auto-deduction error for ${op.id}:`, rentErr);
+          }
+        }
+
         // If this is a supporter_facilitation_capital approval, activate the linked portfolio
         let portfolioInvestorId: string | null = null;
         if (op.category === 'supporter_facilitation_capital' && op.source_table === 'investor_portfolios' && op.source_id) {
