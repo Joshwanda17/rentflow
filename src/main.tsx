@@ -128,7 +128,7 @@ setTimeout(() => {
     retryBtn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px;margin-top:8px';
     root.firstElementChild?.appendChild(retryBtn);
   }
-}, 8000);
+}, 6000);
 
 // Chunk error recovery — auto-retry on dynamic import failures
 addEventListener('vite:preloadError', () => {

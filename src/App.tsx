@@ -316,10 +316,10 @@ function DeferredProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
     const activate = () => setReady(true);
     if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(activate, { timeout: 1500 });
+      const id = (window as any).requestIdleCallback(activate, { timeout: 800 });
       return () => (window as any).cancelIdleCallback(id);
     }
-    const id = setTimeout(activate, 150);
+    const id = setTimeout(activate, 100);
     return () => clearTimeout(id);
   }, []);
   
