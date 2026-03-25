@@ -175,7 +175,7 @@ const PageLoader = memo(() => {
   const [showRetry, setShowRetry] = useState(false);
   
   useEffect(() => {
-    const timer = setTimeout(() => setShowRetry(true), 5000);
+    const timer = setTimeout(() => setShowRetry(true), 3500);
     return () => clearTimeout(timer);
   }, []);
   
@@ -316,10 +316,10 @@ function DeferredProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
     const activate = () => setReady(true);
     if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(activate, { timeout: 1500 });
+      const id = (window as any).requestIdleCallback(activate, { timeout: 800 });
       return () => (window as any).cancelIdleCallback(id);
     }
-    const id = setTimeout(activate, 150);
+    const id = setTimeout(activate, 100);
     return () => clearTimeout(id);
   }, []);
   
