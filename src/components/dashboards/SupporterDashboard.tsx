@@ -427,7 +427,7 @@ export default function SupporterDashboard({
             <div className="flex-1 text-left min-w-0">
               <p className="font-bold text-base text-foreground">My Portfolios</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {accounts.length > 0 ? `${accounts.length} active account${accounts.length > 1 ? 's' : ''} · Tap to view` : 'View & manage your investments'}
+                {totalRentContributed > 0 ? 'View & manage your active investments' : 'View & manage your investments'}
               </p>
             </div>
             <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
