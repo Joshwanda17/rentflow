@@ -213,9 +213,15 @@ export default function COOPartnersPage() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
 
-  // Wallet top-up dialog
+  // Wallet top-up dialog (external deposit)
   const [topUpPortfolio, setTopUpPortfolio] = useState<PortfolioRow | null>(null);
   const [topUpOpen, setTopUpOpen] = useState(false);
+
+  // Wallet → Portfolio transfer dialog
+  const [walletToPortfolio, setWalletToPortfolio] = useState<PortfolioRow | null>(null);
+  const [walletToPortfolioAmount, setWalletToPortfolioAmount] = useState('');
+  const [walletToPortfolioReason, setWalletToPortfolioReason] = useState('');
+  const [walletToPortfolioSaving, setWalletToPortfolioSaving] = useState(false);
 
   // Pending top-ups per portfolio
   const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
