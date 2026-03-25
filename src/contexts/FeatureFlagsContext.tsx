@@ -7,6 +7,7 @@ interface FeatureFlags {
   enableAutoFund: boolean;
   enableBankTransfer: boolean;
   enableCardPayments: boolean;
+  enablePartnerAutoPayout: boolean;
 }
 
 interface FeatureFlagsContextType {
