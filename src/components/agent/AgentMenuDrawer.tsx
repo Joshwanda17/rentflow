@@ -415,13 +415,10 @@ export function AgentMenuDrawer({
                       </GuideAccordion>
                     </div>
                   )}
-                </motion.div>
-              </AnimatePresence>
+                </div>
             </div>
-          </motion.div>
+          </div>
         </>
-      )}
-    </AnimatePresence>
   );
 }
 
