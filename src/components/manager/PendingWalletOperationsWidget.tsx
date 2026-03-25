@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowDownToLine, ArrowUpFromLine, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface PendingOperation {
   id: string;

@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, differenceInHours } from 'date-fns';
+import { differenceInHours } from 'date-fns';
 import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
