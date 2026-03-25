@@ -1,26 +1,22 @@
 
 
-## Pause Partner Auto-Payout
+## Filter COO Partners to Active Portfolios/Wallets Only
 
-### What's happening now
-The `process-supporter-roi` edge function runs daily (6:00 AM UTC via cron) and also has a manual trigger button in the manager dashboard (`SupporterROITrigger.tsx`). It credits 15% monthly ROI from the platform ledger to supporter wallets.
+### Problem
+Currently, the COO Partners page fetches **all** users with the `supporter` role, including those with no portfolios and empty wallets. This clutters the view with inactive partners.
 
-### Plan
+### Solution
+Filter the partner list after aggregation to only include partners who have:
+- **Active portfolios** (`funded > 0` or `activeDeals > 0`), OR
+- **Active wallet balance** (`walletBalance > 0`)
 
-**Phase 1 — Add a feature flag to gate the payout** (safe, reversible)
+### Changes
 
-1. **Add `enablePartnerAutoPayout` flag** to `FeatureFlagsContext.tsx` — default: `false` (paused).
+**File: `src/components/coo/COOPartnersPage.tsx`**
 
-2. **Update `process-supporter-roi/index.ts`** — Add an early-exit check at the top of the function. Before processing any payouts, query a lightweight config source (e.g., a `system_settings` table row or simply return immediately with a "paused" message). The simplest approach: add a hardcoded `PAYOUT_PAUSED = true` constant at the top of the edge function that causes it to return `{ success: true, paused: true, message: "Partner auto-payout is currently paused" }` without processing anything.
+1. After building `tableRows` (around line 290–309), add a `.filter()` before `.sort()` to exclude partners with zero funded amount AND zero wallet balance.
 
-3. **Update `SupporterROITrigger.tsx`** — Disable the manual "Process Supporter ROI" button and show a "Paused" badge instead of "Auto-pay enabled". This prevents managers from manually triggering payouts while the pause is active.
+2. Update the summary metrics to reflect the filtered list (total partners count, active/suspended counts, etc.) while keeping `totalPartners` as the raw supporter count for context.
 
-### What stays untouched
-- The cron job schedule remains in place (no DB changes needed)
-- All existing ledger entries, portfolios, and wallet data are unaffected
-- The function still deploys and responds — it just short-circuits with a paused response
-- `next_roi_due_date` values are preserved so payouts resume correctly when re-enabled
-
-### Re-enabling
-To resume, set `PAYOUT_PAUSED = false` in the edge function and flip the feature flag back. All due payouts will process on the next run.
+3. Add a small info badge in the summary showing "X of Y supporters shown (with active portfolios or wallets)" so the COO knows filtering is applied.
 
