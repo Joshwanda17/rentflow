@@ -330,9 +330,7 @@ export function VerificationOpportunitiesButton() {
 
                           {/* GPS-gated visit prompt */}
                           {promptTenantId === req.id && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
+                            <div
                               className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3"
                             >
                               <div>

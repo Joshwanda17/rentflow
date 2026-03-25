@@ -1,8 +1,7 @@
-import { useState, ReactNode } from 'react';
+import { useState, useRef, useEffect, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronUp, LucideIcon } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 
 interface CollapsibleAgentSectionProps {
@@ -13,7 +12,6 @@ interface CollapsibleAgentSectionProps {
   pendingLabel?: string;
   iconColor?: string;
   children: ReactNode;
-  // Controlled mode props
   isOpen?: boolean;
   onToggle?: () => void;
 }
@@ -30,10 +28,17 @@ export function CollapsibleAgentSection({
   onToggle,
 }: CollapsibleAgentSectionProps) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
-  
-  // Use controlled state if provided, otherwise use internal state
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
   const isControlled = controlledIsOpen !== undefined;
   const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, [isOpen, children]);
 
   const toggleOpen = () => {
     hapticTap();
@@ -75,19 +80,16 @@ export function CollapsibleAgentSection({
         )}
       </Button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div
+        ref={contentRef}
+        className="overflow-hidden transition-all duration-200 ease-out"
+        style={{
+          maxHeight: isOpen ? contentHeight + 'px' : '0px',
+          opacity: isOpen ? 1 : 0,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
