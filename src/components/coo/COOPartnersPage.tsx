@@ -1508,6 +1508,7 @@ export default function COOPartnersPage() {
                                   </Button>
                                 )}
                                 {pendingTopUps[p.id] && (
+                                  <Button
                                     variant="ghost"
                                     size="sm"
                                     className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 font-semibold min-h-[44px]"
