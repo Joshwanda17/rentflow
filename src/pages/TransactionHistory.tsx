@@ -232,7 +232,7 @@ export default function TransactionHistory() {
   };
 
   return (
-    <div>
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
