@@ -8,6 +8,7 @@ interface FeatureFlags {
   enableBankTransfer: boolean;
   enableCardPayments: boolean;
   enablePartnerAutoPayout: boolean;
+  useNewServices: boolean;
 }
 
 interface FeatureFlagsContextType {
