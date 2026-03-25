@@ -65,3 +65,34 @@ Added `useNewServices` feature flag (default: `false`) and created `useServiceVa
 - Flag defaults to `false` — zero behavior change for users
 - Service errors always fallback to `shouldProceed: true`
 - Edge function remains sole transaction authority
+
+## Phase 5: Gradual Migration — Percentage-Based Traffic Routing with Monitoring ✅
+
+### What was done
+Upgraded shadow audit from log-only to a persistent, percentage-controlled dual execution system with DB-backed monitoring and instant rollback via config table.
+
+### Database changes
+- `shadow_audit_logs` — persists shadow comparison results (function_name, primary/shadow passed, is_match, errors)
+- `shadow_config` — single-row config with `sample_percentage` (default 10%) and `enabled` toggle
+- `get_shadow_match_rate(p_hours)` — SQL function returning match rate per function over configurable time window
+
+### Files created
+- `supabase/functions/_shared/shadowConfig.ts` — reads config with 60-second in-memory cache, falls back to disabled on error
+
+### Files changed
+- `supabase/functions/_shared/shadowLogger.ts` — upgraded with DB persistence via adminClient parameter
+- `supabase/functions/wallet-transfer/index.ts` — shadow on both success and failure validation paths, sampled
+- `supabase/functions/cfo-direct-credit/index.ts` — same pattern
+- `supabase/functions/fund-rent-pool/index.ts` — same pattern, removed duplicate balance check
+
+### Safety & rollback
+- All primary paths unchanged — shadow is fire-and-forget
+- Rollback: set `shadow_config.enabled = false` or `sample_percentage = 0` (no code deploy needed)
+- Config cached 60s to avoid per-request DB reads
+- Shadow persistence errors swallowed — never affect primary response
+
+### Rollout strategy
+1. Deployed with `sample_percentage = 10` (10% of traffic)
+2. Monitor `shadow_audit_logs` for divergences
+3. If match rate > 99% after 48h, increase to 25% → 50% → 100%
+4. Phase 6 (future) can safely swap primary to new services
