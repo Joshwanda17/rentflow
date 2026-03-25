@@ -417,7 +417,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                        g.errors.length > 0 ? <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" /> :
                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
                       <span className="font-semibold truncate">{g.partnerName}</span>
-                      <span className="text-muted-foreground">{g.phone}</span>
+                      <span className="text-muted-foreground">{g.phone || 'No phone'}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Badge variant="outline" className="text-[9px]">{g.portfolios.length} portfolio{g.portfolios.length !== 1 ? 's' : ''}</Badge>
