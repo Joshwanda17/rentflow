@@ -8,6 +8,7 @@ import {
   getCachedTransactions,
   addToSyncQueue 
 } from '@/lib/offlineDataStorage';
+import { useServiceValidation } from '@/core/services/useServiceValidation';
 
 interface WalletTransaction {
   id: string;
