@@ -18,7 +18,7 @@ interface AgentDepositDialogProps {
 
 type DepositMode = 'cash_collected' | 'customer_paid';
 
-export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepositDialogProps) {
+export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone }: AgentDepositDialogProps) {
   const { profile } = useProfile();
   const [mode, setMode] = useState<DepositMode | null>(null);
   const [phone, setPhone] = useState('');
