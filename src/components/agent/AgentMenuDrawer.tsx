@@ -300,14 +300,10 @@ export function AgentMenuDrawer({
 
             {/* Content Grid */}
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeCategory}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.15 }}
-                >
+              <div
+                key={activeCategory}
+                className="animate-fade-in"
+              >
                   {/* Build Your Team CTA — visible in People tab */}
                   {activeCategory === 'people' && (
                     <div className="mb-3 rounded-2xl border-2 border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-3">
