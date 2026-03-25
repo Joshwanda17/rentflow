@@ -264,17 +264,19 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
       setParsedRows(validated);
       setFileName(file.name);
 
-      // Check duplicates against existing profiles
+      // Check duplicates against existing profiles (only for rows with phones)
       const phones = [...new Set(validated.map(r => r.phone).filter(Boolean))];
-      const { data: existingProfiles } = await supabase
-        .from('profiles')
-        .select('phone')
-        .in('phone', phones);
-
-      const existingPhones = new Set((existingProfiles || []).map(p => p.phone));
+      let existingPhones = new Set<string>();
+      if (phones.length > 0) {
+        const { data: existingProfiles } = await supabase
+          .from('profiles')
+          .select('phone')
+          .in('phone', phones);
+        existingPhones = new Set((existingProfiles || []).map(p => p.phone));
+      }
       const grouped = groupByPartner(validated);
       grouped.forEach(g => {
-        if (existingPhones.has(g.phone)) g.isDuplicate = true;
+        if (g.phone && existingPhones.has(g.phone)) g.isDuplicate = true;
       });
 
       setGroups(grouped);
