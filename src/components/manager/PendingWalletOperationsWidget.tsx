@@ -2,15 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, XCircle, ChevronDown, Clock, ArrowDownToLine, ArrowUpFromLine, Loader2, RefreshCw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface PendingOperation {
   id: string;
@@ -36,7 +34,6 @@ export function PendingWalletOperationsWidget() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [isOpen, setIsOpen] = useState(true);
   const [currencyOverrides, setCurrencyOverrides] = useState<Record<string, string>>({});
 
   const SUPPORTED_CURRENCIES = ['UGX', 'USD', 'KES', 'TZS', 'RWF', 'GBP', 'EUR'];
@@ -46,7 +43,6 @@ export function PendingWalletOperationsWidget() {
     setLoading(true);
 
     try {
-      // Use server-side RPC with built-in joins for 40M scale
       const { data: result, error } = await (supabase.rpc as any)('get_pending_wallet_ops', {
         p_page: 1,
         p_page_size: 50,
@@ -61,9 +57,8 @@ export function PendingWalletOperationsWidget() {
       const ops = (parsed?.data || []) as PendingOperation[];
 
       if (ops.length > 0) {
-        // Agent name enrichment for wallet_deposits source (lightweight — only for displayed items)
         const walletDepositIds = ops.filter(d => d.source_table === 'wallet_deposits' && d.source_id).map(d => d.source_id!);
-        
+
         if (walletDepositIds.length > 0) {
           const { data: depositsData } = await supabase
             .from('wallet_deposits' as any)
@@ -152,242 +147,262 @@ export function PendingWalletOperationsWidget() {
     return d.toLocaleDateString('en-UG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
+  const getAgeLabel = (dateStr: string) => {
+    const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
   const pendingCount = operations.length;
   const totalPendingIn = operations.filter(o => o.direction === 'cash_in').reduce((s, o) => s + o.amount, 0);
   const totalPendingOut = operations.filter(o => o.direction === 'cash_out').reduce((s, o) => s + o.amount, 0);
 
+  if (!loading && pendingCount === 0) {
+    return (
+      <Card className="border-success/30 bg-success/5">
+        <CardContent className="py-6 text-center">
+          <CheckCircle className="h-8 w-8 text-success mx-auto mb-2" />
+          <p className="text-sm font-semibold text-success">All Caught Up</p>
+          <p className="text-xs text-muted-foreground">No pending wallet operations</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-warning/40 bg-gradient-to-br from-warning/5 to-warning/10 shadow-lg">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="pb-2 cursor-pointer touch-manipulation">
-            <div className="flex items-center justify-between">
+    <div className="space-y-3">
+      {/* Priority Banner */}
+      {pendingCount > 0 && (
+        <Card className="border-2 border-warning/60 bg-gradient-to-r from-warning/10 via-warning/5 to-background shadow-lg">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-warning/20">
-                  <Clock className="h-5 w-5 text-warning" />
+                <div className="p-2.5 rounded-xl bg-warning/20 animate-pulse">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
                 </div>
                 <div>
-                  <CardTitle className="text-base">Pending Wallet Approvals</CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {pendingCount} awaiting review
-                  </p>
+                  <p className="text-sm font-bold">{pendingCount} Pending Approval{pendingCount > 1 ? 's' : ''}</p>
+                  <p className="text-[11px] text-muted-foreground">Wallet deposits & withdrawals awaiting review</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {pendingCount > 0 && (
-                  <Badge variant="destructive" className="animate-pulse text-sm px-2.5 py-0.5">
-                    {pendingCount}
-                  </Badge>
-                )}
-                <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              <Button size="sm" variant="ghost" onClick={fetchOperations} className="h-9 w-9 p-0">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Summary pills */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="p-3 rounded-xl bg-success/10 border border-success/30">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <ArrowDownToLine className="h-4 w-4 text-success" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Deposits In</span>
+                </div>
+                <p className="text-base font-black text-success">{formatUGX(totalPendingIn)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <ArrowUpFromLine className="h-4 w-4 text-destructive" />
+                  <span className="text-[11px] font-medium text-muted-foreground">Withdrawals</span>
+                </div>
+                <p className="text-base font-black text-destructive">{formatUGX(totalPendingOut)}</p>
               </div>
             </div>
-          </CardHeader>
-        </CollapsibleTrigger>
 
-        <CollapsibleContent>
-          <CardContent className="pt-0 space-y-3">
-            {/* Summary */}
-            {pendingCount > 0 && (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-lg bg-success/10 border border-success/20">
-                  <div className="flex items-center gap-1.5">
-                    <ArrowDownToLine className="h-3.5 w-3.5 text-success" />
-                    <span className="text-[11px] text-muted-foreground">Pending In</span>
-                  </div>
-                  <p className="text-sm font-bold text-success mt-0.5">{formatUGX(totalPendingIn)}</p>
-                </div>
-                <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <div className="flex items-center gap-1.5">
-                    <ArrowUpFromLine className="h-3.5 w-3.5 text-destructive" />
-                    <span className="text-[11px] text-muted-foreground">Pending Out</span>
-                  </div>
-                  <p className="text-sm font-bold text-destructive mt-0.5">{formatUGX(totalPendingOut)}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Bulk actions */}
+            {/* Bulk approve */}
             {pendingCount > 1 && (
-              <div className="flex gap-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="sm" className="flex-1 h-10 touch-manipulation" disabled={processing === 'bulk'}>
-                      {processing === 'bulk' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-                      Approve All ({pendingCount})
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Approve All {pendingCount} Operations?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will credit/debit all {pendingCount} pending wallet operations totaling {formatUGX(totalPendingIn)} in and {formatUGX(totalPendingOut)} out.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBulkApprove}>Approve All</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-                <Button size="sm" variant="outline" className="h-10 touch-manipulation" onClick={fetchOperations}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button className="w-full h-12 text-sm font-bold gap-2" disabled={processing === 'bulk'}>
+                    {processing === 'bulk' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    Approve All {pendingCount} Operations
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Approve All {pendingCount} Operations?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will process {formatUGX(totalPendingIn)} in deposits and {formatUGX(totalPendingOut)} in withdrawals.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkApprove}>Approve All</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
-
-            {/* Loading */}
-            {loading && (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            )}
-
-            {/* Empty */}
-            {!loading && pendingCount === 0 && (
-              <div className="text-center py-6">
-                <CheckCircle className="h-8 w-8 text-success mx-auto mb-2" />
-                <p className="text-sm font-medium text-success">All caught up!</p>
-                <p className="text-xs text-muted-foreground">No pending wallet operations</p>
-              </div>
-            )}
-
-            {/* Operations list */}
-            <AnimatePresence>
-              {operations.map(op => (
-                <motion.div
-                  key={op.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -100 }}
-                  className={`p-3 rounded-xl border space-y-2 ${
-                    op.agent_name 
-                      ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 ring-2 ring-purple-400/50' 
-                      : 'bg-card'
-                  }`}
-                >
-                  {/* Agent deposit banner — highly visible */}
-                  {op.agent_name && (
-                    <div className="p-2.5 rounded-lg bg-purple-500/15 border-2 border-purple-500/40">
-                      <p className="text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-1">
-                        ⚠️ Agent Wallet Deposit — Verify with Agent
-                      </p>
-                      <p className="text-base font-black text-purple-700 dark:text-purple-300">
-                        Deposited by: {op.agent_name}
-                      </p>
-                      <p className="text-[10px] text-purple-600/70 dark:text-purple-400/70 mt-0.5">
-                        Cash collected by agent and deposited into tenant wallet
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Reference / Source info */}
-                  {!op.agent_name && (
-                    <div className="p-2 rounded-lg bg-warning/10 border border-warning/30">
-                      <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-0.5">
-                        {op.reference_id ? 'Reference ID — Verify First' : 'Source — Verify'}
-                      </p>
-                      <p className="font-mono text-lg font-black text-foreground break-all leading-tight">
-                        {op.reference_id || op.source_table.replace(/_/g, ' ')}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        {op.direction === 'cash_in' ? (
-                          <ArrowDownToLine className="h-3.5 w-3.5 text-success flex-shrink-0" />
-                        ) : (
-                          <ArrowUpFromLine className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-                        )}
-                        <span className="text-sm font-bold truncate">{op.user_name}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {op.description || op.category}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">{formatTime(op.created_at)}</p>
-                    </div>
-                    <span className={`text-base font-black ${op.direction === 'cash_in' ? 'text-success' : 'text-destructive'}`}>
-                      {op.direction === 'cash_in' ? '+' : '-'}{formatUGX(op.amount)}
-                    </span>
-                  </div>
-
-                  {/* Currency selector for partner investments */}
-                  {op.category === 'supporter_facilitation_capital' && (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border">
-                      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Partner sees:</span>
-                      <Select
-                        value={currencyOverrides[op.id] || 'UGX'}
-                        onValueChange={(val) => setCurrencyOverrides(prev => ({ ...prev, [op.id]: val }))}
-                      >
-                        <SelectTrigger className="h-8 w-24 text-xs font-bold">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SUPPORTED_CURRENCIES.map(c => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 h-10 touch-manipulation"
-                      onClick={() => handleAction(op.id, 'approve')}
-                      disabled={processing === op.id}
-                    >
-                      {processing === op.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-                      Approve
-                    </Button>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="flex-1 h-10 touch-manipulation"
-                          disabled={processing === op.id}
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Reject
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Reject Operation?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {formatUGX(op.amount)} {op.direction === 'cash_in' ? 'credit' : 'debit'} for {op.user_name}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <Input
-                          placeholder="Reason for rejection..."
-                          value={rejectionReason}
-                          onChange={e => setRejectionReason(e.target.value)}
-                          className="h-12"
-                        />
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleAction(op.id, 'reject')}
-                            disabled={!rejectionReason.trim()}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Reject
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
           </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+        </Card>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Individual Operation Cards — Large, mobile-first */}
+      {operations.map(op => {
+        const isDeposit = op.direction === 'cash_in';
+        const ageLabel = getAgeLabel(op.created_at);
+
+        return (
+          <Card
+            key={op.id}
+            className={`border-2 shadow-md overflow-hidden ${
+              isDeposit
+                ? 'border-success/40 bg-gradient-to-br from-success/5 to-background'
+                : 'border-destructive/40 bg-gradient-to-br from-destructive/5 to-background'
+            } ${op.agent_name ? 'ring-2 ring-purple-400/50' : ''}`}
+          >
+            <CardContent className="p-0">
+              {/* Direction Header Strip */}
+              <div className={`px-4 py-2 flex items-center justify-between ${
+                isDeposit ? 'bg-success/15' : 'bg-destructive/15'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {isDeposit ? (
+                    <ArrowDownToLine className="h-4 w-4 text-success" />
+                  ) : (
+                    <ArrowUpFromLine className="h-4 w-4 text-destructive" />
+                  )}
+                  <span className={`text-xs font-bold uppercase tracking-wider ${
+                    isDeposit ? 'text-success' : 'text-destructive'
+                  }`}>
+                    {isDeposit ? 'Deposit' : 'Withdrawal'}
+                  </span>
+                </div>
+                <span className="text-[10px] font-medium text-muted-foreground">{ageLabel}</span>
+              </div>
+
+              <div className="p-4 space-y-3">
+                {/* Agent deposit warning */}
+                {op.agent_name && (
+                  <div className="p-3 rounded-xl bg-purple-500/10 border-2 border-purple-500/30">
+                    <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-1">
+                      ⚠️ Agent Deposit — Verify with Agent
+                    </p>
+                    <p className="text-sm font-black text-purple-700 dark:text-purple-300">{op.agent_name}</p>
+                  </div>
+                )}
+
+                {/* Reference / Source */}
+                {!op.agent_name && (
+                  <div className="p-3 rounded-xl bg-warning/10 border border-warning/30">
+                    <p className="text-[9px] font-bold text-warning uppercase tracking-wider mb-1">
+                      {op.reference_id ? 'Reference ID' : 'Source'}
+                    </p>
+                    <p className="font-mono text-lg font-black text-foreground break-all leading-tight">
+                      {op.reference_id || op.source_table.replace(/_/g, ' ')}
+                    </p>
+                  </div>
+                )}
+
+                {/* User + Amount — large and clear */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold truncate">{op.user_name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {op.description || op.category}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{formatTime(op.created_at)}</p>
+                  </div>
+                  <div className={`text-right shrink-0 p-3 rounded-xl ${
+                    isDeposit ? 'bg-success/10' : 'bg-destructive/10'
+                  }`}>
+                    <p className="text-[10px] font-medium text-muted-foreground mb-0.5">
+                      {isDeposit ? 'Credit' : 'Debit'}
+                    </p>
+                    <p className={`text-lg font-black tabular-nums ${
+                      isDeposit ? 'text-success' : 'text-destructive'
+                    }`}>
+                      {isDeposit ? '+' : '-'}{formatUGX(op.amount)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Currency selector for partner investments */}
+                {op.category === 'supporter_facilitation_capital' && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-muted/50 border border-border">
+                    <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Display currency:</span>
+                    <Select
+                      value={currencyOverrides[op.id] || 'UGX'}
+                      onValueChange={(val) => setCurrencyOverrides(prev => ({ ...prev, [op.id]: val }))}
+                    >
+                      <SelectTrigger className="h-9 w-24 text-xs font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_CURRENCIES.map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Action Buttons — BIG, thumb-friendly */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="lg"
+                    className="h-14 text-sm font-bold gap-2 rounded-xl"
+                    onClick={() => handleAction(op.id, 'approve')}
+                    disabled={processing === op.id}
+                  >
+                    {processing === op.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-5 w-5" />
+                    )}
+                    Approve
+                  </Button>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="lg"
+                        variant="destructive"
+                        className="h-14 text-sm font-bold gap-2 rounded-xl"
+                        disabled={processing === op.id}
+                      >
+                        <XCircle className="h-5 w-5" />
+                        Reject
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reject Operation?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {formatUGX(op.amount)} {isDeposit ? 'deposit' : 'withdrawal'} for {op.user_name}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <Input
+                        placeholder="Reason for rejection (required)…"
+                        value={rejectionReason}
+                        onChange={e => setRejectionReason(e.target.value)}
+                        className="h-12 text-base"
+                      />
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleAction(op.id, 'reject')}
+                          disabled={!rejectionReason.trim()}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Reject
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 }
