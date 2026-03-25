@@ -1471,6 +1471,7 @@ export default function COOPartnersPage() {
                                     {applyingTopUps === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                                     Apply {pendingTopUps[p.id].count} Pending
                                   </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
