@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       source_table: "investor_portfolios",
       source_id: portfolio_id,
       transaction_group_id: txGroupId,
-      description: `COO wallet-to-portfolio: ${accountLabel} — ${safeReason}`,
+      description: `Tenant Partnership Operations: wallet → ${accountLabel}`,
       linked_party: "platform",
       status: "pending",
       operation_type: "portfolio_topup",
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Wallet → Portfolio (COO): ${accountLabel}`,
+        description: `Wallet deduction for ${accountLabel} — Tenant Partnership Operations`,
         ledger_scope: "wallet",
         transaction_date: now,
       },
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
-        description: `Pending capital from wallet for ${accountLabel} — applied at maturity`,
+        description: `Pending capital for ${accountLabel} — applied at maturity`,
         ledger_scope: "platform",
         transaction_date: now,
       },
@@ -190,10 +190,10 @@ Deno.serve(async (req) => {
     // 5. Notify partner
     await supabase.from("notifications").insert({
       user_id: partnerId,
-      title: "💰 Wallet → Portfolio Transfer",
-      message: `UGX ${topupAmount.toLocaleString()} has been moved from your wallet to "${accountLabel}". This deposit will be applied at maturity.`,
+      title: "💰 Wallet → Support Account Transfer",
+      message: `UGX ${topupAmount.toLocaleString()} has been moved from your wallet to "${accountLabel}" by Tenant Partnership Operations. This deposit will be applied at maturity.`,
       type: "info",
-      metadata: { portfolio_id, amount: topupAmount, status: "pending", initiated_by: user.id },
+      metadata: { portfolio_id, amount: topupAmount, status: "pending" },
     });
 
     console.log(`[coo-wallet-to-portfolio] COO ${user.id} moved ${topupAmount} from partner ${partnerId} wallet to portfolio ${portfolio_id}`);
