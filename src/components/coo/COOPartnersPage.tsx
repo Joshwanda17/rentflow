@@ -306,7 +306,8 @@ export default function COOPartnersPage() {
           joinedAt: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '—',
           lastActivity: agg.lastActivity ? new Date(agg.lastActivity).toLocaleDateString() : '—',
         };
-      }).sort((a, b) => b.funded - a.funded);
+      }).filter(r => r.funded > 0 || r.activeDeals > 0 || r.walletBalance > 0)
+        .sort((a, b) => b.funded - a.funded);
 
       const totalFunded = tableRows.reduce((s, r) => s + r.funded, 0);
       const totalWalletBalance = tableRows.reduce((s, r) => s + r.walletBalance, 0);
@@ -318,7 +319,7 @@ export default function COOPartnersPage() {
       const topPartner = tableRows[0];
 
       setSummary({
-        totalPartners: supporterIds.length,
+        totalPartners: tableRows.length,
         activePartners: activeCount,
         suspendedPartners: suspendedCount,
         totalFunded,
