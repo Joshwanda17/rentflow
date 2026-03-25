@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { FinancialOpsPulseStrip } from './FinancialOpsPulseStrip';
 import { ApprovalQueue } from './ApprovalQueue';
 import { TransactionSearch } from './TransactionSearch';
@@ -11,199 +10,150 @@ import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { 
-  ClipboardList, Search, Scale, Shield, LayoutDashboard, 
-  ShieldCheck, Gauge, Landmark, BookOpen, ArrowDownToLine, Banknote, X
+  ShieldCheck, Banknote, X, ArrowLeft, Menu,
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { motion, AnimatePresence } from 'framer-motion';
 
-type ActivePanel = null | 'deposits' | 'withdrawals';
+type View = 'home' | 'deposits' | 'withdrawals';
+type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit';
+
+const tools = [
+  { id: 'ops' as const, label: 'Ops Center', icon: Gauge },
+  { id: 'queue' as const, label: 'Approval Queue', icon: ClipboardList },
+  { id: 'search' as const, label: 'Transaction Search', icon: Search },
+  { id: 'recon' as const, label: 'Reconciliation', icon: Scale },
+  { id: 'ledgers' as const, label: 'Ledgers', icon: BookOpen },
+  { id: 'audit' as const, label: 'Audit Trail', icon: Shield },
+];
 
 export function FinancialOpsCommandCenter() {
-  const [tab, setTab] = useState('ops');
-  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+  const [view, setView] = useState<View>('home');
+  const [toolSheet, setToolSheet] = useState(false);
+  const [activeTool, setActiveTool] = useState<Tool>(null);
 
-  const handleOpenDeposits = () => setActivePanel('deposits');
-  const handleOpenWithdrawals = () => setActivePanel('withdrawals');
-  const handleClosePanel = () => setActivePanel(null);
+  const openTool = (t: Tool) => {
+    setActiveTool(t);
+    setToolSheet(false);
+  };
 
-  return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* Header */}
-      <div>
-        <h1 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-          <LayoutDashboard className="h-5 w-5 text-primary" />
-          Financial Ops
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-          Verify deposits · Process withdrawals & payouts
-        </p>
+  // Sub-view: Deposits
+  if (view === 'deposits') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+          Verify Deposits
+        </h2>
+        <TidVerification />
       </div>
+    );
+  }
 
-      {/* Pulse Strip */}
+  // Sub-view: Withdrawals & Payouts
+  if (view === 'withdrawals') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Banknote className="h-5 w-5 text-destructive" />
+          Withdrawals & Payouts
+        </h2>
+        <PendingWalletOperationsWidget />
+        <FloatPayoutVerification />
+      </div>
+    );
+  }
+
+  // Sub-view: Active tool
+  if (activeTool) {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setActiveTool(null)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        {activeTool === 'ops' && <ScaleDashboard />}
+        {activeTool === 'queue' && <ApprovalQueue />}
+        {activeTool === 'search' && <TransactionSearch />}
+        {activeTool === 'recon' && <ReconciliationDashboard />}
+        {activeTool === 'ledgers' && <LedgerHub />}
+        {activeTool === 'audit' && <AuditFeed />}
+      </div>
+    );
+  }
+
+  // Home: 2 buttons + menu
+  return (
+    <div className="space-y-6">
       <FinancialOpsPulseStrip />
 
-      {/* ===== 2 PROMINENT ACTION BUTTONS ===== */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Verify Deposits Button */}
-        <motion.button
-          type="button"
-          onClick={handleOpenDeposits}
-          whileTap={{ scale: 0.97 }}
-          className={`
-            relative overflow-hidden rounded-2xl border-2 p-4 sm:p-5 text-left transition-all
-            min-h-[100px] sm:min-h-[120px] select-none
-            ${activePanel === 'deposits' 
-              ? 'border-primary bg-primary text-primary-foreground shadow-lg' 
-              : 'border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary/60 hover:shadow-md'}
-          `}
-          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+      <div className="grid grid-cols-1 gap-4">
+        {/* Verify Deposits */}
+        <button
+          onClick={() => setView('deposits')}
+          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[80px]"
         >
-          <div className="flex flex-col gap-2">
-            <div className={`
-              h-11 w-11 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center
-              ${activePanel === 'deposits' ? 'bg-primary-foreground/20' : 'bg-primary/15'}
-            `}>
-              <ShieldCheck className={`h-6 w-6 sm:h-7 sm:w-7 ${activePanel === 'deposits' ? 'text-primary-foreground' : 'text-primary'}`} />
-            </div>
-            <div>
-              <p className="font-bold text-sm sm:text-base tracking-tight">Verify Deposits</p>
-              <p className={`text-[10px] sm:text-xs mt-0.5 ${activePanel === 'deposits' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                TID match & approve
-              </p>
-            </div>
+          <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <ShieldCheck className="h-6 w-6 text-primary" />
           </div>
-        </motion.button>
+          <div>
+            <p className="font-bold text-base">Verify Deposits</p>
+            <p className="text-xs text-muted-foreground">TID match & approve manual deposits</p>
+          </div>
+        </button>
 
-        {/* Process Withdrawals & Payouts Button */}
-        <motion.button
-          type="button"
-          onClick={handleOpenWithdrawals}
-          whileTap={{ scale: 0.97 }}
-          className={`
-            relative overflow-hidden rounded-2xl border-2 p-4 sm:p-5 text-left transition-all
-            min-h-[100px] sm:min-h-[120px] select-none
-            ${activePanel === 'withdrawals' 
-              ? 'border-destructive bg-destructive text-destructive-foreground shadow-lg' 
-              : 'border-destructive/40 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/60 hover:shadow-md'}
-          `}
-          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+        {/* Withdrawals & Payouts */}
+        <button
+          onClick={() => setView('withdrawals')}
+          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-destructive/30 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/50 transition-all text-left min-h-[80px]"
         >
-          <div className="flex flex-col gap-2">
-            <div className={`
-              h-11 w-11 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center
-              ${activePanel === 'withdrawals' ? 'bg-destructive-foreground/20' : 'bg-destructive/15'}
-            `}>
-              <Banknote className={`h-6 w-6 sm:h-7 sm:w-7 ${activePanel === 'withdrawals' ? 'text-destructive-foreground' : 'text-destructive'}`} />
-            </div>
-            <div>
-              <p className="font-bold text-sm sm:text-base tracking-tight">Withdrawals & Payouts</p>
-              <p className={`text-[10px] sm:text-xs mt-0.5 ${activePanel === 'withdrawals' ? 'text-destructive-foreground/70' : 'text-muted-foreground'}`}>
-                Wallet & float payouts
-              </p>
-            </div>
+          <div className="h-12 w-12 rounded-xl bg-destructive/15 flex items-center justify-center shrink-0">
+            <Banknote className="h-6 w-6 text-destructive" />
           </div>
-        </motion.button>
+          <div>
+            <p className="font-bold text-base">Withdrawals & Payouts</p>
+            <p className="text-xs text-muted-foreground">Process wallet & float payouts</p>
+          </div>
+        </button>
       </div>
 
-      {/* ===== INLINE PANEL FOR DEPOSITS ===== */}
-      <AnimatePresence>
-        {activePanel === 'deposits' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
-            <div className="rounded-2xl border-2 border-primary/30 bg-card p-3 sm:p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                  Deposit Verification
-                </h2>
-                <Button variant="ghost" size="icon-sm" onClick={handleClosePanel}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <TidVerification />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* More Tools Button */}
+      <Button
+        variant="outline"
+        className="w-full gap-2"
+        onClick={() => setToolSheet(true)}
+      >
+        <Menu className="h-4 w-4" />
+        More Tools
+      </Button>
 
-      {/* ===== INLINE PANEL FOR WITHDRAWALS & PAYOUTS ===== */}
-      <AnimatePresence>
-        {activePanel === 'withdrawals' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="overflow-hidden"
-          >
-            <div className="rounded-2xl border-2 border-destructive/30 bg-card p-3 sm:p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="font-bold text-sm sm:text-base flex items-center gap-2">
-                  <Banknote className="h-4 w-4 text-destructive" />
-                  Withdrawals & Float Payouts
-                </h2>
-                <Button variant="ghost" size="icon-sm" onClick={handleClosePanel}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <PendingWalletOperationsWidget />
-              <FloatPayoutVerification />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ===== MENU BAR FOR OTHER TOOLS ===== */}
-      <Tabs value={tab} onValueChange={setTab}>
-        <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
-          <TabsList className="h-9 w-max sm:w-full justify-start">
-            <TabsTrigger value="ops" className="text-[11px] sm:text-xs gap-1 px-3 sm:px-4 shrink-0 min-h-[36px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-semibold">
-              <Gauge className="h-3.5 w-3.5" /> Ops Center
-            </TabsTrigger>
-            <TabsTrigger value="queue" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
-              <ClipboardList className="h-3.5 w-3.5" /> Queue
-            </TabsTrigger>
-            <TabsTrigger value="search" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
-              <Search className="h-3.5 w-3.5" /> Search
-            </TabsTrigger>
-            <TabsTrigger value="reconciliation" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
-              <Scale className="h-3.5 w-3.5" /> Recon
-            </TabsTrigger>
-            <TabsTrigger value="ledgers" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px] data-[state=active]:bg-chart-1 data-[state=active]:text-white">
-              <BookOpen className="h-3.5 w-3.5" /> Ledgers
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="text-[11px] sm:text-xs gap-1 px-2.5 sm:px-3 shrink-0 min-h-[36px]">
-              <Shield className="h-3.5 w-3.5" /> Audit
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="ops" className="mt-2 sm:mt-3">
-          <ScaleDashboard />
-        </TabsContent>
-        <TabsContent value="queue" className="mt-2 sm:mt-3">
-          <ApprovalQueue />
-        </TabsContent>
-        <TabsContent value="search" className="mt-2 sm:mt-3">
-          <TransactionSearch />
-        </TabsContent>
-        <TabsContent value="reconciliation" className="mt-2 sm:mt-3">
-          <ReconciliationDashboard />
-        </TabsContent>
-        <TabsContent value="ledgers" className="mt-2 sm:mt-3">
-          <LedgerHub />
-        </TabsContent>
-        <TabsContent value="audit" className="mt-2 sm:mt-3">
-          <AuditFeed />
-        </TabsContent>
-      </Tabs>
+      {/* Tools Sheet */}
+      <Sheet open={toolSheet} onOpenChange={setToolSheet}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh]">
+          <SheetHeader>
+            <SheetTitle>Financial Tools</SheetTitle>
+            <SheetDescription>Additional operations & reporting</SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-2 mt-4">
+            {tools.map(t => (
+              <button
+                key={t.id}
+                onClick={() => openTool(t.id)}
+                className="flex items-center gap-3 p-4 rounded-xl hover:bg-accent/40 transition-colors text-left"
+              >
+                <t.icon className="h-5 w-5 text-muted-foreground" />
+                <span className="font-medium text-sm">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
