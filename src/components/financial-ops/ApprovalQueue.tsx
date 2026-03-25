@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, differenceInHours } from 'date-fns';
+import { differenceInHours } from 'date-fns';
 import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
@@ -479,7 +479,7 @@ export function ApprovalQueue() {
             </Button>
           </div>
 
-          <ScrollArea className="max-h-[60vh] sm:max-h-[500px]">
+          <ScrollArea className="max-h-[70vh] sm:max-h-[600px]">
             {isLoading ? (
               <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
             ) : items.length === 0 ? (
@@ -487,7 +487,7 @@ export function ApprovalQueue() {
                 {search ? 'No matching items' : 'Queue is clear 🎉'}
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {activeQueue !== 'deposits' ? (
                   <div className="flex items-center gap-2 px-2 pb-1">
                     <Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} />
@@ -502,69 +502,130 @@ export function ApprovalQueue() {
                 )}
                 {items.map((item) => {
                   const Icon = queueIcon[item.type];
+                  const isDeposit = item.type === 'deposits';
+                  const isCashOut = item.type === 'wallet_withdrawals';
+                  const ageMinutes = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 60000);
+                  const ageLabel = ageMinutes < 60 ? `${ageMinutes}m` : ageMinutes < 1440 ? `${Math.floor(ageMinutes / 60)}h` : `${Math.floor(ageMinutes / 1440)}d`;
+
                   return (
                     <div
                       key={item.id}
-                      className={`flex items-start sm:items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border-l-4 ${urgencyBg[item.urgency]} bg-card hover:bg-muted/40 transition-colors cursor-pointer`}
-                      onClick={() => setInspectItem(item)}
+                      className={`rounded-xl border-2 overflow-hidden transition-colors ${
+                        isDeposit
+                          ? 'border-success/40 bg-gradient-to-r from-success/5 to-card'
+                          : isCashOut
+                          ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-card'
+                          : `border-l-4 ${urgencyBg[item.urgency]} border-t border-r border-b border-border/60 bg-card`
+                      }`}
                     >
-                      {activeQueue !== 'deposits' && (
-                        <Checkbox
-                          checked={selected.has(item.id)}
-                          onCheckedChange={() => toggleSelect(item.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="mt-0.5 sm:mt-0 shrink-0"
-                        />
-                      )}
-                      <div className={`p-1 sm:p-1.5 rounded-lg shrink-0 ${item.type === 'deposits' ? 'bg-primary/10' : item.type === 'wallet_withdrawals' ? 'bg-orange-500/10' : item.type === 'withdrawals' ? 'bg-destructive/10' : 'bg-amber-500/10'}`}>
-                        <Icon className={`h-3 sm:h-3.5 w-3 sm:w-3.5 ${item.type === 'deposits' ? 'text-primary' : item.type === 'wallet_withdrawals' ? 'text-orange-600' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
+                      {/* Type header strip */}
+                      <div className={`px-3 py-1.5 flex items-center justify-between ${
+                        isDeposit ? 'bg-success/10' : isCashOut ? 'bg-orange-500/10' : 'bg-muted/30'
+                      }`} onClick={() => setInspectItem(item)}>
+                        <div className="flex items-center gap-2">
+                          {activeQueue !== 'deposits' && (
+                            <Checkbox
+                              checked={selected.has(item.id)}
+                              onCheckedChange={() => toggleSelect(item.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="shrink-0"
+                            />
+                          )}
+                          <div className={`p-1 rounded-lg ${isDeposit ? 'bg-success/20' : isCashOut ? 'bg-orange-500/20' : 'bg-muted'}`}>
+                            <Icon className={`h-3.5 w-3.5 ${isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
+                          </div>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                            isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-muted-foreground'
+                          }`}>
+                            {isDeposit ? 'Deposit' : isCashOut ? 'Cash Out' : item.type === 'withdrawals' ? 'Invest W/D' : 'Wallet Op'}
+                          </span>
+                        </div>
+                        <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
+                          {ageLabel} ago
+                        </Badge>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between gap-1">
-                          <p className="text-xs sm:text-sm font-medium truncate">{item.userName}</p>
-                          <div className="text-right shrink-0">
-                            <p className="text-xs sm:text-sm font-bold tabular-nums">{formatUGX(item.amount)}</p>
-                            {item.type === 'deposits' && item.rawData?.transaction_id && (
+
+                      {/* Main content */}
+                      <div className="p-3 space-y-2" onClick={() => setInspectItem(item)}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold truncate">{item.userName}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
+                            {item.userPhone && (
+                              <p className="text-[10px] text-muted-foreground/70">{item.userPhone}</p>
+                            )}
+                          </div>
+                          <div className={`text-right shrink-0 px-3 py-2 rounded-xl ${
+                            isDeposit ? 'bg-success/10' : isCashOut ? 'bg-orange-500/10' : 'bg-muted/50'
+                          }`}>
+                            <p className={`text-lg font-black tabular-nums ${
+                              isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-foreground'
+                            }`}>
+                              {formatUGX(item.amount)}
+                            </p>
+                            {isDeposit && item.rawData?.transaction_id && (
                               <p className="text-[9px] font-mono text-muted-foreground">TID: ••••{item.rawData.transaction_id.slice(-2)}</p>
                             )}
                           </div>
                         </div>
-                        <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{item.description}</p>
-                        {/* Enhanced payout details for wallet withdrawals */}
-                        {item.payoutDetails && item.type === 'wallet_withdrawals' && (
-                          <div className="mt-1 p-1.5 rounded bg-muted/60 border border-border/50 space-y-0.5">
+
+                        {/* Payout details for wallet withdrawals — prominent */}
+                        {item.payoutDetails && isCashOut && (
+                          <div className="p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 space-y-1">
                             {item.payoutDetails.method === 'mobile_money' && (
                               <>
-                                <p className="text-[10px] font-medium">📱 {item.payoutDetails.provider || 'MoMo'}: {item.payoutDetails.number}</p>
-                                {item.payoutDetails.name && <p className="text-[10px] text-muted-foreground">Name: {item.payoutDetails.name}</p>}
+                                <p className="text-xs font-semibold">📱 {item.payoutDetails.provider || 'MoMo'}: <span className="font-mono">{item.payoutDetails.number}</span></p>
+                                {item.payoutDetails.name && <p className="text-[11px] text-muted-foreground">Name: {item.payoutDetails.name}</p>}
                               </>
                             )}
                             {item.payoutDetails.method === 'bank_transfer' && (
                               <>
-                                <p className="text-[10px] font-medium">🏦 {item.payoutDetails.bankName}</p>
-                                <p className="text-[10px] text-muted-foreground">Acc: {item.payoutDetails.bankAccountNumber}</p>
-                                {item.payoutDetails.bankAccountName && <p className="text-[10px] text-muted-foreground">Name: {item.payoutDetails.bankAccountName}</p>}
+                                <p className="text-xs font-semibold">🏦 {item.payoutDetails.bankName}</p>
+                                <p className="text-[11px] font-mono">Acc: {item.payoutDetails.bankAccountNumber}</p>
+                                {item.payoutDetails.bankAccountName && <p className="text-[11px] text-muted-foreground">Name: {item.payoutDetails.bankAccountName}</p>}
                               </>
                             )}
                             {item.payoutDetails.method === 'cash' && (
-                              <p className="text-[10px] font-medium">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent location'}</p>
+                              <p className="text-xs font-semibold">💵 Cash at: {item.payoutDetails.agentLocation || 'Agent'}</p>
                             )}
-                            <Badge variant="outline" className="h-4 px-1 text-[9px]">
+                            <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
                               {item.payoutDetails.status?.replace(/_/g, ' ')}
                             </Badge>
                           </div>
                         )}
-                        {item.payoutDetails?.status && item.type !== 'wallet_withdrawals' && (
-                          <Badge variant="outline" className="h-4 px-1 text-[9px] mt-0.5">
+
+                        {item.payoutDetails?.status && !isCashOut && (
+                          <Badge variant="outline" className="h-5 px-1.5 text-[9px]">
                             {item.payoutDetails.status.replace(/_/g, ' ')}
                           </Badge>
                         )}
-                        <p className="text-[9px] sm:text-[10px] text-muted-foreground/70 mt-0.5">
-                          {item.userPhone && `${item.userPhone} · `}
-                          {format(new Date(item.createdAt), 'MMM d, HH:mm')}
-                          {item.ageHours >= 1 && ` · ${Math.round(item.ageHours)}h`}
-                        </p>
                       </div>
+
+                      {/* Inline action buttons — large touch targets, always visible */}
+                      {activeQueue !== 'deposits' && (
+                        <div className="grid grid-cols-2 gap-0 border-t border-border/40">
+                          <Button
+                            variant="ghost"
+                            className={`h-12 rounded-none text-sm font-bold gap-1.5 ${
+                              isDeposit ? 'text-success hover:bg-success/10' : 'text-primary hover:bg-primary/10'
+                            }`}
+                            onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
+                            disabled={processing}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
+                            onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('reject'); }}
+                            disabled={processing}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
