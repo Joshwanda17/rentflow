@@ -5,9 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Loader2, ArrowRightLeft, Wallet, AlertTriangle } from 'lucide-react';
+import { Loader2, Banknote, Smartphone, Building2, Clock, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { cn } from '@/lib/utils';
+
+type PaymentMethod = 'cash' | 'mobile_money' | 'bank';
+
+const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Banknote; description: string }[] = [
+  { value: 'cash', label: 'Cash', icon: Banknote, description: 'Physical cash deposit' },
+  { value: 'mobile_money', label: 'Mobile Money', icon: Smartphone, description: 'MTN / Airtel MoMo' },
+  { value: 'bank', label: 'Bank', icon: Building2, description: 'Bank transfer' },
+];
 
 interface FundInvestmentAccountDialogProps {
   open: boolean;
@@ -26,38 +34,30 @@ interface FundInvestmentAccountDialogProps {
 
 export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuccess }: FundInvestmentAccountDialogProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [transactionReference, setTransactionReference] = useState('');
   const [saving, setSaving] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [loadingWallet, setLoadingWallet] = useState(false);
 
-  // Fetch partner wallet balance when dialog opens
-  const fetchWalletBalance = async () => {
-    if (!account) return;
-    const partnerId = account.investor_id || account.agent_id;
-    setLoadingWallet(true);
-    const { data } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', partnerId)
-      .single();
-    setWalletBalance(data?.balance ?? 0);
-    setLoadingWallet(false);
-  };
-
-  // Fetch on open
   const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && account) {
-      fetchWalletBalance();
+    if (isOpen) {
       setAmount('');
       setNotes('');
+      setPaymentMethod('cash');
+      setTransactionReference('');
     }
     onOpenChange(isOpen);
   };
 
-  const handleTopUp = async () => {
+  const isRefValid = () => {
+    if (paymentMethod === 'cash') return true;
+    if (paymentMethod === 'mobile_money') return transactionReference.trim().length >= 8;
+    if (paymentMethod === 'bank') return transactionReference.trim().length >= 6;
+    return false;
+  };
+
+  const handleSubmit = async () => {
     if (!account || !amount) return;
     const topUpAmount = parseFloat(amount);
     if (isNaN(topUpAmount) || topUpAmount <= 0) {
@@ -72,6 +72,13 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       toast({ title: 'Please add a reason (min 10 characters)', variant: 'destructive' });
       return;
     }
+    if (!isRefValid()) {
+      toast({
+        title: paymentMethod === 'mobile_money' ? 'TID must be at least 8 characters' : 'Bank reference must be at least 6 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -80,6 +87,8 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
           portfolio_id: account.id,
           amount: topUpAmount,
           notes: notes.trim(),
+          payment_method: paymentMethod,
+          transaction_reference: paymentMethod !== 'cash' ? transactionReference.trim() : null,
         },
       });
 
@@ -87,11 +96,12 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
       if (data?.error) throw new Error(data.error);
 
       toast({
-        title: `${formatUGX(topUpAmount)} deducted — pending until maturity`,
-        description: `Deposit secured for ${account.account_name || account.portfolio_code}. Will be added at portfolio maturity.`,
+        title: `${formatUGX(topUpAmount)} top-up submitted`,
+        description: `Pending verification for ${account.account_name || account.portfolio_code}.`,
       });
       setAmount('');
       setNotes('');
+      setTransactionReference('');
       onSuccess();
       onOpenChange(false);
     } catch (e: any) {
@@ -102,81 +112,134 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   };
 
   const parsedAmount = parseFloat(amount) || 0;
-  const insufficientFunds = walletBalance !== null && parsedAmount > walletBalance;
+  const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && isRefValid();
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-4 w-4 text-primary" />
-            Wallet → Portfolio Top-Up
+            <Banknote className="h-4 w-4 text-primary" />
+            Portfolio Top-Up
           </DialogTitle>
         </DialogHeader>
 
         {account && (
           <div className="space-y-4 py-2">
-            {/* Partner wallet balance */}
-            <div className="rounded-lg border border-border p-3 bg-muted/30 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Partner Wallet</p>
-                <p className="text-sm font-semibold text-foreground">{account.investor_name || 'Partner'}</p>
-              </div>
-              <div className="text-right">
-                <div className="flex items-center gap-1.5">
-                  <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
-                  {loadingWallet ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  ) : (
-                    <p className="font-bold text-sm text-foreground">{formatUGX(walletBalance ?? 0)}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
             {/* Portfolio info */}
             <div className="rounded-lg border border-primary/20 p-3 bg-primary/5">
               <p className="text-sm font-semibold text-foreground">{account.account_name || account.portfolio_code}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Current Capital: {formatUGX(account.investment_amount)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {account.investor_name && <span className="font-medium">{account.investor_name} · </span>}
+                Current Capital: {formatUGX(account.investment_amount)}
+              </p>
             </div>
 
+            {/* Payment method selector */}
             <div className="space-y-1.5">
-              <Label className="text-xs">Top-Up Amount (UGX)</Label>
+              <Label className="text-xs">Payment Method</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {PAYMENT_OPTIONS.map(opt => {
+                  const Icon = opt.icon;
+                  const selected = paymentMethod === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => { setPaymentMethod(opt.value); setTransactionReference(''); }}
+                      className={cn(
+                        "flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-all text-center",
+                        selected
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : "border-border bg-background hover:border-muted-foreground/30"
+                      )}
+                    >
+                      <Icon className={cn("h-5 w-5", selected ? "text-primary" : "text-muted-foreground")} />
+                      <span className={cn("text-xs font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Amount (UGX)</Label>
               <Input
                 type="number"
                 min={1000}
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                placeholder="e.g. 5000000"
+                placeholder="e.g. 5,000,000"
                 className="h-9"
                 autoFocus
               />
-              {insufficientFunds && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Exceeds partner's wallet balance
-                </p>
-              )}
             </div>
 
+            {/* Conditional reference field */}
+            {paymentMethod === 'mobile_money' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Transaction ID (TID)</Label>
+                <Input
+                  value={transactionReference}
+                  onChange={e => setTransactionReference(e.target.value.toUpperCase())}
+                  placeholder="e.g. 12345678ABCD"
+                  className="h-9 font-mono tracking-wider"
+                  maxLength={30}
+                />
+                <p className="text-[10px] text-muted-foreground">Enter the MoMo transaction ID (min 8 characters)</p>
+              </div>
+            )}
+
+            {paymentMethod === 'bank' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Bank Reference</Label>
+                <Input
+                  value={transactionReference}
+                  onChange={e => setTransactionReference(e.target.value.toUpperCase())}
+                  placeholder="e.g. REF-2025-001234"
+                  className="h-9 font-mono tracking-wider"
+                  maxLength={50}
+                />
+                <p className="text-[10px] text-muted-foreground">Enter the bank transfer reference (min 6 characters)</p>
+              </div>
+            )}
+
+            {/* Notes */}
             <div className="space-y-1.5">
               <Label className="text-xs">Reason (required, min 10 chars)</Label>
-              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason for this wallet-to-portfolio transfer" className="h-9" />
+              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason for this portfolio top-up" className="h-9" />
             </div>
 
-            {parsedAmount > 0 && !insufficientFunds && (
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Wallet after</span>
-                  <span className="font-medium text-foreground">{formatUGX((walletBalance ?? 0) - parsedAmount)}</span>
+            {/* Preview */}
+            {parsedAmount >= 1000 && isRefValid() && (
+              <div className="rounded-lg bg-accent/50 border border-accent p-3 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Clock className="h-3.5 w-3.5 text-amber-500" />
+                  Pending Verification
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>⏳ Pending until maturity</span>
-                  <span className="font-bold text-amber-600">{formatUGX(parsedAmount)}</span>
+                  <span>Top-up amount</span>
+                  <span className="font-bold text-foreground">{formatUGX(parsedAmount)}</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Funds will be deducted now but added to portfolio capital at maturity.
-                </p>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Method</span>
+                  <span className="font-medium text-foreground capitalize">
+                    {paymentMethod === 'mobile_money' ? 'Mobile Money' : paymentMethod === 'bank' ? 'Bank Transfer' : 'Cash'}
+                  </span>
+                </div>
+                {transactionReference && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{paymentMethod === 'mobile_money' ? 'TID' : 'Reference'}</span>
+                    <span className="font-mono text-foreground">{transactionReference}</span>
+                  </div>
+                )}
+                <div className="flex items-start gap-1.5 pt-1 border-t border-border/50">
+                  <CheckCircle2 className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-muted-foreground">
+                    Funds will be verified and added to portfolio capital upon confirmation.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -184,12 +247,9 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button
-            onClick={handleTopUp}
-            disabled={saving || !amount || parsedAmount <= 0 || parsedAmount < 1000 || insufficientFunds || notes.trim().length < 10}
-          >
+          <Button onClick={handleSubmit} disabled={!canSubmit}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            Confirm Transfer
+            Submit Top-Up
           </Button>
         </DialogFooter>
       </DialogContent>
