@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
+import { runShadowAudit } from "../_shared/shadowLogger.ts";
+import { shadowValidateCfoAdjustment } from "../_shared/shadowValidation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
