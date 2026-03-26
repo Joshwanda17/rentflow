@@ -279,6 +279,14 @@ export function TenantOpsDashboard() {
         return <TenantRentCollector />;
       case 'agent-tenants':
         return <AgentTenantSearch />;
+      case 'tenant-detail':
+        return selectedTenant ? (
+          <TenantDetailPanel
+            tenantId={selectedTenant.id}
+            tenantName={selectedTenant.name}
+            onBack={goBack}
+          />
+        ) : null;
       default:
         return null;
     }
