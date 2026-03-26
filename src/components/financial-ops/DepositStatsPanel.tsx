@@ -20,8 +20,8 @@ interface DepositStats {
 interface PendingDeposit {
   id: string;
   amount: number;
-  transaction_reference: string | null;
-  payment_channel: string | null;
+  transaction_id: string | null;
+  provider: string | null;
   created_at: string;
   user_id: string;
   depositor_name?: string;
