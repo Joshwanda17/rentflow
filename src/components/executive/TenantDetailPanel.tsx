@@ -159,7 +159,7 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack }: TenantDetail
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                         <span>Agent: {req.agent_name}</span>
                         <span>Landlord: {req.landlord_name}</span>
-                        {req.daily_rate && <span>Daily: UGX {Number(req.daily_rate).toLocaleString()}</span>}
+                        {req.daily_repayment && <span>Daily: UGX {Number(req.daily_repayment).toLocaleString()}</span>}
                       </div>
                     </div>
                   ))}
