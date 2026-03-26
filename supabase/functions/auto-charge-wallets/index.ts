@@ -558,7 +558,7 @@ async function chargeAgent(
     transaction_date: new Date().toISOString(),
   });
 
-  // Also record in pending_wallet_operations for audit
+  // Also record in pending_wallet_operations for audit (no transaction_group_id)
   await supabase.from("pending_wallet_operations").insert({
     user_id: charge.agent_id,
     amount: shortfall,
@@ -566,7 +566,6 @@ async function chargeAgent(
     category: "tenant_default_charge",
     source_table: "subscription_charges",
     source_id: charge.id,
-    transaction_group_id: txGroupId,
     description,
     linked_party: `${tenantName} (${tenantPhone})`,
     status: "approved",
