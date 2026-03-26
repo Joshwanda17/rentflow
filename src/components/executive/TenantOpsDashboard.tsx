@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
@@ -14,11 +14,16 @@ import { AgentTenantSearch } from './AgentTenantSearch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +42,28 @@ interface NavCard {
 
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
+  const queryClient = useQueryClient();
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
+  const [deleting, setDeleting] = useState(false);
   
+
+  const handleDeleteTenant = async () => {
+    if (!deleteDialog.tenantId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteDialog.tenantId },
+      });
+      if (error) throw error;
+      toast.success(`Tenant "${deleteDialog.tenantName}" has been deleted`);
+      setDeleteDialog({ open: false, tenantId: '', tenantName: '' });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete tenant');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const { data: rentRequests, isLoading } = useQuery({
     queryKey: ['exec-tenant-ops'],
@@ -181,6 +207,20 @@ export function TenantOpsDashboard() {
     { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'landlord_name', label: 'Landlord' },
     { key: 'landlord_phone', label: 'L. Phone' },
+    { key: 'tenant_id', label: 'Action', render: (_v, row) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={(e) => {
+          e.stopPropagation();
+          setDeleteDialog({ open: true, tenantId: row.tenant_id, tenantName: row.tenant_name || 'Unknown' });
+        }}
+      >
+        <Trash2 className="h-3.5 w-3.5 mr-1" />
+        Delete
+      </Button>
+    )},
   ];
 
   const renderSubView = () => {
@@ -339,6 +379,32 @@ export function TenantOpsDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Tenant Confirmation Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, tenantId: '', tenantName: '' })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{deleteDialog.tenantName}</strong> and all their data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTenant}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Delete Tenant</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
