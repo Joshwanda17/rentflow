@@ -308,48 +308,60 @@ export function MissedDaysTracker() {
               {filtered.map(t => {
                 const risk = getRisk(t);
                 return (
-                  <div key={t.tenant_id} className="px-3 sm:px-4 py-3 flex items-start gap-3">
-                    {/* Risk indicator */}
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                      risk === 'critical' ? 'bg-destructive/15' : risk === 'warning' ? 'bg-amber-500/15' : 'bg-emerald-500/15'
-                    }`}>
-                      {risk === 'critical' ? <AlertTriangle className="h-4 w-4 text-destructive" />
-                        : risk === 'warning' ? <Clock className="h-4 w-4 text-amber-600" />
-                        : <TrendingDown className="h-4 w-4 text-emerald-600" />
-                      }
+                  <div key={t.tenant_id} className="px-3 sm:px-4 py-3 space-y-1.5">
+                    <div className="flex items-start gap-3">
+                      {/* Risk indicator */}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                        risk === 'critical' ? 'bg-destructive/15' : risk === 'warning' ? 'bg-amber-500/15' : 'bg-emerald-500/15'
+                      }`}>
+                        {risk === 'critical' ? <AlertTriangle className="h-4 w-4 text-destructive" />
+                          : risk === 'warning' ? <Clock className="h-4 w-4 text-amber-600" />
+                          : <TrendingDown className="h-4 w-4 text-emerald-600" />
+                        }
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium truncate">{t.tenant_name}</p>
+                          <Badge variant="outline" className={`text-[9px] px-1.5 ${riskColor(risk)}`}>
+                            {riskLabel(risk)}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                          <span>Missed: <strong className="text-foreground">{t.missed_days} days</strong></span>
+                          <span>Balance: <strong className="text-foreground">{formatUGX(t.outstanding_balance)}</strong></span>
+                          <span>Daily: {formatUGX(t.daily_repayment)}</span>
+                          <span>Repaid: {t.repayment_pct}%</span>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="mt-1.5 w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              risk === 'critical' ? 'bg-destructive' : risk === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(100, t.repayment_pct)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Phone */}
+                      {t.phone && (
+                        <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors mt-0.5">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                        </a>
+                      )}
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium truncate">{t.tenant_name}</p>
-                        <Badge variant="outline" className={`text-[9px] px-1.5 ${riskColor(risk)}`}>
-                          {riskLabel(risk)}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
-                        <span>Missed: <strong className="text-foreground">{t.missed_days} days</strong></span>
-                        <span>Balance: <strong className="text-foreground">{formatUGX(t.outstanding_balance)}</strong></span>
-                        <span>Daily: {formatUGX(t.daily_repayment)}</span>
-                        <span>Repaid: {t.repayment_pct}%</span>
-                      </div>
-                      {/* Progress bar */}
-                      <div className="mt-1.5 w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            risk === 'critical' ? 'bg-destructive' : risk === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`}
-                          style={{ width: `${Math.min(100, t.repayment_pct)}%` }}
-                        />
-                      </div>
+                    {/* Agent + Wallet details row */}
+                    <div className="ml-12 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                      <span>Agent: <strong className="text-foreground">{t.agent_name}</strong></span>
+                      <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
+                      {t.agent_phone && (
+                        <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
+                      )}
+                      <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
                     </div>
-
-                    {/* Phone */}
-                    {t.phone && (
-                      <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors mt-0.5">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                      </a>
-                    )}
                   </div>
                 );
               })}
