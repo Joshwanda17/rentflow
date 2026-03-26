@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { rent_request_id } = body;
+    const { rent_request_id, reason } = body;
 
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!rent_request_id || !UUID_REGEX.test(rent_request_id)) {
@@ -93,6 +93,13 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (!reason || typeof reason !== "string" || reason.trim().length < 10) {
+      return new Response(JSON.stringify({ error: "A reason of at least 10 characters is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const trimmedReason = reason.trim();
 
     // Fetch rent request
     const { data: rr, error: rrErr } = await supabase
@@ -172,7 +179,7 @@ Deno.serve(async (req) => {
         source_table: "rent_requests",
         source_id: rr.id,
         transaction_group_id: txGroupId,
-        description: `Manual collection by manager for rent instalment`,
+        description: `Manual collection: ${trimmedReason}`,
         linked_party: "platform",
         status: "approved",
       });
@@ -218,7 +225,7 @@ Deno.serve(async (req) => {
             source_table: "rent_requests",
             source_id: rr.id,
             transaction_group_id: txGroupId,
-            description: `Manual collection by manager: agent covering ${tenantName}'s rent instalment`,
+            description: `Manual collection (agent share): ${trimmedReason}`,
             linked_party: rr.tenant_id,
             status: "approved",
           });
@@ -275,7 +282,24 @@ Deno.serve(async (req) => {
       sendSMS(tenantPhone, smsMessage).catch(e => console.error("[manual-collect-rent] SMS error:", e));
     }
 
-    console.log(`[manual-collect-rent] Collected ${totalCollected} for ${rent_request_id}: tenant=${tenantDeducted}, agent=${agentDeducted}`);
+    // Audit log
+    await supabase.from("audit_logs").insert({
+      user_id: user.id,
+      action_type: "manual_rent_collection",
+      table_name: "rent_requests",
+      record_id: rent_request_id,
+      metadata: {
+        reason: trimmedReason,
+        tenant_id: rr.tenant_id,
+        tenant_name: tenantName,
+        agent_id: rr.agent_id,
+        total_collected: totalCollected,
+        tenant_deducted: tenantDeducted,
+        agent_deducted: agentDeducted,
+      },
+    });
+
+    console.log(`[manual-collect-rent] Collected ${totalCollected} for ${rent_request_id}: tenant=${tenantDeducted}, agent=${agentDeducted}, reason="${trimmedReason}"`);
 
     return new Response(JSON.stringify({
       success: true,
