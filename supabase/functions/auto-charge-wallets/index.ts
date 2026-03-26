@@ -543,10 +543,9 @@ async function chargeAgent(
     return false;
   }
 
-  const txGroupId = crypto.randomUUID();
   const description = `Tenant default: ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace`;
 
-  // Record in general_ledger for wallet history visibility
+  // Record in general_ledger for wallet history (NO transaction_group_id — wallet already updated directly above)
   await supabase.from("general_ledger").insert({
     user_id: charge.agent_id,
     amount: shortfall,
@@ -554,7 +553,6 @@ async function chargeAgent(
     category: "tenant_default_charge",
     source_table: "subscription_charges",
     source_id: charge.id,
-    transaction_group_id: txGroupId,
     description,
     linked_party: `${tenantName} (${tenantPhone})`,
     transaction_date: new Date().toISOString(),
