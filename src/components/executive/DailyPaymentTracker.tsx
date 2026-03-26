@@ -478,6 +478,9 @@ export function DailyPaymentTracker() {
           )}
         </CardContent>
       </Card>
+      {/* Repayment Trend Chart */}
+      <RepaymentTrendChart dailyExpected={totalExpectedToday} />
+
       {/* Delete History */}
       <DeleteHistoryViewer />
 
