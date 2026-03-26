@@ -96,7 +96,7 @@ export function MissedDaysTracker() {
   });
 
   // Fetch total collections per tenant (all time)
-  const { data: allCollections, isLoading: colLoading } = useQuery({
+  const { data: _allCollections, isLoading: colLoading } = useQuery({
     queryKey: ['missed-days-all-collections', tenantIds],
     queryFn: async () => {
       if (!tenantIds.length) return new Map<string, number>();
