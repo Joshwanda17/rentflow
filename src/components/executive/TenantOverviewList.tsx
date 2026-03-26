@@ -61,12 +61,20 @@ const statusBadgeColor = (status: string) => {
 interface TenantOverviewListProps {
   data: TenantRow[];
   loading?: boolean;
+  initialCategory?: string;
   onSelectTenant: (tenantId: string, tenantName: string) => void;
 }
 
-export function TenantOverviewList({ data, loading, onSelectTenant }: TenantOverviewListProps) {
+export function TenantOverviewList({ data, loading, initialCategory, onSelectTenant }: TenantOverviewListProps) {
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<Category>('all');
+  const [category, setCategory] = useState<Category>((initialCategory as Category) || 'all');
+
+  // Sync when parent changes the filter
+  useEffect(() => {
+    if (initialCategory) {
+      setCategory(initialCategory as Category);
+    }
+  }, [initialCategory]);
 
   // Deduplicate tenants - group by tenant_id, pick most recent request
   const tenants = useMemo(() => {
