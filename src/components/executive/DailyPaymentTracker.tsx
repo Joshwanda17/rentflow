@@ -9,6 +9,7 @@ import { KPICard } from './KPICard';
 import { UserProfileSheet } from './UserProfileSheet';
 import { DeleteRentRequestDialog } from './DeleteRentRequestDialog';
 import { DeleteHistoryViewer } from './DeleteHistoryViewer';
+import { RepaymentTrendChart } from './RepaymentTrendChart';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
@@ -21,6 +22,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 
 type Filter = 'all' | 'paid' | 'unpaid';
+type DeviceFilter = 'all' | 'smartphone' | 'no-smartphone';
 
 interface ActiveTenant {
   tenant_id: string;
@@ -37,6 +39,7 @@ interface ActiveTenant {
   agent_phone: string;
   tenant_wallet: number;
   agent_wallet: number;
+  tenant_no_smartphone: boolean;
 }
 
 // Removed unused TodayCollection interface
@@ -44,6 +47,7 @@ interface ActiveTenant {
 export function DailyPaymentTracker() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
+  const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
   const [search, setSearch] = useState('');
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -92,7 +96,7 @@ export function DailyPaymentTracker() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
+        .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status, tenant_no_smartphone')
         .in('status', ['disbursed', 'repaying', 'funded'])
         .not('disbursed_at', 'is', null);
       if (error) throw error;
@@ -201,6 +205,7 @@ export function DailyPaymentTracker() {
         agent_phone: agentProfile?.phone || '',
         tenant_wallet: walletMap.get(r.tenant_id) || 0,
         agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
+        tenant_no_smartphone: r.tenant_no_smartphone ?? false,
       };
       if (!existing || entry.daily_repayment > existing.daily_repayment) {
         tenantMap.set(r.tenant_id, entry);
@@ -219,6 +224,8 @@ export function DailyPaymentTracker() {
     let list = tenantList;
     if (filter === 'paid') list = list.filter(t => t.hasPaid);
     if (filter === 'unpaid') list = list.filter(t => !t.hasPaid);
+    if (deviceFilter === 'smartphone') list = list.filter(t => !t.tenant_no_smartphone);
+    if (deviceFilter === 'no-smartphone') list = list.filter(t => t.tenant_no_smartphone);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(t => t.tenant_name.toLowerCase().includes(q) || t.phone.includes(q));
@@ -228,7 +235,7 @@ export function DailyPaymentTracker() {
       if (a.hasPaid !== b.hasPaid) return a.hasPaid ? 1 : -1;
       return b.daily_repayment - a.daily_repayment;
     });
-  }, [tenantList, filter, search]);
+  }, [tenantList, filter, deviceFilter, search]);
 
   const paidCount = tenantList.filter(t => t.hasPaid).length;
   const unpaidCount = tenantList.filter(t => !t.hasPaid).length;
@@ -311,6 +318,26 @@ export function DailyPaymentTracker() {
               </button>
             ))}
           </div>
+          {/* Device filter */}
+          <div className="flex gap-1.5 mt-2">
+            {([
+              { key: 'all' as const, label: 'All Devices' },
+              { key: 'smartphone' as const, label: '📱 Smartphone' },
+              { key: 'no-smartphone' as const, label: '📵 No Phone' },
+            ]).map(f => (
+              <button
+                key={f.key}
+                onClick={() => setDeviceFilter(f.key)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                  deviceFilter === f.key
+                    ? 'bg-secondary text-foreground ring-1 ring-border'
+                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -361,6 +388,23 @@ export function DailyPaymentTracker() {
                           <Badge variant="outline" className={`text-[9px] px-1.5 ${t.hasPaid ? 'border-emerald-500/30 text-emerald-600' : 'border-destructive/30 text-destructive'}`}>
                             {t.hasPaid ? 'Paid' : 'Unpaid'}
                           </Badge>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const newVal = !t.tenant_no_smartphone;
+                              await supabase.from('rent_requests').update({ tenant_no_smartphone: newVal }).eq('id', t.rent_request_id);
+                              refetch();
+                              toast({ title: newVal ? '📵 Marked as no smartphone' : '📱 Marked as smartphone user' });
+                            }}
+                            className={`text-[9px] px-1.5 py-0.5 rounded-md border transition-colors ${
+                              t.tenant_no_smartphone
+                                ? 'border-warning/30 bg-warning/10 text-warning'
+                                : 'border-success/30 bg-success/10 text-success'
+                            }`}
+                            title="Toggle smartphone status"
+                          >
+                            {t.tenant_no_smartphone ? '📵 No Phone' : '📱'}
+                          </button>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5 flex-wrap">
                           <span>Daily: {formatUGX(t.daily_repayment)}</span>
@@ -434,6 +478,9 @@ export function DailyPaymentTracker() {
           )}
         </CardContent>
       </Card>
+      {/* Repayment Trend Chart */}
+      <RepaymentTrendChart dailyExpected={totalExpectedToday} />
+
       {/* Delete History */}
       <DeleteHistoryViewer />
 
