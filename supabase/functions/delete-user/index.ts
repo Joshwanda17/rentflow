@@ -48,23 +48,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // PRE-STEP: remove/null references that can block auth/profile deletion.
-    // NOTE: auth delete cascades to profiles, so blocking FK rows must be handled first.
+    // PRE-STEP: remove records that have non-nullable FK refs or need explicit cleanup.
+    // Most FK constraints now use ON DELETE SET NULL, so only truly blocking refs need handling.
     const preCleanupResults = await Promise.all([
-      // profile FK blockers
       supabaseAdmin.from('investor_portfolios').delete().eq('agent_id', user_id),
       supabaseAdmin.from('investor_portfolios').update({ investor_id: null, status: 'cancelled' }).eq('investor_id', user_id),
-      supabaseAdmin.from('agent_float_limits').update({ assigned_by: null }).eq('assigned_by', user_id),
-      supabaseAdmin.from('agent_rebalance_records').update({ approved_by: null }).eq('approved_by', user_id),
-      supabaseAdmin.from('float_requests').update({ approved_by: null }).eq('approved_by', user_id),
-      supabaseAdmin.from('landlords').update({ verified_by: null }).eq('verified_by', user_id),
-      supabaseAdmin.from('liquidity_alerts').update({ resolved_by: null }).eq('resolved_by', user_id),
-      supabaseAdmin.from('rent_requests').update({ agent_verified_by: null }).eq('agent_verified_by', user_id),
-      supabaseAdmin.from('rent_requests').update({ manager_verified_by: null }).eq('manager_verified_by', user_id),
       supabaseAdmin.from('agent_advance_topups').delete().eq('topped_up_by', user_id),
       supabaseAdmin.from('agent_advances').delete().eq('issued_by', user_id),
-
-      // auth FK blockers (columns are non-null in these tables)
       supabaseAdmin.from('wallet_transactions').delete().or(`sender_id.eq.${user_id},recipient_id.eq.${user_id}`),
       supabaseAdmin.from('money_requests').delete().or(`requester_id.eq.${user_id},recipient_id.eq.${user_id}`),
       supabaseAdmin.from('voided_ledger_entries').delete().eq('voided_by', user_id),

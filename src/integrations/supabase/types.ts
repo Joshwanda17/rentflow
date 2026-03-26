@@ -703,7 +703,7 @@ export type Database = {
           agent_id: string
           amount: number
           created_at: string
-          funded_by: string
+          funded_by: string | null
           id: string
           notes: string | null
         }
@@ -711,7 +711,7 @@ export type Database = {
           agent_id: string
           amount: number
           created_at?: string
-          funded_by: string
+          funded_by?: string | null
           id?: string
           notes?: string | null
         }
@@ -719,7 +719,7 @@ export type Database = {
           agent_id?: string
           amount?: number
           created_at?: string
-          funded_by?: string
+          funded_by?: string | null
           id?: string
           notes?: string | null
         }
@@ -917,7 +917,7 @@ export type Database = {
           receipt_photo_urls: string[] | null
           rent_request_id: string
           status: string
-          tenant_id: string
+          tenant_id: string | null
           transaction_id: string | null
           updated_at: string
         }
@@ -950,7 +950,7 @@ export type Database = {
           receipt_photo_urls?: string[] | null
           rent_request_id: string
           status?: string
-          tenant_id: string
+          tenant_id?: string | null
           transaction_id?: string | null
           updated_at?: string
         }
@@ -983,7 +983,7 @@ export type Database = {
           receipt_photo_urls?: string[] | null
           rent_request_id?: string
           status?: string
-          tenant_id?: string
+          tenant_id?: string | null
           transaction_id?: string | null
           updated_at?: string
         }
@@ -1345,7 +1345,7 @@ export type Database = {
       }
       agent_landlord_payouts: {
         Row: {
-          agent_id: string
+          agent_id: string | null
           amount: number
           cfo_approved_at: string | null
           cfo_approved_by: string | null
@@ -1376,7 +1376,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          agent_id: string
+          agent_id?: string | null
           amount: number
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
@@ -1407,7 +1407,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          agent_id?: string
+          agent_id?: string | null
           amount?: number
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
@@ -2132,7 +2132,7 @@ export type Database = {
       }
       commission_accrual_ledger: {
         Row: {
-          agent_id: string
+          agent_id: string | null
           amount: number
           approved_at: string | null
           approved_by: string | null
@@ -2149,7 +2149,7 @@ export type Database = {
           tenant_id: string | null
         }
         Insert: {
-          agent_id: string
+          agent_id?: string | null
           amount: number
           approved_at?: string | null
           approved_by?: string | null
@@ -2166,7 +2166,7 @@ export type Database = {
           tenant_id?: string | null
         }
         Update: {
-          agent_id?: string
+          agent_id?: string | null
           amount?: number
           approved_at?: string | null
           approved_by?: string | null
@@ -3219,9 +3219,9 @@ export type Database = {
       funder_visits: {
         Row: {
           accuracy: number | null
-          agent_id: string
+          agent_id: string | null
           created_at: string
-          funder_id: string
+          funder_id: string | null
           id: string
           latitude: number
           location_name: string | null
@@ -3231,9 +3231,9 @@ export type Database = {
         }
         Insert: {
           accuracy?: number | null
-          agent_id: string
+          agent_id?: string | null
           created_at?: string
-          funder_id: string
+          funder_id?: string | null
           id?: string
           latitude: number
           location_name?: string | null
@@ -3243,9 +3243,9 @@ export type Database = {
         }
         Update: {
           accuracy?: number | null
-          agent_id?: string
+          agent_id?: string | null
           created_at?: string
-          funder_id?: string
+          funder_id?: string | null
           id?: string
           latitude?: number
           location_name?: string | null
@@ -4831,7 +4831,7 @@ export type Database = {
           paid_by: string | null
           qr_data: string
           status: string
-          user_id: string
+          user_id: string | null
           withdrawal_request_id: string
         }
         Insert: {
@@ -4846,7 +4846,7 @@ export type Database = {
           paid_by?: string | null
           qr_data: string
           status?: string
-          user_id: string
+          user_id?: string | null
           withdrawal_request_id: string
         }
         Update: {
@@ -4861,7 +4861,7 @@ export type Database = {
           paid_by?: string | null
           qr_data?: string
           status?: string
-          user_id?: string
+          user_id?: string | null
           withdrawal_request_id?: string
         }
         Relationships: [
@@ -7591,38 +7591,38 @@ export type Database = {
         Row: {
           created_at: string
           flag_type: string | null
-          from_agent_id: string
+          from_agent_id: string | null
           id: string
           reason: string
           rent_requests_updated: number | null
           subscriptions_updated: number | null
-          tenant_id: string
-          to_agent_id: string
-          transferred_by: string
+          tenant_id: string | null
+          to_agent_id: string | null
+          transferred_by: string | null
         }
         Insert: {
           created_at?: string
           flag_type?: string | null
-          from_agent_id: string
+          from_agent_id?: string | null
           id?: string
           reason: string
           rent_requests_updated?: number | null
           subscriptions_updated?: number | null
-          tenant_id: string
-          to_agent_id: string
-          transferred_by: string
+          tenant_id?: string | null
+          to_agent_id?: string | null
+          transferred_by?: string | null
         }
         Update: {
           created_at?: string
           flag_type?: string | null
-          from_agent_id?: string
+          from_agent_id?: string | null
           id?: string
           reason?: string
           rent_requests_updated?: number | null
           subscriptions_updated?: number | null
-          tenant_id?: string
-          to_agent_id?: string
-          transferred_by?: string
+          tenant_id?: string | null
+          to_agent_id?: string | null
+          transferred_by?: string | null
         }
         Relationships: [
           {
