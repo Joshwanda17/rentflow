@@ -49,7 +49,7 @@ export function DailyPaymentTracker() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
+        .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
         .in('status', ['disbursed', 'repaying', 'funded'])
         .not('disbursed_at', 'is', null);
       if (error) throw error;
