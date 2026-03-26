@@ -3,7 +3,7 @@ import { Users, ArrowRight, Calculator, Zap, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { motion } from 'framer-motion';
-import welileColoredLogo from '@/assets/welile-colored.png';
+import welileLogo from '@/assets/welile-logo.png';
 
 
 interface IntentOption {
