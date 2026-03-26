@@ -48,6 +48,7 @@ export function TenantOpsDashboard() {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [deleting, setDeleting] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
+  const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
 
   const handleDeleteTenant = async () => {
     if (!deleteDialog.tenantId) return;
