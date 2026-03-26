@@ -3,8 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { format } from 'date-fns';
 
 interface DepositStats {
   pending: number;
@@ -16,6 +17,16 @@ interface DepositStats {
   todayAmount: number;
 }
 
+interface PendingDeposit {
+  id: string;
+  amount: number;
+  transaction_reference: string | null;
+  payment_channel: string | null;
+  created_at: string;
+  user_id: string;
+  depositor_name?: string;
+}
+
 interface DepositStatsPanelProps {
   onOpenVerification: () => void;
 }
@@ -23,6 +34,9 @@ interface DepositStatsPanelProps {
 export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps) {
   const [stats, setStats] = useState<DepositStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingDeposits, setPendingDeposits] = useState<PendingDeposit[]>([]);
+  const [showPendingList, setShowPendingList] = useState(false);
+  const [loadingList, setLoadingList] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -72,6 +86,46 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
     fetchStats();
   }, []);
 
+  const fetchPendingDeposits = async () => {
+    if (pendingDeposits.length > 0) {
+      setShowPendingList(!showPendingList);
+      return;
+    }
+    setLoadingList(true);
+    setShowPendingList(true);
+    try {
+      const { data: deposits } = await supabase
+        .from('deposit_requests')
+        .select('id, amount, transaction_reference, payment_channel, created_at, user_id')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!deposits || deposits.length === 0) {
+        setPendingDeposits([]);
+        setLoadingList(false);
+        return;
+      }
+
+      const userIds = [...new Set(deposits.map(d => d.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+
+      setPendingDeposits(deposits.map(d => ({
+        ...d,
+        depositor_name: profileMap.get(d.user_id) || 'Unknown',
+      })));
+    } catch (err) {
+      console.error('Failed to fetch pending deposits:', err);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-6">
@@ -105,12 +159,20 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
 
         {/* Status breakdown */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-center">
+          <button
+            onClick={fetchPendingDeposits}
+            className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-center hover:bg-warning/20 transition-colors cursor-pointer"
+          >
             <Clock className="h-4 w-4 text-warning mx-auto mb-1" />
             <p className="text-lg font-bold text-warning">{stats.pending}</p>
             <p className="text-[10px] text-muted-foreground">Pending</p>
             <p className="text-[10px] font-medium text-warning">{formatUGX(stats.pendingAmount)}</p>
-          </div>
+            {stats.pending > 0 && (
+              showPendingList
+                ? <ChevronUp className="h-3 w-3 text-warning mx-auto mt-1" />
+                : <ChevronDown className="h-3 w-3 text-warning mx-auto mt-1" />
+            )}
+          </button>
           <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 text-center">
             <CheckCircle2 className="h-4 w-4 text-primary mx-auto mb-1" />
             <p className="text-lg font-bold text-primary">{stats.approved}</p>
@@ -123,6 +185,62 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
             <p className="text-[10px] text-muted-foreground">Rejected</p>
           </div>
         </div>
+
+        {/* Pending deposits list */}
+        <AnimatePresence>
+          {showPendingList && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              {loadingList ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : pendingDeposits.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">No pending deposits</p>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    Pending Deposits ({pendingDeposits.length})
+                  </p>
+                  {pendingDeposits.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border/40 bg-muted/30"
+                    >
+                      <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+                        <User className="h-4 w-4 text-warning" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{d.depositor_name}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground truncate">
+                            {d.transaction_reference || 'No ref'}
+                          </span>
+                          {d.payment_channel && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
+                              {d.payment_channel}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(d.created_at), 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-warning shrink-0">
+                        {formatUGX(d.amount)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* CTA */}
         <Button onClick={onOpenVerification} className="w-full gap-2" size="sm">
