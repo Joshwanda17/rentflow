@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KPICard } from './KPICard';
+import { UserProfileSheet } from './UserProfileSheet';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone
@@ -37,6 +38,7 @@ interface ActiveTenant {
 export function DailyPaymentTracker() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -282,7 +284,12 @@ export function DailyPaymentTracker() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">{t.tenant_name}</p>
+                          <button
+                            onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
+                            className="text-sm font-medium truncate text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
+                          >
+                            {t.tenant_name}
+                          </button>
                           <Badge variant="outline" className={`text-[9px] px-1.5 ${t.hasPaid ? 'border-emerald-500/30 text-emerald-600' : 'border-destructive/30 text-destructive'}`}>
                             {t.hasPaid ? 'Paid' : 'Unpaid'}
                           </Badge>
@@ -306,7 +313,14 @@ export function DailyPaymentTracker() {
 
                     {/* Agent + Wallet details row */}
                     <div className="ml-12 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                      <span>Agent: <strong className="text-foreground">{t.agent_name}</strong></span>
+                      <span>Agent: {t.agent_id ? (
+                        <button
+                          onClick={() => setProfileSheet({ userId: t.agent_id, userName: t.agent_name, userPhone: t.agent_phone, userType: 'agent' })}
+                          className="font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
+                        >
+                          {t.agent_name}
+                        </button>
+                      ) : <strong className="text-foreground">{t.agent_name}</strong>}</span>
                       <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
                       {t.agent_phone && (
                         <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
@@ -320,6 +334,16 @@ export function DailyPaymentTracker() {
           )}
         </CardContent>
       </Card>
+      {profileSheet && (
+        <UserProfileSheet
+          open={!!profileSheet}
+          onClose={() => setProfileSheet(null)}
+          userId={profileSheet.userId}
+          userName={profileSheet.userName}
+          userPhone={profileSheet.userPhone}
+          userType={profileSheet.userType}
+        />
+      )}
     </div>
   );
 }
