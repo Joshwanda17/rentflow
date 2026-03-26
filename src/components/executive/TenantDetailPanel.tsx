@@ -90,9 +90,9 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack }: TenantDetail
                 <div className="flex-1">
                   <p className="font-bold text-foreground">{profile?.full_name || tenantName}</p>
                   <p className="text-sm text-muted-foreground">{profile?.phone || '—'}</p>
-                  {profile?.location && (
+                  {profile?.city && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <MapPin className="h-3 w-3" />{profile.location}
+                      <MapPin className="h-3 w-3" />{profile.city}
                     </p>
                   )}
                 </div>
