@@ -13,7 +13,7 @@ import { RepaymentTrendChart } from './RepaymentTrendChart';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
-  Download, Loader2, Trash2, Smartphone, SmartphoneNfc
+  Download, Loader2, Trash2
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
