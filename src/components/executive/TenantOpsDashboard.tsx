@@ -65,7 +65,7 @@ export function TenantOpsDashboard() {
     }
   };
 
-
+  const { data: rentRequests, isLoading } = useQuery({
     queryKey: ['exec-tenant-ops'],
     queryFn: async () => {
       const { data } = await supabase.from('rent_requests')
