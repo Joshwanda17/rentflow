@@ -1,5 +1,6 @@
 import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import WelileLogo from '@/components/WelileLogo';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -108,13 +109,7 @@ const DashboardHeader = memo(function DashboardHeader({
           <div className="flex items-center justify-between">
             {/* Left: Logo + tappable role picker */}
             <div className="flex items-center gap-2">
-              <span 
-                className="text-lg font-bold text-white tracking-tight cursor-pointer"
-                style={{ fontFamily: "'Chewy', cursive" }}
-                onClick={() => navigate('/')}
-              >
-                Welile
-              </span>
+              <WelileLogo showText={false} size="sm" variant="light" linkToHome={true} />
 
               {/* Tappable role badge — opens role picker */}
               {availableRoles.length > 1 ? (

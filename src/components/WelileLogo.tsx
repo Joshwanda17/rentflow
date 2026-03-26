@@ -1,35 +1,55 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import welileLogo from '@/assets/welile-logo-small.png';
+import welileLogo from '@/assets/welile-logo.png';
 
 interface WelileLogoProps {
+  /** Show "Welile" text next to the logo */
   showText?: boolean;
+  /** Additional CSS classes */
   className?: string;
+  /** Wrap in a link to "/" */
   linkToHome?: boolean;
+  /** Logo height class (default h-8) */
+  size?: 'sm' | 'md' | 'lg';
+  /** Light variant for dark backgrounds (white text) */
+  variant?: 'default' | 'light';
 }
 
-export default function WelileLogo({ showText = true, className = '', linkToHome = true }: WelileLogoProps) {
+const sizeMap = {
+  sm: 'h-6',
+  md: 'h-8',
+  lg: 'h-12',
+};
+
+export default function WelileLogo({
+  showText = true,
+  className = '',
+  linkToHome = true,
+  size = 'md',
+  variant = 'default',
+}: WelileLogoProps) {
   const content = (
-    <motion.div 
-      className={`flex items-center gap-2 ${className}`}
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 20, duration: 0.4 }}
-    >
-      <motion.img 
-        src={welileLogo} 
-        alt="Welile" 
-        className="h-8 w-auto"
-        whileHover={{ scale: 1.1, rotate: 5 }}
-        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+    <div className={`flex items-center gap-2 ${className}`}>
+      <img
+        src={welileLogo}
+        alt="Welile"
+        className={`${sizeMap[size]} w-auto rounded-lg`}
       />
-      {showText && <span className="text-xl text-foreground" style={{ fontFamily: "'Chewy', cursive" }}>Welile.com</span>}
-    </motion.div>
+      {showText && (
+        <span
+          className={`text-xl font-bold tracking-tight ${
+            variant === 'light' ? 'text-white' : 'text-foreground'
+          }`}
+          style={{ fontFamily: "'Chewy', cursive" }}
+        >
+          Welile
+        </span>
+      )}
+    </div>
   );
 
   if (linkToHome) {
     return (
-      <Link to="/" className="hover:opacity-80 transition-opacity">
+      <Link to="/" className="hover:opacity-90 transition-opacity">
         {content}
       </Link>
     );
