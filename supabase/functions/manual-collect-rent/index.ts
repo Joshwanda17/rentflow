@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { rent_request_id } = body;
+    const { rent_request_id, reason } = body;
 
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!rent_request_id || !UUID_REGEX.test(rent_request_id)) {
@@ -93,6 +93,13 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (!reason || typeof reason !== "string" || reason.trim().length < 10) {
+      return new Response(JSON.stringify({ error: "A reason of at least 10 characters is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const trimmedReason = reason.trim();
 
     // Fetch rent request
     const { data: rr, error: rrErr } = await supabase
