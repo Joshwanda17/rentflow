@@ -434,6 +434,10 @@ export function DailyPaymentTracker() {
           )}
         </CardContent>
       </Card>
+      {/* Delete History */}
+      <DeleteHistoryViewer />
+
+      {/* Profile Sheet */}
       {profileSheet && (
         <UserProfileSheet
           open={!!profileSheet}
@@ -444,6 +448,17 @@ export function DailyPaymentTracker() {
           userType={profileSheet.userType}
         />
       )}
-    </div>
-  );
+
+      {/* Delete Confirmation Dialog */}
+      {deleteTarget && (
+        <DeleteRentRequestDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            refetch();
+            queryClient.invalidateQueries({ queryKey: ['rent-request-deletions'] });
+          }}
+          tenant={deleteTarget}
+        />
+      )}
 }
