@@ -10,6 +10,7 @@ import { DailyPaymentTracker } from './DailyPaymentTracker';
 import { MissedDaysTracker } from './MissedDaysTracker';
 import { TenantAgentLinker } from './TenantAgentLinker';
 import { TenantRentCollector } from './TenantRentCollector';
+import { AgentTenantSearch } from './AgentTenantSearch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,12 +18,12 @@ import { Badge } from '@/components/ui/badge';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins
+  ArrowLeft, History, Table2, Link2, HandCoins, Users
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants';
 
 interface NavCard {
   id: ActiveView;
@@ -143,6 +144,13 @@ export function TenantOpsDashboard() {
       icon: HandCoins,
       color: 'bg-orange-500/10 text-orange-600 border-orange-200',
     },
+    {
+      id: 'agent-tenants' as ActiveView,
+      label: 'Search by Agent',
+      description: 'Find tenants via their agent',
+      icon: Users,
+      color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
+    },
   ];
 
   const goBack = () => {
@@ -227,6 +235,8 @@ export function TenantOpsDashboard() {
         return <TenantAgentLinker />;
       case 'collect-rent':
         return <TenantRentCollector />;
+      case 'agent-tenants':
+        return <AgentTenantSearch />;
       default:
         return null;
     }
