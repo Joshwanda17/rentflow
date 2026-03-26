@@ -29,6 +29,11 @@ interface TenantMissedData {
   expected_repaid: number;
   missed_days: number;
   repayment_pct: number;
+  agent_id: string;
+  agent_name: string;
+  agent_phone: string;
+  tenant_wallet: number;
+  agent_wallet: number;
 }
 
 export function MissedDaysTracker() {
