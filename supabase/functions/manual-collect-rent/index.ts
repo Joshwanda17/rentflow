@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
         source_table: "rent_requests",
         source_id: rr.id,
         transaction_group_id: txGroupId,
-        description: `Manual collection by manager for rent instalment`,
+        description: `Manual collection: ${trimmedReason}`,
         linked_party: "platform",
         status: "approved",
       });
