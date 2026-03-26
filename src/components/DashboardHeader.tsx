@@ -1,5 +1,6 @@
 import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import WelileLogo from '@/components/WelileLogo';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
