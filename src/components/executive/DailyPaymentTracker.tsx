@@ -42,6 +42,42 @@ export function DailyPaymentTracker() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const buildReportData = (): DailyPerformanceData => ({
+    date: new Date(),
+    totalExpected: totalExpectedToday,
+    totalCollected: totalCollectedToday,
+    collectionRate,
+    paidCount,
+    unpaidCount,
+    tenants: tenantList.map(t => ({
+      tenant_name: t.tenant_name,
+      phone: t.phone,
+      daily_repayment: t.daily_repayment,
+      paidToday: t.paidToday,
+      hasPaid: t.hasPaid,
+      agent_name: t.agent_name,
+      agent_phone: t.agent_phone,
+      tenant_wallet: t.tenant_wallet,
+    })),
+  });
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      await downloadDailyPerformancePdf(buildReportData());
+      toast({ title: '✅ PDF Downloaded' });
+    } catch (e: any) {
+      toast({ title: 'PDF Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    shareDailyPerformanceWhatsApp(buildReportData());
+  };
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
