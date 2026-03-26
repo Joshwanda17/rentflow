@@ -384,16 +384,18 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
-            {/* Back button - always visible, large touch target */}
-            <Button
-              variant="ghost"
-              onClick={goBack}
-              className="h-11 px-3 gap-2 text-sm font-semibold -ml-1"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Overview
-              <span className="text-muted-foreground font-normal">· {activeLabel}</span>
-            </Button>
+            {/* Back button - skip for tenant-detail which has its own */}
+            {activeView !== 'tenant-detail' && (
+              <Button
+                variant="ghost"
+                onClick={goBack}
+                className="h-11 px-3 gap-2 text-sm font-semibold -ml-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Overview
+                <span className="text-muted-foreground font-normal">· {activeLabel}</span>
+              </Button>
+            )}
 
             {renderSubView()}
           </motion.div>
