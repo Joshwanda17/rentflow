@@ -11,6 +11,8 @@ import { MissedDaysTracker } from './MissedDaysTracker';
 import { TenantAgentLinker } from './TenantAgentLinker';
 import { TenantRentCollector } from './TenantRentCollector';
 import { AgentTenantSearch } from './AgentTenantSearch';
+import { TenantOverviewList } from './TenantOverviewList';
+import { TenantDetailPanel } from './TenantDetailPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +30,7 @@ import {
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail';
 
 interface NavCard {
   id: ActiveView;
@@ -45,7 +47,7 @@ export function TenantOpsDashboard() {
   const queryClient = useQueryClient();
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [deleting, setDeleting] = useState(false);
-  
+  const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
 
   const handleDeleteTenant = async () => {
     if (!deleteDialog.tenantId) return;
@@ -277,6 +279,14 @@ export function TenantOpsDashboard() {
         return <TenantRentCollector />;
       case 'agent-tenants':
         return <AgentTenantSearch />;
+      case 'tenant-detail':
+        return selectedTenant ? (
+          <TenantDetailPanel
+            tenantId={selectedTenant.id}
+            tenantName={selectedTenant.name}
+            onBack={goBack}
+          />
+        ) : null;
       default:
         return null;
     }
@@ -354,6 +364,16 @@ export function TenantOpsDashboard() {
                 );
               })}
             </div>
+            {/* Tenant List */}
+            <TenantOverviewList
+              data={rows}
+              loading={isLoading}
+              onSelectTenant={(id, name) => {
+                setSelectedTenant({ id, name });
+                setActiveView('tenant-detail');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </motion.div>
         ) : (
           <motion.div
@@ -364,16 +384,18 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
-            {/* Back button - always visible, large touch target */}
-            <Button
-              variant="ghost"
-              onClick={goBack}
-              className="h-11 px-3 gap-2 text-sm font-semibold -ml-1"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Overview
-              <span className="text-muted-foreground font-normal">· {activeLabel}</span>
-            </Button>
+            {/* Back button - skip for tenant-detail which has its own */}
+            {activeView !== 'tenant-detail' && (
+              <Button
+                variant="ghost"
+                onClick={goBack}
+                className="h-11 px-3 gap-2 text-sm font-semibold -ml-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Overview
+                <span className="text-muted-foreground font-normal">· {activeLabel}</span>
+              </Button>
+            )}
 
             {renderSubView()}
           </motion.div>
