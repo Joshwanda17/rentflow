@@ -484,19 +484,40 @@ export function DailyPaymentTracker() {
                         )}
                         <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
                       </div>
-                      {/* Delete button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(t);
-                        }}
-                        className="h-7 px-2 text-[10px] gap-1 text-destructive hover:bg-destructive/10 shrink-0"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        Delete
-                      </Button>
+                      {/* Collect + Delete buttons */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {!t.hasPaid && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            disabled={collectingId === t.rent_request_id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              collectMutation.mutate(t.rent_request_id);
+                            }}
+                            className="h-7 px-2 text-[10px] gap-1"
+                          >
+                            {collectingId === t.rent_request_id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Wallet className="h-3 w-3" />
+                            )}
+                            Collect
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(t);
+                          }}
+                          className="h-7 px-2 text-[10px] gap-1 text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
