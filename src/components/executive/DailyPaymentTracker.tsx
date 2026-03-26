@@ -318,6 +318,26 @@ export function DailyPaymentTracker() {
               </button>
             ))}
           </div>
+          {/* Device filter */}
+          <div className="flex gap-1.5 mt-2">
+            {([
+              { key: 'all' as const, label: 'All Devices' },
+              { key: 'smartphone' as const, label: '📱 Smartphone' },
+              { key: 'no-smartphone' as const, label: '📵 No Phone' },
+            ]).map(f => (
+              <button
+                key={f.key}
+                onClick={() => setDeviceFilter(f.key)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                  deviceFilter === f.key
+                    ? 'bg-secondary text-foreground ring-1 ring-border'
+                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
