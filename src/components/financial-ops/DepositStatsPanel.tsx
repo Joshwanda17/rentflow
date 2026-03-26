@@ -219,11 +219,11 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
                         <p className="text-sm font-medium truncate">{d.depositor_name}</p>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-muted-foreground truncate">
-                            {d.transaction_reference || 'No ref'}
+                            {d.transaction_id || 'No ref'}
                           </span>
-                          {d.payment_channel && (
+                          {d.provider && (
                             <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
-                              {d.payment_channel}
+                              {d.provider}
                             </Badge>
                           )}
                         </div>
