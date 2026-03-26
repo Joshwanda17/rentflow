@@ -461,4 +461,6 @@ export function DailyPaymentTracker() {
           tenant={deleteTarget}
         />
       )}
+    </div>
+  );
 }
