@@ -71,7 +71,7 @@ export default function Landing() {
       {/* Hero — minimal, intent-first */}
       <header className="pt-safe-top px-5 pt-10 pb-6 text-center">
         <motion.img
-          src={welileColoredLogo}
+          src={welileLogo}
           alt="Welile"
           className="h-14 w-auto mx-auto"
           initial={{ opacity: 0, scale: 0.9 }}
