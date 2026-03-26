@@ -1,0 +1,227 @@
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
+import { Loader2, User, Wallet, Banknote, AlertTriangle, CheckCircle2 } from 'lucide-react';
+
+interface SelectedUser {
+  id: string;
+  full_name: string;
+  phone: string;
+}
+
+export function TenantRentCollector() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [selectedTenant, setSelectedTenant] = useState<SelectedUser | null>(null);
+
+  // Fetch active rent requests + wallets for selected tenant
+  const { data: tenantData, isLoading } = useQuery({
+    queryKey: ['tenant-collect-data', selectedTenant?.id],
+    enabled: !!selectedTenant,
+    queryFn: async () => {
+      const [requestsRes, tenantWalletRes] = await Promise.all([
+        supabase
+          .from('rent_requests')
+          .select('id, status, rent_amount, amount_repaid, total_repayment, daily_repayment, agent_id, created_at')
+          .eq('tenant_id', selectedTenant!.id)
+          .in('status', ['funded', 'disbursed', 'repaying', 'approved'])
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', selectedTenant!.id)
+          .single(),
+      ]);
+
+      const requests = requestsRes.data || [];
+      const tenantBalance = Number(tenantWalletRes.data?.balance || 0);
+
+      // Fetch agent profiles and wallets
+      const agentIds = [...new Set(requests.map(r => r.agent_id).filter(Boolean))];
+      let agentMap = new Map<string, { name: string; balance: number }>();
+
+      if (agentIds.length > 0) {
+        const [agentProfiles, agentWallets] = await Promise.all([
+          supabase.from('profiles').select('id, full_name').in('id', agentIds),
+          supabase.from('wallets').select('user_id, balance').in('user_id', agentIds),
+        ]);
+        const walletMap = new Map((agentWallets.data || []).map(w => [w.user_id, Number(w.balance)]));
+        (agentProfiles.data || []).forEach(a => {
+          agentMap.set(a.id, { name: a.full_name || '—', balance: walletMap.get(a.id) || 0 });
+        });
+      }
+
+      return {
+        requests: requests.map(r => ({
+          ...r,
+          outstanding: Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
+          agent_name: r.agent_id ? agentMap.get(r.agent_id)?.name || '—' : 'No agent',
+          agent_balance: r.agent_id ? agentMap.get(r.agent_id)?.balance || 0 : 0,
+        })),
+        tenantBalance,
+      };
+    },
+  });
+
+  const collectMutation = useMutation({
+    mutationFn: async (rentRequestId: string) => {
+      const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
+        body: { rent_request_id: rentRequestId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: '✅ Rent Collected',
+        description: `UGX ${Number(data.total_collected).toLocaleString()} collected. Tenant: ${Number(data.tenant_deducted).toLocaleString()}, Agent: ${Number(data.agent_deducted).toLocaleString()}`,
+      });
+      qc.invalidateQueries({ queryKey: ['tenant-collect-data', selectedTenant?.id] });
+      qc.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+    },
+    onError: (e: any) => toast({ title: 'Collection Failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const requests = tenantData?.requests || [];
+  const tenantBalance = tenantData?.tenantBalance || 0;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-primary" />
+            Collect Rent from Tenant
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <UserSearchPicker
+            label="Search Tenant"
+            placeholder="Tenant name or phone..."
+            selectedUser={selectedTenant}
+            onSelect={setSelectedTenant}
+            roleFilter="tenant"
+          />
+
+          {selectedTenant && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Tenant Wallet:</span>
+              <span className={`text-sm font-bold ${tenantBalance > 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                UGX {tenantBalance.toLocaleString()}
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedTenant && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground px-1">
+            Active Rent Requests
+          </p>
+
+          {isLoading && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {!isLoading && requests.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="p-4 text-center text-sm text-muted-foreground">
+                No active rent requests to collect from
+              </CardContent>
+            </Card>
+          )}
+
+          {requests.map((rr) => (
+            <Card key={rr.id} className={`border ${rr.outstanding > 0 ? 'border-amber-200' : 'border-emerald-200'}`}>
+              <CardContent className="p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="text-[10px]">
+                    {rr.status.replace(/_/g, ' ')}
+                  </Badge>
+                  {rr.outstanding <= 0 ? (
+                    <Badge className="bg-emerald-500 text-white text-[10px]">
+                      <CheckCircle2 className="h-3 w-3 mr-0.5" /> Paid
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-500 text-white text-[10px]">
+                      <AlertTriangle className="h-3 w-3 mr-0.5" /> Due
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Financial details */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Total:</span>{' '}
+                    <span className="font-semibold">UGX {Number(rr.total_repayment || 0).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Outstanding:</span>{' '}
+                    <span className="font-bold text-destructive">UGX {rr.outstanding.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Daily Rate:</span>{' '}
+                    <span className="font-medium">UGX {Number(rr.daily_repayment || 0).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Repaid:</span>{' '}
+                    <span className="font-medium text-emerald-600">UGX {Number(rr.amount_repaid || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Agent + wallet info */}
+                <div className="grid grid-cols-2 gap-2 text-xs p-2 rounded-lg bg-muted/30 border">
+                  <div className="flex items-center gap-1.5">
+                    <User className="h-3 w-3 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground text-[10px]">Agent</p>
+                      <p className="font-medium">{rr.agent_name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Wallet className="h-3 w-3 text-muted-foreground" />
+                    <div>
+                      <p className="text-muted-foreground text-[10px]">Agent Wallet</p>
+                      <p className={`font-bold ${rr.agent_balance > 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                        UGX {rr.agent_balance.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Collect button */}
+                {rr.outstanding > 0 && (
+                  <Button
+                    className="w-full h-10 text-sm gap-2"
+                    variant="default"
+                    disabled={collectMutation.isPending}
+                    onClick={() => collectMutation.mutate(rr.id)}
+                  >
+                    {collectMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Banknote className="h-4 w-4" />
+                    )}
+                    Collect UGX {Math.min(rr.outstanding, Number(rr.daily_repayment || rr.outstanding)).toLocaleString()}
+                    <span className="text-xs opacity-70">(from wallet)</span>
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
