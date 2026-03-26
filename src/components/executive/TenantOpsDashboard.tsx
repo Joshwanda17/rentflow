@@ -223,6 +223,10 @@ export function TenantOpsDashboard() {
             }]}
           />
         );
+      case 'link-agent':
+        return <TenantAgentLinker />;
+      case 'collect-rent':
+        return <TenantRentCollector />;
       default:
         return null;
     }
