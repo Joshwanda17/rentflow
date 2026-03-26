@@ -38,6 +38,7 @@ interface ActiveTenant {
 export function DailyPaymentTracker() {
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
