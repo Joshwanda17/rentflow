@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KPICard } from './KPICard';
 import { UserProfileSheet } from './UserProfileSheet';
+import { DeleteRentRequestDialog } from './DeleteRentRequestDialog';
+import { DeleteHistoryViewer } from './DeleteHistoryViewer';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
-  Download, Loader2
+  Download, Loader2, Trash2
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
@@ -40,10 +42,12 @@ interface ActiveTenant {
 // Removed unused TodayCollection interface
 
 export function DailyPaymentTracker() {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<typeof filtered[0] | null>(null);
 
   const buildReportData = (): DailyPerformanceData => ({
     date: new Date(),
@@ -392,21 +396,36 @@ export function DailyPaymentTracker() {
                       )}
                     </div>
 
-                    {/* Agent + Wallet details row */}
-                    <div className="ml-12 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                      <span>Agent: {t.agent_id ? (
-                        <button
-                          onClick={() => setProfileSheet({ userId: t.agent_id, userName: t.agent_name, userPhone: t.agent_phone, userType: 'agent' })}
-                          className="font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
-                        >
-                          {t.agent_name}
-                        </button>
-                      ) : <strong className="text-foreground">{t.agent_name}</strong>}</span>
-                      <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
-                      {t.agent_phone && (
-                        <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
-                      )}
-                      <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
+                    {/* Agent + Wallet + Delete row */}
+                    <div className="ml-12 flex items-start justify-between gap-2">
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground flex-1">
+                        <span>Agent: {t.agent_id ? (
+                          <button
+                            onClick={() => setProfileSheet({ userId: t.agent_id, userName: t.agent_name, userPhone: t.agent_phone, userType: 'agent' })}
+                            className="font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
+                          >
+                            {t.agent_name}
+                          </button>
+                        ) : <strong className="text-foreground">{t.agent_name}</strong>}</span>
+                        <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
+                        {t.agent_phone && (
+                          <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
+                        )}
+                        <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
+                      </div>
+                      {/* Delete button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(t);
+                        }}
+                        className="h-7 px-2 text-[10px] gap-1 text-destructive hover:bg-destructive/10 shrink-0"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 );
@@ -415,6 +434,10 @@ export function DailyPaymentTracker() {
           )}
         </CardContent>
       </Card>
+      {/* Delete History */}
+      <DeleteHistoryViewer />
+
+      {/* Profile Sheet */}
       {profileSheet && (
         <UserProfileSheet
           open={!!profileSheet}
@@ -423,6 +446,19 @@ export function DailyPaymentTracker() {
           userName={profileSheet.userName}
           userPhone={profileSheet.userPhone}
           userType={profileSheet.userType}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteTarget && (
+        <DeleteRentRequestDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            refetch();
+            queryClient.invalidateQueries({ queryKey: ['rent-request-deletions'] });
+          }}
+          tenant={deleteTarget}
         />
       )}
     </div>

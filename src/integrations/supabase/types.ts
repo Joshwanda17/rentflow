@@ -6139,6 +6139,81 @@ export type Database = {
         }
         Relationships: []
       }
+      rent_request_deletions: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          agent_phone: string | null
+          amount_repaid: number
+          created_at: string
+          daily_repayment: number
+          deleted_by: string
+          deleted_by_name: string | null
+          deletion_reason: string | null
+          disbursed_at: string | null
+          expires_at: string
+          id: string
+          outstanding: number
+          rent_amount: number
+          rent_request_id: string
+          request_status: string | null
+          snapshot_json: Json | null
+          tenant_id: string
+          tenant_name: string
+          tenant_phone: string | null
+          tenant_wallet: number
+          total_repayment: number
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_name?: string | null
+          agent_phone?: string | null
+          amount_repaid?: number
+          created_at?: string
+          daily_repayment?: number
+          deleted_by: string
+          deleted_by_name?: string | null
+          deletion_reason?: string | null
+          disbursed_at?: string | null
+          expires_at?: string
+          id?: string
+          outstanding?: number
+          rent_amount?: number
+          rent_request_id: string
+          request_status?: string | null
+          snapshot_json?: Json | null
+          tenant_id: string
+          tenant_name: string
+          tenant_phone?: string | null
+          tenant_wallet?: number
+          total_repayment?: number
+        }
+        Update: {
+          agent_id?: string | null
+          agent_name?: string | null
+          agent_phone?: string | null
+          amount_repaid?: number
+          created_at?: string
+          daily_repayment?: number
+          deleted_by?: string
+          deleted_by_name?: string | null
+          deletion_reason?: string | null
+          disbursed_at?: string | null
+          expires_at?: string
+          id?: string
+          outstanding?: number
+          rent_amount?: number
+          rent_request_id?: string
+          request_status?: string | null
+          snapshot_json?: Json | null
+          tenant_id?: string
+          tenant_name?: string
+          tenant_phone?: string | null
+          tenant_wallet?: number
+          total_repayment?: number
+        }
+        Relationships: []
+      }
       rent_requests: {
         Row: {
           access_fee: number
