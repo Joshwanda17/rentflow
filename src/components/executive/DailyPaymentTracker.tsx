@@ -388,6 +388,23 @@ export function DailyPaymentTracker() {
                           <Badge variant="outline" className={`text-[9px] px-1.5 ${t.hasPaid ? 'border-emerald-500/30 text-emerald-600' : 'border-destructive/30 text-destructive'}`}>
                             {t.hasPaid ? 'Paid' : 'Unpaid'}
                           </Badge>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const newVal = !t.tenant_no_smartphone;
+                              await supabase.from('rent_requests').update({ tenant_no_smartphone: newVal }).eq('id', t.rent_request_id);
+                              refetch();
+                              toast({ title: newVal ? '📵 Marked as no smartphone' : '📱 Marked as smartphone user' });
+                            }}
+                            className={`text-[9px] px-1.5 py-0.5 rounded-md border transition-colors ${
+                              t.tenant_no_smartphone
+                                ? 'border-warning/30 bg-warning/10 text-warning'
+                                : 'border-success/30 bg-success/10 text-success'
+                            }`}
+                            title="Toggle smartphone status"
+                          >
+                            {t.tenant_no_smartphone ? '📵 No Phone' : '📱'}
+                          </button>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5 flex-wrap">
                           <span>Daily: {formatUGX(t.daily_repayment)}</span>
