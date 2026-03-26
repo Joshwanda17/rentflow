@@ -42,10 +42,12 @@ interface ActiveTenant {
 // Removed unused TodayCollection interface
 
 export function DailyPaymentTracker() {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<typeof filtered[0] | null>(null);
 
   const buildReportData = (): DailyPerformanceData => ({
     date: new Date(),
