@@ -144,6 +144,13 @@ export function TenantOpsDashboard() {
       icon: HandCoins,
       color: 'bg-orange-500/10 text-orange-600 border-orange-200',
     },
+    {
+      id: 'agent-tenants' as ActiveView,
+      label: 'Search by Agent',
+      description: 'Find tenants via their agent',
+      icon: Users,
+      color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
+    },
   ];
 
   const goBack = () => {
