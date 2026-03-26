@@ -11,6 +11,7 @@ import { PartnerDirectory } from './PartnerDirectory';
 import { PartnerCapitalFlow } from './PartnerCapitalFlow';
 import { PartnerOpsBrief } from './PartnerOpsBrief';
 import { PartnerChurnAlerts } from './PartnerChurnAlerts';
+import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
