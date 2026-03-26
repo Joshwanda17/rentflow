@@ -199,8 +199,27 @@ PageLoader.displayName = 'PageLoader';
 // Stable routes wrapper — no RoutePrefetcher (DOM overhead), no JS page transitions
 // Global banner - lazy loaded
 function AppRoutes() {
+  const handlePullRefresh = async () => {
+    try {
+      // Clear all caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      // Unregister service workers so fresh content loads
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch {
+      // ignore cache errors
+    }
+    // Hard reload to pick up new assets
+    window.location.reload();
+  };
+
   return (
-    <div className="min-h-screen">
+    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen">
       <div>
       <Suspense fallback={<PageLoader />}>
         <Routes>
