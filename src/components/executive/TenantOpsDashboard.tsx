@@ -34,7 +34,7 @@ interface NavCard {
 
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
-  const isMobile = useIsMobile();
+  
 
   const { data: rentRequests, isLoading } = useQuery({
     queryKey: ['exec-tenant-ops'],
