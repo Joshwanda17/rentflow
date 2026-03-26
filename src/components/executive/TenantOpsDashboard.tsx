@@ -129,6 +129,20 @@ export function TenantOpsDashboard() {
       icon: Table2,
       color: 'bg-muted text-foreground border-border',
     },
+    {
+      id: 'link-agent',
+      label: 'Link Agent',
+      description: 'Assign an agent to a tenant',
+      icon: Link2,
+      color: 'bg-primary/10 text-primary border-primary/20',
+    },
+    {
+      id: 'collect-rent',
+      label: 'Collect Rent',
+      description: 'Charge tenant or agent wallet',
+      icon: HandCoins,
+      color: 'bg-orange-500/10 text-orange-600 border-orange-200',
+    },
   ];
 
   const goBack = () => {
