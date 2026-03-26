@@ -10,6 +10,7 @@ import { DailyPaymentTracker } from './DailyPaymentTracker';
 import { MissedDaysTracker } from './MissedDaysTracker';
 import { TenantAgentLinker } from './TenantAgentLinker';
 import { TenantRentCollector } from './TenantRentCollector';
+import { AgentTenantSearch } from './AgentTenantSearch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
