@@ -99,17 +99,28 @@ export function FinancialOpsCommandCenter() {
       <div className="grid grid-cols-1 gap-4">
         {/* Verify Deposits */}
         <button
-          onClick={() => setView('deposits')}
+          onClick={() => setShowDepositStats(!showDepositStats)}
           className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[80px]"
         >
           <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
             <ShieldCheck className="h-6 w-6 text-primary" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="font-bold text-base">Verify Deposits</p>
             <p className="text-xs text-muted-foreground">TID match & approve manual deposits</p>
           </div>
+          {showDepositStats ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          )}
         </button>
+
+        <AnimatePresence>
+          {showDepositStats && (
+            <DepositStatsPanel onOpenVerification={() => setView('deposits')} />
+          )}
+        </AnimatePresence>
 
         {/* Withdrawals & Payouts */}
         <button
