@@ -207,6 +207,20 @@ export function TenantOpsDashboard() {
     { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'landlord_name', label: 'Landlord' },
     { key: 'landlord_phone', label: 'L. Phone' },
+    { key: 'tenant_id', label: 'Action', render: (_v, row) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={(e) => {
+          e.stopPropagation();
+          setDeleteDialog({ open: true, tenantId: row.tenant_id, tenantName: row.tenant_name || 'Unknown' });
+        }}
+      >
+        <Trash2 className="h-3.5 w-3.5 mr-1" />
+        Delete
+      </Button>
+    )},
   ];
 
   const renderSubView = () => {
