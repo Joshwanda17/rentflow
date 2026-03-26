@@ -48,6 +48,7 @@ export function TenantOpsDashboard() {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [deleting, setDeleting] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
+  const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
 
   const handleDeleteTenant = async () => {
     if (!deleteDialog.tenantId) return;
@@ -307,20 +308,26 @@ export function TenantOpsDashboard() {
             className="space-y-3"
           >
             {/* Quick KPI summary row */}
-            <div className="grid grid-cols-3 gap-2">
-              <Card className="border bg-amber-500/5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('pending')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-emerald-500/5">
+              <Card className="border bg-green-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('active')}>
                 <CardContent className="p-2.5 text-center">
-                  <p className="text-2xl font-extrabold text-emerald-600">{repaying + funded}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">Active</p>
+                  <p className="text-2xl font-extrabold text-green-600">{funded}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Funded</p>
                 </CardContent>
               </Card>
-              <Card className="border bg-destructive/5">
+              <Card className="border bg-purple-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('repaying')}>
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-purple-600">{repaying}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Repaying</p>
+                </CardContent>
+              </Card>
+              <Card className="border bg-destructive/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('defaulted')}>
                 <CardContent className="p-2.5 text-center">
                   <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
                   <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
@@ -368,6 +375,7 @@ export function TenantOpsDashboard() {
             <TenantOverviewList
               data={rows}
               loading={isLoading}
+              initialCategory={overviewFilter}
               onSelectTenant={(id, name) => {
                 setSelectedTenant({ id, name });
                 setActiveView('tenant-detail');
