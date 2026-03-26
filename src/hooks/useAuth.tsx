@@ -91,13 +91,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     const initializeAuth = async () => {
-      // Hard cap: loading MUST resolve within 8s no matter what
       const forceLoadingOff = setTimeout(() => {
         if (isMounted) {
           console.warn('[Auth] Init timeout after 8s — forcing loading off');
           setLoading(false);
         }
       }, 8000);
+
+      // Start role fetch early from cache in parallel with getSession
+      let earlyRoleFetch: Promise<void> | null = null;
+      if (cachedSession?.userId && !rolesFetched) {
+        rolesFetched = true;
+        earlyRoleFetch = fetchUserRoles(cachedSession.userId, role, setRoles, setRole);
+      }
 
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -119,18 +125,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             console.warn('[Auth] Transient getSession error:', error.message);
           }
-          // Skip session state update on error — preserve existing state / cache
         } else {
           if (session) {
             setSession(session);
             setUser(session.user);
 
             setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
-            // Always fetch roles here — this is the authoritative fetch
-            rolesFetched = true;
-            const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
-            const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
-            await Promise.race([rolePromise, timeoutPromise]);
+            // If early fetch was for the same user, just await it; otherwise fetch fresh
+            if (earlyRoleFetch && cachedSession?.userId === session.user.id) {
+              const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
+              await Promise.race([earlyRoleFetch, timeoutPromise]);
+            } else {
+              rolesFetched = true;
+              const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
+              const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
+              await Promise.race([rolePromise, timeoutPromise]);
+            }
+          } else if (cachedSession) {
+            console.log('[Auth] getSession() null but cached session exists — preserving state');
+          } else {
+            setSession(null);
+            setUser(null);
+            clearSessionCache();
+          }
+        }
           } else if (cachedSession) {
             // getSession() returned null but we have a cached session.
             // This is a transient state (e.g., token refresh in progress on PC).
