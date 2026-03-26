@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { KPICard } from './KPICard';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
-  Banknote, AlertTriangle, TrendingUp, Phone, UserCog, Wallet
+  Banknote, AlertTriangle, TrendingUp, Phone
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
