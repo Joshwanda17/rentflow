@@ -235,6 +235,8 @@ export function TenantOpsDashboard() {
         return <TenantAgentLinker />;
       case 'collect-rent':
         return <TenantRentCollector />;
+      case 'agent-tenants':
+        return <AgentTenantSearch />;
       default:
         return null;
     }
