@@ -47,6 +47,7 @@ interface ActiveTenant {
 export function DailyPaymentTracker() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>('all');
+  const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>('all');
   const [search, setSearch] = useState('');
   const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
