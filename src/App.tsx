@@ -368,34 +368,34 @@ function DeferredProviders({ children }: { children: ReactNode }) {
 }
 
 const App = () => (
-  <HelmetProvider>
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <CombinedSettingsProvider>
-            <LanguageProvider>
-              <CurrencyProvider>
-                <AuthProvider>
-                  <TooltipProvider delayDuration={300}>
-                    <DeferredProviders>
-                      <AppRoutes />
-                    </DeferredProviders>
-                    <Suspense fallback={null}>
-                      <DeferredExtras />
-                      <FloatingToolbar />
-                      <Toaster />
-                      <Sonner />
-                    </Suspense>
-                  </TooltipProvider>
-                </AuthProvider>
-              </CurrencyProvider>
-            </LanguageProvider>
+            <AuthProvider>
+              <TooltipProvider delayDuration={300}>
+                <Suspense fallback={null}>
+                  <LanguageProvider>
+                    <CurrencyProvider>
+                      <DeferredProviders>
+                        <AppRoutes />
+                      </DeferredProviders>
+                    </CurrencyProvider>
+                  </LanguageProvider>
+                </Suspense>
+                <Suspense fallback={null}>
+                  <DeferredExtras />
+                  <FloatingToolbar />
+                  <Toaster />
+                  <Sonner />
+                </Suspense>
+              </TooltipProvider>
+            </AuthProvider>
           </CombinedSettingsProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>
   </ChunkErrorBoundary>
-  </HelmetProvider>
 );
 export default App;

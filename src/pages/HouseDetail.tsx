@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+
 import { supabase } from '@/integrations/supabase/client';
 import { HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
