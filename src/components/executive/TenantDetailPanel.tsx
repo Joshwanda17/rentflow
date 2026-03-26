@@ -32,31 +32,29 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack }: TenantDetail
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
       const [profileRes, requestsRes, walletRes, collectionsRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, phone, location, created_at').eq('id', tenantId).maybeSingle(),
-        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_rate, created_at, landlord_id, responsible_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, full_name, phone, city, created_at').eq('id', tenantId).maybeSingle(),
+        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, created_at, landlord_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('wallet_transactions').select('id, amount, type, created_at, description').or(`sender_id.eq.${tenantId},recipient_id.eq.${tenantId}`).order('created_at', { ascending: false }).limit(10),
         supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
       ]);
 
-      // Get agent names for requests
-      const agentIds = [...new Set((requestsRes.data || []).map(r => r.responsible_agent_id).filter(Boolean))];
+      const agentIds = [...new Set((requestsRes.data || []).map(r => r.assigned_agent_id).filter(Boolean))] as string[];
       const agentRes = agentIds.length > 0
         ? await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds)
-        : { data: [] };
+        : { data: [] as { id: string; full_name: string; phone: string }[] };
       const agentMap = new Map((agentRes.data || []).map(a => [a.id, a]));
 
-      // Get landlord names
-      const landlordIds = [...new Set((requestsRes.data || []).map(r => r.landlord_id).filter(Boolean))];
+      const landlordIds = [...new Set((requestsRes.data || []).map(r => r.landlord_id).filter(Boolean))] as string[];
       const landlordRes = landlordIds.length > 0
         ? await supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
-        : { data: [] };
+        : { data: [] as { id: string; name: string; phone: string }[] };
       const landlordMap = new Map((landlordRes.data || []).map(l => [l.id, l]));
 
       return {
         profile: profileRes.data,
         requests: (requestsRes.data || []).map(r => ({
           ...r,
-          agent_name: agentMap.get(r.responsible_agent_id)?.full_name || '—',
+          agent_name: agentMap.get(r.assigned_agent_id || '')?.full_name || '—',
           landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
         })),
         walletTxns: walletRes.data || [],
