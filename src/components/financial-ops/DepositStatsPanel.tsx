@@ -96,7 +96,7 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
     try {
       const { data: deposits } = await supabase
         .from('deposit_requests')
-        .select('id, amount, transaction_reference, payment_channel, created_at, user_id')
+        .select('id, amount, transaction_id, provider, created_at, user_id')
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(50);
