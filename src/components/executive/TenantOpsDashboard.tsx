@@ -375,6 +375,7 @@ export function TenantOpsDashboard() {
             <TenantOverviewList
               data={rows}
               loading={isLoading}
+              initialCategory={overviewFilter}
               onSelectTenant={(id, name) => {
                 setSelectedTenant({ id, name });
                 setActiveView('tenant-detail');
