@@ -205,6 +205,7 @@ export function DailyPaymentTracker() {
         agent_phone: agentProfile?.phone || '',
         tenant_wallet: walletMap.get(r.tenant_id) || 0,
         agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
+        tenant_no_smartphone: r.tenant_no_smartphone ?? false,
       };
       if (!existing || entry.daily_repayment > existing.daily_repayment) {
         tenantMap.set(r.tenant_id, entry);
