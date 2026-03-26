@@ -243,7 +243,7 @@ export function PartnersOpsDashboard() {
   // ═══ QUICK NAV ITEMS ═══
   const quickNavItems = [
     { icon: Wallet, label: 'Portfolios', onClick: () => setView('portfolios'), variant: 'primary' as const },
-    { icon: AlertTriangle, label: `Escalations${openEscalations > 0 ? ` (${openEscalations})` : ''}`, onClick: () => setView('escalations'), variant: (openEscalations > 0 ? 'warning' : 'default') as const },
+    { icon: AlertTriangle, label: `Escalations${openEscalations > 0 ? ` (${openEscalations})` : ''}`, onClick: () => setView('escalations'), variant: openEscalations > 0 ? 'warning' as const : 'default' as const },
     { icon: Users, label: 'Partner Directory', onClick: () => setView('directory'), variant: 'success' as const },
     { icon: DollarSign, label: 'Capital Flow', onClick: () => setView('capital'), variant: 'default' as const },
     { icon: TrendingUp, label: 'ROI Payouts', onClick: () => setView('roi'), variant: 'default' as const },
