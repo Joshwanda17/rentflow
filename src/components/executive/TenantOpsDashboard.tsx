@@ -42,9 +42,30 @@ interface NavCard {
 
 export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
+  const queryClient = useQueryClient();
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
+  const [deleting, setDeleting] = useState(false);
   
 
-  const { data: rentRequests, isLoading } = useQuery({
+  const handleDeleteTenant = async () => {
+    if (!deleteDialog.tenantId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteDialog.tenantId },
+      });
+      if (error) throw error;
+      toast.success(`Tenant "${deleteDialog.tenantName}" has been deleted`);
+      setDeleteDialog({ open: false, tenantId: '', tenantName: '' });
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete tenant');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
     queryKey: ['exec-tenant-ops'],
     queryFn: async () => {
       const { data } = await supabase.from('rent_requests')
