@@ -283,7 +283,12 @@ export function DailyPaymentTracker() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">{t.tenant_name}</p>
+                          <button
+                            onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
+                            className="text-sm font-medium truncate text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
+                          >
+                            {t.tenant_name}
+                          </button>
                           <Badge variant="outline" className={`text-[9px] px-1.5 ${t.hasPaid ? 'border-emerald-500/30 text-emerald-600' : 'border-destructive/30 text-destructive'}`}>
                             {t.hasPaid ? 'Paid' : 'Unpaid'}
                           </Badge>
