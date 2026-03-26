@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
             source_table: "rent_requests",
             source_id: rr.id,
             transaction_group_id: txGroupId,
-            description: `Manual collection by manager: agent covering ${tenantName}'s rent instalment`,
+            description: `Manual collection (agent share): ${trimmedReason}`,
             linked_party: rr.tenant_id,
             status: "approved",
           });
