@@ -282,7 +282,24 @@ Deno.serve(async (req) => {
       sendSMS(tenantPhone, smsMessage).catch(e => console.error("[manual-collect-rent] SMS error:", e));
     }
 
-    console.log(`[manual-collect-rent] Collected ${totalCollected} for ${rent_request_id}: tenant=${tenantDeducted}, agent=${agentDeducted}`);
+    // Audit log
+    await supabase.from("audit_logs").insert({
+      user_id: user.id,
+      action_type: "manual_rent_collection",
+      table_name: "rent_requests",
+      record_id: rent_request_id,
+      metadata: {
+        reason: trimmedReason,
+        tenant_id: rr.tenant_id,
+        tenant_name: tenantName,
+        agent_id: rr.agent_id,
+        total_collected: totalCollected,
+        tenant_deducted: tenantDeducted,
+        agent_deducted: agentDeducted,
+      },
+    });
+
+    console.log(`[manual-collect-rent] Collected ${totalCollected} for ${rent_request_id}: tenant=${tenantDeducted}, agent=${agentDeducted}, reason="${trimmedReason}"`);
 
     return new Response(JSON.stringify({
       success: true,
