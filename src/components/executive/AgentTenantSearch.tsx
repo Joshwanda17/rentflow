@@ -210,6 +210,16 @@ export function AgentTenantSearch() {
                 <Users className="h-3 w-3" />
                 {selectedAgent.tenant_count} tenants
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shrink-0"
+                onClick={handleSharePdf}
+                disabled={sharing || loadingTenants || !tenants?.length}
+              >
+                {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">Share</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
