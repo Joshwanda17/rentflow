@@ -342,6 +342,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             />
           )}
 
+          {/* Repayment Summary — always visible for active/completed requests */}
+          {rentRequests.some(r => ['disbursed', 'completed', 'funded', 'repaying'].includes(r.status)) && (
+            <RepaymentSection
+              userId={user.id}
+              activeRequest={rentRequests.find(r => ['disbursed', 'repaying'].includes(r.status))}
+              repayments={repayments}
+              onRepaymentSuccess={fetchData}
+            />
+          )}
+
           {/* Rent Calculator - Only when triggered from menu */}
           {showCalculator && (
             <div className="animate-fade-in">
