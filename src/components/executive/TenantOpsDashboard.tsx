@@ -379,6 +379,32 @@ export function TenantOpsDashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Tenant Confirmation Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, tenantId: '', tenantName: '' })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{deleteDialog.tenantName}</strong> and all their data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTenant}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Delete Tenant</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
