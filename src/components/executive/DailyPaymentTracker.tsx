@@ -25,12 +25,14 @@ interface ActiveTenant {
   total_repayment: number;
   disbursed_at: string;
   rent_request_id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_phone: string;
+  tenant_wallet: number;
+  agent_wallet: number;
 }
 
-interface TodayCollection {
-  tenant_id: string;
-  total_collected: number;
-}
+// Removed unused TodayCollection interface
 
 export function DailyPaymentTracker() {
   const [filter, setFilter] = useState<Filter>('all');
@@ -44,7 +46,7 @@ export function DailyPaymentTracker() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
+        .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
         .in('status', ['disbursed', 'repaying', 'funded'])
         .not('disbursed_at', 'is', null);
       if (error) throw error;
@@ -53,23 +55,44 @@ export function DailyPaymentTracker() {
     staleTime: 120000,
   });
 
-  // Fetch tenant profiles for active requests
+  // Fetch tenant + agent profiles for active requests
   const tenantIds = useMemo(() => {
     return [...new Set((activeRequests || []).map(r => r.tenant_id))];
   }, [activeRequests]);
 
+  const agentIds = useMemo(() => {
+    return [...new Set((activeRequests || []).map(r => r.agent_id).filter(Boolean))];
+  }, [activeRequests]);
+
+  const allUserIds = useMemo(() => [...new Set([...tenantIds, ...agentIds])], [tenantIds, agentIds]);
+
   const { data: profiles } = useQuery({
-    queryKey: ['daily-tracker-profiles', tenantIds],
+    queryKey: ['daily-tracker-profiles', allUserIds],
     queryFn: async () => {
-      if (!tenantIds.length) return [];
+      if (!allUserIds.length) return [];
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .in('id', tenantIds.slice(0, 100));
+        .in('id', allUserIds.slice(0, 200));
       return data || [];
     },
-    enabled: tenantIds.length > 0,
+    enabled: allUserIds.length > 0,
     staleTime: 300000,
+  });
+
+  // Fetch wallet balances for tenants and agents
+  const { data: wallets } = useQuery({
+    queryKey: ['daily-tracker-wallets', allUserIds],
+    queryFn: async () => {
+      if (!allUserIds.length) return [];
+      const { data } = await supabase
+        .from('wallets')
+        .select('user_id, balance')
+        .in('user_id', allUserIds.slice(0, 200));
+      return data || [];
+    },
+    enabled: allUserIds.length > 0,
+    staleTime: 120000,
   });
 
   // Fetch today's collections
@@ -101,6 +124,12 @@ export function DailyPaymentTracker() {
     return m;
   }, [profiles]);
 
+  const walletMap = useMemo(() => {
+    const m = new Map<string, number>();
+    (wallets || []).forEach(w => m.set(w.user_id, Number(w.balance || 0)));
+    return m;
+  }, [wallets]);
+
   // Build tenant list with paid/unpaid status
   const tenantList = useMemo(() => {
     if (!activeRequests) return [];
@@ -110,6 +139,7 @@ export function DailyPaymentTracker() {
     activeRequests.forEach(r => {
       const existing = tenantMap.get(r.tenant_id);
       const profile = profileMap.get(r.tenant_id);
+      const agentProfile = r.agent_id ? profileMap.get(r.agent_id) : undefined;
       const entry: ActiveTenant = {
         tenant_id: r.tenant_id,
         tenant_name: profile?.name || r.tenant_id.slice(0, 8),
@@ -120,6 +150,11 @@ export function DailyPaymentTracker() {
         total_repayment: Number(r.total_repayment || 0),
         disbursed_at: r.disbursed_at || '',
         rent_request_id: r.id,
+        agent_id: r.agent_id || '',
+        agent_name: agentProfile?.name || '—',
+        agent_phone: agentProfile?.phone || '',
+        tenant_wallet: walletMap.get(r.tenant_id) || 0,
+        agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
       };
       if (!existing || entry.daily_repayment > existing.daily_repayment) {
         tenantMap.set(r.tenant_id, entry);
@@ -128,10 +163,10 @@ export function DailyPaymentTracker() {
 
     return Array.from(tenantMap.values()).map(t => {
       const paidToday = todayCollections?.get(t.tenant_id) || 0;
-      const hasPaid = paidToday >= t.daily_repayment * 0.5; // At least 50% of daily amount counts as paid
+      const hasPaid = paidToday >= t.daily_repayment * 0.5;
       return { ...t, paidToday, hasPaid };
     });
-  }, [activeRequests, todayCollections, profileMap]);
+  }, [activeRequests, todayCollections, profileMap, walletMap]);
 
   // Apply filters
   const filtered = useMemo(() => {
@@ -232,40 +267,52 @@ export function DailyPaymentTracker() {
               {filtered.map(t => {
                 const repayPct = t.total_repayment > 0 ? Math.round((t.amount_repaid / t.total_repayment) * 100) : 0;
                 return (
-                  <div key={t.tenant_id} className="px-3 sm:px-4 py-3 flex items-center gap-3">
-                    {/* Status Icon */}
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                      t.hasPaid ? 'bg-emerald-500/15' : 'bg-destructive/15'
-                    }`}>
-                      {t.hasPaid
-                        ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                        : <XCircle className="h-4 w-4 text-destructive" />
-                      }
+                  <div key={t.tenant_id} className="px-3 sm:px-4 py-3 space-y-1.5">
+                    <div className="flex items-center gap-3">
+                      {/* Status Icon */}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                        t.hasPaid ? 'bg-emerald-500/15' : 'bg-destructive/15'
+                      }`}>
+                        {t.hasPaid
+                          ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          : <XCircle className="h-4 w-4 text-destructive" />
+                        }
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">{t.tenant_name}</p>
+                          <Badge variant="outline" className={`text-[9px] px-1.5 ${t.hasPaid ? 'border-emerald-500/30 text-emerald-600' : 'border-destructive/30 text-destructive'}`}>
+                            {t.hasPaid ? 'Paid' : 'Unpaid'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5 flex-wrap">
+                          <span>Daily: {formatUGX(t.daily_repayment)}</span>
+                          <span>•</span>
+                          <span>{t.hasPaid ? `Paid: ${formatUGX(t.paidToday)}` : 'No payment yet'}</span>
+                          <span>•</span>
+                          <span>{repayPct}% repaid</span>
+                        </div>
+                      </div>
+
+                      {/* Phone quick link */}
+                      {t.phone && (
+                        <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                        </a>
+                      )}
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">{t.tenant_name}</p>
-                        <Badge variant="outline" className={`text-[9px] px-1.5 ${t.hasPaid ? 'border-emerald-500/30 text-emerald-600' : 'border-destructive/30 text-destructive'}`}>
-                          {t.hasPaid ? 'Paid' : 'Unpaid'}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                        <span>Daily: {formatUGX(t.daily_repayment)}</span>
-                        <span>•</span>
-                        <span>{t.hasPaid ? `Paid: ${formatUGX(t.paidToday)}` : 'No payment yet'}</span>
-                        <span>•</span>
-                        <span>{repayPct}% repaid</span>
-                      </div>
+                    {/* Agent + Wallet details row */}
+                    <div className="ml-12 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                      <span>Agent: <strong className="text-foreground">{t.agent_name}</strong></span>
+                      <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
+                      {t.agent_phone && (
+                        <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
+                      )}
+                      <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
                     </div>
-
-                    {/* Phone quick link */}
-                    {t.phone && (
-                      <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                      </a>
-                    )}
                   </div>
                 );
               })}

@@ -11,7 +11,7 @@ import {
   AlertTriangle, Phone, TrendingDown, Clock
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO } from 'date-fns';
 
 type SortBy = 'missed_days' | 'balance' | 'name';
 
@@ -29,6 +29,11 @@ interface TenantMissedData {
   expected_repaid: number;
   missed_days: number;
   repayment_pct: number;
+  agent_id: string;
+  agent_name: string;
+  agent_phone: string;
+  tenant_wallet: number;
+  agent_wallet: number;
 }
 
 export function MissedDaysTracker() {
@@ -42,7 +47,7 @@ export function MissedDaysTracker() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
+        .select('id, tenant_id, agent_id, daily_repayment, rent_amount, amount_repaid, total_repayment, disbursed_at, status')
         .in('status', ['disbursed', 'repaying', 'funded'])
         .not('disbursed_at', 'is', null);
       if (error) throw error;
@@ -55,22 +60,43 @@ export function MissedDaysTracker() {
     return [...new Set((activeRequests || []).map(r => r.tenant_id))];
   }, [activeRequests]);
 
+  const agentIds = useMemo(() => {
+    return [...new Set((activeRequests || []).map(r => r.agent_id).filter(Boolean))];
+  }, [activeRequests]);
+
+  const allUserIds = useMemo(() => [...new Set([...tenantIds, ...agentIds])], [tenantIds, agentIds]);
+
   const { data: profiles } = useQuery({
-    queryKey: ['missed-days-profiles', tenantIds],
+    queryKey: ['missed-days-profiles', allUserIds],
     queryFn: async () => {
-      if (!tenantIds.length) return [];
+      if (!allUserIds.length) return [];
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .in('id', tenantIds.slice(0, 100));
+        .in('id', allUserIds.slice(0, 200));
       return data || [];
     },
-    enabled: tenantIds.length > 0,
+    enabled: allUserIds.length > 0,
     staleTime: 300000,
   });
 
+  // Fetch wallet balances
+  const { data: wallets } = useQuery({
+    queryKey: ['missed-days-wallets', allUserIds],
+    queryFn: async () => {
+      if (!allUserIds.length) return [];
+      const { data } = await supabase
+        .from('wallets')
+        .select('user_id, balance')
+        .in('user_id', allUserIds.slice(0, 200));
+      return data || [];
+    },
+    enabled: allUserIds.length > 0,
+    staleTime: 120000,
+  });
+
   // Fetch total collections per tenant (all time)
-  const { data: allCollections, isLoading: colLoading } = useQuery({
+  const { data: _allCollections, isLoading: colLoading } = useQuery({
     queryKey: ['missed-days-all-collections', tenantIds],
     queryFn: async () => {
       if (!tenantIds.length) return new Map<string, number>();
@@ -97,6 +123,12 @@ export function MissedDaysTracker() {
     return m;
   }, [profiles]);
 
+  const walletMap = useMemo(() => {
+    const m = new Map<string, number>();
+    (wallets || []).forEach(w => m.set(w.user_id, Number(w.balance || 0)));
+    return m;
+  }, [wallets]);
+
   const tenantList = useMemo(() => {
     if (!activeRequests) return [];
     const today = new Date();
@@ -105,6 +137,7 @@ export function MissedDaysTracker() {
     const tenantMap = new Map<string, TenantMissedData>();
     activeRequests.forEach(r => {
       const profile = profileMap.get(r.tenant_id);
+      const agentProfile = r.agent_id ? profileMap.get(r.agent_id) : undefined;
       const dailyRepayment = Number(r.daily_repayment || 0);
       const totalRepayment = Number(r.total_repayment || 0);
       const amountRepaid = Number(r.amount_repaid || 0);
@@ -133,12 +166,17 @@ export function MissedDaysTracker() {
           expected_repaid: expectedRepaid,
           missed_days: missedDays,
           repayment_pct: repaymentPct,
+          agent_id: r.agent_id || '',
+          agent_name: agentProfile?.name || '—',
+          agent_phone: agentProfile?.phone || '',
+          tenant_wallet: walletMap.get(r.tenant_id) || 0,
+          agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
         });
       }
     });
 
     return Array.from(tenantMap.values());
-  }, [activeRequests, profileMap]);
+  }, [activeRequests, profileMap, walletMap]);
 
   // Risk classification
   const getRisk = (t: TenantMissedData) => {
@@ -270,48 +308,60 @@ export function MissedDaysTracker() {
               {filtered.map(t => {
                 const risk = getRisk(t);
                 return (
-                  <div key={t.tenant_id} className="px-3 sm:px-4 py-3 flex items-start gap-3">
-                    {/* Risk indicator */}
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                      risk === 'critical' ? 'bg-destructive/15' : risk === 'warning' ? 'bg-amber-500/15' : 'bg-emerald-500/15'
-                    }`}>
-                      {risk === 'critical' ? <AlertTriangle className="h-4 w-4 text-destructive" />
-                        : risk === 'warning' ? <Clock className="h-4 w-4 text-amber-600" />
-                        : <TrendingDown className="h-4 w-4 text-emerald-600" />
-                      }
+                  <div key={t.tenant_id} className="px-3 sm:px-4 py-3 space-y-1.5">
+                    <div className="flex items-start gap-3">
+                      {/* Risk indicator */}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                        risk === 'critical' ? 'bg-destructive/15' : risk === 'warning' ? 'bg-amber-500/15' : 'bg-emerald-500/15'
+                      }`}>
+                        {risk === 'critical' ? <AlertTriangle className="h-4 w-4 text-destructive" />
+                          : risk === 'warning' ? <Clock className="h-4 w-4 text-amber-600" />
+                          : <TrendingDown className="h-4 w-4 text-emerald-600" />
+                        }
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium truncate">{t.tenant_name}</p>
+                          <Badge variant="outline" className={`text-[9px] px-1.5 ${riskColor(risk)}`}>
+                            {riskLabel(risk)}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                          <span>Missed: <strong className="text-foreground">{t.missed_days} days</strong></span>
+                          <span>Balance: <strong className="text-foreground">{formatUGX(t.outstanding_balance)}</strong></span>
+                          <span>Daily: {formatUGX(t.daily_repayment)}</span>
+                          <span>Repaid: {t.repayment_pct}%</span>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="mt-1.5 w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              risk === 'critical' ? 'bg-destructive' : risk === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${Math.min(100, t.repayment_pct)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Phone */}
+                      {t.phone && (
+                        <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors mt-0.5">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                        </a>
+                      )}
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium truncate">{t.tenant_name}</p>
-                        <Badge variant="outline" className={`text-[9px] px-1.5 ${riskColor(risk)}`}>
-                          {riskLabel(risk)}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
-                        <span>Missed: <strong className="text-foreground">{t.missed_days} days</strong></span>
-                        <span>Balance: <strong className="text-foreground">{formatUGX(t.outstanding_balance)}</strong></span>
-                        <span>Daily: {formatUGX(t.daily_repayment)}</span>
-                        <span>Repaid: {t.repayment_pct}%</span>
-                      </div>
-                      {/* Progress bar */}
-                      <div className="mt-1.5 w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            risk === 'critical' ? 'bg-destructive' : risk === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`}
-                          style={{ width: `${Math.min(100, t.repayment_pct)}%` }}
-                        />
-                      </div>
+                    {/* Agent + Wallet details row */}
+                    <div className="ml-12 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
+                      <span>Agent: <strong className="text-foreground">{t.agent_name}</strong></span>
+                      <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
+                      {t.agent_phone && (
+                        <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
+                      )}
+                      <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
                     </div>
-
-                    {/* Phone */}
-                    {t.phone && (
-                      <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors mt-0.5">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                      </a>
-                    )}
                   </div>
                 );
               })}
