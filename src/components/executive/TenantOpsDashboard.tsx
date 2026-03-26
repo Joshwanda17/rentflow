@@ -15,7 +15,6 @@ import { TenantOverviewList } from './TenantOverviewList';
 import { TenantDetailPanel } from './TenantDetailPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
