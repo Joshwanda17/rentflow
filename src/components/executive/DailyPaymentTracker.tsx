@@ -25,6 +25,11 @@ interface ActiveTenant {
   total_repayment: number;
   disbursed_at: string;
   rent_request_id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_phone: string;
+  tenant_wallet: number;
+  agent_wallet: number;
 }
 
 interface TodayCollection {
