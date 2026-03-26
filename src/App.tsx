@@ -381,14 +381,14 @@ const App = () => (
                       <DeferredProviders>
                         <AppRoutes />
                       </DeferredProviders>
+                      <Suspense fallback={null}>
+                        <DeferredExtras />
+                        <FloatingToolbar />
+                        <Toaster />
+                        <Sonner />
+                      </Suspense>
                     </CurrencyProvider>
                   </LanguageProvider>
-                </Suspense>
-                <Suspense fallback={null}>
-                  <DeferredExtras />
-                  <FloatingToolbar />
-                  <Toaster />
-                  <Sonner />
                 </Suspense>
               </TooltipProvider>
             </AuthProvider>
