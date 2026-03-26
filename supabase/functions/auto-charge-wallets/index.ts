@@ -216,8 +216,7 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Record in ledger
-          const txGroupId = crypto.randomUUID();
+          // Record in ledger (NO transaction_group_id — wallet already updated directly above)
           await supabase.from("general_ledger").insert({
             user_id: charge.tenant_id,
             amount: chargeAmount,
@@ -225,7 +224,6 @@ Deno.serve(async (req) => {
             category: "tenant_access_fee",
             source_table: "subscription_charges",
             source_id: charge.id,
-            transaction_group_id: txGroupId,
             description: `Auto-charge: ${charge.service_type} instalment (${charge.frequency})`,
             linked_party: "platform",
             transaction_date: now.toISOString(),
@@ -545,10 +543,9 @@ async function chargeAgent(
     return false;
   }
 
-  const txGroupId = crypto.randomUUID();
   const description = `Tenant default: ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace`;
 
-  // Record in general_ledger for wallet history visibility
+  // Record in general_ledger for wallet history (NO transaction_group_id — wallet already updated directly above)
   await supabase.from("general_ledger").insert({
     user_id: charge.agent_id,
     amount: shortfall,
@@ -556,13 +553,12 @@ async function chargeAgent(
     category: "tenant_default_charge",
     source_table: "subscription_charges",
     source_id: charge.id,
-    transaction_group_id: txGroupId,
     description,
     linked_party: `${tenantName} (${tenantPhone})`,
     transaction_date: new Date().toISOString(),
   });
 
-  // Also record in pending_wallet_operations for audit
+  // Also record in pending_wallet_operations for audit (no transaction_group_id)
   await supabase.from("pending_wallet_operations").insert({
     user_id: charge.agent_id,
     amount: shortfall,
@@ -570,7 +566,6 @@ async function chargeAgent(
     category: "tenant_default_charge",
     source_table: "subscription_charges",
     source_id: charge.id,
-    transaction_group_id: txGroupId,
     description,
     linked_party: `${tenantName} (${tenantPhone})`,
     status: "approved",

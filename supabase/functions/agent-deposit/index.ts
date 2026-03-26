@@ -359,8 +359,7 @@ Deno.serve(async (req) => {
         .select()
         .maybeSingle(); // optimistic lock - verify row was updated
 
-      // Record in general_ledger for auditability
-      const txGroupId = crypto.randomUUID();
+      // Record in general_ledger for auditability (NO transaction_group_id — wallet already updated directly above)
       await adminClient
         .from('general_ledger')
         .insert({
@@ -371,10 +370,9 @@ Deno.serve(async (req) => {
           description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
           source_table: 'wallet_deposits',
           linked_party: targetUserId,
-          transaction_group_id: txGroupId,
         });
 
-      // If repayment happened, also log the rent_repayment ledger entry for the tenant
+      // If repayment happened, also log the rent_repayment ledger entry for the tenant (audit only, no group_id)
       if (repaymentAmount > 0) {
         await adminClient
           .from('general_ledger')
@@ -387,7 +385,6 @@ Deno.serve(async (req) => {
             source_table: 'repayments',
             source_id: activeRentRequest?.id,
             linked_party: agentId,
-            transaction_group_id: txGroupId,
           });
       }
     }
