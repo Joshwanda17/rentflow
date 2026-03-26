@@ -123,6 +123,12 @@ export function MissedDaysTracker() {
     return m;
   }, [profiles]);
 
+  const walletMap = useMemo(() => {
+    const m = new Map<string, number>();
+    (wallets || []).forEach(w => m.set(w.user_id, Number(w.balance || 0)));
+    return m;
+  }, [wallets]);
+
   const tenantList = useMemo(() => {
     if (!activeRequests) return [];
     const today = new Date();
@@ -131,6 +137,7 @@ export function MissedDaysTracker() {
     const tenantMap = new Map<string, TenantMissedData>();
     activeRequests.forEach(r => {
       const profile = profileMap.get(r.tenant_id);
+      const agentProfile = r.agent_id ? profileMap.get(r.agent_id) : undefined;
       const dailyRepayment = Number(r.daily_repayment || 0);
       const totalRepayment = Number(r.total_repayment || 0);
       const amountRepaid = Number(r.amount_repaid || 0);
@@ -159,12 +166,17 @@ export function MissedDaysTracker() {
           expected_repaid: expectedRepaid,
           missed_days: missedDays,
           repayment_pct: repaymentPct,
+          agent_id: r.agent_id || '',
+          agent_name: agentProfile?.name || '—',
+          agent_phone: agentProfile?.phone || '',
+          tenant_wallet: walletMap.get(r.tenant_id) || 0,
+          agent_wallet: r.agent_id ? (walletMap.get(r.agent_id) || 0) : 0,
         });
       }
     });
 
     return Array.from(tenantMap.values());
-  }, [activeRequests, profileMap]);
+  }, [activeRequests, profileMap, walletMap]);
 
   // Risk classification
   const getRisk = (t: TenantMissedData) => {
