@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { Link2, Loader2, User, Phone, Banknote, AlertTriangle } from 'lucide-react';
+import { Link2, Loader2, User } from 'lucide-react';
 
 interface SelectedUser {
   id: string;

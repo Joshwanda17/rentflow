@@ -8,6 +8,8 @@ import { ApprovalHistoryLog } from './ApprovalHistoryLog';
 import { TenantBehaviorDashboard } from './TenantBehaviorDashboard';
 import { DailyPaymentTracker } from './DailyPaymentTracker';
 import { MissedDaysTracker } from './MissedDaysTracker';
+import { TenantAgentLinker } from './TenantAgentLinker';
+import { TenantRentCollector } from './TenantRentCollector';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,12 +17,12 @@ import { Badge } from '@/components/ui/badge';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2
+  ArrowLeft, History, Table2, Link2, HandCoins
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent';
 
 interface NavCard {
   id: ActiveView;
