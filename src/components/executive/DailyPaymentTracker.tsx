@@ -9,9 +9,10 @@ import { KPICard } from './KPICard';
 import { UserProfileSheet } from './UserProfileSheet';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
-  Banknote, AlertTriangle, TrendingUp, Phone,
+  Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
   Download, Loader2
 } from 'lucide-react';
+import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
 import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
