@@ -216,8 +216,7 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Record in ledger
-          const txGroupId = crypto.randomUUID();
+          // Record in ledger (NO transaction_group_id — wallet already updated directly above)
           await supabase.from("general_ledger").insert({
             user_id: charge.tenant_id,
             amount: chargeAmount,
@@ -225,7 +224,6 @@ Deno.serve(async (req) => {
             category: "tenant_access_fee",
             source_table: "subscription_charges",
             source_id: charge.id,
-            transaction_group_id: txGroupId,
             description: `Auto-charge: ${charge.service_type} instalment (${charge.frequency})`,
             linked_party: "platform",
             transaction_date: now.toISOString(),
