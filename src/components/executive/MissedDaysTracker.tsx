@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -219,170 +219,234 @@ export function MissedDaysTracker() {
     return 'On Track';
   };
 
+  const [expandedTenant, setExpandedTenant] = useState<string | null>(null);
+
   return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2">
-        <KPICard title="Critical (5+ days)" value={criticalCount} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
-        <KPICard title="Warning (2-4 days)" value={warningCount} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
-        <KPICard title="Total Outstanding" value={formatUGX(totalOutstanding)} icon={Banknote} loading={isLoading} color="bg-primary/10 text-primary" />
-        <KPICard title="Total Missed Days" value={totalMissedDays} icon={CalendarX2} loading={isLoading} color="bg-destructive/10 text-destructive" />
+    <div className="space-y-2">
+      {/* KPIs - scrollable horizontal strip on mobile */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory scrollbar-none">
+        <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
+          <KPICard title="Critical (5+)" value={criticalCount} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
+        </div>
+        <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
+          <KPICard title="Warning (2-4)" value={warningCount} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
+        </div>
+        <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
+          <KPICard title="Outstanding" value={formatUGX(totalOutstanding)} icon={Banknote} loading={isLoading} color="bg-primary/10 text-primary" />
+        </div>
+        <div className="snap-start shrink-0 w-[45%] sm:w-auto sm:flex-1">
+          <KPICard title="Missed Days" value={totalMissedDays} icon={CalendarX2} loading={isLoading} color="bg-destructive/10 text-destructive" />
+        </div>
       </div>
 
-      {/* Search + Filters */}
-      <Card className="border shadow-sm">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search tenant..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
-            </div>
-            <Button variant="outline" size="icon" onClick={() => refetch()} className="shrink-0 h-9 w-9">
-              <RefreshCw className="h-4 w-4" />
-            </Button>
+      {/* Sticky search + filters */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pb-2 -mx-1 px-1 space-y-2">
+        {/* Search */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search tenant or phone..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-10" />
           </div>
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {([
-              { key: 'all' as const, label: `All (${tenantList.length})`, icon: Users },
-              { key: 'critical' as const, label: `Critical (${criticalCount})`, icon: AlertTriangle },
-              { key: 'warning' as const, label: `Warning (${warningCount})`, icon: Clock },
-              { key: 'on_track' as const, label: `On Track (${onTrackCount})`, icon: TrendingDown },
-            ]).map(f => (
-              <button
-                key={f.key}
-                onClick={() => setRiskFilter(f.key)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  riskFilter === f.key
-                    ? f.key === 'critical' ? 'bg-destructive/10 text-destructive ring-1 ring-destructive/30'
-                    : f.key === 'warning' ? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/30'
-                    : f.key === 'on_track' ? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/30'
-                    : 'bg-primary/10 text-primary ring-1 ring-primary/30'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                <f.icon className="h-3 w-3" />
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-1.5">
-            <span className="text-[10px] text-muted-foreground self-center mr-1">Sort:</span>
-            {([
-              { key: 'missed_days' as const, label: 'Missed Days' },
-              { key: 'balance' as const, label: 'Balance' },
-              { key: 'name' as const, label: 'Name' },
-            ]).map(s => (
-              <button
-                key={s.key}
-                onClick={() => setSortBy(s.key)}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${
-                  sortBy === s.key ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          <Button variant="outline" size="icon" onClick={() => refetch()} className="shrink-0 h-10 w-10">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
 
-      {/* Tenant List */}
-      <Card className="border shadow-sm">
-        <CardHeader className="pb-2 px-3 sm:px-4">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <CalendarX2 className="h-4 w-4 text-destructive" />
-            Missed Days & Balances
-            {isLoading && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-2">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary/20 border-t-primary" />
-            </div>
-          ) : !filtered.length ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">No tenants match the current filter.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
-              {filtered.map(t => {
-                const risk = getRisk(t);
-                return (
-                  <div key={t.tenant_id} className="px-3 sm:px-4 py-3 space-y-1.5">
-                    <div className="flex items-start gap-3">
-                      {/* Risk indicator */}
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                        risk === 'critical' ? 'bg-destructive/15' : risk === 'warning' ? 'bg-amber-500/15' : 'bg-emerald-500/15'
-                      }`}>
-                        {risk === 'critical' ? <AlertTriangle className="h-4 w-4 text-destructive" />
-                          : risk === 'warning' ? <Clock className="h-4 w-4 text-amber-600" />
-                          : <TrendingDown className="h-4 w-4 text-emerald-600" />
-                        }
+        {/* Risk filter pills - horizontal scroll */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-1 px-1">
+          {([
+            { key: 'all' as const, label: `All (${tenantList.length})`, icon: Users },
+            { key: 'critical' as const, label: `Critical (${criticalCount})`, icon: AlertTriangle },
+            { key: 'warning' as const, label: `Warning (${warningCount})`, icon: Clock },
+            { key: 'on_track' as const, label: `On Track (${onTrackCount})`, icon: TrendingDown },
+          ]).map(f => (
+            <button
+              key={f.key}
+              onClick={() => setRiskFilter(f.key)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all touch-manipulation min-h-[36px] ${
+                riskFilter === f.key
+                  ? f.key === 'critical' ? 'bg-destructive/10 text-destructive ring-1 ring-destructive/30'
+                  : f.key === 'warning' ? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/30'
+                  : f.key === 'on_track' ? 'bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/30'
+                  : 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  : 'bg-muted/50 text-muted-foreground active:bg-muted'
+              }`}
+            >
+              <f.icon className="h-3.5 w-3.5" />
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort pills */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground mr-0.5">Sort:</span>
+          {([
+            { key: 'missed_days' as const, label: 'Missed Days' },
+            { key: 'balance' as const, label: 'Balance' },
+            { key: 'name' as const, label: 'Name' },
+          ]).map(s => (
+            <button
+              key={s.key}
+              onClick={() => setSortBy(s.key)}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all touch-manipulation min-h-[30px] ${
+                sortBy === s.key ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground active:text-foreground'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Results count */}
+      <p className="text-[11px] text-muted-foreground px-1">
+        {filtered.length} tenant{filtered.length !== 1 ? 's' : ''} found
+      </p>
+
+      {/* Tenant List - card-based for mobile */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary/20 border-t-primary" />
+        </div>
+      ) : !filtered.length ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">No tenants match the current filter.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(t => {
+            const risk = getRisk(t);
+            const isExpanded = expandedTenant === t.tenant_id;
+            return (
+              <div
+                key={t.tenant_id}
+                className={`rounded-xl border transition-all ${
+                  risk === 'critical' ? 'border-destructive/25 bg-destructive/[0.03]'
+                  : risk === 'warning' ? 'border-amber-500/25 bg-amber-500/[0.03]'
+                  : 'border-border bg-card'
+                }`}
+              >
+                {/* Tappable main row */}
+                <button
+                  onClick={() => setExpandedTenant(isExpanded ? null : t.tenant_id)}
+                  className="w-full text-left px-3 py-3 touch-manipulation active:bg-muted/30 transition-colors rounded-xl"
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Risk dot */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                      risk === 'critical' ? 'bg-destructive/15' : risk === 'warning' ? 'bg-amber-500/15' : 'bg-emerald-500/15'
+                    }`}>
+                      <span className="text-sm font-bold ${
+                        risk === 'critical' ? 'text-destructive' : risk === 'warning' ? 'text-amber-600' : 'text-emerald-600'
+                      }">
+                        {t.missed_days}
+                      </span>
+                    </div>
+
+                    {/* Name + key info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold truncate text-foreground">{t.tenant_name}</span>
+                        <Badge variant="outline" className={`text-[9px] px-1.5 shrink-0 ${riskColor(risk)}`}>
+                          {riskLabel(risk)}
+                        </Badge>
                       </div>
+                      <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
+                        <span>Owed: <strong className="text-foreground">{formatUGX(t.outstanding_balance)}</strong></span>
+                        <span>•</span>
+                        <span>{t.repayment_pct}% repaid</span>
+                      </div>
+                    </div>
 
-                      {/* Info */}
+                    {/* Quick call */}
+                    {t.phone && (
+                      <a
+                        href={`tel:${t.phone}`}
+                        onClick={e => e.stopPropagation()}
+                        className="shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center active:bg-primary/20 transition-colors"
+                      >
+                        <Phone className="h-4 w-4 text-primary" />
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-2 w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        risk === 'critical' ? 'bg-destructive' : risk === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.min(100, t.repayment_pct)}%` }}
+                    />
+                  </div>
+                </button>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 pt-1 space-y-2 border-t border-border/50 animate-in slide-in-from-top-1 duration-150">
+                    {/* Financial details grid */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-muted/50 p-2">
+                        <p className="text-[10px] text-muted-foreground">Daily Target</p>
+                        <p className="text-xs font-semibold">{formatUGX(t.daily_repayment)}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2">
+                        <p className="text-[10px] text-muted-foreground">Days Active</p>
+                        <p className="text-xs font-semibold">{t.days_since_disbursed}d</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2">
+                        <p className="text-[10px] text-muted-foreground">Tenant Wallet</p>
+                        <p className={`text-xs font-semibold ${t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}`}>{formatUGX(t.tenant_wallet)}</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2">
+                        <p className="text-[10px] text-muted-foreground">Agent Wallet</p>
+                        <p className={`text-xs font-semibold ${t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}`}>{formatUGX(t.agent_wallet)}</p>
+                      </div>
+                    </div>
+
+                    {/* Agent info + actions */}
+                    <div className="flex items-center gap-2 rounded-lg bg-muted/30 p-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[10px] text-muted-foreground">Responsible Agent</p>
+                        {t.agent_id ? (
                           <button
-                            onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
-                            className="text-sm font-medium truncate text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
+                            onClick={() => setProfileSheet({ userId: t.agent_id, userName: t.agent_name, userPhone: t.agent_phone, userType: 'agent' })}
+                            className="text-xs font-semibold text-primary underline underline-offset-2 decoration-primary/30"
                           >
-                            {t.tenant_name}
+                            {t.agent_name}
                           </button>
-                          <Badge variant="outline" className={`text-[9px] px-1.5 ${riskColor(risk)}`}>
-                            {riskLabel(risk)}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
-                          <span>Missed: <strong className="text-foreground">{t.missed_days} days</strong></span>
-                          <span>Balance: <strong className="text-foreground">{formatUGX(t.outstanding_balance)}</strong></span>
-                          <span>Daily: {formatUGX(t.daily_repayment)}</span>
-                          <span>Repaid: {t.repayment_pct}%</span>
-                        </div>
-                        {/* Progress bar */}
-                        <div className="mt-1.5 w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              risk === 'critical' ? 'bg-destructive' : risk === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${Math.min(100, t.repayment_pct)}%` }}
-                          />
-                        </div>
+                        ) : (
+                          <p className="text-xs font-semibold text-foreground">{t.agent_name}</p>
+                        )}
                       </div>
-
-                      {/* Phone */}
-                      {t.phone && (
-                        <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors mt-0.5">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                      {t.agent_phone && (
+                        <a
+                          href={`tel:${t.agent_phone}`}
+                          className="shrink-0 w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center active:bg-primary/20"
+                        >
+                          <Phone className="h-3.5 w-3.5 text-primary" />
                         </a>
                       )}
                     </div>
 
-                    {/* Agent + Wallet details row */}
-                    <div className="ml-12 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                      <span>Agent: {t.agent_id ? (
-                        <button
-                          onClick={() => setProfileSheet({ userId: t.agent_id, userName: t.agent_name, userPhone: t.agent_phone, userType: 'agent' })}
-                          className="font-semibold text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
-                        >
-                          {t.agent_name}
-                        </button>
-                      ) : <strong className="text-foreground">{t.agent_name}</strong>}</span>
-                      <span>Tenant Wallet: <strong className={t.tenant_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.tenant_wallet)}</strong></span>
-                      {t.agent_phone && (
-                        <a href={`tel:${t.agent_phone}`} className="underline">{t.agent_phone}</a>
-                      )}
-                      <span>Agent Wallet: <strong className={t.agent_wallet > 0 ? 'text-emerald-600' : 'text-destructive'}>{formatUGX(t.agent_wallet)}</strong></span>
-                    </div>
+                    {/* View profile button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-10 text-xs font-medium"
+                      onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
+                    >
+                      View Tenant Profile
+                    </Button>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {profileSheet && (
         <UserProfileSheet
