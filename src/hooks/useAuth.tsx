@@ -149,19 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             clearSessionCache();
           }
         }
-          } else if (cachedSession) {
-            // getSession() returned null but we have a cached session.
-            // This is a transient state (e.g., token refresh in progress on PC).
-            // Preserve existing state — don't clear user/session.
-            // The onAuthStateChange listener will update when the refresh completes.
-            console.log('[Auth] getSession() null but cached session exists — preserving state');
-          } else {
-            // No session AND no cache — user is genuinely not logged in
-            setSession(null);
-            setUser(null);
-            clearSessionCache();
-          }
-        }
       } catch (err: any) {
         console.warn('[Auth] Init failed (keeping session for retry):', err?.message);
       } finally {
