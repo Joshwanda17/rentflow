@@ -41,6 +41,7 @@ export function MissedDaysTracker() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('missed_days');
   const [riskFilter, setRiskFilter] = useState<'all' | 'critical' | 'warning' | 'on_track'>('all');
+  const [profileSheet, setProfileSheet] = useState<{ userId: string; userName: string; userPhone?: string; userType: 'tenant' | 'agent' } | null>(null);
 
   // Fetch active rent requests
   const { data: activeRequests, isLoading: reqLoading, refetch } = useQuery({
