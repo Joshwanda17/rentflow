@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
@@ -14,11 +14,16 @@ import { AgentTenantSearch } from './AgentTenantSearch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
