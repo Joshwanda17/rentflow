@@ -356,6 +356,16 @@ export function TenantOpsDashboard() {
                 );
               })}
             </div>
+            {/* Tenant List */}
+            <TenantOverviewList
+              data={rows}
+              loading={isLoading}
+              onSelectTenant={(id, name) => {
+                setSelectedTenant({ id, name });
+                setActiveView('tenant-detail');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           </motion.div>
         ) : (
           <motion.div
