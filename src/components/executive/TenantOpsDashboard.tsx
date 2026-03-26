@@ -8,12 +8,34 @@ import { ApprovalHistoryLog } from './ApprovalHistoryLog';
 import { TenantBehaviorDashboard } from './TenantBehaviorDashboard';
 import { DailyPaymentTracker } from './DailyPaymentTracker';
 import { MissedDaysTracker } from './MissedDaysTracker';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote, ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
+import {
+  FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
+  ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
+  ArrowLeft, History, Table2
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
+
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests';
+
+interface NavCard {
+  id: ActiveView;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+  color: string;
+  badge?: number;
+  badgeColor?: string;
+}
 
 export function TenantOpsDashboard() {
+  const [activeView, setActiveView] = useState<ActiveView>('overview');
+  
+
   const { data: rentRequests, isLoading } = useQuery({
     queryKey: ['exec-tenant-ops'],
     queryFn: async () => {
@@ -22,7 +44,6 @@ export function TenantOpsDashboard() {
         .order('created_at', { ascending: false }).limit(200);
       const items = data || [];
 
-      // Fetch tenant names & phones
       const tenantIds = [...new Set(items.map(r => r.tenant_id).filter(Boolean))];
       const landlordIds = [...new Set(items.map(r => r.landlord_id).filter(Boolean))];
 
@@ -57,6 +78,62 @@ export function TenantOpsDashboard() {
   const defaulted = rows.filter(r => r.status === 'defaulted').length;
   const inPipeline = rows.filter(r => ['tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'].includes(r.status)).length;
 
+  const navCards: NavCard[] = [
+    {
+      id: 'pipeline',
+      label: 'Review Requests',
+      description: 'Approve or reject pending rent requests',
+      icon: ClipboardList,
+      color: 'bg-amber-500/10 text-amber-600 border-amber-200',
+      badge: pending,
+      badgeColor: 'bg-amber-500 text-white',
+    },
+    {
+      id: 'daily',
+      label: 'Daily Payments',
+      description: 'Who paid today & who hasn\'t',
+      icon: CalendarCheck,
+      color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+      badge: repaying,
+      badgeColor: 'bg-emerald-500 text-white',
+    },
+    {
+      id: 'missed',
+      label: 'Missed Days',
+      description: 'Tenants behind on payments',
+      icon: CalendarX2,
+      color: 'bg-destructive/10 text-destructive border-destructive/20',
+      badge: defaulted,
+      badgeColor: 'bg-destructive text-white',
+    },
+    {
+      id: 'behavior',
+      label: 'Tenant Behavior',
+      description: 'Risk scores & payment patterns',
+      icon: Activity,
+      color: 'bg-purple-500/10 text-purple-600 border-purple-200',
+    },
+    {
+      id: 'history',
+      label: 'Approval History',
+      description: 'Past approvals & rejections log',
+      icon: History,
+      color: 'bg-blue-500/10 text-blue-600 border-blue-200',
+    },
+    {
+      id: 'all-requests',
+      label: 'All Requests',
+      description: 'Full table of every request',
+      icon: Table2,
+      color: 'bg-muted text-foreground border-border',
+    },
+  ];
+
+  const goBack = () => {
+    setActiveView('overview');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const columns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
     { key: 'tenant_name', label: 'Tenant' },
@@ -82,46 +159,32 @@ export function TenantOpsDashboard() {
     { key: 'landlord_phone', label: 'L. Phone' },
   ];
 
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      <Tabs defaultValue="pipeline" className="w-full">
-        <TabsList className="w-full grid grid-cols-4 h-9">
-          <TabsTrigger value="pipeline" className="text-xs gap-1">
-            <ClipboardList className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Pipeline</span>
-            <span className="sm:hidden">Pipe</span>
-          </TabsTrigger>
-          <TabsTrigger value="daily" className="text-xs gap-1">
-            <CalendarCheck className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Daily Tracker</span>
-            <span className="sm:hidden">Daily</span>
-          </TabsTrigger>
-          <TabsTrigger value="missed" className="text-xs gap-1">
-            <CalendarX2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Missed Days</span>
-            <span className="sm:hidden">Missed</span>
-          </TabsTrigger>
-          <TabsTrigger value="behavior" className="text-xs gap-1">
-            <Activity className="h-3.5 w-3.5" />
-            Behavior
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pipeline" className="mt-3 space-y-4 sm:space-y-6">
-          {/* 🔥 PRIORITY: Review Queue at the top */}
-          <RentPipelineQueue stage="pending" />
-
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-            <KPICard title="Pending Review" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
-            <KPICard title="In Pipeline" value={inPipeline} icon={ArrowRight} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
-            <KPICard title="Funded / Disbursed" value={funded} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
-            <KPICard title="Repaying" value={repaying} icon={FileCheck} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-            <KPICard title="Fully Repaid" value={fullyRepaid} icon={CheckCircle2} loading={isLoading} color="bg-emerald-500/10 text-emerald-600" />
-            <KPICard title="Defaulted" value={defaulted} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
+  const renderSubView = () => {
+    switch (activeView) {
+      case 'pipeline':
+        return (
+          <div className="space-y-4">
+            <RentPipelineQueue stage="pending" />
+            <div className="grid grid-cols-2 gap-2">
+              <KPICard title="Pending" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
+              <KPICard title="In Pipeline" value={inPipeline} icon={ArrowRight} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
+              <KPICard title="Funded" value={funded} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
+              <KPICard title="Repaying" value={repaying} icon={FileCheck} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
+              <KPICard title="Fully Repaid" value={fullyRepaid} icon={CheckCircle2} loading={isLoading} color="bg-emerald-500/10 text-emerald-600" />
+              <KPICard title="Defaulted" value={defaulted} icon={AlertTriangle} loading={isLoading} color="bg-destructive/10 text-destructive" />
+            </div>
           </div>
-
-          <ApprovalHistoryLog />
-
+        );
+      case 'daily':
+        return <DailyPaymentTracker />;
+      case 'missed':
+        return <MissedDaysTracker />;
+      case 'behavior':
+        return <TenantBehaviorDashboard />;
+      case 'history':
+        return <ApprovalHistoryLog />;
+      case 'all-requests':
+        return (
           <ExecutiveDataTable
             data={rows}
             columns={columns}
@@ -143,20 +206,109 @@ export function TenantOpsDashboard() {
               ],
             }]}
           />
-        </TabsContent>
+        );
+      default:
+        return null;
+    }
+  };
 
-        <TabsContent value="daily" className="mt-3">
-          <DailyPaymentTracker />
-        </TabsContent>
+  const activeLabel = navCards.find(n => n.id === activeView)?.label || '';
 
-        <TabsContent value="missed" className="mt-3">
-          <MissedDaysTracker />
-        </TabsContent>
+  return (
+    <div className="space-y-3">
+      <AnimatePresence mode="wait">
+        {activeView === 'overview' ? (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="space-y-3"
+          >
+            {/* Quick KPI summary row */}
+            <div className="grid grid-cols-3 gap-2">
+              <Card className="border bg-amber-500/5">
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-amber-600">{pending}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
+                </CardContent>
+              </Card>
+              <Card className="border bg-emerald-500/5">
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-emerald-600">{repaying + funded}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Active</p>
+                </CardContent>
+              </Card>
+              <Card className="border bg-destructive/5">
+                <CardContent className="p-2.5 text-center">
+                  <p className="text-2xl font-extrabold text-destructive">{defaulted}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
+                </CardContent>
+              </Card>
+            </div>
 
-        <TabsContent value="behavior" className="mt-3">
-          <TenantBehaviorDashboard />
-        </TabsContent>
-      </Tabs>
+            {/* Navigation Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5">
+              {navCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <motion.button
+                    key={card.id}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => {
+                      setActiveView(card.id);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="text-left w-full"
+                  >
+                    <Card className={`border h-full hover:shadow-md transition-shadow ${card.color.includes('amber') ? 'border-amber-200' : card.color.includes('emerald') ? 'border-emerald-200' : card.color.includes('destructive') ? 'border-destructive/20' : card.color.includes('purple') ? 'border-purple-200' : card.color.includes('blue') ? 'border-blue-200' : 'border-border'}`}>
+                      <CardContent className="p-3.5 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className={`p-2 rounded-xl ${card.color.split(' ').slice(0, 1).join(' ')}`}>
+                            <Icon className={`h-5 w-5 ${card.color.split(' ').slice(1, 2).join(' ')}`} />
+                          </div>
+                          {card.badge !== undefined && card.badge > 0 && (
+                            <Badge className={`text-[10px] px-1.5 py-0 font-bold ${card.badgeColor}`}>
+                              {card.badge}
+                            </Badge>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-foreground leading-tight">{card.label}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{card.description}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key={activeView}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.15 }}
+            className="space-y-3"
+          >
+            {/* Back button - always visible, large touch target */}
+            <Button
+              variant="ghost"
+              onClick={goBack}
+              className="h-11 px-3 gap-2 text-sm font-semibold -ml-1"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Overview
+              <span className="text-muted-foreground font-normal">· {activeLabel}</span>
+            </Button>
+
+            {renderSubView()}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
