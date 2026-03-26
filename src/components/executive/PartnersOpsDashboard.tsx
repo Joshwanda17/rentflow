@@ -11,6 +11,7 @@ import { PartnerDirectory } from './PartnerDirectory';
 import { PartnerCapitalFlow } from './PartnerCapitalFlow';
 import { PartnerOpsBrief } from './PartnerOpsBrief';
 import { PartnerChurnAlerts } from './PartnerChurnAlerts';
+import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -267,32 +268,7 @@ export function PartnersOpsDashboard() {
         return (
           <div className="space-y-4">
             <BackButton title="Partner Portfolios" />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => { setCreateForUser(null); setCreateOpen(true); }} className="gap-1.5">
-                <Plus className="h-4 w-4" /> New Portfolio
-              </Button>
-              <Button variant="outline" onClick={() => { setBulkAction(!bulkAction); setSelectedIds(new Set()); }} className="gap-1.5">
-                <CheckCircle2 className="h-4 w-4" /> {bulkAction ? 'Cancel Bulk' : 'Bulk Actions'}
-              </Button>
-              {bulkAction && selectedIds.size > 0 && (
-                <>
-                  <Badge variant="secondary" className="text-xs">{selectedIds.size} selected</Badge>
-                  <Button size="sm" variant="outline" onClick={() => handleBulkCurrencyUpdate('USD')} className="h-8 text-xs">Set USD</Button>
-                  <Button size="sm" variant="outline" onClick={() => handleBulkCurrencyUpdate('UGX')} className="h-8 text-xs">Set UGX</Button>
-                  <Button size="sm" variant="outline" onClick={() => handleBulkAutoReinvest(true)} className="h-8 text-xs gap-1"><RefreshCw className="h-3 w-3" /> Enable Reinvest</Button>
-                  <Button size="sm" variant="outline" onClick={() => handleBulkAutoReinvest(false)} className="h-8 text-xs">Disable Reinvest</Button>
-                </>
-              )}
-              <Badge variant="outline" className="ml-auto gap-1 text-[10px] text-success border-success/30">
-                <Zap className="h-3 w-3" /> Auto-payout active
-              </Badge>
-            </div>
-            <ExecutiveDataTable data={rows} columns={columns} loading={isLoading} title="Partner Portfolios" limit={50}
-              filters={[{ key: 'status', label: 'Status', options: [
-                { value: 'active', label: 'Active' }, { value: 'pending_approval', label: '⏳ Pending Approval' },
-                { value: 'pending', label: 'Pending' }, { value: 'matured', label: 'Matured' }, { value: 'cancelled', label: 'Cancelled' },
-              ]}]}
-            />
+            <COOPartnersPage />
           </div>
         );
 
