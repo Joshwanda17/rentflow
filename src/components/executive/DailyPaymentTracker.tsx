@@ -333,6 +333,16 @@ export function DailyPaymentTracker() {
           )}
         </CardContent>
       </Card>
+      {profileSheet && (
+        <UserProfileSheet
+          open={!!profileSheet}
+          onClose={() => setProfileSheet(null)}
+          userId={profileSheet.userId}
+          userName={profileSheet.userName}
+          userPhone={profileSheet.userPhone}
+          userType={profileSheet.userType}
+        />
+      )}
     </div>
   );
 }
