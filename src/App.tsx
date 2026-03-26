@@ -317,7 +317,7 @@ function AppRoutes() {
         </Routes>
       </Suspense>
       </div>
-    </div>
+    </PullToRefresh>
   );
 }
 
