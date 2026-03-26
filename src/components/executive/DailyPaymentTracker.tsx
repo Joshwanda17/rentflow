@@ -39,7 +39,7 @@ interface ActiveTenant {
   agent_phone: string;
   tenant_wallet: number;
   agent_wallet: number;
-  charge_agent_wallet: boolean;
+  tenant_no_smartphone: boolean;
 }
 
 // Removed unused TodayCollection interface
