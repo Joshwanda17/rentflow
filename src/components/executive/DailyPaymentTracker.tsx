@@ -55,23 +55,44 @@ export function DailyPaymentTracker() {
     staleTime: 120000,
   });
 
-  // Fetch tenant profiles for active requests
+  // Fetch tenant + agent profiles for active requests
   const tenantIds = useMemo(() => {
     return [...new Set((activeRequests || []).map(r => r.tenant_id))];
   }, [activeRequests]);
 
+  const agentIds = useMemo(() => {
+    return [...new Set((activeRequests || []).map(r => r.agent_id).filter(Boolean))];
+  }, [activeRequests]);
+
+  const allUserIds = useMemo(() => [...new Set([...tenantIds, ...agentIds])], [tenantIds, agentIds]);
+
   const { data: profiles } = useQuery({
-    queryKey: ['daily-tracker-profiles', tenantIds],
+    queryKey: ['daily-tracker-profiles', allUserIds],
     queryFn: async () => {
-      if (!tenantIds.length) return [];
+      if (!allUserIds.length) return [];
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .in('id', tenantIds.slice(0, 100));
+        .in('id', allUserIds.slice(0, 200));
       return data || [];
     },
-    enabled: tenantIds.length > 0,
+    enabled: allUserIds.length > 0,
     staleTime: 300000,
+  });
+
+  // Fetch wallet balances for tenants and agents
+  const { data: wallets } = useQuery({
+    queryKey: ['daily-tracker-wallets', allUserIds],
+    queryFn: async () => {
+      if (!allUserIds.length) return [];
+      const { data } = await supabase
+        .from('wallets')
+        .select('user_id, balance')
+        .in('user_id', allUserIds.slice(0, 200));
+      return data || [];
+    },
+    enabled: allUserIds.length > 0,
+    staleTime: 120000,
   });
 
   // Fetch today's collections
