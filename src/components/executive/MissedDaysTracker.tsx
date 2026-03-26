@@ -11,7 +11,7 @@ import {
   AlertTriangle, Phone, TrendingDown, Clock
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO } from 'date-fns';
 
 type SortBy = 'missed_days' | 'balance' | 'name';
 
