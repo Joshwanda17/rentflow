@@ -325,7 +325,12 @@ export function MissedDaysTracker() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-medium truncate">{t.tenant_name}</p>
+                          <button
+                            onClick={() => setProfileSheet({ userId: t.tenant_id, userName: t.tenant_name, userPhone: t.phone, userType: 'tenant' })}
+                            className="text-sm font-medium truncate text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary"
+                          >
+                            {t.tenant_name}
+                          </button>
                           <Badge variant="outline" className={`text-[9px] px-1.5 ${riskColor(risk)}`}>
                             {riskLabel(risk)}
                           </Badge>
