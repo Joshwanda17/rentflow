@@ -9,9 +9,10 @@ import { KPICard } from './KPICard';
 import { UserProfileSheet } from './UserProfileSheet';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
-  Banknote, AlertTriangle, TrendingUp, Phone,
+  Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
   Download, Loader2
 } from 'lucide-react';
+import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
 import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -366,11 +367,28 @@ export function DailyPaymentTracker() {
                         </div>
                       </div>
 
-                      {/* Phone quick link */}
+                      {/* Phone + WhatsApp quick actions */}
                       {t.phone && (
-                        <a href={`tel:${t.phone}`} className="shrink-0 p-1.5 rounded-full hover:bg-muted transition-colors">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                        </a>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <a
+                            href={getWhatsAppLink(t.phone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="p-2 rounded-full bg-[hsl(142,70%,45%)]/10 hover:bg-[hsl(142,70%,45%)]/20 transition-colors"
+                            title="WhatsApp"
+                          >
+                            <MessageCircle className="h-4 w-4 text-[hsl(142,70%,45%)]" />
+                          </a>
+                          <a
+                            href={`tel:${t.phone}`}
+                            onClick={e => e.stopPropagation()}
+                            className="p-2 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+                            title="Call"
+                          >
+                            <Phone className="h-4 w-4 text-primary" />
+                          </a>
+                        </div>
                       )}
                     </div>
 
