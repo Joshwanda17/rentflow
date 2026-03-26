@@ -60,18 +60,39 @@ export function MissedDaysTracker() {
     return [...new Set((activeRequests || []).map(r => r.tenant_id))];
   }, [activeRequests]);
 
+  const agentIds = useMemo(() => {
+    return [...new Set((activeRequests || []).map(r => r.agent_id).filter(Boolean))];
+  }, [activeRequests]);
+
+  const allUserIds = useMemo(() => [...new Set([...tenantIds, ...agentIds])], [tenantIds, agentIds]);
+
   const { data: profiles } = useQuery({
-    queryKey: ['missed-days-profiles', tenantIds],
+    queryKey: ['missed-days-profiles', allUserIds],
     queryFn: async () => {
-      if (!tenantIds.length) return [];
+      if (!allUserIds.length) return [];
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .in('id', tenantIds.slice(0, 100));
+        .in('id', allUserIds.slice(0, 200));
       return data || [];
     },
-    enabled: tenantIds.length > 0,
+    enabled: allUserIds.length > 0,
     staleTime: 300000,
+  });
+
+  // Fetch wallet balances
+  const { data: wallets } = useQuery({
+    queryKey: ['missed-days-wallets', allUserIds],
+    queryFn: async () => {
+      if (!allUserIds.length) return [];
+      const { data } = await supabase
+        .from('wallets')
+        .select('user_id, balance')
+        .in('user_id', allUserIds.slice(0, 200));
+      return data || [];
+    },
+    enabled: allUserIds.length > 0,
+    staleTime: 120000,
   });
 
   // Fetch total collections per tenant (all time)
