@@ -39,7 +39,6 @@ export default function WelileLogo({
           className={`text-xl font-bold tracking-tight ${
             variant === 'light' ? 'text-white' : 'text-foreground'
           }`}
-          style={{ fontFamily: "'Chewy', cursive" }}
         >
           Welile
         </span>
