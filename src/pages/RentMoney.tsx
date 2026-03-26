@@ -95,23 +95,6 @@ Join now: ${shareLink}`;
 
   return (
     <>
-      <Helmet>
-        <title>Rent Money — Digital Wallet for Rent Payments | Welile</title>
-        <meta name="description" content="Deposit, send, withdraw and pay rent from your phone. Welile Rent Money is Africa's easiest mobile wallet for tenants, supporters and agents." />
-        <link rel="canonical" href={PAGE_URL} />
-        <meta property="og:title" content="Rent Money — Digital Wallet for Rent Payments | Welile" />
-        <meta property="og:description" content="Deposit, send, withdraw and pay rent from your phone. Africa's easiest mobile wallet." />
-        <meta property="og:url" content={PAGE_URL} />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content={`${ORIGIN}/welile-logo.png`} />
-        <meta property="og:site_name" content="Welile" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Rent Money — Digital Wallet for Rent Payments | Welile" />
-        <meta name="twitter:description" content="Deposit, send, withdraw and pay rent from your phone." />
-        <meta name="twitter:image" content={`${ORIGIN}/welile-logo.png`} />
-        <meta name="keywords" content="rent money, mobile wallet, pay rent online, Uganda rent, MTN mobile money, Airtel money, Welile, tenant wallet, rent payment app, Africa fintech" />
-        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
-      </Helmet>
 
       <div className="min-h-screen bg-background">
         {/* Hero */}
