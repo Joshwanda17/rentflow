@@ -47,7 +47,7 @@ export function TenantOpsDashboard() {
   const queryClient = useQueryClient();
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
   const [deleting, setDeleting] = useState(false);
-  
+  const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
 
   const handleDeleteTenant = async () => {
     if (!deleteDialog.tenantId) return;
