@@ -5,8 +5,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Search, Loader2, Users, User, Phone, ChevronRight, ArrowLeft, Wallet, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, Users, User, Phone, ChevronRight, ArrowLeft, Wallet, AlertTriangle, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { generateAgentTenantPdf } from '@/lib/generateAgentTenantPdf';
 
 interface AgentResult {
   id: string;
@@ -35,6 +37,49 @@ export function AgentTenantSearch() {
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentResult | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const handleSharePdf = async () => {
+    if (!selectedAgent || !tenants || tenants.length === 0) return;
+    setSharing(true);
+    try {
+      const blob = generateAgentTenantPdf(selectedAgent, tenants);
+      const fileName = `${selectedAgent.full_name.replace(/\s+/g, '_')}_tenants_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+
+      // Try native share (works on mobile / WhatsApp)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: `Tenant Balances - ${selectedAgent.full_name}`,
+          text: `Tenant due balances report for agent ${selectedAgent.full_name} (${tenants.length} tenants)`,
+          files: [file],
+        });
+        toast.success('Report shared!');
+      } else {
+        // Fallback: download PDF then prompt WhatsApp
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // Build WhatsApp text summary
+        const totalDue = tenants.reduce((s, t) => s + t.outstanding, 0);
+        const msg = encodeURIComponent(
+          `*Welile Tenant Balances Report*\nAgent: ${selectedAgent.full_name}\nTenants: ${tenants.length}\nTotal Due: UGX ${totalDue.toLocaleString()}\n\n_PDF downloaded — please attach and send._`
+        );
+        window.open(`https://wa.me/?text=${msg}`, '_blank');
+        toast.success('PDF downloaded! Attach it in WhatsApp.');
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        toast.error('Failed to share report');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
 
   // Debounced search for agents
   useEffect(() => {
@@ -165,6 +210,16 @@ export function AgentTenantSearch() {
                 <Users className="h-3 w-3" />
                 {selectedAgent.tenant_count} tenants
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shrink-0"
+                onClick={handleSharePdf}
+                disabled={sharing || loadingTenants || !tenants?.length}
+              >
+                {sharing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">Share</span>
+              </Button>
             </div>
           </CardContent>
         </Card>
