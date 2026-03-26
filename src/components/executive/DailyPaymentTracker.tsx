@@ -224,6 +224,8 @@ export function DailyPaymentTracker() {
     let list = tenantList;
     if (filter === 'paid') list = list.filter(t => t.hasPaid);
     if (filter === 'unpaid') list = list.filter(t => !t.hasPaid);
+    if (deviceFilter === 'smartphone') list = list.filter(t => !t.tenant_no_smartphone);
+    if (deviceFilter === 'no-smartphone') list = list.filter(t => t.tenant_no_smartphone);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(t => t.tenant_name.toLowerCase().includes(q) || t.phone.includes(q));
@@ -233,7 +235,7 @@ export function DailyPaymentTracker() {
       if (a.hasPaid !== b.hasPaid) return a.hasPaid ? 1 : -1;
       return b.daily_repayment - a.daily_repayment;
     });
-  }, [tenantList, filter, search]);
+  }, [tenantList, filter, deviceFilter, search]);
 
   const paidCount = tenantList.filter(t => t.hasPaid).length;
   const unpaidCount = tenantList.filter(t => !t.hasPaid).length;
