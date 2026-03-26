@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+
 import { supabase } from '@/integrations/supabase/client';
 import { HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -150,29 +150,6 @@ export default function HouseDetail() {
 
   return (
     <>
-      <Helmet>
-        <title>{pageTitle}</title>
-        <meta name="description" content={pageDesc} />
-        <link rel="canonical" href={shareUrl} />
-        <meta property="og:type" content="website" />
-        <meta property="og:title" content={pageTitle} />
-        <meta property="og:description" content={pageDesc} />
-        <meta property="og:url" content={shareUrl} />
-        {images[0] && <meta property="og:image" content={images[0]} />}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={pageTitle} />
-        <meta name="twitter:description" content={pageDesc} />
-        <script type="application/ld+json">{JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'Accommodation',
-          name: listing.title,
-          description: listing.description,
-          address: `${listing.address}, ${listing.region}`,
-          ...(listing.latitude && listing.longitude ? {
-            geo: { '@type': 'GeoCoordinates', latitude: listing.latitude, longitude: listing.longitude }
-          } : {}),
-        })}</script>
-      </Helmet>
 
       <div className="min-h-screen bg-background pb-28">
         {/* ── Full-bleed Hero Image Gallery ── */}

@@ -15,9 +15,10 @@
     <link rel="preconnect" href="https://wirntoujqoyjobfhyelc.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://api.exchangerate-api.com">
     
-    <!-- Fonts - Minimal weights only, non-blocking async load -->
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap&subset=latin" rel="stylesheet" media="print" onload="this.media='all'">
+    <!-- Fonts - Skip on save-data / slow connections -->
+    <link id="gfonts" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap&subset=latin" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap&subset=latin" rel="stylesheet"></noscript>
+    <script>try{var c=navigator.connection;if(c&&(c.saveData||c.effectiveType==='2g'||c.effectiveType==='slow-2g')){var f=document.getElementById('gfonts');if(f)f.remove()}}catch(e){}</script>
     
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest" />

@@ -1,7 +1,6 @@
 // Realtime: enabled
 
 import { lazy, Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
-import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -11,9 +10,11 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 
 // Critical providers — loaded eagerly for instant auth/routing
 import { AuthProvider } from "@/hooks/useAuth";
-import { LanguageProvider } from "@/hooks/useLanguage";
-import { CurrencyProvider } from "@/hooks/useCurrency";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
+
+// Deferred language/currency — not needed for first paint
+const LanguageProvider = lazy(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
+const CurrencyProvider = lazy(() => import("@/hooks/useCurrency").then(m => ({ default: m.CurrencyProvider })));
 
 // Auth providers — deferred since they're not needed for first paint
 const PinAuthProvider = lazy(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
@@ -367,34 +368,34 @@ function DeferredProviders({ children }: { children: ReactNode }) {
 }
 
 const App = () => (
-  <HelmetProvider>
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <CombinedSettingsProvider>
-            <LanguageProvider>
-              <CurrencyProvider>
-                <AuthProvider>
-                  <TooltipProvider delayDuration={300}>
-                    <DeferredProviders>
-                      <AppRoutes />
-                    </DeferredProviders>
-                    <Suspense fallback={null}>
-                      <DeferredExtras />
-                      <FloatingToolbar />
-                      <Toaster />
-                      <Sonner />
-                    </Suspense>
-                  </TooltipProvider>
-                </AuthProvider>
-              </CurrencyProvider>
-            </LanguageProvider>
+            <AuthProvider>
+              <TooltipProvider delayDuration={300}>
+                <Suspense fallback={null}>
+                  <LanguageProvider>
+                    <CurrencyProvider>
+                      <DeferredProviders>
+                        <AppRoutes />
+                      </DeferredProviders>
+                    </CurrencyProvider>
+                  </LanguageProvider>
+                </Suspense>
+                <Suspense fallback={null}>
+                  <DeferredExtras />
+                  <FloatingToolbar />
+                  <Toaster />
+                  <Sonner />
+                </Suspense>
+              </TooltipProvider>
+            </AuthProvider>
           </CombinedSettingsProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>
   </ChunkErrorBoundary>
-  </HelmetProvider>
 );
 export default App;

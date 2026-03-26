@@ -73,14 +73,26 @@ const loadApp = async () => {
     const importTimeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Import timeout')), 12000)
     );
+    // Critical CSS loaded eagerly, rest deferred
     const importApp = Promise.all([
-      import("./index.css"),
+      import("./critical.css"),
       import("./App.tsx"),
     ]);
+
+    // Preload full CSS in background (non-blocking)
+    import("./index.css");
 
     const [, { default: App }] = await Promise.race([importApp, importTimeout]) as [any, { default: any }];
 
     createRoot(root).render(<App />);
+
+    // Preload Dashboard chunk for authenticated users
+    try {
+      const cached = localStorage.getItem('welile_session_cache');
+      if (cached) {
+        import('./pages/Dashboard');
+      }
+    } catch {}
     schedulePreviewBlankPageGuard();
   } catch (err) {
     console.error('[Main] App load failed:', err);
