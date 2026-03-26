@@ -32,10 +32,7 @@ interface ActiveTenant {
   agent_wallet: number;
 }
 
-interface TodayCollection {
-  tenant_id: string;
-  total_collected: number;
-}
+// Removed unused TodayCollection interface
 
 export function DailyPaymentTracker() {
   const [filter, setFilter] = useState<Filter>('all');
