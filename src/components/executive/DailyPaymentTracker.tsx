@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,9 @@ import { UserProfileSheet } from './UserProfileSheet';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone,
-  Download, MessageCircle, Share2, Loader2
+  Download, Loader2
 } from 'lucide-react';
-import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, DailyPerformanceData } from '@/lib/dailyPerformanceReport';
+import { downloadDailyPerformancePdf, shareDailyPerformanceWhatsApp, type DailyPerformanceData } from '@/lib/dailyPerformanceReport';
 import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
