@@ -1,70 +1,76 @@
 
 
-## Investigation Report: "Something went wrong" on Login
+# Plan: Make the App Load Faster
 
-### Root Cause Identified
+## Current Bottlenecks Identified
 
-The crash happens **after successful login**, not during authentication itself. Auth logs confirm all logins succeed (status 200). The error is a **React runtime crash** in the post-login dashboard rendering.
+1. **Heavy eager imports in App.tsx** — `HelmetProvider` (react-helmet-async), `CombinedSettingsProvider`, `LanguageProvider`, `CurrencyProvider` (472 lines + exchange rate fetch), and `AuthProvider` all load synchronously before first paint
+2. **1,073-line index.css** loaded as a single blocking import in main.tsx
+3. **CurrencyProvider fetches exchange rates on mount** — network call during startup path
+4. **8+ nested providers** all initialize before any route renders
+5. **Google Fonts** — 2 families × 4 weights each, loaded even on slow networks
+6. **main.tsx creates root twice** — `createRoot(root)` result is discarded, then a new `createRoot(root)` is called after import
 
-### The Crash Chain
+## Changes (in priority order)
 
-```text
-User logs in successfully
-  → Redirected to /dashboard
-  → Dashboard lazy-loads SupporterDashboard
-  → SupporterDashboard uses useWallet()
-  → useWallet() calls useServiceValidation()
-  → useServiceValidation() calls useFeatureFlags()
-  → useFeatureFlags() throws: "must be used within FeatureFlagsProvider"
-  → ChunkErrorBoundary catches it → shows "Something went wrong"
-```
+### 1. Remove `react-helmet-async` / HelmetProvider
+This is a PWA — no SSR, no SEO crawlers need dynamic `<head>` tags. The `<title>` and meta tags are already in `index.html`. Removing this eliminates an entire library from the critical path.
 
-### Why It Happens (Timing Race)
+**File**: `src/App.tsx`
+- Remove `HelmetProvider` import and wrapper
+- Remove any `<Helmet>` usage across pages (search and replace with nothing — the static HTML head covers it)
 
-The `FeatureFlagsProvider` is inside `DeferredProviders` (line 334 of App.tsx), which **delays mounting** until after the browser's idle callback or a 150ms timeout. Here's the race condition:
+### 2. Defer CurrencyProvider and LanguageProvider
+Both read from localStorage for defaults and don't need network calls for first paint. Move them into `DeferredProviders` so they load after first paint.
 
-1. User authenticates → `useAuth` sets `user` state
-2. `Index.tsx` sees `user` + `roles.length > 0` → redirects to `/dashboard`
-3. Dashboard renders `SupporterDashboard` immediately
-4. But `DeferredProviders` hasn't activated yet (`ready === false` on line 326)
-5. When `ready` is false, `DeferredProviders` returns `<>{children}</>` — **without any providers**
-6. So `useFeatureFlags()` has no provider above it → throws → crash
+**File**: `src/App.tsx`
+- Move `CurrencyProvider` and `LanguageProvider` imports to lazy
+- Add them inside `DeferredProviders`, wrapping children with safe defaults until ready
+- `CombinedSettingsProvider` (font size, haptics) is pure localStorage — keep eager but inline the initial read
 
-The fix we applied earlier (adding `FeatureFlagsProvider` to `DeferredProviders`) is correct and is already in place at line 334. However, the **timing issue remains**: the `DeferredProviders` wrapper skips ALL providers (including `FeatureFlagsProvider`) until `requestIdleCallback` fires.
+### 3. Preload Dashboard chunk for authenticated users
+When `sessionCache` detects a cached session, start loading the Dashboard chunk immediately in parallel with auth initialization.
 
-### The Real Fix Needed
+**File**: `src/main.tsx`
+- After loading App, check localStorage for `welile_session_cache`
+- If present, fire `import('./pages/Dashboard')` as a background preload (no await)
 
-**Make `useFeatureFlags` safe when called outside its provider** by returning default flags instead of throwing. This is the resilient pattern — it prevents crashes regardless of provider mount timing.
+### 4. Parallelize auth initialization
+Currently `getSession()` runs, then `fetchUserRoles()` runs sequentially with a 5s timeout. Fire both from cached userId in parallel.
 
-### Changes
+**File**: `src/hooks/useAuth.tsx`
+- When cached session exists, start `fetchUserRoles(cachedUserId)` immediately alongside `getSession()`
+- Use the cached roles for instant render, replace when network roles arrive
 
-**File: `src/contexts/FeatureFlagsContext.tsx`** — Change `useFeatureFlags` to return defaults instead of throwing:
+### 5. Split CSS — critical inline, rest deferred
+The 1,073-line `index.css` blocks first paint. Extract ~50 lines of critical CSS (variables, base resets) into a tiny file imported eagerly, and lazy-load the rest.
 
-```typescript
-export function useFeatureFlags() {
-  const context = useContext(FeatureFlagsContext);
-  if (!context) {
-    // Return safe defaults when provider hasn't mounted yet (deferred loading)
-    return { flags: defaultFlags, setFlag: () => {} };
-  }
-  return context;
-}
-```
+**Files**:
+- Create `src/critical.css` (~50 lines: CSS variables, base resets, scrollbar, body)
+- Rename remaining to `src/index.css` (components, animations, utilities)
+- **`src/main.tsx`**: Import critical.css eagerly, defer index.css load
 
-This single change ensures:
-- No crash when `DeferredProviders` hasn't activated yet
-- No crash on slow phones where idle callback takes longer
-- Feature flags still work correctly once the provider mounts
-- The "Something went wrong" screen disappears for all smartphone users
+### 6. Reduce font payload on slow networks
+**File**: `index.html`
+- On Save-Data or slow connections, skip Google Fonts entirely (system fonts are already the fallback)
+- Add `<script>` that removes the font `<link>` if `navigator.connection.saveData` is true
 
-### Secondary Hardening (same message)
+### 7. Fix double createRoot
+**File**: `src/main.tsx`
+- Remove the unused first `createRoot(root)` call — only call it once inside `loadApp()`
 
-**File: `src/core/services/useServiceValidation.ts`** — Add a try/catch around `useFeatureFlags` as a defense-in-depth measure, returning the safe default (`useNewServices: false`) if it fails.
+## Expected Impact
+- **Time to Interactive**: ~1-2s faster on 3G (fewer synchronous imports, parallel auth)
+- **First Contentful Paint**: ~500ms faster (CSS split, no HelmetProvider)
+- **Bundle size**: ~15-20KB smaller (remove react-helmet-async)
+- **Returning users**: Near-instant dashboard via chunk preloading + parallel role fetch
 
-### Why This Affects Smartphones Specifically
-
-- Smartphones have slower CPUs → `requestIdleCallback` fires later
-- Low-end Android devices may take 500ms+ before idle callback
-- The dashboard component tree renders before providers are ready
-- Desktop browsers fire idle callbacks almost immediately, masking the bug
+## Files Modified
+- `src/App.tsx` — remove HelmetProvider, defer Currency/Language providers
+- `src/main.tsx` — fix double createRoot, preload Dashboard chunk, split CSS import
+- `src/critical.css` — new file, ~50 lines of critical CSS
+- `src/index.css` — reduced (non-critical portions)
+- `src/hooks/useAuth.tsx` — parallelize role fetch with session restore
+- `index.html` — conditional font loading for slow networks
+- Various pages using `<Helmet>` — remove those imports
 
