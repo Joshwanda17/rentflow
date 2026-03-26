@@ -75,7 +75,10 @@ export function TenantRentCollector() {
       const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
         body: { rent_request_id: rentRequestId },
       });
-      if (error) throw error;
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Collection failed. Please try again.');
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
       return data;
     },
