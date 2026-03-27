@@ -203,6 +203,11 @@ export function LandlordOpsDashboard() {
   const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
+
+  const handleAssignPerson = (listingId: string, title: string, type: 'landlord' | 'agent') => {
+    setAssignPerson({ listingId, title, type });
+  };
 
   // ─── House Listings Query ───
   const { data: listings, isLoading, refetch } = useQuery({
