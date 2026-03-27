@@ -24,9 +24,9 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, variant 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(message);
       setCopied(true);
-      toast({ title: 'Link copied!', description: 'Paste it anywhere to share.' });
+      toast({ title: 'Link copied!', description: 'Paste it on WhatsApp or anywhere to share.' });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: 'Could not copy', variant: 'destructive' });

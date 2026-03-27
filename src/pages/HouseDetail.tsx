@@ -97,7 +97,10 @@ export default function HouseDetail() {
     if (navigator.share) {
       try { await navigator.share(shareData); } catch {}
     } else {
-      await navigator.clipboard.writeText(shareUrl);
+      const shareText = listing
+        ? `🏠 Check out this house on Welile!\n\n*${listing.title}*\n📍 ${listing.region}\n💰 ${formatUGX(listing.daily_rate)}/day\n\n👉 ${shareUrl}`
+        : shareUrl;
+      await navigator.clipboard.writeText(shareText);
       setCopied(true);
       toast({ title: 'Link copied!', description: 'Share it with friends & family.' });
       setTimeout(() => setCopied(false), 2000);
