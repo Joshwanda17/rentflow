@@ -152,7 +152,7 @@ export const roleDashboardRoutes: Partial<Record<AppRole, string>> = {
   cmo: '/cmo/dashboard',
   crm: '/crm/dashboard',
   ceo: '/ceo/dashboard',
-  operations: '/coo/dashboard',
+  operations: '/operations',
   manager: '/admin/dashboard',
   super_admin: '/admin/dashboard',
   employee: '/admin/dashboard',
