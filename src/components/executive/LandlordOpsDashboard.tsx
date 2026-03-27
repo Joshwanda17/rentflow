@@ -25,7 +25,9 @@ import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
 import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
-import { Trash2, XCircle } from 'lucide-react';
+import { Trash2, XCircle, Pencil } from 'lucide-react';
+import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
+import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
 
 
 interface ListingWithLandlord {
