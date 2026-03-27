@@ -148,6 +148,20 @@ export function FinancialOpsCommandCenter() {
             <p className="text-xs text-muted-foreground">Process wallet & float payouts</p>
           </div>
         </button>
+
+        {/* Capital Opportunities */}
+        <button
+          onClick={() => setView('opportunities')}
+          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-success/30 bg-success/5 hover:bg-success/10 hover:border-success/50 transition-all text-left min-h-[80px]"
+        >
+          <div className="h-12 w-12 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+            <TrendingUp className="h-6 w-6 text-success" />
+          </div>
+          <div>
+            <p className="font-bold text-base">Capital Opportunities</p>
+            <p className="text-xs text-muted-foreground">Post opportunity summaries for supporters</p>
+          </div>
+        </button>
       </div>
 
       {/* More Tools Button */}
