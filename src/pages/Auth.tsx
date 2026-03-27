@@ -33,7 +33,7 @@ const ROLE_OPTIONS = [
 
 export default function Auth() {
   const {
-    referralId, becomeRole,
+    referralId, becomeRole, preSelectedRole,
     isSignUp, setIsSignUp,
     isForgotPassword, setIsForgotPassword,
     isForgotPhone, setIsForgotPhone,
@@ -63,11 +63,28 @@ export default function Auth() {
     handleSubmit, handleGoogleSignIn, handleAppleSignIn,
   } = useAuthForm();
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading, signIn: authSignIn } = useAuth();
   const [emailLoginLoading, setEmailLoginLoading] = useState(false);
+
+  // Inline role selection for signup without role param
+  const hasValidRole = !!preSelectedRole && VALID_SIGNUP_ROLES.includes(preSelectedRole as any);
+  const needsRoleSelection = isSignUp && !hasValidRole;
+
+  const handleSelectRole = (role: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('role', role);
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const roleLabelMap: Record<string, string> = {
+    tenant: '🏠 Tenant',
+    supporter: '💰 Funder',
+    agent: '⚡ Agent',
+    landlord: '🏢 Landlord',
+  };
 
   // ========== Feature 4: Auto-login for returning users ==========
   useEffect(() => {
