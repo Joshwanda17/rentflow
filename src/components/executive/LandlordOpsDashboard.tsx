@@ -1159,47 +1159,78 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
 // ─── House card inner content (shared) ───
 function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onImages: (v: { images: string[]; title: string }) => void }) {
   return (
-    <div className="flex gap-3">
-      {/* Thumbnail */}
-      <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-muted">
-        {house.image_urls?.[0] ? (
-          <button onClick={() => onImages({ images: house.image_urls!, title: house.title })} className="w-full h-full">
-            <img src={house.image_urls[0]} alt="" className="w-full h-full object-cover" />
-          </button>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Home className="h-5 w-5 text-muted-foreground/40" />
-          </div>
-        )}
-      </div>
-      {/* Details */}
-      <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="font-bold text-sm truncate">{house.title}</p>
-        <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-          <MapPin className="h-2.5 w-2.5 shrink-0" />{house.region}{house.district ? `, ${house.district}` : ''}{house.village ? ` · ${house.village}` : ''}
-        </p>
-        <div className="flex flex-wrap gap-1 mt-0.5">
-          <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
-          <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
-          <Badge variant="outline" className="text-[9px] h-4 px-1 font-bold">UGX {house.daily_rate.toLocaleString()}/day</Badge>
-          {house.verified ? (
-            <Badge className="bg-green-500/20 text-green-700 border-0 text-[9px] h-4 px-1">✅</Badge>
+    <div className="space-y-2">
+      <div className="flex gap-3">
+        {/* Thumbnail */}
+        <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-muted">
+          {house.image_urls?.[0] ? (
+            <button onClick={() => onImages({ images: house.image_urls!, title: house.title })} className="w-full h-full">
+              <img src={house.image_urls[0]} alt="" className="w-full h-full object-cover" />
+            </button>
           ) : (
-            <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[9px] h-4 px-1">⏳</Badge>
+            <div className="w-full h-full flex items-center justify-center">
+              <Home className="h-5 w-5 text-muted-foreground/40" />
+            </div>
           )}
         </div>
-        {/* Landlord info */}
+        {/* Details */}
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <p className="font-bold text-sm truncate">{house.title}</p>
+          <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+            <MapPin className="h-2.5 w-2.5 shrink-0" />{house.region}{house.district ? `, ${house.district}` : ''}{house.village ? ` · ${house.village}` : ''}
+          </p>
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
+            <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
+            <Badge variant="outline" className="text-[9px] h-4 px-1 font-bold">UGX {house.daily_rate.toLocaleString()}/day</Badge>
+            {house.verified ? (
+              <Badge className="bg-green-500/20 text-green-700 border-0 text-[9px] h-4 px-1">✅</Badge>
+            ) : (
+              <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[9px] h-4 px-1">⏳</Badge>
+            )}
+          </div>
+          {/* GPS link */}
+          {house.latitude && house.longitude && (
+            <a href={`https://www.google.com/maps?q=${house.latitude},${house.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline text-[10px] mt-0.5">
+              <MapPinned className="h-3 w-3" /> View on Map
+            </a>
+          )}
+        </div>
+      </div>
+      {/* People: Landlord, Tenant, Agent — always visible */}
+      <div className="grid grid-cols-1 gap-1.5">
         {house.landlords && (
-          <div className="mt-1">
-            <p className="text-[10px] text-muted-foreground">Landlord: <span className="font-medium text-foreground">{house.landlords.name}</span></p>
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-sky-500/10 px-2.5 py-1.5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-sky-700 dark:text-sky-400">🏠 Landlord</p>
+              <p className="text-xs font-medium truncate">{house.landlords.name}</p>
+            </div>
             <PhoneLinks phone={house.landlords.phone} name={house.landlords.name} />
           </div>
         )}
-        {/* GPS link */}
-        {house.latitude && house.longitude && (
-          <a href={`https://www.google.com/maps?q=${house.latitude},${house.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline text-[10px] mt-0.5">
-            <MapPinned className="h-3 w-3" /> View on Map
-          </a>
+        {!house.landlords && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-orange-500/10 px-2.5 py-1.5">
+            <UserX className="h-3 w-3 text-orange-600 shrink-0" />
+            <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400">No landlord linked</p>
+          </div>
+        )}
+        {house.tenant_name && (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
+              <p className="text-xs font-medium truncate">{house.tenant_name}</p>
+            </div>
+            {house.tenant_phone && <PhoneLinks phone={house.tenant_phone} name={house.tenant_name} />}
+          </div>
+        )}
+        {house.agent_name && (
+          <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-500/10 px-2.5 py-1.5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-400">🕵️ Agent</p>
+              <p className="text-xs font-medium truncate">{house.agent_name}</p>
+            </div>
+            {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
+          </div>
         )}
       </div>
     </div>
