@@ -182,12 +182,12 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
 
         {/* Thumbnail strip — tap any to open fullscreen */}
         {lightboxImages.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
             {lightboxImages.map((img, i) => (
               <button
                 key={img.id}
                 onClick={() => openLightbox(i)}
-                className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-colors"
+                className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-transparent hover:border-primary active:scale-95 transition-all"
               >
                 <img src={img.image_url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
               </button>
