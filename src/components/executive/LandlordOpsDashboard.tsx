@@ -8,7 +8,7 @@ import {
   Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
-  ArrowLeft, ChevronRight, Search, X, Globe, UserX,
+  ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
 } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
