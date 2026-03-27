@@ -1016,6 +1016,14 @@ export function LandlordOpsDashboard() {
         onClose={() => setEditLC1(null)}
         onSaved={() => refetch()}
       />
+      <AssignPersonDialog
+        open={!!assignPerson}
+        onClose={() => setAssignPerson(null)}
+        listingId={assignPerson?.listingId || ''}
+        listingTitle={assignPerson?.title || ''}
+        personType={assignPerson?.type || 'landlord'}
+        onSaved={() => refetch()}
+      />
       {/* Delete Landlord Confirmation */}
       <Dialog open={!!deleteLandlord} onOpenChange={(o) => { if (!o) { setDeleteLandlord(null); setDeleteReason(''); } }}>
         <DialogContent className="max-w-sm">
