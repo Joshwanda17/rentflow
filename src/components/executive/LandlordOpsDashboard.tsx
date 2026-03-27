@@ -482,6 +482,13 @@ export function LandlordOpsDashboard() {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
+                  <button
+                    onClick={() => landlord && setDeleteLandlord({ id, name: landlord.name })}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors min-h-[32px]"
+                    title="Delete landlord"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                   <div className="flex flex-col items-end gap-1">
                     {landlord?.verified ? (
                       <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
