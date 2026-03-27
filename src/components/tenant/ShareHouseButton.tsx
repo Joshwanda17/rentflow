@@ -3,7 +3,6 @@ import { Share2, Check, Copy, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 
-const SITE_URL = 'https://welilereceipts.com';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 interface ShareHouseButtonProps {
