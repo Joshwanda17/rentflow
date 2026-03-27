@@ -74,6 +74,15 @@ interface SupporterFormData {
   accountNumber: string;
 }
 
+interface InvestmentFormData {
+  investmentAmount: string;
+  durationMonths: string;
+  roiPercentage: string;
+  roiMode: string;
+  portfolioPin: string;
+  payoutDay: string;
+}
+
 const defaultSupporterData: SupporterFormData = {
   nationalId: '',
   country: 'Uganda',
@@ -88,6 +97,15 @@ const defaultSupporterData: SupporterFormData = {
   bankName: '',
   accountName: '',
   accountNumber: '',
+};
+
+const defaultInvestmentData: InvestmentFormData = {
+  investmentAmount: '',
+  durationMonths: '12',
+  roiPercentage: '20',
+  roiMode: 'monthly_payout',
+  portfolioPin: '',
+  payoutDay: '15',
 };
 
 export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultRole, lockRole }: CreateUserInviteDialogProps) {
@@ -105,12 +123,17 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     address: '',
   });
   const [supporterData, setSupporterData] = useState<SupporterFormData>(defaultSupporterData);
+  const [investmentData, setInvestmentData] = useState<InvestmentFormData>(defaultInvestmentData);
   const [expandedSection, setExpandedSection] = useState<string | null>('personal');
   const [createdInvite, setCreatedInvite] = useState<{
     token: string;
     fullName: string;
     password: string;
     role: UserRole;
+    portfolioCode?: string;
+    investmentAmount?: number;
+    durationMonths?: number;
+    roiPercentage?: number;
   } | null>(null);
 
   const isSupporterRole = selectedRole === 'supporter';
@@ -124,9 +147,15 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     setFormData(prev => ({ ...prev, password }));
   };
 
+  const generatePin = () => {
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    setInvestmentData(prev => ({ ...prev, portfolioPin: pin }));
+  };
+
   useEffect(() => {
     if (open) {
       if (!formData.password) generatePassword();
+      if (!investmentData.portfolioPin) generatePin();
       if (defaultRole) setSelectedRole(defaultRole);
     }
   }, [open, defaultRole]);
@@ -142,7 +171,18 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
         return;
       }
 
-      // No investment validation needed — portfolios are created by Partner Ops
+      // Validate investment fields for supporters
+      if (isSupporterRole) {
+        const amt = parseFloat(investmentData.investmentAmount);
+        if (isNaN(amt) || amt < 50000) {
+          toast({ title: 'Investment amount must be at least UGX 50,000', variant: 'destructive' });
+          return;
+        }
+        if (!/^\d{4}$/.test(investmentData.portfolioPin)) {
+          toast({ title: 'Portfolio PIN must be exactly 4 digits', variant: 'destructive' });
+          return;
+        }
+      }
 
       // Create the invite with extended fields
       const inviteBody: Record<string, unknown> = {
@@ -178,16 +218,58 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
 
       const inviteResult = response.data.invite;
 
+      // Create portfolio for supporter
+      let portfolioResult: any = null;
+      if (isSupporterRole) {
+        const portfolioResponse = await supabase.functions.invoke('create-investor-portfolio', {
+          body: {
+            invite_id: inviteResult.id,
+            investor_id: inviteResult.user_id || null,
+            investment_amount: parseFloat(investmentData.investmentAmount),
+            duration_months: parseInt(investmentData.durationMonths),
+            roi_percentage: parseFloat(investmentData.roiPercentage),
+            roi_mode: investmentData.roiMode,
+            portfolio_pin: investmentData.portfolioPin,
+            payout_day: parseInt(investmentData.payoutDay),
+            payment_method: supporterData.paymentMethod || null,
+            mobile_network: supporterData.mobileNetwork || null,
+            mobile_money_number: supporterData.mobileMoneyNumber || null,
+            bank_name: supporterData.bankName || null,
+            account_name: supporterData.accountName || null,
+            account_number: supporterData.accountNumber || null,
+          },
+        });
+
+        if (portfolioResponse.error || portfolioResponse.data?.error) {
+          console.error('Portfolio creation failed:', portfolioResponse);
+          toast({
+            title: '⚠️ Invite created but portfolio failed',
+            description: 'The supporter was registered. Portfolio can be created by Partner Ops.',
+            variant: 'destructive',
+          });
+        } else {
+          portfolioResult = portfolioResponse.data?.portfolio;
+        }
+      }
+
       setCreatedInvite({
         token: inviteResult.activation_token,
         fullName: inviteResult.full_name,
         password: formData.password,
         role: selectedRole,
+        portfolioCode: portfolioResult?.portfolio_code,
+        investmentAmount: portfolioResult?.investment_amount,
+        durationMonths: portfolioResult?.duration_months,
+        roiPercentage: portfolioResult?.roi_percentage,
       });
 
       toast({
         title: `✅ ${roleConfig[selectedRole].label} Invite Created!`,
-        description: isSupporterRole ? 'Supporter registered. Portfolio will be created by Partner Ops.' : 'Share the activation link with the user.',
+        description: isSupporterRole
+          ? portfolioResult
+            ? `Portfolio ${portfolioResult.portfolio_code} created — pending approval.`
+            : 'Supporter registered. Portfolio can be created by Partner Ops.'
+          : 'Share the activation link with the user.',
       });
 
       onSuccess?.();
@@ -213,16 +295,29 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     if (!createdInvite) return '';
     const config = roleConfig[createdInvite.role];
 
-    return `${config.emoji} Welcome to Welile, ${createdInvite.fullName}!
+    let message = `${config.emoji} Welcome to Welile, ${createdInvite.fullName}!
 
 You've been invited to join as a ${config.label}!
 
-🔐 Your password: ${createdInvite.password}
+🔐 Your password: ${createdInvite.password}`;
+
+    if (createdInvite.portfolioCode) {
+      message += `
+
+📊 Portfolio: ${createdInvite.portfolioCode}
+💰 Investment: UGX ${createdInvite.investmentAmount?.toLocaleString()}
+📅 Duration: ${createdInvite.durationMonths} months
+📈 ROI: ${createdInvite.roiPercentage}%`;
+    }
+
+    message += `
 
 👉 Activate your account here:
 ${getShareLink()}
 
 Just click the link and enter your password to get started!`;
+
+    return message;
   };
 
   const handleShareWhatsApp = () => {
@@ -240,6 +335,7 @@ Just click the link and enter your password to get started!`;
   const handleClose = () => {
     setFormData({ email: '', fullName: '', phone: '', password: '', address: '' });
     setSupporterData(defaultSupporterData);
+    setInvestmentData(defaultInvestmentData);
     setCreatedInvite(null);
     setCopied(false);
     setSelectedRole(defaultRole || 'tenant');
@@ -338,7 +434,58 @@ Just click the link and enter your password to get started!`;
         </div>
       )}
 
-      {/* Section 4: Security & Access (password only) */}
+      {/* Section 4: Investment Details */}
+      <SectionHeader id="investment" title="Investment Details" emoji="💰" />
+      {expandedSection === 'investment' && (
+        <div className="space-y-3 px-1">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Investment Amount (UGX) *</Label>
+            <Input type="number" min={50000} placeholder="e.g. 5000000" value={investmentData.investmentAmount} onChange={(e) => setInvestmentData(prev => ({ ...prev, investmentAmount: e.target.value }))} className="h-12 text-base rounded-xl" inputMode="numeric" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Duration</Label>
+              <Select value={investmentData.durationMonths} onValueChange={(v) => setInvestmentData(prev => ({ ...prev, durationMonths: v }))}>
+                <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3">3 Months</SelectItem>
+                  <SelectItem value="6">6 Months</SelectItem>
+                  <SelectItem value="12">12 Months</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">ROI %</Label>
+              <Input type="number" min={1} max={100} value={investmentData.roiPercentage} onChange={(e) => setInvestmentData(prev => ({ ...prev, roiPercentage: e.target.value }))} className="h-12 text-base rounded-xl" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">ROI Mode</Label>
+              <Select value={investmentData.roiMode} onValueChange={(v) => setInvestmentData(prev => ({ ...prev, roiMode: v }))}>
+                <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly_payout">Monthly Payout</SelectItem>
+                  <SelectItem value="monthly_compounding">Compounding</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Payout Day</Label>
+              <Select value={investmentData.payoutDay} onValueChange={(v) => setInvestmentData(prev => ({ ...prev, payoutDay: v }))}>
+                <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1, 5, 10, 15, 20, 25, 28].map(d => (
+                    <SelectItem key={d} value={String(d)}>{d}{d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section 5: Security & Access */}
       <SectionHeader id="security" title="Security & Access" emoji="🔐" />
       {expandedSection === 'security' && (
         <div className="space-y-3 px-1">
@@ -356,8 +503,14 @@ Just click the link and enter your password to get started!`;
               </Button>
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
-            <p className="text-xs text-muted-foreground">ℹ️ Investment portfolio will be created by the <strong className="text-foreground">Partner Operations</strong> team after registration.</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium">Portfolio PIN (4 digits) *</Label>
+              <Button type="button" variant="ghost" size="sm" onClick={generatePin} className="h-7 text-xs gap-1">
+                <Sparkles className="h-3 w-3" /> Generate
+              </Button>
+            </div>
+            <Input type="text" inputMode="numeric" maxLength={4} placeholder="e.g. 1234" value={investmentData.portfolioPin} onChange={(e) => setInvestmentData(prev => ({ ...prev, portfolioPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} className="h-12 text-base rounded-xl font-mono tracking-widest" />
           </div>
         </div>
       )}
@@ -455,10 +608,34 @@ Just click the link and enter your password to get started!`;
             <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
             <p className="font-mono font-bold text-xl tracking-wider">{createdInvite?.password}</p>
           </div>
-          {isSupporterRole && (
+          {createdInvite?.portfolioCode && (
+            <div className="bg-background rounded-xl p-4 space-y-2">
+              <p className="text-sm font-medium text-primary">📊 Portfolio Created</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Code</p>
+                  <p className="font-mono font-bold">{createdInvite.portfolioCode}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Amount</p>
+                  <p className="font-semibold">UGX {createdInvite.investmentAmount?.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Duration</p>
+                  <p className="font-medium">{createdInvite.durationMonths} months</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">ROI</p>
+                  <p className="font-medium">{createdInvite.roiPercentage}%</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">⏳ Pending manager approval</p>
+            </div>
+          )}
+          {isSupporterRole && !createdInvite?.portfolioCode && (
             <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">📋 Next Step</p>
-              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Partner Ops will create the investment portfolio for this supporter.</p>
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">⚠️ Portfolio Not Created</p>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Partner Ops can create the portfolio manually.</p>
             </div>
           )}
         </CardContent>
@@ -496,7 +673,7 @@ Just click the link and enter your password to get started!`;
             <SheetDescription>
               {createdInvite
                 ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`
-                : isSupporterRole ? 'Register a new supporter — portfolio created by Partner Ops' : 'Create a new account'}
+                : isSupporterRole ? 'Register a new supporter with investment details' : 'Create a new account'}
             </SheetDescription>
           </SheetHeader>
           {!createdInvite ? formContent : successContent}
@@ -516,7 +693,7 @@ Just click the link and enter your password to get started!`;
           <DialogDescription>
             {createdInvite
               ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`
-              : isSupporterRole ? 'Register a new supporter — portfolio created by Partner Ops' : 'Create a new account and share the activation link'}
+              : isSupporterRole ? 'Register a new supporter with investment details' : 'Create a new account and share the activation link'}
           </DialogDescription>
         </DialogHeader>
         {!createdInvite ? formContent : successContent}

@@ -35,6 +35,7 @@ import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
+import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
 
 /* ─── Types ─── */
 interface PartnerRow {
@@ -232,8 +233,10 @@ export default function COOPartnersPage() {
   const [editingNameValue, setEditingNameValue] = useState('');
   const [savingName, setSavingName] = useState(false);
 
-  // Add portfolio dialog
+  // Add portfolio dialog (within partner detail)
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
+  // Top-level create portfolio dialog
+  const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false);
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
   const [addPortfolioRoi, setAddPortfolioRoi] = useState('20');
   const [addPortfolioRoiMode, setAddPortfolioRoiMode] = useState('monthly_payout');
@@ -1100,9 +1103,14 @@ export default function COOPartnersPage() {
           <h1 className="text-xl sm:text-2xl font-black tracking-tight">Partner Management</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Monitor, manage, and invest for all supporters & partners</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5 self-start">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2 self-start">
+          <Button size="sm" className="gap-1.5" onClick={() => setCreatePortfolioOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> Create Portfolio
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -1847,6 +1855,9 @@ export default function COOPartnersPage() {
 
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+
+      {/* Top-level Create Portfolio Dialog */}
+      <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
 
       {/* ─── Bulk Activate Confirmation ─── */}
       <AlertDialog open={showActivateConfirm} onOpenChange={setShowActivateConfirm}>

@@ -403,7 +403,12 @@ export function PartnersOpsDashboard() {
       {/* Daily Brief */}
       <PartnerOpsBrief />
 
-      {/* KPI Strip */}
+      {/* Create Portfolio + KPI Strip */}
+      <div className="flex justify-end">
+        <Button size="sm" className="gap-1.5" onClick={() => { setCreateForUser(null); setCreateOpen(true); }}>
+          <PlusCircle className="h-4 w-4" /> Create Portfolio
+        </Button>
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         <KPICard title="Total Partners" value={rows.length} icon={Shield} loading={isLoading} />
         <KPICard title="Active Portfolios" value={activePortfolios} icon={Wallet} loading={isLoading} color="bg-green-500/10 text-green-600" />
