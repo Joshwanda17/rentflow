@@ -82,18 +82,12 @@ const defaultSupporterData: SupporterFormData = {
   nextOfKinName: '',
   nextOfKinRelationship: '',
   nextOfKinPhone: '',
-  investmentAmount: '',
-  durationMonths: '12',
-  roiPercentage: '15',
-  roiMode: 'monthly_payout',
   paymentMethod: '',
   mobileNetwork: '',
   mobileMoneyNumber: '',
   bankName: '',
   accountName: '',
   accountNumber: '',
-  portfolioPin: '',
-  payoutDay: '15',
 };
 
 export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultRole, lockRole }: CreateUserInviteDialogProps) {
