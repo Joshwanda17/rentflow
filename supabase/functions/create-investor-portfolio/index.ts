@@ -35,15 +35,15 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify agent role
+    // Verify role (agent, manager, coo, super_admin, operations)
     const { data: roleData } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["agent", "manager"]);
+      .in("role", ["agent", "manager", "coo", "super_admin", "operations"]);
 
     if (!roleData || roleData.length === 0) {
-      return new Response(JSON.stringify({ error: "Only agents can create investor portfolios" }), {
+      return new Response(JSON.stringify({ error: "Only authorized roles can create investor portfolios" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

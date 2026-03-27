@@ -525,8 +525,5 @@ Just click the link and enter your password to get started!`;
   );
 }
 
-function formatUGX(amount: number): string {
-  return `UGX ${amount.toLocaleString()}`;
-}
 
 export default CreateUserInviteDialog;
