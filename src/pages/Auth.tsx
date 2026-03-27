@@ -320,6 +320,7 @@ export default function Auth() {
             </Card>
           )}
 
+          {!needsRoleSelection && (
           <Card className="border-border/40 shadow-sm overflow-hidden">
             {/* Prominent social sign-in for login view */}
             {!isForgotPassword && !isForgotPhone && !isSignUp && loginMode === 'password' && (
