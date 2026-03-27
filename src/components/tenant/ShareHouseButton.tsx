@@ -3,7 +3,7 @@ import { Share2, Check, Copy, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const APP_URL = 'https://welilereceipts-com.lovable.app';
 
 interface ShareHouseButtonProps {
   listingId: string;
@@ -19,11 +19,11 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  // Use short code for a clean branded URL, fall back to full ID
-  const ogUrl = shortCode
-    ? `${SUPABASE_URL}/functions/v1/og-house?c=${shortCode}`
-    : `${SUPABASE_URL}/functions/v1/og-house?id=${listingId}`;
-  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${ogUrl}`;
+  // Use the published app URL with short code for a clean branded link
+  const shareUrl = shortCode
+    ? `${APP_URL}/house/${shortCode}`
+    : `${APP_URL}/house/${listingId}`;
+  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${shareUrl}`;
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
