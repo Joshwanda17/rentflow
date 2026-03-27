@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   }
 
   const title = `${house.title} — ${formatUGX(house.daily_rate)}/day | Welile`;
-  const description = `${house.house_category?.replace(/_/g, " ")} • ${house.number_of_rooms} rooms in ${house.region}${house.district ? `, ${house.district}` : ""}. ${formatUGX(house.daily_rate)}/day (${formatUGX(house.monthly_rent)}/month). Pay as you stay with Welile!`;
+  const description = `${house.house_category?.replace(/_/g, " ")} • ${house.number_of_rooms} rooms in ${house.region}${house.district ? `, ${house.district}` : ""}. ${formatUGX(house.daily_rate)}/day. Pay as you stay with Welile!`;
   const image = house.image_urls?.[0] || `${SITE_URL}/og-image.png`;
   const houseUrl = `${SITE_URL}/house/${houseId}`;
 
