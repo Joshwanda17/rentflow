@@ -149,6 +149,14 @@ export default function HouseDetail() {
     ? `https://maps.google.com/maps?q=${listing.latitude},${listing.longitude}&z=15&output=embed`
     : null;
 
+  const amenities = [
+    listing.has_water && { icon: Droplets, label: 'Running Water', color: 'text-blue-500' },
+    listing.has_electricity && { icon: Zap, label: 'Electricity', color: 'text-amber-500' },
+    listing.has_security && { icon: ShieldCheck, label: 'Security', color: 'text-emerald-500' },
+    listing.has_parking && { icon: Car, label: 'Parking', color: 'text-violet-500' },
+    listing.is_furnished && { icon: Sofa, label: 'Furnished', color: 'text-rose-500' },
+  ].filter(Boolean) as { icon: any; label: string; color: string }[];
+
   return (
     <>
       <Helmet>
