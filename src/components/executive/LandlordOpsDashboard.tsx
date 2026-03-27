@@ -277,6 +277,16 @@ export function LandlordOpsDashboard() {
     </div>
   );
 
+  const tenantCell = (row: ListingWithLandlord) => {
+    if (!row.tenant_id) return <span className="text-muted-foreground text-xs italic">—</span>;
+    return (
+      <div>
+        <p className="text-xs font-medium">{row.tenant_name || 'Unknown'}</p>
+        {row.tenant_phone && <PhoneLinks phone={row.tenant_phone} name={row.tenant_name} />}
+      </div>
+    );
+  };
+
   const locationCell = (row: ListingWithLandlord) => {
     if (!row.latitude || !row.longitude) return <span className="text-muted-foreground text-xs">No GPS</span>;
     return (
@@ -321,14 +331,15 @@ export function LandlordOpsDashboard() {
     { key: 'title', label: 'Property', render: (_, row) => propertyCell(row) },
     { key: 'monthly_rent', label: 'Rent/mo', render: (v) => <span className="font-semibold text-sm">UGX {Number(v || 0).toLocaleString()}</span> },
     { key: 'landlord_id', label: 'Landlord', render: (_, row) => landlordCell(row) },
-    { key: 'agent_id', label: 'Agent', render: (_, row) => agentCell(row) },
+    { key: 'tenant_id', label: 'Tenant', render: (_, row) => tenantCell(row) },
+    { key: 'agent_id', label: 'Agent', render: (_, row) => agentCell(row), className: 'hidden lg:table-cell' },
     { key: 'verified', label: 'Status', render: (v, row) => (
       <div className="flex flex-col gap-0.5">
         {v ? <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge> : <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>}
         {row.listing_bonus_paid && <Badge className="bg-blue-500/20 text-blue-700 border-0 text-[10px]">💰 Bonus Paid</Badge>}
       </div>
     )},
-    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row) },
+    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row), className: 'hidden lg:table-cell' },
   ];
 
   // Verification queue columns
