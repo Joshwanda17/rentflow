@@ -35,6 +35,7 @@ import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
+import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
 
 /* ─── Types ─── */
 interface PartnerRow {
