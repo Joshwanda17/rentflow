@@ -199,6 +199,9 @@ export function LandlordOpsDashboard() {
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' } | null>(null);
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
   const [editLC1, setEditLC1] = useState<{ name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
+  const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // ─── House Listings Query ───
   const { data: listings, isLoading, refetch } = useQuery({
@@ -478,6 +481,13 @@ export function LandlordOpsDashboard() {
                     title="Edit landlord"
                   >
                     <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => landlord && setDeleteLandlord({ id, name: landlord.name })}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors min-h-[32px]"
+                    title="Delete landlord"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                   <div className="flex flex-col items-end gap-1">
                     {landlord?.verified ? (
@@ -1000,6 +1010,63 @@ export function LandlordOpsDashboard() {
         onClose={() => setEditLC1(null)}
         onSaved={() => refetch()}
       />
+      {/* Delete Landlord Confirmation */}
+      <Dialog open={!!deleteLandlord} onOpenChange={(o) => { if (!o) { setDeleteLandlord(null); setDeleteReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base text-destructive">Delete Landlord</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong>{deleteLandlord?.name}</strong>? This will unlink all associated house listings. This action cannot be undone.
+          </p>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Reason (min 10 chars) *</label>
+            <Input
+              value={deleteReason}
+              onChange={e => setDeleteReason(e.target.value)}
+              placeholder="Why is this landlord being deleted?"
+              className="h-10"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => { setDeleteLandlord(null); setDeleteReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              disabled={deleting || deleteReason.trim().length < 10}
+              onClick={async () => {
+                if (!deleteLandlord || !user) return;
+                setDeleting(true);
+                try {
+                  // Unlink listings first
+                  await supabase.from('house_listings').update({ landlord_id: null }).eq('landlord_id', deleteLandlord.id);
+                  // Delete landlord
+                  const { error } = await supabase.from('landlords').delete().eq('id', deleteLandlord.id);
+                  if (error) throw error;
+                  // Audit log
+                  await supabase.from('audit_logs').insert({
+                    user_id: user.id,
+                    action_type: 'landlord_deleted',
+                    table_name: 'landlords',
+                    record_id: deleteLandlord.id,
+                    metadata: { landlord_name: deleteLandlord.name, reason: deleteReason.trim(), deleted_by: 'landlord_ops' },
+                  });
+                  toast({ title: 'Landlord deleted', description: `${deleteLandlord.name} has been removed.` });
+                  setDeleteLandlord(null);
+                  setDeleteReason('');
+                  refetch();
+                } catch (err: any) {
+                  toast({ title: 'Error', description: err.message || 'Failed to delete landlord', variant: 'destructive' });
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
