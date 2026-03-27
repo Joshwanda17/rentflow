@@ -9,11 +9,14 @@ import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 import { validateSignUp } from '@/lib/authValidation';
 
+const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
+
 export function useAuthForm() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const referralId = searchParams.get('ref');
   const becomeRole = searchParams.get('become');
-  const preSelectedRole = searchParams.get('role');
+  const rawRole = searchParams.get('role');
+  const preSelectedRole = rawRole && VALID_SIGNUP_ROLES.includes(rawRole as any) ? rawRole : null;
 
   const [referrerIdState, setReferrerIdState] = useState<string | null>(() => {
     if (referralId) return referralId;
