@@ -259,14 +259,19 @@ export default function FindAHouse() {
   });
 
   const filtered = useMemo(() => {
-    if (!searchText.trim()) return listings;
-    const q = searchText.toLowerCase();
-    return listings.filter(l =>
-      l.region.toLowerCase().includes(q) ||
-      l.address.toLowerCase().includes(q) ||
-      (l.district || '').toLowerCase().includes(q) ||
-      l.title.toLowerCase().includes(q)
-    );
+    let result = [...listings];
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      result = result.filter(l =>
+        l.region.toLowerCase().includes(q) ||
+        l.address.toLowerCase().includes(q) ||
+        (l.district || '').toLowerCase().includes(q) ||
+        l.title.toLowerCase().includes(q)
+      );
+    }
+    // Sort by lowest daily rate first
+    result.sort((a, b) => a.daily_rate - b.daily_rate);
+    return result;
   }, [listings, searchText]);
 
   const hasGPS = !!(geo.latitude && geo.longitude);
