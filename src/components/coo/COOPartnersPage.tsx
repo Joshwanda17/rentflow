@@ -233,8 +233,10 @@ export default function COOPartnersPage() {
   const [editingNameValue, setEditingNameValue] = useState('');
   const [savingName, setSavingName] = useState(false);
 
-  // Add portfolio dialog
+  // Add portfolio dialog (within partner detail)
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
+  // Top-level create portfolio dialog
+  const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false);
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
   const [addPortfolioRoi, setAddPortfolioRoi] = useState('20');
   const [addPortfolioRoiMode, setAddPortfolioRoiMode] = useState('monthly_payout');
