@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, Sparkles } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, Sparkles, ArrowRight } from 'lucide-react';
 import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
@@ -16,10 +16,20 @@ import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 import { useState, useEffect, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 // supabase client available via hooks
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+
+const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
+
+const ROLE_OPTIONS = [
+  { role: 'tenant' as const, emoji: '🏠', label: 'I need rent help', desc: 'Get funded instantly', gradient: 'from-blue-500 to-indigo-600' },
+  { role: 'supporter' as const, emoji: '💰', label: 'I want to earn', desc: '15% monthly returns', gradient: 'from-emerald-500 to-teal-600' },
+  { role: 'agent' as const, emoji: '⚡', label: 'I want to hustle', desc: 'Register & earn cash', gradient: 'from-amber-500 to-orange-600' },
+  { role: 'landlord' as const, emoji: '🏢', label: 'Guaranteed rent', desc: 'Never chase tenants', gradient: 'from-purple-500 to-violet-600' },
+];
 
 export default function Auth() {
   const {
