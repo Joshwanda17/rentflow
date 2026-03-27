@@ -502,12 +502,12 @@ Just click the link and enter your password to get started!`;
           <SheetHeader className="pb-4">
             <SheetTitle className="flex items-center gap-2 text-xl">
               <UserPlus className="h-6 w-6 text-primary" />
-              {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter Investment' : 'Register New User'}
+              {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter' : 'Register New User'}
             </SheetTitle>
             <SheetDescription>
               {createdInvite
                 ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`
-                : isSupporterRole ? 'Create an investor portfolio account' : 'Create a new account'}
+                : isSupporterRole ? 'Register a new supporter — portfolio created by Partner Ops' : 'Create a new account'}
             </SheetDescription>
           </SheetHeader>
           {!createdInvite ? formContent : successContent}
