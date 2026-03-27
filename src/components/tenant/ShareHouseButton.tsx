@@ -3,7 +3,7 @@ import { Share2, Check, Copy, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 
-const SITE_URL = 'https://welilereceipts.com';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 interface ShareHouseButtonProps {
   listingId: string;
@@ -18,15 +18,16 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, variant 
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  const url = `${SITE_URL}/house/${listingId}`;
-  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${url}`;
+  // Use edge function URL for OG previews (WhatsApp/social link previews show image + price)
+  const ogUrl = `${SUPABASE_URL}/functions/v1/og-house?id=${listingId}`;
+  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${ogUrl}`;
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(message);
       setCopied(true);
-      toast({ title: 'Link copied!', description: 'Paste it anywhere to share.' });
+      toast({ title: 'Link copied!', description: 'Paste it on WhatsApp or anywhere to share.' });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({ title: 'Could not copy', variant: 'destructive' });
@@ -42,7 +43,7 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, variant 
     e.stopPropagation();
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${title} — Welile`, text: message, url });
+        await navigator.share({ title: `${title} — Welile`, text: message, url: ogUrl });
       } catch {}
     } else {
       handleCopyLink(e);
