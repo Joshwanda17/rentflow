@@ -3406,6 +3406,7 @@ export type Database = {
           number_of_rooms: number
           platform_fee: number
           region: string
+          short_code: string | null
           status: string
           sub_county: string | null
           tenant_id: string | null
@@ -3454,6 +3455,7 @@ export type Database = {
           number_of_rooms?: number
           platform_fee?: number
           region: string
+          short_code?: string | null
           status?: string
           sub_county?: string | null
           tenant_id?: string | null
@@ -3502,6 +3504,7 @@ export type Database = {
           number_of_rooms?: number
           platform_fee?: number
           region?: string
+          short_code?: string | null
           status?: string
           sub_county?: string | null
           tenant_id?: string | null
@@ -8623,6 +8626,7 @@ export type Database = {
       }
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
       generate_portfolio_code: { Args: never; Returns: string }
+      generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
       get_agent_workload_summary: { Args: never; Returns: Json }
       get_approximate_user_count: { Args: never; Returns: number }
