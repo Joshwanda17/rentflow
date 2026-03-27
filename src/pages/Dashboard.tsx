@@ -63,14 +63,12 @@ function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
 
-  // Seamless role switch: auto-add public roles if not yet assigned
-  // For qualified investors (100K+ deployed), gating happens in BottomRoleSwitcher
+  // Role switch: only switch to roles the user already has.
+  // New roles must be requested via ApplyForRoleDialog in BottomRoleSwitcher.
   const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
-    if (PUBLIC_ROLES.includes(newRole) && !roles.includes(newRole)) {
-      await addRole(newRole);
-    }
+    if (!roles.includes(newRole)) return; // Block — must apply first
     switchRole(newRole);
-  }, [roles, switchRole, addRole]);
+  }, [roles, switchRole]);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

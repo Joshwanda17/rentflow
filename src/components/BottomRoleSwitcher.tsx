@@ -40,10 +40,8 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
   const isRoleGated = (role: AppRole): boolean => {
     if (areAllRolesUnlocked()) return false; // user opted to unlock all roles
-    if (!isQualifiedInvestor) return false;
-    if (!GATED_ROLES.includes(role)) return false;
     if (roles.includes(role)) return false; // already has the role
-    return true;
+    return true; // must apply for any role they don't have
   };
 
   const handleSwitch = (role: AppRole) => {
