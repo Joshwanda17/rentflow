@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
   const { data: house } = await supabase
     .from("house_listings")
-    .select("title, region, district, daily_rate, monthly_rent, image_urls, house_category, number_of_rooms")
+    .select("title, region, district, daily_rate, image_urls, house_category, number_of_rooms")
     .eq("id", houseId)
     .single();
 
