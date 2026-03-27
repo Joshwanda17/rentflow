@@ -28,6 +28,7 @@ import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
 import { Trash2, XCircle, Pencil } from 'lucide-react';
 import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
 import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
+import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
 
 
 interface ListingWithLandlord {
