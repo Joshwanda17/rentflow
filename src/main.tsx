@@ -142,19 +142,12 @@ setTimeout(() => {
   }
 }, 6000);
 
-// Chunk error recovery — auto-retry on dynamic import failures
-addEventListener('vite:preloadError', () => {
-  const k = 'chunk_retry';
-  const c = parseInt(sessionStorage.getItem(k) || '0', 10);
-  if (c < 2) { sessionStorage.setItem(k, String(c + 1)); location.reload(); }
-});
-
-addEventListener('unhandledrejection', e => {
-  const msg = String((e as any).reason?.message || '').toLowerCase();
-  if (msg.includes('dynamically imported') || msg.includes('failed to fetch') || msg.includes('loading chunk') || msg.includes('network error')) {
-    const k = 'chunk_retry';
-    const c = parseInt(sessionStorage.getItem(k) || '0', 10);
-    if (c < 2) { sessionStorage.setItem(k, String(c + 1)); location.reload(); }
+// Suppress chunk/import errors — user can pull-to-refresh manually
+addEventListener('vite:preloadError', (e) => e.preventDefault());
+addEventListener('unhandledrejection', (e) => {
+  const r = String((e as any).reason ?? '').toLowerCase();
+  if (r.includes('dynamically imported') || r.includes('failed to fetch') || r.includes('loading chunk') || r.includes('import timeout') || r.includes('module script failed')) {
+    e.preventDefault();
   }
 });
 
