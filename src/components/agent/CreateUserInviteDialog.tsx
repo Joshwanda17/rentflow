@@ -142,20 +142,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
         return;
       }
 
-      // Validate supporter-specific fields
-      if (isSupporterRole) {
-        const amount = Number(supporterData.investmentAmount);
-        if (!amount || amount < 50000) {
-          toast({ title: 'Error', description: 'Investment amount must be at least UGX 50,000', variant: 'destructive' });
-          setIsLoading(false);
-          return;
-        }
-        if (!/^\d{4}$/.test(supporterData.portfolioPin)) {
-          toast({ title: 'Error', description: 'Portfolio PIN must be exactly 4 digits', variant: 'destructive' });
-          setIsLoading(false);
-          return;
-        }
-      }
+      // No investment validation needed — portfolios are created by Partner Ops
 
       // Create the invite with extended fields
       const inviteBody: Record<string, unknown> = {
