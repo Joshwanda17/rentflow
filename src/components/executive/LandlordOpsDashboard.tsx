@@ -794,7 +794,7 @@ export function LandlordOpsDashboard() {
         <div className="space-y-2">
           {unverifiedListings.map(house => (
             <div key={house.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
-              <HouseCardInner house={house} onImages={setPreviewImages} />
+              <HouseCardInner house={house} onImages={setPreviewImages} onAssign={handleAssignPerson} />
               {/* LC1 Info */}
               {house.lc1_chairperson_name && (
                 <div className="rounded-lg bg-amber-500/10 p-2 space-y-0.5">
