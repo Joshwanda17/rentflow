@@ -149,20 +149,24 @@ export default function HouseDetail() {
     ? `https://maps.google.com/maps?q=${listing.latitude},${listing.longitude}&z=15&output=embed`
     : null;
 
-  const pageTitle = `${listing.title} — ${formatUGX(listing.daily_rate)}/day | Welile`;
-  const pageDesc = `${categoryLabel} in ${listing.region}${listing.district ? `, ${listing.district}` : ''} — ${formatUGX(listing.daily_rate)} per day. Pay as you stay with Welile.`;
-
-  const amenities = [
-    listing.has_water && { icon: Droplets, label: 'Running Water', color: 'text-blue-500' },
-    listing.has_electricity && { icon: Zap, label: 'Electricity', color: 'text-amber-500' },
-    listing.has_security && { icon: ShieldCheck, label: 'Security', color: 'text-emerald-500' },
-    listing.has_parking && { icon: Car, label: 'Parking', color: 'text-violet-500' },
-    listing.is_furnished && { icon: Sofa, label: 'Furnished', color: 'text-rose-500' },
-  ].filter(Boolean) as { icon: any; label: string; color: string }[];
-
   return (
     <>
-
+      <Helmet>
+        <title>{ogTitle}</title>
+        <meta name="description" content={ogDescription} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={shareUrl} />
+        <meta property="og:title" content={ogTitle} />
+        <meta property="og:description" content={ogDescription} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="Welile" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={ogTitle} />
+        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
       <div className="min-h-screen bg-background pb-28">
         {/* ── Full-bleed Hero Image Gallery ── */}
         <div className="relative w-full">
