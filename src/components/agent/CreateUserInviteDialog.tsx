@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, Sparkles, UsersRound, ChevronDown, ChevronUp, Smartphone, Landmark } from 'lucide-react';
+import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, Sparkles, UsersRound, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -66,18 +66,12 @@ interface SupporterFormData {
   nextOfKinName: string;
   nextOfKinRelationship: string;
   nextOfKinPhone: string;
-  investmentAmount: string;
-  durationMonths: string;
-  roiPercentage: string;
-  roiMode: string;
   paymentMethod: string;
   mobileNetwork: string;
   mobileMoneyNumber: string;
   bankName: string;
   accountName: string;
   accountNumber: string;
-  portfolioPin: string;
-  payoutDay: string;
 }
 
 const defaultSupporterData: SupporterFormData = {
@@ -88,18 +82,12 @@ const defaultSupporterData: SupporterFormData = {
   nextOfKinName: '',
   nextOfKinRelationship: '',
   nextOfKinPhone: '',
-  investmentAmount: '',
-  durationMonths: '12',
-  roiPercentage: '15',
-  roiMode: 'monthly_payout',
   paymentMethod: '',
   mobileNetwork: '',
   mobileMoneyNumber: '',
   bankName: '',
   accountName: '',
   accountNumber: '',
-  portfolioPin: '',
-  payoutDay: '15',
 };
 
 export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultRole, lockRole }: CreateUserInviteDialogProps) {
@@ -123,12 +111,6 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     fullName: string;
     password: string;
     role: UserRole;
-    portfolioToken?: string;
-    portfolioCode?: string;
-    investmentAmount?: number;
-    durationMonths?: number;
-    roiPercentage?: number;
-    roiMode?: string;
   } | null>(null);
 
   const isSupporterRole = selectedRole === 'supporter';
@@ -142,16 +124,10 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     setFormData(prev => ({ ...prev, password }));
   };
 
-  const generatePin = () => {
-    const pin = String(Math.floor(1000 + Math.random() * 9000));
-    setSupporterData(prev => ({ ...prev, portfolioPin: pin }));
-  };
-
   useEffect(() => {
     if (open) {
       if (!formData.password) generatePassword();
       if (defaultRole) setSelectedRole(defaultRole);
-      if (!supporterData.portfolioPin) generatePin();
     }
   }, [open, defaultRole]);
 
@@ -166,20 +142,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
         return;
       }
 
-      // Validate supporter-specific fields
-      if (isSupporterRole) {
-        const amount = Number(supporterData.investmentAmount);
-        if (!amount || amount < 50000) {
-          toast({ title: 'Error', description: 'Investment amount must be at least UGX 50,000', variant: 'destructive' });
-          setIsLoading(false);
-          return;
-        }
-        if (!/^\d{4}$/.test(supporterData.portfolioPin)) {
-          toast({ title: 'Error', description: 'Portfolio PIN must be exactly 4 digits', variant: 'destructive' });
-          setIsLoading(false);
-          return;
-        }
-      }
+      // No investment validation needed — portfolios are created by Partner Ops
 
       // Create the invite with extended fields
       const inviteBody: Record<string, unknown> = {
@@ -214,53 +177,17 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
       }
 
       const inviteResult = response.data.invite;
-      let portfolioResult: any = null;
-
-      // If supporter, also create the portfolio
-      if (isSupporterRole) {
-        const portfolioResponse = await supabase.functions.invoke('create-investor-portfolio', {
-          body: {
-            invite_id: inviteResult.id,
-            investor_id: null,
-            investment_amount: Number(supporterData.investmentAmount),
-            duration_months: Number(supporterData.durationMonths),
-            roi_percentage: Number(supporterData.roiPercentage),
-            roi_mode: supporterData.roiMode,
-            portfolio_pin: supporterData.portfolioPin,
-            payment_method: supporterData.paymentMethod || null,
-            mobile_network: supporterData.mobileNetwork || null,
-            mobile_money_number: supporterData.mobileMoneyNumber || null,
-            bank_name: supporterData.bankName || null,
-            account_name: supporterData.accountName || null,
-            account_number: supporterData.accountNumber || null,
-            payout_day: Number(supporterData.payoutDay) || 15,
-          },
-        });
-
-        if (portfolioResponse.error || portfolioResponse.data?.error) {
-          console.error('Portfolio creation failed:', portfolioResponse.data?.error || portfolioResponse.error);
-          // Invite was created, but portfolio failed. Still show success with just invite.
-        } else {
-          portfolioResult = portfolioResponse.data.portfolio;
-        }
-      }
 
       setCreatedInvite({
         token: inviteResult.activation_token,
         fullName: inviteResult.full_name,
         password: formData.password,
         role: selectedRole,
-        portfolioToken: portfolioResult?.activation_token,
-        portfolioCode: portfolioResult?.portfolio_code,
-        investmentAmount: portfolioResult?.investment_amount,
-        durationMonths: portfolioResult?.duration_months,
-        roiPercentage: portfolioResult?.roi_percentage,
-        roiMode: portfolioResult?.roi_mode,
       });
 
       toast({
-        title: isSupporterRole ? '✅ Investor Portfolio Created!' : `✅ ${roleConfig[selectedRole].label} Invite Created!`,
-        description: isSupporterRole ? 'Share the portfolio link with the investor.' : 'Share the activation link with the user.',
+        title: `✅ ${roleConfig[selectedRole].label} Invite Created!`,
+        description: isSupporterRole ? 'Supporter registered. Portfolio will be created by Partner Ops.' : 'Share the activation link with the user.',
       });
 
       onSuccess?.();
@@ -282,34 +209,9 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     return `${getPublicOrigin()}/activate-supporter?token=${token}&password=${password}`;
   };
 
-  const getPortfolioLink = () => {
-    if (!createdInvite?.portfolioToken) return '';
-    return `${getPublicOrigin()}/investor/portfolio/${createdInvite.portfolioToken}`;
-  };
-
   const getWhatsAppMessage = () => {
     if (!createdInvite) return '';
     const config = roleConfig[createdInvite.role];
-
-    if (isSupporterRole && createdInvite.portfolioCode) {
-      return `${config.emoji} Welcome to Welile, ${createdInvite.fullName}!
-
-You've been registered as a Tenant Supporter (Investor)!
-
-💰 Portfolio: ${createdInvite.portfolioCode}
-📊 Investment: UGX ${createdInvite.investmentAmount?.toLocaleString()}
-📅 Duration: ${createdInvite.durationMonths} months
-📈 ROI: ${createdInvite.roiPercentage}% ${createdInvite.roiMode === 'monthly_compounding' ? '(Compounding)' : '(Monthly Payout)'}
-
-🔐 Your Portfolio PIN: ${supporterData.portfolioPin}
-🔐 Your Password: ${createdInvite.password}
-
-👉 View your portfolio:
-${getPortfolioLink()}
-
-👉 Activate your account:
-${getShareLink()}`;
-    }
 
     return `${config.emoji} Welcome to Welile, ${createdInvite.fullName}!
 
@@ -329,12 +231,7 @@ Just click the link and enter your password to get started!`;
   };
 
   const handleCopyLink = async () => {
-    const links = [getShareLink()];
-    if (createdInvite?.portfolioToken) {
-      links.push(`Portfolio Link: ${getPortfolioLink()}`);
-      links.push(`Portfolio PIN: ${supporterData.portfolioPin}`);
-    }
-    await navigator.clipboard.writeText(links.join('\n'));
+    await navigator.clipboard.writeText(getShareLink());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast({ title: 'Copied to clipboard!' });
@@ -441,121 +338,10 @@ Just click the link and enter your password to get started!`;
         </div>
       )}
 
-      {/* Section 4: Investment Details */}
-      <SectionHeader id="investment" title="Investment Details" emoji="💰" />
-      {expandedSection === 'investment' && (
-        <div className="space-y-3 px-1">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Investment Amount (UGX) *</Label>
-            <Input type="number" value={supporterData.investmentAmount} onChange={(e) => setSupporterData(prev => ({ ...prev, investmentAmount: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="Min 50,000" min={50000} inputMode="numeric" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Investment Duration *</Label>
-            <Select value={supporterData.durationMonths} onValueChange={(v) => setSupporterData(prev => ({ ...prev, durationMonths: v }))}>
-              <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3">3 months</SelectItem>
-                <SelectItem value="6">6 months</SelectItem>
-                <SelectItem value="12">12 months</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Monthly ROI (%)</Label>
-            <Input type="number" value={supporterData.roiPercentage} onChange={(e) => setSupporterData(prev => ({ ...prev, roiPercentage: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="15" min={1} max={100} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">ROI Payment Mode *</Label>
-            <Select value={supporterData.roiMode} onValueChange={(v) => setSupporterData(prev => ({ ...prev, roiMode: v }))}>
-              <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly_payout">Monthly Payout — ROI sent every month</SelectItem>
-                <SelectItem value="monthly_compounding">Monthly Compounding — ROI added to principal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Payout cycle info - auto-calculated */}
-          <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
-            <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date (automatic)</p>
-          </div>
-          {Number(supporterData.investmentAmount) >= 50000 && (
-            <div className="p-3 rounded-xl bg-success/10 border border-success/20 space-y-1">
-              <p className="text-xs font-medium text-success">Monthly Return Preview</p>
-              <p className="text-sm font-bold text-foreground">
-                {formatUGX(Math.round(Number(supporterData.investmentAmount) * (Number(supporterData.roiPercentage) / 100)))} / month
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Section 5: ROI Payment Method */}
-      <SectionHeader id="payment" title="ROI Payment Method" emoji="💳" />
-      {expandedSection === 'payment' && (
-        <div className="space-y-3 px-1">
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setSupporterData(prev => ({ ...prev, paymentMethod: 'mobile_money' }))}
-              className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${supporterData.paymentMethod === 'mobile_money' ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30'}`}>
-              <Smartphone className="h-6 w-6 mb-1.5 text-primary" />
-              <span className="text-xs font-semibold">Mobile Money</span>
-            </button>
-            <button type="button" onClick={() => setSupporterData(prev => ({ ...prev, paymentMethod: 'bank' }))}
-              className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${supporterData.paymentMethod === 'bank' ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30'}`}>
-              <Landmark className="h-6 w-6 mb-1.5 text-primary" />
-              <span className="text-xs font-semibold">Bank Account</span>
-            </button>
-          </div>
-          {supporterData.paymentMethod === 'mobile_money' && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Mobile Network</Label>
-                <Select value={supporterData.mobileNetwork} onValueChange={(v) => setSupporterData(prev => ({ ...prev, mobileNetwork: v }))}>
-                  <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue placeholder="Select network" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mtn">MTN</SelectItem>
-                    <SelectItem value="airtel">Airtel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Mobile Money Number</Label>
-                <Input value={supporterData.mobileMoneyNumber} onChange={(e) => setSupporterData(prev => ({ ...prev, mobileMoneyNumber: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="0770000000" inputMode="tel" />
-              </div>
-            </div>
-          )}
-          {supporterData.paymentMethod === 'bank' && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Bank Name</Label>
-                <Input value={supporterData.bankName} onChange={(e) => setSupporterData(prev => ({ ...prev, bankName: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="e.g. Stanbic Bank" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Account Name</Label>
-                <Input value={supporterData.accountName} onChange={(e) => setSupporterData(prev => ({ ...prev, accountName: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="Account holder name" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Account Number</Label>
-                <Input value={supporterData.accountNumber} onChange={(e) => setSupporterData(prev => ({ ...prev, accountNumber: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="Account number" />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Section 6: Security */}
+      {/* Section 4: Security & Access (password only) */}
       <SectionHeader id="security" title="Security & Access" emoji="🔐" />
       {expandedSection === 'security' && (
         <div className="space-y-3 px-1">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">4-Digit Portfolio PIN *</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={generatePin} className="h-7 text-xs gap-1">
-                <Sparkles className="h-3 w-3" /> Generate
-              </Button>
-            </div>
-            <Input type="text" maxLength={4} value={supporterData.portfolioPin} onChange={(e) => setSupporterData(prev => ({ ...prev, portfolioPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} className="h-12 text-base rounded-xl text-center font-mono tracking-[0.5em] text-2xl" placeholder="• • • •" inputMode="numeric" />
-            <p className="text-xs text-muted-foreground">Investor uses this PIN to access their portfolio</p>
-          </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="password" className="text-xs font-medium">Temporary Password *</Label>
@@ -569,6 +355,9 @@ Just click the link and enter your password to get started!`;
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </Button>
             </div>
+          </div>
+          <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+            <p className="text-xs text-muted-foreground">ℹ️ Investment portfolio will be created by the <strong className="text-foreground">Partner Operations</strong> team after registration.</p>
           </div>
         </div>
       )}
@@ -643,7 +432,7 @@ Just click the link and enter your password to get started!`;
           <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> <span className="truncate">Creating Account...</span></>
         ) : (
           <><RoleIcon className={`h-5 w-5 mr-2 shrink-0 ${roleConfig[selectedRole].color}`} />
-            <span className="truncate">{isSupporterRole ? 'Register Supporter Investment' : `Register ${roleConfig[selectedRole].label}`}</span></>
+            <span className="truncate">{isSupporterRole ? 'Register Supporter' : `Register ${roleConfig[selectedRole].label}`}</span></>
         )}
       </Button>
     </form>
@@ -659,50 +448,21 @@ Just click the link and enter your password to get started!`;
               <p className="font-bold text-xl">{createdInvite?.fullName}</p>
               <p className="text-sm text-muted-foreground">
                 {createdInvite ? roleConfig[createdInvite.role].label : ''} Account
-                {createdInvite?.portfolioCode && ` • ${createdInvite.portfolioCode}`}
               </p>
             </div>
           </div>
-          {createdInvite?.investmentAmount && (
-            <div className="bg-background rounded-xl p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Investment</span>
-                <span className="font-bold">{formatUGX(createdInvite.investmentAmount)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Duration</span>
-                <span className="font-semibold">{createdInvite.durationMonths} months</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">ROI</span>
-                <span className="font-semibold text-success">{createdInvite.roiPercentage}% {createdInvite.roiMode === 'monthly_compounding' ? '(Compounding)' : '(Payout)'}</span>
-              </div>
-            </div>
-          )}
           <div className="bg-background rounded-xl p-4">
             <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
             <p className="font-mono font-bold text-xl tracking-wider">{createdInvite?.password}</p>
           </div>
-          {createdInvite?.portfolioCode && (
-            <div className="bg-background rounded-xl p-4">
-              <p className="text-sm text-muted-foreground mb-1">Portfolio PIN</p>
-              <p className="font-mono font-bold text-xl tracking-wider">{supporterData.portfolioPin}</p>
+          {isSupporterRole && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">📋 Next Step</p>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Partner Ops will create the investment portfolio for this supporter.</p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {createdInvite?.portfolioToken && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Portfolio Link</Label>
-          <div className="flex gap-2">
-            <Input value={getPortfolioLink()} readOnly className="h-12 text-sm rounded-xl" />
-            <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(getPortfolioLink()); toast({ title: 'Portfolio link copied!' }); }} className="h-12 w-12 shrink-0 rounded-xl">
-              <Copy className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Activation Link</Label>
@@ -731,12 +491,12 @@ Just click the link and enter your password to get started!`;
           <SheetHeader className="pb-4">
             <SheetTitle className="flex items-center gap-2 text-xl">
               <UserPlus className="h-6 w-6 text-primary" />
-              {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter Investment' : 'Register New User'}
+              {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter' : 'Register New User'}
             </SheetTitle>
             <SheetDescription>
               {createdInvite
                 ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`
-                : isSupporterRole ? 'Create an investor portfolio account' : 'Create a new account'}
+                : isSupporterRole ? 'Register a new supporter — portfolio created by Partner Ops' : 'Create a new account'}
             </SheetDescription>
           </SheetHeader>
           {!createdInvite ? formContent : successContent}
@@ -751,12 +511,12 @@ Just click the link and enter your password to get started!`;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter Investment' : 'Register New User'}
+            {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter' : 'Register New User'}
           </DialogTitle>
           <DialogDescription>
             {createdInvite
               ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`
-              : isSupporterRole ? 'Create an investor portfolio account and share the activation link' : 'Create a new account and share the activation link'}
+              : isSupporterRole ? 'Register a new supporter — portfolio created by Partner Ops' : 'Create a new account and share the activation link'}
           </DialogDescription>
         </DialogHeader>
         {!createdInvite ? formContent : successContent}
@@ -765,8 +525,5 @@ Just click the link and enter your password to get started!`;
   );
 }
 
-function formatUGX(amount: number): string {
-  return `UGX ${amount.toLocaleString()}`;
-}
 
 export default CreateUserInviteDialog;
