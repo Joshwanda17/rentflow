@@ -9,11 +9,14 @@ import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 import { validateSignUp } from '@/lib/authValidation';
 
+const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
+
 export function useAuthForm() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const referralId = searchParams.get('ref');
   const becomeRole = searchParams.get('become');
-  const preSelectedRole = searchParams.get('role');
+  const rawRole = searchParams.get('role');
+  const preSelectedRole = rawRole && VALID_SIGNUP_ROLES.includes(rawRole as any) ? rawRole : null;
 
   const [referrerIdState, setReferrerIdState] = useState<string | null>(() => {
     if (referralId) return referralId;
@@ -50,7 +53,7 @@ export function useAuthForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Store referral/role params
+  // Store referral/role params & validate role
   useEffect(() => {
     if (referralId) {
       localStorage.setItem('referral_agent_id', referralId);
@@ -62,7 +65,13 @@ export function useAuthForm() {
     if (preSelectedRole) {
       localStorage.setItem('become_role', preSelectedRole);
     }
-  }, [referralId, becomeRole, preSelectedRole]);
+    // If role param is present but invalid, remove it from URL
+    if (rawRole && !preSelectedRole) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('role');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [referralId, becomeRole, preSelectedRole, rawRole]);
 
   // Redirect on auth
   useEffect(() => {
@@ -234,7 +243,7 @@ export function useAuthForm() {
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
     console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
 
-    const { error } = await signUpWithoutRole(generatedEmail, password, fullName, fullPhone, storedReferrerId || undefined);
+    const { error } = await signUpWithoutRole(generatedEmail, password, fullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
     if (error) {
       let errorMessage = error.message;
       if (error.message.includes('already registered')) {

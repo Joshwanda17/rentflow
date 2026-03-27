@@ -16,14 +16,14 @@ export async function signUp(email: string, password: string, fullName: string, 
   return { error: error as Error | null };
 }
 
-export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string) {
+export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string, intendedRole?: string) {
   const redirectUrl = `${window.location.origin}/`;
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: redirectUrl,
-      data: { full_name: fullName, phone, referrer_id: referrerId || null },
+      data: { full_name: fullName, phone, referrer_id: referrerId || null, intended_role: intendedRole || null },
     },
   });
   return { error: error as Error | null };

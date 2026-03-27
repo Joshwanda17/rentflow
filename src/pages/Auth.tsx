@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, Sparkles } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, Sparkles, ArrowRight } from 'lucide-react';
 import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
@@ -16,14 +16,24 @@ import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 import { useState, useEffect, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 // supabase client available via hooks
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
+const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
+
+const ROLE_OPTIONS = [
+  { role: 'tenant' as const, emoji: '🏠', label: 'I need rent help', desc: 'Get funded instantly', gradient: 'from-blue-500 to-indigo-600' },
+  { role: 'supporter' as const, emoji: '💰', label: 'I want to earn', desc: '15% monthly returns', gradient: 'from-emerald-500 to-teal-600' },
+  { role: 'agent' as const, emoji: '⚡', label: 'I want to hustle', desc: 'Register & earn cash', gradient: 'from-amber-500 to-orange-600' },
+  { role: 'landlord' as const, emoji: '🏢', label: 'Guaranteed rent', desc: 'Never chase tenants', gradient: 'from-purple-500 to-violet-600' },
+];
+
 export default function Auth() {
   const {
-    referralId, becomeRole,
+    referralId, becomeRole, preSelectedRole,
     isSignUp, setIsSignUp,
     isForgotPassword, setIsForgotPassword,
     isForgotPhone, setIsForgotPhone,
@@ -53,11 +63,28 @@ export default function Auth() {
     handleSubmit, handleGoogleSignIn, handleAppleSignIn,
   } = useAuthForm();
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading, signIn: authSignIn } = useAuth();
   const [emailLoginLoading, setEmailLoginLoading] = useState(false);
+
+  // Inline role selection for signup without role param
+  const hasValidRole = !!preSelectedRole && VALID_SIGNUP_ROLES.includes(preSelectedRole as any);
+  const needsRoleSelection = isSignUp && !hasValidRole;
+
+  const handleSelectRole = (role: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('role', role);
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const roleLabelMap: Record<string, string> = {
+    tenant: '🏠 Tenant',
+    supporter: '💰 Funder',
+    agent: '⚡ Agent',
+    landlord: '🏢 Landlord',
+  };
 
   // ========== Feature 4: Auto-login for returning users ==========
   useEffect(() => {
@@ -238,6 +265,62 @@ export default function Auth() {
 
           <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
 
+          {/* Role badge for signup */}
+          {isSignUp && hasValidRole && (
+            <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  Signing up as: <span className="font-bold">{roleLabelMap[preSelectedRole!] || preSelectedRole}</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/welcome')}
+                className="text-xs text-primary hover:underline"
+              >
+                Change
+              </button>
+            </div>
+          )}
+
+          {/* Inline role selector when no role in URL */}
+          {needsRoleSelection && (
+            <Card className="border-border/40 shadow-sm mb-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">What do you need?</CardTitle>
+                <CardDescription>Select your role to get started</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {ROLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.role}
+                    type="button"
+                    onClick={() => handleSelectRole(opt.role)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-150",
+                      "bg-card border border-border/50 shadow-sm",
+                      "hover:shadow-md hover:scale-[1.01] active:scale-[0.98]",
+                      "touch-manipulation"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0",
+                      "bg-gradient-to-br", opt.gradient
+                    )}>
+                      <span>{opt.emoji}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {!needsRoleSelection && (
           <Card className="border-border/40 shadow-sm overflow-hidden">
             {/* Prominent social sign-in for login view */}
             {!isForgotPassword && !isForgotPhone && !isSignUp && loginMode === 'password' && (
@@ -980,6 +1063,7 @@ export default function Auth() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <p className="text-center text-xs text-muted-foreground mt-6">
             By continuing, you agree to our{' '}
