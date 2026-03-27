@@ -1,0 +1,237 @@
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { Loader2, Save } from 'lucide-react';
+
+interface LandlordData {
+  id: string;
+  name: string;
+  phone: string;
+  property_address?: string;
+  mobile_money_name?: string | null;
+  mobile_money_number?: string | null;
+  bank_name?: string | null;
+  account_number?: string | null;
+  monthly_rent?: number | null;
+  has_smartphone?: boolean | null;
+  number_of_houses?: number | null;
+  verified?: boolean | null;
+  caretaker_name?: string | null;
+  caretaker_phone?: string | null;
+  tin?: string | null;
+  electricity_meter_number?: string | null;
+  water_meter_number?: string | null;
+  village?: string | null;
+  district?: string | null;
+  region?: string | null;
+}
+
+interface Props {
+  landlord: LandlordData | null;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+export function EditLandlordDialog({ landlord, open, onClose, onSaved }: Props) {
+  const { user } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Record<string, any>>({});
+
+  const initForm = () => {
+    if (!landlord) return;
+    setForm({
+      name: landlord.name || '',
+      phone: landlord.phone || '',
+      mobile_money_name: landlord.mobile_money_name || '',
+      mobile_money_number: landlord.mobile_money_number || '',
+      bank_name: landlord.bank_name || '',
+      account_number: landlord.account_number || '',
+      monthly_rent: landlord.monthly_rent || '',
+      has_smartphone: landlord.has_smartphone ?? false,
+      number_of_houses: landlord.number_of_houses || '',
+      caretaker_name: landlord.caretaker_name || '',
+      caretaker_phone: landlord.caretaker_phone || '',
+      tin: landlord.tin || '',
+      electricity_meter_number: landlord.electricity_meter_number || '',
+      water_meter_number: landlord.water_meter_number || '',
+      village: landlord.village || '',
+      district: landlord.district || '',
+      region: landlord.region || '',
+    });
+  };
+
+  const handleSave = async () => {
+    if (!landlord || !user) return;
+    if (!form.name?.trim() || !form.phone?.trim()) {
+      toast.error('Name and phone are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const updates: Record<string, any> = {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        mobile_money_name: form.mobile_money_name?.trim() || null,
+        mobile_money_number: form.mobile_money_number?.trim() || null,
+        bank_name: form.bank_name?.trim() || null,
+        account_number: form.account_number?.trim() || null,
+        monthly_rent: form.monthly_rent ? Number(form.monthly_rent) : null,
+        has_smartphone: form.has_smartphone,
+        number_of_houses: form.number_of_houses ? Number(form.number_of_houses) : null,
+        caretaker_name: form.caretaker_name?.trim() || null,
+        caretaker_phone: form.caretaker_phone?.trim() || null,
+        tin: form.tin?.trim() || null,
+        electricity_meter_number: form.electricity_meter_number?.trim() || null,
+        water_meter_number: form.water_meter_number?.trim() || null,
+        village: form.village?.trim() || null,
+        district: form.district?.trim() || null,
+        region: form.region?.trim() || null,
+      };
+
+      const { error } = await supabase.from('landlords').update(updates).eq('id', landlord.id);
+      if (error) throw error;
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'landlord_profile_edited',
+        table_name: 'landlords',
+        record_id: landlord.id,
+        metadata: { updated_fields: Object.keys(updates), editor_role: 'landlord_ops' },
+      });
+
+      toast.success('Landlord profile updated');
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update landlord');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); else initForm(); }}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-base">Edit Landlord Profile</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {/* Basic Info */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Basic Info</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Name *</Label>
+                <Input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Phone *</Label>
+                <Input value={form.phone || ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Village</Label>
+                <Input value={form.village || ''} onChange={e => setForm(f => ({ ...f, village: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">District</Label>
+                <Input value={form.district || ''} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Region</Label>
+                <Input value={form.region || ''} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          {/* Financial */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Financial</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">MoMo Name</Label>
+                <Input value={form.mobile_money_name || ''} onChange={e => setForm(f => ({ ...f, mobile_money_name: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">MoMo Number</Label>
+                <Input value={form.mobile_money_number || ''} onChange={e => setForm(f => ({ ...f, mobile_money_number: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Bank Name</Label>
+                <Input value={form.bank_name || ''} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Account Number</Label>
+                <Input value={form.account_number || ''} onChange={e => setForm(f => ({ ...f, account_number: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Monthly Rent (UGX)</Label>
+                <Input type="number" value={form.monthly_rent || ''} onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">TIN</Label>
+                <Input value={form.tin || ''} onChange={e => setForm(f => ({ ...f, tin: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          {/* Property */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Property</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Number of Houses</Label>
+                <Input type="number" value={form.number_of_houses || ''} onChange={e => setForm(f => ({ ...f, number_of_houses: e.target.value }))} />
+              </div>
+              <div className="flex items-center gap-2 pt-5">
+                <Switch checked={form.has_smartphone || false} onCheckedChange={v => setForm(f => ({ ...f, has_smartphone: v }))} />
+                <Label className="text-xs">Has Smartphone</Label>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Electricity Meter</Label>
+                <Input value={form.electricity_meter_number || ''} onChange={e => setForm(f => ({ ...f, electricity_meter_number: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Water Meter</Label>
+                <Input value={form.water_meter_number || ''} onChange={e => setForm(f => ({ ...f, water_meter_number: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          {/* Caretaker */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Caretaker</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Caretaker Name</Label>
+                <Input value={form.caretaker_name || ''} onChange={e => setForm(f => ({ ...f, caretaker_name: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Caretaker Phone</Label>
+                <Input value={form.caretaker_phone || ''} onChange={e => setForm(f => ({ ...f, caretaker_phone: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          <Button onClick={handleSave} disabled={saving} className="w-full">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            Save Changes
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
