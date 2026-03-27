@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check
+  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
