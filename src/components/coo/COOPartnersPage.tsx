@@ -1101,9 +1101,14 @@ export default function COOPartnersPage() {
           <h1 className="text-xl sm:text-2xl font-black tracking-tight">Partner Management</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Monitor, manage, and invest for all supporters & partners</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5 self-start">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2 self-start">
+          <Button size="sm" className="gap-1.5" onClick={() => setCreatePortfolioOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> Create Portfolio
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
