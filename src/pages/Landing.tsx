@@ -62,8 +62,7 @@ export default function Landing() {
 
   const handleIntent = (role: string) => {
     hapticTap();
-    // During signup pause, let them explore the calculator instead
-    navigate('/rent-calculator');
+    navigate(`/auth?role=${role}`);
   };
 
   return (

@@ -87,9 +87,11 @@ export async function fetchUserRoles(
       
       const intendedRole = authUser?.user_metadata?.intended_role;
       
-      const rolesToCreate: AppRole[] = intendedRole === 'supporter' 
-        ? ['supporter'] 
-        : STANDARD_ROLES;
+      // Single-role provisioning: assign only the intended role
+      const validSingleRoles: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
+      const rolesToCreate: AppRole[] = (intendedRole && validSingleRoles.includes(intendedRole as AppRole))
+        ? [intendedRole as AppRole]
+        : STANDARD_ROLES; // Backwards compat: no intended_role → all 4
       
       const inserts = rolesToCreate.map(role => ({
         user_id: userId,
