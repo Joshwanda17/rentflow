@@ -65,6 +65,8 @@ interface ListingWithLandlord {
   } | null;
   agent_name?: string;
   agent_phone?: string;
+  tenant_name?: string;
+  tenant_phone?: string;
 }
 
 function PhoneLinks({ phone, name }: { phone: string; name?: string }) {
