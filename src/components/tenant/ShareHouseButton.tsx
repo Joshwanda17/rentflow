@@ -46,7 +46,7 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
     e.stopPropagation();
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${title} — Welile`, text: message, url: ogUrl });
+        await navigator.share({ title: `${title} — Welile`, text: message, url: shareUrl });
       } catch {}
     } else {
       handleCopyLink(e);
