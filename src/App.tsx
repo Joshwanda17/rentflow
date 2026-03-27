@@ -100,6 +100,7 @@ const AdminFinancialOpsPage = lazy(() => import('./pages/admin/FinancialOps'));
 const RoleGuard = lazy(() => import('./components/auth/RoleGuard'));
 const ExecutiveHubPage = lazy(() => import('./pages/ExecutiveHub'));
 const ROITrendsPage = lazy(() => import('./components/executive/ROITrendsPage'));
+const OperationsDashboardPage = lazy(() => import('./pages/operations/Dashboard'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const AgentCashPayoutsPage = lazy(() => import('./pages/agent/CashPayouts'));
