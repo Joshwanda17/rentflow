@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     const { error: ledgerErr } = await serviceClient.from('general_ledger').insert({
       user_id: approval.agent_id,
       amount: approval.amount,
-      direction: 'credit',
+      direction: 'cash_in',
       category: 'platform_expense',
       source_table: 'listing_bonus_approvals',
       source_id: approval_id,
