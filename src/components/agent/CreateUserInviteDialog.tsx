@@ -190,48 +190,12 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
       }
 
       const inviteResult = response.data.invite;
-      let portfolioResult: any = null;
-
-      // If supporter, also create the portfolio
-      if (isSupporterRole) {
-        const portfolioResponse = await supabase.functions.invoke('create-investor-portfolio', {
-          body: {
-            invite_id: inviteResult.id,
-            investor_id: null,
-            investment_amount: Number(supporterData.investmentAmount),
-            duration_months: Number(supporterData.durationMonths),
-            roi_percentage: Number(supporterData.roiPercentage),
-            roi_mode: supporterData.roiMode,
-            portfolio_pin: supporterData.portfolioPin,
-            payment_method: supporterData.paymentMethod || null,
-            mobile_network: supporterData.mobileNetwork || null,
-            mobile_money_number: supporterData.mobileMoneyNumber || null,
-            bank_name: supporterData.bankName || null,
-            account_name: supporterData.accountName || null,
-            account_number: supporterData.accountNumber || null,
-            payout_day: Number(supporterData.payoutDay) || 15,
-          },
-        });
-
-        if (portfolioResponse.error || portfolioResponse.data?.error) {
-          console.error('Portfolio creation failed:', portfolioResponse.data?.error || portfolioResponse.error);
-          // Invite was created, but portfolio failed. Still show success with just invite.
-        } else {
-          portfolioResult = portfolioResponse.data.portfolio;
-        }
-      }
 
       setCreatedInvite({
         token: inviteResult.activation_token,
         fullName: inviteResult.full_name,
         password: formData.password,
         role: selectedRole,
-        portfolioToken: portfolioResult?.activation_token,
-        portfolioCode: portfolioResult?.portfolio_code,
-        investmentAmount: portfolioResult?.investment_amount,
-        durationMonths: portfolioResult?.duration_months,
-        roiPercentage: portfolioResult?.roi_percentage,
-        roiMode: portfolioResult?.roi_mode,
       });
 
       toast({
