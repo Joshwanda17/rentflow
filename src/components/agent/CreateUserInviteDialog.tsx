@@ -244,12 +244,7 @@ Just click the link and enter your password to get started!`;
   };
 
   const handleCopyLink = async () => {
-    const links = [getShareLink()];
-    if (createdInvite?.portfolioToken) {
-      links.push(`Portfolio Link: ${getPortfolioLink()}`);
-      links.push(`Portfolio PIN: ${supporterData.portfolioPin}`);
-    }
-    await navigator.clipboard.writeText(links.join('\n'));
+    await navigator.clipboard.writeText(getShareLink());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast({ title: 'Copied to clipboard!' });
