@@ -459,50 +459,21 @@ Just click the link and enter your password to get started!`;
               <p className="font-bold text-xl">{createdInvite?.fullName}</p>
               <p className="text-sm text-muted-foreground">
                 {createdInvite ? roleConfig[createdInvite.role].label : ''} Account
-                {createdInvite?.portfolioCode && ` • ${createdInvite.portfolioCode}`}
               </p>
             </div>
           </div>
-          {createdInvite?.investmentAmount && (
-            <div className="bg-background rounded-xl p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Investment</span>
-                <span className="font-bold">{formatUGX(createdInvite.investmentAmount)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Duration</span>
-                <span className="font-semibold">{createdInvite.durationMonths} months</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">ROI</span>
-                <span className="font-semibold text-success">{createdInvite.roiPercentage}% {createdInvite.roiMode === 'monthly_compounding' ? '(Compounding)' : '(Payout)'}</span>
-              </div>
-            </div>
-          )}
           <div className="bg-background rounded-xl p-4">
             <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
             <p className="font-mono font-bold text-xl tracking-wider">{createdInvite?.password}</p>
           </div>
-          {createdInvite?.portfolioCode && (
-            <div className="bg-background rounded-xl p-4">
-              <p className="text-sm text-muted-foreground mb-1">Portfolio PIN</p>
-              <p className="font-mono font-bold text-xl tracking-wider">{supporterData.portfolioPin}</p>
+          {isSupporterRole && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">📋 Next Step</p>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Partner Ops will create the investment portfolio for this supporter.</p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {createdInvite?.portfolioToken && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Portfolio Link</Label>
-          <div className="flex gap-2">
-            <Input value={getPortfolioLink()} readOnly className="h-12 text-sm rounded-xl" />
-            <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(getPortfolioLink()); toast({ title: 'Portfolio link copied!' }); }} className="h-12 w-12 shrink-0 rounded-xl">
-              <Copy className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Activation Link</Label>
