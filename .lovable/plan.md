@@ -1,57 +1,60 @@
-## Partner Ops Dashboard — Card-Based Navigation Redesign
+## Investigation Summary
 
-### Problem
+**Root Cause Found**: The `coo-invest-for-partner` edge function is **missing portfolio creation**. It deducts funds from Benjamin's wallet and records ledger entries, but never creates a record in `investor_portfolios`. The "My Support Accounts" sheet queries `investor_portfolios` — so Benjamin correctly sees zero accounts despite UGX 4,504,800 being invested.
 
-The current Partner Ops dashboard dumps everything on one long scrolling page (KPIs, escalations, directory, capital flow, churn alerts, portfolio table, ROI history). This is cluttered and hard to navigate, especially on mobile.
+**Evidence**:
 
-### Solution
+- **Ledger**: Two `coo_proxy_investment` entries exist (UGX 2,504,800 + UGX 2,000,000)
+- **Portfolios table**: Zero records for Benjamin's user ID
+- **Edge function code** (`coo-invest-for-partner/index.ts`): Lines 126–161 only insert ledger entries and a notification — no `investor_portfolios.insert()` call exists
 
-Adopt the COO dashboard's card-based navigation pattern: a clean overview with color-coded quick-nav cards that open dedicated sub-views. All existing components are reused — no new data sources or database tables.
+---
 
-### Navigation Cards (Overview Grid)
+## Plan
 
+### 1. Fix the edge function to create portfolio records
 
-| Card              | Icon          | Existing Component                               | Color      |
-| ----------------- | ------------- | ------------------------------------------------ | ---------- |
-| Portfolios        | Wallet        | `ExecutiveDataTable` (portfolio table + dialogs) | Blue       |
-| Escalations       | AlertTriangle | Escalation alerts section                        | Red/Orange |
-| Partner Directory | Users         | `PartnerDirectory`                               | Emerald    |
-| Capital Flow      | DollarSign    | `PartnerCapitalFlow`                             | Indigo     |
-| ROI Payouts       | TrendingUp    | `ROIPaymentHistory` + link to ROI Trends         | Purple     |
-| Churn Alerts      | Shield        | `PartnerChurnAlerts`                             | Amber      |
+**File**: `supabase/functions/coo-invest-for-partner/index.ts`
 
+After the ledger entries (line ~161), insert a portfolio record:
 
-### Overview Page Shows
+```typescript
+await adminClient.from("investor_portfolios").insert({
+  investor_id: partner_id,
+  agent_id: caller.id,
+  portfolio_code: referenceId,
+  investment_amount: amount,
+  roi_percentage: 15,
+  roi_mode: 'simple',
+  total_roi_earned: 0,
+  status: 'active',
+  duration_months: 12,
+  payout_day: payout_day,
+  next_roi_date: firstPayoutDate,
+  maturity_date: maturityDate, // calculated as 12 months from now
+  auto_reinvest: false,
+});
+```
 
-1. **Daily Brief** — `PartnerOpsBrief` (compact, stays on overview)
-2. **KPI strip** — 4 key metrics in a responsive grid (Total Partners, Active Portfolios, Total Invested, Pending Approval as highlight)
-3. **Quick Nav Grid** — 2-col mobile / 3-col desktop, same card style as COO
-4. **Escalation count badge** on the Escalations card if any are open
+### 2. Backfill Benjamin's two missing portfolios
 
-### Sub-Views
+Create a one-time migration to insert the two portfolio records matching his existing ledger entries:
 
-Each card navigates to a dedicated view with:
+- **Portfolio 1**: UGX 2,504,800, invested 2026-03-10, payout day 10th, 15% simple ROI, 12 months
+- **Portfolio 2**: UGX 2,000,000, invested 2026-03-10, payout day 15th, 15% simple ROI, 12 months
 
-- Mobile "Back to Overview" button (same pattern as COO)
-- Section header with icon
-- The corresponding component rendered full-width
+Both set to `active` status with correct `maturity_date` and `next_roi_date`.
 
-The **Portfolios** sub-view includes the toolbar (New Portfolio, Bulk Actions), the data table, and all dialogs (Edit, Fund, Create, Change Maturity). This keeps the heaviest UI off the overview.
+### 3. Check for other affected users
 
-### Technical Approach
+Query the ledger for all `coo_proxy_investment` entries and cross-reference with `investor_portfolios` to identify and backfill any other missing portfolio records.
 
-**File: `src/components/executive/PartnersOpsDashboard.tsx**` — Full rewrite using the COO pattern:
+---
 
-- `useState('overview')` for active tab
-- `quickNavItems` array defining the 6 cards
-- `renderContent()` switch statement routing to sub-views
-- All existing hooks (portfolios query, escalations query, mutations) remain but are conditionally loaded only when their sub-view is active
-- Auto-renew logic stays at the top level (runs regardless of active tab)
+### Technical Details
 
-**No new files needed** — all sub-components already exist. The refactor is purely in `PartnersOpsDashboard.tsx`.
+- The `investor_portfolios` table requires columns: `investor_id`, `portfolio_code`, `investment_amount`, `roi_percentage`, `roi_mode`, `status`, `duration_months`
+- RLS on `investor_portfolios` allows supporters to SELECT their own records (by `investor_id` or `agent_id`)
+- The edge function uses `adminClient` (service role), so RLS won't block the insert
 
-### Responsive Behavior
-
-- **Mobile (< 768px)**: 2-column nav grid, back button on sub-views, stacked KPIs
-- **Desktop**: 3-column nav grid, all content wider, KPIs in a 4-col row
-- where needed add the info icon with information.
+!!!!!!! PERMANENT FIX!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
