@@ -471,13 +471,22 @@ export function LandlordOpsDashboard() {
                   <p className="font-bold text-sm">{landlord?.name}</p>
                   {landlord?.phone && <PhoneLinks phone={landlord.phone} name={landlord.name} />}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  {landlord?.verified ? (
-                    <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
-                  ) : (
-                    <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
-                  )}
-                  <Badge variant="outline" className="text-[10px]">{landlord?.houseCount} {landlord?.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => landlord && setEditLandlord({ ...landlord, id })}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
+                    title="Edit landlord"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="flex flex-col items-end gap-1">
+                    {landlord?.verified ? (
+                      <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
+                    )}
+                    <Badge variant="outline" className="text-[10px]">{landlord?.houseCount} {landlord?.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
