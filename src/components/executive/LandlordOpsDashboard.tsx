@@ -361,17 +361,18 @@ export function LandlordOpsDashboard() {
     return [...map.values()].sort((a, b) => (b.listingCount + b.tenantCount) - (a.listingCount + a.tenantCount));
   }, [rows, noLandlordList]);
 
-  // LC1 grouping
+  // LC1 grouping (includes listingIds for editing)
   const lc1Groups = useMemo(() => {
-    const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number }>();
+    const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number; listingIds: string[] }>();
     rows.forEach(r => {
       if (!r.lc1_chairperson_name) return;
       const key = `${r.lc1_chairperson_name}|${r.lc1_chairperson_phone || ''}`;
       const existing = map.get(key);
       if (existing) {
         existing.houseCount++;
+        existing.listingIds.push(r.id);
       } else {
-        map.set(key, { name: r.lc1_chairperson_name, phone: r.lc1_chairperson_phone, village: r.lc1_chairperson_village, houseCount: 1 });
+        map.set(key, { name: r.lc1_chairperson_name, phone: r.lc1_chairperson_phone, village: r.lc1_chairperson_village, houseCount: 1, listingIds: [r.id] });
       }
     });
     return [...map.values()].sort((a, b) => b.houseCount - a.houseCount);
