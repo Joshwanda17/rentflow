@@ -155,21 +155,20 @@ export function LandlordOpsDashboard() {
       let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
       let tenantMap = new Map<string, { full_name: string | null; phone: string | null }>();
 
-      const profileFetches: Promise<void>[] = [];
+      const profileFetches: (() => Promise<void>)[] = [];
       if (agentIds.length) {
-        profileFetches.push(
-          supabase.from('profiles').select('id, full_name, phone').in('id', agentIds).then(({ data: profiles }) => {
-            if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
-          }).then(() => {})
-        );
+        profileFetches.push(async () => {
+          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds);
+          if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
+        });
       }
       if (tenantIds.length) {
-        profileFetches.push(
-          supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds).then(({ data: profiles }) => {
-            if (profiles) tenantMap = new Map(profiles.map(p => [p.id, p]));
-          }).then(() => {})
-        );
+        profileFetches.push(async () => {
+          const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds);
+          if (profiles) tenantMap = new Map(profiles.map(p => [p.id, p]));
+        });
       }
+      await Promise.all(profileFetches.map(fn => fn()));
       await Promise.all(profileFetches);
 
       return (data || []).map(d => ({
