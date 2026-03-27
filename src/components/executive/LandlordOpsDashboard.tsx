@@ -756,7 +756,7 @@ export function LandlordOpsDashboard() {
         )}
         <div className="space-y-2">
           {emptyHouses.map(house => (
-            <HouseCard key={house.id} house={house} onImages={setPreviewImages} onAdjust={setAdjustListing} onAction={setActionDialog} />
+            <HouseCard key={house.id} house={house} onImages={setPreviewImages} onAdjust={setAdjustListing} onAction={setActionDialog} onAssign={handleAssignPerson} />
           ))}
           {emptyHouses.length === 0 && (
             <div className="text-center py-12">
