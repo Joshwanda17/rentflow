@@ -3,7 +3,7 @@ import { Share2, Check, Copy, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 
-const APP_URL = 'https://welilereceipts-com.lovable.app';
+const APP_URL = 'https://welilereceipts.com';
 
 interface ShareHouseButtonProps {
   listingId: string;
