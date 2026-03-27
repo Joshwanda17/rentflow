@@ -186,6 +186,8 @@ export function LandlordOpsDashboard() {
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' } | null>(null);
+  const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
+  const [editLC1, setEditLC1] = useState<{ name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
 
   // ─── House Listings Query ───
   const { data: listings, isLoading, refetch } = useQuery({
