@@ -302,11 +302,16 @@ export default function FindAHouse() {
 
   const pageDescription = 'Browse affordable rental houses near you. Pay daily rent — no big deposits. Verified listings with Google Maps locations across Uganda.';
 
+  const lowestPrice = filtered.length > 0 ? filtered[0].daily_rate : null;
+  const seoDescription = lowestPrice
+    ? `Rent houses from ${formatUGX(lowestPrice)}/day in Uganda. No deposits. ${filtered.length} verified listings. Pay daily — move in today!`
+    : pageDescription;
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name: pageTitle,
-    description: pageDescription,
+    description: seoDescription,
     url: `${SITE_URL}/find-a-house`,
     publisher: {
       '@type': 'Organization',
@@ -322,10 +327,19 @@ export default function FindAHouse() {
         item: {
           '@type': 'Accommodation',
           name: l.title,
-          address: `${l.address}, ${l.region}`,
+          description: `${l.house_category?.replace(/_/g, ' ')} · ${l.number_of_rooms} rooms · ${formatUGX(l.daily_rate)}/day`,
+          address: { '@type': 'PostalAddress', addressLocality: l.region, addressCountry: 'UG', streetAddress: l.address },
           ...(l.latitude && l.longitude ? {
             geo: { '@type': 'GeoCoordinates', latitude: l.latitude, longitude: l.longitude }
           } : {}),
+          ...(l.image_urls?.[0] ? { image: l.image_urls[0] } : {}),
+          offers: {
+            '@type': 'Offer',
+            price: l.daily_rate,
+            priceCurrency: 'UGX',
+            availability: 'https://schema.org/InStock',
+            priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+          },
         },
       })),
     },
@@ -333,6 +347,21 @@ export default function FindAHouse() {
 
   return (
     <>
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={seoDescription} />
+        <link rel="canonical" href={`${SITE_URL}/find-a-house`} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={seoDescription} />
+        <meta property="og:url" content={`${SITE_URL}/find-a-house`} />
+        <meta property="og:type" content="website" />
+        {filtered[0]?.image_urls?.[0] && <meta property="og:image" content={filtered[0].image_urls[0]} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={seoDescription} />
+        <meta name="robots" content="index, follow" />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
 
       <div className="min-h-screen bg-background">
         {/* Header */}
