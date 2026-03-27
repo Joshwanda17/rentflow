@@ -119,6 +119,11 @@ Deno.serve(async (req) => {
     const candidate = new Date(firstPayoutMs);
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
 
+    // Calculate maturity date: 12 months from investment date
+    const maturityDate = new Date(now);
+    maturityDate.setMonth(maturityDate.getMonth() + 12);
+    const maturityDateStr = `${maturityDate.getFullYear()}-${String(maturityDate.getMonth() + 1).padStart(2, "0")}-${String(maturityDate.getDate()).padStart(2, "0")}`;
+
     // Get names
     const partnerProfileRes = await adminClient.from("profiles").select("full_name").eq("id", partner_id).single();
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
@@ -158,6 +163,32 @@ Deno.serve(async (req) => {
       reference_id: referenceId,
       linked_party: partnerName,
     });
+
+    // Generate a 4-digit portfolio PIN for the supporter
+    const portfolioPin = String(Math.floor(1000 + Math.random() * 9000));
+
+    // Create the investor portfolio record so it appears in "My Support Accounts"
+    const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert({
+      investor_id: partner_id,
+      agent_id: caller.id,
+      portfolio_code: referenceId,
+      investment_amount: amount,
+      roi_percentage: 15,
+      roi_mode: "simple",
+      total_roi_earned: 0,
+      status: "active",
+      duration_months: 12,
+      payout_day,
+      next_roi_date: firstPayoutDate,
+      maturity_date: maturityDateStr,
+      auto_reinvest: false,
+      portfolio_pin: portfolioPin,
+    });
+
+    if (portfolioErr) {
+      console.error("[coo-invest-for-partner] Portfolio creation failed:", portfolioErr.message);
+      // Non-fatal: ledger is source of truth, but log for ops to fix
+    }
 
     const monthlyReward = Math.round(amount * 0.15);
 
