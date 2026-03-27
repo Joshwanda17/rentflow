@@ -1856,6 +1856,9 @@ export default function COOPartnersPage() {
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
 
+      {/* Top-level Create Portfolio Dialog */}
+      <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+
       {/* ─── Bulk Activate Confirmation ─── */}
       <AlertDialog open={showActivateConfirm} onOpenChange={setShowActivateConfirm}>
         <AlertDialogContent>
