@@ -199,8 +199,8 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
       });
 
       toast({
-        title: isSupporterRole ? '✅ Investor Portfolio Created!' : `✅ ${roleConfig[selectedRole].label} Invite Created!`,
-        description: isSupporterRole ? 'Share the portfolio link with the investor.' : 'Share the activation link with the user.',
+        title: `✅ ${roleConfig[selectedRole].label} Invite Created!`,
+        description: isSupporterRole ? 'Supporter registered. Portfolio will be created by Partner Ops.' : 'Share the activation link with the user.',
       });
 
       onSuccess?.();
