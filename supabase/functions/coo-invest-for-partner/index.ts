@@ -164,6 +164,32 @@ Deno.serve(async (req) => {
       linked_party: partnerName,
     });
 
+    // Generate a 4-digit portfolio PIN for the supporter
+    const portfolioPin = String(Math.floor(1000 + Math.random() * 9000));
+
+    // Create the investor portfolio record so it appears in "My Support Accounts"
+    const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert({
+      investor_id: partner_id,
+      agent_id: caller.id,
+      portfolio_code: referenceId,
+      investment_amount: amount,
+      roi_percentage: 15,
+      roi_mode: "simple",
+      total_roi_earned: 0,
+      status: "active",
+      duration_months: 12,
+      payout_day,
+      next_roi_date: firstPayoutDate,
+      maturity_date: maturityDateStr,
+      auto_reinvest: false,
+      portfolio_pin: portfolioPin,
+    });
+
+    if (portfolioErr) {
+      console.error("[coo-invest-for-partner] Portfolio creation failed:", portfolioErr.message);
+      // Non-fatal: ledger is source of truth, but log for ops to fix
+    }
+
     const monthlyReward = Math.round(amount * 0.15);
 
     // Notify the partner
