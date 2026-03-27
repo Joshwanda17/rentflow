@@ -158,7 +158,7 @@ export default function HouseDetail() {
             <>
               {/* Main hero image — edge-to-edge */}
               <div
-                className="relative w-full h-[45vh] min-h-[280px] max-h-[420px] bg-muted cursor-pointer"
+                className="relative w-full h-[55vh] min-h-[320px] max-h-[520px] bg-muted cursor-pointer"
                 onClick={() => setLightboxOpen(true)}
               >
                 <img
