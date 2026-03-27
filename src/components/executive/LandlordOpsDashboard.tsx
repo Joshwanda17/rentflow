@@ -1108,17 +1108,18 @@ function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onCl
 }
 
 // ─── House Card (mobile-friendly) ───
-function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlord }: {
+function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlord, onAssign }: {
   house: ListingWithLandlord;
   onImages: (v: { images: string[]; title: string }) => void;
   onAdjust?: (v: ListingWithLandlord) => void;
   onAction?: (v: { listing: ListingWithLandlord; type: 'delete' | 'delist' }) => void;
   showTenant?: boolean;
   showLandlord?: boolean;
+  onAssign?: (listingId: string, title: string, type: 'landlord' | 'agent') => void;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-      <HouseCardInner house={house} onImages={onImages} />
+      <HouseCardInner house={house} onImages={onImages} onAssign={onAssign} />
       {/* Tenant info */}
       {showTenant && house.tenant_id && (
         <div className="rounded-lg bg-green-500/10 p-2 space-y-0.5">
