@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-
+import { Helmet } from 'react-helmet-async';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 import { useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -259,14 +259,19 @@ export default function FindAHouse() {
   });
 
   const filtered = useMemo(() => {
-    if (!searchText.trim()) return listings;
-    const q = searchText.toLowerCase();
-    return listings.filter(l =>
-      l.region.toLowerCase().includes(q) ||
-      l.address.toLowerCase().includes(q) ||
-      (l.district || '').toLowerCase().includes(q) ||
-      l.title.toLowerCase().includes(q)
-    );
+    let result = [...listings];
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      result = result.filter(l =>
+        l.region.toLowerCase().includes(q) ||
+        l.address.toLowerCase().includes(q) ||
+        (l.district || '').toLowerCase().includes(q) ||
+        l.title.toLowerCase().includes(q)
+      );
+    }
+    // Sort by lowest daily rate first
+    result.sort((a, b) => a.daily_rate - b.daily_rate);
+    return result;
   }, [listings, searchText]);
 
   const hasGPS = !!(geo.latitude && geo.longitude);
@@ -297,11 +302,16 @@ export default function FindAHouse() {
 
   const pageDescription = 'Browse affordable rental houses near you. Pay daily rent — no big deposits. Verified listings with Google Maps locations across Uganda.';
 
+  const lowestPrice = filtered.length > 0 ? filtered[0].daily_rate : null;
+  const seoDescription = lowestPrice
+    ? `Rent houses from ${formatUGX(lowestPrice)}/day in Uganda. No deposits. ${filtered.length} verified listings. Pay daily — move in today!`
+    : pageDescription;
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name: pageTitle,
-    description: pageDescription,
+    description: seoDescription,
     url: `${SITE_URL}/find-a-house`,
     publisher: {
       '@type': 'Organization',
@@ -317,10 +327,19 @@ export default function FindAHouse() {
         item: {
           '@type': 'Accommodation',
           name: l.title,
-          address: `${l.address}, ${l.region}`,
+          description: `${l.house_category?.replace(/_/g, ' ')} · ${l.number_of_rooms} rooms · ${formatUGX(l.daily_rate)}/day`,
+          address: { '@type': 'PostalAddress', addressLocality: l.region, addressCountry: 'UG', streetAddress: l.address },
           ...(l.latitude && l.longitude ? {
             geo: { '@type': 'GeoCoordinates', latitude: l.latitude, longitude: l.longitude }
           } : {}),
+          ...(l.image_urls?.[0] ? { image: l.image_urls[0] } : {}),
+          offers: {
+            '@type': 'Offer',
+            price: l.daily_rate,
+            priceCurrency: 'UGX',
+            availability: 'https://schema.org/InStock',
+            priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+          },
         },
       })),
     },
@@ -328,6 +347,21 @@ export default function FindAHouse() {
 
   return (
     <>
+      <Helmet>
+        <title>{pageTitle}</title>
+        <meta name="description" content={seoDescription} />
+        <link rel="canonical" href={`${SITE_URL}/find-a-house`} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={seoDescription} />
+        <meta property="og:url" content={`${SITE_URL}/find-a-house`} />
+        <meta property="og:type" content="website" />
+        {filtered[0]?.image_urls?.[0] && <meta property="og:image" content={filtered[0].image_urls[0]} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={seoDescription} />
+        <meta name="robots" content="index, follow" />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
 
       <div className="min-h-screen bg-background">
         {/* Header */}
@@ -390,8 +424,7 @@ export default function FindAHouse() {
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
-                {hasGPS ? ' · sorted by distance' : ''}
+                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · sorted by lowest price
               </p>
               {filtered.map(listing => (
                 <PublicHouseCard key={listing.id} listing={listing} />
