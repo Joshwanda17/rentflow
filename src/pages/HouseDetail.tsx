@@ -158,7 +158,7 @@ export default function HouseDetail() {
             <>
               {/* Main hero image — edge-to-edge */}
               <div
-                className="relative w-full h-[45vh] min-h-[280px] max-h-[420px] bg-muted cursor-pointer"
+                className="relative w-full h-[55vh] min-h-[320px] max-h-[520px] bg-muted cursor-pointer"
                 onClick={() => setLightboxOpen(true)}
               >
                 <img
@@ -204,11 +204,11 @@ export default function HouseDetail() {
 
               {/* Thumbnail strip — scroll horizontally */}
               {images.length > 1 && (
-                <div className="flex gap-1.5 overflow-x-auto px-4 py-2.5 scrollbar-hide bg-background">
+                <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide bg-background">
                   {images.map((url, i) => (
                     <button key={i}
                       onClick={() => setImgIdx(i)}
-                      className={`flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden transition-all ${i === imgIdx ? 'ring-2 ring-primary ring-offset-1 ring-offset-background scale-105' : 'opacity-60 hover:opacity-100'}`}>
+                      className={`flex-shrink-0 w-[72px] h-[72px] rounded-xl overflow-hidden transition-all active:scale-95 ${i === imgIdx ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-105' : 'opacity-50 hover:opacity-100'}`}>
                       <img src={url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
                     </button>
                   ))}

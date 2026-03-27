@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen,
-  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check
+  ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Copy, Check, ZoomIn
 } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
@@ -46,13 +46,13 @@ function HouseImageCarousel({ images, title, onImageClick }: { images: string[] 
   const [idx, setIdx] = useState(0);
   if (!images || images.length === 0) {
     return (
-      <div className="w-full h-48 rounded-xl bg-muted flex items-center justify-center">
-        <Home className="h-10 w-10 text-muted-foreground/30" />
+      <div className="w-full aspect-[4/3] rounded-xl bg-muted flex items-center justify-center">
+        <Home className="h-12 w-12 text-muted-foreground/20" />
       </div>
     );
   }
   return (
-    <div className="relative w-full h-48 rounded-xl overflow-hidden bg-muted">
+    <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-muted">
       <img
         src={images[idx]}
         alt={title}
@@ -60,25 +60,34 @@ function HouseImageCarousel({ images, title, onImageClick }: { images: string[] 
         loading="lazy"
         onClick={() => onImageClick?.(idx)}
       />
+      {/* Tap-to-view overlay hint */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+      <button
+        type="button"
+        onClick={() => onImageClick?.(idx)}
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/90 text-black text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg active:scale-95 transition-transform min-h-[40px]"
+      >
+        <ZoomIn className="h-4 w-4" />
+        Tap to view full screen
+      </button>
       {images.length > 1 && (
         <>
           <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }}
-            className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1">
-            <ChevronLeft className="h-4 w-4" />
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
+            <ChevronLeft className="h-5 w-5" />
           </button>
           <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }}
-            className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1">
-            <ChevronRight className="h-4 w-4" />
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-2 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 transition-transform">
+            <ChevronRight className="h-5 w-5" />
           </button>
-          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
+          <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full font-bold">
+            {idx + 1}/{images.length}
+          </div>
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-1.5">
             {images.map((_, i) => (
-              <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === idx ? 'bg-white' : 'bg-white/50'}`} />
+              <span key={i} className={`h-2 rounded-full transition-all ${i === idx ? 'bg-white w-5' : 'bg-white/50 w-2'}`} />
             ))}
           </div>
-          {/* Photo count badge */}
-          <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">
-            {idx + 1}/{images.length}
-          </span>
         </>
       )}
     </div>
@@ -173,12 +182,12 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
 
         {/* Thumbnail strip — tap any to open fullscreen */}
         {lightboxImages.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
             {lightboxImages.map((img, i) => (
               <button
                 key={img.id}
                 onClick={() => openLightbox(i)}
-                className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-colors"
+                className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-transparent hover:border-primary active:scale-95 transition-all"
               >
                 <img src={img.image_url} alt={`${listing.title} ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
               </button>
