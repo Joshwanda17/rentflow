@@ -134,9 +134,9 @@ export function AssignPersonDialog({ open, onClose, listingId, listingTitle, per
         .insert({
           name: newName.trim(),
           phone: newPhone.trim(),
+          property_address: 'Pending',
           has_smartphone: newHasSmartphone,
           registered_by: user.id,
-          registered_by_role: 'landlord_ops',
         })
         .select('id, name, phone')
         .single();
