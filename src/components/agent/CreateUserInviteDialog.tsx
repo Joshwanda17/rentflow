@@ -66,18 +66,12 @@ interface SupporterFormData {
   nextOfKinName: string;
   nextOfKinRelationship: string;
   nextOfKinPhone: string;
-  investmentAmount: string;
-  durationMonths: string;
-  roiPercentage: string;
-  roiMode: string;
   paymentMethod: string;
   mobileNetwork: string;
   mobileMoneyNumber: string;
   bankName: string;
   accountName: string;
   accountNumber: string;
-  portfolioPin: string;
-  payoutDay: string;
 }
 
 const defaultSupporterData: SupporterFormData = {
