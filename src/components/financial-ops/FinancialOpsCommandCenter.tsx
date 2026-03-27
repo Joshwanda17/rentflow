@@ -10,15 +10,16 @@ import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
+import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { 
   ShieldCheck, Banknote, X, ArrowLeft, Menu, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits' | 'withdrawals';
+type View = 'home' | 'deposits' | 'withdrawals' | 'opportunities';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit';
 
 const tools = [
