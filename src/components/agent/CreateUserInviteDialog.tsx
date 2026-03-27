@@ -522,12 +522,12 @@ Just click the link and enter your password to get started!`;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter Investment' : 'Register New User'}
+            {createdInvite ? 'Share Activation Link' : isSupporterRole ? 'Register Tenant Supporter' : 'Register New User'}
           </DialogTitle>
           <DialogDescription>
             {createdInvite
               ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`
-              : isSupporterRole ? 'Create an investor portfolio account and share the activation link' : 'Create a new account and share the activation link'}
+              : isSupporterRole ? 'Register a new supporter — portfolio created by Partner Ops' : 'Create a new account and share the activation link'}
           </DialogDescription>
         </DialogHeader>
         {!createdInvite ? formContent : successContent}
