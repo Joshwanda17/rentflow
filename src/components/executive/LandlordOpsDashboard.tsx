@@ -8,7 +8,7 @@ import {
   Home, Banknote, CheckCircle2, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
-  ArrowLeft, ChevronRight, Search, X, Globe, UserX,
+  ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
 } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
 import { Trash2, XCircle, Pencil } from 'lucide-react';
 import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
 import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
+import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
 
 
 interface ListingWithLandlord {
@@ -202,6 +203,11 @@ export function LandlordOpsDashboard() {
   const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
+
+  const handleAssignPerson = (listingId: string, title: string, type: 'landlord' | 'agent') => {
+    setAssignPerson({ listingId, title, type });
+  };
 
   // ─── House Listings Query ───
   const { data: listings, isLoading, refetch } = useQuery({
@@ -750,7 +756,7 @@ export function LandlordOpsDashboard() {
         )}
         <div className="space-y-2">
           {emptyHouses.map(house => (
-            <HouseCard key={house.id} house={house} onImages={setPreviewImages} onAdjust={setAdjustListing} onAction={setActionDialog} />
+            <HouseCard key={house.id} house={house} onImages={setPreviewImages} onAdjust={setAdjustListing} onAction={setActionDialog} onAssign={handleAssignPerson} />
           ))}
           {emptyHouses.length === 0 && (
             <div className="text-center py-12">
@@ -771,7 +777,7 @@ export function LandlordOpsDashboard() {
         <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedHouses.length})</h2>
         <div className="space-y-2">
           {occupiedHouses.map(house => (
-            <HouseCard key={house.id} house={house} onImages={setPreviewImages} showTenant showLandlord />
+            <HouseCard key={house.id} house={house} onImages={setPreviewImages} showTenant showLandlord onAssign={handleAssignPerson} />
           ))}
         </div>
       </div>
@@ -788,7 +794,7 @@ export function LandlordOpsDashboard() {
         <div className="space-y-2">
           {unverifiedListings.map(house => (
             <div key={house.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
-              <HouseCardInner house={house} onImages={setPreviewImages} />
+              <HouseCardInner house={house} onImages={setPreviewImages} onAssign={handleAssignPerson} />
               {/* LC1 Info */}
               {house.lc1_chairperson_name && (
                 <div className="rounded-lg bg-amber-500/10 p-2 space-y-0.5">
@@ -1010,6 +1016,14 @@ export function LandlordOpsDashboard() {
         onClose={() => setEditLC1(null)}
         onSaved={() => refetch()}
       />
+      <AssignPersonDialog
+        open={!!assignPerson}
+        onClose={() => setAssignPerson(null)}
+        listingId={assignPerson?.listingId || ''}
+        listingTitle={assignPerson?.title || ''}
+        personType={assignPerson?.type || 'landlord'}
+        onSaved={() => refetch()}
+      />
       {/* Delete Landlord Confirmation */}
       <Dialog open={!!deleteLandlord} onOpenChange={(o) => { if (!o) { setDeleteLandlord(null); setDeleteReason(''); } }}>
         <DialogContent className="max-w-sm">
@@ -1094,17 +1108,18 @@ function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onCl
 }
 
 // ─── House Card (mobile-friendly) ───
-function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlord }: {
+function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlord, onAssign }: {
   house: ListingWithLandlord;
   onImages: (v: { images: string[]; title: string }) => void;
   onAdjust?: (v: ListingWithLandlord) => void;
   onAction?: (v: { listing: ListingWithLandlord; type: 'delete' | 'delist' }) => void;
   showTenant?: boolean;
   showLandlord?: boolean;
+  onAssign?: (listingId: string, title: string, type: 'landlord' | 'agent') => void;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-      <HouseCardInner house={house} onImages={onImages} />
+      <HouseCardInner house={house} onImages={onImages} onAssign={onAssign} />
       {/* Tenant info */}
       {showTenant && house.tenant_id && (
         <div className="rounded-lg bg-green-500/10 p-2 space-y-0.5">
@@ -1157,7 +1172,7 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
 }
 
 // ─── House card inner content (shared) ───
-function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onImages: (v: { images: string[]; title: string }) => void }) {
+function HouseCardInner({ house, onImages, onAssign }: { house: ListingWithLandlord; onImages: (v: { images: string[]; title: string }) => void; onAssign?: (listingId: string, title: string, type: 'landlord' | 'agent') => void }) {
   return (
     <div className="space-y-2">
       <div className="flex gap-3">
@@ -1202,16 +1217,30 @@ function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onIma
         {house.landlords && (
           <div className="flex items-center justify-between gap-2 rounded-lg bg-sky-500/10 px-2.5 py-1.5">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-sky-700 dark:text-sky-400">🏠 Landlord</p>
+              <p className="text-[10px] font-semibold text-sky-700 dark:text-sky-400 flex items-center gap-1">
+                🏠 Landlord
+                {house.landlords.has_smartphone != null && (
+                  house.landlords.has_smartphone
+                    ? <span title="Has smartphone"><Smartphone className="h-3 w-3 text-green-600" /></span>
+                    : <span className="text-[9px] text-orange-500" title="No smartphone">📵</span>
+                )}
+              </p>
               <p className="text-xs font-medium truncate">{house.landlords.name}</p>
             </div>
             <PhoneLinks phone={house.landlords.phone} name={house.landlords.name} />
           </div>
         )}
         {!house.landlords && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-orange-500/10 px-2.5 py-1.5">
-            <UserX className="h-3 w-3 text-orange-600 shrink-0" />
-            <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400">No landlord linked</p>
+          <div className="flex items-center justify-between gap-1.5 rounded-lg bg-orange-500/10 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <UserX className="h-3 w-3 text-orange-600 shrink-0" />
+              <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400">No landlord linked</p>
+            </div>
+            {onAssign && (
+              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-orange-300 text-orange-700 hover:bg-orange-100" onClick={() => onAssign(house.id, house.title, 'landlord')}>
+                <UserPlus className="h-3 w-3" />Add
+              </Button>
+            )}
           </div>
         )}
         {house.tenant_name && (
@@ -1230,6 +1259,19 @@ function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onIma
               <p className="text-xs font-medium truncate">{house.agent_name}</p>
             </div>
             {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
+          </div>
+        )}
+        {!house.agent_name && (
+          <div className="flex items-center justify-between gap-1.5 rounded-lg bg-red-500/10 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <UserX className="h-3 w-3 text-red-600 shrink-0" />
+              <p className="text-[10px] font-semibold text-red-700 dark:text-red-400">No agent linked</p>
+            </div>
+            {onAssign && (
+              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-red-300 text-red-700 hover:bg-red-100" onClick={() => onAssign(house.id, house.title, 'agent')}>
+                <UserPlus className="h-3 w-3" />Add
+              </Button>
+            )}
           </div>
         )}
       </div>
