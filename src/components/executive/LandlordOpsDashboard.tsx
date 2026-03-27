@@ -1206,7 +1206,7 @@ function HouseCardInner({ house, onImages, onAssign }: { house: ListingWithLandl
                 🏠 Landlord
                 {house.landlords.has_smartphone != null && (
                   house.landlords.has_smartphone
-                    ? <Smartphone className="h-3 w-3 text-green-600" title="Has smartphone" />
+                    ? <span title="Has smartphone"><Smartphone className="h-3 w-3 text-green-600" /></span>
                     : <span className="text-[9px] text-orange-500" title="No smartphone">📵</span>
                 )}
               </p>
