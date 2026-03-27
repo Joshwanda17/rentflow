@@ -151,16 +151,33 @@ export function LandlordOpsDashboard() {
         .limit(500);
 
       const agentIds = [...new Set((data || []).map(d => d.agent_id).filter(Boolean))];
+      const tenantIds = [...new Set((data || []).map(d => d.tenant_id).filter(Boolean))] as string[];
       let agentMap = new Map<string, { full_name: string | null; phone: string | null }>();
+      let tenantMap = new Map<string, { full_name: string | null; phone: string | null }>();
+
+      const profileFetches: Promise<void>[] = [];
       if (agentIds.length) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', agentIds);
-        if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
+        profileFetches.push(
+          supabase.from('profiles').select('id, full_name, phone').in('id', agentIds).then(({ data: profiles }) => {
+            if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
+          })
+        );
       }
+      if (tenantIds.length) {
+        profileFetches.push(
+          supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds).then(({ data: profiles }) => {
+            if (profiles) tenantMap = new Map(profiles.map(p => [p.id, p]));
+          })
+        );
+      }
+      await Promise.all(profileFetches);
 
       return (data || []).map(d => ({
         ...d,
         agent_name: agentMap.get(d.agent_id)?.full_name || 'Unknown Agent',
         agent_phone: agentMap.get(d.agent_id)?.phone || null,
+        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || 'Unknown Tenant') : null,
+        tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
       })) as ListingWithLandlord[];
     },
     staleTime: 60000,
