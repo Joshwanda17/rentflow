@@ -1157,7 +1157,7 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
 }
 
 // ─── House card inner content (shared) ───
-function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onImages: (v: { images: string[]; title: string }) => void }) {
+function HouseCardInner({ house, onImages, onAssign }: { house: ListingWithLandlord; onImages: (v: { images: string[]; title: string }) => void; onAssign?: (listingId: string, title: string, type: 'landlord' | 'agent') => void }) {
   return (
     <div className="space-y-2">
       <div className="flex gap-3">
@@ -1202,16 +1202,30 @@ function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onIma
         {house.landlords && (
           <div className="flex items-center justify-between gap-2 rounded-lg bg-sky-500/10 px-2.5 py-1.5">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold text-sky-700 dark:text-sky-400">🏠 Landlord</p>
+              <p className="text-[10px] font-semibold text-sky-700 dark:text-sky-400 flex items-center gap-1">
+                🏠 Landlord
+                {house.landlords.has_smartphone != null && (
+                  house.landlords.has_smartphone
+                    ? <Smartphone className="h-3 w-3 text-green-600" title="Has smartphone" />
+                    : <span className="text-[9px] text-orange-500" title="No smartphone">📵</span>
+                )}
+              </p>
               <p className="text-xs font-medium truncate">{house.landlords.name}</p>
             </div>
             <PhoneLinks phone={house.landlords.phone} name={house.landlords.name} />
           </div>
         )}
         {!house.landlords && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-orange-500/10 px-2.5 py-1.5">
-            <UserX className="h-3 w-3 text-orange-600 shrink-0" />
-            <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400">No landlord linked</p>
+          <div className="flex items-center justify-between gap-1.5 rounded-lg bg-orange-500/10 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <UserX className="h-3 w-3 text-orange-600 shrink-0" />
+              <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400">No landlord linked</p>
+            </div>
+            {onAssign && (
+              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-orange-300 text-orange-700 hover:bg-orange-100" onClick={() => onAssign(house.id, house.title, 'landlord')}>
+                <UserPlus className="h-3 w-3" />Add
+              </Button>
+            )}
           </div>
         )}
         {house.tenant_name && (
@@ -1230,6 +1244,19 @@ function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onIma
               <p className="text-xs font-medium truncate">{house.agent_name}</p>
             </div>
             {house.agent_phone && <PhoneLinks phone={house.agent_phone} name={house.agent_name} />}
+          </div>
+        )}
+        {!house.agent_name && (
+          <div className="flex items-center justify-between gap-1.5 rounded-lg bg-red-500/10 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5">
+              <UserX className="h-3 w-3 text-red-600 shrink-0" />
+              <p className="text-[10px] font-semibold text-red-700 dark:text-red-400">No agent linked</p>
+            </div>
+            {onAssign && (
+              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-red-300 text-red-700 hover:bg-red-100" onClick={() => onAssign(house.id, house.title, 'agent')}>
+                <UserPlus className="h-3 w-3" />Add
+              </Button>
+            )}
           </div>
         )}
       </div>
