@@ -53,7 +53,7 @@ export function useAuthForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Store referral/role params
+  // Store referral/role params & validate role
   useEffect(() => {
     if (referralId) {
       localStorage.setItem('referral_agent_id', referralId);
@@ -65,7 +65,13 @@ export function useAuthForm() {
     if (preSelectedRole) {
       localStorage.setItem('become_role', preSelectedRole);
     }
-  }, [referralId, becomeRole, preSelectedRole]);
+    // If role param is present but invalid, remove it from URL
+    if (rawRole && !preSelectedRole) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('role');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [referralId, becomeRole, preSelectedRole, rawRole]);
 
   // Redirect on auth
   useEffect(() => {
