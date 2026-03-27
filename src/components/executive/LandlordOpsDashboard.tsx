@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
@@ -9,12 +9,13 @@ import {
   Home, Banknote, CheckCircle2, Clock, MapPin, AlertTriangle, ShieldCheck,
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
+  ArrowLeft, ChevronRight, Search, X,
 } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { differenceInDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -27,6 +28,7 @@ import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
 import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
 import { Trash2, XCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 
 interface ListingWithLandlord {
@@ -82,7 +84,7 @@ function PhoneLinks({ phone, name }: { phone: string; name?: string }) {
         href={`https://wa.me/${intlPhone.replace('+', '')}?text=${encodeURIComponent(`Hello ${name || ''}, this is Welile Operations.`)}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
+        className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/30 transition-colors min-h-[28px]"
         title="WhatsApp"
       >
         <MessageCircle className="h-3.5 w-3.5" />
@@ -115,23 +117,28 @@ function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]
   );
 }
 
-// Helper: group listings by agent
-function groupByAgent(listings: ListingWithLandlord[]) {
-  const map = new Map<string, { name: string; phone: string | null; listings: ListingWithLandlord[] }>();
-  for (const l of listings) {
-    const existing = map.get(l.agent_id);
-    if (existing) {
-      existing.listings.push(l);
-    } else {
-      map.set(l.agent_id, { name: l.agent_name || 'Unknown Agent', phone: l.agent_phone || null, listings: [l] });
-    }
-  }
-  return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
-}
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics';
+
+// ─── Navigation Items ───
+const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
+  { id: 'landlords', label: 'All Landlords', icon: Building2, color: 'bg-sky-500/10 text-sky-600 border-sky-500/30', description: 'Directory with contacts & properties', priority: true },
+  { id: 'locations', label: 'Locations', icon: MapPin, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Regions, districts & house counts', priority: true },
+  { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'LC1 contacts per village', priority: true },
+  { id: 'empty', label: 'Empty Houses', icon: DoorOpen, color: 'bg-red-500/10 text-red-600 border-red-500/30', description: 'Vacant properties losing revenue' },
+  { id: 'occupied', label: 'Occupied Houses', icon: UserCheck, color: 'bg-green-500/10 text-green-600 border-green-500/30', description: 'Properties with active tenants' },
+  { id: 'verify', label: 'Verification Queue', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'Listings pending verification' },
+  { id: 'pipeline', label: 'Deal Pipeline', icon: GitBranch, color: 'bg-blue-500/10 text-blue-600 border-blue-500/30', description: 'Rent approvals & deal flow' },
+  { id: 'chain', label: 'Chain Health', icon: Link2, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', description: 'Property chain completeness' },
+  { id: 'matching', label: 'Tenant Matching', icon: Handshake, color: 'bg-primary/10 text-primary border-primary/30', description: 'Match tenants to empty houses' },
+  { id: 'agents', label: 'Listing Agents', icon: Users, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30', description: 'Agent performance rankings' },
+  { id: 'analytics', label: 'Analytics', icon: Banknote, color: 'bg-orange-500/10 text-orange-600 border-orange-500/30', description: 'Photos, GPS & vacancy stats' },
+];
 
 export function LandlordOpsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [view, setView] = useState<View>('home');
+  const [search, setSearch] = useState('');
   const [verifying, setVerifying] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
@@ -169,7 +176,6 @@ export function LandlordOpsDashboard() {
         });
       }
       await Promise.all(profileFetches.map(fn => fn()));
-      await Promise.all(profileFetches);
 
       return (data || []).map(d => ({
         ...d,
@@ -190,11 +196,56 @@ export function LandlordOpsDashboard() {
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
   const occupiedHouses = rows.filter(l => l.tenant_id);
 
-  // Landlord stats
-  const uniqueLandlords = new Map<string, ListingWithLandlord['landlords']>();
-  rows.forEach(r => { if (r.landlord_id && r.landlords) uniqueLandlords.set(r.landlord_id, r.landlords); });
-  const verifiedLandlords = [...uniqueLandlords.values()].filter(l => l?.verified);
-  const smartphoneLandlords = [...uniqueLandlords.values()].filter(l => l?.has_smartphone);
+  const uniqueLandlords = useMemo(() => {
+    const map = new Map<string, ListingWithLandlord['landlords'] & { houseCount: number }>();
+    rows.forEach(r => {
+      if (r.landlord_id && r.landlords) {
+        const existing = map.get(r.landlord_id);
+        if (existing) {
+          existing.houseCount++;
+        } else {
+          map.set(r.landlord_id, { ...r.landlords, houseCount: 1 });
+        }
+      }
+    });
+    return [...map.entries()];
+  }, [rows]);
+
+  // Location grouping
+  const locationGroups = useMemo(() => {
+    const map = new Map<string, { region: string; district: string | null; count: number; occupied: number; empty: number }>();
+    rows.forEach(r => {
+      const key = `${r.region}|${r.district || ''}`;
+      const existing = map.get(key);
+      const isOccupied = !!r.tenant_id;
+      if (existing) {
+        existing.count++;
+        if (isOccupied) existing.occupied++; else existing.empty++;
+      } else {
+        map.set(key, { region: r.region, district: r.district, count: 1, occupied: isOccupied ? 1 : 0, empty: isOccupied ? 0 : 1 });
+      }
+    });
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }, [rows]);
+
+  // LC1 grouping
+  const lc1Groups = useMemo(() => {
+    const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number }>();
+    rows.forEach(r => {
+      if (!r.lc1_chairperson_name) return;
+      const key = `${r.lc1_chairperson_name}|${r.lc1_chairperson_phone || ''}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.houseCount++;
+      } else {
+        map.set(key, { name: r.lc1_chairperson_name, phone: r.lc1_chairperson_phone, village: r.lc1_chairperson_village, houseCount: 1 });
+      }
+    });
+    return [...map.values()].sort((a, b) => b.houseCount - a.houseCount);
+  }, [rows]);
+
+  const verifiedLandlords = uniqueLandlords.filter(([, l]) => l?.verified);
+  const smartphoneLandlords = uniqueLandlords.filter(([, l]) => l?.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
     if (!user) return;
@@ -226,403 +277,375 @@ export function LandlordOpsDashboard() {
 
   const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
-  // Shared property cell renderer
-  const propertyCell = (row: ListingWithLandlord) => (
-    <div className="flex items-center gap-2 min-w-[140px]">
-      {row.image_urls?.[0] ? (
-        <button onClick={() => setPreviewImages({ images: row.image_urls!, title: row.title })} className="shrink-0 h-10 w-10 rounded-lg overflow-hidden border border-border hover:ring-2 ring-primary">
-          <img src={row.image_urls[0]} alt="" className="h-full w-full object-cover" />
-        </button>
-      ) : (
-        <div className="shrink-0 h-10 w-10 rounded-lg bg-muted flex items-center justify-center"><Home className="h-4 w-4 text-muted-foreground" /></div>
-      )}
-      <div>
-        <p className="font-semibold text-sm leading-tight">{row.title}</p>
-        <p className="text-[10px] text-muted-foreground">{row.address}</p>
-        <div className="flex gap-1 mt-0.5 flex-wrap">
-          <Badge variant="outline" className="text-[9px] h-4 px-1">{row.house_category}</Badge>
-          <Badge variant="outline" className="text-[9px] h-4 px-1">{row.number_of_rooms} rooms</Badge>
-          {/* Chain badges */}
-          {row.latitude && row.longitude ? (
-            <Badge className="bg-emerald-500/20 text-emerald-700 border-0 text-[8px] h-3.5 px-1">📍</Badge>
-          ) : (
-            <Badge className="bg-red-500/20 text-red-700 border-0 text-[8px] h-3.5 px-1">❌ GPS</Badge>
-          )}
-          {row.landlord_id ? (
-            <Badge className="bg-blue-500/20 text-blue-700 border-0 text-[8px] h-3.5 px-1">🏠</Badge>
-          ) : (
-            <Badge className="bg-red-500/20 text-red-700 border-0 text-[8px] h-3.5 px-1">❌ Landlord</Badge>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const landlordCell = (row: ListingWithLandlord) => {
-    const l = row.landlords;
-    if (!l) return <span className="text-muted-foreground text-xs italic">Unlinked</span>;
-    return (
-      <div>
-        <p className="text-xs font-medium">{l.name}</p>
-        <PhoneLinks phone={l.phone} name={l.name} />
-        {l.mobile_money_name && <p className="text-[9px] text-muted-foreground mt-0.5">MoMo: {l.mobile_money_name}</p>}
-      </div>
-    );
-  };
-
-  const agentCell = (row: ListingWithLandlord) => (
-    <div>
-      <p className="text-xs font-medium">{row.agent_name}</p>
-      {row.agent_phone && <PhoneLinks phone={row.agent_phone} name={row.agent_name} />}
-    </div>
-  );
-
-  const tenantCell = (row: ListingWithLandlord) => {
-    if (!row.tenant_id) return <span className="text-muted-foreground text-xs italic">—</span>;
-    return (
-      <div>
-        <p className="text-xs font-medium">{row.tenant_name || 'Unknown'}</p>
-        {row.tenant_phone && <PhoneLinks phone={row.tenant_phone} name={row.tenant_name} />}
-      </div>
-    );
-  };
-
-  const locationCell = (row: ListingWithLandlord) => {
-    if (!row.latitude || !row.longitude) return <span className="text-muted-foreground text-xs">No GPS</span>;
-    return (
-      <a href={`https://www.google.com/maps?q=${row.latitude},${row.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline text-xs">
-        <MapPinned className="h-3.5 w-3.5" /> View
-      </a>
-    );
-  };
-
-  // Empty houses columns
-  const emptyColumns: Column<ListingWithLandlord>[] = [
-    { key: 'title', label: 'Property', render: (_, row) => propertyCell(row) },
-    { key: 'monthly_rent', label: 'Rent/mo', render: (v) => <span className="font-semibold text-sm">UGX {Number(v || 0).toLocaleString()}</span>, className: 'hidden sm:table-cell' },
-    { key: 'landlord_id', label: 'Landlord', render: (_, row) => landlordCell(row), className: 'hidden md:table-cell' },
-    { key: 'agent_id', label: 'Listed By', render: (_, row) => agentCell(row), className: 'hidden lg:table-cell' },
-    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row), className: 'hidden lg:table-cell' },
-    {
-      key: 'created_at', label: 'Days Empty', render: (v) => {
-        const days = differenceInDays(new Date(), new Date(v as string));
-        return <Badge variant={days > 30 ? 'destructive' : days > 14 ? 'secondary' : 'outline'} className="text-[10px]">{days}d</Badge>;
-      },
-    },
-    {
-      key: 'id', label: 'Actions', render: (_, row) => (
-        <div className="flex items-center gap-1 flex-wrap">
-          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => setAdjustListing(row)}>
-            <TrendingDown className="h-3 w-3" /> Reduce
-          </Button>
-          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-warning hover:text-warning" onClick={() => setActionDialog({ listing: row, type: 'delist' })}>
-            <XCircle className="h-3 w-3" /> Delist
-          </Button>
-          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 text-destructive hover:text-destructive" onClick={() => setActionDialog({ listing: row, type: 'delete' })}>
-            <Trash2 className="h-3 w-3" /> Delete
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
-  // Occupied houses columns
-  const occupiedColumns: Column<ListingWithLandlord>[] = [
-    { key: 'title', label: 'Property', render: (_, row) => propertyCell(row) },
-    { key: 'monthly_rent', label: 'Rent/mo', render: (v) => <span className="font-semibold text-sm">UGX {Number(v || 0).toLocaleString()}</span> },
-    { key: 'landlord_id', label: 'Landlord', render: (_, row) => landlordCell(row) },
-    { key: 'tenant_id', label: 'Tenant', render: (_, row) => tenantCell(row) },
-    { key: 'agent_id', label: 'Agent', render: (_, row) => agentCell(row), className: 'hidden lg:table-cell' },
-    { key: 'verified', label: 'Status', render: (v, row) => (
-      <div className="flex flex-col gap-0.5">
-        {v ? <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge> : <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>}
-        {row.listing_bonus_paid && <Badge className="bg-blue-500/20 text-blue-700 border-0 text-[10px]">💰 Bonus Paid</Badge>}
-      </div>
-    )},
-    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row), className: 'hidden lg:table-cell' },
-  ];
-
-  // Verification queue columns
-  const verificationColumns: Column<ListingWithLandlord>[] = [
-    { key: 'title', label: 'Property', render: (_, row) => propertyCell(row) },
-    {
-      key: 'landlord_id', label: 'Landlord', render: (_, row) => {
-        const l = row.landlords;
-        if (!l) return <span className="text-muted-foreground text-xs italic">No landlord linked</span>;
-        return (
-          <div className="min-w-[120px]">
-            <p className="font-semibold text-xs">{l.name}</p>
-            <PhoneLinks phone={l.phone} name={l.name} />
-            {l.mobile_money_name && <p className="text-[9px] text-muted-foreground mt-0.5">MoMo: {l.mobile_money_name}</p>}
-            <div className="flex gap-1 mt-0.5">
-              {l.has_smartphone ? <span className="text-[9px]">📱</span> : <span className="text-[9px]">📵</span>}
-              {l.number_of_houses && <span className="text-[9px] text-muted-foreground">{l.number_of_houses} houses</span>}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'lc1_chairperson_name', label: 'LC1 Chair', render: (_, row) => {
-        if (!row.lc1_chairperson_name) return <span className="text-muted-foreground text-xs">—</span>;
-        return (
-          <div className="min-w-[100px]">
-            <p className="text-xs font-medium">{row.lc1_chairperson_name}</p>
-            {row.lc1_chairperson_phone && <PhoneLinks phone={row.lc1_chairperson_phone} name={row.lc1_chairperson_name} />}
-            {row.lc1_chairperson_village && <p className="text-[9px] text-muted-foreground">{row.lc1_chairperson_village}</p>}
-          </div>
-        );
-      },
-    },
-    { key: 'monthly_rent', label: 'Rent', render: (v) => <span className="font-semibold text-xs">{Number(v || 0).toLocaleString()}/mo</span> },
-    { key: 'agent_id', label: 'Agent', render: (_, row) => agentCell(row) },
-    { key: 'latitude', label: 'Location', render: (_, row) => locationCell(row) },
-    {
-      key: 'id', label: 'Action', render: (v, row) => (
-        <Button size="sm" variant="default" className="h-8 text-xs gap-1.5 whitespace-nowrap" onClick={() => handleVerifyListing(row)} disabled={verifying === v}>
-          {verifying === v ? <div className="h-3 w-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-          Verify → CFO
-        </Button>
-      ),
-    },
-  ];
-
-  // Agent performance summary for overview
-  const agentSummary = groupByAgent(rows);
+  // Agent grouping
+  const agentSummary = useMemo(() => {
+    const map = new Map<string, { name: string; phone: string | null; listings: ListingWithLandlord[] }>();
+    for (const l of rows) {
+      const existing = map.get(l.agent_id);
+      if (existing) {
+        existing.listings.push(l);
+      } else {
+        map.set(l.agent_id, { name: l.agent_name || 'Unknown Agent', phone: l.agent_phone || null, listings: [l] });
+      }
+    }
+    return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
+  }, [rows]);
 
   const totalMonthlyRevenue = occupiedHouses.reduce((s, h) => s + h.monthly_rent, 0);
   const lostMonthlyRevenue = emptyHouses.reduce((s, h) => s + h.monthly_rent, 0);
 
-  return (
-    <div className="space-y-6">
-      {/* 🔥 PRIORITY: Rent Pipeline Review */}
-      <RentPipelineQueue stage="agent_verified" />
+  // ─── Back Button ───
+  const BackButton = () => (
+    <button
+      onClick={() => { setView('home'); setSearch(''); }}
+      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 min-h-[44px] touch-manipulation"
+    >
+      <ArrowLeft className="h-4 w-4" /> Back to Overview
+    </button>
+  );
 
-      {/* Agent Landlord Payout Verification */}
-      <LandlordOpsPayoutReview reviewRole="landlord_ops" />
-
-      {/* Overview KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-        <KPICard title="Total Properties" value={rows.length} icon={Home} loading={isLoading} />
-        <KPICard title="Occupied" value={occupiedHouses.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo revenue`} />
-        <KPICard title="Empty Houses" value={emptyHouses.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
-        <KPICard title="Vacancy Rate" value={`${rows.length ? Math.round((emptyHouses.length / rows.length) * 100) : 0}%`} icon={TrendingDown} loading={isLoading} color={emptyHouses.length / (rows.length || 1) > 0.3 ? 'bg-red-500/10 text-red-600' : 'bg-green-500/10 text-green-600'} />
-        <KPICard title="Verified" value={verifiedListings.length} icon={CheckCircle2} loading={isLoading} color="bg-green-500/10 text-green-600" />
-        <KPICard title="Pending Verification" value={unverifiedListings.length} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" subtitle={unverifiedListings.length > 0 ? 'Action required!' : 'All clear ✅'} />
-        <KPICard title="Landlords" value={uniqueLandlords.size} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} />
-        <KPICard title="Listing Agents" value={agentSummary.length} icon={Users} loading={isLoading} color="bg-indigo-500/10 text-indigo-600" />
-      </div>
-
-      {/* Pending verification alert */}
-      {unverifiedListings.length > 0 && (
-        <div className="rounded-2xl border-2 border-amber-400/60 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-amber-500/20 shrink-0">
-            <AlertTriangle className="h-5 w-5 text-amber-600" />
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-amber-800 dark:text-amber-300">
-              🚨 {unverifiedListings.length} Listing{unverifiedListings.length !== 1 ? 's' : ''} Pending Verification — UGX {fmt(unverifiedListings.length * 5000)} agent bonuses pending
-            </p>
-          </div>
+  // ─── LANDLORDS VIEW ───
+  if (view === 'landlords') {
+    const filtered = search
+      ? uniqueLandlords.filter(([, l]) => l?.name?.toLowerCase().includes(search.toLowerCase()) || l?.phone?.includes(search))
+      : uniqueLandlords;
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords ({uniqueLandlords.length})</h2>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search by name or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
-      )}
-
-      {/* Tabbed Management Sections */}
-      <Tabs defaultValue="chain" className="w-full">
-        <TabsList className="w-full h-auto flex-wrap gap-1 bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="chain" className="text-xs py-2 gap-1 data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-700">
-            <Link2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Chain</span>
-          </TabsTrigger>
-          <TabsTrigger value="matching" className="text-xs py-2 gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-            <Handshake className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Match</span>
-          </TabsTrigger>
-          <TabsTrigger value="pipeline" className="text-xs py-2 gap-1 data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-700">
-            <GitBranch className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Pipeline</span>
-          </TabsTrigger>
-          <TabsTrigger value="empty" className="text-xs py-2 gap-1 data-[state=active]:bg-red-500/10 data-[state=active]:text-red-700">
-            <DoorOpen className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Empty</span>
-            <Badge variant="destructive" className="text-[9px] h-4 px-1 ml-0.5">{emptyHouses.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="occupied" className="text-xs py-2 gap-1 data-[state=active]:bg-green-500/10 data-[state=active]:text-green-700">
-            <UserCheck className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Occupied</span>
-            <Badge className="bg-green-500/20 text-green-700 border-0 text-[9px] h-4 px-1 ml-0.5">{occupiedHouses.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="verification" className="text-xs py-2 gap-1 data-[state=active]:bg-amber-500/10 data-[state=active]:text-amber-700">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Verify</span>
-            {unverifiedListings.length > 0 && <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[9px] h-4 px-1 ml-0.5 animate-pulse">{unverifiedListings.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="agents" className="text-xs py-2 gap-1 data-[state=active]:bg-indigo-500/10 data-[state=active]:text-indigo-700">
-            <Users className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Agents</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs py-2 gap-1 data-[state=active]:bg-purple-500/10 data-[state=active]:text-purple-700">
-            <Banknote className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Analytics</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ──────── CHAIN HEALTH TAB ──────── */}
-        <TabsContent value="chain" className="space-y-4 mt-4">
-          <ChainHealthTab />
-        </TabsContent>
-
-        {/* ──────── MATCHING TAB ──────── */}
-        <TabsContent value="matching" className="space-y-4 mt-4">
-          <TenantMatchingQueue onViewingCreated={() => refetch()} />
-        </TabsContent>
-
-        {/* ──────── PIPELINE TAB ──────── */}
-        <TabsContent value="pipeline" className="space-y-4 mt-4">
-          <RentPipelineQueue stage="agent_verified" />
-          <DealPipeline />
-        </TabsContent>
-
-        {/* ──────── EMPTY HOUSES TAB ──────── */}
-        <TabsContent value="empty" className="space-y-4 mt-4">
-          {emptyHouses.length > 0 ? (
-            <>
-              <div className="rounded-2xl border-2 border-destructive/30 p-3 flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-destructive/10 shrink-0"><DoorOpen className="h-5 w-5 text-destructive" /></div>
-                <div className="flex-1">
-                  <p className="font-bold text-destructive">{emptyHouses.length} Empty — UGX {lostMonthlyRevenue.toLocaleString()}/mo potential revenue lost</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Reduce rent on long-vacant houses to attract tenants faster.</p>
+        <div className="space-y-2">
+          {filtered.map(([id, landlord]) => (
+            <div key={id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-bold text-sm">{landlord?.name}</p>
+                  {landlord?.phone && <PhoneLinks phone={landlord.phone} name={landlord.name} />}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  {landlord?.verified ? (
+                    <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
+                  ) : (
+                    <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
+                  )}
+                  <Badge variant="outline" className="text-[10px]">{landlord?.houseCount} {landlord?.houseCount === 1 ? 'house' : 'houses'}</Badge>
                 </div>
               </div>
-
-              {/* Grouped by agent */}
-              {groupByAgent(emptyHouses).map(([agentId, agent]) => (
-                <div key={agentId} className="space-y-2">
-                  <div className="flex items-center gap-2 px-1">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-semibold text-sm">{agent.name}</span>
-                    <Badge variant="outline" className="text-[10px]">{agent.listings.length} empty</Badge>
-                    {agent.phone && <PhoneLinks phone={agent.phone} name={agent.name} />}
-                  </div>
-                  <ExecutiveDataTable
-                    data={agent.listings}
-                    columns={emptyColumns}
-                    loading={isLoading}
-                    title=""
-                    limit={50}
-                  />
-                </div>
-              ))}
-            </>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
-              <p className="font-semibold text-lg">No empty houses! 🎉</p>
-              <p className="text-sm">All listed properties are occupied.</p>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ──────── OCCUPIED HOUSES TAB ──────── */}
-        <TabsContent value="occupied" className="space-y-4 mt-4">
-          <div className="rounded-2xl border border-green-400/40 bg-green-50 dark:bg-green-950/20 p-3 flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-green-500/20 shrink-0"><UserCheck className="h-5 w-5 text-green-600" /></div>
-            <div className="flex-1">
-              <p className="font-bold text-green-800 dark:text-green-300">✅ {occupiedHouses.length} Occupied — UGX {totalMonthlyRevenue.toLocaleString()}/mo total revenue</p>
-              <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">Properties with active tenants generating revenue.</p>
-            </div>
-          </div>
-
-          {groupByAgent(occupiedHouses).map(([agentId, agent]) => (
-            <div key={agentId} className="space-y-2">
-              <div className="flex items-center gap-2 px-1">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="font-semibold text-sm">{agent.name}</span>
-                <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">{agent.listings.length} occupied</Badge>
-                {agent.phone && <PhoneLinks phone={agent.phone} name={agent.name} />}
+              <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                {landlord?.mobile_money_name && <span>MoMo: {landlord.mobile_money_name}</span>}
+                {landlord?.has_smartphone ? <span>📱 Smartphone</span> : <span>📵 No smartphone</span>}
               </div>
-              <ExecutiveDataTable
-                data={agent.listings}
-                columns={occupiedColumns}
-                loading={isLoading}
-                title=""
-                limit={50}
-              />
             </div>
           ))}
-        </TabsContent>
+          {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No landlords found</p>}
+        </div>
+      </div>
+    );
+  }
 
-        {/* ──────── VERIFICATION TAB ──────── */}
-        <TabsContent value="verification" className="space-y-4 mt-4">
-          {/* Bonus approval tracking */}
-          <ListingBonusApprovalQueue filter="all" />
+  // ─── LOCATIONS VIEW ───
+  if (view === 'locations') {
+    const filtered = search
+      ? locationGroups.filter(g => g.region.toLowerCase().includes(search.toLowerCase()) || g.district?.toLowerCase().includes(search.toLowerCase()))
+      : locationGroups;
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><MapPin className="h-5 w-5 text-purple-600" /> Locations ({locationGroups.length})</h2>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search region or district…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
+        </div>
+        <div className="space-y-2">
+          {filtered.map((loc, i) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
+                  <MapPin className="h-5 w-5 text-purple-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm truncate">{loc.region}</p>
+                  {loc.district && <p className="text-xs text-muted-foreground truncate">{loc.district}</p>}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-0.5 shrink-0">
+                <Badge variant="outline" className="text-[10px] font-bold">{loc.count} houses</Badge>
+                <div className="flex gap-1">
+                  <Badge className="bg-green-500/20 text-green-700 border-0 text-[9px]">{loc.occupied} occupied</Badge>
+                  {loc.empty > 0 && <Badge className="bg-red-500/20 text-red-700 border-0 text-[9px]">{loc.empty} empty</Badge>}
+                </div>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No locations found</p>}
+        </div>
+      </div>
+    );
+  }
 
-          {unverifiedListings.length > 0 ? (
-            <ExecutiveDataTable
-              data={unverifiedListings}
-              columns={verificationColumns}
-              loading={isLoading}
-              title={`🔥 Verification Queue (${unverifiedListings.length})`}
-              limit={50}
-              filters={[
-                { key: 'house_category', label: 'Type', options: [...new Set(unverifiedListings.map(l => l.house_category).filter(Boolean))].map(v => ({ value: v, label: v })) },
-                { key: 'district', label: 'District', options: [...new Set(unverifiedListings.map(l => l.district).filter(Boolean))].map(v => ({ value: v!, label: v! })) },
-              ]}
-            />
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-500" />
-              <p className="font-semibold text-lg">All listings verified! ✅</p>
+  // ─── LC1 VIEW ───
+  if (view === 'lc1') {
+    const filtered = search
+      ? lc1Groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()) || g.village?.toLowerCase().includes(search.toLowerCase()) || g.phone?.includes(search))
+      : lc1Groups;
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({lc1Groups.length})</h2>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search by name, village, or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
+          {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
+        </div>
+        <div className="space-y-2">
+          {filtered.map((lc1, i) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-1.5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-bold text-sm">{lc1.name}</p>
+                  {lc1.village && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{lc1.village}</p>}
+                </div>
+                <Badge variant="outline" className="text-[10px]">{lc1.houseCount} {lc1.houseCount === 1 ? 'house' : 'houses'}</Badge>
+              </div>
+              {lc1.phone && <PhoneLinks phone={lc1.phone} name={lc1.name} />}
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No LC1 chairpersons found</p>}
+          {lc1Groups.length === 0 && !search && <p className="text-center text-muted-foreground py-8">No LC1 data recorded yet</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── EMPTY HOUSES VIEW ───
+  if (view === 'empty') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen className="h-5 w-5 text-destructive" /> Empty Houses ({emptyHouses.length})</h2>
+        {emptyHouses.length > 0 && (
+          <div className="rounded-xl border-2 border-destructive/30 p-3 flex items-start gap-3">
+            <DoorOpen className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <p className="text-sm font-semibold text-destructive">{emptyHouses.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
+          </div>
+        )}
+        <div className="space-y-2">
+          {emptyHouses.map(house => (
+            <HouseCard key={house.id} house={house} onImages={setPreviewImages} onAdjust={setAdjustListing} onAction={setActionDialog} />
+          ))}
+          {emptyHouses.length === 0 && (
+            <div className="text-center py-12">
+              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
+              <p className="font-semibold">No empty houses! 🎉</p>
             </div>
           )}
-        </TabsContent>
+        </div>
+      </div>
+    );
+  }
 
-        {/* ──────── AGENTS TAB ──────── */}
-        <TabsContent value="agents" className="space-y-4 mt-4">
-          <p className="text-sm text-muted-foreground">Agent listing performance — ranked by total properties listed.</p>
-          <div className="grid gap-3">
-            {agentSummary.map(([agentId, agent], idx) => {
-              const empty = agent.listings.filter(l => l.status === 'available' && !l.tenant_id);
-              const occupied = agent.listings.filter(l => l.tenant_id);
-              const verified = agent.listings.filter(l => l.verified);
-              const occupancyRate = agent.listings.length ? Math.round((occupied.length / agent.listings.length) * 100) : 0;
-              return (
-                <div key={agentId} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm ${idx < 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                      {idx + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm truncate">{agent.name}</p>
-                      {agent.phone && <PhoneLinks phone={agent.phone} name={agent.name} />}
-                    </div>
+  // ─── OCCUPIED HOUSES VIEW ───
+  if (view === 'occupied') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedHouses.length})</h2>
+        <div className="space-y-2">
+          {occupiedHouses.map(house => (
+            <HouseCard key={house.id} house={house} onImages={setPreviewImages} showTenant />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── VERIFICATION VIEW ───
+  if (view === 'verify') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue ({unverifiedListings.length})</h2>
+        <ListingBonusApprovalQueue filter="all" />
+        <div className="space-y-2">
+          {unverifiedListings.map(house => (
+            <div key={house.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+              <HouseCardInner house={house} onImages={setPreviewImages} />
+              {/* LC1 Info */}
+              {house.lc1_chairperson_name && (
+                <div className="rounded-lg bg-amber-500/10 p-2 space-y-0.5">
+                  <p className="text-[10px] font-semibold text-amber-700">LC1 Chairperson</p>
+                  <p className="text-xs font-medium">{house.lc1_chairperson_name}</p>
+                  {house.lc1_chairperson_phone && <PhoneLinks phone={house.lc1_chairperson_phone} name={house.lc1_chairperson_name} />}
+                  {house.lc1_chairperson_village && <p className="text-[10px] text-muted-foreground">{house.lc1_chairperson_village}</p>}
+                </div>
+              )}
+              <Button size="sm" className="w-full h-11 gap-2 font-bold" onClick={() => handleVerifyListing(house)} disabled={verifying === house.id}>
+                {verifying === house.id ? <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Verify → CFO
+              </Button>
+            </div>
+          ))}
+          {unverifiedListings.length === 0 && (
+            <div className="text-center py-12">
+              <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
+              <p className="font-semibold">All listings verified! ✅</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── PIPELINE VIEW ───
+  if (view === 'pipeline') {
+    return (
+      <div className="space-y-4">
+        <BackButton />
+        <RentPipelineQueue stage="agent_verified" />
+        <DealPipeline />
+      </div>
+    );
+  }
+
+  // ─── CHAIN VIEW ───
+  if (view === 'chain') {
+    return (
+      <div className="space-y-4">
+        <BackButton />
+        <ChainHealthTab />
+      </div>
+    );
+  }
+
+  // ─── MATCHING VIEW ───
+  if (view === 'matching') {
+    return (
+      <div className="space-y-4">
+        <BackButton />
+        <TenantMatchingQueue onViewingCreated={() => refetch()} />
+      </div>
+    );
+  }
+
+  // ─── AGENTS VIEW ───
+  if (view === 'agents') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold flex items-center gap-2"><Users className="h-5 w-5 text-indigo-600" /> Listing Agents ({agentSummary.length})</h2>
+        <div className="space-y-2">
+          {agentSummary.map(([agentId, agent], idx) => {
+            const empty = agent.listings.filter(l => l.status === 'available' && !l.tenant_id);
+            const occupied = agent.listings.filter(l => l.tenant_id);
+            const verified = agent.listings.filter(l => l.verified);
+            const occupancyRate = agent.listings.length ? Math.round((occupied.length / agent.listings.length) * 100) : 0;
+            return (
+              <div key={agentId} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm ${idx < 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                    {idx + 1}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="text-[10px]">{agent.listings.length} listed</Badge>
-                    <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">{occupied.length} occupied</Badge>
-                    <Badge className="bg-red-500/20 text-red-700 border-0 text-[10px]">{empty.length} empty</Badge>
-                    <Badge className="bg-blue-500/20 text-blue-700 border-0 text-[10px]">{verified.length} verified</Badge>
-                    <Badge className={`border-0 text-[10px] ${occupancyRate >= 70 ? 'bg-green-500/20 text-green-700' : occupancyRate >= 40 ? 'bg-amber-500/20 text-amber-700' : 'bg-red-500/20 text-red-700'}`}>
-                      {occupancyRate}% occupancy
-                    </Badge>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{agent.name}</p>
+                    {agent.phone && <PhoneLinks phone={agent.phone} name={agent.name} />}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </TabsContent>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="text-[10px]">{agent.listings.length} listed</Badge>
+                  <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">{occupied.length} occupied</Badge>
+                  <Badge className="bg-red-500/20 text-red-700 border-0 text-[10px]">{empty.length} empty</Badge>
+                  <Badge className="bg-blue-500/20 text-blue-700 border-0 text-[10px]">{verified.length} verified</Badge>
+                  <Badge className={`border-0 text-[10px] ${occupancyRate >= 70 ? 'bg-green-500/20 text-green-700' : occupancyRate >= 40 ? 'bg-amber-500/20 text-amber-700' : 'bg-red-500/20 text-red-700'}`}>
+                    {occupancyRate}% occupancy
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
-        {/* ──────── ANALYTICS TAB ──────── */}
-        <TabsContent value="analytics" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
-            <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-            <KPICard title="Smartphone Landlords" value={smartphoneLandlords.length} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${uniqueLandlords.size}`} />
-            <KPICard title="Bonuses Pending" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
+  // ─── ANALYTICS VIEW ───
+  if (view === 'analytics') {
+    return (
+      <div className="space-y-4">
+        <BackButton />
+        <h2 className="text-lg font-bold">Analytics</h2>
+        <div className="grid grid-cols-2 gap-2">
+          <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
+          <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
+          <KPICard title="📱 Landlords" value={smartphoneLandlords.length} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${uniqueLandlords.length}`} />
+          <KPICard title="Bonuses Pending" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
+        </div>
+        <VacancyAnalytics listings={rows as any} />
+      </div>
+    );
+  }
+
+  // ─── HOME: Mobile-first card navigation ───
+  return (
+    <div className="space-y-4">
+      {/* Priority actions */}
+      <RentPipelineQueue stage="agent_verified" />
+      <LandlordOpsPayoutReview reviewRole="landlord_ops" />
+
+      {/* KPIs - compact grid */}
+      <div className="grid grid-cols-2 gap-2">
+        <KPICard title="Total Properties" value={rows.length} icon={Home} loading={isLoading} />
+        <KPICard title="Occupied" value={occupiedHouses.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} />
+        <KPICard title="Empty" value={emptyHouses.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
+        <KPICard title="Landlords" value={uniqueLandlords.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} />
+      </div>
+
+      {/* Verification alert */}
+      {unverifiedListings.length > 0 && (
+        <button
+          onClick={() => setView('verify')}
+          className="w-full rounded-xl border-2 border-amber-400/60 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-center gap-3 text-left min-h-[56px] touch-manipulation active:scale-[0.98] transition-transform"
+        >
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="font-bold text-amber-800 dark:text-amber-300 text-sm">🚨 {unverifiedListings.length} pending verification</p>
+            <p className="text-[10px] text-amber-700 dark:text-amber-400">UGX {fmt(unverifiedListings.length * 5000)} agent bonuses waiting</p>
           </div>
-          <VacancyAnalytics listings={rows as any} />
-        </TabsContent>
-      </Tabs>
+          <ChevronRight className="h-4 w-4 text-amber-600 shrink-0" />
+        </button>
+      )}
+
+      {/* Navigation Cards */}
+      <div className="space-y-2">
+        {/* Priority items first */}
+        {navItems.filter(n => n.priority).map(item => (
+          <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
+            item.id === 'landlords' ? `${uniqueLandlords.length}` :
+            item.id === 'locations' ? `${locationGroups.length}` :
+            item.id === 'lc1' ? `${lc1Groups.length}` : undefined
+          } />
+        ))}
+
+        {/* Divider */}
+        <div className="flex items-center gap-2 pt-2 pb-1">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-[10px] text-muted-foreground font-medium">MANAGEMENT</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        {navItems.filter(n => !n.priority).map(item => (
+          <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
+            item.id === 'empty' ? `${emptyHouses.length}` :
+            item.id === 'occupied' ? `${occupiedHouses.length}` :
+            item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
+            item.id === 'agents' ? `${agentSummary.length}` : undefined
+          } />
+        ))}
+      </div>
 
       {/* Dialogs */}
       {previewImages && (
@@ -642,6 +665,115 @@ export function LandlordOpsDashboard() {
           onComplete={() => refetch()}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Reusable Nav Card ───
+function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onClick: () => void; badge?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 p-4 rounded-xl border ${item.color} transition-all text-left min-h-[64px] touch-manipulation active:scale-[0.98]`}
+    >
+      <div className={`h-10 w-10 rounded-xl ${item.color.split(' ')[0]} flex items-center justify-center shrink-0`}>
+        <item.icon className="h-5 w-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm">{item.label}</p>
+        <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {badge && <Badge variant="outline" className="text-[10px] font-bold">{badge}</Badge>}
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </div>
+    </button>
+  );
+}
+
+// ─── House Card (mobile-friendly) ───
+function HouseCard({ house, onImages, onAdjust, onAction, showTenant }: {
+  house: ListingWithLandlord;
+  onImages: (v: { images: string[]; title: string }) => void;
+  onAdjust?: (v: ListingWithLandlord) => void;
+  onAction?: (v: { listing: ListingWithLandlord; type: 'delete' | 'delist' }) => void;
+  showTenant?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+      <HouseCardInner house={house} onImages={onImages} />
+      {/* Tenant info */}
+      {showTenant && house.tenant_id && (
+        <div className="rounded-lg bg-green-500/10 p-2 space-y-0.5">
+          <p className="text-[10px] font-semibold text-green-700">Tenant</p>
+          <p className="text-xs font-medium">{house.tenant_name || 'Unknown'}</p>
+          {house.tenant_phone && <PhoneLinks phone={house.tenant_phone} name={house.tenant_name} />}
+        </div>
+      )}
+      {/* Empty house actions */}
+      {onAdjust && onAction && (
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="flex-1 h-10 text-xs gap-1" onClick={() => onAdjust(house)}>
+            <TrendingDown className="h-3 w-3" /> Reduce
+          </Button>
+          <Button size="sm" variant="outline" className="h-10 text-xs gap-1 text-amber-600" onClick={() => onAction({ listing: house, type: 'delist' })}>
+            <XCircle className="h-3 w-3" /> Delist
+          </Button>
+          <Button size="sm" variant="outline" className="h-10 text-xs gap-1 text-destructive" onClick={() => onAction({ listing: house, type: 'delete' })}>
+            <Trash2 className="h-3 w-3" /> Delete
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── House card inner content (shared) ───
+function HouseCardInner({ house, onImages }: { house: ListingWithLandlord; onImages: (v: { images: string[]; title: string }) => void }) {
+  return (
+    <div className="flex gap-3">
+      {/* Thumbnail */}
+      <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-muted">
+        {house.image_urls?.[0] ? (
+          <button onClick={() => onImages({ images: house.image_urls!, title: house.title })} className="w-full h-full">
+            <img src={house.image_urls[0]} alt="" className="w-full h-full object-cover" />
+          </button>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Home className="h-5 w-5 text-muted-foreground/40" />
+          </div>
+        )}
+      </div>
+      {/* Details */}
+      <div className="flex-1 min-w-0 space-y-0.5">
+        <p className="font-bold text-sm truncate">{house.title}</p>
+        <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+          <MapPin className="h-2.5 w-2.5 shrink-0" />{house.region}{house.district ? `, ${house.district}` : ''}{house.village ? ` · ${house.village}` : ''}
+        </p>
+        <div className="flex flex-wrap gap-1 mt-0.5">
+          <Badge variant="outline" className="text-[9px] h-4 px-1">{house.house_category}</Badge>
+          <Badge variant="outline" className="text-[9px] h-4 px-1">{house.number_of_rooms} rooms</Badge>
+          <Badge variant="outline" className="text-[9px] h-4 px-1 font-bold">UGX {house.daily_rate.toLocaleString()}/day</Badge>
+          {house.verified ? (
+            <Badge className="bg-green-500/20 text-green-700 border-0 text-[9px] h-4 px-1">✅</Badge>
+          ) : (
+            <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[9px] h-4 px-1">⏳</Badge>
+          )}
+        </div>
+        {/* Landlord info */}
+        {house.landlords && (
+          <div className="mt-1">
+            <p className="text-[10px] text-muted-foreground">Landlord: <span className="font-medium text-foreground">{house.landlords.name}</span></p>
+            <PhoneLinks phone={house.landlords.phone} name={house.landlords.name} />
+          </div>
+        )}
+        {/* GPS link */}
+        {house.latitude && house.longitude && (
+          <a href={`https://www.google.com/maps?q=${house.latitude},${house.longitude}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline text-[10px] mt-0.5">
+            <MapPinned className="h-3 w-3" /> View on Map
+          </a>
+        )}
+      </div>
     </div>
   );
 }
