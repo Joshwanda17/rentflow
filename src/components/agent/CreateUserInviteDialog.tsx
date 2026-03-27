@@ -374,6 +374,8 @@ Just click the link and enter your password to get started!`;
           </div>
         </div>
       )}
+    </>
+  );
 
   const standardFormFields = (
     <div className="space-y-4">
