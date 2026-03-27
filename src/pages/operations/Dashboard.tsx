@@ -4,7 +4,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Users, Home, Building2, Handshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import ExecutiveLayout from '@/components/layout/ExecutiveLayout';
 
 const departmentConfig = {
   agent: { label: 'Agent Operations', icon: Users, route: '/executive-hub?tab=agent-ops' },
@@ -30,7 +29,6 @@ export default function OperationsDashboard() {
       setDepartments(deps);
       setLoading(false);
 
-      // Single department → redirect directly
       if (deps.length === 1) {
         const config = departmentConfig[deps[0] as keyof typeof departmentConfig];
         if (config) navigate(config.route, { replace: true });
@@ -48,37 +46,35 @@ export default function OperationsDashboard() {
   }
 
   return (
-    <ExecutiveLayout role="operations" activeSection="overview">
-      <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-black text-foreground">Operations Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Select a department to manage</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {departments.length === 0 && (
-            <p className="text-muted-foreground col-span-full text-center py-8">
-              No departments assigned. Contact your administrator.
-            </p>
-          )}
-          {departments.map(dep => {
-            const config = departmentConfig[dep as keyof typeof departmentConfig];
-            if (!config) return null;
-            const Icon = config.icon;
-            return (
-              <Button
-                key={dep}
-                variant="outline"
-                className="h-auto p-6 flex flex-col items-center gap-3 hover:border-primary/50"
-                onClick={() => navigate(config.route)}
-              >
-                <Icon className="h-8 w-8 text-primary" />
-                <span className="font-semibold">{config.label}</span>
-              </Button>
-            );
-          })}
-        </div>
+    <div className="min-h-screen bg-background p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-black text-foreground">Operations Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Select a department to manage</p>
       </div>
-    </ExecutiveLayout>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {departments.length === 0 && (
+          <p className="text-muted-foreground col-span-full text-center py-8">
+            No departments assigned. Contact your administrator.
+          </p>
+        )}
+        {departments.map(dep => {
+          const config = departmentConfig[dep as keyof typeof departmentConfig];
+          if (!config) return null;
+          const Icon = config.icon;
+          return (
+            <Button
+              key={dep}
+              variant="outline"
+              className="h-auto p-6 flex flex-col items-center gap-3 hover:border-primary/50"
+              onClick={() => navigate(config.route)}
+            >
+              <Icon className="h-8 w-8 text-primary" />
+              <span className="font-semibold">{config.label}</span>
+            </Button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
