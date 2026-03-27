@@ -20,11 +20,14 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  // Use the published app URL with short code for a clean branded link
-  const shareUrl = shortCode
+  // OG link goes through edge function for rich previews (image in WhatsApp), then redirects to app
+  const ogUrl = shortCode
+    ? `${OG_FUNCTION_URL}?c=${shortCode}`
+    : `${OG_FUNCTION_URL}?id=${listingId}`;
+  const displayUrl = shortCode
     ? `${APP_URL}/house/${shortCode}`
     : `${APP_URL}/house/${listingId}`;
-  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${shareUrl}`;
+  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${ogUrl}`;
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
