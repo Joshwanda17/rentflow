@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
   const { data: house } = await supabase
     .from("house_listings")
-    .select("title, region, district, daily_rate, monthly_rent, image_urls, house_category, number_of_rooms")
+    .select("title, region, district, daily_rate, image_urls, house_category, number_of_rooms")
     .eq("id", houseId)
     .single();
 
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   }
 
   const title = `${house.title} — ${formatUGX(house.daily_rate)}/day | Welile`;
-  const description = `${house.house_category?.replace(/_/g, " ")} • ${house.number_of_rooms} rooms in ${house.region}${house.district ? `, ${house.district}` : ""}. ${formatUGX(house.daily_rate)}/day (${formatUGX(house.monthly_rent)}/month). Pay as you stay with Welile!`;
+  const description = `${house.house_category?.replace(/_/g, " ")} • ${house.number_of_rooms} rooms in ${house.region}${house.district ? `, ${house.district}` : ""}. ${formatUGX(house.daily_rate)}/day. Pay as you stay with Welile!`;
   const image = house.image_urls?.[0] || `${SITE_URL}/og-image.png`;
   const houseUrl = `${SITE_URL}/house/${houseId}`;
 
