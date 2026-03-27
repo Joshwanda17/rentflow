@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 
 const APP_URL = 'https://welilereceipts.com';
+const OG_FUNCTION_URL = `https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/og-house`;
 
 interface ShareHouseButtonProps {
   listingId: string;
