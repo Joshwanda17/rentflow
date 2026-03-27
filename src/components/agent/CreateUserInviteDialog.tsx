@@ -351,121 +351,10 @@ Just click the link and enter your password to get started!`;
         </div>
       )}
 
-      {/* Section 4: Investment Details */}
-      <SectionHeader id="investment" title="Investment Details" emoji="💰" />
-      {expandedSection === 'investment' && (
-        <div className="space-y-3 px-1">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Investment Amount (UGX) *</Label>
-            <Input type="number" value={supporterData.investmentAmount} onChange={(e) => setSupporterData(prev => ({ ...prev, investmentAmount: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="Min 50,000" min={50000} inputMode="numeric" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Investment Duration *</Label>
-            <Select value={supporterData.durationMonths} onValueChange={(v) => setSupporterData(prev => ({ ...prev, durationMonths: v }))}>
-              <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3">3 months</SelectItem>
-                <SelectItem value="6">6 months</SelectItem>
-                <SelectItem value="12">12 months</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Monthly ROI (%)</Label>
-            <Input type="number" value={supporterData.roiPercentage} onChange={(e) => setSupporterData(prev => ({ ...prev, roiPercentage: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="15" min={1} max={100} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">ROI Payment Mode *</Label>
-            <Select value={supporterData.roiMode} onValueChange={(v) => setSupporterData(prev => ({ ...prev, roiMode: v }))}>
-              <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly_payout">Monthly Payout — ROI sent every month</SelectItem>
-                <SelectItem value="monthly_compounding">Monthly Compounding — ROI added to principal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {/* Payout cycle info - auto-calculated */}
-          <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
-            <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date (automatic)</p>
-          </div>
-          {Number(supporterData.investmentAmount) >= 50000 && (
-            <div className="p-3 rounded-xl bg-success/10 border border-success/20 space-y-1">
-              <p className="text-xs font-medium text-success">Monthly Return Preview</p>
-              <p className="text-sm font-bold text-foreground">
-                {formatUGX(Math.round(Number(supporterData.investmentAmount) * (Number(supporterData.roiPercentage) / 100)))} / month
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Section 5: ROI Payment Method */}
-      <SectionHeader id="payment" title="ROI Payment Method" emoji="💳" />
-      {expandedSection === 'payment' && (
-        <div className="space-y-3 px-1">
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => setSupporterData(prev => ({ ...prev, paymentMethod: 'mobile_money' }))}
-              className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${supporterData.paymentMethod === 'mobile_money' ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30'}`}>
-              <Smartphone className="h-6 w-6 mb-1.5 text-primary" />
-              <span className="text-xs font-semibold">Mobile Money</span>
-            </button>
-            <button type="button" onClick={() => setSupporterData(prev => ({ ...prev, paymentMethod: 'bank' }))}
-              className={`flex flex-col items-center p-4 rounded-xl border-2 transition-all ${supporterData.paymentMethod === 'bank' ? 'border-primary bg-primary/5' : 'border-transparent bg-muted/30'}`}>
-              <Landmark className="h-6 w-6 mb-1.5 text-primary" />
-              <span className="text-xs font-semibold">Bank Account</span>
-            </button>
-          </div>
-          {supporterData.paymentMethod === 'mobile_money' && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Mobile Network</Label>
-                <Select value={supporterData.mobileNetwork} onValueChange={(v) => setSupporterData(prev => ({ ...prev, mobileNetwork: v }))}>
-                  <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue placeholder="Select network" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mtn">MTN</SelectItem>
-                    <SelectItem value="airtel">Airtel</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Mobile Money Number</Label>
-                <Input value={supporterData.mobileMoneyNumber} onChange={(e) => setSupporterData(prev => ({ ...prev, mobileMoneyNumber: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="0770000000" inputMode="tel" />
-              </div>
-            </div>
-          )}
-          {supporterData.paymentMethod === 'bank' && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Bank Name</Label>
-                <Input value={supporterData.bankName} onChange={(e) => setSupporterData(prev => ({ ...prev, bankName: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="e.g. Stanbic Bank" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Account Name</Label>
-                <Input value={supporterData.accountName} onChange={(e) => setSupporterData(prev => ({ ...prev, accountName: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="Account holder name" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Account Number</Label>
-                <Input value={supporterData.accountNumber} onChange={(e) => setSupporterData(prev => ({ ...prev, accountNumber: e.target.value }))} className="h-12 text-base rounded-xl" placeholder="Account number" />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Section 6: Security */}
+      {/* Section 4: Security & Access (password only) */}
       <SectionHeader id="security" title="Security & Access" emoji="🔐" />
       {expandedSection === 'security' && (
         <div className="space-y-3 px-1">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium">4-Digit Portfolio PIN *</Label>
-              <Button type="button" variant="ghost" size="sm" onClick={generatePin} className="h-7 text-xs gap-1">
-                <Sparkles className="h-3 w-3" /> Generate
-              </Button>
-            </div>
-            <Input type="text" maxLength={4} value={supporterData.portfolioPin} onChange={(e) => setSupporterData(prev => ({ ...prev, portfolioPin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} className="h-12 text-base rounded-xl text-center font-mono tracking-[0.5em] text-2xl" placeholder="• • • •" inputMode="numeric" />
-            <p className="text-xs text-muted-foreground">Investor uses this PIN to access their portfolio</p>
-          </div>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="password" className="text-xs font-medium">Temporary Password *</Label>
@@ -480,10 +369,11 @@ Just click the link and enter your password to get started!`;
               </Button>
             </div>
           </div>
+          <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+            <p className="text-xs text-muted-foreground">ℹ️ Investment portfolio will be created by the <strong className="text-foreground">Partner Operations</strong> team after registration.</p>
+          </div>
         </div>
       )}
-    </>
-  );
 
   const standardFormFields = (
     <div className="space-y-4">
