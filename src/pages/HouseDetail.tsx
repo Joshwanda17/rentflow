@@ -52,13 +52,15 @@ export default function HouseDetail() {
 
   useEffect(() => {
     if (!id) return;
-    async function fetch() {
+    async function fetchListing() {
       setLoading(true);
-      const { data } = await supabase
-        .from('house_listings')
-        .select('*')
-        .eq('id', id)
-        .single();
+      // If id looks like a UUID, query by id; otherwise try short_code
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const query = isUuid
+        ? supabase.from('house_listings').select('*').eq('id', id).single()
+        : supabase.from('house_listings').select('*').eq('short_code', id).single();
+
+      const { data } = await query;
 
       if (data) {
         const { data: agent } = await supabase
@@ -75,7 +77,7 @@ export default function HouseDetail() {
       }
       setLoading(false);
     }
-    fetch();
+    fetchListing();
   }, [id]);
 
   const shareUrl = `${SITE_URL}/house/${id}`;
