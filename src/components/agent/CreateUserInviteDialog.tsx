@@ -222,34 +222,9 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     return `${getPublicOrigin()}/activate-supporter?token=${token}&password=${password}`;
   };
 
-  const getPortfolioLink = () => {
-    if (!createdInvite?.portfolioToken) return '';
-    return `${getPublicOrigin()}/investor/portfolio/${createdInvite.portfolioToken}`;
-  };
-
   const getWhatsAppMessage = () => {
     if (!createdInvite) return '';
     const config = roleConfig[createdInvite.role];
-
-    if (isSupporterRole && createdInvite.portfolioCode) {
-      return `${config.emoji} Welcome to Welile, ${createdInvite.fullName}!
-
-You've been registered as a Tenant Supporter (Investor)!
-
-💰 Portfolio: ${createdInvite.portfolioCode}
-📊 Investment: UGX ${createdInvite.investmentAmount?.toLocaleString()}
-📅 Duration: ${createdInvite.durationMonths} months
-📈 ROI: ${createdInvite.roiPercentage}% ${createdInvite.roiMode === 'monthly_compounding' ? '(Compounding)' : '(Monthly Payout)'}
-
-🔐 Your Portfolio PIN: ${supporterData.portfolioPin}
-🔐 Your Password: ${createdInvite.password}
-
-👉 View your portfolio:
-${getPortfolioLink()}
-
-👉 Activate your account:
-${getShareLink()}`;
-    }
 
     return `${config.emoji} Welcome to Welile, ${createdInvite.fullName}!
 
