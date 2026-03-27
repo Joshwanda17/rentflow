@@ -988,6 +988,18 @@ export function LandlordOpsDashboard() {
           onComplete={() => refetch()}
         />
       )}
+      <EditLandlordDialog
+        landlord={editLandlord}
+        open={!!editLandlord}
+        onClose={() => setEditLandlord(null)}
+        onSaved={() => refetch()}
+      />
+      <EditLC1Dialog
+        lc1={editLC1}
+        open={!!editLC1}
+        onClose={() => setEditLC1(null)}
+        onSaved={() => refetch()}
+      />
     </div>
   );
 }
