@@ -71,7 +71,7 @@ const loadApp = async () => {
   try {
     // Hard timeout: if imports hang >12s, reject so we show error UI
     const importTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Import timeout')), 12000)
+      setTimeout(() => reject(new Error('Import timeout')), 30000)
     );
     // Critical CSS loaded eagerly, rest deferred
     const importApp = Promise.all([
