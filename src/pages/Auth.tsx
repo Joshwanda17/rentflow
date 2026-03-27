@@ -265,6 +265,61 @@ export default function Auth() {
 
           <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
 
+          {/* Role badge for signup */}
+          {isSignUp && hasValidRole && (
+            <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  Signing up as: <span className="font-bold">{roleLabelMap[preSelectedRole!] || preSelectedRole}</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/welcome')}
+                className="text-xs text-primary hover:underline"
+              >
+                Change
+              </button>
+            </div>
+          )}
+
+          {/* Inline role selector when no role in URL */}
+          {needsRoleSelection && (
+            <Card className="border-border/40 shadow-sm mb-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">What do you need?</CardTitle>
+                <CardDescription>Select your role to get started</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {ROLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.role}
+                    type="button"
+                    onClick={() => handleSelectRole(opt.role)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-150",
+                      "bg-card border border-border/50 shadow-sm",
+                      "hover:shadow-md hover:scale-[1.01] active:scale-[0.98]",
+                      "touch-manipulation"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0",
+                      "bg-gradient-to-br", opt.gradient
+                    )}>
+                      <span>{opt.emoji}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border-border/40 shadow-sm overflow-hidden">
             {/* Prominent social sign-in for login view */}
             {!isForgotPassword && !isForgotPhone && !isSignUp && loginMode === 'password' && (
