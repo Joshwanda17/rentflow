@@ -124,16 +124,10 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     setFormData(prev => ({ ...prev, password }));
   };
 
-  const generatePin = () => {
-    const pin = String(Math.floor(1000 + Math.random() * 9000));
-    setSupporterData(prev => ({ ...prev, portfolioPin: pin }));
-  };
-
   useEffect(() => {
     if (open) {
       if (!formData.password) generatePassword();
       if (defaultRole) setSelectedRole(defaultRole);
-      if (!supporterData.portfolioPin) generatePin();
     }
   }, [open, defaultRole]);
 
