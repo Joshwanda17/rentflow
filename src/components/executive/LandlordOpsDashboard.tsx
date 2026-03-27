@@ -160,14 +160,14 @@ export function LandlordOpsDashboard() {
         profileFetches.push(
           supabase.from('profiles').select('id, full_name, phone').in('id', agentIds).then(({ data: profiles }) => {
             if (profiles) agentMap = new Map(profiles.map(p => [p.id, p]));
-          })
+          }).then(() => {})
         );
       }
       if (tenantIds.length) {
         profileFetches.push(
           supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds).then(({ data: profiles }) => {
             if (profiles) tenantMap = new Map(profiles.map(p => [p.id, p]));
-          })
+          }).then(() => {})
         );
       }
       await Promise.all(profileFetches);
