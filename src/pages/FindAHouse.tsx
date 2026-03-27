@@ -424,8 +424,7 @@ export default function FindAHouse() {
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available
-                {hasGPS ? ' · sorted by distance' : ''}
+                {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · sorted by lowest price
               </p>
               {filtered.map(listing => (
                 <PublicHouseCard key={listing.id} listing={listing} />
