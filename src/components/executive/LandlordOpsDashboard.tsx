@@ -1010,6 +1010,63 @@ export function LandlordOpsDashboard() {
         onClose={() => setEditLC1(null)}
         onSaved={() => refetch()}
       />
+      {/* Delete Landlord Confirmation */}
+      <Dialog open={!!deleteLandlord} onOpenChange={(o) => { if (!o) { setDeleteLandlord(null); setDeleteReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base text-destructive">Delete Landlord</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong>{deleteLandlord?.name}</strong>? This will unlink all associated house listings. This action cannot be undone.
+          </p>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Reason (min 10 chars) *</label>
+            <Input
+              value={deleteReason}
+              onChange={e => setDeleteReason(e.target.value)}
+              placeholder="Why is this landlord being deleted?"
+              className="h-10"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => { setDeleteLandlord(null); setDeleteReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              disabled={deleting || deleteReason.trim().length < 10}
+              onClick={async () => {
+                if (!deleteLandlord || !user) return;
+                setDeleting(true);
+                try {
+                  // Unlink listings first
+                  await supabase.from('house_listings').update({ landlord_id: null }).eq('landlord_id', deleteLandlord.id);
+                  // Delete landlord
+                  const { error } = await supabase.from('landlords').delete().eq('id', deleteLandlord.id);
+                  if (error) throw error;
+                  // Audit log
+                  await supabase.from('audit_logs').insert({
+                    user_id: user.id,
+                    action_type: 'landlord_deleted',
+                    table_name: 'landlords',
+                    record_id: deleteLandlord.id,
+                    metadata: { landlord_name: deleteLandlord.name, reason: deleteReason.trim(), deleted_by: 'landlord_ops' },
+                  });
+                  toast({ title: 'Landlord deleted', description: `${deleteLandlord.name} has been removed.` });
+                  setDeleteLandlord(null);
+                  setDeleteReason('');
+                  refetch();
+                } catch (err: any) {
+                  toast({ title: 'Error', description: err.message || 'Failed to delete landlord', variant: 'destructive' });
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
