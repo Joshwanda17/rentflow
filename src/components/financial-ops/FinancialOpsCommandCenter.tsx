@@ -10,15 +10,16 @@ import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
+import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { 
   ShieldCheck, Banknote, X, ArrowLeft, Menu, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits' | 'withdrawals';
+type View = 'home' | 'deposits' | 'withdrawals' | 'opportunities';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit';
 
 const tools = [
@@ -70,6 +71,18 @@ export function FinancialOpsCommandCenter() {
         </h2>
         <PendingWalletOperationsWidget />
         <FloatPayoutVerification />
+      </div>
+    );
+  }
+
+  // Sub-view: Post Capital Opportunities
+  if (view === 'opportunities') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <OpportunitySummaryForm onClose={() => setView('home')} />
       </div>
     );
   }
@@ -133,6 +146,20 @@ export function FinancialOpsCommandCenter() {
           <div>
             <p className="font-bold text-base">Withdrawals & Payouts</p>
             <p className="text-xs text-muted-foreground">Process wallet & float payouts</p>
+          </div>
+        </button>
+
+        {/* Capital Opportunities */}
+        <button
+          onClick={() => setView('opportunities')}
+          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-success/30 bg-success/5 hover:bg-success/10 hover:border-success/50 transition-all text-left min-h-[80px]"
+        >
+          <div className="h-12 w-12 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+            <TrendingUp className="h-6 w-6 text-success" />
+          </div>
+          <div>
+            <p className="font-bold text-base">Capital Opportunities</p>
+            <p className="text-xs text-muted-foreground">Post opportunity summaries for supporters</p>
           </div>
         </button>
       </div>
