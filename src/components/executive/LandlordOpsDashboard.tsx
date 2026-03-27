@@ -25,7 +25,9 @@ import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
 import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
-import { Trash2, XCircle } from 'lucide-react';
+import { Trash2, XCircle, Pencil } from 'lucide-react';
+import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
+import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
 
 
 interface ListingWithLandlord {
@@ -61,6 +63,17 @@ interface ListingWithLandlord {
     mobile_money_number: string | null;
     has_smartphone: boolean | null;
     number_of_houses: number | null;
+    bank_name: string | null;
+    account_number: string | null;
+    monthly_rent: number | null;
+    caretaker_name: string | null;
+    caretaker_phone: string | null;
+    tin: string | null;
+    electricity_meter_number: string | null;
+    water_meter_number: string | null;
+    village: string | null;
+    district: string | null;
+    region: string | null;
   } | null;
   agent_name?: string;
   agent_phone?: string;
@@ -184,6 +197,8 @@ export function LandlordOpsDashboard() {
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' } | null>(null);
+  const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
+  const [editLC1, setEditLC1] = useState<{ name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
 
   // ─── House Listings Query ───
   const { data: listings, isLoading, refetch } = useQuery({
@@ -194,7 +209,7 @@ export function LandlordOpsDashboard() {
           id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
           latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
           agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses)
+          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
         `)
         .order('created_at', { ascending: false })
         .limit(500);
@@ -357,17 +372,18 @@ export function LandlordOpsDashboard() {
     return [...map.values()].sort((a, b) => (b.listingCount + b.tenantCount) - (a.listingCount + a.tenantCount));
   }, [rows, noLandlordList]);
 
-  // LC1 grouping
+  // LC1 grouping (includes listingIds for editing)
   const lc1Groups = useMemo(() => {
-    const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number }>();
+    const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number; listingIds: string[] }>();
     rows.forEach(r => {
       if (!r.lc1_chairperson_name) return;
       const key = `${r.lc1_chairperson_name}|${r.lc1_chairperson_phone || ''}`;
       const existing = map.get(key);
       if (existing) {
         existing.houseCount++;
+        existing.listingIds.push(r.id);
       } else {
-        map.set(key, { name: r.lc1_chairperson_name, phone: r.lc1_chairperson_phone, village: r.lc1_chairperson_village, houseCount: 1 });
+        map.set(key, { name: r.lc1_chairperson_name, phone: r.lc1_chairperson_phone, village: r.lc1_chairperson_village, houseCount: 1, listingIds: [r.id] });
       }
     });
     return [...map.values()].sort((a, b) => b.houseCount - a.houseCount);
@@ -455,13 +471,22 @@ export function LandlordOpsDashboard() {
                   <p className="font-bold text-sm">{landlord?.name}</p>
                   {landlord?.phone && <PhoneLinks phone={landlord.phone} name={landlord.name} />}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  {landlord?.verified ? (
-                    <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
-                  ) : (
-                    <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
-                  )}
-                  <Badge variant="outline" className="text-[10px]">{landlord?.houseCount} {landlord?.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => landlord && setEditLandlord({ ...landlord, id })}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
+                    title="Edit landlord"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <div className="flex flex-col items-end gap-1">
+                    {landlord?.verified ? (
+                      <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
+                    ) : (
+                      <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
+                    )}
+                    <Badge variant="outline" className="text-[10px]">{landlord?.houseCount} {landlord?.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
@@ -539,7 +564,16 @@ export function LandlordOpsDashboard() {
                   <p className="font-bold text-sm">{lc1.name}</p>
                   {lc1.village && <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{lc1.village}</p>}
                 </div>
-                <Badge variant="outline" className="text-[10px]">{lc1.houseCount} {lc1.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditLC1(lc1)}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
+                    title="Edit LC1"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <Badge variant="outline" className="text-[10px]">{lc1.houseCount} {lc1.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                </div>
               </div>
               {lc1.phone && <PhoneLinks phone={lc1.phone} name={lc1.name} />}
             </div>
@@ -954,6 +988,18 @@ export function LandlordOpsDashboard() {
           onComplete={() => refetch()}
         />
       )}
+      <EditLandlordDialog
+        landlord={editLandlord}
+        open={!!editLandlord}
+        onClose={() => setEditLandlord(null)}
+        onSaved={() => refetch()}
+      />
+      <EditLC1Dialog
+        lc1={editLC1}
+        open={!!editLC1}
+        onClose={() => setEditLC1(null)}
+        onSaved={() => refetch()}
+      />
     </div>
   );
 }
