@@ -19,8 +19,9 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, variant 
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  const url = `${SITE_URL}/house/${listingId}`;
-  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${url}`;
+  // Use edge function URL for OG previews (WhatsApp/social link previews show image + price)
+  const ogUrl = `${SUPABASE_URL}/functions/v1/og-house?id=${listingId}`;
+  const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${ogUrl}`;
 
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
