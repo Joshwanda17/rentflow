@@ -111,12 +111,6 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     fullName: string;
     password: string;
     role: UserRole;
-    portfolioToken?: string;
-    portfolioCode?: string;
-    investmentAmount?: number;
-    durationMonths?: number;
-    roiPercentage?: number;
-    roiMode?: string;
   } | null>(null);
 
   const isSupporterRole = selectedRole === 'supporter';
