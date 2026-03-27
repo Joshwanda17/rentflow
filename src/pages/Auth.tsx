@@ -1063,6 +1063,7 @@ export default function Auth() {
               )}
             </CardContent>
           </Card>
+          )}
 
           <p className="text-center text-xs text-muted-foreground mt-6">
             By continuing, you agree to our{' '}
