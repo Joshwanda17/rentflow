@@ -63,6 +63,17 @@ interface ListingWithLandlord {
     mobile_money_number: string | null;
     has_smartphone: boolean | null;
     number_of_houses: number | null;
+    bank_name: string | null;
+    account_number: string | null;
+    monthly_rent: number | null;
+    caretaker_name: string | null;
+    caretaker_phone: string | null;
+    tin: string | null;
+    electricity_meter_number: string | null;
+    water_meter_number: string | null;
+    village: string | null;
+    district: string | null;
+    region: string | null;
   } | null;
   agent_name?: string;
   agent_phone?: string;
