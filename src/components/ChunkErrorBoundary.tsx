@@ -43,22 +43,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error) {
     console.error("ChunkErrorBoundary caught:", error);
-    
-    // Only auto-retry for chunk errors
-    if (!this.state.isChunkError) return;
-    
-    const retryCount = parseInt(sessionStorage.getItem("chunk_auto_retry") || "0", 10);
-    if (retryCount < 1) {
-      sessionStorage.setItem("chunk_auto_retry", String(retryCount + 1));
-      if ("caches" in window) {
-        caches.keys().then(keys =>
-          Promise.all(keys.filter(k => k.startsWith("welile-")).map(k => caches.delete(k)))
-        ).catch(() => {});
-      }
-      setTimeout(() => window.location.reload(), 2000);
-    } else {
-      sessionStorage.removeItem("chunk_auto_retry");
-    }
+    // No auto-reload — user can pull-to-refresh or tap Retry
   }
 
   handleRetry = async () => {
