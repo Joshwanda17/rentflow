@@ -198,7 +198,7 @@ export function LandlordOpsDashboard() {
           id, title, house_category, monthly_rent, daily_rate, number_of_rooms, address, district, village, region,
           latitude, longitude, image_urls, lc1_chairperson_name, lc1_chairperson_phone, lc1_chairperson_village,
           agent_id, landlord_id, tenant_id, verified, listing_bonus_paid, created_at, status,
-          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses)
+          landlords(id, name, phone, verified, mobile_money_name, mobile_money_number, has_smartphone, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region)
         `)
         .order('created_at', { ascending: false })
         .limit(500);
