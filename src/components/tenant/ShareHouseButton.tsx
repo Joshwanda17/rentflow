@@ -24,7 +24,7 @@ export function ShareHouseButton({ listingId, title, region, dailyRate, shortCod
   const ogUrl = shortCode
     ? `${OG_FUNCTION_URL}?c=${shortCode}`
     : `${OG_FUNCTION_URL}?id=${listingId}`;
-  const displayUrl = shortCode
+  const shareUrl = shortCode
     ? `${APP_URL}/house/${shortCode}`
     : `${APP_URL}/house/${listingId}`;
   const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${ogUrl}`;
