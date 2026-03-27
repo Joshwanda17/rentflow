@@ -214,7 +214,7 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
         <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
 
         {/* Share */}
-        <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} variant="full" />
+        <ShareHouseButton listingId={listing.id} title={listing.title} region={listing.region} dailyRate={listing.daily_rate} shortCode={listing.short_code} variant="full" />
       </div>
 
       {/* Fullscreen Lightbox */}
