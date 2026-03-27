@@ -34,6 +34,7 @@ export interface HouseListing {
   verified?: boolean | null;
   created_at: string;
   updated_at?: string;
+  short_code?: string | null;
   // Distance from spatial query
   distance_km?: number;
   // Agent contact (enriched client-side)

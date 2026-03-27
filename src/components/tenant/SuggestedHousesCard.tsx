@@ -24,6 +24,7 @@ interface SuggestedHouse {
   monthly_rent: number;
   daily_rate: number;
   image_urls: string[] | null;
+  short_code: string | null;
   agent_id: string;
   agent_name: string | null;
   agent_phone: string | null;
@@ -43,7 +44,7 @@ async function fetchSuggestions(userId: string): Promise<SuggestedHouse[]> {
 
   const { data: houses } = await client
     .from('house_listings')
-    .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, agent_id')
+    .select('id, title, address, region, district, house_category, number_of_rooms, monthly_rent, daily_rate, image_urls, short_code, agent_id')
     .eq('status', 'available')
     .is('tenant_id', null)
     .lte('monthly_rent', maxRent)
@@ -117,7 +118,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                   <div className="flex items-center justify-between pt-0.5">
                     <p className="text-sm font-black text-success">{formatUGX(house.daily_rate)}<span className="text-[10px] font-normal text-muted-foreground">/day</span></p>
                     <div className="flex items-center gap-1">
-                      <ShareHouseButton listingId={house.id} title={house.title} region={house.region} dailyRate={house.daily_rate} />
+                      <ShareHouseButton listingId={house.id} title={house.title} region={house.region} dailyRate={house.daily_rate} shortCode={house.short_code} />
                       {house.agent_phone && (
                         <WhatsAppAgentButton phone={house.agent_phone} agentName={house.agent_name} houseTitle={house.title} />
                       )}

@@ -1,9 +1,9 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const SITE_URL = "https://welilereceipts.com";
@@ -18,10 +18,12 @@ Deno.serve(async (req) => {
   }
 
   const url = new URL(req.url);
+  // Support both ?id=UUID and ?c=SHORT_CODE
   const houseId = url.searchParams.get("id");
+  const shortCode = url.searchParams.get("c");
 
-  if (!houseId) {
-    return new Response("Missing house id", { status: 400 });
+  if (!houseId && !shortCode) {
+    return new Response("Missing house id or code", { status: 400 });
   }
 
   const supabase = createClient(
@@ -29,14 +31,21 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const { data: house } = await supabase
+  let query = supabase
     .from("house_listings")
-    .select("title, region, district, daily_rate, image_urls, house_category, number_of_rooms")
-    .eq("id", houseId)
+    .select("id, short_code, title, region, district, daily_rate, image_urls, house_category, number_of_rooms")
+    .limit(1)
     .single();
 
+  if (shortCode) {
+    query = query.eq("short_code", shortCode);
+  } else {
+    query = query.eq("id", houseId);
+  }
+
+  const { data: house } = await query;
+
   if (!house) {
-    // Redirect to homepage if house not found
     return new Response(null, {
       status: 302,
       headers: { Location: SITE_URL, ...corsHeaders },
@@ -46,7 +55,7 @@ Deno.serve(async (req) => {
   const title = `${house.title} — ${formatUGX(house.daily_rate)}/day | Welile`;
   const description = `${house.house_category?.replace(/_/g, " ")} • ${house.number_of_rooms} rooms in ${house.region}${house.district ? `, ${house.district}` : ""}. ${formatUGX(house.daily_rate)}/day. Pay as you stay with Welile!`;
   const image = house.image_urls?.[0] || `${SITE_URL}/og-image.png`;
-  const houseUrl = `${SITE_URL}/house/${houseId}`;
+  const houseUrl = `${SITE_URL}/house/${house.id}`;
 
   const html = `<!DOCTYPE html>
 <html>
