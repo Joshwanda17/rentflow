@@ -6,6 +6,7 @@ import { Sparkles, MapPin, DoorOpen, ChevronRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
+import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 
 interface SuggestedHousesCardProps {
   userId: string;
