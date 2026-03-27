@@ -10,16 +10,19 @@ interface ShareHouseButtonProps {
   title: string;
   region: string;
   dailyRate: number;
+  shortCode?: string | null;
   /** 'icon' = small icon button, 'full' = full-width button with WhatsApp */
   variant?: 'icon' | 'full';
 }
 
-export function ShareHouseButton({ listingId, title, region, dailyRate, variant = 'icon' }: ShareHouseButtonProps) {
+export function ShareHouseButton({ listingId, title, region, dailyRate, shortCode, variant = 'icon' }: ShareHouseButtonProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  // Use edge function URL for OG previews (WhatsApp/social link previews show image + price)
-  const ogUrl = `${SUPABASE_URL}/functions/v1/og-house?id=${listingId}`;
+  // Use short code for a clean branded URL, fall back to full ID
+  const ogUrl = shortCode
+    ? `${SUPABASE_URL}/functions/v1/og-house?c=${shortCode}`
+    : `${SUPABASE_URL}/functions/v1/og-house?id=${listingId}`;
   const message = `🏠 Check out this house on Welile!\n\n*${title}*\n📍 ${region}\n💰 ${formatUGX(dailyRate)}/day\n\n👉 ${ogUrl}`;
 
   const handleCopyLink = async (e: React.MouseEvent) => {
