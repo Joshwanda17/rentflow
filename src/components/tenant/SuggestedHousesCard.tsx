@@ -24,6 +24,7 @@ interface SuggestedHouse {
   monthly_rent: number;
   daily_rate: number;
   image_urls: string[] | null;
+  short_code: string | null;
   agent_id: string;
   agent_name: string | null;
   agent_phone: string | null;
