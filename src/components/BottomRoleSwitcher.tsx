@@ -71,7 +71,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/40 pb-[env(safe-area-inset-bottom)]">
+      <nav className="sticky bottom-0 left-0 right-0 z-50 bg-background border-t border-border/40 pb-[env(safe-area-inset-bottom)]">
         <div className={cn("grid max-w-lg mx-auto", cols === 5 ? "grid-cols-5" : "grid-cols-4")}>
           {PUBLIC_ROLES.map(({ role, label, icon: Icon }) => {
             const isActive = role === currentRole;
