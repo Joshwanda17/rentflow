@@ -95,7 +95,7 @@ export function CEODashboard() {
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('updated_at', thirtyDaysAgo),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).not('referred_by', 'is', null),
-        supabase.from('general_ledger').select('amount').gte('transaction_date', todayStart).limit(1000),
+        supabase.from('general_ledger').select('amount').gte('transaction_date', todayStart).limit(200),
       ]);
 
       const total = (approxTotal.data as number) || 1;

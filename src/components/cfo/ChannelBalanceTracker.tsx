@@ -21,7 +21,7 @@ export function ChannelBalanceTracker() {
         .select('amount, provider, status, created_at')
         .eq('status', 'approved')
         .order('created_at', { ascending: false })
-        .limit(1000);
+        .limit(200);
       if (error) throw error;
       return data || [];
     },
