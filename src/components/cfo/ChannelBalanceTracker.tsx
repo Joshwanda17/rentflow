@@ -25,7 +25,8 @@ export function ChannelBalanceTracker() {
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: withdrawals = [] } = useQuery({
@@ -35,11 +36,12 @@ export function ChannelBalanceTracker() {
         .from('withdrawal_requests')
         .select('amount, payout_method, status, created_at')
         .eq('status', 'completed')
-        .limit(1000);
+        .limit(200);
       if (error) throw error;
       return data || [];
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const channelData = useMemo(() => {

@@ -38,8 +38,8 @@ export function CTODashboard() {
       const t1 = performance.now();
       return Math.round(t1 - t0);
     },
-    staleTime: 60000,
-    refetchInterval: 60000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   // Real: daily signup velocity (last 14 days) - measures system load

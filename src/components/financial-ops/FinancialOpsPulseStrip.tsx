@@ -29,8 +29,8 @@ export function FinancialOpsPulseStrip() {
         todayVolume: d.today_volume,
       };
     },
-    refetchInterval: 30000,
-    staleTime: 15000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const pulseItems: PulseMetric[] = [

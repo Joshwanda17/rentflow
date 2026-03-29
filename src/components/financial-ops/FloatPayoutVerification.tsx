@@ -67,7 +67,8 @@ export function FloatPayoutVerification() {
       return enriched;
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const pendingCount = payouts.filter((p: any) => p.status === 'pending_agent_ops').length;

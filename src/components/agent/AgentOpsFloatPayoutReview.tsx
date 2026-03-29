@@ -74,7 +74,8 @@ export function AgentOpsFloatPayoutReview({
       return enriched;
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const reviewMutation = useMutation({

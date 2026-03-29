@@ -27,7 +27,8 @@ function AnomalyAlerts() {
         .limit(20);
       return (data || []) as any[];
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const acknowledge = async (id: string) => {

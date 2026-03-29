@@ -68,8 +68,8 @@ export function CFOReceivablesTracker() {
         landlord_name: landlordMap[r.landlord_id] || 'Unknown',
       })) as Receivable[];
     },
-    staleTime: 60000,
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const rows = receivables || [];

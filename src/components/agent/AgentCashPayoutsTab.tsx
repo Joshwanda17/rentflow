@@ -49,7 +49,8 @@ export function AgentCashPayoutsTab() {
       return data || [];
     },
     enabled: !!isCashoutAgent,
-    refetchInterval: 15000,
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
   });
 
   // Pending bank withdrawal requests
@@ -67,7 +68,8 @@ export function AgentCashPayoutsTab() {
       return data || [];
     },
     enabled: !!isCashoutAgent?.handles_bank,
-    refetchInterval: 15000,
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
   });
 
   // Verify payout code
