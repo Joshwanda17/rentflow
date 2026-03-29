@@ -241,8 +241,8 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         };
       });
     },
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const rows = requests || [];

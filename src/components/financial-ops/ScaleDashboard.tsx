@@ -279,7 +279,8 @@ function BatchStatus() {
         .limit(5);
       return (data || []) as any[];
     },
-    refetchInterval: 60000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const triggerBatch = async () => {
