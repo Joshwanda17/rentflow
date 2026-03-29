@@ -48,7 +48,7 @@ export function CTODashboard() {
     queryFn: async () => {
       const since = subDays(new Date(), 14).toISOString();
       const { data } = await supabase.from('profiles').select('created_at')
-        .gte('created_at', since).order('created_at', { ascending: true }).limit(1000);
+        .gte('created_at', since).order('created_at', { ascending: true }).limit(200);
       if (!data) return [];
       const byDay: Record<string, number> = {};
       for (let i = 13; i >= 0; i--) {
