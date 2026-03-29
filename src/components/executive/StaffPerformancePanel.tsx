@@ -34,7 +34,7 @@ export function StaffPerformancePanel() {
         .select('user_id, action_type, created_at, metadata')
         .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(1000);
+        .limit(200);
       return (data || []) as StaffAction[];
     },
     staleTime: 600000,

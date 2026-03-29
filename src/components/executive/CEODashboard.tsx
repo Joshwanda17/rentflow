@@ -29,7 +29,7 @@ export function CEODashboard() {
   const { data: rentStats, isLoading: loadingRent } = useQuery({
     queryKey: ['exec-rent-stats'],
     queryFn: async () => {
-      const { data } = await supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, created_at').limit(1000);
+      const { data } = await supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, created_at').limit(200);
       const rows = data || [];
       const funded = rows.filter(r => ['funded', 'disbursed', 'repaying', 'fully_repaid'].includes(r.status)).length;
       const totalFinanced = rows.reduce((s, r) => s + (r.rent_amount || 0), 0);
@@ -60,7 +60,7 @@ export function CEODashboard() {
   const { data: revenue } = useQuery({
     queryKey: ['exec-revenue'],
     queryFn: async () => {
-      const { data } = await supabase.from('general_ledger').select('amount').eq('category', 'platform_fee').eq('direction', 'credit').limit(1000);
+      const { data } = await supabase.from('general_ledger').select('amount').eq('category', 'platform_fee').eq('direction', 'credit').limit(200);
       return (data || []).reduce((s, r) => s + r.amount, 0);
     },
     staleTime: 600000,
@@ -95,7 +95,7 @@ export function CEODashboard() {
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).gte('updated_at', thirtyDaysAgo),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).not('referred_by', 'is', null),
-        supabase.from('general_ledger').select('amount').gte('transaction_date', todayStart).limit(1000),
+        supabase.from('general_ledger').select('amount').gte('transaction_date', todayStart).limit(200),
       ]);
 
       const total = (approxTotal.data as number) || 1;

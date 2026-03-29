@@ -63,7 +63,8 @@ export function LandlordOpsPayoutReview({ reviewRole }: LandlordOpsPayoutReviewP
       }));
       return enriched;
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const approveMutation = useMutation({

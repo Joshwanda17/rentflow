@@ -39,7 +39,7 @@ interface DashboardMetrics {
   weeklyRepayments: number;
 }
 
-const REFRESH_INTERVAL = 30000; // 30 seconds
+const REFRESH_INTERVAL = 300_000; // 5 minutes (was 30s)
 
 export default function TVDashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({

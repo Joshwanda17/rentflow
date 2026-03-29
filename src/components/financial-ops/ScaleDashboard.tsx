@@ -27,7 +27,8 @@ function AnomalyAlerts() {
         .limit(20);
       return (data || []) as any[];
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const acknowledge = async (id: string) => {
@@ -119,7 +120,8 @@ function ChannelHealth() {
       if (error) throw error;
       return data as any;
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const channels = [
@@ -195,7 +197,8 @@ function AgentWorkload() {
       if (error) throw error;
       return (data as any[]) || [];
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   if (agents.length === 0 && !isLoading) {
@@ -276,7 +279,8 @@ function BatchStatus() {
         .limit(5);
       return (data || []) as any[];
     },
-    refetchInterval: 60000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   const triggerBatch = async () => {

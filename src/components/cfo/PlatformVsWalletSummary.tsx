@@ -38,7 +38,8 @@ export function PlatformVsWalletSummary() {
 
       return { totalWallets, platformNet, ledgerNetWallets, variance, platformCashIn, platformCashOut };
     },
-    refetchInterval: 60000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   if (isLoading) {

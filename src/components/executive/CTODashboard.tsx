@@ -38,8 +38,8 @@ export function CTODashboard() {
       const t1 = performance.now();
       return Math.round(t1 - t0);
     },
-    staleTime: 60000,
-    refetchInterval: 60000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   // Real: daily signup velocity (last 14 days) - measures system load
@@ -48,7 +48,7 @@ export function CTODashboard() {
     queryFn: async () => {
       const since = subDays(new Date(), 14).toISOString();
       const { data } = await supabase.from('profiles').select('created_at')
-        .gte('created_at', since).order('created_at', { ascending: true }).limit(1000);
+        .gte('created_at', since).order('created_at', { ascending: true }).limit(200);
       if (!data) return [];
       const byDay: Record<string, number> = {};
       for (let i = 13; i >= 0; i--) {
@@ -109,7 +109,7 @@ export function CTODashboard() {
     queryKey: ['cto-pipeline-health'],
     queryFn: async () => {
       const { data } = await supabase.from('rent_requests')
-        .select('status').limit(1000);
+        .select('status').limit(200);
       if (!data) return { total: 0, pending: 0, active: 0, completed: 0, failed: 0 };
       const counts = { total: data.length, pending: 0, active: 0, completed: 0, failed: 0 };
       data.forEach(r => {

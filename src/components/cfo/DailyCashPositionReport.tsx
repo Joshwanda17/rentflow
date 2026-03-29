@@ -36,7 +36,7 @@ export function DailyCashPositionReport() {
 
       // User funds held in custody (separate from platform)
       const { data: wallets } = await supabase
-        .from('wallets').select('balance').gt('balance', 0);
+        .from('wallets').select('balance').gt('balance', 0).limit(500);
       const userFundsCustody = (wallets || []).reduce((s, w) => s + w.balance, 0);
 
       // Get pending obligations

@@ -35,12 +35,11 @@ export default function FinancialMetricsCards() {
         pendingWithdrawals,
         failedWithdrawals,
       ] = await Promise.all([
-        supabase.from('general_ledger').select('amount').eq('category', 'rent_repayment').eq('direction', 'cash_in'),
-        supabase.from('general_ledger').select('amount, direction').gte('transaction_date', todayISO),
-        supabase.from('general_ledger').select('amount, direction').gte('transaction_date', monthISO),
-        supabase.from('agent_collections').select('amount'),
-        // Use count head request to avoid 1000-row limit, then sum via a separate approach
-        supabase.from('wallets').select('balance'),
+        supabase.from('general_ledger').select('amount').eq('category', 'rent_repayment').eq('direction', 'cash_in').limit(500),
+        supabase.from('general_ledger').select('amount, direction').gte('transaction_date', todayISO).limit(500),
+        supabase.from('general_ledger').select('amount, direction').gte('transaction_date', monthISO).limit(500),
+        supabase.from('agent_collections').select('amount').limit(500),
+        supabase.from('wallets').select('balance').limit(500),
         supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).in('status', ['pending', 'manager_approved', 'cfo_approved']),
         supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
       ]);

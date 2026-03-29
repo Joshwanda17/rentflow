@@ -146,7 +146,7 @@ export function useWallet() {
         .select('*')
         .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(5);
 
       if (error) {
         console.error('Error fetching transactions:', error);

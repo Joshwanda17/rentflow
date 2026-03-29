@@ -75,7 +75,8 @@ export default function CFOReconciliationPanel() {
       const { data: wallets, error: wErr } = await supabase
         .from('wallets')
         .select('user_id, balance')
-        .gt('balance', 0);
+        .gt('balance', 0)
+        .limit(500);
       if (wErr) throw wErr;
 
       const { data: ledgerIn, error: lInErr } = await supabase
