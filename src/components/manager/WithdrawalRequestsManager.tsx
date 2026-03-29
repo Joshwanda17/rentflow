@@ -194,7 +194,7 @@ export function WithdrawalRequestsManager() {
         .from('withdrawal_requests')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(1000);
+        .limit(100);
 
       if (error) throw error;
 

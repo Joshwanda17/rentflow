@@ -57,7 +57,7 @@ export default function FinancialTransactionsTable() {
       const { data } = await supabase
         .from('general_ledger')
         .select('category')
-        .limit(1000);
+        .limit(200);
       if (!data) return [];
       return [...new Set(data.map(t => t.category))].sort();
     },

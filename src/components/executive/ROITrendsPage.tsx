@@ -44,7 +44,7 @@ export default function ROITrendsPage() {
         .select('roi_amount, paid_at, status, due_date')
         .eq('status', 'paid')
         .order('paid_at', { ascending: true })
-        .limit(1000);
+        .limit(200);
       if (error) throw error;
       return data || [];
     },

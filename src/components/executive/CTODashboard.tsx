@@ -109,7 +109,7 @@ export function CTODashboard() {
     queryKey: ['cto-pipeline-health'],
     queryFn: async () => {
       const { data } = await supabase.from('rent_requests')
-        .select('status').limit(1000);
+        .select('status').limit(200);
       if (!data) return { total: 0, pending: 0, active: 0, completed: 0, failed: 0 };
       const counts = { total: data.length, pending: 0, active: 0, completed: 0, failed: 0 };
       data.forEach(r => {

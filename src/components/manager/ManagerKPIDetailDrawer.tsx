@@ -170,7 +170,7 @@ export function ManagerKPIDetailDrawer({ type, open, onOpenChange }: ManagerKPID
       .from('rent_requests')
       .select('status, rent_amount, total_repayment, amount_repaid, funded_at')
       .in('status', ['approved', 'funded', 'disbursed'])
-      .limit(1000);
+      .limit(200);
 
     const requests = data || [];
     let totalOwed = 0;
