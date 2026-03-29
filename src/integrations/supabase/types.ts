@@ -8263,6 +8263,7 @@ export type Database = {
           balance: number
           created_at: string
           id: string
+          locked_balance: number
           updated_at: string
           user_id: string
         }
@@ -8270,6 +8271,7 @@ export type Database = {
           balance?: number
           created_at?: string
           id?: string
+          locked_balance?: number
           updated_at?: string
           user_id: string
         }
@@ -8277,6 +8279,7 @@ export type Database = {
           balance?: number
           created_at?: string
           id?: string
+          locked_balance?: number
           updated_at?: string
           user_id?: string
         }
