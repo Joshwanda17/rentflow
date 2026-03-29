@@ -197,7 +197,8 @@ function AgentWorkload() {
       if (error) throw error;
       return (data as any[]) || [];
     },
-    refetchInterval: 30000,
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
   });
 
   if (agents.length === 0 && !isLoading) {
