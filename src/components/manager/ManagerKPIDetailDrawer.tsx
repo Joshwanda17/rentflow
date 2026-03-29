@@ -136,7 +136,7 @@ export function ManagerKPIDetailDrawer({ type, open, onOpenChange }: ManagerKPID
       .from('rent_requests')
       .select('status, rent_amount, funded_at')
       .in('status', ['funded', 'disbursed', 'completed', 'approved'])
-      .limit(1000);
+      .limit(200);
 
     const statusAmounts: Record<string, number> = {};
     (amountData || []).forEach(r => {
