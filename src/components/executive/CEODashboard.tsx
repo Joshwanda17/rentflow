@@ -60,7 +60,7 @@ export function CEODashboard() {
   const { data: revenue } = useQuery({
     queryKey: ['exec-revenue'],
     queryFn: async () => {
-      const { data } = await supabase.from('general_ledger').select('amount').eq('category', 'platform_fee').eq('direction', 'credit').limit(1000);
+      const { data } = await supabase.from('general_ledger').select('amount').eq('category', 'platform_fee').eq('direction', 'credit').limit(200);
       return (data || []).reduce((s, r) => s + r.amount, 0);
     },
     staleTime: 600000,
