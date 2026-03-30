@@ -42,6 +42,7 @@ interface PartnerRow {
   id: string;
   name: string;
   phone: string;
+  email: string;
   funded: number;
   activeDeals: number;
   avgDeal: number;
