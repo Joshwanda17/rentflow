@@ -125,7 +125,15 @@ export function DepositRequestsManager() {
     };
   }, [statusFilter]);
 
-  const handleApprove = async (deposit: DepositRequest) => {
+  const openApproveDialog = (deposit: DepositRequest) => {
+    setApproveDialog({ open: true, deposit });
+    setApproveTid('');
+  };
+
+  const handleApprove = async () => {
+    const deposit = approveDialog.deposit;
+    if (!deposit) return;
+    setApproveDialog({ open: false, deposit: null });
     setProcessingIds(prev => new Set(prev).add(deposit.id));
     try {
       const { data, error } = await supabase.functions.invoke('approve-deposit', {
@@ -133,11 +141,13 @@ export function DepositRequestsManager() {
           deposit_request_id: deposit.id,
           action: 'approve',
           is_manager: true,
+          transaction_id: approveTid.trim().toUpperCase(),
         },
       });
 
       if (error) throw error;
       toast.success(`Approved deposit of ${formatUGX(deposit.amount)}`);
+      setApproveTid('');
       fetchDeposits();
     } catch (error: any) {
       toast.error(error.message || 'Failed to approve deposit');
