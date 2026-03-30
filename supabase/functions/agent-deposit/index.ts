@@ -247,24 +247,16 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Credit agent commission (deducted from repayment, so net effect handled below)
-        const { data: agentWallet } = await adminClient
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', agentId)
-          .single();
-
-        // Record agent earning
-        await adminClient
-          .from('agent_earnings')
-          .insert({
-            agent_id: agentId,
-            amount: commission,
-            earning_type: 'commission',
-            source_user_id: targetUserId,
-            rent_request_id: activeRentRequest.id,
-            description: `5% commission on UGX ${repaymentAmount.toLocaleString()} repayment`,
-          });
+        // Credit agent commission via the single-writer RPC (handles ledger, wallet trigger, sub-agent splits, idempotency)
+        const { data: commissionResult } = await adminClient.rpc("credit_agent_rent_commission", {
+          p_rent_request_id: activeRentRequest.id,
+          p_repayment_amount: repaymentAmount,
+          p_source_table: "agent_deposit",
+          p_source_id: activeRentRequest.id,
+        });
+        
+        // Use actual commission from RPC result (may differ due to sub-agent split)
+        const actualCommission = commissionResult?.commission || commission;
 
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId) {
