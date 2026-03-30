@@ -1584,13 +1584,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   ) : (
                                     <div className="flex items-center gap-1.5">
                                       <span className="font-bold">{p.payout_day}{getOrdinalSuffix(p.payout_day)} of month</span>
-                                      <button
-                                        onClick={() => { setEditingPortfolioId(p.id); setEditingPayoutDay(String(p.payout_day)); }}
-                                        className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                        title="Edit payout day"
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </button>
+                                      {!readOnly && (
+                                        <button
+                                          onClick={() => { setEditingPortfolioId(p.id); setEditingPayoutDay(String(p.payout_day)); }}
+                                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                          title="Edit payout day"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
