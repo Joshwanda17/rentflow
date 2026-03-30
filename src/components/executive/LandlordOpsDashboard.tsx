@@ -1169,9 +1169,12 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
       )}
       {/* Empty house actions */}
       {onAdjust && onAction && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button size="sm" variant="outline" className="flex-1 h-10 text-xs gap-1" onClick={() => onAdjust(house)}>
             <TrendingDown className="h-3 w-3" /> Reduce
+          </Button>
+          <Button size="sm" variant="outline" className="h-10 text-xs gap-1 text-orange-600" onClick={() => onAction({ listing: house, type: 'reject' })}>
+            <XCircle className="h-3 w-3" /> Reject
           </Button>
           <Button size="sm" variant="outline" className="h-10 text-xs gap-1 text-amber-600" onClick={() => onAction({ listing: house, type: 'delist' })}>
             <XCircle className="h-3 w-3" /> Delist
