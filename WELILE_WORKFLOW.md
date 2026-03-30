@@ -1624,6 +1624,14 @@ Listing appears on /find-a-house immediately
     ↓
 Badge: "Pending Verification" or "Verified"
     ↓
+Landlord Ops Manager reviews:
+  - Approve → listing stays active
+  - Reject → status set to 'rejected' with mandatory reason (≥10 chars)
+    ↓
+Rejected listings pushed back to agent dashboard with red indicator
+    ↓
+Agent can fix issues and "Relist" (status → 'available')
+    ↓
 Discovery: PostGIS spatial indexing (GIST) for proximity
     ↓
 Leaflet map with MarkerCluster for dense areas
