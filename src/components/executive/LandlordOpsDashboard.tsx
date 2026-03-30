@@ -263,11 +263,16 @@ export function LandlordOpsDashboard() {
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('landlords')
           .select('id, name, phone, verified, has_smartphone, mobile_money_name, mobile_money_number, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region, property_address, tenant_id, registered_by, managed_by_agent_id, house_category, number_of_rooms, created_at')
           .order('created_at', { ascending: false })
           .range(offset, offset + PAGE_SIZE - 1);
+        if (error) {
+          console.error('Landlords query error:', error);
+          hasMore = false;
+          break;
+        }
         if (data && data.length > 0) {
           allData.push(...data);
           offset += PAGE_SIZE;
