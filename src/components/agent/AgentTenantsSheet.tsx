@@ -72,6 +72,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
+  const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -98,21 +99,25 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           .from('rent_requests')
           .select('tenant_id, total_repayment, amount_repaid, status, tenant_no_smartphone')
           .in('tenant_id', tenantIds)
-          .in('status', ['approved', 'disbursed', 'repaying']);
+          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed']);
 
         const balances: Record<string, number> = {};
         const totals: Record<string, { total: number; paid: number }> = {};
         const phoneMap: Record<string, boolean> = {};
+        const statusMap: Record<string, Set<string>> = {};
         (rentRequests || []).forEach(rr => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
           const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
           totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
           if (rr.tenant_no_smartphone) phoneMap[rr.tenant_id] = true;
+          if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
+          if (rr.status) statusMap[rr.tenant_id].add(rr.status);
         });
         setTenantBalances(balances);
         setTenantTotals(totals);
         setNoSmartphoneMap(phoneMap);
+        setTenantStatuses(statusMap);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
@@ -158,21 +163,31 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       t.phone.includes(search)
     );
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const activeStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying']);
 
     switch (activeFilter) {
       case 'owing':
         list = list.filter(t => (tenantBalances[t.id] || 0) > 0);
         break;
+      case 'all':
+        list = list.filter(t => tenantStatuses[t.id] && tenantStatuses[t.id].size > 0);
+        break;
       case 'active':
-        list = list.filter(t => (tenantBalances[t.id] || 0) > 0 || t.monthly_rent);
+        list = list.filter(t => {
+          const statuses = tenantStatuses[t.id];
+          if (!statuses) return false;
+          return [...statuses].some(s => activeStatuses.has(s));
+        });
         break;
       case 'cleared':
-        list = list.filter(t => (tenantBalances[t.id] || 0) === 0 && t.verified);
+        list = list.filter(t => {
+          const statuses = tenantStatuses[t.id];
+          if (!statuses) return false;
+          return statuses.has('completed') || ((tenantBalances[t.id] || 0) === 0 && [...statuses].some(s => activeStatuses.has(s)));
+        });
         break;
       case 'new':
-        list = list.filter(t => new Date(t.created_at) > thirtyDaysAgo);
+        list = list.filter(t => tenantStatuses[t.id]?.has('pending'));
         break;
       case 'no-phone':
         list = list.filter(t => noSmartphoneMap[t.id]);
@@ -189,24 +204,32 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     });
 
     return list;
-  }, [tenants, search, activeFilter, sortMode, tenantBalances, noSmartphoneMap]);
+  }, [tenants, search, activeFilter, sortMode, tenantBalances, noSmartphoneMap, tenantStatuses]);
 
   // Stats
   const stats = useMemo(() => {
+    const activeStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying']);
     const totalOwing = Object.values(tenantBalances).reduce((s, v) => s + v, 0);
     const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
-    const clearedCount = tenants.filter(t => (tenantBalances[t.id] || 0) === 0 && t.verified).length;
+    const allCount = tenants.filter(t => tenantStatuses[t.id] && tenantStatuses[t.id].size > 0).length;
+    const activeCount = tenants.filter(t => {
+      const s = tenantStatuses[t.id];
+      return s && [...s].some(st => activeStatuses.has(st));
+    }).length;
+    const clearedCount = tenants.filter(t => {
+      const s = tenantStatuses[t.id];
+      if (!s) return false;
+      return s.has('completed') || ((tenantBalances[t.id] || 0) === 0 && [...s].some(st => activeStatuses.has(st)));
+    }).length;
     const noPhoneCount = Object.values(noSmartphoneMap).filter(Boolean).length;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const newCount = tenants.filter(t => new Date(t.created_at) > thirtyDaysAgo).length;
-    return { totalOwing, owingCount, total: tenants.length, noPhoneCount, clearedCount, newCount };
-  }, [tenants, tenantBalances, noSmartphoneMap]);
+    const newCount = tenants.filter(t => tenantStatuses[t.id]?.has('pending')).length;
+    return { totalOwing, owingCount, total: tenants.length, noPhoneCount, clearedCount, newCount, allCount, activeCount };
+  }, [tenants, tenantBalances, noSmartphoneMap, tenantStatuses]);
 
   const filterTabs: { key: FilterTab; label: string; emoji: string; count: number; color: string; activeColor: string }[] = [
     { key: 'owing', label: 'Owing', emoji: '🔴', count: stats.owingCount, color: 'text-destructive', activeColor: 'bg-destructive text-destructive-foreground' },
-    { key: 'all', label: 'All', emoji: '👥', count: stats.total, color: 'text-foreground', activeColor: 'bg-primary text-primary-foreground' },
-    { key: 'active', label: 'Active', emoji: '🟢', count: stats.owingCount + stats.clearedCount, color: 'text-success', activeColor: 'bg-success text-white' },
+    { key: 'all', label: 'All', emoji: '👥', count: stats.allCount, color: 'text-foreground', activeColor: 'bg-primary text-primary-foreground' },
+    { key: 'active', label: 'Active', emoji: '🟢', count: stats.activeCount, color: 'text-success', activeColor: 'bg-success text-white' },
     { key: 'cleared', label: 'Cleared', emoji: '✅', count: stats.clearedCount, color: 'text-success', activeColor: 'bg-success/80 text-white' },
     { key: 'new', label: 'New', emoji: '🆕', count: stats.newCount, color: 'text-primary', activeColor: 'bg-primary text-primary-foreground' },
     { key: 'no-phone', label: 'No Phone', emoji: '📵', count: stats.noPhoneCount, color: 'text-warning', activeColor: 'bg-warning text-warning-foreground' },
