@@ -5,10 +5,8 @@ import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle,
 import { format, formatDistanceToNow, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
-import { PartnerDirectory } from './PartnerDirectory';
 import { PartnerCapitalFlow } from './PartnerCapitalFlow';
 import { PartnerOpsBrief } from './PartnerOpsBrief';
-import { PartnerChurnAlerts } from './PartnerChurnAlerts';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -23,7 +21,7 @@ import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-type Tab = 'portfolios' | 'escalations' | 'directory' | 'capital' | 'roi' | 'churn';
+type Tab = 'portfolios' | 'escalations' | 'capital' | 'roi';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -73,17 +71,7 @@ export function PartnersOpsDashboard() {
     staleTime: 300000,
   });
 
-  const { data: churnCount } = useQuery({
-    queryKey: ['partner-churn-count'],
-    queryFn: async () => {
-      const { count } = await supabase.from('investor_portfolios')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .lt('investment_amount', 100000);
-      return count || 0;
-    },
-    staleTime: 600000,
-  });
+
 
   const rows = portfolios || [];
   const totalInvested = rows.reduce((s, p) => s + (p.investment_amount || 0), 0);
@@ -189,10 +177,8 @@ export function PartnersOpsDashboard() {
   const tabs: { key: Tab; label: string; icon: any; badge?: number }[] = [
     { key: 'portfolios', label: 'Portfolios', icon: Wallet },
     { key: 'escalations', label: 'Escalations', icon: AlertTriangle, badge: openEscalations || undefined },
-    { key: 'directory', label: 'Directory', icon: Users },
     { key: 'capital', label: 'Capital Flow', icon: DollarSign },
     { key: 'roi', label: 'ROI Payouts', icon: TrendingUp },
-    { key: 'churn', label: 'Churn', icon: Shield, badge: churnCount || undefined },
   ];
 
   // ═══ ESCALATION PANEL ═══
@@ -275,7 +261,6 @@ export function PartnersOpsDashboard() {
     switch (tab) {
       case 'portfolios': return <COOPartnersPage />;
       case 'escalations': return renderEscalations();
-      case 'directory': return <PartnerDirectory />;
       case 'capital': return <PartnerCapitalFlow />;
       case 'roi': return (
         <div className="space-y-3">
@@ -287,7 +272,6 @@ export function PartnersOpsDashboard() {
           <ROIPaymentHistory />
         </div>
       );
-      case 'churn': return <PartnerChurnAlerts />;
       default: return null;
     }
   };
