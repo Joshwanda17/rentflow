@@ -332,7 +332,7 @@ export function DepositRequestsManager() {
                         <Button
                           size="sm"
                           className="flex-1"
-                          onClick={() => handleApprove(deposit)}
+                          onClick={() => openApproveDialog(deposit)}
                           disabled={processingIds.has(deposit.id)}
                         >
                           {processingIds.has(deposit.id) ? (
