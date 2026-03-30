@@ -121,6 +121,8 @@ export default function DepositsManagement() {
     isBulk: false,
   });
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approveDialog, setApproveDialog] = useState<{ open: boolean; deposit: DepositRequest | null }>({ open: false, deposit: null });
+  const [approveTid, setApproveTid] = useState('');
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
