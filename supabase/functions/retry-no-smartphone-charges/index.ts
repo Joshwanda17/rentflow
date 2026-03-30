@@ -134,11 +134,12 @@ Deno.serve(async (req) => {
             transaction_date: now.toISOString(),
           });
 
-          // Advance the charge schedule
-          let nextDate = new Date(charge.next_charge_date);
-          if (charge.frequency === "daily") nextDate.setDate(nextDate.getDate() + 1);
-          else if (charge.frequency === "weekly") nextDate.setDate(nextDate.getDate() + 7);
-          else nextDate.setMonth(nextDate.getMonth() + 1);
+          // Advance the charge schedule — use tomorrow from today, not +1 from stale date
+          const todayDate = new Date(today + "T00:00:00Z");
+          let nextDate: Date;
+          if (charge.frequency === "daily") { nextDate = new Date(todayDate); nextDate.setUTCDate(nextDate.getUTCDate() + 1); }
+          else if (charge.frequency === "weekly") { nextDate = new Date(todayDate); nextDate.setUTCDate(nextDate.getUTCDate() + 7); }
+          else { nextDate = new Date(todayDate); nextDate.setUTCMonth(nextDate.getUTCMonth() + 1); }
 
           const newChargesRemaining = Math.max(0, charge.charges_remaining - 1);
           const isComplete = newChargesRemaining <= 0;
