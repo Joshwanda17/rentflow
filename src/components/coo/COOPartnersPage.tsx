@@ -260,7 +260,7 @@ export default function COOPartnersPage() {
 
       const ids = supporterIds;
       const [profiles, wallets, portfolios] = await Promise.all([
-        batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at').in('id', batch)),
+        batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at').in('id', batch)),
         batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
         batchedQuery<any>(ids, (batch) =>
           supabase.from('investor_portfolios')
