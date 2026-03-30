@@ -42,7 +42,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
   Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft,
-  FileText, UsersRound, UserPlus, Link2, ShieldAlert, ShieldOff
+  FileText, UsersRound, UserPlus, Link2, ShieldAlert, ShieldOff, KeyRound, Eye, EyeOff
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -177,6 +177,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [togglingDept, setTogglingDept] = useState<string | null>(null);
   const [isSellerStatus, setIsSellerStatus] = useState(false);
   const [togglingSellerStatus, setTogglingSellerStatus] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const fetchReferrerInfo = async (userId: string) => {
     setReferrerLoading(true);
@@ -663,6 +666,34 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       toast.error('Failed to update profile: ' + (error?.message || error?.code || 'Unknown error'));
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!user) return;
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword.length > 128) {
+      toast.error('Password must be less than 128 characters');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      const response = await supabase.functions.invoke('admin-reset-password', {
+        body: { user_id: user.id, new_password: newPassword },
+      });
+      if (response.error) throw new Error(response.error.message || 'Failed to reset password');
+      if (response.data?.error) throw new Error(response.data.error);
+      toast.success(`Password reset successfully for ${user.full_name}`);
+      setNewPassword('');
+      setShowPassword(false);
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast.error(error.message || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -1531,6 +1562,49 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </CardContent>
                   </Card>
 
+                  {/* Reset Password */}
+                  <Card className="border-warning/30">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2 text-warning">
+                        <KeyRound className="h-4 w-4" />
+                        Reset Password
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-3">
+                      <p className="text-xs text-muted-foreground">Set a new password for this user. They will use it on their next login.</p>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Enter new password (min 6 chars)"
+                          className="h-12 text-base pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <Button
+                        onClick={handleResetPassword}
+                        disabled={resettingPassword || !newPassword || newPassword.length < 6}
+                        variant="outline"
+                        className="w-full h-12 border-warning/40 text-warning hover:bg-warning/10"
+                      >
+                        {resettingPassword ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+                        ) : (
+                          <><KeyRound className="h-4 w-4 mr-2" />Reset Password</>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
                   <Separator />
 
                   {/* Danger Zone */}
@@ -1990,6 +2064,48 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     <div className="space-y-2"><Label htmlFor="edit-phone">Phone</Label><Input id="edit-phone" value={editForm.phone} onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="Enter phone number" /></div>
                     <div className="space-y-2"><Label htmlFor="edit-rent">Monthly Rent (UGX)</Label><Input id="edit-rent" type="number" value={editForm.monthly_rent} onChange={(e) => setEditForm(prev => ({ ...prev, monthly_rent: e.target.value }))} placeholder="Enter monthly rent amount" /></div>
                     <Button onClick={handleSaveProfile} disabled={savingProfile} className="w-full">{savingProfile ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : <><CheckCircle className="h-4 w-4 mr-2" />Save Changes</>}</Button>
+                  </CardContent>
+                </Card>
+                {/* Reset Password */}
+                <Card className="border-warning/30">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-warning">
+                      <KeyRound className="h-4 w-4" />
+                      Reset Password
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-3">
+                    <p className="text-xs text-muted-foreground">Set a new password for this user. They will use it on their next login.</p>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min 6 chars)"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button
+                      onClick={handleResetPassword}
+                      disabled={resettingPassword || !newPassword || newPassword.length < 6}
+                      variant="outline"
+                      className="w-full border-warning/40 text-warning hover:bg-warning/10"
+                    >
+                      {resettingPassword ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+                      ) : (
+                        <><KeyRound className="h-4 w-4 mr-2" />Reset Password</>
+                      )}
+                    </Button>
                   </CardContent>
                 </Card>
                 <Separator />
