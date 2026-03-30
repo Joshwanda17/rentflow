@@ -310,6 +310,7 @@ export default function COOPartnersPage() {
           id,
           name: profile?.full_name || id.slice(0, 8),
           phone: profile?.phone || '',
+          email: profile?.email || '',
           funded: agg.funded,
           activeDeals: agg.deals,
           avgDeal: agg.deals > 0 ? Math.round(agg.funded / agg.deals) : 0,
