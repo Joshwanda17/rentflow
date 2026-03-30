@@ -254,6 +254,56 @@ export function LandlordOpsDashboard() {
     staleTime: 60000,
   });
 
+  // ─── All Landlords Direct Query ───
+  const { data: allLandlords } = useQuery({
+    queryKey: ['landlord-ops-all-landlords'],
+    queryFn: async () => {
+      const PAGE_SIZE = 1000;
+      let allData: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase
+          .from('landlords')
+          .select('id, name, phone, verified, has_smartphone, mobile_money_name, mobile_money_number, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region, property_address, tenant_id, registered_by, managed_by_agent_id, house_category, number_of_rooms, created_at')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (data && data.length > 0) {
+          allData.push(...data);
+          offset += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Collect all profile IDs to batch-fetch
+      const profileIds = new Set<string>();
+      allData.forEach(l => {
+        if (l.tenant_id) profileIds.add(l.tenant_id);
+        if (l.registered_by) profileIds.add(l.registered_by);
+        if (l.managed_by_agent_id) profileIds.add(l.managed_by_agent_id);
+      });
+
+      const idArr = [...profileIds];
+      const profileMap = new Map<string, { full_name: string | null; phone: string | null }>();
+      // Batch fetch in chunks of 50
+      for (let i = 0; i < idArr.length; i += 50) {
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', idArr.slice(i, i + 50));
+        if (profiles) profiles.forEach(p => profileMap.set(p.id, p));
+      }
+
+      return allData.map(l => ({
+        ...l,
+        tenant_name: l.tenant_id ? (profileMap.get(l.tenant_id)?.full_name || null) : null,
+        tenant_phone_profile: l.tenant_id ? (profileMap.get(l.tenant_id)?.phone || null) : null,
+        agent_name: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.full_name : null) || (l.registered_by ? profileMap.get(l.registered_by)?.full_name : null) || null,
+        agent_phone: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.phone : null) || (l.registered_by ? profileMap.get(l.registered_by)?.phone : null) || null,
+      }));
+    },
+    staleTime: 60000,
+  });
+
   // ─── Rent Requests without Landlord Query ───
   const { data: noLandlordTenants } = useQuery({
     queryKey: ['landlord-ops-no-landlord'],
@@ -312,6 +362,7 @@ export function LandlordOpsDashboard() {
   });
 
   const rows = listings || [];
+  const landlordsList = allLandlords || [];
   const noLandlordList = noLandlordTenants || [];
   const unverifiedListings = rows.filter(l => !l.verified);
   const verifiedListings = rows.filter(l => l.verified);
@@ -320,19 +371,13 @@ export function LandlordOpsDashboard() {
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
   const occupiedHouses = rows.filter(l => l.tenant_id);
 
-  const uniqueLandlords = useMemo(() => {
-    const map = new Map<string, ListingWithLandlord['landlords'] & { houseCount: number }>();
+  // House count per landlord from house_listings
+  const landlordHouseCounts = useMemo(() => {
+    const map = new Map<string, number>();
     rows.forEach(r => {
-      if (r.landlord_id && r.landlords) {
-        const existing = map.get(r.landlord_id);
-        if (existing) {
-          existing.houseCount++;
-        } else {
-          map.set(r.landlord_id, { ...r.landlords, houseCount: 1 });
-        }
-      }
+      if (r.landlord_id) map.set(r.landlord_id, (map.get(r.landlord_id) || 0) + 1);
     });
-    return [...map.entries()];
+    return map;
   }, [rows]);
 
   // Location grouping
