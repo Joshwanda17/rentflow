@@ -184,6 +184,17 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
              </div>
              <h3 className="text-lg font-semibold">Rent Payment Successful!</h3>
              <p className="text-muted-foreground">{formatUGX(parseFloat(amount))} paid for {tenantInfo?.full_name}</p>
+             
+             {commissionEarned > 0 && (
+               <div className="rounded-xl border-2 border-success/40 bg-success/5 p-4 space-y-1">
+                 <div className="flex items-center justify-center gap-2">
+                   <TrendingUp className="h-5 w-5 text-success" />
+                   <span className="font-bold text-success text-lg">{formatUGX(commissionEarned)}</span>
+                 </div>
+                 <p className="text-xs text-muted-foreground">5% commission credited to your wallet</p>
+               </div>
+             )}
+             
              <Button onClick={handleClose} className="w-full">Done</Button>
            </div>
          ) : (
