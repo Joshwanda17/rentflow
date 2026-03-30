@@ -2349,10 +2349,13 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
   );
 }
 
-function NearingPayoutsDialog({ open, onOpenChange, portfolios }: {
+function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete }: {
   open: boolean; onOpenChange: (v: boolean) => void; portfolios: NearingPayoutPortfolio[];
+  onActionComplete?: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return portfolios;
@@ -2362,6 +2365,133 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios }: {
       p.email.toLowerCase().includes(q)
     );
   }, [portfolios, search]);
+
+  const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+  const handleCompound = async (p: NearingPayoutPortfolio) => {
+    setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
+    try {
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+      const newAmount = p.investmentAmount + roiAmount;
+      const refId = generateRef('CMP');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Update portfolio investment amount
+      const { error: upErr } = await supabase
+        .from('investor_portfolios')
+        .update({ investment_amount: newAmount })
+        .eq('id', p.portfolioId);
+      if (upErr) throw upErr;
+
+      // Ledger entry
+      await supabase.from('general_ledger').insert({
+        user_id: p.investorId,
+        amount: roiAmount,
+        direction: 'cash_in',
+        category: 'roi_compounding',
+        source_table: 'investor_portfolios',
+        source_id: p.portfolioId,
+        reference_id: refId,
+        description: `ROI compounded: ${formatUGX(roiAmount)} added to portfolio. New principal: ${formatUGX(newAmount)}`,
+        linked_party: user.id,
+      });
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'roi_compounded',
+        table_name: 'investor_portfolios',
+        record_id: p.portfolioId,
+        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId },
+      });
+
+      // Notify partner
+      await supabase.from('notifications').insert({
+        user_id: p.investorId,
+        title: 'Portfolio ROI Compounded',
+        message: `Your ROI of ${formatUGX(roiAmount)} has been compounded into your portfolio. New investment total: ${formatUGX(newAmount)}. Ref: ${refId}`,
+        type: 'portfolio_update',
+        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId },
+      });
+
+      toast.success(`Compounded ${formatUGX(roiAmount)} for ${p.name}`, { description: `Ref: ${refId}` });
+      onActionComplete?.();
+    } catch (err: any) {
+      toast.error('Compound failed', { description: err.message });
+    } finally {
+      setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+    }
+  };
+
+  const handlePay = async (p: NearingPayoutPortfolio) => {
+    setProcessing(prev => ({ ...prev, [p.portfolioId]: 'pay' }));
+    try {
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+      const refId = generateRef('PAY');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Create pending wallet operation for CFO approval
+      const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
+        user_id: p.investorId,
+        amount: roiAmount,
+        direction: 'cash_in',
+        category: 'roi_payout',
+        source_table: 'investor_portfolios',
+        source_id: p.portfolioId,
+        reference_id: refId,
+        operation_type: 'roi_wallet_credit',
+        description: `ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}`,
+        linked_party: user.id,
+        status: 'pending',
+        metadata: { partner_name: p.name, roi_percentage: p.roiPercentage, investment_amount: p.investmentAmount, initiated_by: user.id },
+      });
+      if (pendErr) throw pendErr;
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'roi_payout_requested',
+        table_name: 'pending_wallet_operations',
+        record_id: p.portfolioId,
+        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name },
+      });
+
+      // Notify partner
+      await supabase.from('notifications').insert({
+        user_id: p.investorId,
+        title: 'ROI Payout Initiated',
+        message: `An ROI payout of ${formatUGX(roiAmount)} has been initiated for your wallet. Pending CFO approval. Ref: ${refId}`,
+        type: 'payout_initiated',
+        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId },
+      });
+
+      // Notify all CFO role users
+      const { data: cfoUsers } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'cfo');
+      if (cfoUsers && cfoUsers.length > 0) {
+        await supabase.from('notifications').insert(
+          cfoUsers.map(c => ({
+            user_id: c.user_id,
+            title: 'ROI Payout Awaiting Approval',
+            message: `${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending your approval. Ref: ${refId}`,
+            type: 'approval_required',
+            metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId },
+          }))
+        );
+      }
+
+      toast.success(`Payout of ${formatUGX(roiAmount)} submitted for CFO approval`, { description: `Ref: ${refId}` });
+      onActionComplete?.();
+    } catch (err: any) {
+      toast.error('Pay request failed', { description: err.message });
+    } finally {
+      setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2401,6 +2531,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios }: {
           ) : (
             filtered.map((p, idx) => {
               const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+              const isProcessing = processing[p.portfolioId];
+              const refPreview = `${p.portfolioId.slice(0, 8)}`;
               return (
                 <div key={p.portfolioId + idx} className="rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -2428,7 +2560,30 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios }: {
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                     <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
-                    <span>Since {formatDate(p.createdAt)}</span>
+                    <span className="font-mono">{refPreview}</span>
+                  </div>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs gap-1.5"
+                      disabled={!!isProcessing}
+                      onClick={() => handleCompound(p)}
+                    >
+                      {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
+                      Compound
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="flex-1 text-xs gap-1.5"
+                      disabled={!!isProcessing}
+                      onClick={() => handlePay(p)}
+                    >
+                      {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
+                      Pay to Wallet
+                    </Button>
                   </div>
                 </div>
               );
