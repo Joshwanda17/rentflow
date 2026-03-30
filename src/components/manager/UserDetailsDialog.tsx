@@ -1562,6 +1562,49 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </CardContent>
                   </Card>
 
+                  {/* Reset Password */}
+                  <Card className="border-warning/30">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2 text-warning">
+                        <KeyRound className="h-4 w-4" />
+                        Reset Password
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-3">
+                      <p className="text-xs text-muted-foreground">Set a new password for this user. They will use it on their next login.</p>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Enter new password (min 6 chars)"
+                          className="h-12 text-base pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <Button
+                        onClick={handleResetPassword}
+                        disabled={resettingPassword || !newPassword || newPassword.length < 6}
+                        variant="outline"
+                        className="w-full h-12 border-warning/40 text-warning hover:bg-warning/10"
+                      >
+                        {resettingPassword ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+                        ) : (
+                          <><KeyRound className="h-4 w-4 mr-2" />Reset Password</>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
                   <Separator />
 
                   {/* Danger Zone */}
