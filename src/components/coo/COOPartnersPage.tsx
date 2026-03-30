@@ -1195,6 +1195,41 @@ export default function COOPartnersPage() {
             <SelectItem value="no_email">No Email</SelectItem>
           </SelectContent>
         </Select>
+        {/* Payment Date Range Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", (payoutDateFrom || payoutDateTo) && "border-primary text-primary")}>
+              <CalendarDays className="h-3.5 w-3.5" />
+              {payoutDateFrom && payoutDateTo
+                ? `${format(payoutDateFrom, 'MMM d')} – ${format(payoutDateTo, 'MMM d')}`
+                : payoutDateFrom
+                  ? `From ${format(payoutDateFrom, 'MMM d')}`
+                  : payoutDateTo
+                    ? `Until ${format(payoutDateTo, 'MMM d')}`
+                    : 'Payout Range'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3" align="start">
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-muted-foreground">Filter by next payout date</div>
+              <div className="flex gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</Label>
+                  <Calendar mode="single" selected={payoutDateFrom} onSelect={setPayoutDateFrom} className="p-2 pointer-events-auto" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</Label>
+                  <Calendar mode="single" selected={payoutDateTo} onSelect={setPayoutDateTo} className="p-2 pointer-events-auto" />
+                </div>
+              </div>
+              {(payoutDateFrom || payoutDateTo) && (
+                <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => { setPayoutDateFrom(undefined); setPayoutDateTo(undefined); setPage(0); }}>
+                  <X className="h-3 w-3 mr-1" /> Clear Date Range
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="h-3.5 w-3.5" /> Import
         </Button>
