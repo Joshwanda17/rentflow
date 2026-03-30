@@ -2276,7 +2276,7 @@ export default function COOPartnersPage() {
         </DialogContent>
       </Dialog>
       {/* Nearing Payouts Dialog */}
-      <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} />
+      <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} onActionComplete={fetchData} />
     </div>
   );
 }
