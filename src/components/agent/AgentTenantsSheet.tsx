@@ -99,21 +99,25 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           .from('rent_requests')
           .select('tenant_id, total_repayment, amount_repaid, status, tenant_no_smartphone')
           .in('tenant_id', tenantIds)
-          .in('status', ['approved', 'disbursed', 'repaying']);
+          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed']);
 
         const balances: Record<string, number> = {};
         const totals: Record<string, { total: number; paid: number }> = {};
         const phoneMap: Record<string, boolean> = {};
+        const statusMap: Record<string, Set<string>> = {};
         (rentRequests || []).forEach(rr => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
           const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
           totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
           if (rr.tenant_no_smartphone) phoneMap[rr.tenant_id] = true;
+          if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
+          if (rr.status) statusMap[rr.tenant_id].add(rr.status);
         });
         setTenantBalances(balances);
         setTenantTotals(totals);
         setNoSmartphoneMap(phoneMap);
+        setTenantStatuses(statusMap);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
