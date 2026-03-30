@@ -163,21 +163,31 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       t.phone.includes(search)
     );
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const activeStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying']);
 
     switch (activeFilter) {
       case 'owing':
         list = list.filter(t => (tenantBalances[t.id] || 0) > 0);
         break;
+      case 'all':
+        list = list.filter(t => tenantStatuses[t.id] && tenantStatuses[t.id].size > 0);
+        break;
       case 'active':
-        list = list.filter(t => (tenantBalances[t.id] || 0) > 0 || t.monthly_rent);
+        list = list.filter(t => {
+          const statuses = tenantStatuses[t.id];
+          if (!statuses) return false;
+          return [...statuses].some(s => activeStatuses.has(s));
+        });
         break;
       case 'cleared':
-        list = list.filter(t => (tenantBalances[t.id] || 0) === 0 && t.verified);
+        list = list.filter(t => {
+          const statuses = tenantStatuses[t.id];
+          if (!statuses) return false;
+          return statuses.has('completed') || ((tenantBalances[t.id] || 0) === 0 && [...statuses].some(s => activeStatuses.has(s)));
+        });
         break;
       case 'new':
-        list = list.filter(t => new Date(t.created_at) > thirtyDaysAgo);
+        list = list.filter(t => tenantStatuses[t.id]?.has('pending'));
         break;
       case 'no-phone':
         list = list.filter(t => noSmartphoneMap[t.id]);
