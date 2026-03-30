@@ -645,6 +645,7 @@ export function WithdrawalRequestsManager() {
           status: 'manager_approved',
           manager_approved_at: new Date().toISOString(),
           manager_approved_by: user.id,
+          transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selectedRequest.id);
 

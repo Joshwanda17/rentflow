@@ -238,12 +238,18 @@ export function CFOWithdrawalApprovals() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Withdrawal?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will forward <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> to the COO for final approval and payment.
+              Enter the Transaction ID to forward <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> to the COO for final approval.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Input
+            placeholder="Enter Transaction ID"
+            value={transactionId}
+            onChange={e => setTransactionId(e.target.value)}
+            className="font-mono uppercase"
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApprove} disabled={!!processing}>
+            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()}>
               {processing ? 'Approving...' : 'Approve & Forward'}
             </AlertDialogAction>
           </AlertDialogFooter>
