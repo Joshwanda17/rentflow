@@ -853,7 +853,7 @@ export default function COOPartnersPage() {
       });
     }
     return result;
-  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact]);
+  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
