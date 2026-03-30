@@ -2349,13 +2349,19 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
   );
 }
 
-function NearingPayoutsDialog({ open, onOpenChange, rows }: {
-  open: boolean; onOpenChange: (v: boolean) => void; rows: PartnerRow[];
+function NearingPayoutsDialog({ open, onOpenChange, portfolios }: {
+  open: boolean; onOpenChange: (v: boolean) => void; portfolios: NearingPayoutPortfolio[];
 }) {
-  const nearing = getNearingPayoutPartners(rows);
-  const today = new Date();
-  const currentDay = today.getDate();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return portfolios;
+    return portfolios.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.phone.toLowerCase().includes(q) ||
+      p.email.toLowerCase().includes(q)
+    );
+  }, [portfolios, search]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2366,35 +2372,50 @@ function NearingPayoutsDialog({ open, onOpenChange, rows }: {
             Portfolios Nearing Payout
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {nearing.length} portfolio{nearing.length !== 1 ? 's' : ''} with payouts in the next 7 days
+            {portfolios.length} portfolio{portfolios.length !== 1 ? 's' : ''} with payouts in the next 7 days
           </DialogDescription>
         </DialogHeader>
-        <div className="overflow-y-auto max-h-[calc(90vh-100px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
-          {nearing.length === 0 ? (
+        <div className="px-4 sm:px-5">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, phone, or email…"
+              className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
+                <X className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
+          {filtered.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground text-sm">
               <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              No portfolios nearing payout in the next 7 days.
+              {search ? 'No matching portfolios found.' : 'No portfolios nearing payout in the next 7 days.'}
             </div>
           ) : (
-            nearing.map(r => {
-              let daysUntil = r.payoutDay - currentDay;
-              if (daysUntil < 0) daysUntil += daysInMonth;
-              const roiAmount = Math.round(r.funded * r.roiPercentage / 100 / 12);
+            filtered.map((p, idx) => {
+              const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
               return (
-                <div key={r.id} className="rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2">
+                <div key={p.portfolioId + idx} className="rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{r.name}</p>
-                      <p className="text-xs text-muted-foreground">{r.phone || r.email || 'No contact'}</p>
+                      <p className="font-semibold text-sm truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
                     </div>
-                    <Badge variant={daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
-                      {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d away`}
+                    <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
+                      {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
                     </Badge>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-[10px] text-muted-foreground">Invested</p>
-                      <p className="text-xs font-bold tabular-nums">{formatUGX(r.funded)}</p>
+                      <p className="text-xs font-bold tabular-nums">{formatUGX(p.investmentAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-[10px] text-muted-foreground">ROI Due</p>
@@ -2402,12 +2423,12 @@ function NearingPayoutsDialog({ open, onOpenChange, rows }: {
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-[10px] text-muted-foreground">Payout Day</p>
-                      <p className="text-xs font-bold">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</p>
+                      <p className="text-xs font-bold">{p.payoutDay}{getOrdinalSuffix(p.payoutDay)}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>{r.roiPercentage}% · {r.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
-                    <span>{r.activeDeals} deal{r.activeDeals !== 1 ? 's' : ''}</span>
+                    <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
+                    <span>Since {formatDate(p.createdAt)}</span>
                   </div>
                 </div>
               );
