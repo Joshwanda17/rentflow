@@ -21,7 +21,7 @@ import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-type Tab = 'portfolios' | 'escalations' | 'directory' | 'capital' | 'roi' | 'churn';
+type Tab = 'portfolios' | 'escalations' | 'capital' | 'roi';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
