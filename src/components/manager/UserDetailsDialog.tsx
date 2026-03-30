@@ -177,6 +177,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [togglingDept, setTogglingDept] = useState<string | null>(null);
   const [isSellerStatus, setIsSellerStatus] = useState(false);
   const [togglingSellerStatus, setTogglingSellerStatus] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const fetchReferrerInfo = async (userId: string) => {
     setReferrerLoading(true);
