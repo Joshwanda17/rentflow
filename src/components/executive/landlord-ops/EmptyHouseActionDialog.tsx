@@ -51,7 +51,7 @@ export function EmptyHouseActionDialog({
       // Audit log
       await supabase.from('audit_logs').insert({
         user_id: userId,
-        action_type: isDelete ? 'listing_deleted' : 'listing_delisted',
+        action_type: isDelete ? 'listing_deleted' : isReject ? 'listing_rejected' : 'listing_delisted',
         table_name: 'house_listings',
         record_id: listingId,
         metadata: { reason: reason.trim(), listing_title: listingTitle },
