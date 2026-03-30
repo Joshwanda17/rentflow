@@ -24,10 +24,12 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const [searchResults, setSearchResults] = useState<{ id: string; full_name: string; phone: string }[]>([]);
   const [tenantInfo, setTenantInfo] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const [success, setSuccess] = useState(false);
+  const [commissionEarned, setCommissionEarned] = useState(0);
   const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [tenantRentBalance, setTenantRentBalance] = useState<number | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch agent's wallet balance when dialog opens
   useEffect(() => {
