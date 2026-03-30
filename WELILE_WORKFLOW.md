@@ -2201,29 +2201,41 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 34. Known Issues & Technical Debt (v3.0)
+# 34. Known Issues & Technical Debt (v3.0 → v3.2)
 
-## 34.1 Double-Credit Bug (CRITICAL — Identified 2026-03-26)
+## 34.1 Double-Credit Bug (CRITICAL — Identified 2026-03-26, **RESOLVED v3.2**)
 
-**Three overlapping wallet update paths cause duplicate credits:**
+**Three overlapping wallet update paths caused duplicate credits. Fixed via Single-Writer Principle.**
 
-### Issue 1: Wallet Transfers
-- `wallet-transfer` Edge Function manually updates wallets AND inserts ledger entries
-- Ledger entries lack `transaction_group_id`, so trigger doesn't fire — but two separate `.update()` calls create race condition duplicates
+### Root Cause
+No single source of truth for wallet mutation — some paths used trigger-based sync, others used direct wallet updates, and some did both.
 
-### Issue 2: Agent Commission Quadruple-Credit
-- `credit_agent_rent_commission` RPC directly credits wallet AND inserts ledger entry
-- Calling edge functions (`auto-charge-wallets`, `approve-deposit`) ALSO independently credit wallet and insert their own ledger entries
-- Result: 3-4× the correct commission amount
+### Resolution: Single-Writer Principle (v3.2)
 
-### Issue 3: Repayment Ledger Duplication
-- `record_rent_request_repayment` RPC inserts `cash_in` ledger entry without `transaction_group_id`
-- Edge functions that call it also insert their own repayment ledger entries
-- Creates duplicate ledger records
+**Rule**: Each wallet mutation type gets exactly ONE owner. Callers must not duplicate what the callee already does.
 
-**Root Cause**: No single source of truth for wallet mutation — some paths use trigger-based sync, others use direct wallet updates, and some do both.
+#### Fix 1: `wallet-transfer` Edge Function → Ledger-Only
+- **Before**: Manual `.update()` on both wallets + ledger inserts WITHOUT `transaction_group_id`
+- **After**: Two `general_ledger` entries with shared `transaction_group_id` → `sync_wallet_from_ledger` trigger handles both wallet balance changes atomically
+- Removed `wallet_transactions` insert (redundant with ledger)
+- Pre-check balance before insert; post-check for safety
 
-**Fix Required**: Standardize all financial operations to use exactly ONE path — either ledger-trigger sync OR direct wallet update, never both.
+#### Fix 2: `credit_agent_rent_commission` RPC → Sole Commission Writer
+- **Before**: RPC did direct `INSERT INTO wallets ON CONFLICT UPDATE` + ledger (no txn_group_id). Callers (`approve-deposit`) also independently credited wallet and inserted ledger entries → 2-4× overpayment
+- **After**:
+  - Removed direct wallet writes from RPC; uses `transaction_group_id` on ledger insert so trigger handles wallet credit
+  - Added **idempotency guard**: `NOT EXISTS` check on `general_ledger` where `category = 'agent_commission' AND source_id AND user_id` prevents duplicate credits
+  - `approve-deposit` stripped of all inline commission logic (earnings insert, wallet update, ledger insert, notification); now delegates entirely to `credit_agent_rent_commission` RPC
+
+#### Fix 3: `record_rent_request_repayment` RPC → Optional `transaction_group_id`
+- **Before**: RPC inserted `cash_in` ledger without `transaction_group_id`. Callers also inserted their own `cash_out` ledger with `transaction_group_id` → duplicate ledger records
+- **After**: RPC accepts optional `p_transaction_group_id` parameter. If provided, the trigger handles wallet deduction atomically. Backward-compatible (defaults to NULL).
+
+### Enforced Rules (Post-Fix)
+1. Wallet balance changes happen **only** via `sync_wallet_from_ledger` trigger (using `transaction_group_id`) OR via a single manual `.update()` — **never both**
+2. RPCs own their domain: `credit_agent_rent_commission` is the **sole** commission writer; `record_rent_request_repayment` is the **sole** repayment writer
+3. Edge functions must **not** duplicate what an RPC they call already does
+4. `auto-charge-wallets` uses manual `.update()` without `transaction_group_id` (single-writer for tenant deductions) — confirmed no duplicate ledger entries
 
 ---
 
