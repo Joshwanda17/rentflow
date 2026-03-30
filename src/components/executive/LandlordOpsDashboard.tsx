@@ -720,13 +720,27 @@ export function LandlordOpsDashboard() {
               )}
 
               {/* Contact Agent */}
-              {t.agent_phone && (
-                <div className="rounded-lg bg-primary/5 p-2.5 space-y-1.5">
+              {t.agent_id && t.agent_phone && (
+                <div className="rounded-lg bg-indigo-500/10 p-2.5 space-y-1.5">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contact Agent</p>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium truncate">{t.agent_name}</span>
+                    <span className="text-xs font-medium truncate">{t.agent_name || 'Agent'}</span>
                     <ListPropertyCTA phone={t.agent_phone} name={t.agent_name || undefined} role="agent" />
                   </div>
+                </div>
+              )}
+              {t.agent_id && !t.agent_phone && (
+                <div className="rounded-lg bg-red-500/10 p-2.5">
+                  <p className="text-[10px] font-semibold text-red-700 dark:text-red-400 flex items-center gap-1">
+                    <UserX className="h-3 w-3" /> Agent profile missing — no contact info
+                  </p>
+                </div>
+              )}
+              {!t.agent_id && (
+                <div className="rounded-lg bg-red-500/10 p-2.5">
+                  <p className="text-[10px] font-semibold text-red-700 dark:text-red-400 flex items-center gap-1">
+                    <UserX className="h-3 w-3" /> No agent assigned
+                  </p>
                 </div>
               )}
             </div>
