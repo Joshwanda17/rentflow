@@ -810,12 +810,12 @@ export default function DepositsManagement() {
 
                       {deposit.status === 'pending' && !selectedIds.has(deposit.id) && (
                         <div className="flex gap-2 pt-1 border-t">
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleApprove(deposit)}
-                            disabled={processingIds.has(deposit.id) || bulkProcessing}
-                          >
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => openApproveDialog(deposit)}
+                          disabled={processingIds.has(deposit.id) || bulkProcessing}
+                        >
                             {processingIds.has(deposit.id) ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
