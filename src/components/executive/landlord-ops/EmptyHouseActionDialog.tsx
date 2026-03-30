@@ -73,7 +73,7 @@ export function EmptyHouseActionDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isDelete ? <Trash2 className="h-4 w-4 text-destructive" /> : <XCircle className="h-4 w-4 text-warning" />}
+            {isDelete ? <Trash2 className="h-4 w-4 text-destructive" /> : isReject ? <XCircle className="h-4 w-4 text-orange-600" /> : <XCircle className="h-4 w-4 text-warning" />}
             {label} Listing
           </DialogTitle>
         </DialogHeader>
