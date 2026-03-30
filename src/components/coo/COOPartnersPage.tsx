@@ -1172,6 +1172,7 @@ export default function COOPartnersPage() {
             <SelectItem value="has_email">Has Email</SelectItem>
             <SelectItem value="no_email">No Email</SelectItem>
           </SelectContent>
+        </Select>
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="h-3.5 w-3.5" /> Import
         </Button>
