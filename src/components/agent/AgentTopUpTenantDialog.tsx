@@ -153,6 +153,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
     setTenantInfo(null);
     setSearchResults([]);
     setSuccess(false);
+    setCommissionEarned(0);
     setTenantRentBalance(null);
     onOpenChange(false);
   };
