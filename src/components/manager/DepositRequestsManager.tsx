@@ -50,6 +50,8 @@ export function DepositRequestsManager() {
     deposit: null,
   });
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approveDialog, setApproveDialog] = useState<{ open: boolean; deposit: DepositRequest | null }>({ open: false, deposit: null });
+  const [approveTid, setApproveTid] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'agent'>('pending');
 
   const fetchDeposits = async () => {
