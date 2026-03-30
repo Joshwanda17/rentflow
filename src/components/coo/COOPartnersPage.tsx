@@ -1154,8 +1154,7 @@ export default function COOPartnersPage() {
             sub={`${summary.totalDeals} deals completed`} accent="emerald" />
           <SummaryCard icon={<Wallet className="h-4 w-4" />} label="Wallet Balances" value={formatUGX(summary.totalWalletBalance)}
             sub="Across all partner wallets" accent="amber" />
-          <SummaryCard icon={<PiggyBank className="h-4 w-4" />} label="Avg ROI Rate" value={`${summary.avgROI}%`}
-            sub={`Top: ${summary.topPartnerName}`} accent="violet" />
+          <NearingPayoutsCard rows={rows} onClick={() => setNearingPayoutsOpen(true)} />
         </div>
       )}
 
