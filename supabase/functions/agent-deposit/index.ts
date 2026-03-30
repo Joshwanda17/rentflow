@@ -407,7 +407,7 @@ Deno.serve(async (req) => {
         details: {
           total_deposited: amount,
           auto_repayment: repaymentAmount,
-          agent_commission: commission,
+          agent_commission: actualCommission || commission,
           to_landlord: landlordPayment,
           to_wallet: depositAmount,
           user_name: userProfile?.full_name,
