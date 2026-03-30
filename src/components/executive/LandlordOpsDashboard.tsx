@@ -299,7 +299,7 @@ export function LandlordOpsDashboard() {
         tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown Tenant',
         tenant_phone: profileMap.get(r.tenant_id)?.phone || null,
         agent_id: r.agent_id,
-        agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unknown Agent') : null,
+        agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || null) : null,
         agent_phone: r.agent_id ? (profileMap.get(r.agent_id)?.phone || null) : null,
         rent_amount: r.rent_amount,
         request_city: r.request_city,
