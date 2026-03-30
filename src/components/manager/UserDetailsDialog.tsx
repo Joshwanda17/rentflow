@@ -681,10 +681,19 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     }
     setResettingPassword(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('You must be logged in to reset passwords');
+        return;
+      }
       const response = await supabase.functions.invoke('admin-reset-password', {
         body: { user_id: user.id, new_password: newPassword },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      if (response.error) throw new Error(response.error.message || 'Failed to reset password');
+      if (response.error) {
+        const msg = await extractFromErrorObject(response.error, 'Failed to reset password');
+        throw new Error(msg);
+      }
       if (response.data?.error) throw new Error(response.data.error);
       toast.success(`Password reset successfully for ${user.full_name}`);
       setNewPassword('');
