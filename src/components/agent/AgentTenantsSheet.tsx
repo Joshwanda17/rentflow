@@ -70,6 +70,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
   const [sortMode, setSortMode] = useState<SortMode>('balance');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
