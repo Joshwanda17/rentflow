@@ -1201,7 +1201,7 @@ export default function COOPartnersPage() {
             sub={`${summary.totalDeals} deals completed`} accent="emerald" />
           <SummaryCard icon={<Wallet className="h-4 w-4" />} label="Wallet Balances" value={formatUGX(summary.totalWalletBalance)}
             sub="Across all partner wallets" accent="amber" />
-          <NearingPayoutsCard rows={rows} onClick={() => setNearingPayoutsOpen(true)} />
+          <NearingPayoutsCard portfolios={allPortfoliosForPayout} onClick={() => setNearingPayoutsOpen(true)} />
         </div>
       )}
 
