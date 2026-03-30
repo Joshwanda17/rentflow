@@ -238,13 +238,22 @@ export default function DepositsManagement() {
     endDate ||
     searchQuery;
 
-  const handleApprove = async (deposit: DepositRequest) => {
+  const openApproveDialog = (deposit: DepositRequest) => {
+    setApproveDialog({ open: true, deposit });
+    setApproveTid('');
+  };
+
+  const handleApprove = async () => {
+    const deposit = approveDialog.deposit;
+    if (!deposit) return;
+    setApproveDialog({ open: false, deposit: null });
     setProcessingIds(prev => new Set(prev).add(deposit.id));
     try {
       const { error } = await supabase.functions.invoke('approve-deposit', {
         body: {
           deposit_request_id: deposit.id,
           action: 'approve',
+          transaction_id: approveTid.trim().toUpperCase(),
         },
       });
 
@@ -254,6 +263,7 @@ export default function DepositsManagement() {
         throw new Error(msg);
       }
       toast.success(`Approved ${formatUGX(deposit.amount)}`);
+      setApproveTid('');
       fetchDeposits();
     } catch (error: any) {
       toast.error(error.message || 'Failed to approve');
