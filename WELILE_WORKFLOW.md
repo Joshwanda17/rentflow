@@ -1,6 +1,6 @@
 # Welile Platform — Exhaustive UI & Backend Workflow
 
-**Version:** 3.1  
+**Version:** 3.2  
 **Date:** 2026-03-30  
 **Status:** Living Document — Complete Feature Registry
 
