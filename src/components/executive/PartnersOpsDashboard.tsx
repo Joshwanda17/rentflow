@@ -259,7 +259,7 @@ export function PartnersOpsDashboard() {
   // ═══ RENDER TAB CONTENT ═══
   const renderTabContent = () => {
     switch (tab) {
-      case 'portfolios': return <COOPartnersPage />;
+      case 'portfolios': return <COOPartnersPage readOnly />;
       case 'escalations': return renderEscalations();
       case 'capital': return <PartnerCapitalFlow />;
       case 'roi': return (

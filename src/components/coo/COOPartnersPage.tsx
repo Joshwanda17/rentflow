@@ -162,7 +162,7 @@ function timeSince(d: string) {
 }
 
 /* ─── Main Component ─── */
-export default function COOPartnersPage() {
+export default function COOPartnersPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1153,20 +1153,24 @@ export default function COOPartnersPage() {
             >
               <TrendingUp className="h-3.5 w-3.5" /> Invest {r.walletBalance >= MIN_INVEST ? '' : '(Low bal)'}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={e => { e.stopPropagation(); setSuspendPartner(r); }}
-              className={cn('gap-2', r.status === 'active' ? 'text-amber-600 focus:text-amber-600' : 'text-primary focus:text-primary')}
-            >
-              {r.status === 'active' ? <Ban className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
-              {r.status === 'active' ? 'Suspend' : 'Reactivate'}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeletePartnerReason(''); }}
-              className="gap-2 text-destructive focus:text-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Delete Partner
-            </DropdownMenuItem>
+            {!readOnly && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={e => { e.stopPropagation(); setSuspendPartner(r); }}
+                  className={cn('gap-2', r.status === 'active' ? 'text-amber-600 focus:text-amber-600' : 'text-primary focus:text-primary')}
+                >
+                  {r.status === 'active' ? <Ban className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                  {r.status === 'active' ? 'Suspend' : 'Reactivate'}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeletePartnerReason(''); }}
+                  className="gap-2 text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete Partner
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -1580,13 +1584,15 @@ export default function COOPartnersPage() {
                                   ) : (
                                     <div className="flex items-center gap-1.5">
                                       <span className="font-bold">{p.payout_day}{getOrdinalSuffix(p.payout_day)} of month</span>
-                                      <button
-                                        onClick={() => { setEditingPortfolioId(p.id); setEditingPayoutDay(String(p.payout_day)); }}
-                                        className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                        title="Edit payout day"
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </button>
+                                      {!readOnly && (
+                                        <button
+                                          onClick={() => { setEditingPortfolioId(p.id); setEditingPayoutDay(String(p.payout_day)); }}
+                                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                          title="Edit payout day"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1619,7 +1625,7 @@ export default function COOPartnersPage() {
                                 >
                                   <Pencil className="h-3.5 w-3.5" /> Edit
                                 </Button>
-                                {p.status === 'active' && (
+                                {!readOnly && p.status === 'active' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1632,7 +1638,7 @@ export default function COOPartnersPage() {
                                     <Wallet className="h-3.5 w-3.5" /> Top Up
                                   </Button>
                                 )}
-                                {p.status === 'active' && detailPartner && detailPartner.walletBalance > 0 && (
+                                {!readOnly && p.status === 'active' && detailPartner && detailPartner.walletBalance > 0 && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1646,7 +1652,7 @@ export default function COOPartnersPage() {
                                     <ArrowRightLeft className="h-3.5 w-3.5" /> Wallet → Portfolio
                                   </Button>
                                 )}
-                                {pendingTopUps[p.id] && (
+                                {!readOnly && pendingTopUps[p.id] && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1658,27 +1664,31 @@ export default function COOPartnersPage() {
                                     Apply {pendingTopUps[p.id].count} Pending
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 min-h-[44px]"
-                                  onClick={() => { setRenewPortfolio(p); setRenewOpen(true); }}
-                                >
-                                  <RefreshCw className="h-3.5 w-3.5" /> Renew
-                                  {(renewalCounts[p.id] || 0) > 0 && (
-                                    <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600">
-                                      ×{renewalCounts[p.id]}
-                                    </Badge>
-                                  )}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-9 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 min-h-[44px]"
-                                  onClick={() => { setDeletePortfolio(p); setDeleteReason(''); }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" /> Delete
-                                </Button>
+                                {!readOnly && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 min-h-[44px]"
+                                    onClick={() => { setRenewPortfolio(p); setRenewOpen(true); }}
+                                  >
+                                    <RefreshCw className="h-3.5 w-3.5" /> Renew
+                                    {(renewalCounts[p.id] || 0) > 0 && (
+                                      <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600">
+                                        ×{renewalCounts[p.id]}
+                                      </Badge>
+                                    )}
+                                  </Button>
+                                )}
+                                {!readOnly && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 min-h-[44px]"
+                                    onClick={() => { setDeletePortfolio(p); setDeleteReason(''); }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
