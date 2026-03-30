@@ -1,69 +1,59 @@
-# Redesign Partner Operations Dashboard
 
-## What Changes
 
-Replace the current QuickNavGrid-based overview with a design modeled on the COO Partners Page — a unified, data-rich dashboard with summary cards, inline filters, tabbed sub-sections, and direct access to all partner operations from one screen.
+# Require Transaction ID on All Deposit and Withdrawal Approvals
 
-## New Layout (Top → Bottom)
+## Current State
 
-### A. Header Bar
+| Approval Flow | File | TID Required? |
+|---|---|---|
+| COO Withdrawal Approval | `COOWithdrawalApprovals.tsx` | Yes (+ time) |
+| Agent Commission Payouts | `AgentCommissionPayoutsManager.tsx` | Yes |
+| CFO Withdrawal Approval | `CFOWithdrawalApprovals.tsx` | **No** |
+| Manager Withdrawal Approval | `WithdrawalRequestsManager.tsx` | **No** |
+| Deposit Approval (Financial Ops) | `DepositsManagement.tsx` | **No** (direct button click) |
+| Deposit Approval (Manager) | `DepositRequestsManager.tsx` | **No** |
+| Deposit Approval (Agent) | `PendingDepositsSection.tsx` | **No** |
 
-- Title "Partner Operations" with subtitle, Refresh button, and Create Portfolio button (right-aligned)
-- Matches COO Partners Page header pattern
+## Changes
 
-### B. Daily Brief Strip
+### 1. Deposit Approvals -- Add TID confirmation dialog (3 files)
 
-- Keep the existing `PartnerOpsBrief` component at the top (already matches the design language)
+Currently deposits are approved with a single button click. Replace the direct `handleApprove(deposit)` call with a confirmation dialog that requires a Transaction ID input before proceeding.
 
-### C. Summary Cards Row (4 cards, `grid grid-cols-2 lg:grid-cols-4`)
+**Files:**
+- `src/pages/DepositsManagement.tsx` -- Add state for `approveDialog` (selected deposit + TID input). Replace direct approve button with dialog opener. Add AlertDialog with TID Input field. Pass `transaction_id` to the `approve-deposit` edge function body.
+- `src/components/manager/DepositRequestsManager.tsx` -- Same pattern.
+- `src/components/agent/PendingDepositsSection.tsx` -- Same pattern.
 
-Using the COO-style `SummaryCard` pattern (rounded-2xl, accent borders, icon pill):
+### 2. Manager Withdrawal Approval -- Require TID before forwarding to CFO
 
-1. **Total Portfolios** — count of all portfolios (primary accent)
-2. **Active Portfolios** — count of active ones (emerald accent)
-3. **Total Invested** — formatted sum (amber accent)
-4. **Nearing Payouts** — clickable card showing count of portfolios due in 7 days, opens the existing nearing payouts dialog (violet accent). If pending approvals > 0, this card swaps to show pending approvals with a warning accent.
+**File:** `src/components/manager/WithdrawalRequestsManager.tsx`
 
-### D. Tabbed Navigation (replaces QuickNavGrid)
+The approve dialog already exists but does not enforce a TID. Add:
+- A `transactionId` input field inside the existing `AlertDialogContent`
+- Validation: disable the Approve button when `transactionId` is empty
+- Save `transaction_id` alongside the `manager_approved` status update
 
-Horizontal scrollable tab bar with pill-style tabs:
+### 3. CFO Withdrawal Approval -- Require TID before forwarding to COO
 
-- **Portfolios** (default) — renders the COOPartnersPage inline (the full partner table with all its filters, detail views, actions)
-- **Escalations** — renders escalation cards (existing logic)
-- **Directory** — renders PartnerDirectory
-- **Capital Flow** — renders PartnerCapitalFlow
-- **ROI Payouts** — renders ROIPaymentHistory
-- **Churn Alerts** — renders PartnerChurnAlerts
+**File:** `src/components/cfo/CFOWithdrawalApprovals.tsx`
 
-Each tab shows a badge count where relevant (escalations count, churn alerts).
+The approve dialog is a simple confirm. Add:
+- `transactionId` state (already declared but unused -- wire it in)
+- An Input field for TID in the approve dialog
+- Validation: disable approve when TID is empty
+- Save `transaction_id` (or `cfo_transaction_id`) alongside the `cfo_approved` status update
 
-### E. Escalation Banner (conditional)
+### UI Pattern (consistent across all)
 
-When there are open escalations and user is NOT on the Escalations tab, show a slim alert banner below the tabs: "{N} open escalations — tap to review". Clicking switches to the Escalations tab.
-
-## Implementation Details
-
-### File: `src/components/executive/PartnersOpsDashboard.tsx`
-
-1. **Remove** QuickNavGrid import and usage, remove the view state machine (`type View`), remove `renderContent()` switch pattern
-2. **Add** a `tab` state with values: `'portfolios' | 'escalations' | 'directory' | 'capital' | 'roi' | 'churn'`, default `'portfolios'`
-3. **Replace** KPICard usage with inline summary cards matching COO pattern (`rounded-2xl border p-4` with accent colors)
-4. **Add** horizontal tab bar using a scrollable flex container with pill buttons (active state: `bg-primary text-primary-foreground`, inactive: `bg-muted/50 text-muted-foreground`)
-5. **Render** the selected tab's component directly below (no BackButton needed — tabs handle navigation)
-6. **Keep** all existing dialog mounts (Edit, Fund, Create, Maturity) at the bottom
-7. **Keep** auto-renew logic and all action handlers unchanged
-8. **Remove** the tooltip info section at the bottom (unnecessary with tabs)
-
-### Responsive Behavior
-
-- Summary cards: 2-col on mobile, 4-col on desktop
-- Tab bar: horizontally scrollable on mobile with `overflow-x-auto scrollbar-hide`
-- All sub-components already handle their own responsiveness
-
-## Files Changed
-
-- `src/components/executive/PartnersOpsDashboard.tsx` — full redesign of layout and navigation
+```
+AlertDialog:
+  Title: "Confirm Approval"
+  Description: "Enter the Transaction ID to approve [amount]"
+  Input: Transaction ID (required, trimmed, uppercased)
+  Buttons: [Cancel] [Approve] (disabled until TID entered)
+```
 
 ## No database changes needed
+The `deposit_requests` and `withdrawal_requests` tables already have `transaction_id` columns. The edge function `approve-deposit` already accepts a `transaction_id` in its body.
 
-keep the table as it's just remove suspend partner,, delete partner, top-up and delete portfolios.
