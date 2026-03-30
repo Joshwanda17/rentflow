@@ -245,9 +245,9 @@ export function LandlordOpsDashboard() {
 
       return (data || []).map(d => ({
         ...d,
-        agent_name: agentMap.get(d.agent_id)?.full_name || 'Unknown Agent',
+        agent_name: agentMap.get(d.agent_id)?.full_name || null,
         agent_phone: agentMap.get(d.agent_id)?.phone || null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || 'Unknown Tenant') : null,
+        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
         tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
       })) as ListingWithLandlord[];
     },
