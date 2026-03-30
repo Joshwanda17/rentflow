@@ -440,9 +440,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         : 'border-border bg-card'
                   }`}
                 >
-                  {/* Tenant row */}
-                  <button
-                    onClick={() => toggleExpand(tenant.id)}
+                   <button
+438:                     onClick={() => toggleExpand(tenant.id)}
                     className="w-full p-3.5 text-left hover:bg-muted/20 active:bg-primary/5 transition-colors"
                   >
                     <div className="flex items-center gap-3">
@@ -453,7 +452,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         {tenant.full_name.charAt(0).toUpperCase()}
                       </div>
 
-                      {/* Info */}
+                      {/* Info + Progress */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
@@ -463,35 +462,61 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Phone className="h-2.5 w-2.5" />
                           {tenant.phone}
-                          <span className="text-muted-foreground/50 mx-0.5">·</span>
-                          <Calendar className="h-2.5 w-2.5" />
-                          {format(new Date(tenant.created_at), 'dd MMM')}
                         </p>
+                        {/* Payment Progress Bar */}
+                        {totals.total > 0 && (
+                          <div className="mt-1.5">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[10px] text-muted-foreground">{progressPct}% repaid</span>
+                              <span className="text-[10px] font-mono text-muted-foreground">{formatUGX(totals.paid)}/{formatUGX(totals.total)}</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  progressPct >= 100 ? 'bg-success' : progressPct >= 50 ? 'bg-primary' : 'bg-destructive'
+                                }`}
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Right side */}
-                      <div className="flex flex-col items-end gap-0.5 shrink-0">
-                        {hasDebt ? (
-                          <span className="text-sm font-bold text-destructive font-mono">
-                            {formatUGX(balance)}
-                          </span>
-                        ) : tenant.verified ? (
-                          <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0 gap-0.5">
-                            <CheckCircle2 className="h-2.5 w-2.5" />
-                            Clear
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[10px]">
-                            <Clock className="h-2.5 w-2.5 mr-0.5" />
-                            Pending
-                          </Badge>
-                        )}
-                        <div className="mt-0.5">
-                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                      {/* Right side: balance + call button */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {hasDebt ? (
+                            <span className="text-sm font-bold text-destructive font-mono">
+                              {formatUGX(balance)}
+                            </span>
+                          ) : tenant.verified ? (
+                            <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0 gap-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" />
+                              Clear
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">
+                              <Clock className="h-2.5 w-2.5 mr-0.5" />
+                              Pending
+                            </Badge>
+                          )}
+                          <div className="mt-0.5">
+                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                          </div>
                         </div>
+
+                        {/* Phone Call Button */}
+                        <a
+                          href={`tel:${tenant.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-10 h-10 rounded-xl bg-success/15 hover:bg-success/25 active:scale-90 flex items-center justify-center transition-all shrink-0"
+                          title={`Call ${tenant.full_name}`}
+                        >
+                          <PhoneCall className="h-4.5 w-4.5 text-success" />
+                        </a>
                       </div>
                     </div>
                   </button>
