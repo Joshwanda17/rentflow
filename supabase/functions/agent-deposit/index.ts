@@ -308,9 +308,9 @@ Deno.serve(async (req) => {
           .insert({
             user_id: agentId,
             title: 'Commission Earned! 💰',
-            message: `You earned UGX ${commission.toLocaleString()} (5%) from paying rent for tenant.`,
+            message: `You earned UGX ${(actualCommission || commission).toLocaleString()} (5%) from paying rent for tenant.`,
             type: 'earning',
-            metadata: { amount: commission, type: 'commission', rent_request_id: activeRentRequest.id },
+            metadata: { amount: actualCommission || commission, type: 'commission', rent_request_id: activeRentRequest.id },
           });
 
         // Notify tenant
