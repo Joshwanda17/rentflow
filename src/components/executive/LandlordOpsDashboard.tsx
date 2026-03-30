@@ -1125,7 +1125,7 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
         <div className="rounded-lg bg-green-500/10 p-2 space-y-0.5">
           <p className="text-[10px] font-semibold text-green-700">Tenant</p>
           <p className="text-xs font-medium">{house.tenant_name || 'Unknown'}</p>
-          {house.tenant_phone && <PhoneLinks phone={house.tenant_phone} name={house.tenant_name} />}
+          {house.tenant_phone && <PhoneLinks phone={house.tenant_phone} name={house.tenant_name || undefined} />}
         </div>
       )}
       {/* Landlord info */}
