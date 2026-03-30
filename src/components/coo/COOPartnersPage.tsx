@@ -161,6 +161,8 @@ export default function COOPartnersPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
   const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('no_email');
+  const [payoutDateFrom, setPayoutDateFrom] = useState<Date | undefined>(undefined);
+  const [payoutDateTo, setPayoutDateTo] = useState<Date | undefined>(undefined);
 
   // Invest dialog
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
