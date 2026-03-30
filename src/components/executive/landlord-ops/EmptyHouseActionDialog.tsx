@@ -43,7 +43,8 @@ export function EmptyHouseActionDialog({
         const { error } = await supabase.from('house_listings').delete().eq('id', listingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('house_listings').update({ status: 'delisted' }).eq('id', listingId);
+        const newStatus = isReject ? 'rejected' : 'delisted';
+        const { error } = await supabase.from('house_listings').update({ status: newStatus }).eq('id', listingId);
         if (error) throw error;
       }
 
