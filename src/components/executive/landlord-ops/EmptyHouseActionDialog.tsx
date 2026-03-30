@@ -11,7 +11,7 @@ interface EmptyHouseActionDialogProps {
   onOpenChange: (open: boolean) => void;
   listingId: string;
   listingTitle: string;
-  actionType: 'delete' | 'delist';
+  actionType: 'delete' | 'delist' | 'reject';
   userId: string;
   onComplete: () => void;
 }
