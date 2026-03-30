@@ -30,7 +30,8 @@ export function EmptyHouseActionDialog({
   const [loading, setLoading] = useState(false);
 
   const isDelete = actionType === 'delete';
-  const label = isDelete ? 'Delete' : 'Delist';
+  const isReject = actionType === 'reject';
+  const label = isDelete ? 'Delete' : isReject ? 'Reject' : 'Delist';
   const minChars = 10;
   const valid = reason.trim().length >= minChars;
 
