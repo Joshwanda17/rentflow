@@ -50,6 +50,8 @@ export function DepositRequestsManager() {
     deposit: null,
   });
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approveDialog, setApproveDialog] = useState<{ open: boolean; deposit: DepositRequest | null }>({ open: false, deposit: null });
+  const [approveTid, setApproveTid] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'agent'>('pending');
 
   const fetchDeposits = async () => {
@@ -123,7 +125,15 @@ export function DepositRequestsManager() {
     };
   }, [statusFilter]);
 
-  const handleApprove = async (deposit: DepositRequest) => {
+  const openApproveDialog = (deposit: DepositRequest) => {
+    setApproveDialog({ open: true, deposit });
+    setApproveTid('');
+  };
+
+  const handleApprove = async () => {
+    const deposit = approveDialog.deposit;
+    if (!deposit) return;
+    setApproveDialog({ open: false, deposit: null });
     setProcessingIds(prev => new Set(prev).add(deposit.id));
     try {
       const { data, error } = await supabase.functions.invoke('approve-deposit', {
@@ -131,11 +141,13 @@ export function DepositRequestsManager() {
           deposit_request_id: deposit.id,
           action: 'approve',
           is_manager: true,
+          transaction_id: approveTid.trim().toUpperCase(),
         },
       });
 
       if (error) throw error;
       toast.success(`Approved deposit of ${formatUGX(deposit.amount)}`);
+      setApproveTid('');
       fetchDeposits();
     } catch (error: any) {
       toast.error(error.message || 'Failed to approve deposit');
@@ -320,7 +332,7 @@ export function DepositRequestsManager() {
                         <Button
                           size="sm"
                           className="flex-1"
-                          onClick={() => handleApprove(deposit)}
+                          onClick={() => openApproveDialog(deposit)}
                           disabled={processingIds.has(deposit.id)}
                         >
                           {processingIds.has(deposit.id) ? (
@@ -350,6 +362,30 @@ export function DepositRequestsManager() {
             ))}
           </AnimatePresence>
         )}
+
+        {/* Approve TID Dialog */}
+        <AlertDialog open={approveDialog.open} onOpenChange={open => { if (!open) setApproveDialog({ open: false, deposit: null }); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+              <AlertDialogDescription>
+                Enter the Transaction ID to approve {approveDialog.deposit && formatUGX(approveDialog.deposit.amount)}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input
+              placeholder="Enter Transaction ID"
+              value={approveTid}
+              onChange={(e) => setApproveTid(e.target.value)}
+              className="font-mono uppercase"
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleApprove} disabled={!approveTid.trim()}>
+                Approve
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Reject Dialog */}
         <AlertDialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog({ open, deposit: null })}>

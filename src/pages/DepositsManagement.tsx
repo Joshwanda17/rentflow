@@ -121,6 +121,8 @@ export default function DepositsManagement() {
     isBulk: false,
   });
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approveDialog, setApproveDialog] = useState<{ open: boolean; deposit: DepositRequest | null }>({ open: false, deposit: null });
+  const [approveTid, setApproveTid] = useState('');
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -236,13 +238,22 @@ export default function DepositsManagement() {
     endDate ||
     searchQuery;
 
-  const handleApprove = async (deposit: DepositRequest) => {
+  const openApproveDialog = (deposit: DepositRequest) => {
+    setApproveDialog({ open: true, deposit });
+    setApproveTid('');
+  };
+
+  const handleApprove = async () => {
+    const deposit = approveDialog.deposit;
+    if (!deposit) return;
+    setApproveDialog({ open: false, deposit: null });
     setProcessingIds(prev => new Set(prev).add(deposit.id));
     try {
       const { error } = await supabase.functions.invoke('approve-deposit', {
         body: {
           deposit_request_id: deposit.id,
           action: 'approve',
+          transaction_id: approveTid.trim().toUpperCase(),
         },
       });
 
@@ -252,6 +263,7 @@ export default function DepositsManagement() {
         throw new Error(msg);
       }
       toast.success(`Approved ${formatUGX(deposit.amount)}`);
+      setApproveTid('');
       fetchDeposits();
     } catch (error: any) {
       toast.error(error.message || 'Failed to approve');
@@ -798,12 +810,12 @@ export default function DepositsManagement() {
 
                       {deposit.status === 'pending' && !selectedIds.has(deposit.id) && (
                         <div className="flex gap-2 pt-1 border-t">
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleApprove(deposit)}
-                            disabled={processingIds.has(deposit.id) || bulkProcessing}
-                          >
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => openApproveDialog(deposit)}
+                          disabled={processingIds.has(deposit.id) || bulkProcessing}
+                        >
                             {processingIds.has(deposit.id) ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
@@ -871,6 +883,30 @@ export default function DepositsManagement() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Approve TID Dialog */}
+      <AlertDialog open={approveDialog.open} onOpenChange={open => { if (!open) setApproveDialog({ open: false, deposit: null }); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the Transaction ID to approve {approveDialog.deposit && formatUGX(approveDialog.deposit.amount)}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            placeholder="Enter Transaction ID"
+            value={approveTid}
+            onChange={e => setApproveTid(e.target.value)}
+            className="font-mono uppercase"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApprove} disabled={!approveTid.trim()}>
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Reject Dialog */}
       <AlertDialog open={rejectDialog.open} onOpenChange={open => setRejectDialog({ open, deposit: null, isBulk: false })}>

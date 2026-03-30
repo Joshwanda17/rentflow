@@ -40,6 +40,7 @@ export function CFOWithdrawalApprovals() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [transactionId, setTransactionId] = useState('');
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(v);
@@ -83,7 +84,7 @@ export function CFOWithdrawalApprovals() {
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
   const handleApprove = async () => {
-    if (!user || !selected) return;
+    if (!user || !selected || !transactionId.trim()) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
@@ -92,12 +93,14 @@ export function CFOWithdrawalApprovals() {
           status: 'cfo_approved',
           cfo_approved_at: new Date().toISOString(),
           cfo_approved_by: user.id,
+          transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
       toast.success('Forwarded to COO for final approval & payment');
       setApproveOpen(false);
       setSelected(null);
+      setTransactionId('');
       fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
@@ -214,7 +217,7 @@ export function CFOWithdrawalApprovals() {
                       <Button
                         size="sm"
                         className="h-8 text-xs"
-                        onClick={() => { setSelected(req); setApproveOpen(true); }}
+                        onClick={() => { setSelected(req); setTransactionId(''); setApproveOpen(true); }}
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
@@ -235,12 +238,18 @@ export function CFOWithdrawalApprovals() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Withdrawal?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will forward <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> to the COO for final approval and payment.
+              Enter the Transaction ID to forward <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> to the COO for final approval.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Input
+            placeholder="Enter Transaction ID"
+            value={transactionId}
+            onChange={e => setTransactionId(e.target.value)}
+            className="font-mono uppercase"
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApprove} disabled={!!processing}>
+            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()}>
               {processing ? 'Approving...' : 'Approve & Forward'}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -38,6 +38,9 @@ export function PendingDepositsSection() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<DepositRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approveDeposit, setApproveDeposit] = useState<DepositRequest | null>(null);
+  const [approveTid, setApproveTid] = useState('');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -92,7 +95,17 @@ export function PendingDepositsSection() {
     // Realtime removed — deposit_requests not in realtime whitelist
   }, [user]);
 
-  const handleApprove = async (deposit: DepositRequest) => {
+  const openApproveDialog = (deposit: DepositRequest) => {
+    setApproveDeposit(deposit);
+    setApproveTid('');
+    setApproveDialogOpen(true);
+  };
+
+  const handleApprove = async () => {
+    if (!approveDeposit) return;
+    const deposit = approveDeposit;
+    setApproveDialogOpen(false);
+    setApproveDeposit(null);
     setProcessingId(deposit.id);
 
     try {
@@ -100,6 +113,7 @@ export function PendingDepositsSection() {
         body: {
           deposit_request_id: deposit.id,
           action: 'approve',
+          transaction_id: approveTid.trim().toUpperCase(),
         },
       });
 
@@ -110,6 +124,7 @@ export function PendingDepositsSection() {
       }
 
       toast.success(`Deposit of ${formatCurrency(deposit.amount)} approved!`);
+      setApproveTid('');
       fetchDeposits();
     } catch (error) {
       console.error('Error approving deposit:', error);
@@ -234,7 +249,7 @@ export function PendingDepositsSection() {
                       <Button
                         size="sm"
                         className="flex-1"
-                        onClick={() => handleApprove(deposit)}
+                        onClick={() => openApproveDialog(deposit)}
                         disabled={processingId === deposit.id}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" />
@@ -257,6 +272,33 @@ export function PendingDepositsSection() {
             )}
         </CardContent>
       </Card>
+
+      {/* Approve TID Dialog */}
+      <AlertDialog open={approveDialogOpen} onOpenChange={open => { if (!open) { setApproveDialogOpen(false); setApproveDeposit(null); } }}>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the Transaction ID to approve{' '}
+              {approveDeposit && formatCurrency(approveDeposit.amount)}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="Enter Transaction ID"
+              value={approveTid}
+              onChange={(e) => setApproveTid(e.target.value)}
+              className="font-mono uppercase"
+            />
+          </div>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApprove} disabled={!approveTid.trim()}>
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
