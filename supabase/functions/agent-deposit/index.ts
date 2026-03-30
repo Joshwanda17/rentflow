@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (freshAgentWallet) {
-      const newAgentBalance = freshAgentWallet.balance - amount + commission; // agent keeps commission
+      const newAgentBalance = freshAgentWallet.balance - amount; // commission credited separately via RPC ledger trigger
       const { data: deductResult } = await adminClient
         .from('wallets')
         .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
