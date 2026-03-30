@@ -825,6 +825,18 @@ export default function COOPartnersPage() {
     else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
     else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
     else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
+    // Payment date range filter
+    if (payoutDateFrom || payoutDateTo) {
+      result = result.filter(r => {
+        if (!r.payoutDay) return false;
+        const today = new Date();
+        const nextPayout = new Date(today.getFullYear(), today.getMonth(), r.payoutDay);
+        if (nextPayout < today) nextPayout.setMonth(nextPayout.getMonth() + 1);
+        if (payoutDateFrom && nextPayout < payoutDateFrom) return false;
+        if (payoutDateTo && nextPayout > payoutDateTo) return false;
+        return true;
+      });
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.email.toLowerCase().includes(q));
