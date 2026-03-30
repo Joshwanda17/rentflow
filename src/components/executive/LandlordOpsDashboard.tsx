@@ -443,8 +443,8 @@ export function LandlordOpsDashboard() {
     return [...map.values()].sort((a, b) => b.houseCount - a.houseCount);
   }, [rows]);
 
-  const verifiedLandlords = uniqueLandlords.filter(([, l]) => l?.verified);
-  const smartphoneLandlords = uniqueLandlords.filter(([, l]) => l?.has_smartphone);
+  const verifiedLandlords = landlordsList.filter(l => l.verified);
+  const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
     if (!user) return;
