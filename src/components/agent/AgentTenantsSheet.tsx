@@ -412,6 +412,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const requests = tenantRequests[tenant.id] || [];
               const isLoadingThis = loadingRequests === tenant.id;
               const balance = tenantBalances[tenant.id] || 0;
+              const totals = tenantTotals[tenant.id] || { total: 0, paid: 0 };
+              const progressPct = totals.total > 0 ? Math.min(100, Math.round((totals.paid / totals.total) * 100)) : 0;
               const hasDebt = balance > 0;
               const isNoSmartphone = noSmartphoneMap[tenant.id] || false;
 
