@@ -5,10 +5,8 @@ import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle,
 import { format, formatDistanceToNow, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
-import { PartnerDirectory } from './PartnerDirectory';
 import { PartnerCapitalFlow } from './PartnerCapitalFlow';
 import { PartnerOpsBrief } from './PartnerOpsBrief';
-import { PartnerChurnAlerts } from './PartnerChurnAlerts';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
