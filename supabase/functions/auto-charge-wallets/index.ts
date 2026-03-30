@@ -35,6 +35,16 @@ async function sendTenantSMS(phone: string, message: string): Promise<boolean> {
 }
 
 const GRACE_PERIOD_HOURS = 72;
+const MAX_CONSECUTIVE_FAILURES = 3;
+
+/**
+ * Calculate days between two date strings (YYYY-MM-DD).
+ */
+function daysBetween(dateStr: string, todayStr: string): number {
+  const d1 = new Date(dateStr + "T00:00:00Z");
+  const d2 = new Date(todayStr + "T00:00:00Z");
+  return Math.floor((d2.getTime() - d1.getTime()) / 86400000);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -51,10 +61,11 @@ Deno.serve(async (req) => {
 
     console.log(`[auto-charge-wallets] Processing charges due on or before ${today}`);
 
+    // Fetch active AND stalled charges that are due (stalled ones won't be re-processed, just skipped with a log)
     const { data: dueCharges, error: fetchError } = await supabase
       .from("subscription_charges")
       .select("*")
-      .eq("status", "active")
+      .in("status", ["active"])
       .lte("next_charge_date", today);
 
     if (fetchError) {
@@ -78,9 +89,12 @@ Deno.serve(async (req) => {
       agent_charged: 0,
       grace_period: 0,
       completed: 0,
+      catchup_debt: 0,
+      stalled: 0,
       totalCharged: 0,
       totalDebt: 0,
       totalAgentCharged: 0,
+      totalCatchupDebt: 0,
       errors: [] as string[],
     };
 
@@ -96,12 +110,88 @@ Deno.serve(async (req) => {
           .single();
         const tenantName = tenantProfile?.full_name || "Unknown Tenant";
         const tenantPhone = tenantProfile?.phone || "";
+        const chargeAmount = Number(charge.charge_amount);
+
+        // =====================================================
+        // PART 1: CATCH-UP LOGIC — Skip stale backlog dates
+        // =====================================================
+        const missedDays = daysBetween(charge.next_charge_date, today);
+
+        if (missedDays > 1) {
+          // Calculate how many charge periods were missed
+          let missedPeriods: number;
+          if (charge.frequency === "daily") missedPeriods = missedDays;
+          else if (charge.frequency === "weekly") missedPeriods = Math.floor(missedDays / 7);
+          else missedPeriods = Math.floor(missedDays / 30);
+
+          // Cap to remaining charges
+          missedPeriods = Math.min(missedPeriods, charge.charges_remaining);
+
+          if (missedPeriods > 0) {
+            const catchupDebt = chargeAmount * missedPeriods;
+
+            console.log(`[auto-charge-wallets] CATCH-UP: ${tenantName} has ${missedDays} stale days (${missedPeriods} missed ${charge.frequency} periods). Recording UGX ${catchupDebt} as debt.`);
+
+            // Record the entire backlog as debt in one entry
+            await supabase.from("subscription_charge_logs").insert({
+              subscription_id: charge.id,
+              tenant_id: charge.tenant_id,
+              charge_amount: catchupDebt,
+              amount_deducted: 0,
+              debt_added: catchupDebt,
+              wallet_balance_before: 0,
+              wallet_balance_after: 0,
+              status: "catchup_debt",
+              charge_date: today,
+            });
+
+            // Update the charge: add catchup debt, advance completed/remaining, jump date to today
+            const newRemaining = Math.max(0, charge.charges_remaining - missedPeriods);
+            const isComplete = newRemaining <= 0;
+
+            await supabase.from("subscription_charges").update({
+              accumulated_debt: Number(charge.accumulated_debt) + catchupDebt,
+              charges_completed: charge.charges_completed + missedPeriods,
+              charges_remaining: newRemaining,
+              next_charge_date: isComplete ? charge.next_charge_date : today,
+              status: isComplete ? "completed" : "active",
+              tenant_failed_at: null, // Clear stale grace period
+              consecutive_failures: 0, // Reset since we're catching up
+            }).eq("id", charge.id);
+
+            // Notify agent about catch-up debt
+            if (charge.agent_id) {
+              await supabase.from("notifications").insert({
+                user_id: charge.agent_id,
+                title: "📋 Missed Payments Recorded as Debt",
+                message: `${tenantName} (${tenantPhone}): ${missedPeriods} missed ${charge.frequency} payments totaling UGX ${catchupDebt.toLocaleString()} recorded as debt. Schedule advanced to today.`,
+                type: "warning",
+                metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, missed_periods: missedPeriods, catchup_debt: catchupDebt },
+              });
+            }
+
+            results.catchup_debt++;
+            results.totalCatchupDebt += catchupDebt;
+
+            if (isComplete) {
+              results.completed++;
+              console.log(`[auto-charge-wallets] ${tenantName}: completed after catch-up`);
+              continue;
+            }
+
+            // Refresh the charge object with updated values for today's processing
+            charge.next_charge_date = today;
+            charge.charges_remaining = newRemaining;
+            charge.charges_completed = charge.charges_completed + missedPeriods;
+            charge.accumulated_debt = Number(charge.accumulated_debt) + catchupDebt;
+            charge.tenant_failed_at = null;
+            charge.consecutive_failures = 0;
+          }
+        }
 
         // If charge_agent_wallet flag is set (no smartphone), skip tenant wallet entirely and charge agent
-        // No grace period for no-smartphone tenants — agent agreed to cover them
         if (charge.charge_agent_wallet && charge.agent_id) {
           console.log(`[auto-charge-wallets] charge_agent_wallet=true for ${charge.tenant_id}, charging agent ${charge.agent_id} directly`);
-          const chargeAmount = Number(charge.charge_amount);
           let agentAmountCharged = 0;
           let debtAdded = 0;
           let logStatus: string;
@@ -111,9 +201,11 @@ Deno.serve(async (req) => {
             agentAmountCharged = chargeAmount;
             logStatus = "agent_direct_no_smartphone";
             results.agent_charged++;
+
+            // Reset consecutive failures on success
+            await supabase.from("subscription_charges").update({ consecutive_failures: 0 }).eq("id", charge.id);
           } else {
             // Don't record debt immediately — let the 3-hour retry function handle it
-            // Just mark this attempt as pending retry and skip advancing the charge
             logStatus = "agent_insufficient_no_smartphone_retry_pending";
             results.insufficient++;
 
@@ -152,7 +244,6 @@ Deno.serve(async (req) => {
             await supabase.rpc("record_rent_request_repayment", {
               p_tenant_id: charge.tenant_id, p_amount: agentAmountCharged,
             });
-            // Credit agent 5% commission
             await supabase.rpc("credit_agent_rent_commission", {
               p_rent_request_id: charge.rent_request_id, p_repayment_amount: agentAmountCharged,
               p_source_table: "auto_charge_wallets", p_source_id: charge.id,
@@ -167,14 +258,6 @@ Deno.serve(async (req) => {
               message: `UGX ${agentAmountCharged.toLocaleString()} deducted for ${tenantName}'s (${tenantPhone}) ${charge.frequency} rent instalment (no smartphone). Remaining payments: ${Math.max(0, charge.charges_remaining - 1)}.`,
               type: "info",
               metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, tenant_phone: tenantPhone, amount: agentAmountCharged },
-            });
-          } else if (debtAdded > 0) {
-            await supabase.from("notifications").insert({
-              user_id: charge.agent_id,
-              title: "⚠️ Insufficient Funds for Tenant",
-              message: `Couldn't cover UGX ${chargeAmount.toLocaleString()} for ${tenantName} (${tenantPhone}). UGX ${debtAdded.toLocaleString()} added as debt.`,
-              type: "warning",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, debt: debtAdded },
             });
           }
 
@@ -199,7 +282,6 @@ Deno.serve(async (req) => {
           .single();
 
         const walletBalance = (!walletError && wallet) ? Number(wallet.balance) : 0;
-        const chargeAmount = Number(charge.charge_amount);
         const hasSufficientFunds = walletBalance >= chargeAmount;
 
         // === TENANT CAN PAY: charge them, clear grace period ===
@@ -216,7 +298,6 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Record in ledger (NO transaction_group_id — wallet already updated directly above)
           await supabase.from("general_ledger").insert({
             user_id: charge.tenant_id,
             amount: chargeAmount,
@@ -233,16 +314,18 @@ Deno.serve(async (req) => {
             await supabase.rpc("record_rent_request_repayment", {
               p_tenant_id: charge.tenant_id, p_amount: chargeAmount,
             });
-            // Credit agent 5% commission on tenant's own payment
             await supabase.rpc("credit_agent_rent_commission", {
               p_rent_request_id: charge.rent_request_id, p_repayment_amount: chargeAmount,
               p_source_table: "auto_charge_wallets", p_source_id: charge.id,
             });
           }
 
-          // Clear grace period if it was set
-          if (charge.tenant_failed_at) {
-            await supabase.from("subscription_charges").update({ tenant_failed_at: null }).eq("id", charge.id);
+          // Clear grace period and reset failures on success
+          if (charge.tenant_failed_at || charge.consecutive_failures > 0) {
+            await supabase.from("subscription_charges").update({
+              tenant_failed_at: null,
+              consecutive_failures: 0,
+            }).eq("id", charge.id);
           }
 
           await logAndUpdateCharge(supabase, charge, {
@@ -258,13 +341,13 @@ Deno.serve(async (req) => {
             metadata: { subscription_id: charge.id, amount: chargeAmount },
           });
 
-          // SMS confirmation to tenant
           if (tenantPhone) {
             const remaining = Math.max(0, charge.charges_remaining - 1);
             const sms = `WELILE: Dear ${tenantName}, UGX ${chargeAmount.toLocaleString()} deducted from your wallet for rent. ${remaining > 0 ? `${remaining} payments left.` : 'Rent fully paid!'} Access up to UGX 30M credit with WELILE!`;
             sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
           }
 
+          results.successful++;
           results.totalCharged += chargeAmount;
           console.log(`[auto-charge-wallets] ${charge.tenant_id}: success - tenant:${chargeAmount}`);
           continue;
@@ -281,7 +364,6 @@ Deno.serve(async (req) => {
 
           console.log(`[auto-charge-wallets] ${charge.tenant_id}: Starting 72h grace period`);
 
-          // Notify tenant
           await supabase.from("notifications").insert({
             user_id: charge.tenant_id,
             title: "⚠️ Insufficient Wallet Balance",
@@ -290,7 +372,6 @@ Deno.serve(async (req) => {
             metadata: { subscription_id: charge.id, amount: chargeAmount, grace_deadline: new Date(now.getTime() + GRACE_PERIOD_HOURS * 3600000).toISOString() },
           });
 
-          // Notify agent about pending grace period
           if (charge.agent_id) {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
@@ -309,7 +390,6 @@ Deno.serve(async (req) => {
         const hoursSinceFailure = (now.getTime() - tenantFailedAt.getTime()) / 3600000;
 
         if (hoursSinceFailure < GRACE_PERIOD_HOURS) {
-          // Still within grace period — skip, don't charge agent yet
           console.log(`[auto-charge-wallets] ${charge.tenant_id}: Still in grace period (${Math.round(hoursSinceFailure)}h / ${GRACE_PERIOD_HOURS}h)`);
           results.grace_period++;
           continue;
@@ -353,10 +433,72 @@ Deno.serve(async (req) => {
             agentAmountCharged = shortfall;
             logStatus = tenantPartial > 0 ? "partial_agent_covered_72h" : "agent_covered_72h";
             results.agent_charged++;
+
+            // Reset consecutive failures on success
+            await supabase.from("subscription_charges").update({ consecutive_failures: 0 }).eq("id", charge.id);
           } else {
             debtAdded = shortfall;
             logStatus = tenantPartial > 0 ? "partial_72h" : "insufficient_72h";
             results.insufficient++;
+
+            // =====================================================
+            // PART 2: GRACE CIRCUIT BREAKER
+            // =====================================================
+            const newFailures = (charge.consecutive_failures || 0) + 1;
+
+            if (newFailures >= MAX_CONSECUTIVE_FAILURES) {
+              // Mark as stalled — stop processing until manual intervention
+              await supabase.from("subscription_charges").update({
+                status: "stalled",
+                consecutive_failures: newFailures,
+                tenant_failed_at: null,
+              }).eq("id", charge.id);
+
+              // =====================================================
+              // PART 3: MANAGER STALLED ALERT
+              // =====================================================
+              // Notify all managers via notifications
+              const { data: managers } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("role", "manager");
+
+              if (managers && managers.length > 0) {
+                const managerNotifications = managers.map((m: any) => ({
+                  user_id: m.id,
+                  title: "🛑 Charge Stalled — Manual Intervention Required",
+                  message: `${tenantName} (${tenantPhone}): ${newFailures} consecutive failed grace cycles. Both tenant and agent have insufficient funds. Charge amount: UGX ${chargeAmount.toLocaleString()}/day. Total accumulated debt: UGX ${(Number(charge.accumulated_debt) + debtAdded).toLocaleString()}.`,
+                  type: "warning",
+                  metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, agent_id: charge.agent_id, consecutive_failures: newFailures },
+                }));
+                await supabase.from("notifications").insert(managerNotifications);
+              }
+
+              // Notify agent
+              await supabase.from("notifications").insert({
+                user_id: charge.agent_id,
+                title: "🛑 Charge Stalled — Action Required",
+                message: `After ${newFailures} failed attempts, rent collection for ${tenantName} (${tenantPhone}) has been paused. Please top up your wallet or contact the tenant. Amount: UGX ${chargeAmount.toLocaleString()}.`,
+                type: "warning",
+                metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: chargeAmount },
+              });
+
+              results.stalled++;
+              console.log(`[auto-charge-wallets] STALLED: ${tenantName} after ${newFailures} consecutive failures`);
+            } else {
+              // Advance next_charge_date to TOMORROW (not +1 from stale date)
+              // This prevents the backlog from growing further
+              const tomorrow = new Date(now);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+              await supabase.from("subscription_charges").update({
+                consecutive_failures: newFailures,
+                tenant_failed_at: null, // Reset grace period for next cycle
+              }).eq("id", charge.id);
+
+              console.log(`[auto-charge-wallets] ${tenantName}: failure #${newFailures}/${MAX_CONSECUTIVE_FAILURES}, grace reset`);
+            }
           }
         } else {
           debtAdded = shortfall;
@@ -364,8 +506,10 @@ Deno.serve(async (req) => {
           results.insufficient++;
         }
 
-        // Clear grace period
-        await supabase.from("subscription_charges").update({ tenant_failed_at: null }).eq("id", charge.id);
+        // Clear grace period (already handled for stalled above, but needed for normal flow)
+        if ((charge.consecutive_failures || 0) + 1 < MAX_CONSECUTIVE_FAILURES || agentAmountCharged > 0) {
+          await supabase.from("subscription_charges").update({ tenant_failed_at: null }).eq("id", charge.id);
+        }
 
         // Record rent repayment
         const totalCollected = amountDeducted + agentAmountCharged;
@@ -373,7 +517,6 @@ Deno.serve(async (req) => {
           await supabase.rpc("record_rent_request_repayment", {
             p_tenant_id: charge.tenant_id, p_amount: totalCollected,
           });
-          // Credit agent 5% commission
           await supabase.rpc("credit_agent_rent_commission", {
             p_rent_request_id: charge.rent_request_id, p_repayment_amount: totalCollected,
             p_source_table: "auto_charge_wallets", p_source_id: charge.id,
@@ -404,8 +547,6 @@ Deno.serve(async (req) => {
             metadata: { subscription_id: charge.id, agent_covered: agentAmountCharged },
           });
 
-
-          // SMS to tenant that agent covered their rent
           if (tenantPhone) {
             const totalPaid = amountDeducted + agentAmountCharged;
             const sms = `WELILE: Dear ${tenantName}, UGX ${totalPaid.toLocaleString()} has been paid towards your rent${agentAmountCharged > 0 ? ' (covered by your agent)' : ''}. Please top up your wallet. Access up to UGX 30M with WELILE!`;
@@ -435,7 +576,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[auto-charge-wallets] Done: ${results.successful} success, ${results.agent_charged} agent-covered, ${results.grace_period} grace-period, ${results.partial} partial, ${results.insufficient} insufficient`);
+    console.log(`[auto-charge-wallets] Done: ${results.successful} success, ${results.agent_charged} agent-covered, ${results.grace_period} grace-period, ${results.catchup_debt} catch-up, ${results.stalled} stalled, ${results.insufficient} insufficient`);
 
     return new Response(
       JSON.stringify({ success: true, results }),
@@ -453,6 +594,7 @@ Deno.serve(async (req) => {
 
 /**
  * Log charge attempt and update subscription totals.
+ * Advances next_charge_date to TOMORROW (relative to today) instead of +1 from stale date.
  */
 async function logAndUpdateCharge(
   supabase: ReturnType<typeof createClient>,
@@ -483,10 +625,19 @@ async function logAndUpdateCharge(
   const newAgentChargedAmount = Number(charge.agent_charged_amount || 0) + opts.agentAmountCharged;
   const newAgentChargeCount = (charge.agent_charge_count || 0) + (opts.agentAmountCharged > 0 ? 1 : 0);
 
-  let nextDate = new Date(charge.next_charge_date);
-  if (charge.frequency === "daily") nextDate.setDate(nextDate.getDate() + 1);
-  else if (charge.frequency === "weekly") nextDate.setDate(nextDate.getDate() + 7);
-  else nextDate.setMonth(nextDate.getMonth() + 1);
+  // Always advance to TOMORROW from today, not +1 from stale next_charge_date
+  const todayDate = new Date(opts.today + "T00:00:00Z");
+  let nextDate: Date;
+  if (charge.frequency === "daily") {
+    nextDate = new Date(todayDate);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+  } else if (charge.frequency === "weekly") {
+    nextDate = new Date(todayDate);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 7);
+  } else {
+    nextDate = new Date(todayDate);
+    nextDate.setUTCMonth(nextDate.getUTCMonth() + 1);
+  }
 
   const isComplete = newChargesRemaining <= 0;
 
@@ -545,7 +696,6 @@ async function chargeAgent(
 
   const description = `Tenant default: ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace`;
 
-  // Record in general_ledger for wallet history (NO transaction_group_id — wallet already updated directly above)
   await supabase.from("general_ledger").insert({
     user_id: charge.agent_id,
     amount: shortfall,
@@ -558,7 +708,6 @@ async function chargeAgent(
     transaction_date: new Date().toISOString(),
   });
 
-  // Also record in pending_wallet_operations for audit (no transaction_group_id)
   await supabase.from("pending_wallet_operations").insert({
     user_id: charge.agent_id,
     amount: shortfall,
@@ -576,7 +725,6 @@ async function chargeAgent(
       p_tenant_id: charge.tenant_id,
       p_amount: shortfall,
     });
-    // Credit agent 5% commission on grace-period recovery
     await supabase.rpc("credit_agent_rent_commission", {
       p_rent_request_id: charge.rent_request_id, p_repayment_amount: shortfall,
       p_source_table: "auto_charge_wallets", p_source_id: charge.id,

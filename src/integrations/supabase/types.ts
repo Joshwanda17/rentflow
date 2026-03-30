@@ -6920,6 +6920,7 @@ export type Database = {
           charge_amount: number
           charges_completed: number
           charges_remaining: number
+          consecutive_failures: number
           created_at: string
           end_date: string | null
           frequency: string
@@ -6944,6 +6945,7 @@ export type Database = {
           charge_amount: number
           charges_completed?: number
           charges_remaining?: number
+          consecutive_failures?: number
           created_at?: string
           end_date?: string | null
           frequency: string
@@ -6968,6 +6970,7 @@ export type Database = {
           charge_amount?: number
           charges_completed?: number
           charges_remaining?: number
+          consecutive_failures?: number
           created_at?: string
           end_date?: string | null
           frequency?: string
