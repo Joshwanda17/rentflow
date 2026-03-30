@@ -157,7 +157,7 @@ export default function COOPartnersPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>('desc');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
-  const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('all');
+  const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('no_email');
 
   // Invest dialog
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
@@ -319,8 +319,8 @@ export default function COOPartnersPage() {
           payoutDay: agg.payoutDay,
           roiMode: agg.roiMode,
           status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
-          joinedAt: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '—',
-          lastActivity: agg.lastActivity ? new Date(agg.lastActivity).toLocaleDateString() : '—',
+          joinedAt: profile?.created_at || '',
+          lastActivity: agg.lastActivity || '',
         };
       }).filter(r => r.funded > 0 || r.activeDeals > 0)
         .sort((a, b) => b.funded - a.funded);
@@ -1053,6 +1053,11 @@ export default function COOPartnersPage() {
     )},
     { key: 'payoutDay', label: 'Payout', align: 'right', hideOnMobile: true, render: (r) => (
       <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
+    )},
+    { key: 'joinedAt', label: 'Joined', sortable: true, hideOnMobile: true, render: (r) => (
+      <span className="text-muted-foreground text-xs">
+        {r.joinedAt ? new Date(r.joinedAt).toLocaleDateString() : '—'}
+      </span>
     )},
     {
       key: 'actions', label: '', sortable: false, render: (r) => (
