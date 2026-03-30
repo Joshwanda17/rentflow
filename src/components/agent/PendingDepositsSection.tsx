@@ -249,7 +249,7 @@ export function PendingDepositsSection() {
                       <Button
                         size="sm"
                         className="flex-1"
-                        onClick={() => handleApprove(deposit)}
+                        onClick={() => openApproveDialog(deposit)}
                         disabled={processingId === deposit.id}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" />
