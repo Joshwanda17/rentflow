@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
         });
         
         // Use actual commission from RPC result (may differ due to sub-agent split)
-        const actualCommission = commissionResult?.commission || commission;
+        actualCommission = commissionResult?.commission || commission;
 
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId) {
