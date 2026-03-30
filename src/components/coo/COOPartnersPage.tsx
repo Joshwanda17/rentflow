@@ -1153,20 +1153,24 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             >
               <TrendingUp className="h-3.5 w-3.5" /> Invest {r.walletBalance >= MIN_INVEST ? '' : '(Low bal)'}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={e => { e.stopPropagation(); setSuspendPartner(r); }}
-              className={cn('gap-2', r.status === 'active' ? 'text-amber-600 focus:text-amber-600' : 'text-primary focus:text-primary')}
-            >
-              {r.status === 'active' ? <Ban className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
-              {r.status === 'active' ? 'Suspend' : 'Reactivate'}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeletePartnerReason(''); }}
-              className="gap-2 text-destructive focus:text-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Delete Partner
-            </DropdownMenuItem>
+            {!readOnly && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={e => { e.stopPropagation(); setSuspendPartner(r); }}
+                  className={cn('gap-2', r.status === 'active' ? 'text-amber-600 focus:text-amber-600' : 'text-primary focus:text-primary')}
+                >
+                  {r.status === 'active' ? <Ban className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
+                  {r.status === 'active' ? 'Suspend' : 'Reactivate'}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={e => { e.stopPropagation(); setDeletePartnerTarget(r); setDeletePartnerReason(''); }}
+                  className="gap-2 text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete Partner
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
