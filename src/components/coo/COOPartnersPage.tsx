@@ -6,10 +6,13 @@ import { cn } from '@/lib/utils';
 import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
-  Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar,
+  Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
   Plus, FileText, Share2, ArrowRightLeft
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
 import { Button } from '@/components/ui/button';
@@ -158,6 +161,8 @@ export default function COOPartnersPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
   const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('no_email');
+  const [payoutDateFrom, setPayoutDateFrom] = useState<Date | undefined>(undefined);
+  const [payoutDateTo, setPayoutDateTo] = useState<Date | undefined>(undefined);
 
   // Invest dialog
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
@@ -820,6 +825,18 @@ export default function COOPartnersPage() {
     else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
     else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
     else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
+    // Payment date range filter
+    if (payoutDateFrom || payoutDateTo) {
+      result = result.filter(r => {
+        if (!r.payoutDay) return false;
+        const today = new Date();
+        const nextPayout = new Date(today.getFullYear(), today.getMonth(), r.payoutDay);
+        if (nextPayout < today) nextPayout.setMonth(nextPayout.getMonth() + 1);
+        if (payoutDateFrom && nextPayout < payoutDateFrom) return false;
+        if (payoutDateTo && nextPayout > payoutDateTo) return false;
+        return true;
+      });
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.email.toLowerCase().includes(q));
@@ -836,7 +853,7 @@ export default function COOPartnersPage() {
       });
     }
     return result;
-  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact]);
+  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -1178,6 +1195,41 @@ export default function COOPartnersPage() {
             <SelectItem value="no_email">No Email</SelectItem>
           </SelectContent>
         </Select>
+        {/* Payment Date Range Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", (payoutDateFrom || payoutDateTo) && "border-primary text-primary")}>
+              <CalendarDays className="h-3.5 w-3.5" />
+              {payoutDateFrom && payoutDateTo
+                ? `${format(payoutDateFrom, 'MMM d')} – ${format(payoutDateTo, 'MMM d')}`
+                : payoutDateFrom
+                  ? `From ${format(payoutDateFrom, 'MMM d')}`
+                  : payoutDateTo
+                    ? `Until ${format(payoutDateTo, 'MMM d')}`
+                    : 'Payout Range'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3" align="start">
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-muted-foreground">Filter by next payout date</div>
+              <div className="flex gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</Label>
+                  <Calendar mode="single" selected={payoutDateFrom} onSelect={(d) => { setPayoutDateFrom(d); setSortKey('payoutDay'); setSortDir('asc'); setPage(0); }} className="p-2 pointer-events-auto" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</Label>
+                  <Calendar mode="single" selected={payoutDateTo} onSelect={(d) => { setPayoutDateTo(d); setSortKey('payoutDay'); setSortDir('asc'); setPage(0); }} className="p-2 pointer-events-auto" />
+                </div>
+              </div>
+              {(payoutDateFrom || payoutDateTo) && (
+                <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => { setPayoutDateFrom(undefined); setPayoutDateTo(undefined); setPage(0); }}>
+                  <X className="h-3 w-3 mr-1" /> Clear Date Range
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="h-3.5 w-3.5" /> Import
         </Button>
@@ -1287,7 +1339,7 @@ export default function COOPartnersPage() {
                     </div>
                     <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground flex-wrap">
                       <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{detailPartner.profile.phone || '—'}</span>
-                      <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />Joined {formatDate(detailPartner.profile.created_at)}</span>
+                      <span className="inline-flex items-center gap-1"><CalendarIcon className="h-3 w-3" />Joined {formatDate(detailPartner.profile.created_at)}</span>
                     </div>
                     {detailPartner.profile.frozen_at && (
                       <p className="text-[11px] text-destructive mt-1.5 bg-destructive/10 px-2 py-1 rounded-md inline-block">
