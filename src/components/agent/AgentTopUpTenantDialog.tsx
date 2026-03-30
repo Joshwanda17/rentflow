@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Wallet, Search, User } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Loader2, Wallet, Search, User, TrendingUp } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface AgentTopUpTenantDialogProps {
@@ -23,10 +24,12 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const [searchResults, setSearchResults] = useState<{ id: string; full_name: string; phone: string }[]>([]);
   const [tenantInfo, setTenantInfo] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const [success, setSuccess] = useState(false);
+  const [commissionEarned, setCommissionEarned] = useState(0);
   const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [tenantRentBalance, setTenantRentBalance] = useState<number | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch agent's wallet balance when dialog opens
   useEffect(() => {
@@ -110,8 +113,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
 
     setLoading(true);
     try {
-      // Use the existing agent-deposit edge function
-      const { error } = await supabase.functions.invoke('agent-deposit', {
+      const { data, error } = await supabase.functions.invoke('agent-deposit', {
         body: {
           user_phone: tenantInfo.phone,
           amount: amountNum,
@@ -127,7 +129,15 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
         throw new Error(errMsg || 'Top-up failed');
       }
 
+      const earnedCommission = data?.details?.agent_commission || 0;
+      setCommissionEarned(earnedCommission);
       setSuccess(true);
+      
+      // Invalidate earnings and wallet caches so agent sees commission immediately
+      queryClient.invalidateQueries({ queryKey: ['agent-daily-rent-expected'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-earnings-forecast'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      
       toast({ title: `${formatUGX(amountNum)} deposited to ${tenantInfo.full_name}'s wallet` });
       onSuccess?.();
     } catch (err: any) {
@@ -143,6 +153,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
     setTenantInfo(null);
     setSearchResults([]);
     setSuccess(false);
+    setCommissionEarned(0);
     setTenantRentBalance(null);
     onOpenChange(false);
   };
@@ -173,6 +184,17 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
              </div>
              <h3 className="text-lg font-semibold">Rent Payment Successful!</h3>
              <p className="text-muted-foreground">{formatUGX(parseFloat(amount))} paid for {tenantInfo?.full_name}</p>
+             
+             {commissionEarned > 0 && (
+               <div className="rounded-xl border-2 border-success/40 bg-success/5 p-4 space-y-1">
+                 <div className="flex items-center justify-center gap-2">
+                   <TrendingUp className="h-5 w-5 text-success" />
+                   <span className="font-bold text-success text-lg">{formatUGX(commissionEarned)}</span>
+                 </div>
+                 <p className="text-xs text-muted-foreground">5% commission credited to your wallet</p>
+               </div>
+             )}
+             
              <Button onClick={handleClose} className="w-full">Done</Button>
            </div>
          ) : (
