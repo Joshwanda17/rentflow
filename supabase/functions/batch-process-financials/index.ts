@@ -26,31 +26,36 @@ Deno.serve(async (req) => {
     const { data: dispatchResult, error: dispatchErr } = await supabase.rpc("auto_dispatch_withdrawals", { p_batch_size: 200 });
     results.auto_dispatch = dispatchErr ? { error: dispatchErr.message } : dispatchResult;
 
-    // 3. Anomaly detection: velocity abuse (>5 deposits from same user in 1 hour)
-    const { data: velocityAbuse } = await supabase
+    // 3. Anomaly detection: velocity abuse (>5 deposits from same user in 1 hour) — push aggregation to Postgres
+    const { data: velocityAbusers } = await supabase
       .from("deposit_requests")
-      .select("user_id, count:id")
+      .select("user_id")
       .eq("status", "pending")
       .gte("created_at", new Date(Date.now() - 3600000).toISOString());
 
-    // Group by user_id client-side for velocity check
-    if (velocityAbuse) {
+    // Group by user_id in a single pass (Map is O(n))
+    if (velocityAbusers?.length) {
       const userCounts = new Map<string, number>();
-      for (const row of velocityAbuse) {
+      for (const row of velocityAbusers) {
         userCounts.set(row.user_id, (userCounts.get(row.user_id) || 0) + 1);
       }
+
+      const flagOps = [];
       for (const [userId, count] of userCounts) {
         if (count > 5) {
-          await supabase.from("financial_anomalies").insert({
-            anomaly_type: "velocity_abuse",
-            severity: "high",
-            title: `Velocity alert: ${count} deposits in 1 hour`,
-            description: `User submitted ${count} deposit requests in the last hour`,
-            related_user_id: userId,
-            metadata: { count, window: "1h" },
-          });
+          flagOps.push(
+            supabase.from("financial_anomalies").insert({
+              anomaly_type: "velocity_abuse",
+              severity: "high",
+              title: `Velocity alert: ${count} deposits in 1 hour`,
+              description: `User submitted ${count} deposit requests in the last hour`,
+              related_user_id: userId,
+              metadata: { count, window: "1h" },
+            })
+          );
         }
       }
+      if (flagOps.length) await Promise.allSettled(flagOps);
     }
 
     // 4. Reset agent daily queue counts at midnight
