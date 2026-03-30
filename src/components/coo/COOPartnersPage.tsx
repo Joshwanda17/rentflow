@@ -1215,11 +1215,11 @@ export default function COOPartnersPage() {
               <div className="flex gap-3">
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">From</Label>
-                  <Calendar mode="single" selected={payoutDateFrom} onSelect={setPayoutDateFrom} className="p-2 pointer-events-auto" />
+                  <Calendar mode="single" selected={payoutDateFrom} onSelect={(d) => { setPayoutDateFrom(d); setSortKey('payoutDay'); setSortDir('asc'); setPage(0); }} className="p-2 pointer-events-auto" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">To</Label>
-                  <Calendar mode="single" selected={payoutDateTo} onSelect={setPayoutDateTo} className="p-2 pointer-events-auto" />
+                  <Calendar mode="single" selected={payoutDateTo} onSelect={(d) => { setPayoutDateTo(d); setSortKey('payoutDay'); setSortDir('asc'); setPage(0); }} className="p-2 pointer-events-auto" />
                 </div>
               </div>
               {(payoutDateFrom || payoutDateTo) && (
