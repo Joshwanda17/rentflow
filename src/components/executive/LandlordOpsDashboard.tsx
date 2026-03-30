@@ -197,7 +197,7 @@ export function LandlordOpsDashboard() {
   const [verifying, setVerifying] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
-  const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' } | null>(null);
+  const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' } | null>(null);
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
   const [editLC1, setEditLC1] = useState<{ name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
   const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
@@ -1126,7 +1126,7 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
   house: ListingWithLandlord;
   onImages: (v: { images: string[]; title: string }) => void;
   onAdjust?: (v: ListingWithLandlord) => void;
-  onAction?: (v: { listing: ListingWithLandlord; type: 'delete' | 'delist' }) => void;
+  onAction?: (v: { listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' }) => void;
   showTenant?: boolean;
   showLandlord?: boolean;
   onAssign?: (listingId: string, title: string, type: 'landlord' | 'agent') => void;
@@ -1169,9 +1169,12 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
       )}
       {/* Empty house actions */}
       {onAdjust && onAction && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button size="sm" variant="outline" className="flex-1 h-10 text-xs gap-1" onClick={() => onAdjust(house)}>
             <TrendingDown className="h-3 w-3" /> Reduce
+          </Button>
+          <Button size="sm" variant="outline" className="h-10 text-xs gap-1 text-orange-600" onClick={() => onAction({ listing: house, type: 'reject' })}>
+            <XCircle className="h-3 w-3" /> Reject
           </Button>
           <Button size="sm" variant="outline" className="h-10 text-xs gap-1 text-amber-600" onClick={() => onAction({ listing: house, type: 'delist' })}>
             <XCircle className="h-3 w-3" /> Delist

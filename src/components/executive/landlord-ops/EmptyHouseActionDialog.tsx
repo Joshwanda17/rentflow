@@ -11,7 +11,7 @@ interface EmptyHouseActionDialogProps {
   onOpenChange: (open: boolean) => void;
   listingId: string;
   listingTitle: string;
-  actionType: 'delete' | 'delist';
+  actionType: 'delete' | 'delist' | 'reject';
   userId: string;
   onComplete: () => void;
 }
@@ -30,7 +30,8 @@ export function EmptyHouseActionDialog({
   const [loading, setLoading] = useState(false);
 
   const isDelete = actionType === 'delete';
-  const label = isDelete ? 'Delete' : 'Delist';
+  const isReject = actionType === 'reject';
+  const label = isDelete ? 'Delete' : isReject ? 'Reject' : 'Delist';
   const minChars = 10;
   const valid = reason.trim().length >= minChars;
 
@@ -42,14 +43,15 @@ export function EmptyHouseActionDialog({
         const { error } = await supabase.from('house_listings').delete().eq('id', listingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('house_listings').update({ status: 'delisted' }).eq('id', listingId);
+        const newStatus = isReject ? 'rejected' : 'delisted';
+        const { error } = await supabase.from('house_listings').update({ status: newStatus }).eq('id', listingId);
         if (error) throw error;
       }
 
       // Audit log
       await supabase.from('audit_logs').insert({
         user_id: userId,
-        action_type: isDelete ? 'listing_deleted' : 'listing_delisted',
+        action_type: isDelete ? 'listing_deleted' : isReject ? 'listing_rejected' : 'listing_delisted',
         table_name: 'house_listings',
         record_id: listingId,
         metadata: { reason: reason.trim(), listing_title: listingTitle },
@@ -71,7 +73,7 @@ export function EmptyHouseActionDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {isDelete ? <Trash2 className="h-4 w-4 text-destructive" /> : <XCircle className="h-4 w-4 text-warning" />}
+            {isDelete ? <Trash2 className="h-4 w-4 text-destructive" /> : isReject ? <XCircle className="h-4 w-4 text-orange-600" /> : <XCircle className="h-4 w-4 text-warning" />}
             {label} Listing
           </DialogTitle>
         </DialogHeader>

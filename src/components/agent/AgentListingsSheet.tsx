@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Home, MapPin, DoorOpen, CheckCircle, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Home, MapPin, DoorOpen, CheckCircle, Clock, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useHouseListings, HouseListing } from '@/hooks/useHouseListings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AgentListingsSheetProps {
   open: boolean;
@@ -14,13 +18,34 @@ interface AgentListingsSheetProps {
 
 export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetProps) {
   const { user } = useAuth();
-  const { listings, loading } = useHouseListings({
+  const { toast } = useToast();
+  const { listings, loading, refresh } = useHouseListings({
     agentId: user?.id,
     status: undefined, // show all statuses for agent
     limit: 100,
   });
+  const [relisting, setRelisting] = useState<string | null>(null);
 
-  // Override default status filter - fetch all for this agent
+  const handleRelist = async (listing: HouseListing) => {
+    setRelisting(listing.id);
+    try {
+      const { error } = await supabase
+        .from('house_listings')
+        .update({ status: 'available' })
+        .eq('id', listing.id);
+      if (error) throw error;
+      toast({ title: 'Relisted', description: `${listing.title} is now available again.` });
+      refresh();
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setRelisting(null);
+    }
+  };
+
+  const rejected = listings.filter(l => l.status === 'rejected');
+  const others = listings.filter(l => l.status !== 'rejected');
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0 flex flex-col">
@@ -42,37 +67,86 @@ export function AgentListingsSheet({ open, onOpenChange }: AgentListingsSheetPro
               <p className="text-muted-foreground text-sm">No houses listed yet</p>
             </div>
           ) : (
-            listings.map(l => (
-              <motion.div
-                key={l.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="rounded-xl border border-border bg-card p-3 space-y-2"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate">{l.title}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      <span className="truncate">{l.address}, {l.region}</span>
-                    </div>
+            <>
+              {/* Rejected listings - shown prominently at top */}
+              {rejected.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                    <p className="text-xs font-bold text-destructive">
+                      {rejected.length} Rejected — needs revision
+                    </p>
                   </div>
-                  <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
-                    {l.status === 'available' ? (
-                      <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
-                    ) : l.status === 'occupied' ? (
-                      <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
-                    ) : (
-                      <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
-                    )}
-                  </Badge>
+                  {rejected.map(l => (
+                    <motion.div
+                      key={l.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="rounded-xl border-2 border-destructive/30 bg-destructive/5 p-3 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm truncate">{l.title}</p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{l.address}, {l.region}</span>
+                          </div>
+                        </div>
+                        <Badge variant="destructive" className="text-[10px] shrink-0">
+                          <AlertTriangle className="h-3 w-3 mr-1" /> Rejected
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs gap-1"
+                          onClick={() => handleRelist(l)}
+                          disabled={relisting === l.id}
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          {relisting === l.id ? 'Relisting...' : 'Relist'}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
-                  <span className="text-sm font-bold text-success">{formatUGX(l.daily_rate)}/day</span>
-                </div>
-              </motion.div>
-            ))
+              )}
+
+              {/* Other listings */}
+              {others.map(l => (
+                <motion.div
+                  key={l.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="rounded-xl border border-border bg-card p-3 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm truncate">{l.title}</p>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        <span className="truncate">{l.address}, {l.region}</span>
+                      </div>
+                    </div>
+                    <Badge variant={l.status === 'available' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
+                      {l.status === 'available' ? (
+                        <><CheckCircle className="h-3 w-3 mr-1" /> Available</>
+                      ) : l.status === 'occupied' ? (
+                        <><DoorOpen className="h-3 w-3 mr-1" /> Occupied</>
+                      ) : (
+                        <><Clock className="h-3 w-3 mr-1" /> {l.status}</>
+                      )}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{formatUGX(l.monthly_rent)}/mo</span>
+                    <span className="text-sm font-bold text-success">{formatUGX(l.daily_rate)}/day</span>
+                  </div>
+                </motion.div>
+              ))}
+            </>
           )}
         </div>
       </SheetContent>
