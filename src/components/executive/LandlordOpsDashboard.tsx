@@ -439,7 +439,7 @@ export function LandlordOpsDashboard() {
       if (existing) {
         existing.listings.push(l);
       } else {
-        map.set(l.agent_id, { name: l.agent_name || 'Unknown Agent', phone: l.agent_phone || null, listings: [l] });
+        map.set(l.agent_id, { name: l.agent_name || 'No agent profile', phone: l.agent_phone || null, listings: [l] });
       }
     }
     return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
