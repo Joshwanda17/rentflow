@@ -198,6 +198,9 @@ export default function COOPartnersPage() {
   const [editPortfolioAmount, setEditPortfolioAmount] = useState('');
   const [editPortfolioRoi, setEditPortfolioRoi] = useState('');
   const [editPortfolioRoiMode, setEditPortfolioRoiMode] = useState('monthly_payout');
+
+  // Nearing payouts dialog
+  const [nearingPayoutsOpen, setNearingPayoutsOpen] = useState(false);
   const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
   const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
   const [editPortfolioDate, setEditPortfolioDate] = useState('');
