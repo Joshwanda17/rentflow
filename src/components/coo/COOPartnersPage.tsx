@@ -157,6 +157,7 @@ export default function COOPartnersPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>('desc');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
+  const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('all');
 
   // Invest dialog
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
