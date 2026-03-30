@@ -1269,7 +1269,7 @@ function HouseCardInner({ house, onImages, onAssign }: { house: ListingWithLandl
             </div>
             {onAssign && (
               <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-red-300 text-red-700 hover:bg-red-100" onClick={() => onAssign(house.id, house.title, 'agent')}>
-                <UserPlus className="h-3 w-3" />Add
+                <UserPlus className="h-3 w-3" />Assign
               </Button>
             )}
           </div>
