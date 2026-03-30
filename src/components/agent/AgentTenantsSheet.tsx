@@ -440,8 +440,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         : 'border-border bg-card'
                   }`}
                 >
-                   <button
-438:                     onClick={() => toggleExpand(tenant.id)}
+                  {/* Tenant row */}
+                  <button
+                    onClick={() => toggleExpand(tenant.id)}
                     className="w-full p-3.5 text-left hover:bg-muted/20 active:bg-primary/5 transition-colors"
                   >
                     <div className="flex items-center gap-3">
