@@ -1126,7 +1126,7 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
   house: ListingWithLandlord;
   onImages: (v: { images: string[]; title: string }) => void;
   onAdjust?: (v: ListingWithLandlord) => void;
-  onAction?: (v: { listing: ListingWithLandlord; type: 'delete' | 'delist' }) => void;
+  onAction?: (v: { listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' }) => void;
   showTenant?: boolean;
   showLandlord?: boolean;
   onAssign?: (listingId: string, title: string, type: 'landlord' | 'agent') => void;
