@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Wallet, Search, User } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Loader2, Wallet, Search, User, TrendingUp } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface AgentTopUpTenantDialogProps {
