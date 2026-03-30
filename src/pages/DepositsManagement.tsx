@@ -884,6 +884,30 @@ export default function DepositsManagement() {
         </Tabs>
       </main>
 
+      {/* Approve TID Dialog */}
+      <AlertDialog open={approveDialog.open} onOpenChange={open => { if (!open) setApproveDialog({ open: false, deposit: null }); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the Transaction ID to approve {approveDialog.deposit && formatUGX(approveDialog.deposit.amount)}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            placeholder="Enter Transaction ID"
+            value={approveTid}
+            onChange={e => setApproveTid(e.target.value)}
+            className="font-mono uppercase"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApprove} disabled={!approveTid.trim()}>
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Reject Dialog */}
       <AlertDialog open={rejectDialog.open} onOpenChange={open => setRejectDialog({ open, deposit: null, isBulk: false })}>
         <AlertDialogContent>

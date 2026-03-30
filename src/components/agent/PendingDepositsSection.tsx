@@ -273,6 +273,33 @@ export function PendingDepositsSection() {
         </CardContent>
       </Card>
 
+      {/* Approve TID Dialog */}
+      <AlertDialog open={approveDialogOpen} onOpenChange={open => { if (!open) { setApproveDialogOpen(false); setApproveDeposit(null); } }}>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the Transaction ID to approve{' '}
+              {approveDeposit && formatCurrency(approveDeposit.amount)}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="Enter Transaction ID"
+              value={approveTid}
+              onChange={(e) => setApproveTid(e.target.value)}
+              className="font-mono uppercase"
+            />
+          </div>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApprove} disabled={!approveTid.trim()}>
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
