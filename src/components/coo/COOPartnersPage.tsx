@@ -287,12 +287,20 @@ export default function COOPartnersPage() {
         batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
         batchedQuery<any>(ids, (batch) =>
           supabase.from('investor_portfolios')
-            .select('investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at')
+            .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at')
             .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
             .in('status', ['active', 'pending_approval', 'pending'])
             .order('created_at', { ascending: false })
         ),
       ]);
+
+      // Deduplicate portfolios that may appear in multiple batches
+      const seenPortfolioIds = new Set<string>();
+      const dedupedPortfolios = (portfolios as any[]).filter(p => {
+        if (seenPortfolioIds.has(p.id)) return false;
+        seenPortfolioIds.add(p.id);
+        return true;
+      });
 
       const profileMap = new Map((profiles as any[]).map(p => [p.id, p]));
       const walletMap = new Map((wallets as any[]).map(w => [w.user_id, w.balance || 0]));
