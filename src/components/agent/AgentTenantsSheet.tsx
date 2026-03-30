@@ -101,13 +101,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           .in('status', ['approved', 'disbursed', 'repaying']);
 
         const balances: Record<string, number> = {};
+        const totals: Record<string, { total: number; paid: number }> = {};
         const phoneMap: Record<string, boolean> = {};
         (rentRequests || []).forEach(rr => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
+          totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
           if (rr.tenant_no_smartphone) phoneMap[rr.tenant_id] = true;
         });
         setTenantBalances(balances);
+        setTenantTotals(totals);
         setNoSmartphoneMap(phoneMap);
       }
     } catch (err) {
