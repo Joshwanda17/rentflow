@@ -42,6 +42,7 @@ interface PartnerRow {
   id: string;
   name: string;
   phone: string;
+  email: string;
   funded: number;
   activeDeals: number;
   avgDeal: number;
@@ -114,9 +115,9 @@ function getOrdinalSuffix(day: number): string {
 }
 
 function exportToCSV(rows: PartnerRow[]) {
-  const header = 'Name,Phone,Status,Wallet,Total Funded,Deals,Avg Deal,ROI %,Payout Day,ROI Mode,Joined';
+  const header = 'Name,Phone,Email,Status,Wallet,Total Funded,Deals,Avg Deal,ROI %,Payout Day,ROI Mode,Joined';
   const csvRows = rows.map(r =>
-    `"${r.name}","${r.phone}","${r.status}","${r.walletBalance}","${r.funded}","${r.activeDeals}","${r.avgDeal}","${r.roiPercentage}","${r.payoutDay}","${r.roiMode}","${r.joinedAt}"`
+    `"${r.name}","${r.phone}","${r.email}","${r.status}","${r.walletBalance}","${r.funded}","${r.activeDeals}","${r.avgDeal}","${r.roiPercentage}","${r.payoutDay}","${r.roiMode}","${r.joinedAt}"`
   );
   const csv = [header, ...csvRows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -156,6 +157,7 @@ export default function COOPartnersPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>('desc');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
+  const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('all');
 
   // Invest dialog
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
@@ -258,7 +260,7 @@ export default function COOPartnersPage() {
 
       const ids = supporterIds;
       const [profiles, wallets, portfolios] = await Promise.all([
-        batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at').in('id', batch)),
+        batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at').in('id', batch)),
         batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
         batchedQuery<any>(ids, (batch) =>
           supabase.from('investor_portfolios')
@@ -308,6 +310,7 @@ export default function COOPartnersPage() {
           id,
           name: profile?.full_name || id.slice(0, 8),
           phone: profile?.phone || '',
+          email: profile?.email || '',
           funded: agg.funded,
           activeDeals: agg.deals,
           avgDeal: agg.deals > 0 ? Math.round(agg.funded / agg.deals) : 0,
@@ -813,9 +816,13 @@ export default function COOPartnersPage() {
     let result = [...rows];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
     if (filterRoiMode !== 'all') result = result.filter(r => r.roiMode === filterRoiMode);
+    if (filterContact === 'has_phone') result = result.filter(r => r.phone && !r.phone.includes('@'));
+    else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
+    else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
+    else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q));
+      result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.email.toLowerCase().includes(q));
     }
     if (sortKey && sortDir) {
       result.sort((a, b) => {
@@ -829,7 +836,7 @@ export default function COOPartnersPage() {
       });
     }
     return result;
-  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode]);
+  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -1154,6 +1161,16 @@ export default function COOPartnersPage() {
             <SelectItem value="all">All Modes</SelectItem>
             <SelectItem value="monthly_payout">Payout</SelectItem>
             <SelectItem value="monthly_compounding">Compounding</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterContact} onValueChange={(v: any) => { setFilterContact(v); setPage(0); }}>
+          <SelectTrigger className="w-[140px] h-9 text-xs"><Phone className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Contacts</SelectItem>
+            <SelectItem value="has_phone">Has Phone</SelectItem>
+            <SelectItem value="no_phone">No Phone</SelectItem>
+            <SelectItem value="has_email">Has Email</SelectItem>
+            <SelectItem value="no_email">No Email</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
