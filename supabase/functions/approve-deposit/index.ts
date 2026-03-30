@@ -346,39 +346,14 @@ Deno.serve(async (req) => {
                   p_amount: prepaidAmount,
                 });
 
-                // Credit agent commission on pre-payment
+                // Credit agent commission via RPC (single-writer)
                 if (depositRequest.agent_id) {
-                  const prepayCommission = Math.round(prepaidAmount * 0.05);
-                  if (prepayCommission > 0) {
-                    await supabaseAdmin.from("agent_earnings").insert({
-                      agent_id: depositRequest.agent_id,
-                      amount: prepayCommission,
-                      earning_type: "commission",
-                      source_user_id: depositRequest.user_id,
-                      rent_request_id: activeSub.rent_request_id,
-                      description: `5% commission on UGX ${prepaidAmount.toLocaleString()} pre-payment (${daysPrepaid} days)`,
-                    });
-
-                    const { data: aw2 } = await supabaseAdmin
-                      .from("wallets").select("balance").eq("user_id", depositRequest.agent_id).maybeSingle();
-                    if (aw2) {
-                      await supabaseAdmin.from("wallets")
-                        .update({ balance: aw2.balance + prepayCommission, updated_at: new Date().toISOString() })
-                        .eq("user_id", depositRequest.agent_id);
-                    }
-
-                    await supabaseAdmin.from("general_ledger").insert({
-                      user_id: depositRequest.agent_id,
-                      amount: prepayCommission,
-                      direction: "cash_in",
-                      category: "agent_commission",
-                      source_table: "subscription_charges",
-                      source_id: activeSub.id,
-                      description: `5% commission on tenant pre-payment (UGX ${prepaidAmount.toLocaleString()})`,
-                      linked_party: depositRequest.user_id,
-                      transaction_date: new Date().toISOString(),
-                    });
-                  }
+                  await supabaseAdmin.rpc("credit_agent_rent_commission", {
+                    p_rent_request_id: activeSub.rent_request_id,
+                    p_repayment_amount: prepaidAmount,
+                    p_source_table: "subscription_charges",
+                    p_source_id: activeSub.id,
+                  });
                 }
               }
             }
