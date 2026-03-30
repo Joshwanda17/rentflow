@@ -305,35 +305,6 @@ export function PartnersOpsDashboard() {
       {/* ═══ B. DAILY BRIEF ═══ */}
       <PartnerOpsBrief />
 
-      {/* ═══ C. SUMMARY CARDS ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        {summaryCards.map((card, i) => {
-          const Icon = card.icon;
-          return (
-            <motion.div
-              key={card.label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className={cn('rounded-2xl border p-3.5 transition-all', card.accent)}
-            >
-              <div className="flex items-start gap-2.5">
-                <div className={cn('p-2 rounded-xl shrink-0', card.iconBg)}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-muted-foreground truncate">{card.label}</p>
-                  {isLoading ? (
-                    <div className="h-6 w-14 bg-muted animate-pulse rounded mt-0.5" />
-                  ) : (
-                    <p className="text-xl font-bold truncate">{card.value}</p>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
 
       {/* ═══ D. TAB BAR ═══ */}
       <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
