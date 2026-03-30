@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { KPICard } from './KPICard';
-import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle, Pencil, PlusCircle, Plus, RefreshCw, Zap, Bell, CheckCircle2, CalendarClock, ArrowLeft, Users, DollarSign, AlertTriangle, Info } from 'lucide-react';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, AlertCircle, Pencil, PlusCircle, Plus, RefreshCw, Zap, Bell, CheckCircle2, CalendarClock, Users, DollarSign, AlertTriangle } from 'lucide-react';
 import { format, formatDistanceToNow, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
@@ -22,23 +20,20 @@ import { EditInvestmentAccountDialog } from '@/components/manager/EditInvestment
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
 import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
-import { QuickNavGrid } from '@/components/QuickNavGrid';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
-type View = 'overview' | 'portfolios' | 'escalations' | 'directory' | 'capital' | 'roi' | 'churn';
+type Tab = 'portfolios' | 'escalations' | 'directory' | 'capital' | 'roi' | 'churn';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<View>('overview');
+  const [tab, setTab] = useState<Tab>('portfolios');
   const [editAccount, setEditAccount] = useState<any>(null);
   const [fundAccount, setFundAccount] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForUser, setCreateForUser] = useState<{ id: string; name: string } | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState(false);
   const [maturityAccount, setMaturityAccount] = useState<any>(null);
   const autoRenewedRef = useRef(false);
 
@@ -61,7 +56,6 @@ export function PartnersOpsDashboard() {
         ...p,
         investor_name: p.investor_id ? nameMap.get(p.investor_id) || '—' : '—',
         agent_name: nameMap.get(p.agent_id) || '—',
-        health_score: computeHealth(p),
       }));
     },
     staleTime: 600000,
@@ -79,11 +73,29 @@ export function PartnersOpsDashboard() {
     staleTime: 300000,
   });
 
+  const { data: churnCount } = useQuery({
+    queryKey: ['partner-churn-count'],
+    queryFn: async () => {
+      const { count } = await supabase.from('investor_portfolios')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'active')
+        .lt('investment_amount', 100000);
+      return count || 0;
+    },
+    staleTime: 600000,
+  });
+
   const rows = portfolios || [];
   const totalInvested = rows.reduce((s, p) => s + (p.investment_amount || 0), 0);
   const activePortfolios = rows.filter(p => p.status === 'active').length;
-  const pendingApproval = rows.filter(p => p.status === 'pending_approval').length;
   const openEscalations = (escalations || []).length;
+
+  // Count portfolios nearing payout (within 7 days)
+  const nearingPayouts = rows.filter(p => {
+    if (p.status !== 'active' || !p.maturity_date) return false;
+    const days = Math.ceil((new Date(p.maturity_date).getTime() - Date.now()) / 86400000);
+    return days <= 7 && days >= 0;
+  }).length;
 
   // ═══ AUTO-RENEW MATURED PORTFOLIOS ═══
   useEffect(() => {
@@ -130,12 +142,6 @@ export function PartnersOpsDashboard() {
   }, [portfolios]);
 
   // ═══ ACTIONS ═══
-  const toggleAutoReinvest = async (id: string, current: boolean) => {
-    const { error } = await supabase.from('investor_portfolios').update({ auto_reinvest: !current }).eq('id', id);
-    if (error) toast({ title: 'Update failed', variant: 'destructive' });
-    else { toast({ title: `Auto-reinvest ${!current ? 'enabled' : 'disabled'}` }); refetch(); }
-  };
-
   const acknowledgeEscalation = async (id: string) => {
     await supabase.from('partner_escalations').update({ status: 'acknowledged', resolved_at: new Date().toISOString() }).eq('id', id);
     queryClient.invalidateQueries({ queryKey: ['partner-escalations'] });
@@ -177,152 +183,19 @@ export function PartnersOpsDashboard() {
     return 'info';
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const handleBulkCurrencyUpdate = async (currency: string) => {
-    if (selectedIds.size === 0) return;
-    const { error } = await supabase.from('investor_portfolios').update({ display_currency: currency }).in('id', Array.from(selectedIds));
-    if (error) toast({ title: 'Bulk update failed', variant: 'destructive' });
-    else { toast({ title: `${selectedIds.size} portfolios updated to ${currency}` }); setSelectedIds(new Set()); setBulkAction(false); refetch(); }
-  };
-
-  const handleBulkAutoReinvest = async (enabled: boolean) => {
-    if (selectedIds.size === 0) return;
-    const { error } = await supabase.from('investor_portfolios').update({ auto_reinvest: enabled }).in('id', Array.from(selectedIds));
-    if (error) toast({ title: 'Bulk update failed', variant: 'destructive' });
-    else { toast({ title: `Auto-reinvest ${enabled ? 'enabled' : 'disabled'} for ${selectedIds.size} portfolios` }); setSelectedIds(new Set()); setBulkAction(false); refetch(); }
-  };
-
   const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
-  // ═══ COLUMNS (for portfolios sub-view) ═══
-  const columns: Column<any>[] = [
-    ...(bulkAction ? [{ key: 'id' as const, label: '☑', sortable: false, render: (v: any, row: any) => (
-      <input type="checkbox" checked={selectedIds.has(row.id)} onChange={() => toggleSelect(row.id)} className="h-4 w-4 rounded border-border accent-primary" />
-    ), className: 'w-8' }] : []),
-    { key: 'portfolio_code', label: 'Code' },
-    { key: 'account_name', label: 'Account', render: (v) => v ? String(v) : <span className="text-muted-foreground italic text-xs">—</span> },
-    { key: 'investor_name', label: 'Partner' },
-    { key: 'investment_amount', label: 'Invested', render: (v) => Number(v || 0).toLocaleString() },
-    { key: 'roi_percentage', label: 'ROI%', render: (v) => `${v}%` },
-    { key: 'total_roi_earned', label: 'Earned', render: (v) => Number(v || 0).toLocaleString() },
-    { key: 'payment_method', label: 'Payout', sortable: false, render: (v, row) => {
-      const method = String(v || 'none');
-      if (method === 'bank_transfer') return <span className="text-[10px] font-medium">🏦 {row.bank_name ? String(row.bank_name).split(' ').slice(0, 2).join(' ') : 'Bank'}</span>;
-      if (method === 'mobile_money') return <span className="text-[10px] font-medium">📱 {row.mobile_network || 'MoMo'}</span>;
-      if (method === 'cash') return <span className="text-[10px] font-medium">💵 Cash</span>;
-      return <span className="text-[10px] text-muted-foreground italic">Not set</span>;
-    }},
-    { key: 'health_score', label: 'Health', sortable: false, render: (v) => {
-      const score = Number(v);
-      const color = score >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : score >= 50 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      return <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${color}`}>{score}%</span>;
-    }},
-    { key: 'auto_reinvest', label: 'Reinvest', sortable: false, render: (v, row) => <Switch checked={!!v} onCheckedChange={() => toggleAutoReinvest(row.id, !!v)} className="scale-75" /> },
-    { key: 'status', label: 'Status', render: (v) => (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${v === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : v === 'pending_approval' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-bold animate-pulse' : v === 'matured' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-muted'}`}>
-        {String(v === 'pending_approval' ? '⏳ Pending' : v)}
-      </span>
-    )},
-    { key: 'maturity_date', label: 'Maturity', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
-    { key: 'id', label: 'Actions', sortable: false, render: (_v, row) => (
-      <div className="flex items-center gap-1">
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:text-primary" onClick={(e) => { e.stopPropagation(); setEditAccount(row); }} title="Edit"><Pencil className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-success hover:text-success" onClick={(e) => { e.stopPropagation(); setFundAccount(row); }} title="Top Up"><PlusCircle className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); setCreateForUser({ id: row.investor_id || row.agent_id, name: row.investor_name || row.agent_name }); setCreateOpen(true); }} title="New Account for Partner"><Plus className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300" onClick={(e) => { e.stopPropagation(); setMaturityAccount(row); }} title="Change Maturity Date"><CalendarClock className="h-3.5 w-3.5" /></Button>
-      </div>
-    )},
+  // ═══ TABS CONFIG ═══
+  const tabs: { key: Tab; label: string; icon: any; badge?: number }[] = [
+    { key: 'portfolios', label: 'Portfolios', icon: Wallet },
+    { key: 'escalations', label: 'Escalations', icon: AlertTriangle, badge: openEscalations || undefined },
+    { key: 'directory', label: 'Directory', icon: Users },
+    { key: 'capital', label: 'Capital Flow', icon: DollarSign },
+    { key: 'roi', label: 'ROI Payouts', icon: TrendingUp },
+    { key: 'churn', label: 'Churn', icon: Shield, badge: churnCount || undefined },
   ];
 
-  // ═══ QUICK NAV ITEMS ═══
-  const quickNavItems = [
-    { icon: Wallet, label: 'Portfolios', onClick: () => setView('portfolios'), variant: 'primary' as const },
-    { icon: AlertTriangle, label: `Escalations${openEscalations > 0 ? ` (${openEscalations})` : ''}`, onClick: () => setView('escalations'), variant: openEscalations > 0 ? 'warning' as const : 'default' as const },
-    { icon: Users, label: 'Partner Directory', onClick: () => setView('directory'), variant: 'success' as const },
-    { icon: DollarSign, label: 'Capital Flow', onClick: () => setView('capital'), variant: 'default' as const },
-    { icon: TrendingUp, label: 'ROI Payouts', onClick: () => setView('roi'), variant: 'default' as const },
-    { icon: Shield, label: 'Churn Alerts', onClick: () => setView('churn'), variant: 'warning' as const },
-  ];
-
-  // ═══ BACK BUTTON ═══
-  const BackButton = ({ title }: { title: string }) => (
-    <div className="flex items-center gap-2 mb-4">
-      <Button variant="ghost" size="sm" onClick={() => setView('overview')} className="gap-1.5 min-h-[44px]">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </Button>
-      <h2 className="text-base font-bold">{title}</h2>
-    </div>
-  );
-
-  // ═══ RENDER SUB-VIEWS ═══
-  const renderContent = () => {
-    switch (view) {
-      case 'portfolios':
-        return (
-          <div className="space-y-4">
-            <BackButton title="Partner Portfolios" />
-            <COOPartnersPage />
-          </div>
-        );
-
-      case 'escalations':
-        return (
-          <div className="space-y-4">
-            <BackButton title="Escalations" />
-            {renderEscalations()}
-          </div>
-        );
-
-      case 'directory':
-        return (
-          <div className="space-y-4">
-            <BackButton title="Partner Directory" />
-            <PartnerDirectory />
-          </div>
-        );
-
-      case 'capital':
-        return (
-          <div className="space-y-4">
-            <BackButton title="Capital Flow" />
-            <PartnerCapitalFlow />
-          </div>
-        );
-
-      case 'roi':
-        return (
-          <div className="space-y-4">
-            <BackButton title="ROI Payouts" />
-            <div className="flex justify-end mb-2">
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => navigate('/roi-trends')}>
-                <TrendingUp className="h-3.5 w-3.5" /> View Trends & Projection
-              </Button>
-            </div>
-            <ROIPaymentHistory />
-          </div>
-        );
-
-      case 'churn':
-        return (
-          <div className="space-y-4">
-            <BackButton title="Churn Alerts" />
-            <PartnerChurnAlerts />
-          </div>
-        );
-
-      default:
-        return renderOverview();
-    }
-  };
-
-  // ═══ ESCALATION PANEL (reusable) ═══
+  // ═══ ESCALATION PANEL ═══
   const renderEscalations = () => {
     if (openEscalations === 0) {
       return (
@@ -397,70 +270,140 @@ export function PartnersOpsDashboard() {
     );
   };
 
-  // ═══ OVERVIEW ═══
-  const renderOverview = () => (
-    <div className="space-y-4 sm:space-y-5">
-      {/* Daily Brief */}
-      <PartnerOpsBrief />
-
-      {/* Create Portfolio + KPI Strip */}
-      <div className="flex justify-end">
-        <Button size="sm" className="gap-1.5" onClick={() => { setCreateForUser(null); setCreateOpen(true); }}>
-          <PlusCircle className="h-4 w-4" /> Create Portfolio
-        </Button>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-        <KPICard title="Total Partners" value={rows.length} icon={Shield} loading={isLoading} />
-        <KPICard title="Active Portfolios" value={activePortfolios} icon={Wallet} loading={isLoading} color="bg-green-500/10 text-green-600" />
-        <KPICard title="Total Invested" value={fmt(totalInvested)} icon={PiggyBank} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
-        {pendingApproval > 0 ? (
-          <KPICard title="⚠️ Pending Approval" value={pendingApproval} icon={AlertCircle} loading={isLoading} color="bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-2 ring-amber-500/40" />
-        ) : (
-          <KPICard title="Avg ROI %" value={rows.length ? `${(rows.reduce((s, p) => s + (p.roi_percentage || 0), 0) / rows.length).toFixed(1)}%` : '0%'} icon={Banknote} color="bg-purple-500/10 text-purple-600" />
-        )}
-      </div>
-
-      {/* Quick Nav Grid */}
-      <QuickNavGrid items={quickNavItems} title="Partner Operations" />
-
-      {/* Inline escalation preview — only if there are open ones */}
-      {openEscalations > 0 && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-warning/30 bg-warning/5 cursor-pointer active:scale-[0.99] transition-transform" onClick={() => setView('escalations')}>
-            <CardContent className="p-3 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
-                <AlertTriangle className="h-5 w-5 text-warning" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">{openEscalations} open escalation{openEscalations !== 1 ? 's' : ''}</p>
-                <p className="text-[11px] text-muted-foreground">Tap to review and resolve</p>
-              </div>
-              <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Info tooltip */}
-      <TooltipProvider>
-        <div className="flex items-center gap-1.5 px-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[240px] text-xs">
-              Tap any card above to drill into that section. Auto-renew runs on page load for matured portfolios.
-            </TooltipContent>
-          </Tooltip>
-          <span className="text-[11px] text-muted-foreground">Auto-payout & auto-renew active</span>
+  // ═══ RENDER TAB CONTENT ═══
+  const renderTabContent = () => {
+    switch (tab) {
+      case 'portfolios': return <COOPartnersPage />;
+      case 'escalations': return renderEscalations();
+      case 'directory': return <PartnerDirectory />;
+      case 'capital': return <PartnerCapitalFlow />;
+      case 'roi': return (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => navigate('/roi-trends')}>
+              <TrendingUp className="h-3.5 w-3.5" /> View Trends & Projection
+            </Button>
+          </div>
+          <ROIPaymentHistory />
         </div>
-      </TooltipProvider>
-    </div>
-  );
+      );
+      case 'churn': return <PartnerChurnAlerts />;
+      default: return null;
+    }
+  };
+
+  // ═══ SUMMARY CARDS ═══
+  const summaryCards = [
+    { label: 'Total Portfolios', value: rows.length, icon: Shield, accent: 'border-primary/30 bg-primary/5', iconBg: 'bg-primary/10 text-primary' },
+    { label: 'Active Portfolios', value: activePortfolios, icon: Wallet, accent: 'border-emerald-500/30 bg-emerald-500/5', iconBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    { label: 'Total Invested', value: fmt(totalInvested), icon: PiggyBank, accent: 'border-amber-500/30 bg-amber-500/5', iconBg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+    { label: nearingPayouts > 0 ? 'Nearing Payouts' : 'Avg ROI %', value: nearingPayouts > 0 ? nearingPayouts : (rows.length ? `${(rows.reduce((s, p) => s + (p.roi_percentage || 0), 0) / rows.length).toFixed(1)}%` : '0%'), icon: nearingPayouts > 0 ? CalendarClock : Banknote, accent: nearingPayouts > 0 ? 'border-violet-500/30 bg-violet-500/5' : 'border-purple-500/30 bg-purple-500/5', iconBg: nearingPayouts > 0 ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
+  ];
 
   return (
     <div className="space-y-4">
-      {renderContent()}
+      {/* ═══ A. HEADER BAR ═══ */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-bold">Partner Operations</h1>
+          <p className="text-xs text-muted-foreground">Manage portfolios, payouts & partner lifecycle</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { refetch(); queryClient.invalidateQueries({ queryKey: ['partner-escalations'] }); }}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button size="sm" className="gap-1.5 text-xs" onClick={() => { setCreateForUser(null); setCreateOpen(true); }}>
+            <PlusCircle className="h-3.5 w-3.5" /> Create
+          </Button>
+        </div>
+      </div>
+
+      {/* ═══ B. DAILY BRIEF ═══ */}
+      <PartnerOpsBrief />
+
+      {/* ═══ C. SUMMARY CARDS ═══ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {summaryCards.map((card, i) => {
+          const Icon = card.icon;
+          return (
+            <motion.div
+              key={card.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className={cn('rounded-2xl border p-3.5 transition-all', card.accent)}
+            >
+              <div className="flex items-start gap-2.5">
+                <div className={cn('p-2 rounded-xl shrink-0', card.iconBg)}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] text-muted-foreground truncate">{card.label}</p>
+                  {isLoading ? (
+                    <div className="h-6 w-14 bg-muted animate-pulse rounded mt-0.5" />
+                  ) : (
+                    <p className="text-xl font-bold truncate">{card.value}</p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* ═══ D. TAB BAR ═══ */}
+      <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {tabs.map(t => {
+            const Icon = t.icon;
+            const isActive = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium transition-all whitespace-nowrap',
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+                {t.badge && t.badge > 0 && (
+                  <span className={cn(
+                    'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold leading-none',
+                    isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-destructive/15 text-destructive'
+                  )}>
+                    {t.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ═══ E. ESCALATION BANNER ═══ */}
+      {openEscalations > 0 && tab !== 'escalations' && (
+        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+          <button
+            onClick={() => setTab('escalations')}
+            className="w-full flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/5 px-3.5 py-2.5 text-left transition-all active:scale-[0.99]"
+          >
+            <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+            <span className="text-xs font-medium flex-1">
+              {openEscalations} open escalation{openEscalations !== 1 ? 's' : ''} — tap to review
+            </span>
+            <span className="text-muted-foreground text-xs">→</span>
+          </button>
+        </motion.div>
+      )}
+
+      {/* ═══ TAB CONTENT ═══ */}
+      <div className="min-h-[200px]">
+        {renderTabContent()}
+      </div>
 
       {/* Dialogs — always mounted */}
       <EditInvestmentAccountDialog open={!!editAccount} onOpenChange={(v) => { if (!v) setEditAccount(null); }} account={editAccount} onSuccess={() => refetch()} />
@@ -469,20 +412,4 @@ export function PartnersOpsDashboard() {
       <ChangeMaturityDateDialog open={!!maturityAccount} onOpenChange={(v) => { if (!v) setMaturityAccount(null); }} portfolio={maturityAccount} onSuccess={() => refetch()} />
     </div>
   );
-}
-
-function computeHealth(p: any): number {
-  let score = 50;
-  if (p.status === 'active') score += 20;
-  else if (p.status === 'matured') score += 10;
-  else if (p.status === 'pending_approval') score -= 10;
-  if (p.total_roi_earned > 0) score += 15;
-  if (p.maturity_date) {
-    const days = Math.ceil((new Date(p.maturity_date).getTime() - Date.now()) / 86400000);
-    if (days > 30) score += 10;
-    else if (days > 0) score += 5;
-    else score -= 10;
-  }
-  if (p.auto_reinvest) score += 5;
-  return Math.max(0, Math.min(100, score));
 }
