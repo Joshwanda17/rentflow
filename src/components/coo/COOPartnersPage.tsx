@@ -2277,3 +2277,116 @@ function MiniKPI({ icon, label, value, variant }: {
     </div>
   );
 }
+
+/* ─── Nearing Payouts Helpers ─── */
+function getNearingPayoutPartners(rows: PartnerRow[], daysAhead = 7) {
+  const today = new Date();
+  const currentDay = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+  return rows.filter(r => {
+    if (!r.payoutDay || r.status !== 'active') return false;
+    let daysUntil = r.payoutDay - currentDay;
+    if (daysUntil < 0) daysUntil += daysInMonth;
+    return daysUntil <= daysAhead;
+  }).sort((a, b) => {
+    const dA = a.payoutDay - currentDay < 0 ? a.payoutDay - currentDay + daysInMonth : a.payoutDay - currentDay;
+    const dB = b.payoutDay - currentDay < 0 ? b.payoutDay - currentDay + daysInMonth : b.payoutDay - currentDay;
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    return dA - dB;
+  });
+}
+
+function NearingPayoutsCard({ rows, onClick }: { rows: PartnerRow[]; onClick: () => void }) {
+  const nearing = getNearingPayoutPartners(rows);
+  const totalAmount = nearing.reduce((s, r) => s + Math.round(r.funded * r.roiPercentage / 100 / 12), 0);
+  return (
+    <button onClick={onClick} className={cn(
+      'rounded-2xl border p-3.5 space-y-2 text-left w-full transition-all hover:shadow-md active:scale-[0.98]',
+      nearing.length > 0
+        ? 'border-violet-500/30 bg-violet-500/5 ring-1 ring-violet-500/20'
+        : 'border-violet-500/20 bg-violet-500/5'
+    )}>
+      <div className="flex items-center gap-2">
+        <div className="p-1.5 rounded-lg text-violet-600 bg-violet-500/10">
+          <CalendarDays className="h-4 w-4" />
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nearing Payouts</span>
+      </div>
+      <p className="text-xl font-black tracking-tight tabular-nums">{nearing.length}</p>
+      <p className="text-[11px] text-muted-foreground leading-snug">
+        {nearing.length > 0 ? `~${formatUGX(totalAmount)} due within 7 days` : 'No payouts in next 7 days'}
+      </p>
+    </button>
+  );
+}
+
+function NearingPayoutsDialog({ open, onOpenChange, rows }: {
+  open: boolean; onOpenChange: (v: boolean) => void; rows: PartnerRow[];
+}) {
+  const nearing = getNearingPayoutPartners(rows);
+  const today = new Date();
+  const currentDay = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] p-0 sm:max-w-xl">
+        <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <CalendarDays className="h-4.5 w-4.5 text-violet-600" />
+            Portfolios Nearing Payout
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            {nearing.length} portfolio{nearing.length !== 1 ? 's' : ''} with payouts in the next 7 days
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-y-auto max-h-[calc(90vh-100px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
+          {nearing.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground text-sm">
+              <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              No portfolios nearing payout in the next 7 days.
+            </div>
+          ) : (
+            nearing.map(r => {
+              let daysUntil = r.payoutDay - currentDay;
+              if (daysUntil < 0) daysUntil += daysInMonth;
+              const roiAmount = Math.round(r.funded * r.roiPercentage / 100 / 12);
+              return (
+                <div key={r.id} className="rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{r.name}</p>
+                      <p className="text-xs text-muted-foreground">{r.phone || r.email || 'No contact'}</p>
+                    </div>
+                    <Badge variant={daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
+                      {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d away`}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-[10px] text-muted-foreground">Invested</p>
+                      <p className="text-xs font-bold tabular-nums">{formatUGX(r.funded)}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-[10px] text-muted-foreground">ROI Due</p>
+                      <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-[10px] text-muted-foreground">Payout Day</p>
+                      <p className="text-xs font-bold">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>{r.roiPercentage}% · {r.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
+                    <span>{r.activeDeals} deal{r.activeDeals !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
