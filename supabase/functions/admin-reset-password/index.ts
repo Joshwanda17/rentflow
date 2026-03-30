@@ -14,40 +14,40 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     // 1. Verify caller is authenticated (supports service-role key or user JWT)
     const authHeader = req.headers.get("Authorization");
-    const isServiceRole = authHeader?.replace("Bearer ", "") === supabaseServiceKey;
-    
+    const token = authHeader?.replace("Bearer ", "") ?? "";
+    const isServiceRole = token === supabaseServiceKey;
+
     let callerId = "service-role";
     if (!isServiceRole) {
-      if (!authHeader) {
+      if (!token) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
+      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+      const user = authData?.user;
 
-      const { data: { user }, error: authError } = await userClient.auth.getUser();
       if (authError || !user) {
+        console.error("Auth validation failed:", authError?.message ?? "No user found");
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
       callerId = user.id;
     }
 
     // 2. Verify caller is a manager (skip for service-role)
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     if (!isServiceRole) {
       const { data: roleData, error: roleError } = await supabaseAdmin
