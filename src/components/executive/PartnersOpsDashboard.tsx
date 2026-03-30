@@ -187,10 +187,8 @@ export function PartnersOpsDashboard() {
   const tabs: { key: Tab; label: string; icon: any; badge?: number }[] = [
     { key: 'portfolios', label: 'Portfolios', icon: Wallet },
     { key: 'escalations', label: 'Escalations', icon: AlertTriangle, badge: openEscalations || undefined },
-    { key: 'directory', label: 'Directory', icon: Users },
     { key: 'capital', label: 'Capital Flow', icon: DollarSign },
     { key: 'roi', label: 'ROI Payouts', icon: TrendingUp },
-    { key: 'churn', label: 'Churn', icon: Shield, badge: churnCount || undefined },
   ];
 
   // ═══ ESCALATION PANEL ═══
