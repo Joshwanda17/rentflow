@@ -309,7 +309,7 @@ export default function COOPartnersPage() {
       const supporterIdSet = new Set(ids);
       const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string }>();
 
-      (portfolios as any[]).forEach(p => {
+      dedupedPortfolios.forEach(p => {
         // Determine which supporter this portfolio belongs to
         const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
           ? p.investor_id
