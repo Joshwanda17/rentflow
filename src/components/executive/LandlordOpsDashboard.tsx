@@ -245,9 +245,9 @@ export function LandlordOpsDashboard() {
 
       return (data || []).map(d => ({
         ...d,
-        agent_name: agentMap.get(d.agent_id)?.full_name || 'Unknown Agent',
+        agent_name: agentMap.get(d.agent_id)?.full_name || null,
         agent_phone: agentMap.get(d.agent_id)?.phone || null,
-        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || 'Unknown Tenant') : null,
+        tenant_name: d.tenant_id ? (tenantMap.get(d.tenant_id)?.full_name || null) : null,
         tenant_phone: d.tenant_id ? (tenantMap.get(d.tenant_id)?.phone || null) : null,
       })) as ListingWithLandlord[];
     },
@@ -299,7 +299,7 @@ export function LandlordOpsDashboard() {
         tenant_name: profileMap.get(r.tenant_id)?.full_name || 'Unknown Tenant',
         tenant_phone: profileMap.get(r.tenant_id)?.phone || null,
         agent_id: r.agent_id,
-        agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || 'Unknown Agent') : null,
+        agent_name: r.agent_id ? (profileMap.get(r.agent_id)?.full_name || null) : null,
         agent_phone: r.agent_id ? (profileMap.get(r.agent_id)?.phone || null) : null,
         rent_amount: r.rent_amount,
         request_city: r.request_city,
@@ -439,7 +439,7 @@ export function LandlordOpsDashboard() {
       if (existing) {
         existing.listings.push(l);
       } else {
-        map.set(l.agent_id, { name: l.agent_name || 'Unknown Agent', phone: l.agent_phone || null, listings: [l] });
+        map.set(l.agent_id, { name: l.agent_name || 'No agent profile', phone: l.agent_phone || null, listings: [l] });
       }
     }
     return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
@@ -720,13 +720,27 @@ export function LandlordOpsDashboard() {
               )}
 
               {/* Contact Agent */}
-              {t.agent_phone && (
-                <div className="rounded-lg bg-primary/5 p-2.5 space-y-1.5">
+              {t.agent_id && t.agent_phone && (
+                <div className="rounded-lg bg-indigo-500/10 p-2.5 space-y-1.5">
                   <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Contact Agent</p>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium truncate">{t.agent_name}</span>
+                    <span className="text-xs font-medium truncate">{t.agent_name || 'Agent'}</span>
                     <ListPropertyCTA phone={t.agent_phone} name={t.agent_name || undefined} role="agent" />
                   </div>
+                </div>
+              )}
+              {t.agent_id && !t.agent_phone && (
+                <div className="rounded-lg bg-red-500/10 p-2.5">
+                  <p className="text-[10px] font-semibold text-red-700 dark:text-red-400 flex items-center gap-1">
+                    <UserX className="h-3 w-3" /> Agent profile missing — no contact info
+                  </p>
+                </div>
+              )}
+              {!t.agent_id && (
+                <div className="rounded-lg bg-red-500/10 p-2.5">
+                  <p className="text-[10px] font-semibold text-red-700 dark:text-red-400 flex items-center gap-1">
+                    <UserX className="h-3 w-3" /> No agent assigned
+                  </p>
                 </div>
               )}
             </div>
@@ -1125,7 +1139,7 @@ function HouseCard({ house, onImages, onAdjust, onAction, showTenant, showLandlo
         <div className="rounded-lg bg-green-500/10 p-2 space-y-0.5">
           <p className="text-[10px] font-semibold text-green-700">Tenant</p>
           <p className="text-xs font-medium">{house.tenant_name || 'Unknown'}</p>
-          {house.tenant_phone && <PhoneLinks phone={house.tenant_phone} name={house.tenant_name} />}
+          {house.tenant_phone && <PhoneLinks phone={house.tenant_phone} name={house.tenant_name || undefined} />}
         </div>
       )}
       {/* Landlord info */}
@@ -1269,7 +1283,7 @@ function HouseCardInner({ house, onImages, onAssign }: { house: ListingWithLandl
             </div>
             {onAssign && (
               <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-red-300 text-red-700 hover:bg-red-100" onClick={() => onAssign(house.id, house.title, 'agent')}>
-                <UserPlus className="h-3 w-3" />Add
+                <UserPlus className="h-3 w-3" />Assign
               </Button>
             )}
           </div>
