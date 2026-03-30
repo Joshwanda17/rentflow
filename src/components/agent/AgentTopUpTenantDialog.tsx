@@ -113,8 +113,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
 
     setLoading(true);
     try {
-      // Use the existing agent-deposit edge function
-      const { error } = await supabase.functions.invoke('agent-deposit', {
+      const { data, error } = await supabase.functions.invoke('agent-deposit', {
         body: {
           user_phone: tenantInfo.phone,
           amount: amountNum,
@@ -130,7 +129,15 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
         throw new Error(errMsg || 'Top-up failed');
       }
 
+      const earnedCommission = data?.details?.agent_commission || 0;
+      setCommissionEarned(earnedCommission);
       setSuccess(true);
+      
+      // Invalidate earnings and wallet caches so agent sees commission immediately
+      queryClient.invalidateQueries({ queryKey: ['agent-daily-rent-expected'] });
+      queryClient.invalidateQueries({ queryKey: ['agent-earnings-forecast'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      
       toast({ title: `${formatUGX(amountNum)} deposited to ${tenantInfo.full_name}'s wallet` });
       onSuccess?.();
     } catch (err: any) {
