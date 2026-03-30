@@ -368,6 +368,38 @@ export default function COOPartnersPage() {
         topPartnerName: topPartner?.name || '—',
       });
       setRows(tableRows);
+
+      // Build portfolio-level nearing payouts from ALL raw portfolios
+      const now = new Date();
+      const curDay = now.getDate();
+      const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const nearingList: NearingPayoutPortfolio[] = [];
+      (portfolios as any[]).forEach(p => {
+        if (!p.payout_day || p.status !== 'active') return;
+        const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
+          : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
+        if (!ownerId) return;
+        let du = p.payout_day - curDay;
+        if (du < 0) du += dim;
+        if (du <= 7) {
+          const prof = profileMap.get(ownerId);
+          nearingList.push({
+            portfolioId: `${ownerId}-${p.payout_day}-${p.created_at}`,
+            investorId: ownerId,
+            name: prof?.full_name || ownerId.slice(0, 8),
+            phone: prof?.phone || '',
+            email: prof?.email || '',
+            investmentAmount: p.investment_amount || 0,
+            roiPercentage: p.roi_percentage ?? 15,
+            payoutDay: p.payout_day,
+            roiMode: p.roi_mode ?? 'monthly_payout',
+            createdAt: p.created_at,
+            daysUntil: du,
+          });
+        }
+      });
+      nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
+      setAllPortfoliosForPayout(nearingList);
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); }
   }, []);
