@@ -2325,31 +2325,13 @@ function MiniKPI({ icon, label, value, variant }: {
   );
 }
 
-/* ─── Nearing Payouts Helpers ─── */
-function getNearingPayoutPartners(rows: PartnerRow[], daysAhead = 7) {
-  const today = new Date();
-  const currentDay = today.getDate();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-
-  return rows.filter(r => {
-    if (!r.payoutDay || r.status !== 'active') return false;
-    let daysUntil = r.payoutDay - currentDay;
-    if (daysUntil < 0) daysUntil += daysInMonth;
-    return daysUntil <= daysAhead;
-  }).sort((a, b) => {
-    const dA = a.payoutDay - currentDay < 0 ? a.payoutDay - currentDay + daysInMonth : a.payoutDay - currentDay;
-    const dB = b.payoutDay - currentDay < 0 ? b.payoutDay - currentDay + daysInMonth : b.payoutDay - currentDay;
-    return dA - dB;
-  });
-}
-
-function NearingPayoutsCard({ rows, onClick }: { rows: PartnerRow[]; onClick: () => void }) {
-  const nearing = getNearingPayoutPartners(rows);
-  const totalAmount = nearing.reduce((s, r) => s + Math.round(r.funded * r.roiPercentage / 100 / 12), 0);
+/* ─── Nearing Payouts Card ─── */
+function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
+  const totalAmount = portfolios.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100 / 12), 0);
   return (
     <button onClick={onClick} className={cn(
       'rounded-2xl border p-3.5 space-y-2 text-left w-full transition-all hover:shadow-md active:scale-[0.98]',
-      nearing.length > 0
+      portfolios.length > 0
         ? 'border-violet-500/30 bg-violet-500/5 ring-1 ring-violet-500/20'
         : 'border-violet-500/20 bg-violet-500/5'
     )}>
@@ -2359,9 +2341,9 @@ function NearingPayoutsCard({ rows, onClick }: { rows: PartnerRow[]; onClick: ()
         </div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nearing Payouts</span>
       </div>
-      <p className="text-xl font-black tracking-tight tabular-nums">{nearing.length}</p>
+      <p className="text-xl font-black tracking-tight tabular-nums">{portfolios.length}</p>
       <p className="text-[11px] text-muted-foreground leading-snug">
-        {nearing.length > 0 ? `~${formatUGX(totalAmount)} due within 7 days` : 'No payouts in next 7 days'}
+        {portfolios.length > 0 ? `~${formatUGX(totalAmount)} due within 7 days` : 'No payouts in next 7 days'}
       </p>
     </button>
   );
