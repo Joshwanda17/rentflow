@@ -1163,6 +1163,15 @@ export default function COOPartnersPage() {
             <SelectItem value="monthly_compounding">Compounding</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterContact} onValueChange={(v: any) => { setFilterContact(v); setPage(0); }}>
+          <SelectTrigger className="w-[140px] h-9 text-xs"><Phone className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Contacts</SelectItem>
+            <SelectItem value="has_phone">Has Phone</SelectItem>
+            <SelectItem value="no_phone">No Phone</SelectItem>
+            <SelectItem value="has_email">Has Email</SelectItem>
+            <SelectItem value="no_email">No Email</SelectItem>
+          </SelectContent>
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="h-3.5 w-3.5" /> Import
         </Button>
