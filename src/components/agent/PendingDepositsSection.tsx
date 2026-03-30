@@ -38,6 +38,9 @@ export function PendingDepositsSection() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedDeposit, setSelectedDeposit] = useState<DepositRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approveDeposit, setApproveDeposit] = useState<DepositRequest | null>(null);
+  const [approveTid, setApproveTid] = useState('');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
