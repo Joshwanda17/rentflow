@@ -2292,7 +2292,6 @@ function getNearingPayoutPartners(rows: PartnerRow[], daysAhead = 7) {
   }).sort((a, b) => {
     const dA = a.payoutDay - currentDay < 0 ? a.payoutDay - currentDay + daysInMonth : a.payoutDay - currentDay;
     const dB = b.payoutDay - currentDay < 0 ? b.payoutDay - currentDay + daysInMonth : b.payoutDay - currentDay;
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     return dA - dB;
   });
 }
