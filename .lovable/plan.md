@@ -1,61 +1,47 @@
 
 
-## Analysis: Auto-Charge Cron Job — Why Deductions Appear Stuck
+# Fix: Landlord Ops Dashboard — Show All 219 Landlords
 
-### Root Cause
+## Problem
+The "All Landlords" view derives its data from `house_listings` joined to `landlords`. Only **1 out of 219** landlords has a `landlord_id` linked on a house listing, so the dashboard shows just 1 landlord.
 
-The cron job IS running daily and the edge function IS executing. I verified this by invoking it just now — it processed all 9 active charges successfully. However, **no money is being deducted** because of a combination of three issues:
-
-1. **All 9 tenants have UGX 0 in their wallets** — there is literally no money to deduct
-2. **Most linked agents also have insufficient funds** — they cannot cover the shortfall
-3. **Stale `next_charge_date` creates an infinite backlog** — charges have dates stuck at March 9–21 (10–20 days behind today). The system advances by only 1 day per successful processing cycle, and the 72-hour grace period means each failed charge takes ~4 days to advance by 1 day. The system can never catch up.
-
-### Current State (9 Active Charges)
-
+## Root Cause
 ```text
-Tenant              | Wallet | Charge/day | Next Date | Grace Since
---------------------|--------|------------|-----------|------------
-Sunueli Alex        | UGX 0  | 13,601     | Mar 09    | Mar 27
-Kato Bashir         | UGX 0  |  4,884     | Mar 09    | Mar 27
-Ndikola Hamuza      | UGX 0  |  4,884     | Mar 10    | Mar 27
-Kayemba Henry       | UGX 0  |  4,884     | Mar 12    | Mar 27
-Magoma Adam         | UGX 0  |  4,884     | Mar 12    | Mar 27
-Kabuye Damiyano     | UGX 0  |  9,200     | Mar 15    | Mar 27
-Namukisha Esther    | UGX 0  | 13,967     | Mar 15    | Mar 30
-Agalejjo Jonathan   | UGX 0  |  4,767     | Mar 16    | Mar 27
-Akandinda Wilson    | UGX 0  | 56,193     | Mar 21    | (none)
+landlords table:     219 records (registered by agents)
+house_listings:      Only 1 has landlord_id set
+Dashboard query:     Derives landlords from house_listings join → shows 1
 ```
 
-### Proposed Fix (3 Parts)
+Agents register landlords in the `landlords` table, but the `house_listings.landlord_id` foreign key is rarely populated. The dashboard must query the `landlords` table directly.
 
-#### Part 1: Catch-Up Logic for Stale Dates
-When `next_charge_date` is more than 1 day behind today, skip the backlog and jump to today. Record the missed days as a single debt entry rather than cycling through each individually. This prevents the 72h grace loop from blocking progress.
+## Solution
 
-**In `auto-charge-wallets/index.ts`:**
-- Before processing, calculate `missedDays = daysBetween(next_charge_date, today)`
-- If `missedDays > 1`: record accumulated missed charges as debt, advance `next_charge_date` to today, clear `tenant_failed_at`, then attempt today's charge normally
-- Log the catch-up with a `"catchup_debt"` status
+### Add a direct landlords query in `LandlordOpsDashboard.tsx`
 
-#### Part 2: Grace Period Circuit Breaker
-Prevent infinite grace-period recycling when both tenant and agent consistently have zero funds.
+1. **New React Query** — Fetch all landlords directly from the `landlords` table with fields: `id, name, phone, verified, has_smartphone, mobile_money_name, mobile_money_number, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region, property_address, tenant_id, registered_by, managed_by_agent_id, house_category, number_of_rooms, created_at`
 
-- After grace expires and agent also has insufficient funds, advance `next_charge_date` to tomorrow (instead of only +1 from the old stale date)
-- Track consecutive failures; after 3 consecutive failed grace cycles, mark the charge as `"stalled"` and notify the manager
+2. **Enrich with agent/tenant names** — Batch-fetch profiles for `registered_by`, `managed_by_agent_id`, and `tenant_id` fields, then map names onto each landlord record
 
-#### Part 3: Manager Visibility — Stalled Charges Alert
-Add a notification when charges are stalled so the operations team can intervene (top up wallets, contact tenants, etc.).
+3. **Replace `uniqueLandlords`** — The current `useMemo` that derives landlords from house_listings (lines 323-336) will be replaced with the directly-fetched landlord data. Also count house listings per landlord by grouping the existing `rows` data.
 
-- Insert a manager notification when a charge enters `"stalled"` state
-- Existing dashboards will pick up the notification automatically
+4. **Update the Landlords view** (line 462+) — Display all landlords with:
+   - Name, phone, WhatsApp link
+   - Tenant name (from `tenant_id` profile lookup)
+   - Agent name (from `registered_by` or `managed_by_agent_id`)
+   - Property address, district, region
+   - Verified/Pending status badge
+   - Smartphone indicator
+   - House count (from house_listings match)
+   - Edit/Delete buttons (existing functionality preserved)
 
-### Technical Details
+5. **Update KPI counts** — Home view KPI cards for "Landlords", "Verified", "Smartphone" will use the direct query count instead of derived count
 
-**Files modified:**
-- `supabase/functions/auto-charge-wallets/index.ts` — add catch-up logic, grace circuit breaker, stalled state
+## Impact
+- All 219 landlords become visible immediately
+- Landlords without a linked house listing are no longer invisible
+- Agent and tenant contact info shown alongside each landlord
+- No database migration needed — read-only change
 
-**Database migration:**
-- Add `consecutive_failures` column (integer, default 0) to `subscription_charges`
-- Add `"stalled"` as a valid status for the charge lifecycle
-
-**No changes to:** cron schedule, RLS policies, or client-side code.
+## Files Changed
+- `src/components/executive/LandlordOpsDashboard.tsx`
 
