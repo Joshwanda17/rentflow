@@ -2346,23 +2346,51 @@ function MiniKPI({ icon, label, value, variant }: {
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
   const totalAmount = portfolios.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100 / 12), 0);
+  const hasPayouts = portfolios.length > 0;
   return (
     <button onClick={onClick} className={cn(
-      'rounded-2xl border p-3.5 space-y-2 text-left w-full transition-all hover:shadow-md active:scale-[0.98]',
-      portfolios.length > 0
-        ? 'border-violet-500/30 bg-violet-500/5 ring-1 ring-violet-500/20'
+      'rounded-2xl border p-4 space-y-2.5 text-left w-full transition-all hover:shadow-lg active:scale-[0.98]',
+      hasPayouts
+        ? 'border-destructive/40 bg-destructive/5 ring-2 ring-destructive/25 shadow-sm'
         : 'border-violet-500/20 bg-violet-500/5'
     )}>
-      <div className="flex items-center gap-2">
-        <div className="p-1.5 rounded-lg text-violet-600 bg-violet-500/10">
-          <CalendarDays className="h-4 w-4" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className={cn(
+            'p-2 rounded-xl',
+            hasPayouts ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-violet-500/10 text-violet-600'
+          )}>
+            <CalendarDays className="h-5 w-5" />
+          </div>
+          <div>
+            <span className={cn(
+              'text-xs font-bold uppercase tracking-wider',
+              hasPayouts ? 'text-destructive' : 'text-muted-foreground'
+            )}>
+              Nearing Payouts
+            </span>
+            <p className={cn(
+              'text-[11px] leading-snug mt-0.5',
+              hasPayouts ? 'text-destructive/80 font-medium' : 'text-muted-foreground'
+            )}>
+              {hasPayouts ? `~${formatUGX(totalAmount)} due within 7 days` : 'No payouts in next 7 days'}
+            </p>
+          </div>
         </div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nearing Payouts</span>
+        <div className={cn(
+          'text-2xl font-black tabular-nums px-3 py-1 rounded-xl',
+          hasPayouts ? 'bg-destructive/10 text-destructive' : 'text-foreground'
+        )}>
+          {portfolios.length}
+        </div>
       </div>
-      <p className="text-xl font-black tracking-tight tabular-nums">{portfolios.length}</p>
-      <p className="text-[11px] text-muted-foreground leading-snug">
-        {portfolios.length > 0 ? `~${formatUGX(totalAmount)} due within 7 days` : 'No payouts in next 7 days'}
-      </p>
+      {hasPayouts && (
+        <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-destructive/20">
+          <span className="text-[10px] font-semibold text-destructive uppercase tracking-wide">
+            Tap to review & take action →
+          </span>
+        </div>
+      )}
     </button>
   );
 }
