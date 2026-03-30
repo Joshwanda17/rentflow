@@ -18,7 +18,6 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Fetch shadow config once (cached 60s)
   const shadowConfig = await fetchShadowConfig(adminClient);
 
   try {
@@ -52,7 +51,6 @@ serve(async (req) => {
       description?: string 
     };
 
-    // UUID validation
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
     // Resolve recipient by ID or phone number
@@ -63,7 +61,6 @@ serve(async (req) => {
       const last9 = cleaned.slice(-9);
       
       if (last9.length < 9) {
-        // Shadow on failure path
         if (shouldSample(shadowConfig)) {
           runShadowAudit('wallet-transfer', { senderId, amount }, false,
             () => shadowValidateWalletTransfer({ senderId, recipientId: '', amount: amount ?? 0, description: '' }), adminClient);
@@ -126,16 +123,16 @@ serve(async (req) => {
       );
     }
 
-    // Phase 5: Shadow audit on success path — sampled
+    // Shadow audit on success path — sampled
     if (shouldSample(shadowConfig)) {
       runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
         true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription }), adminClient);
     }
 
-    // Get sender's wallet
+    // Pre-check sender balance
     const { data: senderWallet, error: senderError } = await adminClient
       .from('wallets')
-      .select('*')
+      .select('balance')
       .eq('user_id', senderId)
       .single();
 
@@ -153,103 +150,63 @@ serve(async (req) => {
       );
     }
 
-    // Get or create recipient's wallet
-    let { data: recipientWallet, error: recipientError } = await adminClient
+    // Ensure recipient wallet exists
+    await adminClient
       .from('wallets')
-      .select('*')
-      .eq('user_id', resolvedRecipientId)
-      .single();
+      .upsert({ user_id: resolvedRecipientId, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
 
-    if (recipientError || !recipientWallet) {
-      const { data: newWallet, error: createError } = await adminClient
-        .from('wallets')
-        .insert({ user_id: resolvedRecipientId, balance: 0 })
-        .select()
-        .single();
+    // === SINGLE-WRITER: Insert two ledger entries with shared transaction_group_id ===
+    // The sync_wallet_from_ledger trigger will atomically adjust both wallets
+    const txGroupId = crypto.randomUUID();
 
-      if (createError) {
-        return new Response(
-          JSON.stringify({ error: 'Failed to create recipient wallet' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      recipientWallet = newWallet;
-    }
-
-    // Optimistic lock — debit sender
-    const { data: senderUpdateResult, error: updateSenderError } = await adminClient
-      .from('wallets')
-      .update({ balance: senderWallet.balance - amount, updated_at: new Date().toISOString() })
-      .eq('user_id', senderId)
-      .eq('balance', senderWallet.balance)
-      .select()
-      .maybeSingle();
-
-    if (updateSenderError || !senderUpdateResult) {
-      return new Response(
-        JSON.stringify({ error: updateSenderError ? 'Failed to debit sender' : 'Transaction conflict. Please try again.' }),
-        { status: updateSenderError ? 500 : 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Optimistic lock — credit recipient
-    const { data: recipientUpdateResult, error: updateRecipientError } = await adminClient
-      .from('wallets')
-      .update({ balance: recipientWallet.balance + amount, updated_at: new Date().toISOString() })
-      .eq('user_id', resolvedRecipientId)
-      .eq('balance', recipientWallet.balance)
-      .select()
-      .maybeSingle();
-
-    if (updateRecipientError || !recipientUpdateResult) {
-      // Rollback sender
-      await adminClient
-        .from('wallets')
-        .update({ balance: senderWallet.balance, updated_at: new Date().toISOString() })
-        .eq('user_id', senderId);
-      
-      return new Response(
-        JSON.stringify({ error: 'Failed to credit recipient. Please try again.' }),
-        { status: updateRecipientError ? 500 : 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Record transaction
-    const { error: txError } = await adminClient
-      .from('wallet_transactions')
-      .insert({
-        sender_id: senderId,
-        recipient_id: resolvedRecipientId,
-        amount: amount,
-        description: safeDescription,
-      });
-
-    if (txError) {
-      console.error('Transaction record error:', txError);
-    }
-
-    // Record in general ledger
-    const refId = crypto.randomUUID();
-    await adminClient.from('general_ledger').insert([
+    const { error: ledgerError } = await adminClient.from('general_ledger').insert([
       {
         user_id: senderId,
         amount,
-        direction: 'out',
+        direction: 'cash_out',
         category: 'wallet_transfer',
         source_table: 'wallet_transactions',
         description: `Transfer to user: ${safeDescription}`,
-        reference_id: refId,
+        reference_id: txGroupId,
+        transaction_group_id: txGroupId,
+        transaction_date: new Date().toISOString(),
       },
       {
         user_id: resolvedRecipientId,
         amount,
-        direction: 'in',
+        direction: 'cash_in',
         category: 'wallet_transfer',
         source_table: 'wallet_transactions',
         description: `Transfer from user: ${safeDescription}`,
-        reference_id: refId,
+        reference_id: txGroupId,
+        transaction_group_id: txGroupId,
+        transaction_date: new Date().toISOString(),
       },
     ]);
+
+    if (ledgerError) {
+      console.error('Ledger insert error:', ledgerError);
+      return new Response(
+        JSON.stringify({ error: 'Transfer failed. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Post-check: verify sender balance didn't go negative (trigger enforces CHECK >= 0)
+    const { data: senderAfter } = await adminClient
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', senderId)
+      .single();
+
+    if (senderAfter && senderAfter.balance < 0) {
+      // This shouldn't happen due to CHECK constraint, but defensive rollback
+      console.error(`Sender balance went negative after transfer: ${senderAfter.balance}`);
+      return new Response(
+        JSON.stringify({ error: 'Transfer failed due to insufficient balance' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log(`Transfer successful: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
 

@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
                 repaymentApplied = 0;
                 newOutstanding = outstanding;
               } else {
-                // Insert cash_out ledger entry → trigger auto-deducts from wallet
+                // Insert cash_out ledger entry with transaction_group_id → trigger auto-deducts from wallet
                 const txGroupId = crypto.randomUUID();
                 await supabaseAdmin.from("general_ledger").insert({
                   user_id: depositRequest.user_id,
@@ -207,59 +207,14 @@ Deno.serve(async (req) => {
 
                 availableBalance -= repaymentApplied;
 
-                // ── Credit 5% agent commission on rent repayment ──
-                if (depositRequest.agent_id) {
-                  const AGENT_COMMISSION_RATE = 0.05;
-                  const agentCommission = Math.round(repaymentApplied * AGENT_COMMISSION_RATE);
-
-                  if (agentCommission > 0) {
-                    // Record earning
-                    await supabaseAdmin.from("agent_earnings").insert({
-                      agent_id: depositRequest.agent_id,
-                      amount: agentCommission,
-                      earning_type: "commission",
-                      source_user_id: depositRequest.user_id,
-                      rent_request_id: rentRequestId,
-                      description: `5% commission on UGX ${repaymentApplied.toLocaleString()} repayment (deposit approved)`,
-                    });
-
-                    // Credit agent wallet
-                    const { data: agentWallet } = await supabaseAdmin
-                      .from("wallets")
-                      .select("balance")
-                      .eq("user_id", depositRequest.agent_id)
-                      .maybeSingle();
-
-                    if (agentWallet) {
-                      await supabaseAdmin
-                        .from("wallets")
-                        .update({ balance: agentWallet.balance + agentCommission, updated_at: new Date().toISOString() })
-                        .eq("user_id", depositRequest.agent_id);
-                    }
-
-                    // Ledger entry for agent commission
-                    await supabaseAdmin.from("general_ledger").insert({
-                      user_id: depositRequest.agent_id,
-                      amount: agentCommission,
-                      direction: "cash_in",
-                      category: "agent_commission",
-                      source_table: "deposit_requests",
-                      source_id: depositRequest.id,
-                      reference_id: depositRequest.transaction_id || depositRequest.id,
-                      description: `5% commission on tenant rent repayment (UGX ${repaymentApplied.toLocaleString()})`,
-                      linked_party: depositRequest.user_id,
-                      transaction_date: new Date().toISOString(),
-                    });
-
-                    // Notify agent
-                    await supabaseAdmin.from("notifications").insert({
-                      user_id: depositRequest.agent_id,
-                      title: "Commission Earned! 💰",
-                      message: `You earned UGX ${agentCommission.toLocaleString()} (5%) from tenant rent repayment of UGX ${repaymentApplied.toLocaleString()}.`,
-                      type: "earning",
-                      metadata: { amount: agentCommission, type: "commission", rent_request_id: rentRequestId, deposit_request_id: depositRequest.id },
-                    });
-                  }
+                // ── Credit agent commission via RPC (single-writer — RPC owns commission) ──
+                if (depositRequest.agent_id && rentRequestId) {
+                  await supabaseAdmin.rpc("credit_agent_rent_commission", {
+                    p_rent_request_id: rentRequestId,
+                    p_repayment_amount: repaymentApplied,
+                    p_source_table: "deposit_requests",
+                    p_source_id: depositRequest.id,
+                  });
                 }
               }
             }
