@@ -1815,14 +1815,15 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ## 27.1 Realtime Channels (Supabase Realtime)
 
-**Enabled for:**
-- Notifications
-- Chat messages
-- System signals
+**Enabled for (trimmed to 3 tables for scale):**
+- `messages` — Chat messages
+- `wallets` — Balance updates
+- `force_refresh_signals` — Cache invalidation
 
-**Disabled for (security):**
-- Wallet balances
+**Disabled for (security + performance):**
+- Wallet balances (direct)
 - Financial transactions
+- Profiles, notifications, deposit_requests, and 14 other tables removed from publication for ~80% broadcast overhead reduction
 - Critical state
 
 ## 27.2 Notification Types
