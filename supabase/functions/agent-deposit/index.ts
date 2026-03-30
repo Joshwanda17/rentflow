@@ -209,6 +209,7 @@ Deno.serve(async (req) => {
     let repaymentAmount = 0;
     let commission = 0;
     let landlordPayment = 0;
+    let actualCommission = 0;
 
     if (activeRentRequest) {
       // Calculate total already repaid
