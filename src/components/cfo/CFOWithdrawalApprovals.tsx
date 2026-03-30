@@ -217,7 +217,7 @@ export function CFOWithdrawalApprovals() {
                       <Button
                         size="sm"
                         className="h-8 text-xs"
-                        onClick={() => { setSelected(req); setApproveOpen(true); }}
+                        onClick={() => { setSelected(req); setTransactionId(''); setApproveOpen(true); }}
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
