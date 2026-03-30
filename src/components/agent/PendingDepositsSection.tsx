@@ -95,7 +95,17 @@ export function PendingDepositsSection() {
     // Realtime removed — deposit_requests not in realtime whitelist
   }, [user]);
 
-  const handleApprove = async (deposit: DepositRequest) => {
+  const openApproveDialog = (deposit: DepositRequest) => {
+    setApproveDeposit(deposit);
+    setApproveTid('');
+    setApproveDialogOpen(true);
+  };
+
+  const handleApprove = async () => {
+    if (!approveDeposit) return;
+    const deposit = approveDeposit;
+    setApproveDialogOpen(false);
+    setApproveDeposit(null);
     setProcessingId(deposit.id);
 
     try {
@@ -103,6 +113,7 @@ export function PendingDepositsSection() {
         body: {
           deposit_request_id: deposit.id,
           action: 'approve',
+          transaction_id: approveTid.trim().toUpperCase(),
         },
       });
 
@@ -113,6 +124,7 @@ export function PendingDepositsSection() {
       }
 
       toast.success(`Deposit of ${formatCurrency(deposit.amount)} approved!`);
+      setApproveTid('');
       fetchDeposits();
     } catch (error) {
       console.error('Error approving deposit:', error);
