@@ -271,7 +271,6 @@ export function PartnersOpsDashboard() {
     switch (tab) {
       case 'portfolios': return <COOPartnersPage />;
       case 'escalations': return renderEscalations();
-      case 'directory': return <PartnerDirectory />;
       case 'capital': return <PartnerCapitalFlow />;
       case 'roi': return (
         <div className="space-y-3">
@@ -283,7 +282,6 @@ export function PartnersOpsDashboard() {
           <ROIPaymentHistory />
         </div>
       );
-      case 'churn': return <PartnerChurnAlerts />;
       default: return null;
     }
   };
