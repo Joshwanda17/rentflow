@@ -254,6 +254,56 @@ export function LandlordOpsDashboard() {
     staleTime: 60000,
   });
 
+  // ─── All Landlords Direct Query ───
+  const { data: allLandlords } = useQuery({
+    queryKey: ['landlord-ops-all-landlords'],
+    queryFn: async () => {
+      const PAGE_SIZE = 1000;
+      let allData: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase
+          .from('landlords')
+          .select('id, name, phone, verified, has_smartphone, mobile_money_name, mobile_money_number, number_of_houses, bank_name, account_number, monthly_rent, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region, property_address, tenant_id, registered_by, managed_by_agent_id, house_category, number_of_rooms, created_at')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (data && data.length > 0) {
+          allData.push(...data);
+          offset += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Collect all profile IDs to batch-fetch
+      const profileIds = new Set<string>();
+      allData.forEach(l => {
+        if (l.tenant_id) profileIds.add(l.tenant_id);
+        if (l.registered_by) profileIds.add(l.registered_by);
+        if (l.managed_by_agent_id) profileIds.add(l.managed_by_agent_id);
+      });
+
+      const idArr = [...profileIds];
+      const profileMap = new Map<string, { full_name: string | null; phone: string | null }>();
+      // Batch fetch in chunks of 50
+      for (let i = 0; i < idArr.length; i += 50) {
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone').in('id', idArr.slice(i, i + 50));
+        if (profiles) profiles.forEach(p => profileMap.set(p.id, p));
+      }
+
+      return allData.map(l => ({
+        ...l,
+        tenant_name: l.tenant_id ? (profileMap.get(l.tenant_id)?.full_name || null) : null,
+        tenant_phone_profile: l.tenant_id ? (profileMap.get(l.tenant_id)?.phone || null) : null,
+        agent_name: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.full_name : null) || (l.registered_by ? profileMap.get(l.registered_by)?.full_name : null) || null,
+        agent_phone: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.phone : null) || (l.registered_by ? profileMap.get(l.registered_by)?.phone : null) || null,
+      }));
+    },
+    staleTime: 60000,
+  });
+
   // ─── Rent Requests without Landlord Query ───
   const { data: noLandlordTenants } = useQuery({
     queryKey: ['landlord-ops-no-landlord'],
@@ -312,6 +362,7 @@ export function LandlordOpsDashboard() {
   });
 
   const rows = listings || [];
+  const landlordsList = allLandlords || [];
   const noLandlordList = noLandlordTenants || [];
   const unverifiedListings = rows.filter(l => !l.verified);
   const verifiedListings = rows.filter(l => l.verified);
@@ -320,19 +371,13 @@ export function LandlordOpsDashboard() {
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
   const occupiedHouses = rows.filter(l => l.tenant_id);
 
-  const uniqueLandlords = useMemo(() => {
-    const map = new Map<string, ListingWithLandlord['landlords'] & { houseCount: number }>();
+  // House count per landlord from house_listings
+  const landlordHouseCounts = useMemo(() => {
+    const map = new Map<string, number>();
     rows.forEach(r => {
-      if (r.landlord_id && r.landlords) {
-        const existing = map.get(r.landlord_id);
-        if (existing) {
-          existing.houseCount++;
-        } else {
-          map.set(r.landlord_id, { ...r.landlords, houseCount: 1 });
-        }
-      }
+      if (r.landlord_id) map.set(r.landlord_id, (map.get(r.landlord_id) || 0) + 1);
     });
-    return [...map.entries()];
+    return map;
   }, [rows]);
 
   // Location grouping
@@ -398,8 +443,8 @@ export function LandlordOpsDashboard() {
     return [...map.values()].sort((a, b) => b.houseCount - a.houseCount);
   }, [rows]);
 
-  const verifiedLandlords = uniqueLandlords.filter(([, l]) => l?.verified);
-  const smartphoneLandlords = uniqueLandlords.filter(([, l]) => l?.has_smartphone);
+  const verifiedLandlords = landlordsList.filter(l => l.verified);
+  const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
     if (!user) return;
@@ -461,56 +506,82 @@ export function LandlordOpsDashboard() {
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
     const filtered = search
-      ? uniqueLandlords.filter(([, l]) => l?.name?.toLowerCase().includes(search.toLowerCase()) || l?.phone?.includes(search))
-      : uniqueLandlords;
+      ? landlordsList.filter(l => l.name?.toLowerCase().includes(search.toLowerCase()) || l.phone?.includes(search) || l.tenant_name?.toLowerCase().includes(search.toLowerCase()) || l.agent_name?.toLowerCase().includes(search.toLowerCase()))
+      : landlordsList;
     return (
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords ({uniqueLandlords.length})</h2>
+        <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords ({landlordsList.length})</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
+          <Input placeholder="Search by name, phone, tenant or agent…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
         <div className="space-y-2">
-          {filtered.map(([id, landlord]) => (
-            <div key={id} className="rounded-xl border border-border bg-card p-4 space-y-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-bold text-sm">{landlord?.name}</p>
-                  {landlord?.phone && <PhoneLinks phone={landlord.phone} name={landlord.name} />}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => landlord && setEditLandlord({ ...landlord, id })}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
-                    title="Edit landlord"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => landlord && setDeleteLandlord({ id, name: landlord.name })}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors min-h-[32px]"
-                    title="Delete landlord"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="flex flex-col items-end gap-1">
-                    {landlord?.verified ? (
-                      <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
-                    ) : (
-                      <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
-                    )}
-                    <Badge variant="outline" className="text-[10px]">{landlord?.houseCount} {landlord?.houseCount === 1 ? 'house' : 'houses'}</Badge>
+          {filtered.map(landlord => {
+            const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
+            return (
+              <div key={landlord.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-bold text-sm">{landlord.name}</p>
+                    {landlord.phone && <PhoneLinks phone={landlord.phone} name={landlord.name} />}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditLandlord({ ...landlord })}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
+                      title="Edit landlord"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteLandlord({ id: landlord.id, name: landlord.name })}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors min-h-[32px]"
+                      title="Delete landlord"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="flex flex-col items-end gap-1">
+                      {landlord.verified ? (
+                        <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
+                      ) : (
+                        <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px]">{houseCount} {houseCount === 1 ? 'house' : 'houses'}</Badge>
+                    </div>
                   </div>
                 </div>
+                {/* Tenant info */}
+                {landlord.tenant_name && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
+                      <p className="text-xs font-medium truncate">{landlord.tenant_name}</p>
+                    </div>
+                    {landlord.tenant_phone_profile && <PhoneLinks phone={landlord.tenant_phone_profile} name={landlord.tenant_name} />}
+                  </div>
+                )}
+                {/* Agent info */}
+                {landlord.agent_name && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-500/10 px-2.5 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-400">🕵️ Agent</p>
+                      <p className="text-xs font-medium truncate">{landlord.agent_name}</p>
+                    </div>
+                    {landlord.agent_phone && <PhoneLinks phone={landlord.agent_phone} name={landlord.agent_name} />}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                  {landlord.property_address && <span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{landlord.property_address}</span>}
+                  {landlord.district && <span>{landlord.district}</span>}
+                  {landlord.region && <span>{landlord.region}</span>}
+                  {landlord.mobile_money_name && <span>MoMo: {landlord.mobile_money_name}</span>}
+                  {landlord.has_smartphone ? <span>📱 Smartphone</span> : <span>📵 No smartphone</span>}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                {landlord?.mobile_money_name && <span>MoMo: {landlord.mobile_money_name}</span>}
-                {landlord?.has_smartphone ? <span>📱 Smartphone</span> : <span>📵 No smartphone</span>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No landlords found</p>}
         </div>
       </div>
@@ -915,7 +986,7 @@ export function LandlordOpsDashboard() {
         <div className="grid grid-cols-2 gap-2">
           <KPICard title="With Photos" value={withImages.length} icon={Image} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
           <KPICard title="GPS Captured" value={withGPS.length} icon={MapPin} loading={isLoading} color="bg-purple-500/10 text-purple-600" />
-          <KPICard title="📱 Landlords" value={smartphoneLandlords.length} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${uniqueLandlords.length}`} />
+          <KPICard title="📱 Landlords" value={smartphoneLandlords.length} icon={Smartphone} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle={`of ${landlordsList.length}`} />
           <KPICard title="Bonuses Pending" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
         </div>
         <VacancyAnalytics listings={rows as any} />
@@ -935,7 +1006,7 @@ export function LandlordOpsDashboard() {
         <KPICard title="Total Properties" value={rows.length} icon={Home} loading={isLoading} />
         <KPICard title="Occupied" value={occupiedHouses.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} />
         <KPICard title="Empty" value={emptyHouses.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
-        <KPICard title="Landlords" value={uniqueLandlords.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} />
+        <KPICard title="Landlords" value={landlordsList.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} />
         <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" />
         <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" />
       </div>
@@ -975,7 +1046,7 @@ export function LandlordOpsDashboard() {
         {/* Priority items first */}
         {navItems.filter(n => n.priority).map(item => (
           <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-            item.id === 'landlords' ? `${uniqueLandlords.length}` :
+            item.id === 'landlords' ? `${landlordsList.length}` :
             item.id === 'locations' ? `${locationGroups.length}` :
             item.id === 'lc1' ? `${lc1Groups.length}` :
             item.id === 'cities' ? `${cityGroups.length}` :
