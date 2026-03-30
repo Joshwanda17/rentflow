@@ -115,9 +115,9 @@ function getOrdinalSuffix(day: number): string {
 }
 
 function exportToCSV(rows: PartnerRow[]) {
-  const header = 'Name,Phone,Status,Wallet,Total Funded,Deals,Avg Deal,ROI %,Payout Day,ROI Mode,Joined';
+  const header = 'Name,Phone,Email,Status,Wallet,Total Funded,Deals,Avg Deal,ROI %,Payout Day,ROI Mode,Joined';
   const csvRows = rows.map(r =>
-    `"${r.name}","${r.phone}","${r.status}","${r.walletBalance}","${r.funded}","${r.activeDeals}","${r.avgDeal}","${r.roiPercentage}","${r.payoutDay}","${r.roiMode}","${r.joinedAt}"`
+    `"${r.name}","${r.phone}","${r.email}","${r.status}","${r.walletBalance}","${r.funded}","${r.activeDeals}","${r.avgDeal}","${r.roiPercentage}","${r.payoutDay}","${r.roiMode}","${r.joinedAt}"`
   );
   const csv = [header, ...csvRows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
