@@ -71,17 +71,7 @@ export function PartnersOpsDashboard() {
     staleTime: 300000,
   });
 
-  const { data: churnCount } = useQuery({
-    queryKey: ['partner-churn-count'],
-    queryFn: async () => {
-      const { count } = await supabase.from('investor_portfolios')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .lt('investment_amount', 100000);
-      return count || 0;
-    },
-    staleTime: 600000,
-  });
+
 
   const rows = portfolios || [];
   const totalInvested = rows.reduce((s, p) => s + (p.investment_amount || 0), 0);
