@@ -2197,6 +2197,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | `record_rent_request_repayment()` | Atomic repayment recording (updates rent_requests + landlords + ledger) |
 | `credit_agent_rent_commission()` | 5% agent commission (wallet + ledger + earnings) |
 | `auto_route_rent_funds()` | Fund routing fallback |
+| `detect_velocity_abuse(window_min, threshold)` | Server-side velocity abuse detection (replaces client-side grouping) |
 
 ---
 
