@@ -72,6 +72,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
+  const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
 
   useEffect(() => {
     if (open && user) fetchTenants();
