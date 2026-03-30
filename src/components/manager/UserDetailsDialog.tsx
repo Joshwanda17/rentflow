@@ -669,6 +669,34 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!user) return;
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword.length > 128) {
+      toast.error('Password must be less than 128 characters');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      const response = await supabase.functions.invoke('admin-reset-password', {
+        body: { user_id: user.id, new_password: newPassword },
+      });
+      if (response.error) throw new Error(response.error.message || 'Failed to reset password');
+      if (response.data?.error) throw new Error(response.data.error);
+      toast.success(`Password reset successfully for ${user.full_name}`);
+      setNewPassword('');
+      setShowPassword(false);
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast.error(error.message || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!user) return;
     setDeletingUser(true);
