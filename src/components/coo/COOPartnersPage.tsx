@@ -215,6 +215,7 @@ export default function COOPartnersPage() {
 
   // Nearing payouts dialog
   const [nearingPayoutsOpen, setNearingPayoutsOpen] = useState(false);
+  const [allPortfoliosForPayout, setAllPortfoliosForPayout] = useState<NearingPayoutPortfolio[]>([]);
   const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
   const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
   const [editPortfolioDate, setEditPortfolioDate] = useState('');
