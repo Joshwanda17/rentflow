@@ -26,32 +26,26 @@ Deno.serve(async (req) => {
     const { data: dispatchResult, error: dispatchErr } = await supabase.rpc("auto_dispatch_withdrawals", { p_batch_size: 200 });
     results.auto_dispatch = dispatchErr ? { error: dispatchErr.message } : dispatchResult;
 
-    // 3. Anomaly detection: velocity abuse (>5 deposits from same user in 1 hour)
-    const { data: velocityAbuse } = await supabase
-      .from("deposit_requests")
-      .select("user_id, count:id")
-      .eq("status", "pending")
-      .gte("created_at", new Date(Date.now() - 3600000).toISOString());
+    // 3. Anomaly detection: velocity abuse via server-side RPC (no client-side grouping)
+    const { data: velocityAbusers, error: velocityErr } = await supabase.rpc("detect_velocity_abuse", {
+      p_window_minutes: 60,
+      p_threshold: 5,
+    });
 
-    // Group by user_id client-side for velocity check
-    if (velocityAbuse) {
-      const userCounts = new Map<string, number>();
-      for (const row of velocityAbuse) {
-        userCounts.set(row.user_id, (userCounts.get(row.user_id) || 0) + 1);
-      }
-      for (const [userId, count] of userCounts) {
-        if (count > 5) {
-          await supabase.from("financial_anomalies").insert({
-            anomaly_type: "velocity_abuse",
-            severity: "high",
-            title: `Velocity alert: ${count} deposits in 1 hour`,
-            description: `User submitted ${count} deposit requests in the last hour`,
-            related_user_id: userId,
-            metadata: { count, window: "1h" },
-          });
-        }
-      }
+    if (!velocityErr && velocityAbusers?.length) {
+      const flagOps = velocityAbusers.map((row: { user_id: string; deposit_count: number }) =>
+        supabase.from("financial_anomalies").insert({
+          anomaly_type: "velocity_abuse",
+          severity: "high",
+          title: `Velocity alert: ${row.deposit_count} deposits in 1 hour`,
+          description: `User submitted ${row.deposit_count} deposit requests in the last hour`,
+          related_user_id: row.user_id,
+          metadata: { count: row.deposit_count, window: "1h" },
+        })
+      );
+      await Promise.allSettled(flagOps);
     }
+    results.velocity_check = velocityErr ? { error: velocityErr.message } : { flagged: velocityAbusers?.length ?? 0 };
 
     // 4. Reset agent daily queue counts at midnight
     const now = new Date();

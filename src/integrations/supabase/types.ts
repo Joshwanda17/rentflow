@@ -8582,6 +8582,13 @@ export type Database = {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
       }
+      detect_velocity_abuse: {
+        Args: { p_threshold?: number; p_window_minutes?: number }
+        Returns: {
+          deposit_count: number
+          user_id: string
+        }[]
+      }
       find_duplicate_phones: {
         Args: never
         Returns: {
