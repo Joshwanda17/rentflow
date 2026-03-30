@@ -1617,6 +1617,17 @@ export function WithdrawalRequestsManager() {
                 ℹ️ This will forward the request to the CFO → COO approval chain. No funds will be deducted yet.
               </p>
             </div>
+
+            {/* Transaction ID */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Transaction ID (required)</label>
+              <Input
+                placeholder="Enter Transaction ID"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                className="font-mono uppercase"
+              />
+            </div>
           </div>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <AlertDialogCancel onClick={() => {
@@ -1627,7 +1638,7 @@ export function WithdrawalRequestsManager() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
-              disabled={processing === selectedRequest?.id}
+              disabled={processing === selectedRequest?.id || !transactionId.trim()}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {processing === selectedRequest?.id ? (
