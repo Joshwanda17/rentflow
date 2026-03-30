@@ -816,9 +816,13 @@ export default function COOPartnersPage() {
     let result = [...rows];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
     if (filterRoiMode !== 'all') result = result.filter(r => r.roiMode === filterRoiMode);
+    if (filterContact === 'has_phone') result = result.filter(r => r.phone && !r.phone.includes('@'));
+    else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
+    else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
+    else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q));
+      result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.email.toLowerCase().includes(q));
     }
     if (sortKey && sortDir) {
       result.sort((a, b) => {
@@ -832,7 +836,7 @@ export default function COOPartnersPage() {
       });
     }
     return result;
-  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode]);
+  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
