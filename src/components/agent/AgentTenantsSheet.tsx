@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, CheckCircle2, Clock, Users, Share2 } from 'lucide-react';
+import { Loader2, Search, User, Phone, PhoneCall, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, CheckCircle2, Clock, Users, Share2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -70,6 +70,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
   const [sortMode, setSortMode] = useState<SortMode>('balance');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -100,13 +101,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           .in('status', ['approved', 'disbursed', 'repaying']);
 
         const balances: Record<string, number> = {};
+        const totals: Record<string, { total: number; paid: number }> = {};
         const phoneMap: Record<string, boolean> = {};
         (rentRequests || []).forEach(rr => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
+          totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
           if (rr.tenant_no_smartphone) phoneMap[rr.tenant_id] = true;
         });
         setTenantBalances(balances);
+        setTenantTotals(totals);
         setNoSmartphoneMap(phoneMap);
       }
     } catch (err) {
@@ -407,6 +412,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const requests = tenantRequests[tenant.id] || [];
               const isLoadingThis = loadingRequests === tenant.id;
               const balance = tenantBalances[tenant.id] || 0;
+              const totals = tenantTotals[tenant.id] || { total: 0, paid: 0 };
+              const progressPct = totals.total > 0 ? Math.min(100, Math.round((totals.paid / totals.total) * 100)) : 0;
               const hasDebt = balance > 0;
               const isNoSmartphone = noSmartphoneMap[tenant.id] || false;
 
@@ -446,7 +453,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         {tenant.full_name.charAt(0).toUpperCase()}
                       </div>
 
-                      {/* Info */}
+                      {/* Info + Progress */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
@@ -456,35 +463,61 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Phone className="h-2.5 w-2.5" />
                           {tenant.phone}
-                          <span className="text-muted-foreground/50 mx-0.5">·</span>
-                          <Calendar className="h-2.5 w-2.5" />
-                          {format(new Date(tenant.created_at), 'dd MMM')}
                         </p>
+                        {/* Payment Progress Bar */}
+                        {totals.total > 0 && (
+                          <div className="mt-1.5">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[10px] text-muted-foreground">{progressPct}% repaid</span>
+                              <span className="text-[10px] font-mono text-muted-foreground">{formatUGX(totals.paid)}/{formatUGX(totals.total)}</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  progressPct >= 100 ? 'bg-success' : progressPct >= 50 ? 'bg-primary' : 'bg-destructive'
+                                }`}
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Right side */}
-                      <div className="flex flex-col items-end gap-0.5 shrink-0">
-                        {hasDebt ? (
-                          <span className="text-sm font-bold text-destructive font-mono">
-                            {formatUGX(balance)}
-                          </span>
-                        ) : tenant.verified ? (
-                          <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0 gap-0.5">
-                            <CheckCircle2 className="h-2.5 w-2.5" />
-                            Clear
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[10px]">
-                            <Clock className="h-2.5 w-2.5 mr-0.5" />
-                            Pending
-                          </Badge>
-                        )}
-                        <div className="mt-0.5">
-                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                      {/* Right side: balance + call button */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-col items-end gap-0.5">
+                          {hasDebt ? (
+                            <span className="text-sm font-bold text-destructive font-mono">
+                              {formatUGX(balance)}
+                            </span>
+                          ) : tenant.verified ? (
+                            <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0 gap-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" />
+                              Clear
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">
+                              <Clock className="h-2.5 w-2.5 mr-0.5" />
+                              Pending
+                            </Badge>
+                          )}
+                          <div className="mt-0.5">
+                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                          </div>
                         </div>
+
+                        {/* Phone Call Button */}
+                        <a
+                          href={`tel:${tenant.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-10 h-10 rounded-xl bg-success/15 hover:bg-success/25 active:scale-90 flex items-center justify-center transition-all shrink-0"
+                          title={`Call ${tenant.full_name}`}
+                        >
+                          <PhoneCall className="h-4.5 w-4.5 text-success" />
+                        </a>
                       </div>
                     </div>
                   </button>
