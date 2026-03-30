@@ -2310,25 +2310,30 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# Appendix F: Changelog (v2.0 → v3.0)
+# Appendix F: Changelog (v2.0 → v3.0 → v3.1)
 
 | Feature | Change |
 |---------|--------|
-| Tenant Ops Dashboard | NEW — Full Section 14 with card-based navigation, clickable KPIs, smartphone flagging, manual rent collection with mandatory reason, repayment trend charts, tenant detail deep-dive, rent request deletion |
-| Partner Ops Dashboard | NEW — Full Section 15 with card-based navigation, COOPartnersPage integration, auto-renewal, churn alerts |
+| Tenant Ops Dashboard | NEW (v3.0) — Full Section 14 with card-based navigation, clickable KPIs, smartphone flagging, manual rent collection with mandatory reason, repayment trend charts, tenant detail deep-dive, rent request deletion |
+| Partner Ops Dashboard | NEW (v3.0) — Full Section 15 with card-based navigation, COOPartnersPage integration, auto-renewal, churn alerts |
 | Manual Rent Collection | Added mandatory reason (≥10 chars) for wallet debits by Tenant Ops |
-| COO Wallet-to-Portfolio | NEW — Direct transfer from partner wallet to active portfolio |
-| Funder Statement | NEW — `send-funder-statement` edge function for portfolio statements |
-| Proxy Funder Registration | NEW — `register-proxy-funder` edge function |
-| Pending Topups | NEW — `apply-pending-topups` for queued portfolio top-ups |
-| `coo-wallet-to-portfolio` | NEW — Edge function for COO wallet-to-portfolio transfers |
-| Double-Credit Bug | DOCUMENTED — Known issue with triple wallet update paths (Section 34) |
-| Transaction Categories | EXPANDED — Added wallet_deposit, agent_commission, referral_bonus, pending_portfolio_topup, coo_proxy_investment, pool_rent_deployment, wallet_transfer |
-| Auto-Repayment on Deposit | DOCUMENTED — Automatic rent repayment triggered on any wallet deposit |
-| Database Schema | EXPANDED — Added wallet_transactions, subscription_charges, repayments, role_access_requests, cashout_agents, cfo_threshold_alerts, commission_accrual_ledger |
-| RPCs | EXPANDED — Added credit_agent_rent_commission documentation |
-| Administrative Permissions | EXPANDED — Added manual rent collection and wallet-to-portfolio transfer permissions |
+| COO Wallet-to-Portfolio | NEW (v3.0) — Direct transfer from partner wallet to active portfolio |
+| Funder Statement | NEW (v3.0) — `send-funder-statement` edge function for portfolio statements |
+| Proxy Funder Registration | NEW (v3.0) — `register-proxy-funder` edge function |
+| Pending Topups | NEW (v3.0) — `apply-pending-topups` for queued portfolio top-ups |
+| `coo-wallet-to-portfolio` | NEW (v3.0) — Edge function for COO wallet-to-portfolio transfers |
+| Double-Credit Bug | DOCUMENTED (v3.0) — Known issue with triple wallet update paths (Section 34) |
+| Transaction Categories | EXPANDED (v3.0) — Added wallet_deposit, agent_commission, referral_bonus, pending_portfolio_topup, coo_proxy_investment, pool_rent_deployment, wallet_transfer |
+| Auto-Repayment on Deposit | DOCUMENTED (v3.0) — Automatic rent repayment triggered on any wallet deposit |
+| Database Schema | EXPANDED (v3.0) — Added wallet_transactions, subscription_charges, repayments, role_access_requests, cashout_agents, cfo_threshold_alerts, commission_accrual_ledger |
+| RPCs | EXPANDED (v3.0) — Added credit_agent_rent_commission documentation |
+| Administrative Permissions | EXPANDED (v3.0) — Added manual rent collection and wallet-to-portfolio transfer permissions |
+| **Listing Rejection Flow** | NEW (v3.1) — Landlord Ops can reject house listings with mandatory reason; rejected listings appear on agent dashboard with red indicator and "Relist" button |
+| **Velocity Abuse Detection** | NEW (v3.1) — `detect_velocity_abuse` RPC replaces client-side deposit grouping in `batch-process-financials` (~95% network reduction) |
+| **Realtime Publication Trim** | OPTIMIZED (v3.1) — Reduced from 20 tables to 3 (messages, wallets, force_refresh_signals) for ~80% broadcast overhead reduction |
+| **Predictive Prefetch Removed** | REMOVED (v3.1) — Deleted `predictivePrefetch.ts` (duplicated `user-snapshot` logic, caused ~50% redundant edge function calls on login) |
+| **Batch Processing** | OPTIMIZED (v3.1) — `batch-process-financials` uses `Promise.allSettled` for parallel anomaly flagging |
 
 ---
 
-*End of Document — Version 3.0*
+*End of Document — Version 3.1*
