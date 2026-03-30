@@ -58,6 +58,20 @@ interface PartnerRow {
   lastActivity: string;
 }
 
+interface NearingPayoutPortfolio {
+  portfolioId: string;
+  investorId: string;
+  name: string;
+  phone: string;
+  email: string;
+  investmentAmount: number;
+  roiPercentage: number;
+  payoutDay: number;
+  roiMode: string;
+  createdAt: string;
+  daysUntil: number;
+}
+
 interface PortfolioRow {
   id: string;
   portfolio_code: string;
