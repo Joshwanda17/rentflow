@@ -2322,7 +2322,7 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 
 ---
 
-# Appendix F: Changelog (v2.0 → v3.0 → v3.1)
+# Appendix F: Changelog (v2.0 → v3.0 → v3.1 → v3.2)
 
 | Feature | Change |
 |---------|--------|
@@ -2334,7 +2334,7 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 | Proxy Funder Registration | NEW (v3.0) — `register-proxy-funder` edge function |
 | Pending Topups | NEW (v3.0) — `apply-pending-topups` for queued portfolio top-ups |
 | `coo-wallet-to-portfolio` | NEW (v3.0) — Edge function for COO wallet-to-portfolio transfers |
-| Double-Credit Bug | DOCUMENTED (v3.0) — Known issue with triple wallet update paths (Section 34) |
+| Double-Credit Bug | DOCUMENTED (v3.0) → **RESOLVED (v3.2)** — Single-Writer Principle enforced across all wallet mutation paths |
 | Transaction Categories | EXPANDED (v3.0) — Added wallet_deposit, agent_commission, referral_bonus, pending_portfolio_topup, coo_proxy_investment, pool_rent_deployment, wallet_transfer |
 | Auto-Repayment on Deposit | DOCUMENTED (v3.0) — Automatic rent repayment triggered on any wallet deposit |
 | Database Schema | EXPANDED (v3.0) — Added wallet_transactions, subscription_charges, repayments, role_access_requests, cashout_agents, cfo_threshold_alerts, commission_accrual_ledger |
@@ -2345,7 +2345,8 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 | **Realtime Publication Trim** | OPTIMIZED (v3.1) — Reduced from 20 tables to 3 (messages, wallets, force_refresh_signals) for ~80% broadcast overhead reduction |
 | **Predictive Prefetch Removed** | REMOVED (v3.1) — Deleted `predictivePrefetch.ts` (duplicated `user-snapshot` logic, caused ~50% redundant edge function calls on login) |
 | **Batch Processing** | OPTIMIZED (v3.1) — `batch-process-financials` uses `Promise.allSettled` for parallel anomaly flagging |
+| **Double-Credit Fix** | RESOLVED (v3.2) — `wallet-transfer` → ledger-only writes with `transaction_group_id`; `credit_agent_rent_commission` → sole commission writer with idempotency guard; `record_rent_request_repayment` → accepts optional `transaction_group_id`; `approve-deposit` → stripped of all inline commission logic, delegates to RPCs |
 
 ---
 
-*End of Document — Version 3.1*
+*End of Document — Version 3.2*
