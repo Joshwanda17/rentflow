@@ -926,7 +926,7 @@ Funds credited to agent wallet
 ## 7.4 Operations Departments
 
 - **Tenant Operations**: Full lifecycle management (see Section 14)
-- **Landlord Operations**: Property orchestration, vacancy tracking, listing verification, budget matching, viewing coordination with SMS alerts
+- **Landlord Operations**: Property orchestration, vacancy tracking, listing verification, listing rejection (push back to agent), budget matching, viewing coordination with SMS alerts
 - **Partner Operations**: Capital management with card-based dashboard (see Section 15)
 - **Agent Operations**: Agent lifecycle, performance, float management
 - Operations users assigned to departments via junction table
