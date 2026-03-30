@@ -204,24 +204,32 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     });
 
     return list;
-  }, [tenants, search, activeFilter, sortMode, tenantBalances, noSmartphoneMap]);
+  }, [tenants, search, activeFilter, sortMode, tenantBalances, noSmartphoneMap, tenantStatuses]);
 
   // Stats
   const stats = useMemo(() => {
+    const activeStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying']);
     const totalOwing = Object.values(tenantBalances).reduce((s, v) => s + v, 0);
     const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
-    const clearedCount = tenants.filter(t => (tenantBalances[t.id] || 0) === 0 && t.verified).length;
+    const allCount = tenants.filter(t => tenantStatuses[t.id] && tenantStatuses[t.id].size > 0).length;
+    const activeCount = tenants.filter(t => {
+      const s = tenantStatuses[t.id];
+      return s && [...s].some(st => activeStatuses.has(st));
+    }).length;
+    const clearedCount = tenants.filter(t => {
+      const s = tenantStatuses[t.id];
+      if (!s) return false;
+      return s.has('completed') || ((tenantBalances[t.id] || 0) === 0 && [...s].some(st => activeStatuses.has(st)));
+    }).length;
     const noPhoneCount = Object.values(noSmartphoneMap).filter(Boolean).length;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const newCount = tenants.filter(t => new Date(t.created_at) > thirtyDaysAgo).length;
-    return { totalOwing, owingCount, total: tenants.length, noPhoneCount, clearedCount, newCount };
-  }, [tenants, tenantBalances, noSmartphoneMap]);
+    const newCount = tenants.filter(t => tenantStatuses[t.id]?.has('pending')).length;
+    return { totalOwing, owingCount, total: tenants.length, noPhoneCount, clearedCount, newCount, allCount, activeCount };
+  }, [tenants, tenantBalances, noSmartphoneMap, tenantStatuses]);
 
   const filterTabs: { key: FilterTab; label: string; emoji: string; count: number; color: string; activeColor: string }[] = [
     { key: 'owing', label: 'Owing', emoji: '🔴', count: stats.owingCount, color: 'text-destructive', activeColor: 'bg-destructive text-destructive-foreground' },
-    { key: 'all', label: 'All', emoji: '👥', count: stats.total, color: 'text-foreground', activeColor: 'bg-primary text-primary-foreground' },
-    { key: 'active', label: 'Active', emoji: '🟢', count: stats.owingCount + stats.clearedCount, color: 'text-success', activeColor: 'bg-success text-white' },
+    { key: 'all', label: 'All', emoji: '👥', count: stats.allCount, color: 'text-foreground', activeColor: 'bg-primary text-primary-foreground' },
+    { key: 'active', label: 'Active', emoji: '🟢', count: stats.activeCount, color: 'text-success', activeColor: 'bg-success text-white' },
     { key: 'cleared', label: 'Cleared', emoji: '✅', count: stats.clearedCount, color: 'text-success', activeColor: 'bg-success/80 text-white' },
     { key: 'new', label: 'New', emoji: '🆕', count: stats.newCount, color: 'text-primary', activeColor: 'bg-primary text-primary-foreground' },
     { key: 'no-phone', label: 'No Phone', emoji: '📵', count: stats.noPhoneCount, color: 'text-warning', activeColor: 'bg-warning text-warning-foreground' },
