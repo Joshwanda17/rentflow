@@ -319,8 +319,8 @@ export default function COOPartnersPage() {
           payoutDay: agg.payoutDay,
           roiMode: agg.roiMode,
           status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
-          joinedAt: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '—',
-          lastActivity: agg.lastActivity ? new Date(agg.lastActivity).toLocaleDateString() : '—',
+          joinedAt: profile?.created_at || '',
+          lastActivity: agg.lastActivity || '',
         };
       }).filter(r => r.funded > 0 || r.activeDeals > 0)
         .sort((a, b) => b.funded - a.funded);
