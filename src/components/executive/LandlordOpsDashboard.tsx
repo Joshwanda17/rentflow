@@ -506,56 +506,82 @@ export function LandlordOpsDashboard() {
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
     const filtered = search
-      ? uniqueLandlords.filter(([, l]) => l?.name?.toLowerCase().includes(search.toLowerCase()) || l?.phone?.includes(search))
-      : uniqueLandlords;
+      ? landlordsList.filter(l => l.name?.toLowerCase().includes(search.toLowerCase()) || l.phone?.includes(search) || l.tenant_name?.toLowerCase().includes(search.toLowerCase()) || l.agent_name?.toLowerCase().includes(search.toLowerCase()))
+      : landlordsList;
     return (
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords ({uniqueLandlords.length})</h2>
+        <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords ({landlordsList.length})</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
+          <Input placeholder="Search by name, phone, tenant or agent…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
         <div className="space-y-2">
-          {filtered.map(([id, landlord]) => (
-            <div key={id} className="rounded-xl border border-border bg-card p-4 space-y-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-bold text-sm">{landlord?.name}</p>
-                  {landlord?.phone && <PhoneLinks phone={landlord.phone} name={landlord.name} />}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => landlord && setEditLandlord({ ...landlord, id })}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
-                    title="Edit landlord"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => landlord && setDeleteLandlord({ id, name: landlord.name })}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors min-h-[32px]"
-                    title="Delete landlord"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="flex flex-col items-end gap-1">
-                    {landlord?.verified ? (
-                      <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
-                    ) : (
-                      <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
-                    )}
-                    <Badge variant="outline" className="text-[10px]">{landlord?.houseCount} {landlord?.houseCount === 1 ? 'house' : 'houses'}</Badge>
+          {filtered.map(landlord => {
+            const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
+            return (
+              <div key={landlord.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-bold text-sm">{landlord.name}</p>
+                    {landlord.phone && <PhoneLinks phone={landlord.phone} name={landlord.name} />}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditLandlord({ ...landlord })}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
+                      title="Edit landlord"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteLandlord({ id: landlord.id, name: landlord.name })}
+                      className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors min-h-[32px]"
+                      title="Delete landlord"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="flex flex-col items-end gap-1">
+                      {landlord.verified ? (
+                        <Badge className="bg-green-500/20 text-green-700 border-0 text-[10px]">✅ Verified</Badge>
+                      ) : (
+                        <Badge className="bg-amber-500/20 text-amber-700 border-0 text-[10px]">⏳ Pending</Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px]">{houseCount} {houseCount === 1 ? 'house' : 'houses'}</Badge>
+                    </div>
                   </div>
                 </div>
+                {/* Tenant info */}
+                {landlord.tenant_name && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
+                      <p className="text-xs font-medium truncate">{landlord.tenant_name}</p>
+                    </div>
+                    {landlord.tenant_phone_profile && <PhoneLinks phone={landlord.tenant_phone_profile} name={landlord.tenant_name} />}
+                  </div>
+                )}
+                {/* Agent info */}
+                {landlord.agent_name && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-500/10 px-2.5 py-1.5">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-400">🕵️ Agent</p>
+                      <p className="text-xs font-medium truncate">{landlord.agent_name}</p>
+                    </div>
+                    {landlord.agent_phone && <PhoneLinks phone={landlord.agent_phone} name={landlord.agent_name} />}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                  {landlord.property_address && <span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{landlord.property_address}</span>}
+                  {landlord.district && <span>{landlord.district}</span>}
+                  {landlord.region && <span>{landlord.region}</span>}
+                  {landlord.mobile_money_name && <span>MoMo: {landlord.mobile_money_name}</span>}
+                  {landlord.has_smartphone ? <span>📱 Smartphone</span> : <span>📵 No smartphone</span>}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                {landlord?.mobile_money_name && <span>MoMo: {landlord.mobile_money_name}</span>}
-                {landlord?.has_smartphone ? <span>📱 Smartphone</span> : <span>📵 No smartphone</span>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No landlords found</p>}
         </div>
       </div>
