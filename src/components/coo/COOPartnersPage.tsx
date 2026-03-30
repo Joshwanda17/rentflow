@@ -162,7 +162,7 @@ function timeSince(d: string) {
 }
 
 /* ─── Main Component ─── */
-export default function COOPartnersPage() {
+export default function COOPartnersPage({ readOnly = false }: { readOnly?: boolean } = {}) {
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
