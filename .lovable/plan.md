@@ -1,31 +1,38 @@
 
 
-# Add Payment Date Range Filter — COO Partners Table
+# Fix Agent Tenant Filter Tabs — Rent Request Based
 
-## What Changes
+## Problem
+The current filter tabs use tenant profile data (e.g. `verified`, `created_at`) instead of actual rent request statuses. The user wants filters tied to rent request lifecycle:
 
-Add a date range picker filter to the partners table that lets the COO select a start and end date, filtering partners whose **payout day** falls within that window. This helps identify partners nearing or currently in their payment period.
+- **Owing** — tenants with outstanding balance on active requests (progress bar visible)
+- **All** — all tenants who have received any rent request
+- **Active** — tenants with approved/funded/disbursed requests
+- **Cleared** — tenants whose rent requests are fully repaid (completed)
+- **New** — tenants with pending (new) rent requests
+- **No Phone** — unchanged
 
-## Implementation (`src/components/coo/COOPartnersPage.tsx`)
+## Changes (`src/components/agent/AgentTenantsSheet.tsx`)
 
-### 1. Add date range state
-Add two new state variables: `payoutDateFrom` and `payoutDateTo` (both `Date | undefined`). These represent the calendar date range the COO selects.
+### 1. Expand rent request query
+Currently fetches only `approved`, `disbursed`, `repaying` statuses. Expand to also include `pending`, `funded`, `completed` so we can categorize tenants properly.
 
-### 2. Add date range filter UI
-After the existing contact filter dropdown (line ~1180), insert a date range picker using two `Popover` + `Calendar` components (start date / end date). Use the `CalendarDays` icon already imported. Show a "Clear" button when a range is active.
+### 2. Track per-tenant request statuses
+Add a new state `tenantStatuses: Record<string, Set<string>>` that maps each tenant to the set of request statuses they have. Built during the same fetch loop that computes balances.
 
-### 3. Filter logic
-In the `processed` useMemo (line ~815), add logic:
-- For each partner row, compute their **next payout date** from `payoutDay` (same logic already used at line 1431-1434):
-  - Take current month's `payoutDay`; if that date has passed, use next month
-- If `payoutDateFrom` and/or `payoutDateTo` are set, filter partners whose next payout date falls within the range
-- Make the `payoutDay` column the default sort when a date range is active
+### 3. Update filter logic
+```text
+owing:   tenantBalances[id] > 0
+all:     tenant has at least one rent request (any status)
+active:  tenant has 'approved' | 'funded' | 'disbursed' | 'repaying' status
+cleared: tenant has 'completed' status (or balance = 0 with active requests)
+new:     tenant has 'pending' status
+no-phone: unchanged
+```
 
-### 4. Default sort by payout date
-When the date range filter is applied, auto-set `sortKey` to `'payoutDay'` and `sortDir` to `'asc'` so partners closest to payout appear first.
+### 4. Update stats counts
+Recalculate badge counts to match the new filter definitions using the `tenantStatuses` map.
 
 ## Files Changed
-- `src/components/coo/COOPartnersPage.tsx` — add state, filter UI, filter logic
-
-## No database changes needed
+- `src/components/agent/AgentTenantsSheet.tsx`
 
