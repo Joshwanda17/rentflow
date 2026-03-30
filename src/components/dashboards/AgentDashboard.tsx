@@ -288,7 +288,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
 
         {/* Daily Rent Expected — top priority visibility */}
-        <DailyRentExpectedCard userId={user.id} />
+        <div key="daily-rent-card">
+          <DailyRentExpectedCard userId={user.id} />
+        </div>
 
         {/* 5 Key Action Buttons + Hub — immediately accessible */}
         <div className="grid grid-cols-3 gap-2 animate-fade-in">
