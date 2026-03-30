@@ -84,7 +84,7 @@ export function CFOWithdrawalApprovals() {
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
   const handleApprove = async () => {
-    if (!user || !selected) return;
+    if (!user || !selected || !transactionId.trim()) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
@@ -93,12 +93,14 @@ export function CFOWithdrawalApprovals() {
           status: 'cfo_approved',
           cfo_approved_at: new Date().toISOString(),
           cfo_approved_by: user.id,
+          transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
       toast.success('Forwarded to COO for final approval & payment');
       setApproveOpen(false);
       setSelected(null);
+      setTransactionId('');
       fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
