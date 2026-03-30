@@ -1054,6 +1054,11 @@ export default function COOPartnersPage() {
     { key: 'payoutDay', label: 'Payout', align: 'right', hideOnMobile: true, render: (r) => (
       <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
     )},
+    { key: 'joinedAt', label: 'Joined', sortable: true, hideOnMobile: true, render: (r) => (
+      <span className="text-muted-foreground text-xs">
+        {r.joinedAt ? new Date(r.joinedAt).toLocaleDateString() : '—'}
+      </span>
+    )},
     {
       key: 'actions', label: '', sortable: false, render: (r) => (
         <DropdownMenu>
