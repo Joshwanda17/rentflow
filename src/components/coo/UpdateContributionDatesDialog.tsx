@@ -274,7 +274,7 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
                     <TableHead className="text-xs">Partner</TableHead>
                     <TableHead className="text-xs">Portfolio</TableHead>
                     <TableHead className="text-xs text-right">Amount</TableHead>
-                    <TableHead className="text-xs">Current Date</TableHead>
+                    <TableHead className="text-xs">Contribution Date</TableHead>
                     <TableHead className="text-xs">New Date</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                   </TableRow>
