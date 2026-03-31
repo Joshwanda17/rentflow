@@ -81,6 +81,7 @@ import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentReques
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
+import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
