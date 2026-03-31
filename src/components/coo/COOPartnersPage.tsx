@@ -1131,8 +1131,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         {r.roiMode === 'monthly_compounding' ? 'Compound' : 'Payout'}
       </span>
     )},
-    { key: 'payoutDay', label: 'Payout', align: 'right', hideOnMobile: true, render: (r) => (
-      <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
+    { key: 'nextRoiDate', label: 'Next Payout', align: 'right', hideOnMobile: true, render: (r) => (
+      <span className="text-muted-foreground">
+        {r.nextRoiDate
+          ? new Date(r.nextRoiDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric' })
+          : '—'}
+      </span>
     )},
     { key: 'joinedAt', label: 'Joined', sortable: true, hideOnMobile: true, render: (r) => (
       <span className="text-muted-foreground text-xs">
