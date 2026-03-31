@@ -78,7 +78,7 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
     nextStatus: 'funded',
     reviewerColumn: 'cfo_reviewed_by',
     reviewerAtColumn: 'cfo_reviewed_at',
-    showPayoutFields: false,
+    showPayoutFields: true,
   },
 };
 
