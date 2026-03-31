@@ -58,7 +58,7 @@ export function AgentDailyOpsCard() {
   const isFloatFull = floatData ? remaining <= 0 : false;
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+    <Card className="border-primary/20 bg-primary/5">
       <CardContent className="p-4 space-y-4">
         {/* Agent identity */}
         <div className="flex items-center justify-between">

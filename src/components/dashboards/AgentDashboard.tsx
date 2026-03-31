@@ -75,7 +75,6 @@ import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
 import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
 import { FunderManagementSheet } from '@/components/agent/FunderManagementSheet';
 import { Card, CardContent } from '@/components/ui/card';
-import { staggerDelay } from '@/lib/cssAnimations';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
@@ -258,10 +257,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet — Most Prominent */}
         <button
           onClick={handleViewWallet}
-          className="group w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all touch-manipulation active:scale-[0.98]"
+          className="group w-full rounded-2xl border-2 border-primary/30 bg-primary/5 p-5 touch-manipulation active:opacity-90"
         >
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-primary/15 group-hover:bg-primary/25 transition-colors shrink-0">
+            <div className="p-3 rounded-xl bg-primary/15 shrink-0">
               <Wallet className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1 text-left min-w-0">
@@ -279,7 +278,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   )}
                 </>
               )}
-              <span className="text-lg text-muted-foreground group-hover:text-primary transition-colors">›</span>
+              <span className="text-lg text-muted-foreground">›</span>
             </div>
           </div>
         </button>
@@ -306,10 +305,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               key={action.label}
               onClick={() => { hapticTap(); action.onClick(); }}
               className={cn(
-                "flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl border transition-all touch-manipulation active:scale-95",
+                "flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl border touch-manipulation active:opacity-80",
                 action.bg
               )}
-              style={staggerDelay(i, 40)}
             >
               <action.icon className={cn("h-5 w-5", action.color)} />
               <span className={cn("text-[11px] font-semibold", action.color)}>{action.label}</span>
@@ -331,7 +329,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {isCashoutAgent && (
           <button
             onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/15 transition-all touch-manipulation active:scale-[0.98]"
+            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 touch-manipulation active:opacity-80"
           >
             <div className="p-2.5 rounded-lg bg-orange-500/20">
               <Banknote className="h-5 w-5 text-orange-600" />

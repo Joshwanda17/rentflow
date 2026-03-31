@@ -34,8 +34,8 @@ export function CollectionStreakCard({ agentId }: Props) {
   // Determine streak status
   const streakStatus = currentStreak >= 7 ? 'fire' : currentStreak >= 3 ? 'warm' : 'cold';
   const statusConfig = {
-    fire: { bg: 'bg-gradient-to-r from-warning/10 to-destructive/10 border-warning/30', icon: Flame, color: 'text-warning' },
-    warm: { bg: 'bg-gradient-to-r from-chart-4/10 to-warning/10 border-chart-4/30', icon: Zap, color: 'text-chart-4' },
+    fire: { bg: 'bg-warning/10 border-warning/30', icon: Flame, color: 'text-warning' },
+    warm: { bg: 'bg-chart-4/10 border-chart-4/30', icon: Zap, color: 'text-chart-4' },
     cold: { bg: 'bg-muted/30 border-border/40', icon: Star, color: 'text-muted-foreground' },
   };
 
@@ -47,7 +47,7 @@ export function CollectionStreakCard({ agentId }: Props) {
   const progress = (currentStreak / nextMilestone) * 100;
 
   return (
-    <div className={cn("rounded-xl border p-3 space-y-2 animate-fade-in", config.bg)}>
+    <div className={cn("rounded-xl border p-3 space-y-2", config.bg)}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon className={cn("h-5 w-5", config.color)} />
@@ -73,7 +73,7 @@ export function CollectionStreakCard({ agentId }: Props) {
         </div>
         <div className="h-1.5 rounded-full bg-background/80 overflow-hidden">
           <div
-            className={cn("h-full rounded-full transition-all duration-500", streakStatus === 'fire' ? 'bg-warning' : streakStatus === 'warm' ? 'bg-chart-4' : 'bg-muted-foreground/30')}
+            className={cn("h-full rounded-full", streakStatus === 'fire' ? 'bg-warning' : streakStatus === 'warm' ? 'bg-chart-4' : 'bg-muted-foreground/30')}
             style={{ width: `${Math.min(100, progress)}%` }}
           />
         </div>

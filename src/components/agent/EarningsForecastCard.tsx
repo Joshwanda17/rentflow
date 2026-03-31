@@ -71,7 +71,7 @@ export function EarningsForecastCard({ agentId }: Props) {
   if (data.tenantCount === 0 && data.totalEarned === 0) return null;
 
   return (
-    <div className="rounded-xl border border-success/30 bg-gradient-to-r from-success/5 to-success/10 p-3.5 space-y-2 animate-fade-in">
+    <div className="rounded-xl border border-success/30 bg-success/5 p-3.5 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-lg bg-success/15">
