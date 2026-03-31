@@ -348,13 +348,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           existing.payoutDay = p.payout_day ?? 15;
           existing.roiMode = p.roi_mode ?? 'monthly_payout';
         }
-        // Track earliest next_roi_date (derive from created_at + 1 month if missing)
-        let effectiveDate = p.next_roi_date;
-        if (!effectiveDate) {
-          const base = new Date(p.created_at);
-          base.setMonth(base.getMonth() + 1);
-          effectiveDate = base.toISOString().split('T')[0];
-        }
+        // Track earliest next_roi_date — roll forward stale dates
+        const effectiveDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
         if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
           existing.nextRoiDate = effectiveDate;
         }
