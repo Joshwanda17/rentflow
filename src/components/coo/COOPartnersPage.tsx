@@ -2431,9 +2431,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
-  const [editingPayoutId, setEditingPayoutId] = useState<string | null>(null);
-  const [editPayoutDate, setEditPayoutDate] = useState<Date | undefined>(undefined);
-  const [savingPayout, setSavingPayout] = useState(false);
+
+
 
   const handleSavePayoutDate = async (p: NearingPayoutPortfolio) => {
     if (!editPayoutDate) return;
