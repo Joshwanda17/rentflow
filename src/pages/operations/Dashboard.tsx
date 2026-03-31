@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Users, Home, Building2, Handshake } from 'lucide-react';
+import { Loader2, Users, Home, Building2, Handshake, Banknote, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const departmentConfig = {
