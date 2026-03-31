@@ -2690,7 +2690,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="center">
-                              <Calendar mode="single" selected={editPayoutDate} onSelect={setEditPayoutDate} initialFocus />
+                              <Calendar mode="single" selected={editPayoutDate} onSelect={setEditPayoutDate} initialFocus className="p-3 pointer-events-auto" />
                             </PopoverContent>
                           </Popover>
                           <div className="flex gap-1 justify-center">
