@@ -1,65 +1,44 @@
 
 
-## Investigation & Fix: General Authentication Failures
+# Fix Payout Date Logic — Count One Month From Contribution Date
 
-### Problem Analysis
+## Problem
+When a portfolio is created with a contribution date (e.g., April 1st), the system stores a separate `payout_day` field (e.g., 28) which is manually entered. The "Nearing Payout" logic compares `payout_day` against today's date, causing incorrect results. TULLEN BEN's portfolio (WIP2603313481) was created for April 1st with `payout_day=28`, but `next_roi_date` is correctly May 1st — the nearing payout widget ignores `next_roi_date`.
 
-From the auth logs and code review, I identified two compounding issues:
+## Root Cause
+The nearing-payout calculation (line ~390) uses `p.payout_day - currentDay` to determine proximity. It should instead use `next_roi_date` which already represents the actual next payout date (one month from contribution).
 
-1. **Login loop generates excessive auth requests**: The `handleSignInSubmit` function in `useAuthForm.ts` tries up to 8+ email candidates per single login attempt (real emails from RPC, then 6 placeholder variants). Each failed attempt is a separate `signInWithPassword` call to the auth server. From the auth logs, I can see 6-8 `invalid_credentials` errors within the same second from the same IP — this is a single user's login attempt cycling through candidates.
+## Plan
 
-2. **Phone-to-email resolution may return mismatched accounts**: The `get_email_by_phone` RPC matches by last 9 digits of phone. If multiple profiles share similar phone digits, or if the profile email differs from the actual auth email (e.g., profile updated after signup), the system tries the wrong email and fails even with the correct password.
+### 1. Fix "Add Portfolio" — Auto-set payout_day from contribution date
+When creating a portfolio, instead of requiring a manual payout day input, automatically derive `payout_day` from the contribution date's day-of-month. If contribution is April 1st → `payout_day = 1`. Also ensure `next_roi_date` is exactly one month from contribution date (already works, but remove the override to `payoutDay` on line 739).
 
-3. **Rate limiting cascade**: Multiple users logging in from the same network (same IP `41.210.159.227` / `41.210.155.86`) each generate 6-8 auth requests. This can trigger auth rate limits, causing even correct credentials to fail.
+**Changes in `handleAddPortfolio`:**
+- Remove the manual `addPortfolioPayoutDay` input from the form
+- Auto-calculate: `payout_day = new Date(createdAt).getDate()` (capped at 28 for safety)
+- `next_roi_date` = contribution date + 1 month (keep existing logic but use contribution day, not manual payout day)
 
-### Plan
+### 2. Fix "Nearing Payout" logic — Use `next_roi_date` instead of `payout_day`
+Change the nearing-payout filter to compare `next_roi_date` against today, rather than using `payout_day` arithmetic.
 
-**Step 1: Create a diagnostic edge function**
-- Query all users who have attempted login in the last hour
-- Cross-check profile emails vs actual auth account emails
-- Identify mismatches where `profiles.email` differs from `auth.users.email`
-- Run this to understand the scope
+**Changes in the nearing payout calculation (~line 383-408):**
+- Fetch `next_roi_date` in the portfolio query (already fetched in detail view but not in the list query on line 290)
+- Add `next_roi_date` to the list query select
+- Calculate `daysUntil` as: `differenceInDays(new Date(p.next_roi_date), today)`
+- Filter: show if `daysUntil >= 0 && daysUntil <= 7`
 
-**Step 2: Fix the login loop (reduce auth request storm)**
-- Modify `handleSignInSubmit` in `useAuthForm.ts` to:
-  - Try ONLY emails returned by the RPC/profile lookup first (max 2-3 attempts)
-  - Only fall back to generated placeholder emails if NO profile was found at all
-  - **Stop immediately** on the first `invalid_credentials` response if we already found the account via RPC (the password is wrong, not the email)
-  - This reduces auth requests per login from ~8 to ~2
+### 3. Update the "Compound" and "Pay to Wallet" handlers
+After processing a payout, advance `next_roi_date` by one month so the cycle continues correctly.
 
-**Step 3: Create a bulk password verification & reset edge function**
-- Accept a list of user IDs or "all affected users"
-- Verify each user's password against `WelileManager` using admin API
-- For any user whose password doesn't work with their known password, reset it
-- Log results for audit
+### 4. Remove payout day input from Add Portfolio dialog
+Remove the manual "Payout Day" field from the create portfolio form since it's now auto-derived from the contribution date.
 
-**Step 4: Improve error messaging**
-- When the RPC finds the user's account but password fails, show a clearer message with the "Forgot password?" option more prominently
-- Add a direct link to the SMS-based password reset flow in the error state
+### 5. Fix existing data (TULLEN BEN)
+Update portfolio WIP2603313481 to set `payout_day = 1` (matching the April 1st contribution date), confirming `next_roi_date` is already correct at May 1st.
 
-### Technical Details
+---
 
-**File changes:**
-- `src/hooks/useAuthForm.ts` — Optimize login loop: stop after first RPC-matched email fails (lines 336-357)
-- `supabase/functions/diagnose-auth/index.ts` — New edge function for investigation
-- `supabase/functions/bulk-password-reset/index.ts` — New edge function for bulk reset
-
-**Key code change in login loop:**
-```typescript
-// If RPC found real emails, ONLY try those — don't fall through to placeholders
-if (rpcEmails.length > 0) {
-  // Try real emails, then placeholder emails from RPC results
-  for (const emailToTry of [...realEmails, ...placeholderEmails]) {
-    const { error } = await signIn(emailToTry, password);
-    if (!error) { loginSuccess = true; break; }
-    lastError = error;
-  }
-  // Don't try generated placeholders — RPC already found the account
-} else {
-  // No RPC results — try generated placeholders (max 3)
-  for (const emailToTry of uniqueCandidates.slice(0, 3)) { ... }
-}
-```
-
-This reduces auth requests from ~8 per login to ~2, preventing rate limit cascades.
+**Files to modify:**
+- `src/components/coo/COOPartnersPage.tsx` — all changes above
+- Database update for existing incorrect records
 
