@@ -319,14 +319,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             : null;
         if (!ownerId) return;
 
-        const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '' };
+        const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null };
         existing.funded += (p.investment_amount || 0);
         existing.deals += 1;
-        // Use the first (most recent) portfolio's ROI info
         if (existing.deals === 1 || !existing.roiPercentage) {
           existing.roiPercentage = p.roi_percentage ?? 15;
           existing.payoutDay = p.payout_day ?? 15;
           existing.roiMode = p.roi_mode ?? 'monthly_payout';
+        }
+        // Track earliest next_roi_date
+        if (p.next_roi_date && (!existing.nextRoiDate || p.next_roi_date < existing.nextRoiDate)) {
+          existing.nextRoiDate = p.next_roi_date;
         }
         if (!existing.lastActivity || p.created_at > existing.lastActivity) {
           existing.lastActivity = p.created_at;
