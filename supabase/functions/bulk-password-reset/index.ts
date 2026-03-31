@@ -22,7 +22,8 @@ serve(async (req) => {
     // Auth: service-role or manager/cto only
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "") ?? "";
-    const isServiceRole = token === supabaseServiceKey;
+    const serviceKeyHeader = req.headers.get("x-service-key") ?? "";
+    const isServiceRole = token === supabaseServiceKey || serviceKeyHeader === supabaseServiceKey;
 
     let callerId = "service-role";
     if (!isServiceRole) {
