@@ -6827,6 +6827,33 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_access_passwords: {
+        Row: {
+          created_at: string | null
+          id: string
+          must_change: boolean | null
+          password_hash: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          must_change?: boolean | null
+          password_hash: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          must_change?: boolean | null
+          password_hash?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       staff_permissions: {
         Row: {
           granted_at: string | null
@@ -9011,6 +9038,10 @@ export type Database = {
           whatsapp_verified: boolean
         }[]
       }
+      set_staff_access_password: {
+        Args: { p_new_password: string; p_user_id: string }
+        Returns: boolean
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       update_agent_collection_streak: {
@@ -9027,6 +9058,10 @@ export type Database = {
           p_payment_method: string
           p_token_code: string
         }
+        Returns: Json
+      }
+      verify_staff_access_password: {
+        Args: { p_password: string; p_user_id: string }
         Returns: Json
       }
       void_ledger_entry: {
