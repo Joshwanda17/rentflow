@@ -71,19 +71,6 @@ export default function StaffPortal() {
       metadata: { roles: userRoles.map(r => r.role), login_at: new Date().toISOString() },
     });
 
-    // Check must_change_password
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('must_change_password')
-      .eq('id', authUser.id)
-      .single();
-
-    if (profile?.must_change_password) {
-      setMustChangePassword(true);
-      setSigningIn(false);
-      return;
-    }
-
     const primaryRole = userRoles[0].role as AppRole;
     const route = roleDashboardRoutes[primaryRole];
     toast.success('Welcome back');
@@ -95,19 +82,6 @@ export default function StaffPortal() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
-    );
-  }
-
-  // Force password change interceptor
-  if (mustChangePassword && user) {
-    return (
-      <ForcePasswordChange
-        userId={user.id}
-        onPasswordChanged={() => {
-          setMustChangePassword(false);
-          setCheckedProfile(true);
-        }}
-      />
     );
   }
 

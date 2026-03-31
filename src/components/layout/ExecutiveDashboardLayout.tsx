@@ -25,7 +25,6 @@ export default function ExecutiveDashboardLayout({
   const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const loggedRef = useRef(false);
 
