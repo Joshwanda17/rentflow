@@ -206,6 +206,19 @@ export function InvestmentWithdrawButton() {
           </p>
         </div>
 
+        {/* Approval Progress */}
+        <div className="pt-1">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Approval Progress</p>
+          <WithdrawalStepTracker
+            variant="partner"
+            status={existingRequest.status}
+            createdAt={existingRequest.requested_at || existingRequest.created_at}
+            partnerOpsApprovedAt={existingRequest.partner_ops_approved_at}
+            cooClearedAt={existingRequest.coo_approved_at}
+            cfoProcessedAt={existingRequest.cfo_processed_at}
+          />
+        </div>
+
         {/* Explanation */}
         <div className="flex items-start gap-2 px-1">
           <Shield className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
