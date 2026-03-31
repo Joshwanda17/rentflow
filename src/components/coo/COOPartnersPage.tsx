@@ -2518,21 +2518,35 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
+  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'paid'>>({});
 
+  // Keep a local snapshot so items don't vanish when parent refetches
+  const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
+  useEffect(() => {
+    // Only update local list when dialog opens fresh (no completed actions yet)
+    if (open && Object.keys(completed).length === 0) {
+      setLocalPortfolios(portfolios);
+    }
+  }, [open, portfolios, completed]);
 
-
+  // Reset completed state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setCompleted({});
+    }
+  }, [open]);
 
 
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return portfolios;
-    return portfolios.filter(p =>
+    if (!q) return localPortfolios;
+    return localPortfolios.filter(p =>
       p.name.toLowerCase().includes(q) ||
       p.phone.toLowerCase().includes(q) ||
       p.email.toLowerCase().includes(q)
     );
-  }, [portfolios, search]);
+  }, [localPortfolios, search]);
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
@@ -2586,6 +2600,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       });
 
       toast.success(`Compounded ${formatUGX(roiAmount)} for ${p.name}`, { description: `Ref: ${refId}` });
+      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'compounded' }));
       onActionComplete?.();
     } catch (err: any) {
       toast.error('Compound failed', { description: err.message });
@@ -2660,6 +2675,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       }
 
       toast.success(`Payout of ${formatUGX(roiAmount)} submitted for CFO approval`, { description: `Ref: ${refId}` });
+      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'paid' }));
       onActionComplete?.();
     } catch (err: any) {
       toast.error('Pay request failed', { description: err.message });
@@ -2707,17 +2723,24 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             filtered.map((p, idx) => {
               const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
               const isProcessing = processing[p.portfolioId];
+              const isDone = completed[p.portfolioId];
               const refPreview = `${p.portfolioId.slice(0, 8)}`;
               return (
-                <div key={p.portfolioId + idx} className="rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2">
+                <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone && "opacity-60 border-green-500/40 bg-green-500/5")}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold text-sm truncate">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
                     </div>
-                    <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
-                      {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
-                    </Badge>
+                    {isDone ? (
+                      <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
+                        ✓ {isDone === 'compounded' ? 'Compounded' : 'Paid'}
+                      </Badge>
+                    ) : (
+                      <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
+                        {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
+                      </Badge>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center">
                     <div className="rounded-lg bg-muted/50 p-2">
@@ -2746,28 +2769,30 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <span className="font-mono">{refPreview}</span>
                   </div>
                   {/* Action Buttons */}
-                  <div className="flex gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-xs gap-1.5"
-                      disabled={!!isProcessing}
-                      onClick={() => handleCompound(p)}
-                    >
-                      {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
-                      Compound
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="flex-1 text-xs gap-1.5"
-                      disabled={!!isProcessing}
-                      onClick={() => handlePay(p)}
-                    >
-                      {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
-                      Pay to Wallet
-                    </Button>
-                  </div>
+                  {!isDone && (
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs gap-1.5"
+                        disabled={!!isProcessing}
+                        onClick={() => handleCompound(p)}
+                      >
+                        {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
+                        Compound
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="flex-1 text-xs gap-1.5"
+                        disabled={!!isProcessing}
+                        onClick={() => handlePay(p)}
+                      >
+                        {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
+                        Pay to Wallet
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })
