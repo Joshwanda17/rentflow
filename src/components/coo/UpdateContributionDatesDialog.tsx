@@ -19,41 +19,43 @@ import { Upload, CalendarIcon, Loader2, Download, CheckCircle2, AlertTriangle } 
 
 /* ─── Date parser (same as PartnerImportDialog) ─── */
 function parseContributionDate(raw: any): string | null {
-  if (!raw && raw !== 0) return null;
+  if (raw == null || raw === '') return null;
+  // Handle Excel serial date numbers (UTC to avoid timezone shift)
   if (typeof raw === 'number') {
-    const excelEpoch = new Date(1899, 11, 30);
-    const date = new Date(excelEpoch.getTime() + raw * 86400000);
-    if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
-    return null;
+    const d = new Date(Date.UTC(1899, 11, 30 + raw));
+    return isNaN(d.getTime()) ? null : `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
   }
   const str = String(raw).trim();
   if (!str) return null;
 
-  // Try d-MMM-yy format (e.g. "2-Mar-26") using date-fns
-  const shortMonthMatch = str.match(/^\d{1,2}-[A-Za-z]{3}-\d{2,4}$/);
-  if (shortMonthMatch) {
-    let d = parse(str, 'd-MMM-yy', new Date());
-    if (!isValid(d)) d = parse(str, 'd-MMM-yyyy', new Date());
+  // d-MMM-yy (e.g. "2-Mar-26") or d-MMM-yyyy
+  if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(str)) {
+    const d = parse(str, 'd-MMM-yy', new Date());
+    if (isValid(d)) return format(d, 'yyyy-MM-dd');
+  }
+  if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(str)) {
+    const d = parse(str, 'd-MMM-yyyy', new Date());
     if (isValid(d)) return format(d, 'yyyy-MM-dd');
   }
 
+  // ISO YYYY-MM-DD
   const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (isoMatch) {
-    const d = new Date(`${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`);
-    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    const d = parse(`${isoMatch[1]}-${isoMatch[2].padStart(2,'0')}-${isoMatch[3].padStart(2,'0')}`, 'yyyy-MM-dd', new Date());
+    if (isValid(d)) return format(d, 'yyyy-MM-dd');
   }
+  // M/D/YYYY
   const usMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (usMatch) {
-    const d = new Date(`${usMatch[3]}-${usMatch[1].padStart(2, '0')}-${usMatch[2].padStart(2, '0')}`);
-    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    const d = parse(`${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`, 'dd/MM/yyyy', new Date());
+    if (isValid(d)) return format(d, 'yyyy-MM-dd');
   }
+  // DD-MM-YYYY
   const euMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
   if (euMatch) {
-    const d = new Date(`${euMatch[3]}-${euMatch[2].padStart(2, '0')}-${euMatch[1].padStart(2, '0')}`);
-    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    const d = parse(`${euMatch[1].padStart(2,'0')}-${euMatch[2].padStart(2,'0')}-${euMatch[3]}`, 'dd-MM-yyyy', new Date());
+    if (isValid(d)) return format(d, 'yyyy-MM-dd');
   }
-  const fallback = new Date(str);
-  if (!isNaN(fallback.getTime())) return fallback.toISOString().split('T')[0];
   return null;
 }
 
