@@ -71,6 +71,7 @@ interface NearingPayoutPortfolio {
   roiMode: string;
   createdAt: string;
   daysUntil: number;
+  nextPayoutDate: string;
 }
 
 interface PortfolioRow {
