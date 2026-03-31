@@ -550,12 +550,15 @@ export function LandlordOpsDashboard() {
     </button>
   );
 
+  const refetchAll = () => { refetch(); refetchLandlords(); };
+
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
     const filtered = search
       ? landlordsList.filter(l => l.name?.toLowerCase().includes(search.toLowerCase()) || l.phone?.includes(search) || l.tenant_name?.toLowerCase().includes(search.toLowerCase()) || l.agent_name?.toLowerCase().includes(search.toLowerCase()))
       : landlordsList;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords ({landlordsList.length})</h2>
@@ -599,14 +602,24 @@ export function LandlordOpsDashboard() {
                     </div>
                   </div>
                 </div>
-                {/* Tenant info */}
-                {landlord.tenant_name && (
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
-                      <p className="text-xs font-medium truncate">{landlord.tenant_name}</p>
-                    </div>
-                    {landlord.tenant_phone_profile && <PhoneLinks phone={landlord.tenant_phone_profile} name={landlord.tenant_name} />}
+                {/* All Tenants from house_listings */}
+                {landlord.tenants && landlord.tenants.length > 0 ? (
+                  <div className="space-y-1">
+                    {landlord.tenants.map((t: { name: string; phone: string | null }, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
+                          <p className="text-xs font-medium truncate">{t.name}</p>
+                        </div>
+                        {t.phone && <PhoneLinks phone={t.phone} name={t.name} />}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-orange-500/10 px-2.5 py-1.5">
+                    <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                      <UserX className="h-3 w-3" /> No tenants linked
+                    </p>
                   </div>
                 )}
                 {/* Agent info */}
@@ -632,6 +645,19 @@ export function LandlordOpsDashboard() {
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No landlords found</p>}
         </div>
       </div>
+      <LandlordDialogs
+        editLandlord={editLandlord} setEditLandlord={setEditLandlord}
+        editLC1={editLC1} setEditLC1={setEditLC1}
+        assignPerson={assignPerson} setAssignPerson={setAssignPerson}
+        deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
+        deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+        deleting={deleting} setDeleting={setDeleting}
+        previewImages={previewImages} setPreviewImages={setPreviewImages}
+        adjustListing={adjustListing} setAdjustListing={setAdjustListing}
+        actionDialog={actionDialog} setActionDialog={setActionDialog}
+        user={user} refetchAll={refetchAll}
+      />
+      </>
     );
   }
 
