@@ -255,7 +255,7 @@ export function LandlordOpsDashboard() {
   });
 
   // ─── All Landlords Direct Query ───
-  const { data: allLandlords } = useQuery({
+  const { data: allLandlords, refetch: refetchLandlords } = useQuery({
     queryKey: ['landlord-ops-all-landlords'],
     queryFn: async () => {
       const PAGE_SIZE = 1000;
@@ -282,6 +282,28 @@ export function LandlordOpsDashboard() {
         }
       }
 
+      // Collect all landlord IDs to fetch tenants from house_listings
+      const landlordIds = allData.map(l => l.id);
+
+      // Fetch all house_listings tenant mappings for these landlords
+      const landlordTenantsRaw: { landlord_id: string; tenant_id: string }[] = [];
+      for (let i = 0; i < landlordIds.length; i += 50) {
+        const { data: hlData } = await supabase
+          .from('house_listings')
+          .select('landlord_id, tenant_id')
+          .in('landlord_id', landlordIds.slice(i, i + 50))
+          .not('tenant_id', 'is', null);
+        if (hlData) landlordTenantsRaw.push(...(hlData as any[]));
+      }
+
+      // Build landlord -> tenant_ids map
+      const landlordTenantIdsMap = new Map<string, Set<string>>();
+      landlordTenantsRaw.forEach(hl => {
+        if (!hl.tenant_id) return;
+        if (!landlordTenantIdsMap.has(hl.landlord_id)) landlordTenantIdsMap.set(hl.landlord_id, new Set());
+        landlordTenantIdsMap.get(hl.landlord_id)!.add(hl.tenant_id);
+      });
+
       // Collect all profile IDs to batch-fetch
       const profileIds = new Set<string>();
       allData.forEach(l => {
@@ -289,6 +311,8 @@ export function LandlordOpsDashboard() {
         if (l.registered_by) profileIds.add(l.registered_by);
         if (l.managed_by_agent_id) profileIds.add(l.managed_by_agent_id);
       });
+      // Add tenant IDs from house_listings
+      landlordTenantsRaw.forEach(hl => { if (hl.tenant_id) profileIds.add(hl.tenant_id); });
 
       const idArr = [...profileIds];
       const profileMap = new Map<string, { full_name: string | null; phone: string | null }>();
@@ -298,13 +322,31 @@ export function LandlordOpsDashboard() {
         if (profiles) profiles.forEach(p => profileMap.set(p.id, p));
       }
 
-      return allData.map(l => ({
-        ...l,
-        tenant_name: l.tenant_id ? (profileMap.get(l.tenant_id)?.full_name || null) : null,
-        tenant_phone_profile: l.tenant_id ? (profileMap.get(l.tenant_id)?.phone || null) : null,
-        agent_name: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.full_name : null) || (l.registered_by ? profileMap.get(l.registered_by)?.full_name : null) || null,
-        agent_phone: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.phone : null) || (l.registered_by ? profileMap.get(l.registered_by)?.phone : null) || null,
-      }));
+      return allData.map(l => {
+        // Get all tenants from house_listings for this landlord
+        const tenantIdSet = landlordTenantIdsMap.get(l.id);
+        const tenants: { name: string; phone: string | null }[] = [];
+        if (tenantIdSet) {
+          tenantIdSet.forEach(tid => {
+            const p = profileMap.get(tid);
+            tenants.push({ name: p?.full_name || 'Unknown', phone: p?.phone || null });
+          });
+        }
+        // Fallback: if no house_listings tenants but landlord has tenant_id
+        if (tenants.length === 0 && l.tenant_id) {
+          const p = profileMap.get(l.tenant_id);
+          if (p) tenants.push({ name: p.full_name || 'Unknown', phone: p.phone || null });
+        }
+
+        return {
+          ...l,
+          tenants,
+          tenant_name: l.tenant_id ? (profileMap.get(l.tenant_id)?.full_name || null) : null,
+          tenant_phone_profile: l.tenant_id ? (profileMap.get(l.tenant_id)?.phone || null) : null,
+          agent_name: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.full_name : null) || (l.registered_by ? profileMap.get(l.registered_by)?.full_name : null) || null,
+          agent_phone: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.phone : null) || (l.registered_by ? profileMap.get(l.registered_by)?.phone : null) || null,
+        };
+      });
     },
     staleTime: 60000,
   });
