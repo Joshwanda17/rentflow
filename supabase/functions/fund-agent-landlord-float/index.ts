@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       .in('role', ['cfo', 'manager', 'super_admin'])
     if (!roles || roles.length === 0) throw new Error('Insufficient permissions')
 
-    const { rent_request_id, notes } = await req.json()
+    const { rent_request_id, notes, transaction_reference, payout_method } = await req.json()
     if (!rent_request_id) throw new Error('rent_request_id is required')
 
     // Fetch the rent request
