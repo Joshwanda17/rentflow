@@ -2104,7 +2104,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">ROI Mode</Label>
+                <Label className="text-xs">Returns Mode</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant={editPortfolioRoiMode === 'monthly_payout' ? 'default' : 'outline'} size="sm" className="text-xs h-9"
                     onClick={() => setEditPortfolioRoiMode('monthly_payout')}>
