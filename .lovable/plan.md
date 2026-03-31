@@ -1,14 +1,10 @@
-# Add "System Logs" Menu Item to CTO Sidebar
+# Secure Staff Access — IMPLEMENTED
 
-## What changes
+All 6 phases have been implemented:
 
-1. `**src/components/layout/executiveSidebarConfig.ts**` — Add a new sidebar item `{ label: 'System Logs', icon: FileText, id: 'system-logs' }` to the CTO engineering section (after Developer Tools).
-2. `**src/pages/cto/Dashboard.tsx**` — Pass `activeTab` to `CTODashboard` so the content switches based on sidebar selection. When `system-logs` is selected, render an empty placeholder panel.
-3. `**src/components/executive/CTODashboard.tsx**` — Accept an optional `activeTab` prop. When `activeTab === 'system-logs'`, render a blank card with a "System Logs" heading. Otherwise render the existing dashboard content.
-
-## Technical detail
-
-- Import `FileText` from lucide-react in the sidebar config (already imported).
-- The blank panel will be a simple `Card` with a title — no data fetching or logic.
-- All existing CTO dashboard content remains unchanged for other tabs.
-- follow the new architecture called event based architecture
+1. ✅ Database: `must_change_password` column on profiles + `staff_permissions` table with RLS
+2. ✅ Edge function: `provision-staff-passwords` — sets temp password for all staff, flags forced change
+3. ✅ ForcePasswordChange interceptor — blocks dashboard access until password changed
+4. ✅ useStaffPermissions hook + route guards — removed `manager` from executive routes, added `cto` bypass
+5. ✅ Audit logging — staff_login, dashboard_accessed, unauthorized_access_attempt, password events
+6. ✅ Permission management UI — "Perms" tab in User Details Dialog with checkbox grid
