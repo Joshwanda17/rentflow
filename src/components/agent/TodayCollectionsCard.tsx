@@ -107,7 +107,7 @@ export function TodayCollectionsCard({ agentId, onViewTenants }: Props) {
           </div>
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Collect Today</p>
-            <p className="text-sm font-bold">{data.owingCount} tenant{data.owingCount !== 1 ? 's' : ''} owing</p>
+            <p className="text-sm font-bold">{data.owingCount} tenant{data.owingCount !== 1 ? 's' : ''} pending</p>
           </div>
         </div>
         <div className="text-right flex items-center gap-1.5">
