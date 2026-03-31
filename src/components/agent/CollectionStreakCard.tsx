@@ -73,7 +73,7 @@ export function CollectionStreakCard({ agentId }: Props) {
         </div>
         <div className="h-1.5 rounded-full bg-background/80 overflow-hidden">
           <div
-            className={cn("h-full rounded-full transition-all duration-500", streakStatus === 'fire' ? 'bg-warning' : streakStatus === 'warm' ? 'bg-chart-4' : 'bg-muted-foreground/30')}
+            className={cn("h-full rounded-full", streakStatus === 'fire' ? 'bg-warning' : streakStatus === 'warm' ? 'bg-chart-4' : 'bg-muted-foreground/30')}
             style={{ width: `${Math.min(100, progress)}%` }}
           />
         </div>
