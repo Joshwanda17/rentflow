@@ -1769,7 +1769,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>ROI Rate (%)</Label>
+                <Label>Returns Rate (%)</Label>
                 <Input type="number" min={1} max={100} value={addPortfolioRoi}
                   onChange={e => setAddPortfolioRoi(e.target.value)} />
               </div>
