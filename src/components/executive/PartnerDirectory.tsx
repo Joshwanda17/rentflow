@@ -301,7 +301,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
       {/* Sort bar */}
       <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/20 border-b border-border text-[10px] text-muted-foreground">
         <button className="flex items-center gap-0.5 font-medium hover:text-foreground" onClick={() => toggleSort('full_name')}>Name <SortIcon field="full_name" /></button>
-        <button className="flex items-center gap-0.5 font-medium hover:text-foreground ml-auto" onClick={() => toggleSort('totalInvested')}>Invested <SortIcon field="totalInvested" /></button>
+        <button className="flex items-center gap-0.5 font-medium hover:text-foreground ml-auto" onClick={() => toggleSort('totalInvested')}>Principal <SortIcon field="totalInvested" /></button>
         <button className="flex items-center gap-0.5 font-medium hover:text-foreground" onClick={() => toggleSort('created_at')}>Joined <SortIcon field="created_at" /></button>
       </div>
 
