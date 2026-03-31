@@ -44,7 +44,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
   Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft,
-  FileText, UsersRound, UserPlus, Link2, ShieldAlert, ShieldOff, KeyRound, Eye, EyeOff
+  FileText, UsersRound, UserPlus, Link2, ShieldAlert, ShieldOff, KeyRound, Eye, EyeOff, ShieldCheck
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
