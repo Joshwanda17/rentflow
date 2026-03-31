@@ -68,6 +68,7 @@ interface AgentMenuDrawerProps {
   onShareSubAgentLink?: () => void;
   onManageFunders?: () => void;
   onOpenPartnerDashboard?: () => void;
+  onInviteFunder?: () => void;
 }
 
 interface MenuItem {
