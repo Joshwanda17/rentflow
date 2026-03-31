@@ -2540,13 +2540,13 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return portfolios;
-    return portfolios.filter(p =>
+    if (!q) return localPortfolios;
+    return localPortfolios.filter(p =>
       p.name.toLowerCase().includes(q) ||
       p.phone.toLowerCase().includes(q) ||
       p.email.toLowerCase().includes(q)
     );
-  }, [portfolios, search]);
+  }, [localPortfolios, search]);
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
