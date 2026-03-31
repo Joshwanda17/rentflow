@@ -356,6 +356,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
           joinedAt: profile?.created_at || '',
           lastActivity: agg.lastActivity || '',
+          nextRoiDate: agg.nextRoiDate,
         };
       })
         .sort((a, b) => b.funded - a.funded);
