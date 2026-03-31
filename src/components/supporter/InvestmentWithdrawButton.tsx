@@ -12,6 +12,7 @@ import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
+import { WithdrawalStepTracker } from '@/components/wallet/WithdrawalStepTracker';
 
 export function InvestmentWithdrawButton() {
   const { user } = useAuth();
