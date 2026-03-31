@@ -20,6 +20,7 @@ import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
+import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { DisbursementRegistry } from '@/components/cfo/DisbursementRegistry';
 import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
