@@ -150,6 +150,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
   const [funderSheetOpen, setFunderSheetOpen] = useState(false);
+  const [partnerDashboardOpen, setPartnerDashboardOpen] = useState(false);
   const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
   const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
   const [floatPayoutOpen, setFloatPayoutOpen] = useState(false);
