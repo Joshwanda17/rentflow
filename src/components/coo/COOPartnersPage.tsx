@@ -1608,7 +1608,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-1.5">
-                                      <span className="font-bold">{p.payout_day}{getOrdinalSuffix(p.payout_day)} of month</span>
+                                      <span className="font-bold">
+                                        {p.payout_day
+                                          ? `${p.payout_day}${getOrdinalSuffix(p.payout_day)} of month`
+                                          : p.next_roi_date
+                                            ? `${new Date(p.next_roi_date + 'T00:00:00').getDate()}${getOrdinalSuffix(new Date(p.next_roi_date + 'T00:00:00').getDate())} of month`
+                                            : 'Not set'}
+                                      </span>
                                       {!readOnly && (
                                         <button
                                           onClick={() => { setEditingPortfolioId(p.id); setEditingPayoutDay(String(p.payout_day)); }}
