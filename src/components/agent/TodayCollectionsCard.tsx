@@ -16,11 +16,22 @@ export function TodayCollectionsCard({ agentId, onViewTenants }: Props) {
       // Get all active rent requests for this agent
       const { data: requests } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, daily_repayment, total_repayment, amount_repaid, status, profiles!rent_requests_tenant_id_fkey(full_name, phone)')
+        .select('id, tenant_id, daily_repayment, total_repayment, amount_repaid, status')
         .eq('agent_id', agentId)
         .in('status', ['approved', 'disbursed', 'active', 'repaying']);
 
-      const tenants = requests || [];
+      const allRequests = requests || [];
+      if (allRequests.length === 0) return { owingCount: 0, totalDailyDue: 0, totalOwing: 0, topTenants: [] };
+
+      // Get unique tenant IDs and fetch profiles
+      const tenantIds = [...new Set(allRequests.map(r => r.tenant_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', tenantIds);
+
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+      const tenants = allRequests;
       
       // Group by tenant, calculate owing
       const tenantMap = new Map<string, { name: string; phone: string; dailyDue: number; totalOwing: number; }>();
