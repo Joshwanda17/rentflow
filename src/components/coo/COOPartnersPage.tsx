@@ -328,9 +328,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           existing.payoutDay = p.payout_day ?? 15;
           existing.roiMode = p.roi_mode ?? 'monthly_payout';
         }
-        // Track earliest next_roi_date
-        if (p.next_roi_date && (!existing.nextRoiDate || p.next_roi_date < existing.nextRoiDate)) {
-          existing.nextRoiDate = p.next_roi_date;
+        // Track earliest next_roi_date (derive from created_at + 1 month if missing)
+        let effectiveDate = p.next_roi_date;
+        if (!effectiveDate) {
+          const base = new Date(p.created_at);
+          base.setMonth(base.getMonth() + 1);
+          effectiveDate = base.toISOString().split('T')[0];
+        }
+        if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
+          existing.nextRoiDate = effectiveDate;
         }
         if (!existing.lastActivity || p.created_at > existing.lastActivity) {
           existing.lastActivity = p.created_at;
