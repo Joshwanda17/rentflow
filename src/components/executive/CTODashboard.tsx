@@ -5,17 +5,11 @@ import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { Server, Activity, ShieldAlert, Users, Bug, Wifi, Database, Clock, HardDrive, Gauge } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
+import { SystemLogsViewer } from './SystemLogsViewer';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-foreground">System Logs</h1>
-        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
-          <p>System logs view — coming soon.</p>
-        </div>
-      </div>
-    );
+    return <SystemLogsViewer />;
   }
 
   // Real: active users in last 7 days
