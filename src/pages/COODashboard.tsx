@@ -404,6 +404,9 @@ export default function COODashboard() {
       <div className="px-4 pt-4">
         <COOWithdrawalApprovals />
       </div>
+      <div className="px-4 pt-4">
+        <COOPartnerWithdrawalApprovals />
+      </div>
 
       {role && <MobileBottomNav currentRole={role} />}
     </div>
