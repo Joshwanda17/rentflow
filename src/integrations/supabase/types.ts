@@ -6827,6 +6827,30 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_permissions: {
+        Row: {
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          permitted_dashboard: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          permitted_dashboard: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          permitted_dashboard?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       staff_profiles: {
         Row: {
           created_at: string | null
