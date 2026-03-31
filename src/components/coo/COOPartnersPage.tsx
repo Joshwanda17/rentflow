@@ -2345,7 +2345,7 @@ function MiniKPI({ icon, label, value, variant }: {
 
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
-  const totalAmount = portfolios.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100 / 12), 0);
+  const totalAmount = portfolios.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
   const hasPayouts = portfolios.length > 0;
   return (
     <button onClick={onClick} className={cn(
@@ -2417,7 +2417,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const handleCompound = async (p: NearingPayoutPortfolio) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
     try {
-      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
       const newAmount = p.investmentAmount + roiAmount;
       const refId = generateRef('CMP');
       const { data: { user } } = await supabase.auth.getUser();
@@ -2473,7 +2473,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const handlePay = async (p: NearingPayoutPortfolio) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'pay' }));
     try {
-      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
       const refId = generateRef('PAY');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -2576,7 +2576,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             </div>
           ) : (
             filtered.map((p, idx) => {
-              const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+              const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
               const isProcessing = processing[p.portfolioId];
               const refPreview = `${p.portfolioId.slice(0, 8)}`;
               return (
