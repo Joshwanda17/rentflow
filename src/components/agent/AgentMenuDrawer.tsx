@@ -182,6 +182,7 @@ export function AgentMenuDrawer({
       icon: TrendingUp,
       label: 'Earnings',
       items: [
+        { icon: BarChart3, label: 'Partner Dashboard', description: 'Partners & commissions', onClick: onOpenPartnerDashboard, accent: 'emerald-500', badge: 'New' },
         { icon: Trophy, label: 'Rank System', description: 'Levels & badges', onClick: onOpenEarningsRank, accent: 'amber-500' },
         { icon: TrendingUp, label: 'My Earnings', description: 'Detailed breakdown', path: '/earnings', accent: 'success' },
         { icon: Target, label: 'Goals', description: 'Track targets', path: '/agent-analytics', accent: 'primary' },
