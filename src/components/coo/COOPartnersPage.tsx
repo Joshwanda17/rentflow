@@ -2421,10 +2421,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Update portfolio investment amount
+      // Update portfolio investment amount and advance next_roi_date by 1 month
+      const currentRoiDate = new Date();
+      currentRoiDate.setMonth(currentRoiDate.getMonth() + 1);
       const { error: upErr } = await supabase
         .from('investor_portfolios')
-        .update({ investment_amount: newAmount })
+        .update({ investment_amount: newAmount, next_roi_date: currentRoiDate.toISOString().split('T')[0] })
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
