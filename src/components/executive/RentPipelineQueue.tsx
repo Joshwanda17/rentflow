@@ -261,6 +261,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       return;
     }
 
+    // TID is mandatory for CFO approval (audit compliance)
+    if (stage === 'coo_approved' && !payoutRef.trim()) {
+      toast({ title: 'Transaction ID is required for audit compliance', variant: 'destructive' });
+      return;
+    }
+
     setProcessing(true);
     try {
       // For CFO stage: let the edge function handle status + float atomically
@@ -269,6 +275,8 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           body: {
             rent_request_id: selectedRequest.id,
             notes: comment || null,
+            transaction_reference: payoutRef.trim(),
+            payout_method: payoutMethod || 'mobile_money',
           },
         });
         if (floatErr) throw new Error(floatErr.message || 'Failed to fund agent float');

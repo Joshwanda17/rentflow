@@ -104,6 +104,8 @@ Deno.serve(async (req) => {
         cfo_reviewed_at: now,
         funded_at: now,
         approval_comment: notes || null,
+        payout_transaction_reference: transaction_reference || null,
+        payout_method: payout_method || null,
         updated_at: now,
       })
       .eq('id', rent_request_id)
