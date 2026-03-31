@@ -1880,7 +1880,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Edit Partner</DialogTitle>
-            <DialogDescription>Update partner profile, ROI rate, and mode.</DialogDescription>
+            <DialogDescription>Update partner profile, returns rate, and mode.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
