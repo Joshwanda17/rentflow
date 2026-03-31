@@ -228,6 +228,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
   const [savingPortfolio, setSavingPortfolio] = useState(false);
+  const [editingNextPayoutId, setEditingNextPayoutId] = useState<string | null>(null);
+  const [editingNextPayoutDate, setEditingNextPayoutDate] = useState('');
 
   // Edit portfolio dialog
   const [editPortfolio, setEditPortfolio] = useState<PortfolioRow | null>(null);
@@ -660,6 +662,28 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (detailPartner) {
         const updated = detailPartner.portfolios.map(p =>
           p.id === portfolioId ? { ...p, payout_day: day } : p
+        );
+        setDetailPartner({ ...detailPartner, portfolios: updated });
+      }
+    } catch (e: any) { toast.error(e.message || 'Failed to update'); }
+    finally { setSavingPortfolio(false); }
+  }
+
+  /* ─── Save next payout date ─── */
+  async function handleSaveNextPayoutDate(portfolioId: string) {
+    if (!editingNextPayoutDate) { toast.error('Please select a date'); return; }
+    setSavingPortfolio(true);
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ next_roi_date: editingNextPayoutDate })
+        .eq('id', portfolioId);
+      if (error) throw error;
+      toast.success('Next payout date updated');
+      setEditingNextPayoutId(null);
+      if (detailPartner) {
+        const updated = detailPartner.portfolios.map(p =>
+          p.id === portfolioId ? { ...p, next_roi_date: editingNextPayoutDate } : p
         );
         setDetailPartner({ ...detailPartner, portfolios: updated });
       }
@@ -1414,7 +1438,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </div>
 
       {/* ─── Partner Detail Dialog ─── */}
-      <Dialog open={!!detailPartner || detailLoading} onOpenChange={open => { if (!open) { setDetailPartner(null); setEditingPortfolioId(null); } }}>
+      <Dialog open={!!detailPartner || detailLoading} onOpenChange={open => { if (!open) { setDetailPartner(null); setEditingPortfolioId(null); setEditingNextPayoutId(null); } }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           {detailLoading ? (
             <div className="flex items-center justify-center py-20">
@@ -1576,12 +1600,44 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Next Payout</span>
-                                  <p className="font-semibold">
-                                    {(() => {
-                                      const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
-                                      return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
-                                    })()}
-                                  </p>
+                                  {editingNextPayoutId === p.id ? (
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                      <Input
+                                        type="date"
+                                        value={editingNextPayoutDate}
+                                        onChange={e => setEditingNextPayoutDate(e.target.value)}
+                                        className="h-7 w-36 text-xs"
+                                      />
+                                      <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => handleSaveNextPayoutDate(p.id)} disabled={savingPortfolio}>
+                                        {savingPortfolio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setEditingNextPayoutId(null)}>
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="font-semibold">
+                                        {(() => {
+                                          const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                          return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
+                                        })()}
+                                      </p>
+                                      {!readOnly && (
+                                        <button
+                                          onClick={() => {
+                                            setEditingNextPayoutId(p.id);
+                                            const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                            setEditingNextPayoutDate(nd);
+                                          }}
+                                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                          title="Edit next payout date"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Payout Status</span>
@@ -1636,9 +1692,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     </div>
                                   )}
                                 </div>
-                                {p.next_roi_date && (
+                                {(
                                   <span className="text-[10px] text-muted-foreground flex items-center gap-1 pl-5 sm:pl-0">
-                                    <Clock className="h-3 w-3" /> Next: {formatDate(p.next_roi_date)}
+                                    <Clock className="h-3 w-3" /> Next: {(() => {
+                                      const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                      return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' });
+                                    })()}
                                   </span>
                                 )}
                               </div>
