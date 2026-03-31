@@ -308,7 +308,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       // Aggregate portfolios per supporter
       const supporterIdSet = new Set(ids);
-      const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string }>();
+      const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null }>();
 
       dedupedPortfolios.forEach(p => {
         // Determine which supporter this portfolio belongs to
