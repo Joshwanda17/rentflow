@@ -1812,7 +1812,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   <span className="font-bold">{formatUGX(Number(addPortfolioAmount))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Monthly ROI:</span>
+                  <span className="text-muted-foreground">Monthly Returns:</span>
                   <span className="font-bold text-primary">{formatUGX(Math.round(Number(addPortfolioAmount) * (Number(addPortfolioRoi) / 100)))}</span>
                 </div>
                 <div className="flex justify-between">
