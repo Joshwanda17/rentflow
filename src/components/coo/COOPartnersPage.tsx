@@ -353,7 +353,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           joinedAt: profile?.created_at || '',
           lastActivity: agg.lastActivity || '',
         };
-      }).filter(r => r.funded > 0 || r.activeDeals > 0)
+      })
         .sort((a, b) => b.funded - a.funded);
 
       const totalFunded = tableRows.reduce((s, r) => s + r.funded, 0);
@@ -1115,7 +1115,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       <span className="font-semibold tabular-nums">{formatUGX(r.funded)}</span>
     )},
     { key: 'activeDeals', label: 'Deals', align: 'right', hideOnMobile: true },
-    { key: 'roiPercentage', label: 'ROI', align: 'right', render: (r) => (
+    { key: 'roiPercentage', label: 'Returns', align: 'right', render: (r) => (
       <span className="font-bold text-primary">{r.roiPercentage}%</span>
     )},
     { key: 'roiMode', label: 'Mode', hideOnMobile: true, render: (r) => (
@@ -1415,8 +1415,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 {/* Financial Summary Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <MiniKPI icon={<Wallet className="h-3.5 w-3.5" />} label="Wallet Balance" value={formatUGX(detailPartner.walletBalance)} variant="primary" />
-                  <MiniKPI icon={<Banknote className="h-3.5 w-3.5" />} label="Total Invested" value={formatUGX(detailPartner.totalFunded)} variant="emerald" />
-                  <MiniKPI icon={<TrendingUp className="h-3.5 w-3.5" />} label="ROI Earned" value={formatUGX(detailPartner.totalROIEarned)} variant="amber" />
+                  <MiniKPI icon={<Banknote className="h-3.5 w-3.5" />} label="Principal" value={formatUGX(detailPartner.totalFunded)} variant="emerald" />
+                  <MiniKPI icon={<TrendingUp className="h-3.5 w-3.5" />} label="Returns Earned" value={formatUGX(detailPartner.totalROIEarned)} variant="amber" />
                   <MiniKPI icon={<Briefcase className="h-3.5 w-3.5" />} label="Portfolios" value={detailPartner.portfolios.length} variant="violet" />
                 </div>
 
@@ -1514,11 +1514,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               {/* Details grid */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs bg-muted/30 rounded-lg p-2.5">
                                 <div>
-                                  <span className="text-muted-foreground">ROI Rate</span>
+                                  <span className="text-muted-foreground">Returns Rate</span>
                                   <p className="font-bold text-primary">{p.roi_percentage}%</p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Monthly ROI</span>
+                                  <span className="text-muted-foreground">Monthly Returns</span>
                                   <p className="font-bold">{formatUGX(monthlyROI)}</p>
                                 </div>
                                 <div>
@@ -1530,7 +1530,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   <p className="font-bold text-primary">{formatUGX(p.total_roi_earned)}</p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Invested On</span>
+                                  <span className="text-muted-foreground">Contributed On</span>
                                   <p className="font-semibold">{formatDate(p.created_at)}</p>
                                 </div>
                                 <div>
@@ -1769,7 +1769,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>ROI Rate (%)</Label>
+                <Label>Returns Rate (%)</Label>
                 <Input type="number" min={1} max={100} value={addPortfolioRoi}
                   onChange={e => setAddPortfolioRoi(e.target.value)} />
               </div>
@@ -1782,7 +1782,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>ROI Mode</Label>
+                <Label>Returns Mode</Label>
                 <Select value={addPortfolioRoiMode} onValueChange={setAddPortfolioRoiMode}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -1812,7 +1812,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                   <span className="font-bold">{formatUGX(Number(addPortfolioAmount))}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Monthly ROI:</span>
+                  <span className="text-muted-foreground">Monthly Returns:</span>
                   <span className="font-bold text-primary">{formatUGX(Math.round(Number(addPortfolioAmount) * (Number(addPortfolioRoi) / 100)))}</span>
                 </div>
                 <div className="flex justify-between">
@@ -1880,7 +1880,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Edit Partner</DialogTitle>
-            <DialogDescription>Update partner profile, ROI rate, and mode.</DialogDescription>
+            <DialogDescription>Update partner profile, returns rate, and mode.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -1894,7 +1894,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">ROI Percentage (%)</Label>
+              <Label className="text-xs">Returns Percentage (%)</Label>
               <Input type="number" min={1} max={100} value={editRoi} onChange={e => setEditRoi(e.target.value)} />
               <div className="flex gap-1.5">
                 {[10, 15, 20, 25].map(v => (
@@ -1904,7 +1904,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">ROI Payment Mode</Label>
+              <Label className="text-xs">Returns Payment Mode</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant={editRoiMode === 'monthly_payout' ? 'default' : 'outline'} size="sm" className="text-xs h-9"
                   onClick={() => setEditRoiMode('monthly_payout')}>
@@ -2094,7 +2094,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">ROI Percentage (%)</Label>
+                <Label className="text-xs">Returns Percentage (%)</Label>
                 <Input type="number" min={1} max={100} value={editPortfolioRoi} onChange={e => setEditPortfolioRoi(e.target.value)} />
                 <div className="flex gap-1.5">
                   {[10, 15, 20, 25].map(v => (
@@ -2104,7 +2104,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">ROI Mode</Label>
+                <Label className="text-xs">Returns Mode</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant={editPortfolioRoiMode === 'monthly_payout' ? 'default' : 'outline'} size="sm" className="text-xs h-9"
                     onClick={() => setEditPortfolioRoiMode('monthly_payout')}>
@@ -2136,7 +2136,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /> Invested On Date</Label>
+                <Label className="text-xs flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /> Contribution Date</Label>
                 <Input type="date" value={editPortfolioDate} onChange={e => setEditPortfolioDate(e.target.value)} className="h-10 text-sm" />
                 {editPortfolio.created_at && (
                   <p className="text-[10px] text-muted-foreground">Current: {formatDate(editPortfolio.created_at)}</p>
@@ -2144,7 +2144,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </div>
               {editPortfolioAmount && Number(editPortfolioAmount) >= MIN_INVEST && editPortfolioRoi && (
                 <div className="text-xs bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
-                  <p>Monthly ROI ({editPortfolioRoi}%): <strong className="text-primary">{formatUGX(Math.round(Number(editPortfolioAmount) * (Number(editPortfolioRoi) / 100)))}</strong></p>
+                  <p>Monthly Returns ({editPortfolioRoi}%): <strong className="text-primary">{formatUGX(Math.round(Number(editPortfolioAmount) * (Number(editPortfolioRoi) / 100)))}</strong></p>
                   <p>Duration: <strong>{editPortfolioDuration} months</strong></p>
                 </div>
               )}
@@ -2592,11 +2592,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Invested</p>
+                      <p className="text-[10px] text-muted-foreground">Principal</p>
                       <p className="text-xs font-bold tabular-nums">{formatUGX(p.investmentAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">ROI Due</p>
+                      <p className="text-[10px] text-muted-foreground">Returns Due</p>
                       <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
