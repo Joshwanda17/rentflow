@@ -698,9 +698,8 @@ export default function RegisterPropertyDialog({
                   </>
                 )}
               </Button>
-            </motion.form>
+            </form>
           )}
-        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );
