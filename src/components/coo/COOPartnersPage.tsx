@@ -392,7 +392,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         if (du <= 7) {
           const prof = profileMap.get(ownerId);
           nearingList.push({
-            portfolioId: `${ownerId}-${p.payout_day}-${p.created_at}`,
+            portfolioId: p.id,
             investorId: ownerId,
             name: prof?.full_name || ownerId.slice(0, 8),
             phone: prof?.phone || '',
