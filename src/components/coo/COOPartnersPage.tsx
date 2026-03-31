@@ -412,7 +412,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const roiDate = new Date(effectiveNextDate + 'T00:00:00');
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        if (du >= -7 && du <= 30) {
+        if (du >= 0 && du <= 30) {
           const prof = profileMap.get(ownerId);
           const effectivePayoutDay = p.payout_day || roiDate.getDate();
           nearingList.push({
@@ -2431,41 +2431,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
-  const [editingPayoutId, setEditingPayoutId] = useState<string | null>(null);
-  const [editPayoutDate, setEditPayoutDate] = useState<Date | undefined>(undefined);
-  const [savingPayout, setSavingPayout] = useState(false);
 
-  const handleSavePayoutDate = async (p: NearingPayoutPortfolio) => {
-    if (!editPayoutDate) return;
-    setSavingPayout(true);
-    try {
-      const newDate = editPayoutDate.toISOString().split('T')[0];
-      const newPayoutDay = Math.min(editPayoutDate.getDate(), 28);
-      const { error } = await supabase
-        .from('investor_portfolios')
-        .update({ next_roi_date: newDate, payout_day: newPayoutDay })
-        .eq('id', p.portfolioId);
-      if (error) throw error;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('audit_logs').insert({
-        user_id: user?.id,
-        action_type: 'payout_date_edited',
-        table_name: 'investor_portfolios',
-        record_id: p.portfolioId,
-        metadata: { old_date: p.nextPayoutDate, new_date: newDate, partner_id: p.investorId, partner_name: p.name },
-      });
 
-      toast.success(`Payout date updated to ${editPayoutDate.toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}`);
-      setEditingPayoutId(null);
-      setEditPayoutDate(undefined);
-      onActionComplete?.();
-    } catch (err: any) {
-      toast.error('Failed to update payout date', { description: err.message });
-    } finally {
-      setSavingPayout(false);
-    }
-  };
+
+
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -2658,8 +2628,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <p className="font-semibold text-sm truncate">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
                     </div>
-                    <Badge variant={p.daysUntil < 0 ? 'destructive' : p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
-                      {p.daysUntil < 0 ? `${Math.abs(p.daysUntil)}d overdue` : p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
+                    <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
+                      {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center">
@@ -2679,38 +2649,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-[10px] text-muted-foreground">Payout Date</p>
-                      {editingPayoutId === p.portfolioId ? (
-                        <div className="space-y-1.5 mt-1">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <button className="text-xs font-bold underline underline-offset-2 text-primary">
-                                {editPayoutDate
-                                  ? editPayoutDate.toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })
-                                  : 'Pick date'}
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="center">
-                              <Calendar mode="single" selected={editPayoutDate} onSelect={setEditPayoutDate} initialFocus className="p-3 pointer-events-auto" />
-                            </PopoverContent>
-                          </Popover>
-                          <div className="flex gap-1 justify-center">
-                            <Button size="sm" variant="default" className="h-5 text-[10px] px-2" disabled={!editPayoutDate || savingPayout} onClick={() => handleSavePayoutDate(p)}>
-                              {savingPayout ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-5 text-[10px] px-2" onClick={() => { setEditingPayoutId(null); setEditPayoutDate(undefined); }}>
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          className="text-xs font-bold flex items-center gap-1 mx-auto hover:text-primary transition-colors"
-                          onClick={() => { setEditingPayoutId(p.portfolioId); setEditPayoutDate(new Date(p.nextPayoutDate + 'T00:00:00')); }}
-                        >
-                          {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          <Pencil className="h-3 w-3 opacity-50" />
-                        </button>
-                      )}
+                      <p className="text-xs font-bold">
+                        {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground">
