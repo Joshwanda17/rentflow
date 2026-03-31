@@ -26,6 +26,8 @@ serve(async (req) => {
     const token = authHeader?.replace("Bearer ", "") ?? "";
     const serviceKeyHeader = req.headers.get("x-service-key") ?? "";
     const bodyServiceKey = bodyData?.service_key ?? "";
+    console.log("[diagnose-auth] token length:", token.length, "serviceKeyHeader:", serviceKeyHeader.length, "bodyKey:", bodyServiceKey.length, "envKey:", supabaseServiceKey.length);
+    console.log("[diagnose-auth] token match:", token === supabaseServiceKey, "header match:", serviceKeyHeader === supabaseServiceKey, "body match:", bodyServiceKey === supabaseServiceKey);
     const isServiceRole = token === supabaseServiceKey || serviceKeyHeader === supabaseServiceKey || bodyServiceKey === supabaseServiceKey;
 
     if (!isServiceRole) {
