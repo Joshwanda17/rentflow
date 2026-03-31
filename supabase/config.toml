@@ -85,3 +85,7 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.welile-ai-chat]
     verify_jwt = false
+  [functions.diagnose-auth]
+    verify_jwt = false
+  [functions.bulk-password-reset]
+    verify_jwt = false
