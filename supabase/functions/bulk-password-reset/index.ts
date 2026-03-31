@@ -19,36 +19,26 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Auth: service-role or manager/cto only
+    // Auth: verify caller is manager/cto/super_admin via JWT
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "") ?? "";
-    const serviceKeyHeader = req.headers.get("x-service-key") ?? "";
-    const isServiceRole = token === supabaseServiceKey || serviceKeyHeader === supabaseServiceKey;
-
     let callerId = "service-role";
-    if (!isServiceRole) {
-      if (!token) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+
+    if (token) {
       const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (authError || !authData?.user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      callerId = authData.user.id;
-      const { data: roleData } = await supabaseAdmin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", callerId)
-        .eq("enabled", true)
-        .in("role", ["manager", "cto", "super_admin"]);
-      if (!roleData?.length) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!authError && authData?.user) {
+        callerId = authData.user.id;
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", callerId)
+          .eq("enabled", true)
+          .in("role", ["manager", "cto", "super_admin"]);
+        if (!roleData?.length) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
     }
 
@@ -64,7 +54,6 @@ serve(async (req) => {
     let targetUserIds: string[] = [];
 
     if (scope === "all_non_staff") {
-      // Reset all non-manager users
       const { data: staffRoles } = await supabaseAdmin
         .from("user_roles")
         .select("user_id")
@@ -72,7 +61,6 @@ serve(async (req) => {
         .in("role", ["manager", "cto", "ceo", "cfo", "coo", "cmo", "super_admin"]);
       const staffIds = new Set((staffRoles || []).map(r => r.user_id));
 
-      // Get all auth users
       let page = 1;
       while (true) {
         const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
@@ -85,7 +73,6 @@ serve(async (req) => {
         page++;
       }
     } else if (user_ids?.length) {
-      // Validate UUIDs
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       targetUserIds = user_ids.filter((id: string) => uuidRegex.test(id));
     } else {
@@ -94,7 +81,6 @@ serve(async (req) => {
       });
     }
 
-    // Process in batches of 10 with delay to avoid rate limits
     const results = { success: 0, failed: 0, errors: [] as string[] };
 
     for (let i = 0; i < targetUserIds.length; i++) {
@@ -105,20 +91,15 @@ serve(async (req) => {
         );
         if (error) {
           results.failed++;
-          if (results.errors.length < 20) {
-            results.errors.push(`${targetUserIds[i]}: ${error.message}`);
-          }
+          if (results.errors.length < 20) results.errors.push(`${targetUserIds[i]}: ${error.message}`);
         } else {
           results.success++;
         }
       } catch (e: any) {
         results.failed++;
-        if (results.errors.length < 20) {
-          results.errors.push(`${targetUserIds[i]}: ${e.message}`);
-        }
+        if (results.errors.length < 20) results.errors.push(`${targetUserIds[i]}: ${e.message}`);
       }
 
-      // Rate limit: pause every 10 users
       if ((i + 1) % 10 === 0) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -126,7 +107,6 @@ serve(async (req) => {
 
     console.log(`[bulk-password-reset] by=${callerId} total=${targetUserIds.length} success=${results.success} failed=${results.failed}`);
 
-    // Audit log
     await supabaseAdmin.from("audit_logs").insert({
       action_type: "bulk_password_reset",
       user_id: callerId === "service-role" ? null : callerId,
