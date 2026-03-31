@@ -19,6 +19,7 @@ import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvest
 import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
 
 type Tab = 'portfolios' | 'capital' | 'roi';
 
