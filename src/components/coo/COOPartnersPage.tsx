@@ -1600,12 +1600,44 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Next Payout</span>
-                                  <p className="font-semibold">
-                                    {(() => {
-                                      const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
-                                      return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
-                                    })()}
-                                  </p>
+                                  {editingNextPayoutId === p.id ? (
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                      <Input
+                                        type="date"
+                                        value={editingNextPayoutDate}
+                                        onChange={e => setEditingNextPayoutDate(e.target.value)}
+                                        className="h-7 w-36 text-xs"
+                                      />
+                                      <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => handleSaveNextPayoutDate(p.id)} disabled={savingPortfolio}>
+                                        {savingPortfolio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setEditingNextPayoutId(null)}>
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="font-semibold">
+                                        {(() => {
+                                          const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                          return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
+                                        })()}
+                                      </p>
+                                      {!readOnly && (
+                                        <button
+                                          onClick={() => {
+                                            setEditingNextPayoutId(p.id);
+                                            const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                            setEditingNextPayoutDate(nd);
+                                          }}
+                                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                          title="Edit next payout date"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Payout Status</span>
