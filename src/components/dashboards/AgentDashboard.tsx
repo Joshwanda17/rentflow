@@ -261,7 +261,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           className="group w-full rounded-2xl border-2 border-primary/30 bg-primary/5 p-5 touch-manipulation active:opacity-90"
         >
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-primary/15 group-hover:bg-primary/25 transition-colors shrink-0">
+            <div className="p-3 rounded-xl bg-primary/15 shrink-0">
               <Wallet className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1 text-left min-w-0">
