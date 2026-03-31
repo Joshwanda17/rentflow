@@ -2478,6 +2478,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Advance next_roi_date by 1 month
+      const nextDate = new Date();
+      nextDate.setMonth(nextDate.getMonth() + 1);
+      await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
+
       // Create pending wallet operation for CFO approval
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
         user_id: p.investorId,
