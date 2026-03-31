@@ -8,7 +8,6 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
 import type { SidebarSection } from './executiveSidebarConfig';
 import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
-import type { SidebarSection } from './executiveSidebarConfig';
 
 interface ExecutiveDashboardLayoutProps {
   role: string;
