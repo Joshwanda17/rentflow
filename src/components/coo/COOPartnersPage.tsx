@@ -2600,6 +2600,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       });
 
       toast.success(`Compounded ${formatUGX(roiAmount)} for ${p.name}`, { description: `Ref: ${refId}` });
+      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'compounded' }));
       onActionComplete?.();
     } catch (err: any) {
       toast.error('Compound failed', { description: err.message });
