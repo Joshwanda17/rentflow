@@ -1791,9 +1791,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Payout Day (1-28)</Label>
-                <Input type="number" min={1} max={28} value={addPortfolioPayoutDay}
-                  onChange={e => setAddPortfolioPayoutDay(e.target.value)} />
+                <Label className="text-muted-foreground text-xs">Payout Day</Label>
+                <p className="text-sm font-medium text-foreground">Auto-derived from contribution date</p>
               </div>
             </div>
 
