@@ -2625,8 +2625,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Payout Day</p>
-                      <p className="text-xs font-bold">{p.payoutDay}{getOrdinalSuffix(p.payoutDay)}</p>
+                      <p className="text-[10px] text-muted-foreground">Payout Date</p>
+                      <p className="text-xs font-bold">
+                        {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric' })}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground">
