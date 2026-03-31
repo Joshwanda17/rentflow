@@ -4,6 +4,13 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
+  dateOnlyToLocalDate,
+  dateOnlyToUtcMiddayIso,
+  extractDateOnly,
+  formatDateOnlyForDisplay,
+  formatLocalDateOnly,
+} from '@/lib/portfolioDates';
+import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
@@ -42,20 +49,22 @@ import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
 function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payoutDay: number): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const day = Math.min(payoutDay || new Date(createdAt).getDate(), 28);
+  const createdDateOnly = extractDateOnly(createdAt);
+  const createdDate = createdDateOnly ? dateOnlyToLocalDate(createdDateOnly) : new Date(createdAt);
+  const day = Math.min(payoutDay || createdDate.getDate(), 28);
 
   let d: Date;
   if (nextRoiDate) {
-    d = new Date(nextRoiDate + 'T00:00:00');
+    d = dateOnlyToLocalDate(nextRoiDate);
   } else {
-    const base = new Date(createdAt);
+    const base = createdDate;
     d = new Date(base.getFullYear(), base.getMonth() + 1, day);
   }
   // Roll forward until d >= today
   while (d < today) {
     d = new Date(d.getFullYear(), d.getMonth() + 1, day);
   }
-  return d.toISOString().split('T')[0];
+  return formatLocalDateOnly(d);
 }
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
@@ -170,8 +179,7 @@ function exportToCSV(rows: PartnerRow[]) {
 }
 
 function formatDate(d: string | null) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-UG', { year: 'numeric', month: 'short', day: 'numeric' });
+  return formatDateOnlyForDisplay(d);
 }
 
 function timeSince(d: string) {
@@ -770,14 +778,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       const partnerId = detailPartner.profile.id;
       const portfolioCode = `WIP${new Date().toISOString().slice(2, 10).replace(/-/g, '')}${Math.floor(1000 + Math.random() * 9000)}`;
-      const createdAt = addPortfolioDate ? new Date(addPortfolioDate).toISOString() : new Date().toISOString();
-      const contributionDate = new Date(createdAt);
+      const createdAt = addPortfolioDate ? dateOnlyToUtcMiddayIso(addPortfolioDate) : new Date().toISOString();
+      const contributionDate = addPortfolioDate ? dateOnlyToLocalDate(addPortfolioDate) : new Date();
       const payoutDay = Math.min(contributionDate.getDate(), 28);
-      const maturityDate = new Date(createdAt);
+      const maturityDate = new Date(contributionDate);
       maturityDate.setMonth(maturityDate.getMonth() + duration);
 
       // next_roi_date = exactly one month from contribution date
-      const nextRoiDate = new Date(createdAt);
+      const nextRoiDate = new Date(contributionDate);
       nextRoiDate.setMonth(nextRoiDate.getMonth() + 1);
 
       const { data: newPortfolio, error: insertErr } = await supabase
@@ -795,8 +803,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           activation_token: crypto.randomUUID(),
           status: 'active',
           created_at: createdAt,
-          maturity_date: maturityDate.toISOString().split('T')[0],
-          next_roi_date: nextRoiDate.toISOString().split('T')[0],
+          maturity_date: formatLocalDateOnly(maturityDate),
+          next_roi_date: formatLocalDateOnly(nextRoiDate),
         })
         .select('id')
         .single();
@@ -861,7 +869,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setEditPortfolioRoiMode(p.roi_mode || 'monthly_payout');
     setEditPortfolioDuration(String(p.duration_months));
     setEditPortfolioStatus(p.status);
-    setEditPortfolioDate(p.created_at ? p.created_at.slice(0, 10) : '');
+    setEditPortfolioDate(extractDateOnly(p.created_at) || '');
   }
 
   /* ─── Save Edit Portfolio ─── */
@@ -895,7 +903,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             roi_mode: { from: editPortfolio.roi_mode, to: editPortfolioRoiMode },
             duration_months: { from: editPortfolio.duration_months, to: duration },
             status: { from: editPortfolio.status, to: editPortfolioStatus },
-            created_at: { from: editPortfolio.created_at, to: editPortfolioDate ? new Date(editPortfolioDate).toISOString() : editPortfolio.created_at },
+            created_at: { from: editPortfolio.created_at, to: editPortfolioDate ? dateOnlyToUtcMiddayIso(editPortfolioDate) : editPortfolio.created_at },
           },
         },
       });
@@ -908,7 +916,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         status: editPortfolioStatus,
       };
       if (editPortfolioDate) {
-        updatePayload.created_at = new Date(editPortfolioDate).toISOString();
+        updatePayload.created_at = dateOnlyToUtcMiddayIso(editPortfolioDate);
       }
 
       const { error } = await supabase
@@ -922,7 +930,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       // Update local state
       const updated = detailPartner.portfolios.map(p =>
         p.id === editPortfolio.id
-          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus, created_at: editPortfolioDate ? new Date(editPortfolioDate).toISOString() : p.created_at }
+          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus, created_at: editPortfolioDate ? dateOnlyToUtcMiddayIso(editPortfolioDate) : p.created_at }
           : p
       );
       setDetailPartner({ ...detailPartner, portfolios: updated });
@@ -2101,7 +2109,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
 
       {/* Update Contribution Dates Dialog */}
-      <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => { fetchData(); }} />
+      <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => {
+        fetchData();
+        if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      }} />
 
       {/* Top-level Create Portfolio Dialog */}
       <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
@@ -2720,7 +2731,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-[10px] text-muted-foreground">Contribution Date</p>
                       <p className="text-xs font-bold">
-                        {new Date(p.createdAt).toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {formatDateOnlyForDisplay(p.createdAt, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
