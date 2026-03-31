@@ -287,7 +287,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
         batchedQuery<any>(ids, (batch) =>
           supabase.from('investor_portfolios')
-            .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at')
+            .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date')
             .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
             .in('status', ['active', 'pending_approval', 'pending'])
             .order('created_at', { ascending: false })
