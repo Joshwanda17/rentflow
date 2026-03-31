@@ -1577,9 +1577,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 <div>
                                   <span className="text-muted-foreground">Next Payout</span>
                                   <p className="font-semibold">
-                                    {p.next_roi_date
-                                      ? new Date(p.next_roi_date + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' })
-                                      : 'Not scheduled'}
+                                    {(() => {
+                                      const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                      return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
+                                    })()}
                                   </p>
                                 </div>
                                 <div>
