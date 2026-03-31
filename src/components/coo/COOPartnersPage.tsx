@@ -36,6 +36,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
+import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
 
 /** Roll a stale next_roi_date forward month-by-month until it's >= today */
 function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payoutDay: number): string {
