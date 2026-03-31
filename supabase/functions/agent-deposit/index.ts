@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
       if (remainingBalance > 0) {
         // Auto-pay towards rent
         repaymentAmount = Math.min(amount, remainingBalance);
-        commission = Math.round(repaymentAmount * AGENT_COMMISSION_RATE);
+        commission = AGENT_COMMISSION_FLAT;
         landlordPayment = repaymentAmount - commission;
         depositAmount = amount - repaymentAmount;
 
