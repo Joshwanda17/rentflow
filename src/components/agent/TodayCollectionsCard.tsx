@@ -41,7 +41,7 @@ export function TodayCollectionsCard({ agentId, onViewTenants }: Props) {
         if (owing <= 0) return;
         
         const existing = tenantMap.get(r.tenant_id);
-        const profile = r.profiles;
+        const profile = profileMap.get(r.tenant_id);
         if (existing) {
           existing.dailyDue += Number(r.daily_repayment || 0);
           existing.totalOwing += owing;
