@@ -1782,7 +1782,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>ROI Mode</Label>
+                <Label>Returns Mode</Label>
                 <Select value={addPortfolioRoiMode} onValueChange={setAddPortfolioRoiMode}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
