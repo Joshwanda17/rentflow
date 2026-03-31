@@ -27,6 +27,10 @@ export function InvestmentWithdrawButton() {
     status: string;
     earliest_process_date: string;
     created_at: string;
+    requested_at: string;
+    partner_ops_approved_at: string | null;
+    coo_approved_at: string | null;
+    cfo_processed_at: string | null;
   } | null>(null);
 
   const amountNum = Number(amount) || 0;
