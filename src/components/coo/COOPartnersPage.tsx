@@ -2576,7 +2576,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             </div>
           ) : (
             filtered.map((p, idx) => {
-              const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+              const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
               const isProcessing = processing[p.portfolioId];
               const refPreview = `${p.portfolioId.slice(0, 8)}`;
               return (
