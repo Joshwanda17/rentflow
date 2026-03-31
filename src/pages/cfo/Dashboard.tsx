@@ -62,6 +62,7 @@ export default function CFODashboardPage() {
           <div className="space-y-6">
             <WithdrawalRequestsManager />
             <CFOWithdrawalApprovals />
+            <CFOPartnerPayoutProcessing />
           </div>
         );
       case 'financial-agents':

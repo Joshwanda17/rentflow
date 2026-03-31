@@ -177,7 +177,7 @@ export default function CFODashboard() {
                   Withdrawal Approvals
                 </h3>
                 <CFOWithdrawalApprovals />
-              </div>
+                <CFOPartnerPayoutProcessing />
             </div>
             <div className="space-y-4">
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
