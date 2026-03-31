@@ -2644,7 +2644,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           {filtered.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground text-sm">
               <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              {search ? 'No matching portfolios found.' : 'No active portfolios found.'}
+              {search ? 'No matching portfolios found.' : 'No portfolios nearing payout.'}
             </div>
           ) : (
             filtered.map((p, idx) => {
