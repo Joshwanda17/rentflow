@@ -1115,7 +1115,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       <span className="font-semibold tabular-nums">{formatUGX(r.funded)}</span>
     )},
     { key: 'activeDeals', label: 'Deals', align: 'right', hideOnMobile: true },
-    { key: 'roiPercentage', label: 'ROI', align: 'right', render: (r) => (
+    { key: 'roiPercentage', label: 'Returns', align: 'right', render: (r) => (
       <span className="font-bold text-primary">{r.roiPercentage}%</span>
     )},
     { key: 'roiMode', label: 'Mode', hideOnMobile: true, render: (r) => (
