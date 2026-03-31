@@ -1894,7 +1894,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">ROI Percentage (%)</Label>
+              <Label className="text-xs">Returns Percentage (%)</Label>
               <Input type="number" min={1} max={100} value={editRoi} onChange={e => setEditRoi(e.target.value)} />
               <div className="flex gap-1.5">
                 {[10, 15, 20, 25].map(v => (
