@@ -74,6 +74,7 @@ import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
 import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
 import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
 import { FunderManagementSheet } from '@/components/agent/FunderManagementSheet';
+import { AgentPartnerDashboardSheet } from '@/components/agent/AgentPartnerDashboardSheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
