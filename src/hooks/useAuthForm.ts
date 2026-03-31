@@ -409,9 +409,9 @@ export function useAuthForm() {
     } else if (lastError?.message?.includes('rate') || lastError?.message?.includes('too many')) {
       errorMessage = 'Too many login attempts. Please wait a moment and try again.';
     } else if (accountExists) {
-      errorMessage = 'Incorrect password. Please check your password and try again.';
+      errorMessage = 'Incorrect password. Tap "Forgot Password?" below to reset it via SMS.';
     } else {
-      errorMessage = 'No account found with this phone number. Please sign up first.';
+      errorMessage = 'No account found with this phone number. Please check the number or sign up.';
     }
 
     setLoginError({ message: errorMessage, triedFormats });
