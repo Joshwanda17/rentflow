@@ -53,7 +53,7 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
   };
 
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-background/95 p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[100] w-full h-full grid place-items-center bg-background/95 p-4 overflow-y-auto">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-3">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-destructive/10 border-2 border-destructive/20 flex items-center justify-center">
