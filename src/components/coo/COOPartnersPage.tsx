@@ -2434,37 +2434,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
 
 
-  const handleSavePayoutDate = async (p: NearingPayoutPortfolio) => {
-    if (!editPayoutDate) return;
-    setSavingPayout(true);
-    try {
-      const newDate = editPayoutDate.toISOString().split('T')[0];
-      const newPayoutDay = Math.min(editPayoutDate.getDate(), 28);
-      const { error } = await supabase
-        .from('investor_portfolios')
-        .update({ next_roi_date: newDate, payout_day: newPayoutDay })
-        .eq('id', p.portfolioId);
-      if (error) throw error;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('audit_logs').insert({
-        user_id: user?.id,
-        action_type: 'payout_date_edited',
-        table_name: 'investor_portfolios',
-        record_id: p.portfolioId,
-        metadata: { old_date: p.nextPayoutDate, new_date: newDate, partner_id: p.investorId, partner_name: p.name },
-      });
 
-      toast.success(`Payout date updated to ${editPayoutDate.toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}`);
-      setEditingPayoutId(null);
-      setEditPayoutDate(undefined);
-      onActionComplete?.();
-    } catch (err: any) {
-      toast.error('Failed to update payout date', { description: err.message });
-    } finally {
-      setSavingPayout(false);
-    }
-  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
