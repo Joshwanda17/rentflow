@@ -22,7 +22,9 @@ function parseContributionDate(raw: any): string | null {
   if (raw == null || raw === '') return null;
   // Handle Excel serial date numbers (UTC to avoid timezone shift)
   if (typeof raw === 'number') {
-    const d = new Date(Date.UTC(1899, 11, 30 + raw));
+    const serial = Math.floor(raw);
+    const excelDays = serial > 59 ? serial - 1 : serial; // Excel 1900 leap-year bug
+    const d = new Date(Date.UTC(1899, 11, 31 + excelDays));
     return isNaN(d.getTime()) ? null : `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
   }
   const str = String(raw).trim();
