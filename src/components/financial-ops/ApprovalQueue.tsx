@@ -403,7 +403,6 @@ export function ApprovalQueue() {
                   {walletOps.length > 0 && <Badge variant="outline" className="h-4 px-1 text-[10px]">{walletOps.length}</Badge>}
                 </TabsTrigger>
               </TabsList>
-              </TabsList>
             </Tabs>
           </div>
 
