@@ -2397,13 +2397,13 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
               'text-xs font-bold uppercase tracking-wider',
               hasPayouts ? 'text-destructive' : 'text-muted-foreground'
             )}>
-              Payouts
+              Nearing Payouts
             </span>
             <p className={cn(
               'text-[11px] leading-snug mt-0.5',
               hasPayouts ? 'text-destructive/80 font-medium' : 'text-muted-foreground'
             )}>
-              {hasPayouts ? `~${formatUGX(totalAmount)} total returns due` : 'No active payouts'}
+              {hasPayouts ? `~${formatUGX(totalAmount)} due within 30 days` : 'No payouts due soon'}
             </p>
           </div>
         </div>
