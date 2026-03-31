@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, addMonths } from 'date-fns';
+import { format, addMonths, parse, isValid } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,15 @@ function parseContributionDate(raw: any): string | null {
   }
   const str = String(raw).trim();
   if (!str) return null;
+
+  // Try d-MMM-yy format (e.g. "2-Mar-26") using date-fns
+  const shortMonthMatch = str.match(/^\d{1,2}-[A-Za-z]{3}-\d{2,4}$/);
+  if (shortMonthMatch) {
+    let d = parse(str, 'd-MMM-yy', new Date());
+    if (!isValid(d)) d = parse(str, 'd-MMM-yyyy', new Date());
+    if (isValid(d)) return format(d, 'yyyy-MM-dd');
+  }
+
   const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (isoMatch) {
     const d = new Date(`${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`);

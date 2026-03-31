@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { parse, isValid, format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -122,6 +123,15 @@ function parseContributionDate(raw: any): string | null {
 
   const str = String(raw).trim();
   if (!str) return null;
+
+  // Try d-MMM-yy format (e.g. "2-Mar-26") using date-fns
+  const shortMonthMatch = str.match(/^\d{1,2}-[A-Za-z]{3}-\d{2,4}$/);
+  if (shortMonthMatch) {
+    // Try 2-digit year first, then 4-digit
+    let d = parse(str, 'd-MMM-yy', new Date());
+    if (!isValid(d)) d = parse(str, 'd-MMM-yyyy', new Date());
+    if (isValid(d)) return format(d, 'yyyy-MM-dd');
+  }
 
   // Try ISO format (YYYY-MM-DD)
   const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
