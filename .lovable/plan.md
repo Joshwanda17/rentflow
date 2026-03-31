@@ -1,16 +1,14 @@
+# Add "System Logs" Menu Item to CTO Sidebar
 
+## What changes
 
-## Plan: Delete Account 0743331870 (sunueli alex)
+1. `**src/components/layout/executiveSidebarConfig.ts**` — Add a new sidebar item `{ label: 'System Logs', icon: FileText, id: 'system-logs' }` to the CTO engineering section (after Developer Tools).
+2. `**src/pages/cto/Dashboard.tsx**` — Pass `activeTab` to `CTODashboard` so the content switches based on sidebar selection. When `system-logs` is selected, render an empty placeholder panel.
+3. `**src/components/executive/CTODashboard.tsx**` — Accept an optional `activeTab` prop. When `activeTab === 'system-logs'`, render a blank card with a "System Logs" heading. Otherwise render the existing dashboard content.
 
-**What**: Delete the duplicate account for sunueli alex (phone 0743331870, ID `c0266492-7184-4fae-95cb-4e3ad230d0f8`), keeping the account with phone 0755114078.
+## Technical detail
 
-**Account summary**:
-- **To delete**: `c0266492-7184-4fae-95cb-4e3ad230d0f8` — sunueli alex, 0743331870, has roles (tenant, agent, landlord, supporter) but no portfolios, no wallet transactions
-- **To keep**: `3b293a8d-6046-429b-8295-0eb121e88577` — Sunueli Alex, 0755114078
-
-**Steps**:
-1. Call the existing `delete-user` edge function with `user_id = c0266492-7184-4fae-95cb-4e3ad230d0f8` — this handles the full cleanup sequence (pre-cleanup of FK refs → auth user deletion → related data cleanup → profile deletion)
-2. Since the account has no portfolios or wallet transactions, the deletion should be straightforward with no data loss concerns
-
-**Technical detail**: The edge function requires a manager-authenticated call. I will invoke it via the edge function curl tool with the service role.
-
+- Import `FileText` from lucide-react in the sidebar config (already imported).
+- The blank panel will be a simple `Card` with a title — no data fetching or logic.
+- All existing CTO dashboard content remains unchanged for other tabs.
+- follow the new architecture called event based architecture
