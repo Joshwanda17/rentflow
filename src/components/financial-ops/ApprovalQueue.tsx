@@ -480,7 +480,7 @@ export function ApprovalQueue() {
                             />
                           )}
                           <div className={`p-1 rounded-lg ${isDeposit ? 'bg-success/20' : isCashOut ? 'bg-orange-500/20' : 'bg-muted'}`}>
-                            <Icon className={`h-3.5 w-3.5 ${isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
+                            <Icon className={`h-3.5 w-3.5 ${isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-amber-600'}`} />
                           </div>
                           <span className={`text-[10px] font-bold uppercase tracking-wider ${
                             isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-muted-foreground'
