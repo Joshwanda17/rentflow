@@ -330,7 +330,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {isCashoutAgent && (
           <button
             onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/15 transition-all touch-manipulation active:scale-[0.98]"
+            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 touch-manipulation active:opacity-80"
           >
             <div className="p-2.5 rounded-lg bg-orange-500/20">
               <Banknote className="h-5 w-5 text-orange-600" />
