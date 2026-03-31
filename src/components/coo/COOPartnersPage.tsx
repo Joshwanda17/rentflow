@@ -2100,6 +2100,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
 
+      {/* Update Contribution Dates Dialog */}
+      <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => { fetchData(); }} />
+
       {/* Top-level Create Portfolio Dialog */}
       <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
 
