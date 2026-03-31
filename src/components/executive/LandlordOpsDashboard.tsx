@@ -1160,6 +1160,104 @@ export function LandlordOpsDashboard() {
   );
 }
 
+// ─── Shared Dialogs Component ───
+function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, assignPerson, setAssignPerson, deleteLandlord, setDeleteLandlord, deleteReason, setDeleteReason, deleting, setDeleting, previewImages, setPreviewImages, adjustListing, setAdjustListing, actionDialog, setActionDialog, user, refetchAll }: any) {
+  return (
+    <>
+      {previewImages && (
+        <ImagePreviewDialog images={previewImages.images} title={previewImages.title} open={!!previewImages} onClose={() => setPreviewImages(null)} />
+      )}
+      {adjustListing && (
+        <RentAdjustmentDialog open={!!adjustListing} onOpenChange={(open: boolean) => !open && setAdjustListing(null)} listing={adjustListing} onSuccess={refetchAll} />
+      )}
+      {actionDialog && (
+        <EmptyHouseActionDialog
+          open={!!actionDialog}
+          onOpenChange={(open: boolean) => !open && setActionDialog(null)}
+          listingId={actionDialog.listing.id}
+          listingTitle={actionDialog.listing.title}
+          actionType={actionDialog.type}
+          userId={user?.id || ''}
+          onComplete={refetchAll}
+        />
+      )}
+      <EditLandlordDialog
+        landlord={editLandlord}
+        open={!!editLandlord}
+        onClose={() => setEditLandlord(null)}
+        onSaved={refetchAll}
+      />
+      <EditLC1Dialog
+        lc1={editLC1}
+        open={!!editLC1}
+        onClose={() => setEditLC1(null)}
+        onSaved={refetchAll}
+      />
+      <AssignPersonDialog
+        open={!!assignPerson}
+        onClose={() => setAssignPerson(null)}
+        listingId={assignPerson?.listingId || ''}
+        listingTitle={assignPerson?.title || ''}
+        personType={assignPerson?.type || 'landlord'}
+        onSaved={refetchAll}
+      />
+      {/* Delete Landlord Confirmation */}
+      <Dialog open={!!deleteLandlord} onOpenChange={(o: boolean) => { if (!o) { setDeleteLandlord(null); setDeleteReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base text-destructive">Delete Landlord</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong>{deleteLandlord?.name}</strong>? This will unlink all associated house listings. This action cannot be undone.
+          </p>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Reason (min 10 chars) *</label>
+            <Input
+              value={deleteReason}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteReason(e.target.value)}
+              placeholder="Why is this landlord being deleted?"
+              className="h-10"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => { setDeleteLandlord(null); setDeleteReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              disabled={deleting || (deleteReason?.trim().length || 0) < 10}
+              onClick={async () => {
+                if (!deleteLandlord || !user) return;
+                setDeleting(true);
+                try {
+                  await supabase.from('house_listings').update({ landlord_id: null }).eq('landlord_id', deleteLandlord.id);
+                  const { error } = await supabase.from('landlords').delete().eq('id', deleteLandlord.id);
+                  if (error) throw error;
+                  await supabase.from('audit_logs').insert({
+                    user_id: user.id,
+                    action_type: 'landlord_deleted',
+                    table_name: 'landlords',
+                    record_id: deleteLandlord.id,
+                    metadata: { landlord_name: deleteLandlord.name, reason: deleteReason.trim(), deleted_by: 'landlord_ops' },
+                  });
+                  setDeleteLandlord(null);
+                  setDeleteReason('');
+                  refetchAll();
+                } catch (err: any) {
+                  console.error('Delete failed:', err);
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ─── Reusable Nav Card ───
 function NavCard({ item, onClick, badge }: { item: typeof navItems[number]; onClick: () => void; badge?: string }) {
   return (
