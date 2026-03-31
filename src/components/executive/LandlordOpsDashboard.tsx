@@ -1239,10 +1239,12 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
                     record_id: deleteLandlord.id,
                     metadata: { landlord_name: deleteLandlord.name, reason: deleteReason.trim(), deleted_by: 'landlord_ops' },
                   });
+                  toast.success(`${deleteLandlord.name} has been deleted successfully`);
                   setDeleteLandlord(null);
                   setDeleteReason('');
                   refetchAll();
                 } catch (err: any) {
+                  toast.error(err.message || 'Failed to delete landlord');
                   console.error('Delete failed:', err);
                 } finally {
                   setDeleting(false);
