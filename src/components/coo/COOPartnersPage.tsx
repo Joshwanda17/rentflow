@@ -56,6 +56,7 @@ interface PartnerRow {
   status: 'active' | 'suspended';
   joinedAt: string;
   lastActivity: string;
+  nextRoiDate: string | null;
 }
 
 interface NearingPayoutPortfolio {
