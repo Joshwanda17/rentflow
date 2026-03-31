@@ -19,11 +19,14 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verify caller — accept service-role key via custom header or Authorization
+    // Accept service key in body, header, or Authorization
+    let bodyData: any = {};
+    try { bodyData = await req.json(); } catch {}
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "") ?? "";
     const serviceKeyHeader = req.headers.get("x-service-key") ?? "";
-    const isServiceRole = token === supabaseServiceKey || serviceKeyHeader === supabaseServiceKey;
+    const bodyServiceKey = bodyData?.service_key ?? "";
+    const isServiceRole = token === supabaseServiceKey || serviceKeyHeader === supabaseServiceKey || bodyServiceKey === supabaseServiceKey;
 
     if (!isServiceRole) {
       if (!token) {
