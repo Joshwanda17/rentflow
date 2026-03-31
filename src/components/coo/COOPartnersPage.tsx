@@ -699,12 +699,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const amt = Number(addPortfolioAmount);
     const roi = Number(addPortfolioRoi);
     const duration = Number(addPortfolioDuration);
-    const payoutDay = Number(addPortfolioPayoutDay);
 
     if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum investment: ${formatUGX(MIN_INVEST)}`); return; }
     if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be between 1 and 100'); return; }
     if (isNaN(duration) || duration < 1 || duration > 60) { toast.error('Duration must be 1-60 months'); return; }
-    if (isNaN(payoutDay) || payoutDay < 1 || payoutDay > 28) { toast.error('Payout day must be 1-28'); return; }
 
     setAddingPortfolio(true);
     try {
@@ -714,8 +712,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const partnerId = detailPartner.profile.id;
       const portfolioCode = `WIP${new Date().toISOString().slice(2, 10).replace(/-/g, '')}${Math.floor(1000 + Math.random() * 9000)}`;
       const createdAt = addPortfolioDate ? new Date(addPortfolioDate).toISOString() : new Date().toISOString();
+      const contributionDate = new Date(createdAt);
+      const payoutDay = Math.min(contributionDate.getDate(), 28);
       const maturityDate = new Date(createdAt);
       maturityDate.setMonth(maturityDate.getMonth() + duration);
+
+      // next_roi_date = exactly one month from contribution date
+      const nextRoiDate = new Date(createdAt);
+      nextRoiDate.setMonth(nextRoiDate.getMonth() + 1);
 
       const { data: newPortfolio, error: insertErr } = await supabase
         .from('investor_portfolios')
@@ -733,12 +737,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           status: 'active',
           created_at: createdAt,
           maturity_date: maturityDate.toISOString().split('T')[0],
-          next_roi_date: (() => {
-            const d = new Date(createdAt);
-            d.setMonth(d.getMonth() + 1);
-            d.setDate(payoutDay);
-            return d.toISOString().split('T')[0];
-          })(),
+          next_roi_date: nextRoiDate.toISOString().split('T')[0],
         })
         .select('id')
         .single();
