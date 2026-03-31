@@ -357,7 +357,7 @@ export function ApprovalQueue() {
   }, [bulkAction, selected, activeQueue, user, reason, payoutProof, queryClient, items]);
 
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
-  const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, withdrawals: ArrowUpFromLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
+  const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
 
   return (
     <>
