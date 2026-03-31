@@ -67,6 +67,7 @@ interface AgentMenuDrawerProps {
   onViewSubAgents?: () => void;
   onShareSubAgentLink?: () => void;
   onManageFunders?: () => void;
+  onOpenPartnerDashboard?: () => void;
 }
 
 interface MenuItem {
@@ -109,6 +110,7 @@ export function AgentMenuDrawer({
   onViewSubAgents,
   onShareSubAgentLink,
   onManageFunders,
+  onOpenPartnerDashboard,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('actions');
@@ -180,6 +182,7 @@ export function AgentMenuDrawer({
       icon: TrendingUp,
       label: 'Earnings',
       items: [
+        { icon: BarChart3, label: 'Partner Dashboard', description: 'Partners & commissions', onClick: onOpenPartnerDashboard, accent: 'emerald-500', badge: 'New' },
         { icon: Trophy, label: 'Rank System', description: 'Levels & badges', onClick: onOpenEarningsRank, accent: 'amber-500' },
         { icon: TrendingUp, label: 'My Earnings', description: 'Detailed breakdown', path: '/earnings', accent: 'success' },
         { icon: Target, label: 'Goals', description: 'Track targets', path: '/agent-analytics', accent: 'primary' },

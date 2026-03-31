@@ -258,6 +258,43 @@ Deno.serve(async (req) => {
             console.error(`[approve-wallet-op] Failed to activate portfolio ${op.source_id}:`, portfolioActivateErr);
           } else {
             console.log(`[approve-wallet-op] Activated portfolio ${op.source_id} for investor ${portfolioInvestorId}`);
+
+            // ── 2% Investment Commission for the facilitating agent ──
+            if (portfolioData?.agent_id) {
+              const commissionAmount = Math.round(op.amount * 0.02);
+              if (commissionAmount > 0) {
+                // Record in agent_earnings
+                const { error: commErr } = await adminClient
+                  .from("agent_earnings")
+                  .insert({
+                    agent_id: portfolioData.agent_id,
+                    amount: commissionAmount,
+                    earning_type: "investment_commission",
+                    description: `2% investment commission on UGX ${op.amount.toLocaleString()} activation (${portfolioData.portfolio_code || ''})`,
+                    source_user_id: portfolioInvestorId,
+                    rent_request_id: null,
+                  });
+                if (commErr) {
+                  console.error(`[approve-wallet-op] Failed to record investment commission:`, commErr);
+                } else {
+                  // Credit agent wallet via ledger
+                  const commTxGroupId = crypto.randomUUID();
+                  await adminClient.from("general_ledger").insert({
+                    user_id: portfolioData.agent_id,
+                    amount: commissionAmount,
+                    direction: "cash_in",
+                    category: "agent_investment_commission",
+                    description: `2% commission on investment activation ${portfolioData.portfolio_code || ''}`,
+                    source_table: "agent_earnings",
+                    source_id: op.source_id,
+                    transaction_group_id: commTxGroupId,
+                    linked_party: portfolioInvestorId || "Partner",
+                    reference_id: op.reference_id,
+                  });
+                  console.log(`[approve-wallet-op] Credited agent ${portfolioData.agent_id} with ${commissionAmount} investment commission`);
+                }
+              }
+            }
           }
 
           // Determine the correct user for ledger entries (the funder, not the agent)
