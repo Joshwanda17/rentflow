@@ -188,7 +188,7 @@ export function PartnersOpsDashboard() {
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[10px] text-muted-foreground">
-                            {fmt(p.investment_amount)} · {p.roi_percentage}% ROI
+                            {fmt(p.investment_amount)} · {p.roi_percentage}% Returns
                           </span>
                           <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400">
                             ~{fmt(roi)} due

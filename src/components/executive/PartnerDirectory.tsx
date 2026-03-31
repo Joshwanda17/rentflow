@@ -332,7 +332,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">
                   {p.phone && <span className="flex items-center gap-0.5"><Phone className="h-2.5 w-2.5" />{p.phone}</span>}
                   <span className="flex items-center gap-0.5"><DollarSign className="h-2.5 w-2.5" />{fmt(p.totalInvested)}</span>
-                  <span className="flex items-center gap-0.5"><TrendingUp className="h-2.5 w-2.5" />ROI: {fmt(p.totalROI)}</span>
+                  <span className="flex items-center gap-0.5"><TrendingUp className="h-2.5 w-2.5" />Returns: {fmt(p.totalROI)}</span>
                   <span>{p.portfolioCount} acct{p.portfolioCount !== 1 ? 's' : ''}</span>
                 </div>
               </button>
