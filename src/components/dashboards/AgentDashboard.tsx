@@ -296,7 +296,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Today's Collections — who owes, at a glance */}
         <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
-        </div>
 
         {/* 5 Key Action Buttons + Hub — immediately accessible */}
         <div className="grid grid-cols-3 gap-2">
