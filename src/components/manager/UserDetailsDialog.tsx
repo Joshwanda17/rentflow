@@ -1511,6 +1511,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                 </div>
               </TabsContent>
 
+              <TabsContent value="permissions" className="mt-0">
+                <div className="p-4">
+                  <DashboardPermissionsTab userId={user.id} />
+                </div>
+              </TabsContent>
+
               <TabsContent value="edit" className="mt-0">
                 <div className="p-4 space-y-5">
                   {/* Edit Profile Form */}
