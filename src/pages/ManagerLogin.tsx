@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ArrowRight, Lock, ChevronRight, Download, Share, Plus, X } from 'lucide-react';
+import { Shield, ArrowRight, Lock, ChevronRight, Download, Share, Plus, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -8,10 +8,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
+import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 const CACHE_KEY = 'welile_mgr_profiles';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
 
 interface ManagerProfile {
   user_id: string;
@@ -21,7 +22,6 @@ interface ManagerProfile {
   avatar_url: string | null;
 }
 
-// Try to get cached profiles from localStorage for persistence
 function getCachedProfiles(): ManagerProfile[] | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -43,7 +43,6 @@ function setCachedProfiles(profiles: ManagerProfile[]) {
   } catch {}
 }
 
-// iOS install instructions overlay
 function IOSInstallGuide({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in">
@@ -99,12 +98,19 @@ export default function ManagerLogin() {
   });
   const [managers, setManagers] = useState<ManagerProfile[]>(cached || []);
   const [loadingProfiles, setLoadingProfiles] = useState(!cached);
+  
+  // Access password state
+  const [selectedManager, setSelectedManager] = useState<ManagerProfile | null>(null);
+  const [accessPassword, setAccessPassword] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { switchRole, roles, user } = useAuth();
+  const { switchRole, roles } = useAuth();
   const { canInstall, isInstalled, showIOSGuide, setShowIOSGuide, installApp } = useManagerPWAInstall();
 
-  // Fetch profiles — use cache first, then refresh in background
   useEffect(() => {
     const fetchManagers = async () => {
       try {
@@ -124,7 +130,6 @@ export default function ManagerLogin() {
         setLoadingProfiles(false);
       }
     };
-
     fetchManagers();
   }, []);
 
@@ -146,18 +151,63 @@ export default function ManagerLogin() {
 
   const handleSelectProfile = (manager: ManagerProfile) => {
     hapticTap();
-    
-    // Set session data instantly
+    setSelectedManager(manager);
+    setAccessPassword('');
+    setPasswordError(false);
+  };
+
+  const handleVerifyPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedManager || !accessPassword.trim()) return;
+
+    setVerifyingPassword(true);
+    setPasswordError(false);
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc('verify_staff_access_password', {
+        p_user_id: selectedManager.user_id,
+        p_password: accessPassword,
+      });
+
+      const result = data as { valid: boolean; must_change: boolean };
+
+      if (rpcError || !result.valid) {
+        setPasswordError(true);
+        setVerifyingPassword(false);
+        return;
+      }
+
+      // Audit: staff_login via manager portal
+      await supabase.from('audit_logs').insert({
+        user_id: selectedManager.user_id,
+        action_type: 'staff_login',
+        metadata: { method: 'manager_portal', login_at: new Date().toISOString() },
+      });
+
+      if (result.must_change) {
+        setMustChangePassword(true);
+        setVerifyingPassword(false);
+        return;
+      }
+
+      // Proceed to dashboard
+      proceedToDashboard(selectedManager);
+    } catch {
+      setPasswordError(true);
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
+  const proceedToDashboard = (manager: ManagerProfile) => {
     localStorage.setItem('manager_access_verified', 'true');
     sessionStorage.setItem('manager_selected_id', manager.user_id);
     sessionStorage.setItem('manager_selected_name', manager.full_name);
 
-    // Switch role in background — don't block navigation
     if (roles.includes('manager')) {
       switchRole('manager');
     }
 
-    // Navigate immediately
     navigate('/dashboard');
   };
 
@@ -173,11 +223,80 @@ export default function ManagerLogin() {
     }
   };
 
+  // Force password change overlay
+  if (mustChangePassword && selectedManager) {
+    return (
+      <ForcePasswordChange
+        userId={selectedManager.user_id}
+        onPasswordChanged={() => {
+          setMustChangePassword(false);
+          proceedToDashboard(selectedManager);
+        }}
+      />
+    );
+  }
+
+  // Access password overlay
+  if (selectedManager && !mustChangePassword) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-sm space-y-6">
+          <div className="text-center space-y-3">
+            <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-primary/10">
+              {selectedManager.avatar_url ? (
+                <img src={selectedManager.avatar_url} alt={selectedManager.full_name} className="w-14 h-14 rounded-full object-cover" />
+              ) : (
+                <span className="text-lg font-bold text-primary">{getInitials(selectedManager.full_name)}</span>
+              )}
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">{selectedManager.full_name}</h1>
+              <p className="text-sm text-muted-foreground mt-1">Enter your access password</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleVerifyPassword} className="space-y-4">
+            <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-xl space-y-4">
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="Access password"
+                  value={accessPassword}
+                  onChange={(e) => { setAccessPassword(e.target.value); setPasswordError(false); }}
+                  className={`pl-10 h-12 rounded-xl ${passwordError ? 'border-destructive ring-destructive/20 ring-2' : ''}`}
+                  autoFocus
+                  autoComplete="off"
+                />
+              </div>
+              {passwordError && (
+                <p className="text-xs text-destructive">Incorrect password. Try again.</p>
+              )}
+              <Button type="submit" disabled={!accessPassword.trim() || verifyingPassword} className="w-full h-12 rounded-xl font-bold gap-2">
+                {verifyingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                Continue
+              </Button>
+            </div>
+          </form>
+
+          <button
+            onClick={() => setSelectedManager(null)}
+            className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Back to profiles
+          </button>
+
+          <p className="text-center text-[11px] text-muted-foreground/50">
+            Default password: WelileManager (first-time users)
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
-        {/* Logo */}
         <div className="text-center space-y-3">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Shield className="h-8 w-8 text-primary" />
@@ -193,7 +312,6 @@ export default function ManagerLogin() {
         </div>
 
         {!verified ? (
-          /* Code Input */
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className={`transition-transform ${isShaking ? 'animate-shake' : ''}`}>
               <div className="relative">
@@ -223,7 +341,6 @@ export default function ManagerLogin() {
             </Button>
           </form>
         ) : (
-          /* Manager Profile List */
           <div className="space-y-2">
             {loadingProfiles ? (
               <div className="space-y-1.5">
@@ -277,7 +394,6 @@ export default function ManagerLogin() {
           </div>
         )}
 
-        {/* Install as separate app */}
         {canInstall && (
           <Button 
             variant="outline" 
@@ -302,7 +418,6 @@ export default function ManagerLogin() {
         </p>
       </div>
 
-      {/* iOS Install Guide Overlay */}
       {showIOSGuide && <IOSInstallGuide onClose={() => setShowIOSGuide(false)} />}
     </div>
   );

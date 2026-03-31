@@ -7,7 +7,7 @@ import { LogOut, Menu, X, ArrowLeft, Loader2 } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
 import type { SidebarSection } from './executiveSidebarConfig';
-import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
+
 
 interface ExecutiveDashboardLayoutProps {
   role: string;
@@ -25,19 +25,12 @@ export default function ExecutiveDashboardLayout({
   const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const loggedRef = useRef(false);
 
-  // Check must_change_password on mount
   useEffect(() => {
     if (!user) { setCheckingProfile(false); return; }
-    const check = async () => {
-      const { data } = await supabase.from('profiles').select('must_change_password').eq('id', user.id).single();
-      if (data?.must_change_password) setMustChangePassword(true);
-      setCheckingProfile(false);
-    };
-    check();
+    setCheckingProfile(false);
   }, [user]);
 
   // Log dashboard_accessed
@@ -118,14 +111,8 @@ export default function ExecutiveDashboardLayout({
     );
   }
 
-  if (mustChangePassword && user) {
-    return (
-      <ForcePasswordChange
-        userId={user.id}
-        onPasswordChanged={() => setMustChangePassword(false)}
-      />
-    );
-  }
+
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

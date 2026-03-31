@@ -24,15 +24,17 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
 
     setChanging(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      // Use the staff access password RPC (not auth password)
+      const { error } = await supabase.rpc('set_staff_access_password', {
+        p_user_id: userId,
+        p_new_password: newPassword,
+      });
+
       if (error) {
-        toast.error('Failed to update password', { description: error.message });
+        toast.error('Failed to update access password', { description: error.message });
         setChanging(false);
         return;
       }
-
-      // Clear must_change_password flag
-      await supabase.from('profiles').update({ must_change_password: false } as any).eq('id', userId);
 
       // Audit log
       await supabase.from('audit_logs').insert({
@@ -41,7 +43,7 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
         metadata: { changed_at: new Date().toISOString() },
       });
 
-      toast.success('Password updated successfully');
+      toast.success('Access password updated successfully');
       onPasswordChanged();
     } catch {
       toast.error('Something went wrong');
@@ -58,9 +60,9 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
             <ShieldAlert className="h-8 w-8 text-destructive" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-foreground">Password Change Required</h1>
+            <h1 className="text-xl font-black text-foreground">Set Your Access Password</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              You must set a new password before accessing the dashboard.
+              Create a personal access password for the manager portal.
             </p>
           </div>
         </div>
@@ -69,7 +71,7 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
           <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-xl space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="new-pw" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                New Password
+                New Access Password
               </Label>
               <Input
                 id="new-pw"
@@ -102,7 +104,7 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
             </div>
             <Button type="submit" disabled={!isValid || changing} className="w-full h-12 rounded-xl font-bold gap-2">
               {changing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-              Set New Password
+              Set Access Password
             </Button>
           </div>
         </form>
