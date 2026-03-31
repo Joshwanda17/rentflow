@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const AGENT_COMMISSION_RATE = 0.05; // 5% commission
+const AGENT_COMMISSION_FLAT = 10000; // Flat UGX 10,000 commission
 
 // Input validation functions
 function validateUUID(value: unknown): string | null {
