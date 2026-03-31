@@ -2627,7 +2627,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid grid-cols-2 gap-2 text-center">
                     <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-[10px] text-muted-foreground">Principal</p>
                       <p className="text-xs font-bold tabular-nums">{formatUGX(p.investmentAmount)}</p>
@@ -2637,9 +2637,15 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-[10px] text-muted-foreground">Contribution Date</p>
+                      <p className="text-xs font-bold">
+                        {new Date(p.createdAt).toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2">
                       <p className="text-[10px] text-muted-foreground">Payout Date</p>
                       <p className="text-xs font-bold">
-                        {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric' })}
+                        {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                   </div>
