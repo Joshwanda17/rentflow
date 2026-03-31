@@ -669,6 +669,28 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setSavingPortfolio(false); }
   }
 
+  /* ─── Save next payout date ─── */
+  async function handleSaveNextPayoutDate(portfolioId: string) {
+    if (!editingNextPayoutDate) { toast.error('Please select a date'); return; }
+    setSavingPortfolio(true);
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ next_roi_date: editingNextPayoutDate })
+        .eq('id', portfolioId);
+      if (error) throw error;
+      toast.success('Next payout date updated');
+      setEditingNextPayoutId(null);
+      if (detailPartner) {
+        const updated = detailPartner.portfolios.map(p =>
+          p.id === portfolioId ? { ...p, next_roi_date: editingNextPayoutDate } : p
+        );
+        setDetailPartner({ ...detailPartner, portfolios: updated });
+      }
+    } catch (e: any) { toast.error(e.message || 'Failed to update'); }
+    finally { setSavingPortfolio(false); }
+  }
+
   /* ─── Delete Portfolio ─── */
   async function handleDeletePortfolio() {
     if (!deletePortfolio || !deleteReason.trim()) {
