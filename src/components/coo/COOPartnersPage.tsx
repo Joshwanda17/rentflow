@@ -71,6 +71,7 @@ interface NearingPayoutPortfolio {
   roiMode: string;
   createdAt: string;
   daysUntil: number;
+  nextPayoutDate: string;
 }
 
 interface PortfolioRow {
@@ -327,9 +328,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           existing.payoutDay = p.payout_day ?? 15;
           existing.roiMode = p.roi_mode ?? 'monthly_payout';
         }
-        // Track earliest next_roi_date
-        if (p.next_roi_date && (!existing.nextRoiDate || p.next_roi_date < existing.nextRoiDate)) {
-          existing.nextRoiDate = p.next_roi_date;
+        // Track earliest next_roi_date (derive from created_at + 1 month if missing)
+        let effectiveDate = p.next_roi_date;
+        if (!effectiveDate) {
+          const base = new Date(p.created_at);
+          base.setMonth(base.getMonth() + 1);
+          effectiveDate = base.toISOString().split('T')[0];
+        }
+        if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
+          existing.nextRoiDate = effectiveDate;
         }
         if (!existing.lastActivity || p.created_at > existing.lastActivity) {
           existing.lastActivity = p.created_at;
@@ -382,20 +389,32 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
       setRows(tableRows);
 
-      // Build portfolio-level nearing payouts using next_roi_date
+      // Build portfolio-level nearing payouts using next_roi_date (or derived from created_at + 1 month)
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       const nearingList: NearingPayoutPortfolio[] = [];
       dedupedPortfolios.forEach(p => {
-        if (!p.next_roi_date || p.status !== 'active') return;
+        if (p.status !== 'active') return;
         const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
-        const roiDate = new Date(p.next_roi_date + 'T00:00:00');
+
+        // Derive next payout date: use next_roi_date if set, otherwise created_at + 1 month
+        let effectiveNextDate: string;
+        if (p.next_roi_date) {
+          effectiveNextDate = p.next_roi_date;
+        } else {
+          const base = new Date(p.created_at);
+          base.setMonth(base.getMonth() + 1);
+          effectiveNextDate = base.toISOString().split('T')[0];
+        }
+
+        const roiDate = new Date(effectiveNextDate + 'T00:00:00');
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         if (du >= 0 && du <= 7) {
           const prof = profileMap.get(ownerId);
+          const effectivePayoutDay = p.payout_day || roiDate.getDate();
           nearingList.push({
             portfolioId: p.id,
             investorId: ownerId,
@@ -404,10 +423,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             email: prof?.email || '',
             investmentAmount: p.investment_amount || 0,
             roiPercentage: p.roi_percentage ?? 15,
-            payoutDay: p.payout_day,
+            payoutDay: effectivePayoutDay,
             roiMode: p.roi_mode ?? 'monthly_payout',
             createdAt: p.created_at,
             daysUntil: du,
+            nextPayoutDate: effectiveNextDate,
           });
         }
       });
@@ -1588,7 +1608,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-1.5">
-                                      <span className="font-bold">{p.payout_day}{getOrdinalSuffix(p.payout_day)} of month</span>
+                                      <span className="font-bold">
+                                        {p.payout_day
+                                          ? `${p.payout_day}${getOrdinalSuffix(p.payout_day)} of month`
+                                          : p.next_roi_date
+                                            ? `${new Date(p.next_roi_date + 'T00:00:00').getDate()}${getOrdinalSuffix(new Date(p.next_roi_date + 'T00:00:00').getDate())} of month`
+                                            : 'Not set'}
+                                      </span>
                                       {!readOnly && (
                                         <button
                                           onClick={() => { setEditingPortfolioId(p.id); setEditingPayoutDay(String(p.payout_day)); }}
@@ -2611,8 +2637,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Payout Day</p>
-                      <p className="text-xs font-bold">{p.payoutDay}{getOrdinalSuffix(p.payoutDay)}</p>
+                      <p className="text-[10px] text-muted-foreground">Payout Date</p>
+                      <p className="text-xs font-bold">
+                        {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric' })}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground">
