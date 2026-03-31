@@ -6,7 +6,18 @@ import { Server, Activity, ShieldAlert, Users, Bug, Wifi, Database, Clock, HardD
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
 
-export function CTODashboard() {
+export function CTODashboard({ activeTab }: { activeTab?: string }) {
+  if (activeTab === 'system-logs') {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold text-foreground">System Logs</h1>
+        <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
+          <p>System logs view — coming soon.</p>
+        </div>
+      </div>
+    );
+  }
+
   // Real: active users in last 7 days
   const { data: activeUsers, isLoading } = useQuery({
     queryKey: ['cto-active-users'],

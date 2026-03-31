@@ -7,7 +7,7 @@ export default function CTODashboardPage() {
 
   return (
     <ExecutiveDashboardLayout role="cto" activeTab={activeTab} onTabChange={setActiveTab}>
-      <CTODashboard />
+      <CTODashboard activeTab={activeTab} />
     </ExecutiveDashboardLayout>
   );
 }

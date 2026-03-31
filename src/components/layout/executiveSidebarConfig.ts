@@ -1,6 +1,6 @@
 import {
   BarChart3, Shield, Banknote, ClipboardList, BookOpen, Server, Code, Lock, Wrench,
-  TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
+  TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2, FileText,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck
 } from 'lucide-react';
