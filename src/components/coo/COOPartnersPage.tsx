@@ -1438,7 +1438,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </div>
 
       {/* ─── Partner Detail Dialog ─── */}
-      <Dialog open={!!detailPartner || detailLoading} onOpenChange={open => { if (!open) { setDetailPartner(null); setEditingPortfolioId(null); } }}>
+      <Dialog open={!!detailPartner || detailLoading} onOpenChange={open => { if (!open) { setDetailPartner(null); setEditingPortfolioId(null); setEditingNextPayoutId(null); } }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           {detailLoading ? (
             <div className="flex items-center justify-center py-20">
