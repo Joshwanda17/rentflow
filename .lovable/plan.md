@@ -1,44 +1,92 @@
+# Restructure Partner/Funder Withdrawal Approval Chain
 
+## What Changes
 
-# Fix Payout Date Logic — Count One Month From Contribution Date
+**ensure you follow event based architecture**
 
-## Problem
-When a portfolio is created with a contribution date (e.g., April 1st), the system stores a separate `payout_day` field (e.g., 28) which is manually entered. The "Nearing Payout" logic compares `payout_day` against today's date, causing incorrect results. TULLEN BEN's portfolio (WIP2603313481) was created for April 1st with `payout_day=28`, but `next_roi_date` is correctly May 1st — the nearing payout widget ignores `next_roi_date`.
+**Current chain** for partner capital withdrawals (`investment_withdrawal_requests`):
 
-## Root Cause
-The nearing-payout calculation (line ~390) uses `p.payout_day - currentDay` to determine proximity. It should instead use `next_roi_date` which already represents the actual next payout date (one month from contribution).
+- Submitted → lands in Financial Ops ApprovalQueue → single approve/reject (no multi-stage)
 
-## Plan
+**New chain** (3-stage with creative labels):
 
-### 1. Fix "Add Portfolio" — Auto-set payout_day from contribution date
-When creating a portfolio, instead of requiring a manual payout day input, automatically derive `payout_day` from the contribution date's day-of-month. If contribution is April 1st → `payout_day = 1`. Also ensure `next_roi_date` is exactly one month from contribution date (already works, but remove the override to `payoutDay` on line 739).
+1. **Requested** — Partner submits withdrawal
+2. **Portfolio Review** — Partner Ops reviews (operations dept: partner-ops)
+3. **Operations Clearance** — COO dashboard approves
+4. **Treasury Payout** — CFO processes the actual payout
 
-**Changes in `handleAddPortfolio`:**
-- Remove the manual `addPortfolioPayoutDay` input from the form
-- Auto-calculate: `payout_day = new Date(createdAt).getDate()` (capped at 28 for safety)
-- `next_roi_date` = contribution date + 1 month (keep existing logic but use contribution day, not manual payout day)
-
-### 2. Fix "Nearing Payout" logic — Use `next_roi_date` instead of `payout_day`
-Change the nearing-payout filter to compare `next_roi_date` against today, rather than using `payout_day` arithmetic.
-
-**Changes in the nearing payout calculation (~line 383-408):**
-- Fetch `next_roi_date` in the portfolio query (already fetched in detail view but not in the list query on line 290)
-- Add `next_roi_date` to the list query select
-- Calculate `daysUntil` as: `differenceInDays(new Date(p.next_roi_date), today)`
-- Filter: show if `daysUntil >= 0 && daysUntil <= 7`
-
-### 3. Update the "Compound" and "Pay to Wallet" handlers
-After processing a payout, advance `next_roi_date` by one month so the cycle continues correctly.
-
-### 4. Remove payout day input from Add Portfolio dialog
-Remove the manual "Payout Day" field from the create portfolio form since it's now auto-derived from the contribution date.
-
-### 5. Fix existing data (TULLEN BEN)
-Update portfolio WIP2603313481 to set `payout_day = 1` (matching the April 1st contribution date), confirming `next_roi_date` is already correct at May 1st.
+User-facing labels hide internal role names — no "CFO" or "COO" shown.
 
 ---
 
-**Files to modify:**
-- `src/components/coo/COOPartnersPage.tsx` — all changes above
-- Database update for existing incorrect records
+## Plan
 
+### 1. Database Migration — Add approval stage columns to `investment_withdrawal_requests`
+
+Add columns for multi-stage tracking:
+
+- `partner_ops_approved_at`, `partner_ops_approved_by` (UUID)
+- `coo_approved_at`, `coo_approved_by` (UUID)
+- `cfo_processed_at`, `cfo_processed_by` (UUID)
+- `rejection_reason` (text)
+
+Update status flow to support: `pending` → `partner_ops_approved` → `coo_approved` → `approved` (final, after CFO payout)
+
+### 2. Update `WithdrawalStepTracker` — Support partner withdrawal variant
+
+Add a `variant` prop (`wallet` | `partner`). When `variant="partner"`:
+
+- Step 1: **Requested** (User icon)
+- Step 2: **Portfolio Review** (Briefcase icon) — instead of "Manager Review"
+- Step 3: **Operations Clearance** (Shield icon) — instead of "CFO Review"  
+- Step 4: **Treasury Payout** (Banknote icon) — instead of "COO Approval"
+
+Map the timestamp props accordingly (`partnerOpsApprovedAt`, `cooApprovedAt`, `cfoProcessedAt`).
+
+### 3. Update Partner Ops Dashboard — Add withdrawal review queue
+
+In `PartnersOpsDashboard.tsx`, add a "Withdrawal Requests" section that:
+
+- Queries `investment_withdrawal_requests` where `status = 'pending'`
+- Shows partner name, amount, reason, days since request
+- Approve action sets status to `partner_ops_approved` + timestamps
+- Reject sets status to `rejected` with reason
+- Logs to `audit_logs`
+
+### 4. Update COO Dashboard — Add partner withdrawal stage
+
+In `COOWithdrawalApprovals.tsx` (or a new sibling component):
+
+- Query `investment_withdrawal_requests` where `status = 'partner_ops_approved'`
+- Show as "Operations Clearance" queue (not "COO")
+- Approve sets status to `coo_approved` + timestamps
+- Forward to CFO for payout
+
+### 5. Update CFO Dashboard — Add partner payout processing
+
+Create or extend CFO withdrawal section to:
+
+- Query `investment_withdrawal_requests` where `status = 'coo_approved'`
+- Show as "Treasury Payout" queue
+- Require transaction ID/proof before finalizing
+- Approve sets status to `approved` + `cfo_processed_at` + payout details
+
+### 6. Remove partner withdrawals from Financial Ops ApprovalQueue
+
+Remove the `investment_withdrawal_requests` query from `ApprovalQueue.tsx` (the "withdrawals" tab) since partner withdrawals now flow through their own dedicated chain.
+
+### 7. Update supporter-facing UI
+
+In `InvestmentWithdrawButton.tsx`, add the step tracker showing the creative labels so funders can see their request progress through: Requested → Portfolio Review → Operations Clearance → Treasury Payout.
+
+---
+
+## Files to modify
+
+- **Migration**: Add columns to `investment_withdrawal_requests`
+- `src/components/wallet/WithdrawalStepTracker.tsx` — add partner variant
+- `src/components/executive/PartnersOpsDashboard.tsx` — add withdrawal queue
+- `src/components/coo/COOWithdrawalApprovals.tsx` — add partner withdrawal stage
+- `src/components/cfo/CFOWithdrawalApprovals.tsx` — add partner payout processing
+- `src/components/financial-ops/ApprovalQueue.tsx` — remove partner withdrawals
+- `src/components/supporter/InvestmentWithdrawButton.tsx` — add step tracker
