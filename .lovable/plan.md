@@ -1,58 +1,48 @@
-# Bug: Triple Agent Commission on Tenant Deposits
 
-## Root Cause
 
-There are **three separate commission credit paths** firing for a single agent deposit:
+# Fix iOS White/Blank Screen During Property Registration
 
-### Path 1 — Trigger on `repayments` table
+## Problem
+The RegisterPropertyDialog shows an intermittent white/blank screen on iOS Safari. This is caused by a combination of iOS-specific rendering issues.
 
-The `on_repayment_agent_commission` trigger fires `credit_agent_repayment_commission()` every time a row is inserted into `repayments`. This trigger directly credits the agent wallet, inserts into `agent_earnings`, and posts a ledger entry. It has **no idempotency guard**.
+## Root Causes Identified
 
-### Path 2 — Explicit RPC call in edge function
+1. **Dialog zoom animations** — The dialog lacks the `stable` prop, so it uses `zoom-in-98`/`zoom-out-98` CSS animations. On iOS Safari, these transform-based animations combined with `backdrop-blur-sm` on the overlay can cause the GPU compositor to drop frames, rendering a white screen.
 
-`agent-deposit/index.ts` line 252 explicitly calls `credit_agent_rent_commission` RPC, which also credits the agent wallet (via ledger trigger), inserts into `agent_earnings`, and posts a ledger entry. This RPC **does** have an idempotency guard but uses a different `source_id` than the trigger.
+2. **`backdrop-blur-sm` on overlay** — iOS Safari has well-documented issues with `backdrop-filter: blur()` causing blank/white rendering, especially when layered with scrollable content and animations.
 
-### Path 3 — `record_rent_request_repayment` RPC inserts a second `repayments` row
+3. **Framer Motion `AnimatePresence`** — The `AnimatePresence mode="wait"` with nested `motion.div` and `motion.form` inside a Radix dialog portal can conflict with iOS Safari's compositor, especially during the geolocation permission prompt (which suspends the JS thread).
 
-`agent-deposit/index.ts` line 282 inserts a `repayments` row directly, then line 292 calls `record_rent_request_repayment` which inserts **another** `repayments` row (line 164 of the RPC). Each insert fires the trigger from Path 1.
+4. **Geolocation prompt interaction** — When iOS shows the location permission system dialog, it can cause the underlying WebView to re-composite. If the dialog content relies on animations mid-flight, it renders blank on return.
 
-### Result: 3x commission
+## Plan
 
-```text
-Agent deposits UGX 100,000 for tenant
-  ├─ [1] Edge function inserts repayments row (line 282)
-  │     └─ TRIGGER fires → credit_agent_repayment_commission() → +5,000
-  ├─ [2] Edge function calls credit_agent_rent_commission RPC (line 252)
-  │     └─ RPC credits wallet via ledger trigger → +5,000
-  └─ [3] Edge function calls record_rent_request_repayment RPC (line 292)
-        └─ RPC inserts ANOTHER repayments row (RPC line 164)
-              └─ TRIGGER fires AGAIN → credit_agent_repayment_commission() → +5,000
-                                                            TOTAL: 15,000 (3x)
-```
+### Step 1: Add `stable` prop to RegisterPropertyDialog
+Add the `stable` prop to `DialogContent` to disable zoom animations, matching the pattern used by other dialogs that work on iOS (e.g., `WithdrawRequestDialog`, `DepositDialog`).
 
-## Fix Plan
+**File:** `src/components/landlord/RegisterPropertyDialog.tsx` (line 276)
+- Change: `<DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">`
+- To: `<DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" stable>`
 
-### Step 1: Drop the `on_repayment_agent_commission` trigger
+### Step 2: Remove AnimatePresence wrapper
+Replace `AnimatePresence mode="wait"` and `motion.form`/`motion.div` with plain `div`/`form` elements. The success state can use a simple conditional render. This eliminates the Framer Motion + Radix portal conflict on iOS.
 
-This trigger is **redundant** — the `credit_agent_rent_commission` RPC is the designated single-writer for commissions (per system architecture). The trigger has no idempotency guard and fires on every `repayments` insert, including duplicates.
+**File:** `src/components/landlord/RegisterPropertyDialog.tsx`
+- Replace `<AnimatePresence mode="wait">` with a simple conditional
+- Replace `<motion.form>` with `<form>`
+- Replace `<motion.div>` (success) with `<div>`
+- Keep the small inline `motion.div` for fee breakdown (harmless, not layout-critical)
 
-**Migration SQL:**
+### Step 3: Add iOS-safe scroll class to dialog content
+Add `-webkit-overflow-scrolling: touch` and `overscroll-behavior: contain` to the dialog for smoother iOS scrolling, using the existing `ios-fixed-scroll` CSS class.
 
-```sql
-DROP TRIGGER IF EXISTS on_repayment_agent_commission ON repayments;
-DROP FUNCTION IF EXISTS credit_agent_repayment_commission();
-```
+**File:** `src/components/landlord/RegisterPropertyDialog.tsx` (line 276)
+- Add `ios-fixed-scroll` class to DialogContent
 
-### Step 2: Remove the duplicate `repayments` insert from `agent-deposit/index.ts`
+## Technical Details
 
-Lines 282–289 insert a `repayments` row, then lines 292–295 call `record_rent_request_repayment` which inserts another one. Remove the direct insert (lines 282–289) and keep only the RPC call, which also handles `amount_repaid` updates and landlord balance reduction.
+- **Files modified:** 1 file (`src/components/landlord/RegisterPropertyDialog.tsx`)
+- **No new dependencies**
+- The `stable` prop is already supported by the custom `DialogContent` component — it disables transform animations and sets `willChange: auto`
+- Other dialogs using `stable` (WithdrawRequestDialog, DepositDialog, FundRentDialog) are confirmed working on iOS
 
-### Step 3: Remove the duplicate notification from `agent-deposit/index.ts`
-
-Lines 307–315 insert a "Commission Earned" notification, but the `credit_agent_rent_commission` RPC already sends one. Remove the edge function notification to prevent duplicate alerts.
-
-### Files to change
-
-- **New migration** — drop `on_repayment_agent_commission` trigger and `credit_agent_repayment_commission` function
-- `**supabase/functions/agent-deposit/index.ts**` — remove duplicate `repayments` insert (lines 282–289) and duplicate commission notification (lines 307–315)
-- SO THE FINAL REWARD IS 10000 ONLY.
