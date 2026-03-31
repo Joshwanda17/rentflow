@@ -81,6 +81,7 @@ import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentReques
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
+import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
@@ -292,6 +293,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <div key="daily-rent-card">
           <DailyRentExpectedCard userId={user.id} />
         </div>
+
+        {/* Today's Collections — who owes, at a glance */}
+        <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
 
         {/* 5 Key Action Buttons + Hub — immediately accessible */}
         <div className="grid grid-cols-3 gap-2">
