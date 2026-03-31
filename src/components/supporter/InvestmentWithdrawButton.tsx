@@ -98,6 +98,10 @@ export function InvestmentWithdrawButton() {
         status: 'pending',
         earliest_process_date: processDate.toISOString(),
         created_at: new Date().toISOString(),
+        requested_at: new Date().toISOString(),
+        partner_ops_approved_at: null,
+        coo_approved_at: null,
+        cfo_processed_at: null,
       });
 
       toast({
