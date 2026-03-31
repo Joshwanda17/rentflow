@@ -1537,15 +1537,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   <p className="font-semibold">{p.duration_months} months</p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Payout Date</span>
+                                  <span className="text-muted-foreground">Next Payout</span>
                                   <p className="font-semibold">
-                                    {(() => {
-                                      const now = new Date();
-                                      const day = p.payout_day || 15;
-                                      let target = new Date(now.getFullYear(), now.getMonth(), day);
-                                      if (target <= now) target = new Date(now.getFullYear(), now.getMonth() + 1, day);
-                                      return target.toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
-                                    })()}
+                                    {p.next_roi_date
+                                      ? new Date(p.next_roi_date + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' })
+                                      : 'Not scheduled'}
                                   </p>
                                 </div>
                                 <div>
