@@ -2473,7 +2473,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const handlePay = async (p: NearingPayoutPortfolio) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'pay' }));
     try {
-      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
       const refId = generateRef('PAY');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
