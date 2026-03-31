@@ -1514,11 +1514,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               {/* Details grid */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs bg-muted/30 rounded-lg p-2.5">
                                 <div>
-                                  <span className="text-muted-foreground">ROI Rate</span>
+                                  <span className="text-muted-foreground">Returns Rate</span>
                                   <p className="font-bold text-primary">{p.roi_percentage}%</p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Monthly ROI</span>
+                                  <span className="text-muted-foreground">Monthly Returns</span>
                                   <p className="font-bold">{formatUGX(monthlyROI)}</p>
                                 </div>
                                 <div>
