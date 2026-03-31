@@ -182,6 +182,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [resettingStaffPassword, setResettingStaffPassword] = useState(false);
 
   const fetchReferrerInfo = async (userId: string) => {
     setReferrerLoading(true);
