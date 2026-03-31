@@ -384,6 +384,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewSubAgents={() => { setMenuOpen(false); setSubAgentsSheetOpen(true); }}
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
+        onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
       />
 
       {/* Existing Dialogs */}
