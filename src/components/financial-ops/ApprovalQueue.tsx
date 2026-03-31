@@ -219,7 +219,7 @@ export function ApprovalQueue() {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [activeQueue, search, sortNewest, deposits, withdrawals, walletWithdrawals, walletOps]);
+  }, [activeQueue, search, sortNewest, deposits, walletWithdrawals, walletOps]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
