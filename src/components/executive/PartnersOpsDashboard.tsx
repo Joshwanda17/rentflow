@@ -115,7 +115,7 @@ export function PartnersOpsDashboard() {
   const tabs: { key: Tab; label: string; icon: any; badge?: number }[] = [
     { key: 'portfolios', label: 'Portfolios', icon: Wallet },
     { key: 'capital', label: 'Capital Flow', icon: DollarSign },
-    { key: 'roi', label: 'ROI Payouts', icon: TrendingUp },
+    { key: 'roi', label: 'Returns Payouts', icon: TrendingUp },
   ];
 
   // ═══ RENDER TAB CONTENT ═══
