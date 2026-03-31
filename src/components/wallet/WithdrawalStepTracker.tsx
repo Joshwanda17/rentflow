@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, User, Briefcase, DollarSign, Shield } from 'lucide-react';
+import { CheckCircle, Clock, User, Briefcase, DollarSign, Shield, Banknote } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -10,57 +10,63 @@ interface StepData {
 }
 
 interface WithdrawalStepTrackerProps {
+  variant?: 'wallet' | 'partner';
   status: string;
   createdAt: string;
+  // Wallet chain
   managerApprovedAt?: string | null;
   cfoApprovedAt?: string | null;
   cooApprovedAt?: string | null;
   processedAt?: string | null;
+  // Partner chain
+  partnerOpsApprovedAt?: string | null;
+  cooClearedAt?: string | null;
+  cfoProcessedAt?: string | null;
 }
 
 export function WithdrawalStepTracker({
+  variant = 'wallet',
   status,
   createdAt,
   managerApprovedAt,
   cfoApprovedAt,
   cooApprovedAt,
   processedAt,
+  partnerOpsApprovedAt,
+  cooClearedAt,
+  cfoProcessedAt,
 }: WithdrawalStepTrackerProps) {
   const isRejected = status === 'rejected';
 
-  const steps: StepData[] = [
-    {
-      label: 'Requested',
-      description: 'Withdrawal submitted',
-      icon: User,
-      completedAt: createdAt,
-    },
-    {
-      label: 'Manager Review',
-      description: 'Manager approval',
-      icon: Briefcase,
-      completedAt: managerApprovedAt,
-    },
-    {
-      label: 'CFO Review',
-      description: 'CFO approval',
-      icon: DollarSign,
-      completedAt: cfoApprovedAt,
-    },
-    {
-      label: 'COO Approval & Payment',
-      description: 'Final approval & payout',
-      icon: Shield,
-      completedAt: cooApprovedAt || processedAt,
-    },
+  const walletSteps: StepData[] = [
+    { label: 'Requested', description: 'Withdrawal submitted', icon: User, completedAt: createdAt },
+    { label: 'Manager Review', description: 'Manager approval', icon: Briefcase, completedAt: managerApprovedAt },
+    { label: 'CFO Review', description: 'CFO approval', icon: DollarSign, completedAt: cfoApprovedAt },
+    { label: 'COO Approval & Payment', description: 'Final approval & payout', icon: Shield, completedAt: cooApprovedAt || processedAt },
   ];
+
+  const partnerSteps: StepData[] = [
+    { label: 'Requested', description: 'Withdrawal submitted', icon: User, completedAt: createdAt },
+    { label: 'Portfolio Review', description: 'Verification & assessment', icon: Briefcase, completedAt: partnerOpsApprovedAt },
+    { label: 'Operations Clearance', description: 'Operational sign-off', icon: Shield, completedAt: cooClearedAt },
+    { label: 'Treasury Payout', description: 'Final processing & payout', icon: Banknote, completedAt: cfoProcessedAt },
+  ];
+
+  const steps = variant === 'partner' ? partnerSteps : walletSteps;
 
   // Determine current active step
   const getActiveStepIndex = () => {
-    if (status === 'approved') return 4; // all done
+    if (variant === 'partner') {
+      if (status === 'approved') return 4;
+      if (cfoProcessedAt) return 4;
+      if (cooClearedAt) return 3;
+      if (partnerOpsApprovedAt) return 2;
+      return 1;
+    }
+    if (status === 'approved') return 4;
     if (cfoApprovedAt) return 3;
     if (managerApprovedAt) return 2;
-    return 1; // pending at manager
+    return 1;
   };
 
   const activeStep = isRejected ? -1 : getActiveStepIndex();
@@ -76,7 +82,6 @@ export function WithdrawalStepTracker({
 
         return (
           <div key={index} className="flex gap-3">
-            {/* Vertical line + circle */}
             <div className="flex flex-col items-center">
               <div
                 className={cn(
@@ -105,7 +110,6 @@ export function WithdrawalStepTracker({
               )}
             </div>
 
-            {/* Content */}
             <div className={cn('pb-4', isLast && 'pb-0')}>
               <p
                 className={cn(
