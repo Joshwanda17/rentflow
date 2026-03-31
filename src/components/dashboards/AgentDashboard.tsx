@@ -75,7 +75,6 @@ import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
 import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
 import { FunderManagementSheet } from '@/components/agent/FunderManagementSheet';
 import { Card, CardContent } from '@/components/ui/card';
-import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
