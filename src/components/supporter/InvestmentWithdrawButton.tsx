@@ -12,6 +12,7 @@ import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
+import { WithdrawalStepTracker } from '@/components/wallet/WithdrawalStepTracker';
 
 export function InvestmentWithdrawButton() {
   const { user } = useAuth();
@@ -26,6 +27,10 @@ export function InvestmentWithdrawButton() {
     status: string;
     earliest_process_date: string;
     created_at: string;
+    requested_at: string;
+    partner_ops_approved_at: string | null;
+    coo_approved_at: string | null;
+    cfo_processed_at: string | null;
   } | null>(null);
 
   const amountNum = Number(amount) || 0;
@@ -48,9 +53,9 @@ export function InvestmentWithdrawButton() {
     const fetchExisting = async () => {
       const { data } = await supabase
         .from('investment_withdrawal_requests' as any)
-        .select('amount, status, earliest_process_date, created_at')
+        .select('amount, status, earliest_process_date, created_at, requested_at, partner_ops_approved_at, coo_approved_at, cfo_processed_at')
         .eq('user_id', user.id)
-        .in('status', ['pending', 'approved'])
+        .in('status', ['pending', 'partner_ops_approved', 'coo_approved', 'approved'])
         .order('created_at', { ascending: false })
         .limit(1);
       if (data && (data as any[]).length > 0) {
@@ -93,6 +98,10 @@ export function InvestmentWithdrawButton() {
         status: 'pending',
         earliest_process_date: processDate.toISOString(),
         created_at: new Date().toISOString(),
+        requested_at: new Date().toISOString(),
+        partner_ops_approved_at: null,
+        coo_approved_at: null,
+        cfo_processed_at: null,
       });
 
       toast({
@@ -195,6 +204,19 @@ export function InvestmentWithdrawButton() {
             <PauseCircle className="h-3.5 w-3.5 shrink-0" />
             Monthly rewards are PAUSED until payout is processed
           </p>
+        </div>
+
+        {/* Approval Progress */}
+        <div className="pt-1">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Approval Progress</p>
+          <WithdrawalStepTracker
+            variant="partner"
+            status={existingRequest.status}
+            createdAt={existingRequest.requested_at || existingRequest.created_at}
+            partnerOpsApprovedAt={existingRequest.partner_ops_approved_at}
+            cooClearedAt={existingRequest.coo_approved_at}
+            cfoProcessedAt={existingRequest.cfo_processed_at}
+          />
         </div>
 
         {/* Explanation */}

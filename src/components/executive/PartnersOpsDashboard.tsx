@@ -19,6 +19,7 @@ import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvest
 import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
 
 type Tab = 'portfolios' | 'capital' | 'roi';
 
@@ -155,7 +156,10 @@ export function PartnersOpsDashboard() {
         </div>
       </div>
 
-      {/* ═══ B. DAILY BRIEF ═══ */}
+      {/* ═══ B. WITHDRAWAL QUEUE ═══ */}
+      <PartnerOpsWithdrawalQueue />
+
+      {/* ═══ C. DAILY BRIEF ═══ */}
       <PartnerOpsBrief />
 
       {/* ═══ C. NEARING PAYOUTS HIGHLIGHT ═══ */}

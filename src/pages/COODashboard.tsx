@@ -12,6 +12,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
+import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
 
 type HealthStatus = 'green' | 'yellow' | 'red';
 
@@ -402,6 +403,9 @@ export default function COODashboard() {
       {/* COO Withdrawal Approvals */}
       <div className="px-4 pt-4">
         <COOWithdrawalApprovals />
+      </div>
+      <div className="px-4 pt-4">
+        <COOPartnerWithdrawalApprovals />
       </div>
 
       {role && <MobileBottomNav currentRole={role} />}

@@ -3621,9 +3621,15 @@ export type Database = {
       investment_withdrawal_requests: {
         Row: {
           amount: number
+          cfo_processed_at: string | null
+          cfo_processed_by: string | null
+          coo_approved_at: string | null
+          coo_approved_by: string | null
           created_at: string
           earliest_process_date: string
           id: string
+          partner_ops_approved_at: string | null
+          partner_ops_approved_by: string | null
           processed_at: string | null
           processed_by: string | null
           reason: string | null
@@ -3636,9 +3642,15 @@ export type Database = {
         }
         Insert: {
           amount: number
+          cfo_processed_at?: string | null
+          cfo_processed_by?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
           created_at?: string
           earliest_process_date?: string
           id?: string
+          partner_ops_approved_at?: string | null
+          partner_ops_approved_by?: string | null
           processed_at?: string | null
           processed_by?: string | null
           reason?: string | null
@@ -3651,9 +3663,15 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cfo_processed_at?: string | null
+          cfo_processed_by?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
           created_at?: string
           earliest_process_date?: string
           id?: string
+          partner_ops_approved_at?: string | null
+          partner_ops_approved_by?: string | null
           processed_at?: string | null
           processed_by?: string | null
           reason?: string | null

@@ -17,7 +17,7 @@ import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine,
 import { toast } from 'sonner';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
-type QueueType = 'deposits' | 'withdrawals' | 'wallet_withdrawals' | 'wallet_ops';
+type QueueType = 'deposits' | 'wallet_withdrawals' | 'wallet_ops';
 
 interface QueueItem {
   id: string;
@@ -98,45 +98,8 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
-  const { data: withdrawals = [], isLoading: loadingWithdrawals } = useQuery({
-    queryKey: ['approval-queue-withdrawals'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('investment_withdrawal_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .order('requested_at', { ascending: true })
-        .limit(200);
-      if (!data?.length) return [];
 
-      const userIds = [...new Set(data.map(d => d.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds);
-      const pm = new Map(profiles?.map(p => [p.id, p]) || []);
 
-      return data.map(w => {
-        const profile = pm.get(w.user_id);
-        const ageH = differenceInHours(new Date(), new Date(w.requested_at));
-        return {
-          id: w.id,
-          type: 'withdrawals' as QueueType,
-          userId: w.user_id,
-          userName: profile?.full_name || 'Unknown',
-          userPhone: profile?.phone || '',
-          amount: w.amount,
-          description: w.reason || 'Withdrawal request',
-          category: 'withdrawal',
-          createdAt: w.requested_at,
-          ageHours: ageH,
-          urgency: ageH < 1 ? 'green' as const : ageH < 4 ? 'amber' as const : 'red' as const,
-          rawData: w,
-        };
-      });
-    },
-    staleTime: 15000,
-  });
 
   // Wallet withdrawal requests (from withdrawal_requests table)
   const { data: walletWithdrawals = [], isLoading: loadingWalletWithdrawals } = useQuery({
@@ -237,8 +200,8 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
-  const queues: Record<QueueType, QueueItem[]> = { deposits, withdrawals, wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
-  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'withdrawals' ? loadingWithdrawals : activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
+  const queues: Record<QueueType, QueueItem[]> = { deposits, wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
+  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
 
   const items = useMemo(() => {
     let list = queues[activeQueue];
@@ -256,7 +219,7 @@ export function ApprovalQueue() {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [activeQueue, search, sortNewest, deposits, withdrawals, walletWithdrawals, walletOps]);
+  }, [activeQueue, search, sortNewest, deposits, walletWithdrawals, walletOps]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -321,17 +284,6 @@ export function ApprovalQueue() {
           body: { ids, action: bulkAction, reason: bulkAction === 'reject' ? reason : undefined },
         });
         if (response.error) throw response.error;
-      } else if (activeQueue === 'withdrawals') {
-        const status = bulkAction === 'approve' ? 'approved' : 'rejected';
-        const { error } = await supabase.from('investment_withdrawal_requests')
-          .update({
-            status,
-            processed_by: user.id,
-            processed_at: new Date().toISOString(),
-            ...(bulkAction === 'reject' ? { rejection_reason: reason } : {}),
-          })
-          .in('id', ids);
-        if (error) throw error;
       } else if (activeQueue === 'wallet_withdrawals') {
         if (bulkAction === 'reject') {
           // Use edge function for proper rejection with notification & audit
@@ -405,7 +357,7 @@ export function ApprovalQueue() {
   }, [bulkAction, selected, activeQueue, user, reason, payoutProof, queryClient, items]);
 
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
-  const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, withdrawals: ArrowUpFromLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
+  const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
 
   return (
     <>
@@ -449,10 +401,6 @@ export function ApprovalQueue() {
                 <TabsTrigger value="wallet_ops" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
                   <Wallet className="h-3 w-3" /> Wallet Ops
                   {walletOps.length > 0 && <Badge variant="outline" className="h-4 px-1 text-[10px]">{walletOps.length}</Badge>}
-                </TabsTrigger>
-                <TabsTrigger value="withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
-                  <ArrowUpFromLine className="h-3 w-3" /> Invest W/D
-                  {withdrawals.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{withdrawals.length}</Badge>}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -532,12 +480,12 @@ export function ApprovalQueue() {
                             />
                           )}
                           <div className={`p-1 rounded-lg ${isDeposit ? 'bg-success/20' : isCashOut ? 'bg-orange-500/20' : 'bg-muted'}`}>
-                            <Icon className={`h-3.5 w-3.5 ${isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : item.type === 'withdrawals' ? 'text-destructive' : 'text-amber-600'}`} />
+                            <Icon className={`h-3.5 w-3.5 ${isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-amber-600'}`} />
                           </div>
                           <span className={`text-[10px] font-bold uppercase tracking-wider ${
                             isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-muted-foreground'
                           }`}>
-                            {isDeposit ? 'Deposit' : isCashOut ? 'Cash Out' : item.type === 'withdrawals' ? 'Invest W/D' : 'Wallet Op'}
+                            {isDeposit ? 'Deposit' : isCashOut ? 'Cash Out' : 'Wallet Op'}
                           </span>
                         </div>
                         <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">

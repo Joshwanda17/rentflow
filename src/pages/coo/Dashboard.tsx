@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
+import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
 import FinancialMetricsCards from '@/components/coo/FinancialMetricsCards';
 import FinancialTransactionsTable from '@/components/coo/FinancialTransactionsTable';
 import AgentCollectionsOverview from '@/components/coo/AgentCollectionsOverview';
@@ -145,6 +146,7 @@ export default function COODashboardPage() {
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Withdrawal Approvals', Banknote)}
             <COOWithdrawalApprovals />
+            <COOPartnerWithdrawalApprovals />
           </div>
         );
       case 'partners':
