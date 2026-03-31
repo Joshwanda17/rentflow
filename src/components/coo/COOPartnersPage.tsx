@@ -412,7 +412,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const roiDate = new Date(effectiveNextDate + 'T00:00:00');
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        if (du >= 0 && du <= 7) {
+        {
           const prof = profileMap.get(ownerId);
           const effectivePayoutDay = p.payout_day || roiDate.getDate();
           nearingList.push({
@@ -2397,13 +2397,13 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
               'text-xs font-bold uppercase tracking-wider',
               hasPayouts ? 'text-destructive' : 'text-muted-foreground'
             )}>
-              Nearing Payouts
+              Payouts
             </span>
             <p className={cn(
               'text-[11px] leading-snug mt-0.5',
               hasPayouts ? 'text-destructive/80 font-medium' : 'text-muted-foreground'
             )}>
-              {hasPayouts ? `~${formatUGX(totalAmount)} due within 7 days` : 'No payouts in next 7 days'}
+              {hasPayouts ? `~${formatUGX(totalAmount)} total returns due` : 'No active payouts'}
             </p>
           </div>
         </div>
@@ -2617,10 +2617,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
           <DialogTitle className="flex items-center gap-2 text-base">
             <CalendarDays className="h-4.5 w-4.5 text-violet-600" />
-            Portfolios Nearing Payout
+            Portfolio Payouts
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {portfolios.length} portfolio{portfolios.length !== 1 ? 's' : ''} with payouts in the next 7 days
+            {portfolios.length} active portfolio{portfolios.length !== 1 ? 's' : ''} with scheduled payouts
           </DialogDescription>
         </DialogHeader>
         <div className="px-4 sm:px-5">
@@ -2644,7 +2644,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           {filtered.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground text-sm">
               <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              {search ? 'No matching portfolios found.' : 'No portfolios nearing payout in the next 7 days.'}
+              {search ? 'No matching portfolios found.' : 'No active portfolios found.'}
             </div>
           ) : (
             filtered.map((p, idx) => {
@@ -2658,8 +2658,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <p className="font-semibold text-sm truncate">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
                     </div>
-                    <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
-                      {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
+                    <Badge variant={p.daysUntil < 0 ? 'destructive' : p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
+                      {p.daysUntil < 0 ? `${Math.abs(p.daysUntil)}d overdue` : p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center">
@@ -2690,7 +2690,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                               </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="center">
-                              <Calendar mode="single" selected={editPayoutDate} onSelect={setEditPayoutDate} initialFocus />
+                              <Calendar mode="single" selected={editPayoutDate} onSelect={setEditPayoutDate} initialFocus className="p-3 pointer-events-auto" />
                             </PopoverContent>
                           </Popover>
                           <div className="flex gap-1 justify-center">
