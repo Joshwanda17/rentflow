@@ -2596,7 +2596,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <p className="text-xs font-bold tabular-nums">{formatUGX(p.investmentAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">ROI Due</p>
+                      <p className="text-[10px] text-muted-foreground">Returns Due</p>
                       <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
