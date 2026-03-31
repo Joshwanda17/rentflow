@@ -258,7 +258,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet — Most Prominent */}
         <button
           onClick={handleViewWallet}
-          className="group w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all touch-manipulation active:scale-[0.98]"
+          className="group w-full rounded-2xl border-2 border-primary/30 bg-primary/5 p-5 touch-manipulation active:opacity-90"
         >
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-primary/15 group-hover:bg-primary/25 transition-colors shrink-0">
