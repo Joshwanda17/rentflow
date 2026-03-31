@@ -338,7 +338,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
 
       const tableRows: PartnerRow[] = ids.map(id => {
-        const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '' };
+        const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null };
         const profile = profileMap.get(id);
         const isSuspended = !!profile?.frozen_at;
         return {
