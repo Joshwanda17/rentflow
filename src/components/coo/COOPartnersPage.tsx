@@ -885,10 +885,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     // Payment date range filter
     if (payoutDateFrom || payoutDateTo) {
       result = result.filter(r => {
-        if (!r.payoutDay) return false;
-        const today = new Date();
-        const nextPayout = new Date(today.getFullYear(), today.getMonth(), r.payoutDay);
-        if (nextPayout < today) nextPayout.setMonth(nextPayout.getMonth() + 1);
+        // Use the first portfolio's next_roi_date if available
+        const portfolioData = (r as any).nextRoiDate;
+        if (!portfolioData) return false;
+        const nextPayout = new Date(portfolioData + 'T00:00:00');
+        if (isNaN(nextPayout.getTime())) return false;
         if (payoutDateFrom && nextPayout < payoutDateFrom) return false;
         if (payoutDateTo && nextPayout > payoutDateTo) return false;
         return true;
