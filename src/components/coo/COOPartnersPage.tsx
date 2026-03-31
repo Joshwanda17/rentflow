@@ -2675,6 +2675,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       }
 
       toast.success(`Payout of ${formatUGX(roiAmount)} submitted for CFO approval`, { description: `Ref: ${refId}` });
+      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'paid' }));
       onActionComplete?.();
     } catch (err: any) {
       toast.error('Pay request failed', { description: err.message });
