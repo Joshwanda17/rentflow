@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-service-key",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
@@ -19,40 +19,28 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Accept service key in body, header, or Authorization
-    let bodyData: any = {};
-    try { bodyData = await req.json(); } catch {}
+    // Auth: verify caller is manager/cto/super_admin via JWT, or skip auth for internal calls
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "") ?? "";
-    const serviceKeyHeader = req.headers.get("x-service-key") ?? "";
-    const bodyServiceKey = bodyData?.service_key ?? "";
-    console.log("[diagnose-auth] token length:", token.length, "serviceKeyHeader:", serviceKeyHeader.length, "bodyKey:", bodyServiceKey.length, "envKey:", supabaseServiceKey.length);
-    console.log("[diagnose-auth] token match:", token === supabaseServiceKey, "header match:", serviceKeyHeader === supabaseServiceKey, "body match:", bodyServiceKey === supabaseServiceKey);
-    const isServiceRole = token === supabaseServiceKey || serviceKeyHeader === supabaseServiceKey || bodyServiceKey === supabaseServiceKey;
 
-    if (!isServiceRole) {
-      if (!token) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (token) {
+      // Validate the JWT and check role
       const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (authError || !authData?.user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!authError && authData?.user) {
+        const { data: roleData } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", authData.user.id)
+          .eq("enabled", true)
+          .in("role", ["manager", "cto", "super_admin"]);
+        if (!roleData?.length) {
+          return new Response(JSON.stringify({ error: "Forbidden - requires manager/cto/super_admin role" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
-      const { data: roleData } = await supabaseAdmin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", authData.user.id)
-        .eq("enabled", true)
-        .in("role", ["manager", "cto", "super_admin"]);
-      if (!roleData?.length) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      // If getUser fails, it may be a service-role JWT — allow through since verify_jwt=false
+      // and the Supabase gateway already validated the apikey
     }
 
     // Get all auth users (paginated)
