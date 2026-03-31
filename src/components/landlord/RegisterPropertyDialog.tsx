@@ -300,12 +300,9 @@ export default function RegisterPropertyDialog({
                 <p>✅ Welile replaces tenants who leave at no cost</p>
               </div>
               <Button onClick={() => handleOpenChange(false)}>Done</Button>
-            </motion.div>
+            </div>
           ) : (
-            <motion.form
-              key="form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <form
               onSubmit={handleSubmit}
               className="space-y-5"
             >
