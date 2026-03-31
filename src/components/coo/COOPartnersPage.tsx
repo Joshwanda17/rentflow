@@ -2136,7 +2136,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /> Invested On Date</Label>
+                <Label className="text-xs flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /> Contribution Date</Label>
                 <Input type="date" value={editPortfolioDate} onChange={e => setEditPortfolioDate(e.target.value)} className="h-10 text-sm" />
                 {editPortfolio.created_at && (
                   <p className="text-[10px] text-muted-foreground">Current: {formatDate(editPortfolio.created_at)}</p>
