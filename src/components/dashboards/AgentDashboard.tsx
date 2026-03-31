@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { Button } from '@/components/ui/button';
 import { 
   UserPlus,
@@ -318,19 +318,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Credit Access — toggles on Credit button */}
-        <AnimatePresence>
-          {creditOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <CreditAccessCard userId={user.id} compact />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {creditOpen && (
+          <div className="overflow-hidden">
+            <CreditAccessCard userId={user.id} compact />
+          </div>
+        )}
 
         {/* Action Insights: Forecast, Streak, Priority Queue (Daily Rent already shown above) */}
         <AgentActionInsights agentId={user.id} hideDailyRent />
