@@ -228,6 +228,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
   const [savingPortfolio, setSavingPortfolio] = useState(false);
+  const [editingNextPayoutId, setEditingNextPayoutId] = useState<string | null>(null);
+  const [editingNextPayoutDate, setEditingNextPayoutDate] = useState('');
 
   // Edit portfolio dialog
   const [editPortfolio, setEditPortfolio] = useState<PortfolioRow | null>(null);
