@@ -402,10 +402,7 @@ export function ApprovalQueue() {
                   <Wallet className="h-3 w-3" /> Wallet Ops
                   {walletOps.length > 0 && <Badge variant="outline" className="h-4 px-1 text-[10px]">{walletOps.length}</Badge>}
                 </TabsTrigger>
-                <TabsTrigger value="withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
-                  <ArrowUpFromLine className="h-3 w-3" /> Invest W/D
-                  {withdrawals.length > 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{withdrawals.length}</Badge>}
-                </TabsTrigger>
+              </TabsList>
               </TabsList>
             </Tabs>
           </div>
