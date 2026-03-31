@@ -377,19 +377,19 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
       setRows(tableRows);
 
-      // Build portfolio-level nearing payouts from ALL raw portfolios
+      // Build portfolio-level nearing payouts using next_roi_date
       const now = new Date();
-      const curDay = now.getDate();
-      const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      now.setHours(0, 0, 0, 0);
       const nearingList: NearingPayoutPortfolio[] = [];
-      (portfolios as any[]).forEach(p => {
-        if (!p.payout_day || p.status !== 'active') return;
+      dedupedPortfolios.forEach(p => {
+        if (!p.next_roi_date || p.status !== 'active') return;
         const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
-        let du = p.payout_day - curDay;
-        if (du < 0) du += dim;
-        if (du <= 7) {
+        const roiDate = new Date(p.next_roi_date + 'T00:00:00');
+        const diffMs = roiDate.getTime() - now.getTime();
+        const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (du >= 0 && du <= 7) {
           const prof = profileMap.get(ownerId);
           nearingList.push({
             portfolioId: p.id,
