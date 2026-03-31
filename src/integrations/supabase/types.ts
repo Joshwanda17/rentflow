@@ -5606,6 +5606,7 @@ export type Database = {
           mobile_money_number: string | null
           mobile_money_provider: string | null
           monthly_rent: number | null
+          must_change_password: boolean | null
           national_id: string | null
           phone: string
           referrer_id: string | null
@@ -5635,6 +5636,7 @@ export type Database = {
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
+          must_change_password?: boolean | null
           national_id?: string | null
           phone: string
           referrer_id?: string | null
@@ -5664,6 +5666,7 @@ export type Database = {
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
+          must_change_password?: boolean | null
           national_id?: string | null
           phone?: string
           referrer_id?: string | null
@@ -6821,6 +6824,30 @@ export type Database = {
           id?: string
           sample_percentage?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_permissions: {
+        Row: {
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          permitted_dashboard: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          permitted_dashboard: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          permitted_dashboard?: string
+          user_id?: string
         }
         Relationships: []
       }

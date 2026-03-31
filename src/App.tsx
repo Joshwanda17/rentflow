@@ -282,19 +282,19 @@ function AppRoutes() {
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/staff" element={<StaffPortal />} />
           {/* Role-isolated executive dashboards */}
-          <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin', 'manager']}><CTODashboardPage /></RoleGuard>} />
-          <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']}><CEODashboardPage /></RoleGuard>} />
-          <Route path="/cfo/dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'manager']}><CFODashboardPage /></RoleGuard>} />
-          <Route path="/coo/dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'manager']}><COODashboardPage /></RoleGuard>} />
-          <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'manager']}><CMODashboardPage /></RoleGuard>} />
-          <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'manager']}><CRMDashboardPage /></RoleGuard>} />
+          <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin']}><CTODashboardPage /></RoleGuard>} />
+          <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'cto']}><CEODashboardPage /></RoleGuard>} />
+          <Route path="/cfo/dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto']}><CFODashboardPage /></RoleGuard>} />
+          <Route path="/coo/dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto']}><COODashboardPage /></RoleGuard>} />
+          <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'cto']}><CMODashboardPage /></RoleGuard>} />
+          <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'cto']}><CRMDashboardPage /></RoleGuard>} />
           <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'employee']}><AdminDashboardPage /></RoleGuard>} />
           <Route path="/admin/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
           <Route path="/admin/financial-ops" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'coo', 'cfo']}><AdminFinancialOpsPage /></RoleGuard>} />
           <Route path="/operations" element={<RoleGuard allowedRoles={['operations', 'super_admin', 'manager']}><OperationsDashboardPage /></RoleGuard>} />
           {/* Legacy redirects */}
-          <Route path="/coo-dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'manager']}><COODashboardPage /></RoleGuard>} />
-          <Route path="/cfo-dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'manager']}><CFODashboardPage /></RoleGuard>} />
+          <Route path="/coo-dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto']}><COODashboardPage /></RoleGuard>} />
+          <Route path="/cfo-dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'cto']}><CFODashboardPage /></RoleGuard>} />
           <Route path="/executive-hub" element={<RoleGuard allowedRoles={['ceo', 'cto', 'cmo', 'crm', 'coo', 'cfo', 'super_admin', 'manager', 'employee', 'operations']}><ExecutiveHubPage /></RoleGuard>} />
           <Route path="/roi-trends" element={<RoleGuard allowedRoles={['ceo', 'coo', 'cfo', 'super_admin', 'manager', 'operations']}><ROITrendsPage /></RoleGuard>} />
            <Route path="/agent-advances" element={<AgentAdvances />} />

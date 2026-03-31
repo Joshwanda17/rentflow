@@ -1,11 +1,13 @@
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, type AppRole } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { LogOut, Menu, X, ArrowLeft } from 'lucide-react';
+import { LogOut, Menu, X, ArrowLeft, Loader2 } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
 import type { SidebarSection } from './executiveSidebarConfig';
+import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
 
 interface ExecutiveDashboardLayoutProps {
   role: string;
@@ -23,6 +25,31 @@ export default function ExecutiveDashboardLayout({
   const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(true);
+  const loggedRef = useRef(false);
+
+  // Check must_change_password on mount
+  useEffect(() => {
+    if (!user) { setCheckingProfile(false); return; }
+    const check = async () => {
+      const { data } = await supabase.from('profiles').select('must_change_password').eq('id', user.id).single();
+      if (data?.must_change_password) setMustChangePassword(true);
+      setCheckingProfile(false);
+    };
+    check();
+  }, [user]);
+
+  // Log dashboard_accessed
+  useEffect(() => {
+    if (!user || loggedRef.current) return;
+    loggedRef.current = true;
+    supabase.from('audit_logs').insert({
+      user_id: user.id,
+      action_type: 'dashboard_accessed',
+      metadata: { dashboard: role, timestamp: new Date().toISOString() },
+    });
+  }, [user, role]);
 
   const sections: SidebarSection[] = executiveSidebarConfig[role] || [];
   const displayRole = roleLabels[role as AppRole] || role.toUpperCase();
@@ -82,6 +109,23 @@ export default function ExecutiveDashboardLayout({
       </div>
     </nav>
   );
+
+  if (checkingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (mustChangePassword && user) {
+    return (
+      <ForcePasswordChange
+        userId={user.id}
+        onPasswordChanged={() => setMustChangePassword(false)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

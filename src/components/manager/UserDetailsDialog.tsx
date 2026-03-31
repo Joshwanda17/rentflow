@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import DashboardPermissionsTab from './DashboardPermissionsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
@@ -43,7 +44,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
   Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft,
-  FileText, UsersRound, UserPlus, Link2, ShieldAlert, ShieldOff, KeyRound, Eye, EyeOff
+  FileText, UsersRound, UserPlus, Link2, ShieldAlert, ShieldOff, KeyRound, Eye, EyeOff, ShieldCheck
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -1198,7 +1199,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   // Shared tabs component - now with 8 tabs using horizontal scroll on mobile
   const TabsNavigation = () => (
     <div className={isMobile ? 'overflow-x-auto -mx-4 px-4 pb-2' : ''}>
-      <TabsList className={`${isMobile ? 'inline-flex w-auto min-w-full gap-1 h-12' : 'grid w-full grid-cols-8'}`}>
+      <TabsList className={`${isMobile ? 'inline-flex w-auto min-w-full gap-1 h-12' : 'grid w-full grid-cols-9'}`}>
         <TabsTrigger value="overview" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
           <User className="h-4 w-4" />
           <span className={isMobile ? '' : 'hidden sm:inline'}>Overview</span>
@@ -1233,6 +1234,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         <TabsTrigger value="roles" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
           <Shield className="h-4 w-4" />
           <span className={isMobile ? '' : 'hidden sm:inline'}>Roles</span>
+        </TabsTrigger>
+        <TabsTrigger value="permissions" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <ShieldCheck className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Perms</span>
         </TabsTrigger>
         <TabsTrigger value="edit" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
           <Pencil className="h-4 w-4" />
@@ -1503,6 +1508,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
               <TabsContent value="terms" className="mt-0">
                 <div className="p-4">
                   <UserTermsSection userId={user.id} userRoles={userRoles} />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="permissions" className="mt-0">
+                <div className="p-4">
+                  <DashboardPermissionsTab userId={user.id} />
                 </div>
               </TabsContent>
 
@@ -2061,6 +2072,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             <TabsContent value="terms" className="mt-0">
               <div className="p-6 pt-4">
                 <UserTermsSection userId={user.id} userRoles={userRoles} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="permissions" className="mt-0">
+              <div className="p-6 pt-4">
+                <DashboardPermissionsTab userId={user.id} />
               </div>
             </TabsContent>
 
