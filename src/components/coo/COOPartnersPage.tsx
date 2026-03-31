@@ -2417,7 +2417,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const handleCompound = async (p: NearingPayoutPortfolio) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
     try {
-      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100 / 12);
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
       const newAmount = p.investmentAmount + roiAmount;
       const refId = generateRef('CMP');
       const { data: { user } } = await supabase.auth.getUser();
