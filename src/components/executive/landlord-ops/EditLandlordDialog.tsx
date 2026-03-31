@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,30 +43,55 @@ interface Props {
 export function EditLandlordDialog({ landlord, open, onClose, onSaved }: Props) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<Record<string, any>>({});
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const initForm = () => {
-    if (!landlord) return;
-    setForm({
-      name: landlord.name || '',
-      phone: landlord.phone || '',
-      mobile_money_name: landlord.mobile_money_name || '',
-      mobile_money_number: landlord.mobile_money_number || '',
-      bank_name: landlord.bank_name || '',
-      account_number: landlord.account_number || '',
-      monthly_rent: landlord.monthly_rent || '',
-      has_smartphone: landlord.has_smartphone ?? false,
-      number_of_houses: landlord.number_of_houses || '',
-      caretaker_name: landlord.caretaker_name || '',
-      caretaker_phone: landlord.caretaker_phone || '',
-      tin: landlord.tin || '',
-      electricity_meter_number: landlord.electricity_meter_number || '',
-      water_meter_number: landlord.water_meter_number || '',
-      village: landlord.village || '',
-      district: landlord.district || '',
-      region: landlord.region || '',
-    });
-  };
+  // Fetch fresh data from DB whenever landlord changes or dialog opens
+  useEffect(() => {
+    if (!open || !landlord?.id) return;
+    
+    const fetchLandlord = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('landlords')
+          .select('id, name, phone, mobile_money_name, mobile_money_number, bank_name, account_number, monthly_rent, has_smartphone, number_of_houses, caretaker_name, caretaker_phone, tin, electricity_meter_number, water_meter_number, village, district, region, property_address')
+          .eq('id', landlord.id)
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setForm({
+            name: data.name || '',
+            phone: data.phone || '',
+            mobile_money_name: data.mobile_money_name || '',
+            mobile_money_number: data.mobile_money_number || '',
+            bank_name: data.bank_name || '',
+            account_number: data.account_number || '',
+            monthly_rent: data.monthly_rent || '',
+            has_smartphone: data.has_smartphone ?? false,
+            number_of_houses: data.number_of_houses || '',
+            caretaker_name: data.caretaker_name || '',
+            caretaker_phone: data.caretaker_phone || '',
+            tin: data.tin || '',
+            electricity_meter_number: data.electricity_meter_number || '',
+            water_meter_number: data.water_meter_number || '',
+            village: data.village || '',
+            district: data.district || '',
+            region: data.region || '',
+          });
+        }
+      } catch (err: any) {
+        toast.error('Failed to load landlord data');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLandlord();
+  }, [open, landlord?.id]);
 
   const handleSave = async () => {
     if (!landlord || !user) return;
@@ -98,7 +124,6 @@ export function EditLandlordDialog({ landlord, open, onClose, onSaved }: Props) 
       const { error } = await supabase.from('landlords').update(updates).eq('id', landlord.id);
       if (error) throw error;
 
-      // Audit log
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'landlord_profile_edited',
@@ -107,131 +132,171 @@ export function EditLandlordDialog({ landlord, open, onClose, onSaved }: Props) 
         metadata: { updated_fields: Object.keys(updates), editor_role: 'landlord_ops' },
       });
 
-      toast.success('Landlord profile updated');
+      toast.success('Landlord profile updated successfully');
       onSaved();
       onClose();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update landlord');
     } finally {
       setSaving(false);
+      setShowConfirm(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); else initForm(); }}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-base">Edit Landlord Profile</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {/* Basic Info */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Basic Info</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Name *</Label>
-                <Input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Phone *</Label>
-                <Input value={form.phone || ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Village</Label>
-                <Input value={form.village || ''} onChange={e => setForm(f => ({ ...f, village: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">District</Label>
-                <Input value={form.district || ''} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Region</Label>
-                <Input value={form.region || ''} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} />
-              </div>
-            </div>
-          </div>
+    <>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">Edit Landlord Profile</DialogTitle>
+          </DialogHeader>
 
-          {/* Financial */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Financial</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">MoMo Name</Label>
-                <Input value={form.mobile_money_name || ''} onChange={e => setForm(f => ({ ...f, mobile_money_name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">MoMo Number</Label>
-                <Input value={form.mobile_money_number || ''} onChange={e => setForm(f => ({ ...f, mobile_money_number: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Bank Name</Label>
-                <Input value={form.bank_name || ''} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Account Number</Label>
-                <Input value={form.account_number || ''} onChange={e => setForm(f => ({ ...f, account_number: e.target.value }))} />
-              </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading landlord data…</span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Monthly Rent (UGX)</Label>
-                <Input type="number" value={form.monthly_rent || ''} onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))} />
+          ) : (
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Basic Info</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Name *</Label>
+                    <Input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Phone *</Label>
+                    <Input value={form.phone || ''} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Village</Label>
+                    <Input value={form.village || ''} onChange={e => setForm(f => ({ ...f, village: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">District</Label>
+                    <Input value={form.district || ''} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Region</Label>
+                    <Input value={form.region || ''} onChange={e => setForm(f => ({ ...f, region: e.target.value }))} />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">TIN</Label>
-                <Input value={form.tin || ''} onChange={e => setForm(f => ({ ...f, tin: e.target.value }))} />
-              </div>
-            </div>
-          </div>
 
-          {/* Property */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Property</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Number of Houses</Label>
-                <Input type="number" value={form.number_of_houses || ''} onChange={e => setForm(f => ({ ...f, number_of_houses: e.target.value }))} />
+              {/* Financial */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Financial</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">MoMo Name</Label>
+                    <Input value={form.mobile_money_name || ''} onChange={e => setForm(f => ({ ...f, mobile_money_name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">MoMo Number</Label>
+                    <Input value={form.mobile_money_number || ''} onChange={e => setForm(f => ({ ...f, mobile_money_number: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Bank Name</Label>
+                    <Input value={form.bank_name || ''} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Account Number</Label>
+                    <Input value={form.account_number || ''} onChange={e => setForm(f => ({ ...f, account_number: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Monthly Rent (UGX)</Label>
+                    <Input type="number" value={form.monthly_rent || ''} onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">TIN</Label>
+                    <Input value={form.tin || ''} onChange={e => setForm(f => ({ ...f, tin: e.target.value }))} />
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 pt-5">
-                <Switch checked={form.has_smartphone || false} onCheckedChange={v => setForm(f => ({ ...f, has_smartphone: v }))} />
-                <Label className="text-xs">Has Smartphone</Label>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Electricity Meter</Label>
-                <Input value={form.electricity_meter_number || ''} onChange={e => setForm(f => ({ ...f, electricity_meter_number: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Water Meter</Label>
-                <Input value={form.water_meter_number || ''} onChange={e => setForm(f => ({ ...f, water_meter_number: e.target.value }))} />
-              </div>
-            </div>
-          </div>
 
-          {/* Caretaker */}
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Caretaker</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Caretaker Name</Label>
-                <Input value={form.caretaker_name || ''} onChange={e => setForm(f => ({ ...f, caretaker_name: e.target.value }))} />
+              {/* Property */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Property</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Number of Houses</Label>
+                    <Input type="number" value={form.number_of_houses || ''} onChange={e => setForm(f => ({ ...f, number_of_houses: e.target.value }))} />
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <Switch checked={form.has_smartphone || false} onCheckedChange={v => setForm(f => ({ ...f, has_smartphone: v }))} />
+                    <Label className="text-xs">Has Smartphone</Label>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Electricity Meter</Label>
+                    <Input value={form.electricity_meter_number || ''} onChange={e => setForm(f => ({ ...f, electricity_meter_number: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Water Meter</Label>
+                    <Input value={form.water_meter_number || ''} onChange={e => setForm(f => ({ ...f, water_meter_number: e.target.value }))} />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Caretaker Phone</Label>
-                <Input value={form.caretaker_phone || ''} onChange={e => setForm(f => ({ ...f, caretaker_phone: e.target.value }))} />
-              </div>
-            </div>
-          </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Changes
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+              {/* Caretaker */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Caretaker</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Caretaker Name</Label>
+                    <Input value={form.caretaker_name || ''} onChange={e => setForm(f => ({ ...f, caretaker_name: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Caretaker Phone</Label>
+                    <Input value={form.caretaker_phone || ''} onChange={e => setForm(f => ({ ...f, caretaker_phone: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => {
+                  if (!form.name?.trim() || !form.phone?.trim()) {
+                    toast.error('Name and phone are required');
+                    return;
+                  }
+                  setShowConfirm(true);
+                }}
+                disabled={saving}
+                className="w-full"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Save Confirmation */}
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to save changes to <strong>{form.name}</strong>'s profile? This will update their record in the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {saving ? 'Saving…' : 'Confirm Save'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

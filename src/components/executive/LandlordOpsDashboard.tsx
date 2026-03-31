@@ -1162,6 +1162,7 @@ export function LandlordOpsDashboard() {
 
 // ─── Shared Dialogs Component ───
 function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, assignPerson, setAssignPerson, deleteLandlord, setDeleteLandlord, deleteReason, setDeleteReason, deleting, setDeleting, previewImages, setPreviewImages, adjustListing, setAdjustListing, actionDialog, setActionDialog, user, refetchAll }: any) {
+  const { toast } = useToast();
   return (
     <>
       {previewImages && (
@@ -1239,10 +1240,12 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
                     record_id: deleteLandlord.id,
                     metadata: { landlord_name: deleteLandlord.name, reason: deleteReason.trim(), deleted_by: 'landlord_ops' },
                   });
+                  toast({ title: '✅ Deleted', description: `${deleteLandlord.name} has been deleted successfully` });
                   setDeleteLandlord(null);
                   setDeleteReason('');
                   refetchAll();
                 } catch (err: any) {
+                  toast({ title: 'Delete failed', description: err.message || 'Failed to delete landlord', variant: 'destructive' });
                   console.error('Delete failed:', err);
                 } finally {
                   setDeleting(false);
