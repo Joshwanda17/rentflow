@@ -306,10 +306,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               key={action.label}
               onClick={() => { hapticTap(); action.onClick(); }}
               className={cn(
-                "flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl border transition-all touch-manipulation active:scale-95",
+                "flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl border touch-manipulation active:opacity-80",
                 action.bg
               )}
-              style={staggerDelay(i, 40)}
             >
               <action.icon className={cn("h-5 w-5", action.color)} />
               <span className={cn("text-[11px] font-semibold", action.color)}>{action.label}</span>
