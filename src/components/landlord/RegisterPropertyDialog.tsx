@@ -284,22 +284,11 @@ export default function RegisterPropertyDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <AnimatePresence mode="wait">
-          {success ? (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="py-8 text-center"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
-                className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/20 flex items-center justify-center"
-              >
+        {success ? (
+            <div className="py-8 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/20 flex items-center justify-center">
                 <CheckCircle2 className="h-8 w-8 text-success" />
-              </motion.div>
+              </div>
               <h3 className="text-lg font-semibold mb-2">Property Registered!</h3>
               <p className="text-muted-foreground text-sm mb-2">
                 A manager will verify your property to activate{' '}
