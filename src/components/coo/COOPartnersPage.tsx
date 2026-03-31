@@ -1692,9 +1692,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     </div>
                                   )}
                                 </div>
-                                {p.next_roi_date && (
+                                {(
                                   <span className="text-[10px] text-muted-foreground flex items-center gap-1 pl-5 sm:pl-0">
-                                    <Clock className="h-3 w-3" /> Next: {formatDate(p.next_roi_date)}
+                                    <Clock className="h-3 w-3" /> Next: {(() => {
+                                      const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                      return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' });
+                                    })()}
                                   </span>
                                 )}
                               </div>
