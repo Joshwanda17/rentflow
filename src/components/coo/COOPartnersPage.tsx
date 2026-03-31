@@ -383,20 +383,32 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
       setRows(tableRows);
 
-      // Build portfolio-level nearing payouts using next_roi_date
+      // Build portfolio-level nearing payouts using next_roi_date (or derived from created_at + 1 month)
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       const nearingList: NearingPayoutPortfolio[] = [];
       dedupedPortfolios.forEach(p => {
-        if (!p.next_roi_date || p.status !== 'active') return;
+        if (p.status !== 'active') return;
         const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
-        const roiDate = new Date(p.next_roi_date + 'T00:00:00');
+
+        // Derive next payout date: use next_roi_date if set, otherwise created_at + 1 month
+        let effectiveNextDate: string;
+        if (p.next_roi_date) {
+          effectiveNextDate = p.next_roi_date;
+        } else {
+          const base = new Date(p.created_at);
+          base.setMonth(base.getMonth() + 1);
+          effectiveNextDate = base.toISOString().split('T')[0];
+        }
+
+        const roiDate = new Date(effectiveNextDate + 'T00:00:00');
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         if (du >= 0 && du <= 7) {
           const prof = profileMap.get(ownerId);
+          const effectivePayoutDay = p.payout_day || roiDate.getDate();
           nearingList.push({
             portfolioId: p.id,
             investorId: ownerId,
@@ -405,10 +417,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             email: prof?.email || '',
             investmentAmount: p.investment_amount || 0,
             roiPercentage: p.roi_percentage ?? 15,
-            payoutDay: p.payout_day,
+            payoutDay: effectivePayoutDay,
             roiMode: p.roi_mode ?? 'monthly_payout',
             createdAt: p.created_at,
             daysUntil: du,
+            nextPayoutDate: effectiveNextDate,
           });
         }
       });
