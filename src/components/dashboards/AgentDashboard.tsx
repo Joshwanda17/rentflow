@@ -279,7 +279,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   )}
                 </>
               )}
-              <span className="text-lg text-muted-foreground group-hover:text-primary transition-colors">›</span>
+              <span className="text-lg text-muted-foreground">›</span>
             </div>
           </div>
         </button>
