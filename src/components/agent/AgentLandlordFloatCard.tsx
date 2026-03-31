@@ -47,11 +47,11 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
   const hasFloat = !!floatData;
 
   return (
-    <div className="rounded-2xl border-2 border-chart-4/30 bg-gradient-to-br from-chart-4/10 via-chart-4/5 to-transparent overflow-hidden animate-fade-in">
+    <div className="rounded-2xl border-2 border-chart-4/30 bg-chart-4/5 overflow-hidden">
       {/* Main Pay Button */}
       <button
         onClick={onPayLandlord}
-        className="w-full p-4 hover:bg-chart-4/5 transition-all touch-manipulation active:scale-[0.98] text-left"
+        className="w-full p-4 hover:bg-chart-4/5 touch-manipulation active:opacity-80 text-left"
       >
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-chart-4/15 shrink-0">
