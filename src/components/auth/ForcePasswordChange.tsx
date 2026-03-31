@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Lock, Loader2, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +16,19 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changing, setChanging] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const isValid = newPassword.length >= 8 && newPassword === confirmPassword && newPassword !== 'WelileManager';
+
+  useEffect(() => {
+    setMounted(true);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +64,10 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] w-full h-full grid place-items-center bg-background/95 p-4 overflow-y-auto">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] grid h-screen w-screen place-items-center overflow-y-auto bg-background/95 p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-3">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-destructive/10 border-2 border-destructive/20 flex items-center justify-center">
@@ -113,6 +127,7 @@ export default function ForcePasswordChange({ userId, onPasswordChanged }: Force
           This action is logged for security auditing
         </p>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
