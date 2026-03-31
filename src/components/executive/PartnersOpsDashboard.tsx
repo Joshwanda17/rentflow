@@ -156,7 +156,10 @@ export function PartnersOpsDashboard() {
         </div>
       </div>
 
-      {/* ═══ B. DAILY BRIEF ═══ */}
+      {/* ═══ B. WITHDRAWAL QUEUE ═══ */}
+      <PartnerOpsWithdrawalQueue />
+
+      {/* ═══ C. DAILY BRIEF ═══ */}
       <PartnerOpsBrief />
 
       {/* ═══ C. NEARING PAYOUTS HIGHLIGHT ═══ */}

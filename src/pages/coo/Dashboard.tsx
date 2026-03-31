@@ -146,6 +146,7 @@ export default function COODashboardPage() {
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Withdrawal Approvals', Banknote)}
             <COOWithdrawalApprovals />
+            <COOPartnerWithdrawalApprovals />
           </div>
         );
       case 'partners':
