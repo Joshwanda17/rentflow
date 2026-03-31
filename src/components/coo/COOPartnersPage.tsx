@@ -56,6 +56,7 @@ interface PartnerRow {
   status: 'active' | 'suspended';
   joinedAt: string;
   lastActivity: string;
+  nextRoiDate: string | null;
 }
 
 interface NearingPayoutPortfolio {
@@ -307,7 +308,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       // Aggregate portfolios per supporter
       const supporterIdSet = new Set(ids);
-      const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string }>();
+      const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null }>();
 
       dedupedPortfolios.forEach(p => {
         // Determine which supporter this portfolio belongs to
@@ -318,14 +319,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             : null;
         if (!ownerId) return;
 
-        const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '' };
+        const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null };
         existing.funded += (p.investment_amount || 0);
         existing.deals += 1;
-        // Use the first (most recent) portfolio's ROI info
         if (existing.deals === 1 || !existing.roiPercentage) {
           existing.roiPercentage = p.roi_percentage ?? 15;
           existing.payoutDay = p.payout_day ?? 15;
           existing.roiMode = p.roi_mode ?? 'monthly_payout';
+        }
+        // Track earliest next_roi_date
+        if (p.next_roi_date && (!existing.nextRoiDate || p.next_roi_date < existing.nextRoiDate)) {
+          existing.nextRoiDate = p.next_roi_date;
         }
         if (!existing.lastActivity || p.created_at > existing.lastActivity) {
           existing.lastActivity = p.created_at;
@@ -334,7 +338,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
 
       const tableRows: PartnerRow[] = ids.map(id => {
-        const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '' };
+        const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null };
         const profile = profileMap.get(id);
         const isSuspended = !!profile?.frozen_at;
         return {
@@ -352,6 +356,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
           joinedAt: profile?.created_at || '',
           lastActivity: agg.lastActivity || '',
+          nextRoiDate: agg.nextRoiDate,
         };
       })
         .sort((a, b) => b.funded - a.funded);
@@ -885,10 +890,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     // Payment date range filter
     if (payoutDateFrom || payoutDateTo) {
       result = result.filter(r => {
-        if (!r.payoutDay) return false;
-        const today = new Date();
-        const nextPayout = new Date(today.getFullYear(), today.getMonth(), r.payoutDay);
-        if (nextPayout < today) nextPayout.setMonth(nextPayout.getMonth() + 1);
+        // Use the first portfolio's next_roi_date if available
+        const portfolioData = (r as any).nextRoiDate;
+        if (!portfolioData) return false;
+        const nextPayout = new Date(portfolioData + 'T00:00:00');
+        if (isNaN(nextPayout.getTime())) return false;
         if (payoutDateFrom && nextPayout < payoutDateFrom) return false;
         if (payoutDateTo && nextPayout > payoutDateTo) return false;
         return true;
@@ -1125,8 +1131,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         {r.roiMode === 'monthly_compounding' ? 'Compound' : 'Payout'}
       </span>
     )},
-    { key: 'payoutDay', label: 'Payout', align: 'right', hideOnMobile: true, render: (r) => (
-      <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
+    { key: 'nextRoiDate', label: 'Next Payout', align: 'right', hideOnMobile: true, render: (r) => (
+      <span className="text-muted-foreground">
+        {r.nextRoiDate
+          ? new Date(r.nextRoiDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric' })
+          : '—'}
+      </span>
     )},
     { key: 'joinedAt', label: 'Joined', sortable: true, hideOnMobile: true, render: (r) => (
       <span className="text-muted-foreground text-xs">
@@ -1537,15 +1547,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   <p className="font-semibold">{p.duration_months} months</p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Payout Date</span>
+                                  <span className="text-muted-foreground">Next Payout</span>
                                   <p className="font-semibold">
-                                    {(() => {
-                                      const now = new Date();
-                                      const day = p.payout_day || 15;
-                                      let target = new Date(now.getFullYear(), now.getMonth(), day);
-                                      if (target <= now) target = new Date(now.getFullYear(), now.getMonth() + 1, day);
-                                      return target.toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
-                                    })()}
+                                    {p.next_roi_date
+                                      ? new Date(p.next_roi_date + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' })
+                                      : 'Not scheduled'}
                                   </p>
                                 </div>
                                 <div>
