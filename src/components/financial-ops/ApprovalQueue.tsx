@@ -98,45 +98,8 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
-  const { data: withdrawals = [], isLoading: loadingWithdrawals } = useQuery({
-    queryKey: ['approval-queue-withdrawals'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('investment_withdrawal_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .order('requested_at', { ascending: true })
-        .limit(200);
-      if (!data?.length) return [];
 
-      const userIds = [...new Set(data.map(d => d.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds);
-      const pm = new Map(profiles?.map(p => [p.id, p]) || []);
 
-      return data.map(w => {
-        const profile = pm.get(w.user_id);
-        const ageH = differenceInHours(new Date(), new Date(w.requested_at));
-        return {
-          id: w.id,
-          type: 'withdrawals' as QueueType,
-          userId: w.user_id,
-          userName: profile?.full_name || 'Unknown',
-          userPhone: profile?.phone || '',
-          amount: w.amount,
-          description: w.reason || 'Withdrawal request',
-          category: 'withdrawal',
-          createdAt: w.requested_at,
-          ageHours: ageH,
-          urgency: ageH < 1 ? 'green' as const : ageH < 4 ? 'amber' as const : 'red' as const,
-          rawData: w,
-        };
-      });
-    },
-    staleTime: 15000,
-  });
 
   // Wallet withdrawal requests (from withdrawal_requests table)
   const { data: walletWithdrawals = [], isLoading: loadingWalletWithdrawals } = useQuery({
