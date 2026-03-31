@@ -36,6 +36,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
+
+/** Roll a stale next_roi_date forward month-by-month until it's >= today */
+function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payoutDay: number): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = Math.min(payoutDay || new Date(createdAt).getDate(), 28);
+
+  let d: Date;
+  if (nextRoiDate) {
+    d = new Date(nextRoiDate + 'T00:00:00');
+  } else {
+    const base = new Date(createdAt);
+    d = new Date(base.getFullYear(), base.getMonth() + 1, day);
+  }
+  // Roll forward until d >= today
+  while (d < today) {
+    d = new Date(d.getFullYear(), d.getMonth() + 1, day);
+  }
+  return d.toISOString().split('T')[0];
+}
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
@@ -328,13 +348,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           existing.payoutDay = p.payout_day ?? 15;
           existing.roiMode = p.roi_mode ?? 'monthly_payout';
         }
-        // Track earliest next_roi_date (derive from created_at + 1 month if missing)
-        let effectiveDate = p.next_roi_date;
-        if (!effectiveDate) {
-          const base = new Date(p.created_at);
-          base.setMonth(base.getMonth() + 1);
-          effectiveDate = base.toISOString().split('T')[0];
-        }
+        // Track earliest next_roi_date — roll forward stale dates
+        const effectiveDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
         if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
           existing.nextRoiDate = effectiveDate;
         }
@@ -399,15 +414,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
 
-        // Derive next payout date: use next_roi_date if set, otherwise created_at + 1 month
-        let effectiveNextDate: string;
-        if (p.next_roi_date) {
-          effectiveNextDate = p.next_roi_date;
-        } else {
-          const base = new Date(p.created_at);
-          base.setMonth(base.getMonth() + 1);
-          effectiveNextDate = base.toISOString().split('T')[0];
-        }
+        // Derive next payout date — roll forward stale dates
+        const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
 
         const roiDate = new Date(effectiveNextDate + 'T00:00:00');
         const diffMs = roiDate.getTime() - now.getTime();
@@ -1569,9 +1577,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 <div>
                                   <span className="text-muted-foreground">Next Payout</span>
                                   <p className="font-semibold">
-                                    {p.next_roi_date
-                                      ? new Date(p.next_roi_date + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' })
-                                      : 'Not scheduled'}
+                                    {(() => {
+                                      const nd = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+                                      return new Date(nd + 'T00:00:00').toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
+                                    })()}
                                   </p>
                                 </div>
                                 <div>
