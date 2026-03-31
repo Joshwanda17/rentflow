@@ -1235,6 +1235,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
           <Shield className="h-4 w-4" />
           <span className={isMobile ? '' : 'hidden sm:inline'}>Roles</span>
         </TabsTrigger>
+        <TabsTrigger value="permissions" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <ShieldCheck className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Perms</span>
+        </TabsTrigger>
         <TabsTrigger value="edit" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
           <Pencil className="h-4 w-4" />
           <span className={isMobile ? '' : 'hidden sm:inline'}>Edit</span>
