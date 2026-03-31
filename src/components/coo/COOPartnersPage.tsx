@@ -1415,8 +1415,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 {/* Financial Summary Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <MiniKPI icon={<Wallet className="h-3.5 w-3.5" />} label="Wallet Balance" value={formatUGX(detailPartner.walletBalance)} variant="primary" />
-                  <MiniKPI icon={<Banknote className="h-3.5 w-3.5" />} label="Total Invested" value={formatUGX(detailPartner.totalFunded)} variant="emerald" />
-                  <MiniKPI icon={<TrendingUp className="h-3.5 w-3.5" />} label="ROI Earned" value={formatUGX(detailPartner.totalROIEarned)} variant="amber" />
+                  <MiniKPI icon={<Banknote className="h-3.5 w-3.5" />} label="Principal" value={formatUGX(detailPartner.totalFunded)} variant="emerald" />
+                  <MiniKPI icon={<TrendingUp className="h-3.5 w-3.5" />} label="Returns Earned" value={formatUGX(detailPartner.totalROIEarned)} variant="amber" />
                   <MiniKPI icon={<Briefcase className="h-3.5 w-3.5" />} label="Portfolios" value={detailPartner.portfolios.length} variant="violet" />
                 </div>
 
