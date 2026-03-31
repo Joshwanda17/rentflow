@@ -110,6 +110,23 @@ export default function ExecutiveDashboardLayout({
     </nav>
   );
 
+  if (checkingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (mustChangePassword && user) {
+    return (
+      <ForcePasswordChange
+        userId={user.id}
+        onPasswordChanged={() => setMustChangePassword(false)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top Bar */}
