@@ -1530,7 +1530,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   <p className="font-bold text-primary">{formatUGX(p.total_roi_earned)}</p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Invested On</span>
+                                  <span className="text-muted-foreground">Contributed On</span>
                                   <p className="font-semibold">{formatDate(p.created_at)}</p>
                                 </div>
                                 <div>
