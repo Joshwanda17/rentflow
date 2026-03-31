@@ -709,6 +709,29 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     }
   };
 
+  const handleResetStaffPassword = async () => {
+    if (!user) return;
+    setResettingStaffPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        toast.error('You must be logged in');
+        return;
+      }
+      const { error } = await supabase.rpc('reset_staff_access_password', {
+        p_user_id: user.id,
+        p_reset_by: session.user.id,
+      });
+      if (error) throw error;
+      toast.success(`Manager login password reset to default for ${user.full_name}`);
+    } catch (error: any) {
+      console.error('Error resetting staff password:', error);
+      toast.error(error.message || 'Failed to reset manager login password');
+    } finally {
+      setResettingStaffPassword(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!user) return;
     setDeletingUser(true);
