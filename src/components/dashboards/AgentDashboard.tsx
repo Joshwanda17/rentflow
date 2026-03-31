@@ -293,7 +293,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* 5 Key Action Buttons + Hub — immediately accessible */}
-        <div className="grid grid-cols-3 gap-2 animate-fade-in">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
             { icon: FileText, label: 'Post Request', onClick: () => setRentRequestOpen(true), color: 'text-success', bg: 'bg-success/15 border-success/40 hover:bg-success/20 ring-1 ring-success/30' },
