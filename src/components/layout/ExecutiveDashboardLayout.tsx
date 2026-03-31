@@ -1,10 +1,13 @@
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, type AppRole } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { LogOut, Menu, X, ArrowLeft } from 'lucide-react';
+import { LogOut, Menu, X, ArrowLeft, Loader2 } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
+import type { SidebarSection } from './executiveSidebarConfig';
+import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
 import type { SidebarSection } from './executiveSidebarConfig';
 
 interface ExecutiveDashboardLayoutProps {
