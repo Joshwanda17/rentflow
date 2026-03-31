@@ -47,7 +47,7 @@ export function CollectionStreakCard({ agentId }: Props) {
   const progress = (currentStreak / nextMilestone) * 100;
 
   return (
-    <div className={cn("rounded-xl border p-3 space-y-2 animate-fade-in", config.bg)}>
+    <div className={cn("rounded-xl border p-3 space-y-2", config.bg)}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon className={cn("h-5 w-5", config.color)} />
