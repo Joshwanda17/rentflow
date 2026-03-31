@@ -28,15 +28,9 @@ export default function ExecutiveDashboardLayout({
   const [checkingProfile, setCheckingProfile] = useState(true);
   const loggedRef = useRef(false);
 
-  // Check must_change_password on mount
   useEffect(() => {
     if (!user) { setCheckingProfile(false); return; }
-    const check = async () => {
-      const { data } = await supabase.from('profiles').select('must_change_password').eq('id', user.id).single();
-      if (data?.must_change_password) setMustChangePassword(true);
-      setCheckingProfile(false);
-    };
-    check();
+    setCheckingProfile(false);
   }, [user]);
 
   // Log dashboard_accessed
