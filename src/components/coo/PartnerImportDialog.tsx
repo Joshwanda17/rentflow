@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
-import { parse, isValid, format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { parseContributionDate } from '@/lib/portfolioDates';
 import { toast } from 'sonner';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
@@ -106,49 +106,6 @@ function normalizePhone(raw: string): string {
   if (cleaned.startsWith('256') && cleaned.length === 12) return '0' + cleaned.slice(3);
   if (cleaned.startsWith('+256')) return '0' + cleaned.slice(4);
   return cleaned;
-}
-
-function parseContributionDate(raw: any): string | null {
-  if (raw == null || raw === '') return null;
-  // Handle Excel serial date numbers (UTC to avoid timezone shift)
-  if (typeof raw === 'number') {
-    const serial = Math.floor(raw);
-    const excelDays = serial > 59 ? serial - 1 : serial; // Excel 1900 leap-year bug
-    const d = new Date(Date.UTC(1899, 11, 31 + excelDays));
-    return isNaN(d.getTime()) ? null : `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
-  }
-  const str = String(raw).trim();
-  if (!str) return null;
-
-  // d-MMM-yy (e.g. "2-Mar-26") or d-MMM-yyyy
-  if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(str)) {
-    const d = parse(str, 'd-MMM-yy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(str)) {
-    const d = parse(str, 'd-MMM-yyyy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-
-  // ISO YYYY-MM-DD
-  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (isoMatch) {
-    const d = parse(`${isoMatch[1]}-${isoMatch[2].padStart(2,'0')}-${isoMatch[3].padStart(2,'0')}`, 'yyyy-MM-dd', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  // M/D/YYYY
-  const usMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (usMatch) {
-    const d = parse(`${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`, 'dd/MM/yyyy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  // DD-MM-YYYY
-  const euMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
-  if (euMatch) {
-    const d = parse(`${euMatch[1].padStart(2,'0')}-${euMatch[2].padStart(2,'0')}-${euMatch[3]}`, 'dd-MM-yyyy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  return null;
 }
 
 function parseAmount(raw: any): number {

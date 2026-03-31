@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, addMonths, parse, isValid } from 'date-fns';
+import { addMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,51 +15,14 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import {
+  dateOnlyToLocalDate,
+  dateOnlyToUtcMiddayIso,
+  extractDateOnly,
+  formatLocalDateOnly,
+  parseContributionDate,
+} from '@/lib/portfolioDates';
 import { Upload, CalendarIcon, Loader2, Download, CheckCircle2, AlertTriangle } from 'lucide-react';
-
-/* ─── Date parser (same as PartnerImportDialog) ─── */
-function parseContributionDate(raw: any): string | null {
-  if (raw == null || raw === '') return null;
-  // Handle Excel serial date numbers (UTC to avoid timezone shift)
-  if (typeof raw === 'number') {
-    const serial = Math.floor(raw);
-    const excelDays = serial > 59 ? serial - 1 : serial; // Excel 1900 leap-year bug
-    const d = new Date(Date.UTC(1899, 11, 31 + excelDays));
-    return isNaN(d.getTime()) ? null : `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
-  }
-  const str = String(raw).trim();
-  if (!str) return null;
-
-  // d-MMM-yy (e.g. "2-Mar-26") or d-MMM-yyyy
-  if (/^\d{1,2}-[A-Za-z]{3}-\d{2}$/.test(str)) {
-    const d = parse(str, 'd-MMM-yy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(str)) {
-    const d = parse(str, 'd-MMM-yyyy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-
-  // ISO YYYY-MM-DD
-  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (isoMatch) {
-    const d = parse(`${isoMatch[1]}-${isoMatch[2].padStart(2,'0')}-${isoMatch[3].padStart(2,'0')}`, 'yyyy-MM-dd', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  // M/D/YYYY
-  const usMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (usMatch) {
-    const d = parse(`${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`, 'dd/MM/yyyy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  // DD-MM-YYYY
-  const euMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
-  if (euMatch) {
-    const d = parse(`${euMatch[1].padStart(2,'0')}-${euMatch[2].padStart(2,'0')}-${euMatch[3]}`, 'dd-MM-yyyy', new Date());
-    if (isValid(d)) return format(d, 'yyyy-MM-dd');
-  }
-  return null;
-}
 
 interface MatchedRow {
   uploadName: string;
@@ -117,7 +80,7 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
 
     try {
       const data = await file.arrayBuffer();
-      const wb = XLSX.read(data);
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
 
@@ -147,8 +110,8 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
       // Fetch all portfolios with owner names
       const { data: portfolios, error } = await supabase
         .from('investor_portfolios')
-        .select('id, portfolio_code, investment_amount, created_at, duration_months, investor_id, profiles!investor_portfolios_investor_id_fkey(full_name)')
-        .in('status', ['active', 'pending']);
+          .select('id, portfolio_code, investment_amount, created_at, duration_months, investor_id, profiles!investor_portfolios_investor_id_fkey(full_name)')
+          .in('status', ['active', 'pending', 'pending_approval', 'matured']);
 
       if (error) throw error;
 
@@ -165,7 +128,7 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
           portfolioId: match?.id || null,
           portfolioCode: match?.portfolio_code || null,
           ownerName: match ? (match.profiles as any)?.full_name : null,
-          currentDate: match?.created_at ? match.created_at.split('T')[0] : null,
+          currentDate: extractDateOnly(match?.created_at),
           newDate: p.date!,
           durationMonths: match?.duration_months || 12,
           matched: !!match,
@@ -182,7 +145,7 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
 
   /* ─── Update date for a row ─── */
   const updateRowDate = (idx: number, date: Date) => {
-    setRows(prev => prev.map((r, i) => i === idx ? { ...r, newDate: format(date, 'yyyy-MM-dd') } : r));
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, newDate: formatLocalDateOnly(date) } : r));
   };
 
   /* ─── Save ─── */
@@ -198,18 +161,18 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
     let failed = 0;
 
     for (const row of toUpdate) {
-      const newDate = new Date(row.newDate + 'T00:00:00');
-      const payoutDay = Math.min(newDate.getDate(), 28);
-      const nextRoiDate = addMonths(newDate, 1);
-      const maturityDate = addMonths(newDate, row.durationMonths);
+      const contributionDate = dateOnlyToLocalDate(row.newDate);
+      const payoutDay = Math.min(contributionDate.getDate(), 28);
+      const nextRoiDate = addMonths(contributionDate, 1);
+      const maturityDate = addMonths(contributionDate, row.durationMonths);
 
       const { error } = await supabase
         .from('investor_portfolios')
         .update({
-          created_at: newDate.toISOString(),
+          created_at: dateOnlyToUtcMiddayIso(row.newDate),
           payout_day: payoutDay,
-          next_roi_date: format(nextRoiDate, 'yyyy-MM-dd'),
-          maturity_date: format(maturityDate, 'yyyy-MM-dd'),
+          next_roi_date: formatLocalDateOnly(nextRoiDate),
+          maturity_date: formatLocalDateOnly(maturityDate),
         })
         .eq('id', row.portfolioId!);
 
@@ -315,7 +278,7 @@ export default function UpdateContributionDatesDialog({ open, onOpenChange, onSu
                             <PopoverContent className="w-auto p-0" align="start">
                               <Calendar
                                 mode="single"
-                                selected={new Date(row.newDate + 'T00:00:00')}
+                                selected={dateOnlyToLocalDate(row.newDate)}
                                 onSelect={(d) => d && updateRowDate(idx, d)}
                                 className={cn("p-3 pointer-events-auto")}
                               />
