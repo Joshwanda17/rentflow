@@ -19,10 +19,11 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verify caller is manager/cto
+    // Verify caller — accept service-role key via custom header or Authorization
     const authHeader = req.headers.get("Authorization");
     const token = authHeader?.replace("Bearer ", "") ?? "";
-    const isServiceRole = token === supabaseServiceKey;
+    const serviceKeyHeader = req.headers.get("x-service-key") ?? "";
+    const isServiceRole = token === supabaseServiceKey || serviceKeyHeader === supabaseServiceKey;
 
     if (!isServiceRole) {
       if (!token) {
