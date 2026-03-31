@@ -2617,10 +2617,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
           <DialogTitle className="flex items-center gap-2 text-base">
             <CalendarDays className="h-4.5 w-4.5 text-violet-600" />
-            Portfolios Nearing Payout
+            Portfolio Payouts
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {portfolios.length} portfolio{portfolios.length !== 1 ? 's' : ''} with payouts in the next 7 days
+            {portfolios.length} active portfolio{portfolios.length !== 1 ? 's' : ''} with scheduled payouts
           </DialogDescription>
         </DialogHeader>
         <div className="px-4 sm:px-5">
