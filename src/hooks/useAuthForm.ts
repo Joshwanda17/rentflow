@@ -333,7 +333,12 @@ export function useAuthForm() {
     let lastError: Error | null = null;
     let accountExists = rpcEmails.length > 0;
 
-    for (const emailToTry of uniqueCandidates) {
+    // Split candidates: RPC-matched emails first, generated placeholders only as fallback
+    const rpcMatchedEmails = uniqueCandidates.slice(0, rpcEmails.length);
+    const generatedPlaceholders = uniqueCandidates.slice(rpcEmails.length);
+
+    // Phase 1: Try RPC-matched emails (max 2-3 attempts)
+    for (const emailToTry of rpcMatchedEmails) {
       try {
         const { error } = await signIn(emailToTry, password);
         if (!error) {
@@ -342,17 +347,40 @@ export function useAuthForm() {
           break;
         }
         lastError = error;
-        // If credentials wrong (not "user not found"), account exists but password is wrong
         if (error.message.includes('Invalid login credentials')) {
           accountExists = true;
-          // Don't break — maybe another email format succeeds
+          // Continue to next RPC email — might be a different account format
         } else {
-          // Fatal error (rate limit, network, etc.) — stop trying
+          // Fatal error (rate limit, network, etc.) — stop entirely
           break;
         }
       } catch (e: any) {
         lastError = e;
         break;
+      }
+    }
+
+    // Phase 2: Only try generated placeholders if RPC found NOTHING
+    if (!loginSuccess && rpcMatchedEmails.length === 0) {
+      // Limit to 3 placeholder attempts max to avoid rate limiting
+      for (const emailToTry of generatedPlaceholders.slice(0, 3)) {
+        try {
+          const { error } = await signIn(emailToTry, password);
+          if (!error) {
+            loginSuccess = true;
+            lastError = null;
+            break;
+          }
+          lastError = error;
+          if (error.message.includes('Invalid login credentials')) {
+            accountExists = true;
+          } else {
+            break;
+          }
+        } catch (e: any) {
+          lastError = e;
+          break;
+        }
       }
     }
 
@@ -381,9 +409,9 @@ export function useAuthForm() {
     } else if (lastError?.message?.includes('rate') || lastError?.message?.includes('too many')) {
       errorMessage = 'Too many login attempts. Please wait a moment and try again.';
     } else if (accountExists) {
-      errorMessage = 'Incorrect password. Please check your password and try again.';
+      errorMessage = 'Incorrect password. Tap "Forgot Password?" below to reset it via SMS.';
     } else {
-      errorMessage = 'No account found with this phone number. Please sign up first.';
+      errorMessage = 'No account found with this phone number. Please check the number or sign up.';
     }
 
     setLoginError({ message: errorMessage, triedFormats });
