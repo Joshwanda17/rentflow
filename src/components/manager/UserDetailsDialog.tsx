@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import DashboardPermissionsTab from './DashboardPermissionsTab';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
