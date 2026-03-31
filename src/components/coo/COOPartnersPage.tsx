@@ -2592,7 +2592,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Invested</p>
+                      <p className="text-[10px] text-muted-foreground">Principal</p>
                       <p className="text-xs font-bold tabular-nums">{formatUGX(p.investmentAmount)}</p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
