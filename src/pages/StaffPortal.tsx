@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Shield, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { roleDashboardRoutes, ISOLATED_ROLES } from '@/components/layout/executiveSidebarConfig';
+import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import type { AppRole } from '@/hooks/auth/types';
+import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
 
 const STAFF_ROLES: AppRole[] = ['super_admin', 'manager', 'employee', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'operations'];
 
@@ -20,18 +20,40 @@ export default function StaffPortal() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [checkedProfile, setCheckedProfile] = useState(false);
 
-  // If already logged in with a staff role, redirect to their dashboard
+  // Check must_change_password for already-logged-in users
   useEffect(() => {
-    if (authLoading) return;
-    if (user && roles.length > 0) {
+    if (authLoading || !user) return;
+
+    const checkProfile = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('must_change_password')
+        .eq('id', user.id)
+        .single();
+
+      if (data?.must_change_password) {
+        setMustChangePassword(true);
+      } else {
+        setCheckedProfile(true);
+      }
+    };
+    checkProfile();
+  }, [user, authLoading]);
+
+  // If already logged in with a staff role and no password change needed, redirect
+  useEffect(() => {
+    if (authLoading || !checkedProfile) return;
+    if (user && roles.length > 0 && !mustChangePassword) {
       const staffRole = roles.find(r => STAFF_ROLES.includes(r));
       if (staffRole) {
         const route = roleDashboardRoutes[staffRole];
         navigate(route || '/admin/dashboard', { replace: true });
       }
     }
-  }, [user, roles, authLoading, navigate]);
+  }, [user, roles, authLoading, navigate, mustChangePassword, checkedProfile]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,9 +68,6 @@ export default function StaffPortal() {
       return;
     }
 
-    // After sign-in, check if user has a staff role
-    // The auth state change will trigger the useEffect above
-    // But we also do an immediate check
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) {
       toast.error('Authentication failed');
@@ -69,6 +88,26 @@ export default function StaffPortal() {
       return;
     }
 
+    // Audit: staff_login
+    await supabase.from('audit_logs').insert({
+      user_id: authUser.id,
+      action_type: 'staff_login',
+      metadata: { roles: userRoles.map(r => r.role), login_at: new Date().toISOString() },
+    });
+
+    // Check must_change_password
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('must_change_password')
+      .eq('id', authUser.id)
+      .single();
+
+    if (profile?.must_change_password) {
+      setMustChangePassword(true);
+      setSigningIn(false);
+      return;
+    }
+
     const primaryRole = userRoles[0].role as AppRole;
     const route = roleDashboardRoutes[primaryRole];
     toast.success('Welcome back');
@@ -83,10 +122,22 @@ export default function StaffPortal() {
     );
   }
 
+  // Force password change interceptor
+  if (mustChangePassword && user) {
+    return (
+      <ForcePasswordChange
+        userId={user.id}
+        onPasswordChanged={() => {
+          setMustChangePassword(false);
+          setCheckedProfile(true);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-8">
-        {/* Logo / Brand */}
         <div className="text-center space-y-3">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center shadow-lg">
             <Shield className="h-8 w-8 text-primary" />
@@ -97,7 +148,6 @@ export default function StaffPortal() {
           </div>
         </div>
 
-        {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-xl space-y-4">
             <div className="space-y-1.5">
@@ -155,7 +205,6 @@ export default function StaffPortal() {
           </div>
         </form>
 
-        {/* Footer */}
         <p className="text-center text-[11px] text-muted-foreground/50">
           Authorized personnel only • All actions are logged
         </p>
