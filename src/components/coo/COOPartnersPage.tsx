@@ -287,7 +287,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
         batchedQuery<any>(ids, (batch) =>
           supabase.from('investor_portfolios')
-            .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at')
+            .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date')
             .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
             .in('status', ['active', 'pending_approval', 'pending'])
             .order('created_at', { ascending: false })
@@ -377,19 +377,19 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
       setRows(tableRows);
 
-      // Build portfolio-level nearing payouts from ALL raw portfolios
+      // Build portfolio-level nearing payouts using next_roi_date
       const now = new Date();
-      const curDay = now.getDate();
-      const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      now.setHours(0, 0, 0, 0);
       const nearingList: NearingPayoutPortfolio[] = [];
-      (portfolios as any[]).forEach(p => {
-        if (!p.payout_day || p.status !== 'active') return;
+      dedupedPortfolios.forEach(p => {
+        if (!p.next_roi_date || p.status !== 'active') return;
         const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
-        let du = p.payout_day - curDay;
-        if (du < 0) du += dim;
-        if (du <= 7) {
+        const roiDate = new Date(p.next_roi_date + 'T00:00:00');
+        const diffMs = roiDate.getTime() - now.getTime();
+        const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (du >= 0 && du <= 7) {
           const prof = profileMap.get(ownerId);
           nearingList.push({
             portfolioId: p.id,
@@ -699,12 +699,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const amt = Number(addPortfolioAmount);
     const roi = Number(addPortfolioRoi);
     const duration = Number(addPortfolioDuration);
-    const payoutDay = Number(addPortfolioPayoutDay);
 
     if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum investment: ${formatUGX(MIN_INVEST)}`); return; }
     if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be between 1 and 100'); return; }
     if (isNaN(duration) || duration < 1 || duration > 60) { toast.error('Duration must be 1-60 months'); return; }
-    if (isNaN(payoutDay) || payoutDay < 1 || payoutDay > 28) { toast.error('Payout day must be 1-28'); return; }
 
     setAddingPortfolio(true);
     try {
@@ -714,8 +712,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const partnerId = detailPartner.profile.id;
       const portfolioCode = `WIP${new Date().toISOString().slice(2, 10).replace(/-/g, '')}${Math.floor(1000 + Math.random() * 9000)}`;
       const createdAt = addPortfolioDate ? new Date(addPortfolioDate).toISOString() : new Date().toISOString();
+      const contributionDate = new Date(createdAt);
+      const payoutDay = Math.min(contributionDate.getDate(), 28);
       const maturityDate = new Date(createdAt);
       maturityDate.setMonth(maturityDate.getMonth() + duration);
+
+      // next_roi_date = exactly one month from contribution date
+      const nextRoiDate = new Date(createdAt);
+      nextRoiDate.setMonth(nextRoiDate.getMonth() + 1);
 
       const { data: newPortfolio, error: insertErr } = await supabase
         .from('investor_portfolios')
@@ -733,12 +737,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           status: 'active',
           created_at: createdAt,
           maturity_date: maturityDate.toISOString().split('T')[0],
-          next_roi_date: (() => {
-            const d = new Date(createdAt);
-            d.setMonth(d.getMonth() + 1);
-            d.setDate(payoutDay);
-            return d.toISOString().split('T')[0];
-          })(),
+          next_roi_date: nextRoiDate.toISOString().split('T')[0],
         })
         .select('id')
         .single();
@@ -1792,9 +1791,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Payout Day (1-28)</Label>
-                <Input type="number" min={1} max={28} value={addPortfolioPayoutDay}
-                  onChange={e => setAddPortfolioPayoutDay(e.target.value)} />
+                <Label className="text-muted-foreground text-xs">Payout Day</Label>
+                <p className="text-sm font-medium text-foreground">Auto-derived from contribution date</p>
               </div>
             </div>
 
@@ -2423,10 +2421,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Update portfolio investment amount
+      // Update portfolio investment amount and advance next_roi_date by 1 month
+      const currentRoiDate = new Date();
+      currentRoiDate.setMonth(currentRoiDate.getMonth() + 1);
       const { error: upErr } = await supabase
         .from('investor_portfolios')
-        .update({ investment_amount: newAmount })
+        .update({ investment_amount: newAmount, next_roi_date: currentRoiDate.toISOString().split('T')[0] })
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
@@ -2477,6 +2477,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const refId = generateRef('PAY');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      // Advance next_roi_date by 1 month
+      const nextDate = new Date();
+      nextDate.setMonth(nextDate.getMonth() + 1);
+      await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
 
       // Create pending wallet operation for CFO approval
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
