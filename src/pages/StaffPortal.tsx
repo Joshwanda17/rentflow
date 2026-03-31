@@ -29,7 +29,7 @@ export default function StaffPortal() {
         navigate(route || '/admin/dashboard', { replace: true });
       }
     }
-  }, [user, roles, authLoading, navigate, mustChangePassword, checkedProfile]);
+  }, [user, roles, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
