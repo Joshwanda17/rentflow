@@ -173,7 +173,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
           tier: getPartnerTier(inv?.totalInvested || 0, inv?.activePortfolios || 0),
           lastActiveAt: (p as any).last_active_at || null,
         } as PartnerRow;
-      }).filter(p => p.totalInvested > 0 || p.activePortfolios > 0);
+      });
     },
     staleTime: 600000,
   });
