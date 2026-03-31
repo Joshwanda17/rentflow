@@ -248,6 +248,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Import dialog
   const [importOpen, setImportOpen] = useState(false);
+  const [updateDatesOpen, setUpdateDatesOpen] = useState(false);
 
   // Delete portfolio dialog
   const [deletePortfolio, setDeletePortfolio] = useState<PortfolioRow | null>(null);
