@@ -9,8 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import type { AppRole } from '@/hooks/auth/types';
-import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
-
 const STAFF_ROLES: AppRole[] = ['super_admin', 'manager', 'employee', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'operations'];
 
 export default function StaffPortal() {
@@ -20,33 +18,11 @@ export default function StaffPortal() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
-  const [mustChangePassword, setMustChangePassword] = useState(false);
-  const [checkedProfile, setCheckedProfile] = useState(false);
 
-  // Check must_change_password for already-logged-in users
+  // If already logged in with a staff role, redirect
   useEffect(() => {
     if (authLoading || !user) return;
-
-    const checkProfile = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('must_change_password')
-        .eq('id', user.id)
-        .single();
-
-      if (data?.must_change_password) {
-        setMustChangePassword(true);
-      } else {
-        setCheckedProfile(true);
-      }
-    };
-    checkProfile();
-  }, [user, authLoading]);
-
-  // If already logged in with a staff role and no password change needed, redirect
-  useEffect(() => {
-    if (authLoading || !checkedProfile) return;
-    if (user && roles.length > 0 && !mustChangePassword) {
+    if (roles.length > 0) {
       const staffRole = roles.find(r => STAFF_ROLES.includes(r));
       if (staffRole) {
         const route = roleDashboardRoutes[staffRole];

@@ -7,7 +7,7 @@ import { LogOut, Menu, X, ArrowLeft, Loader2 } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
 import type { SidebarSection } from './executiveSidebarConfig';
-import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
+
 
 interface ExecutiveDashboardLayoutProps {
   role: string;
