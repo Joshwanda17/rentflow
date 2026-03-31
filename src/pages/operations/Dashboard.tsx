@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Users, Home, Building2, Handshake } from 'lucide-react';
+import { Loader2, Users, Home, Building2, Handshake, Banknote, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const departmentConfig = {
+  financial: { label: 'Financial Ops', icon: Banknote, route: '/admin/financial-ops' },
+  company: { label: 'Company Staff', icon: Briefcase, route: '/executive-hub?tab=company-ops' },
   agent: { label: 'Agent Operations', icon: Users, route: '/executive-hub?tab=agent-ops' },
   tenant: { label: 'Tenant Operations', icon: Home, route: '/executive-hub?tab=tenant-ops' },
   landlord: { label: 'Landlord Operations', icon: Building2, route: '/executive-hub?tab=landlord-ops' },
