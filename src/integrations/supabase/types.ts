@@ -8969,6 +8969,10 @@ export type Database = {
         Args: { p_agent_id: string }
         Returns: undefined
       }
+      reset_staff_access_password: {
+        Args: { p_reset_by: string; p_user_id: string }
+        Returns: boolean
+      }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       search_agents: {
         Args: { result_limit?: number; search_term?: string }

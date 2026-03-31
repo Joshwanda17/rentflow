@@ -182,6 +182,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [resettingStaffPassword, setResettingStaffPassword] = useState(false);
 
   const fetchReferrerInfo = async (userId: string) => {
     setReferrerLoading(true);
@@ -705,6 +706,29 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       toast.error(error.message || 'Failed to reset password');
     } finally {
       setResettingPassword(false);
+    }
+  };
+
+  const handleResetStaffPassword = async () => {
+    if (!user) return;
+    setResettingStaffPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        toast.error('You must be logged in');
+        return;
+      }
+      const { error } = await supabase.rpc('reset_staff_access_password', {
+        p_user_id: user.id,
+        p_reset_by: session.user.id,
+      });
+      if (error) throw error;
+      toast.success(`Manager login password reset to default for ${user.full_name}`);
+    } catch (error: any) {
+      console.error('Error resetting staff password:', error);
+      toast.error(error.message || 'Failed to reset manager login password');
+    } finally {
+      setResettingStaffPassword(false);
     }
   };
 
@@ -1626,6 +1650,48 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </CardContent>
                   </Card>
 
+                  {/* Reset Manager Login Password */}
+                  {userRoles.includes('manager') && (
+                    <Card className="border-primary/30">
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-2 text-primary">
+                          <ShieldCheck className="h-4 w-4" />
+                          Manager Login Password
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0 space-y-3">
+                        <p className="text-xs text-muted-foreground">Reset the manager portal access password back to the default. The user will be required to set a new one on next login.</p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full h-12 border-primary/40 text-primary hover:bg-primary/10"
+                              disabled={resettingStaffPassword}
+                            >
+                              {resettingStaffPassword ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+                              ) : (
+                                <><ShieldCheck className="h-4 w-4 mr-2" />Reset Manager Login Password</>
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Reset Manager Login Password?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will reset {user?.full_name}'s manager portal password back to the default. They will need to set a new password on their next manager login.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleResetStaffPassword}>Reset Password</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <Separator />
 
                   {/* Danger Zone */}
@@ -2135,6 +2201,49 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </Button>
                   </CardContent>
                 </Card>
+
+                {/* Reset Manager Login Password */}
+                {userRoles.includes('manager') && (
+                  <Card className="border-primary/30">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2 text-primary">
+                        <ShieldCheck className="h-4 w-4" />
+                        Manager Login Password
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-3">
+                      <p className="text-xs text-muted-foreground">Reset manager portal password to default.</p>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full border-primary/40 text-primary hover:bg-primary/10"
+                            disabled={resettingStaffPassword}
+                          >
+                            {resettingStaffPassword ? (
+                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+                            ) : (
+                              <><ShieldCheck className="h-4 w-4 mr-2" />Reset Manager Login Password</>
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reset Manager Login Password?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will reset {user?.full_name}'s manager portal password back to the default. They will need to set a new password on their next manager login.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleResetStaffPassword}>Reset Password</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Separator />
                 <Card className="border-destructive/50">
                   <CardHeader className="py-3"><CardTitle className="text-sm flex items-center gap-2 text-destructive"><AlertTriangle className="h-4 w-4" />Danger Zone</CardTitle></CardHeader>
