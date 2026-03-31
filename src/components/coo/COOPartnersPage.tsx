@@ -2144,7 +2144,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </div>
               {editPortfolioAmount && Number(editPortfolioAmount) >= MIN_INVEST && editPortfolioRoi && (
                 <div className="text-xs bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
-                  <p>Monthly ROI ({editPortfolioRoi}%): <strong className="text-primary">{formatUGX(Math.round(Number(editPortfolioAmount) * (Number(editPortfolioRoi) / 100)))}</strong></p>
+                  <p>Monthly Returns ({editPortfolioRoi}%): <strong className="text-primary">{formatUGX(Math.round(Number(editPortfolioAmount) * (Number(editPortfolioRoi) / 100)))}</strong></p>
                   <p>Duration: <strong>{editPortfolioDuration} months</strong></p>
                 </div>
               )}
