@@ -255,7 +255,7 @@ export function LandlordOpsDashboard() {
   });
 
   // ─── All Landlords Direct Query ───
-  const { data: allLandlords } = useQuery({
+  const { data: allLandlords, refetch: refetchLandlords } = useQuery({
     queryKey: ['landlord-ops-all-landlords'],
     queryFn: async () => {
       const PAGE_SIZE = 1000;
@@ -282,6 +282,28 @@ export function LandlordOpsDashboard() {
         }
       }
 
+      // Collect all landlord IDs to fetch tenants from house_listings
+      const landlordIds = allData.map(l => l.id);
+
+      // Fetch all house_listings tenant mappings for these landlords
+      const landlordTenantsRaw: { landlord_id: string; tenant_id: string }[] = [];
+      for (let i = 0; i < landlordIds.length; i += 50) {
+        const { data: hlData } = await supabase
+          .from('house_listings')
+          .select('landlord_id, tenant_id')
+          .in('landlord_id', landlordIds.slice(i, i + 50))
+          .not('tenant_id', 'is', null);
+        if (hlData) landlordTenantsRaw.push(...(hlData as any[]));
+      }
+
+      // Build landlord -> tenant_ids map
+      const landlordTenantIdsMap = new Map<string, Set<string>>();
+      landlordTenantsRaw.forEach(hl => {
+        if (!hl.tenant_id) return;
+        if (!landlordTenantIdsMap.has(hl.landlord_id)) landlordTenantIdsMap.set(hl.landlord_id, new Set());
+        landlordTenantIdsMap.get(hl.landlord_id)!.add(hl.tenant_id);
+      });
+
       // Collect all profile IDs to batch-fetch
       const profileIds = new Set<string>();
       allData.forEach(l => {
@@ -289,6 +311,8 @@ export function LandlordOpsDashboard() {
         if (l.registered_by) profileIds.add(l.registered_by);
         if (l.managed_by_agent_id) profileIds.add(l.managed_by_agent_id);
       });
+      // Add tenant IDs from house_listings
+      landlordTenantsRaw.forEach(hl => { if (hl.tenant_id) profileIds.add(hl.tenant_id); });
 
       const idArr = [...profileIds];
       const profileMap = new Map<string, { full_name: string | null; phone: string | null }>();
@@ -298,13 +322,31 @@ export function LandlordOpsDashboard() {
         if (profiles) profiles.forEach(p => profileMap.set(p.id, p));
       }
 
-      return allData.map(l => ({
-        ...l,
-        tenant_name: l.tenant_id ? (profileMap.get(l.tenant_id)?.full_name || null) : null,
-        tenant_phone_profile: l.tenant_id ? (profileMap.get(l.tenant_id)?.phone || null) : null,
-        agent_name: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.full_name : null) || (l.registered_by ? profileMap.get(l.registered_by)?.full_name : null) || null,
-        agent_phone: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.phone : null) || (l.registered_by ? profileMap.get(l.registered_by)?.phone : null) || null,
-      }));
+      return allData.map(l => {
+        // Get all tenants from house_listings for this landlord
+        const tenantIdSet = landlordTenantIdsMap.get(l.id);
+        const tenants: { name: string; phone: string | null }[] = [];
+        if (tenantIdSet) {
+          tenantIdSet.forEach(tid => {
+            const p = profileMap.get(tid);
+            tenants.push({ name: p?.full_name || 'Unknown', phone: p?.phone || null });
+          });
+        }
+        // Fallback: if no house_listings tenants but landlord has tenant_id
+        if (tenants.length === 0 && l.tenant_id) {
+          const p = profileMap.get(l.tenant_id);
+          if (p) tenants.push({ name: p.full_name || 'Unknown', phone: p.phone || null });
+        }
+
+        return {
+          ...l,
+          tenants,
+          tenant_name: l.tenant_id ? (profileMap.get(l.tenant_id)?.full_name || null) : null,
+          tenant_phone_profile: l.tenant_id ? (profileMap.get(l.tenant_id)?.phone || null) : null,
+          agent_name: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.full_name : null) || (l.registered_by ? profileMap.get(l.registered_by)?.full_name : null) || null,
+          agent_phone: (l.managed_by_agent_id ? profileMap.get(l.managed_by_agent_id)?.phone : null) || (l.registered_by ? profileMap.get(l.registered_by)?.phone : null) || null,
+        };
+      });
     },
     staleTime: 60000,
   });
@@ -508,12 +550,15 @@ export function LandlordOpsDashboard() {
     </button>
   );
 
+  const refetchAll = () => { refetch(); refetchLandlords(); };
+
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
     const filtered = search
       ? landlordsList.filter(l => l.name?.toLowerCase().includes(search.toLowerCase()) || l.phone?.includes(search) || l.tenant_name?.toLowerCase().includes(search.toLowerCase()) || l.agent_name?.toLowerCase().includes(search.toLowerCase()))
       : landlordsList;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords ({landlordsList.length})</h2>
@@ -557,14 +602,24 @@ export function LandlordOpsDashboard() {
                     </div>
                   </div>
                 </div>
-                {/* Tenant info */}
-                {landlord.tenant_name && (
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
-                      <p className="text-xs font-medium truncate">{landlord.tenant_name}</p>
-                    </div>
-                    {landlord.tenant_phone_profile && <PhoneLinks phone={landlord.tenant_phone_profile} name={landlord.tenant_name} />}
+                {/* All Tenants from house_listings */}
+                {landlord.tenants && landlord.tenants.length > 0 ? (
+                  <div className="space-y-1">
+                    {landlord.tenants.map((t: { name: string; phone: string | null }, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
+                          <p className="text-xs font-medium truncate">{t.name}</p>
+                        </div>
+                        {t.phone && <PhoneLinks phone={t.phone} name={t.name} />}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-orange-500/10 px-2.5 py-1.5">
+                    <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                      <UserX className="h-3 w-3" /> No tenants linked
+                    </p>
                   </div>
                 )}
                 {/* Agent info */}
@@ -590,6 +645,19 @@ export function LandlordOpsDashboard() {
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No landlords found</p>}
         </div>
       </div>
+      <LandlordDialogs
+        editLandlord={editLandlord} setEditLandlord={setEditLandlord}
+        editLC1={editLC1} setEditLC1={setEditLC1}
+        assignPerson={assignPerson} setAssignPerson={setAssignPerson}
+        deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
+        deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+        deleting={deleting} setDeleting={setDeleting}
+        previewImages={previewImages} setPreviewImages={setPreviewImages}
+        adjustListing={adjustListing} setAdjustListing={setAdjustListing}
+        actionDialog={actionDialog} setActionDialog={setActionDialog}
+        user={user} refetchAll={refetchAll}
+      />
+      </>
     );
   }
 
@@ -1076,35 +1144,54 @@ export function LandlordOpsDashboard() {
         ))}
       </div>
 
-      {/* Dialogs */}
+      <LandlordDialogs
+        editLandlord={editLandlord} setEditLandlord={setEditLandlord}
+        editLC1={editLC1} setEditLC1={setEditLC1}
+        assignPerson={assignPerson} setAssignPerson={setAssignPerson}
+        deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
+        deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+        deleting={deleting} setDeleting={setDeleting}
+        previewImages={previewImages} setPreviewImages={setPreviewImages}
+        adjustListing={adjustListing} setAdjustListing={setAdjustListing}
+        actionDialog={actionDialog} setActionDialog={setActionDialog}
+        user={user} refetchAll={refetchAll}
+      />
+    </div>
+  );
+}
+
+// ─── Shared Dialogs Component ───
+function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, assignPerson, setAssignPerson, deleteLandlord, setDeleteLandlord, deleteReason, setDeleteReason, deleting, setDeleting, previewImages, setPreviewImages, adjustListing, setAdjustListing, actionDialog, setActionDialog, user, refetchAll }: any) {
+  return (
+    <>
       {previewImages && (
         <ImagePreviewDialog images={previewImages.images} title={previewImages.title} open={!!previewImages} onClose={() => setPreviewImages(null)} />
       )}
       {adjustListing && (
-        <RentAdjustmentDialog open={!!adjustListing} onOpenChange={(open) => !open && setAdjustListing(null)} listing={adjustListing} onSuccess={() => refetch()} />
+        <RentAdjustmentDialog open={!!adjustListing} onOpenChange={(open: boolean) => !open && setAdjustListing(null)} listing={adjustListing} onSuccess={refetchAll} />
       )}
       {actionDialog && (
         <EmptyHouseActionDialog
           open={!!actionDialog}
-          onOpenChange={(open) => !open && setActionDialog(null)}
+          onOpenChange={(open: boolean) => !open && setActionDialog(null)}
           listingId={actionDialog.listing.id}
           listingTitle={actionDialog.listing.title}
           actionType={actionDialog.type}
           userId={user?.id || ''}
-          onComplete={() => refetch()}
+          onComplete={refetchAll}
         />
       )}
       <EditLandlordDialog
         landlord={editLandlord}
         open={!!editLandlord}
         onClose={() => setEditLandlord(null)}
-        onSaved={() => refetch()}
+        onSaved={refetchAll}
       />
       <EditLC1Dialog
         lc1={editLC1}
         open={!!editLC1}
         onClose={() => setEditLC1(null)}
-        onSaved={() => refetch()}
+        onSaved={refetchAll}
       />
       <AssignPersonDialog
         open={!!assignPerson}
@@ -1112,10 +1199,10 @@ export function LandlordOpsDashboard() {
         listingId={assignPerson?.listingId || ''}
         listingTitle={assignPerson?.title || ''}
         personType={assignPerson?.type || 'landlord'}
-        onSaved={() => refetch()}
+        onSaved={refetchAll}
       />
       {/* Delete Landlord Confirmation */}
-      <Dialog open={!!deleteLandlord} onOpenChange={(o) => { if (!o) { setDeleteLandlord(null); setDeleteReason(''); } }}>
+      <Dialog open={!!deleteLandlord} onOpenChange={(o: boolean) => { if (!o) { setDeleteLandlord(null); setDeleteReason(''); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-base text-destructive">Delete Landlord</DialogTitle>
@@ -1127,7 +1214,7 @@ export function LandlordOpsDashboard() {
             <label className="text-xs font-medium">Reason (min 10 chars) *</label>
             <Input
               value={deleteReason}
-              onChange={e => setDeleteReason(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteReason(e.target.value)}
               placeholder="Why is this landlord being deleted?"
               className="h-10"
             />
@@ -1137,17 +1224,14 @@ export function LandlordOpsDashboard() {
             <Button
               variant="destructive"
               className="flex-1"
-              disabled={deleting || deleteReason.trim().length < 10}
+              disabled={deleting || (deleteReason?.trim().length || 0) < 10}
               onClick={async () => {
                 if (!deleteLandlord || !user) return;
                 setDeleting(true);
                 try {
-                  // Unlink listings first
                   await supabase.from('house_listings').update({ landlord_id: null }).eq('landlord_id', deleteLandlord.id);
-                  // Delete landlord
                   const { error } = await supabase.from('landlords').delete().eq('id', deleteLandlord.id);
                   if (error) throw error;
-                  // Audit log
                   await supabase.from('audit_logs').insert({
                     user_id: user.id,
                     action_type: 'landlord_deleted',
@@ -1155,12 +1239,11 @@ export function LandlordOpsDashboard() {
                     record_id: deleteLandlord.id,
                     metadata: { landlord_name: deleteLandlord.name, reason: deleteReason.trim(), deleted_by: 'landlord_ops' },
                   });
-                  toast({ title: 'Landlord deleted', description: `${deleteLandlord.name} has been removed.` });
                   setDeleteLandlord(null);
                   setDeleteReason('');
-                  refetch();
+                  refetchAll();
                 } catch (err: any) {
-                  toast({ title: 'Error', description: err.message || 'Failed to delete landlord', variant: 'destructive' });
+                  console.error('Delete failed:', err);
                 } finally {
                   setDeleting(false);
                 }
@@ -1171,7 +1254,7 @@ export function LandlordOpsDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 
