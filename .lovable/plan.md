@@ -1,38 +1,23 @@
 
 
-# Fix Landlord Operations — Edit/Delete Buttons + Show All Tenants Per Landlord
+# Require TID Entry at CFO Rent Approval Stage
 
-## Problem
+## Current State
+The rent pipeline already flows COO → CFO correctly. However, the CFO stage has `showPayoutFields: false` (line 81), so the CFO cannot enter a Transaction ID (TID) when approving. The TID fields exist in the component but are hidden for this stage.
 
-1. **Edit and Delete buttons don't work** — The landlords list view (`view === 'landlords'`) returns early at line 593, but all dialogs (EditLandlordDialog, Delete confirmation) are rendered in the `home` view's return block (lines 1080-1173). When clicking Edit/Delete, the state variables are set but the dialogs never mount because the component has already returned.
+## Change
 
-2. **Only one tenant shown per landlord** — Currently uses `landlords.tenant_id` (single field), but landlords can have multiple tenants via `house_listings`. Need to cross-reference `house_listings` to show all tenants linked to each landlord.
+**File: `src/components/executive/RentPipelineQueue.tsx`**
 
-## Plan
+1. **Enable payout fields for CFO stage** — Change `showPayoutFields` from `false` to `true` in the `coo_approved` config (line 81).
 
-### 1. Move dialogs outside early-return views
-In `src/components/executive/LandlordOpsDashboard.tsx`, restructure so the dialogs render regardless of which view is active. Instead of early-returning from each view, wrap the view content and dialogs together:
+2. **Make TID mandatory for CFO approval** — In `handleApprove`, when `stage === 'coo_approved'`, validate that `payoutRef` is not empty before calling `fund-agent-landlord-float`. If empty, show a toast error: "Transaction ID is required for audit compliance."
 
-- Move the landlords view content into the final return block (or wrap with a fragment that always renders the dialogs)
-- The EditLandlordDialog, Delete dialog, EditLC1Dialog, and AssignPersonDialog will render at the bottom of **every** view, not just `home`
+3. **Pass TID to the edge function** — Include `payoutRef` and `payoutMethod` in the body sent to `fund-agent-landlord-float` so the TID is stored on the rent request record (`payout_transaction_reference` and `payout_method` columns).
 
-### 2. Show all tenants per landlord from house_listings
-Enhance the `allLandlords` query to also cross-reference `house_listings` for tenant associations:
+**File: `supabase/functions/fund-agent-landlord-float/index.ts`**
 
-- After fetching landlords, query `house_listings` for all `landlord_id`s to get `tenant_id` mappings
-- Build a `landlordTenantsMap: Map<string, {name, phone}[]>` from the house_listings tenant data
-- In the landlords list view, render all associated tenants (not just the single `tenant_id` from the landlords table)
-- Each tenant row shows name + phone with call/WhatsApp links
+4. **Store TID in edge function** — Accept `transaction_reference` and `payout_method` from the request body, and include them in the rent request update so `payout_transaction_reference` and `payout_method` are saved alongside the `funded` status transition.
 
-### 3. Refetch after edit/delete
-Ensure `refetch()` also refetches `allLandlords` query (currently it only refetches `listings`). Add the allLandlords refetch to `onSaved` and delete success callbacks.
-
----
-
-**File to modify:** `src/components/executive/LandlordOpsDashboard.tsx`
-
-**Technical approach:**
-- Wrap all view returns with a fragment: `<>{viewContent}{dialogs}</>` pattern
-- Add a secondary query join from `house_listings` grouped by `landlord_id` to get all tenants
-- Use the existing `profileMap` batch-fetch pattern for tenant names
+This ensures every CFO-approved rent request has a TID on record for auditing purposes.
 
