@@ -200,8 +200,8 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
-  const queues: Record<QueueType, QueueItem[]> = { deposits, withdrawals, wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
-  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'withdrawals' ? loadingWithdrawals : activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
+  const queues: Record<QueueType, QueueItem[]> = { deposits, wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
+  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
 
   const items = useMemo(() => {
     let list = queues[activeQueue];
