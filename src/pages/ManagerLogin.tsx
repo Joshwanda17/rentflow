@@ -169,7 +169,9 @@ export default function ManagerLogin() {
         p_password: accessPassword,
       });
 
-      if (rpcError || !data?.valid) {
+      const result = data as { valid: boolean; must_change: boolean };
+
+      if (rpcError || !result.valid) {
         setPasswordError(true);
         setVerifyingPassword(false);
         return;
@@ -182,7 +184,7 @@ export default function ManagerLogin() {
         metadata: { method: 'manager_portal', login_at: new Date().toISOString() },
       });
 
-      if (data.must_change) {
+      if (result.must_change) {
         setMustChangePassword(true);
         setVerifyingPassword(false);
         return;

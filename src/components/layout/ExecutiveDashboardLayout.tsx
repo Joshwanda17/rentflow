@@ -111,14 +111,8 @@ export default function ExecutiveDashboardLayout({
     );
   }
 
-  if (mustChangePassword && user) {
-    return (
-      <ForcePasswordChange
-        userId={user.id}
-        onPasswordChanged={() => setMustChangePassword(false)}
-      />
-    );
-  }
+
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
