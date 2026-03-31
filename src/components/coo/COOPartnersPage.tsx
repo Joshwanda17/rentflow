@@ -353,7 +353,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           joinedAt: profile?.created_at || '',
           lastActivity: agg.lastActivity || '',
         };
-      }).filter(r => r.funded > 0 || r.activeDeals > 0)
+      })
         .sort((a, b) => b.funded - a.funded);
 
       const totalFunded = tableRows.reduce((s, r) => s + r.funded, 0);
