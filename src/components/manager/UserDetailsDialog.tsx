@@ -1199,7 +1199,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   // Shared tabs component - now with 8 tabs using horizontal scroll on mobile
   const TabsNavigation = () => (
     <div className={isMobile ? 'overflow-x-auto -mx-4 px-4 pb-2' : ''}>
-      <TabsList className={`${isMobile ? 'inline-flex w-auto min-w-full gap-1 h-12' : 'grid w-full grid-cols-8'}`}>
+      <TabsList className={`${isMobile ? 'inline-flex w-auto min-w-full gap-1 h-12' : 'grid w-full grid-cols-9'}`}>
         <TabsTrigger value="overview" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
           <User className="h-4 w-4" />
           <span className={isMobile ? '' : 'hidden sm:inline'}>Overview</span>
