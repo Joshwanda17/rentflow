@@ -36,6 +36,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
+
+/** Roll a stale next_roi_date forward month-by-month until it's >= today */
+function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payoutDay: number): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = Math.min(payoutDay || new Date(createdAt).getDate(), 28);
+
+  let d: Date;
+  if (nextRoiDate) {
+    d = new Date(nextRoiDate + 'T00:00:00');
+  } else {
+    const base = new Date(createdAt);
+    d = new Date(base.getFullYear(), base.getMonth() + 1, day);
+  }
+  // Roll forward until d >= today
+  while (d < today) {
+    d = new Date(d.getFullYear(), d.getMonth() + 1, day);
+  }
+  return d.toISOString().split('T')[0];
+}
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
 import { FundInvestmentAccountDialog } from '@/components/manager/FundInvestmentAccountDialog';
 import { CreateInvestmentAccountDialog } from '@/components/manager/CreateInvestmentAccountDialog';
