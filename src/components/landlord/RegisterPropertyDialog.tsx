@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -273,7 +273,7 @@ export default function RegisterPropertyDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto ios-fixed-scroll" stable>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -284,22 +284,11 @@ export default function RegisterPropertyDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <AnimatePresence mode="wait">
-          {success ? (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="py-8 text-center"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
-                className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/20 flex items-center justify-center"
-              >
+        {success ? (
+            <div className="py-8 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/20 flex items-center justify-center">
                 <CheckCircle2 className="h-8 w-8 text-success" />
-              </motion.div>
+              </div>
               <h3 className="text-lg font-semibold mb-2">Property Registered!</h3>
               <p className="text-muted-foreground text-sm mb-2">
                 A manager will verify your property to activate{' '}
@@ -311,12 +300,9 @@ export default function RegisterPropertyDialog({
                 <p>✅ Welile replaces tenants who leave at no cost</p>
               </div>
               <Button onClick={() => handleOpenChange(false)}>Done</Button>
-            </motion.div>
+            </div>
           ) : (
-            <motion.form
-              key="form"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <form
               onSubmit={handleSubmit}
               className="space-y-5"
             >
@@ -712,9 +698,8 @@ export default function RegisterPropertyDialog({
                   </>
                 )}
               </Button>
-            </motion.form>
+            </form>
           )}
-        </AnimatePresence>
       </DialogContent>
     </Dialog>
   );
