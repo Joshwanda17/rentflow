@@ -12,6 +12,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
+import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
 
 type HealthStatus = 'green' | 'yellow' | 'red';
 
