@@ -284,17 +284,6 @@ export function ApprovalQueue() {
           body: { ids, action: bulkAction, reason: bulkAction === 'reject' ? reason : undefined },
         });
         if (response.error) throw response.error;
-      } else if (activeQueue === 'withdrawals') {
-        const status = bulkAction === 'approve' ? 'approved' : 'rejected';
-        const { error } = await supabase.from('investment_withdrawal_requests')
-          .update({
-            status,
-            processed_by: user.id,
-            processed_at: new Date().toISOString(),
-            ...(bulkAction === 'reject' ? { rejection_reason: reason } : {}),
-          })
-          .in('id', ids);
-        if (error) throw error;
       } else if (activeQueue === 'wallet_withdrawals') {
         if (bulkAction === 'reject') {
           // Use edge function for proper rejection with notification & audit
