@@ -2518,9 +2518,23 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
+  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'paid'>>({});
 
+  // Keep a local snapshot so items don't vanish when parent refetches
+  const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
+  useEffect(() => {
+    // Only update local list when dialog opens fresh (no completed actions yet)
+    if (open && Object.keys(completed).length === 0) {
+      setLocalPortfolios(portfolios);
+    }
+  }, [open, portfolios, completed]);
 
-
+  // Reset completed state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setCompleted({});
+    }
+  }, [open]);
 
 
 
