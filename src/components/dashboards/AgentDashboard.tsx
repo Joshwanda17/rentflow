@@ -224,10 +224,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
 
       <div className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
+        <main className="px-4 py-5 space-y-5 max-w-lg mx-auto">
         {/* Offline Notice */}
         {!isOnline && (
-          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20 animate-fade-in">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
             <WifiOff className="h-3.5 w-3.5 text-warning shrink-0" />
             <p className="text-xs text-warning flex-1">You're offline — data may be outdated</p>
             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.location.reload()}>
@@ -239,7 +239,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentAgreementBanner />
 
         {/* Profile + Name + AI ID */}
-        <div className="flex items-center gap-3 animate-fade-in">
+        <div className="flex items-center gap-3">
           <button onClick={() => navigate('/settings')} className="shrink-0">
             <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
           </button>
@@ -258,7 +258,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet — Most Prominent */}
         <button
           onClick={handleViewWallet}
-          className="group w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all touch-manipulation animate-fade-in active:scale-[0.98]"
+          className="group w-full rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all touch-manipulation active:scale-[0.98]"
         >
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-primary/15 group-hover:bg-primary/25 transition-colors shrink-0">
@@ -339,7 +339,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {isCashoutAgent && (
           <button
             onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/15 transition-all touch-manipulation active:scale-[0.98] animate-fade-in"
+            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/15 transition-all touch-manipulation active:scale-[0.98]"
           >
             <div className="p-2.5 rounded-lg bg-orange-500/20">
               <Banknote className="h-5 w-5 text-orange-600" />
