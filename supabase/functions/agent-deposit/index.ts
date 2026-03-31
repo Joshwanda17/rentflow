@@ -279,16 +279,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Record repayment
-        await adminClient
-          .from('repayments')
-          .insert({
-            tenant_id: targetUserId,
-            rent_request_id: activeRentRequest.id,
-            amount: repaymentAmount,
-          });
-
-        // Update amount_repaid on rent_requests
+        // Update amount_repaid on rent_requests (also inserts repayment row)
         await adminClient.rpc("record_rent_request_repayment", {
           p_tenant_id: targetUserId,
           p_amount: repaymentAmount,
@@ -302,17 +293,6 @@ Deno.serve(async (req) => {
             .update({ status: 'completed', updated_at: new Date().toISOString() })
             .eq('id', activeRentRequest.id);
         }
-
-        // Notify agent of commission earned
-        await adminClient
-          .from('notifications')
-          .insert({
-            user_id: agentId,
-            title: 'Commission Earned! 💰',
-            message: `You earned UGX ${(actualCommission || commission).toLocaleString()} (5%) from paying rent for tenant.`,
-            type: 'earning',
-            metadata: { amount: actualCommission || commission, type: 'commission', rent_request_id: activeRentRequest.id },
-          });
 
         // Notify tenant
         await adminClient
