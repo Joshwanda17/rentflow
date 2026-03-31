@@ -385,6 +385,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
+        onInviteFunder={() => {
+          setMenuOpen(false);
+          const funderLink = `${window.location.origin}/auth?ref=${user.id}&role=funder`;
+          const shareText = `Join Welile as a funder and start earning! Sign up here: ${funderLink}`;
+          if (navigator.share) {
+            navigator.share({ title: 'Become a Welile Funder', text: shareText, url: funderLink }).catch(() => {});
+          } else {
+            navigator.clipboard.writeText(funderLink).then(() => {
+              import('sonner').then(({ toast }) => toast.success('Funder signup link copied!'));
+            });
+          }
+        }}
       />
 
       {/* Existing Dialogs */}
