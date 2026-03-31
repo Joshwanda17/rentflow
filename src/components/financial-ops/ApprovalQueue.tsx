@@ -485,7 +485,7 @@ export function ApprovalQueue() {
                           <span className={`text-[10px] font-bold uppercase tracking-wider ${
                             isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-muted-foreground'
                           }`}>
-                            {isDeposit ? 'Deposit' : isCashOut ? 'Cash Out' : item.type === 'withdrawals' ? 'Invest W/D' : 'Wallet Op'}
+                            {isDeposit ? 'Deposit' : isCashOut ? 'Cash Out' : 'Wallet Op'}
                           </span>
                         </div>
                         <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
