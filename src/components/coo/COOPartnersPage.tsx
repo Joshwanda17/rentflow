@@ -414,15 +414,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
 
-        // Derive next payout date: use next_roi_date if set, otherwise created_at + 1 month
-        let effectiveNextDate: string;
-        if (p.next_roi_date) {
-          effectiveNextDate = p.next_roi_date;
-        } else {
-          const base = new Date(p.created_at);
-          base.setMonth(base.getMonth() + 1);
-          effectiveNextDate = base.toISOString().split('T')[0];
-        }
+        // Derive next payout date — roll forward stale dates
+        const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
 
         const roiDate = new Date(effectiveNextDate + 'T00:00:00');
         const diffMs = roiDate.getTime() - now.getTime();
