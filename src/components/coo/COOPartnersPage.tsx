@@ -412,7 +412,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const roiDate = new Date(effectiveNextDate + 'T00:00:00');
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        if (du >= -7 && du <= 30) {
+        if (du >= 0 && du <= 30) {
           const prof = profileMap.get(ownerId);
           const effectivePayoutDay = p.payout_day || roiDate.getDate();
           nearingList.push({
