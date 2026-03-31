@@ -68,6 +68,7 @@ interface AgentMenuDrawerProps {
   onShareSubAgentLink?: () => void;
   onManageFunders?: () => void;
   onOpenPartnerDashboard?: () => void;
+  onInviteFunder?: () => void;
 }
 
 interface MenuItem {
@@ -111,6 +112,7 @@ export function AgentMenuDrawer({
   onShareSubAgentLink,
   onManageFunders,
   onOpenPartnerDashboard,
+  onInviteFunder,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('actions');
@@ -146,6 +148,7 @@ export function AgentMenuDrawer({
         { icon: HandCoins, label: 'Invest for Partner', description: 'Proxy investment', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
         { icon: Banknote, label: 'Cash Payouts', description: 'Verify & pay cash-outs', path: '/agent/cash-payouts', accent: 'orange-500', badge: '💵' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
+        { icon: Heart, label: 'Invite Funder', description: 'Share signup link for funders', onClick: onInviteFunder, accent: 'primary', badge: '💜' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
