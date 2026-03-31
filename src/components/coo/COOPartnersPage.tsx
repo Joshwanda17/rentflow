@@ -36,6 +36,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import PartnerImportDialog from './PartnerImportDialog';
+import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
 
 /** Roll a stale next_roi_date forward month-by-month until it's >= today */
 function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payoutDay: number): string {
@@ -247,6 +248,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Import dialog
   const [importOpen, setImportOpen] = useState(false);
+  const [updateDatesOpen, setUpdateDatesOpen] = useState(false);
 
   // Delete portfolio dialog
   const [deletePortfolio, setDeletePortfolio] = useState<PortfolioRow | null>(null);
@@ -1355,6 +1357,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="h-3.5 w-3.5" /> Import
         </Button>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setUpdateDatesOpen(true)}>
+          <CalendarDays className="h-3.5 w-3.5" /> Update Dates
+        </Button>
         {pendingApprovalCount > 0 && (
           <Button
             size="sm"
@@ -2094,6 +2099,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+
+      {/* Update Contribution Dates Dialog */}
+      <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => { fetchData(); }} />
 
       {/* Top-level Create Portfolio Dialog */}
       <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
