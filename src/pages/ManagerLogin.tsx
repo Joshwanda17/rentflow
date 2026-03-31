@@ -177,11 +177,24 @@ export default function ManagerLogin() {
         return;
       }
 
-      // Audit: staff_login via manager portal
+      // Audit: staff_login via manager portal with device info
+      const ua = navigator.userAgent;
+      const deviceName = /\(([^)]+)\)/.exec(ua)?.[1] || 'Unknown device';
+      const browserMatch = ua.match(/(Chrome|Firefox|Safari|Edge|Opera|SamsungBrowser|UCBrowser)\/[\d.]+/);
+      const browserName = browserMatch ? browserMatch[0] : 'Unknown browser';
       await supabase.from('audit_logs').insert({
         user_id: selectedManager.user_id,
-        action_type: 'staff_login',
-        metadata: { method: 'manager_portal', login_at: new Date().toISOString() },
+        action_type: 'staff_portal_login',
+        table_name: 'staff_access_passwords',
+        record_id: selectedManager.user_id,
+        metadata: {
+          method: 'manager_portal',
+          username: selectedManager.full_name,
+          device: deviceName,
+          browser: browserName,
+          user_agent: ua,
+          login_at: new Date().toISOString(),
+        },
       });
 
       if (result.must_change) {
