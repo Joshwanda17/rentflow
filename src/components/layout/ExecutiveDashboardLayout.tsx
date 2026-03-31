@@ -26,6 +26,31 @@ export default function ExecutiveDashboardLayout({
   const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(true);
+  const loggedRef = useRef(false);
+
+  // Check must_change_password on mount
+  useEffect(() => {
+    if (!user) { setCheckingProfile(false); return; }
+    const check = async () => {
+      const { data } = await supabase.from('profiles').select('must_change_password').eq('id', user.id).single();
+      if (data?.must_change_password) setMustChangePassword(true);
+      setCheckingProfile(false);
+    };
+    check();
+  }, [user]);
+
+  // Log dashboard_accessed
+  useEffect(() => {
+    if (!user || loggedRef.current) return;
+    loggedRef.current = true;
+    supabase.from('audit_logs').insert({
+      user_id: user.id,
+      action_type: 'dashboard_accessed',
+      metadata: { dashboard: role, timestamp: new Date().toISOString() },
+    });
+  }, [user, role]);
 
   const sections: SidebarSection[] = executiveSidebarConfig[role] || [];
   const displayRole = roleLabels[role as AppRole] || role.toUpperCase();
