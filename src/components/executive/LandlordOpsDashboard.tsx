@@ -1162,6 +1162,7 @@ export function LandlordOpsDashboard() {
 
 // ─── Shared Dialogs Component ───
 function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, assignPerson, setAssignPerson, deleteLandlord, setDeleteLandlord, deleteReason, setDeleteReason, deleting, setDeleting, previewImages, setPreviewImages, adjustListing, setAdjustListing, actionDialog, setActionDialog, user, refetchAll }: any) {
+  const { toast } = useToast();
   return (
     <>
       {previewImages && (
