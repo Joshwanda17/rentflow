@@ -1650,6 +1650,48 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </CardContent>
                   </Card>
 
+                  {/* Reset Manager Login Password */}
+                  {userRoles.includes('manager') && (
+                    <Card className="border-primary/30">
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-2 text-primary">
+                          <ShieldCheck className="h-4 w-4" />
+                          Manager Login Password
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0 space-y-3">
+                        <p className="text-xs text-muted-foreground">Reset the manager portal access password back to the default. The user will be required to set a new one on next login.</p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full h-12 border-primary/40 text-primary hover:bg-primary/10"
+                              disabled={resettingStaffPassword}
+                            >
+                              {resettingStaffPassword ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+                              ) : (
+                                <><ShieldCheck className="h-4 w-4 mr-2" />Reset Manager Login Password</>
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Reset Manager Login Password?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will reset {user?.full_name}'s manager portal password back to the default. They will need to set a new password on their next manager login.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleResetStaffPassword}>Reset Password</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   <Separator />
 
                   {/* Danger Zone */}
