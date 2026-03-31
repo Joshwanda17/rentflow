@@ -2345,7 +2345,7 @@ function MiniKPI({ icon, label, value, variant }: {
 
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
-  const totalAmount = portfolios.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100 / 12), 0);
+  const totalAmount = portfolios.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
   const hasPayouts = portfolios.length > 0;
   return (
     <button onClick={onClick} className={cn(
