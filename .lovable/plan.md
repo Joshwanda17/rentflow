@@ -1,57 +1,70 @@
 
 
-# Agent Agreement Page, Profile Integration & Angel Investor Sharing
+# Angel Pool Agreement Page + Profile Integration + Investor Sharing
 
-## What We're Building
+## Overview
 
-1. **Agent Agreement as a standalone page** (`/agent-agreement`) — readable, downloadable, printable, with a one-click "I Agree" accept button (mirrors the existing `/landlord-agreement` pattern)
-2. **Quick-access button on user profiles** — show the agreement link on agent profiles and angel investor profiles
-3. **Default light theme** — already done (`defaultTheme="light"` in App.tsx)
-4. **Agent can share an Angel Investor onboarding link** — add an "Invite Angel Investor" action in the Agent Menu that shares a referral link with `role=supporter` (angel investors use the supporter/funder role)
+Create a standalone Angel Pool Shareholders Agreement page based on the uploaded PDF, add quick-access buttons on user/investor profiles, and ensure agents can share angel investor onboarding links. The app already defaults to light theme.
 
-## Steps
+## What Already Exists
+- `/agent-agreement` page — agent terms (already done)
+- Agent menu already has "Invite Investor" with 🦄 badge sharing `/auth?ref=...&role=supporter`
+- `UserStatsSection` already shows "Agent Terms & Conditions" link
+- Supporter menu has an "Agreement" item pointing to the supporter agreement modal
+- Light theme is already the default
 
-### 1. Create `/agent-agreement` page
-**New file**: `src/pages/AgentAgreement.tsx`
+## What's New
 
-- Follow the exact pattern of `LandlordAgreement.tsx`
-- Sticky header with back button, title, version badge, download + print buttons
-- Full agreement text from `AgentAgreementContent.ts` with auto-filled name/phone/date
-- Add a footer with the "I Agree" accept button (using `useAgentAgreement` hook) — if already accepted, show a green "Accepted" badge instead
-- One-click acceptance: checkbox is not needed here since the page itself is the reading experience
+### 1. Create Angel Pool Agreement Content
+**New file**: `src/components/angel-pool/agreement/AngelPoolAgreementContent.ts`
 
-### 2. Register the route in App.tsx
-- Lazy import `AgentAgreement` page
-- Add `<Route path="/agent-agreement" element={<AgentAgreement />} />`
+Full agreement text from the uploaded PDF (10 sections: Purpose, Pool Structure, Supersession, Participation, Rights, Dividends, Future Structure, Governance, Risk Disclosure, Signatures). Version: `v1.0`.
 
-### 3. Add agreement button to Agent Menu
-**Edit**: `src/components/agent/AgentMenuDrawer.tsx`
+### 2. Create Angel Pool Agreement Page
+**New file**: `src/pages/AngelPoolAgreement.tsx` (route: `/angel-pool-agreement`)
 
-- Add a menu item in the "Tools" section: `{ icon: ScrollText, label: 'Agent Agreement', description: 'View & accept terms', path: '/agent-agreement' }`
+Same pattern as `AgentAgreement.tsx`:
+- Sticky header: back button, title "Angel Pool Agreement", version badge, download + print buttons
+- Agreement body in a card with `<pre>` formatting, auto-filled participant name and date
+- Sticky footer: one-click "I Agree" button using a new `useAngelPoolAgreement` hook — or shows green "Accepted" badge if already accepted
 
-### 4. Add agreement link to user profiles
-**Edit**: `src/components/profile/UserStatsSection.tsx` (or the relevant profile component)
+### 3. Create `useAngelPoolAgreement` hook
+**New file**: `src/hooks/useAngelPoolAgreement.ts`
 
-- For agent-role users: show an "Agent Terms & Conditions" link card pointing to `/agent-agreement`
-- For angel investor / supporter profiles: show the same link if they have an associated agent agreement
+Same pattern as `useAgentAgreement` — checks/inserts into `agent_agreement_acceptance` table (reusing the same table with a different `agreement_version` like `angel-pool-v1.0`).
 
-### 5. Add "Invite Angel Investor" sharing action
-**Edit**: `src/components/dashboards/AgentDashboard.tsx`
+### 4. Register the route
+**Edit**: `src/App.tsx`
+- Add lazy import for `AngelPoolAgreement`
+- Add `<Route path="/angel-pool-agreement" element={<AngelPoolAgreement />} />`
 
-- Add a new handler similar to `onInviteFunder` but with messaging tailored to angel investors
-- Share link: `${getPublicOrigin()}/auth?ref=${user.id}&role=supporter` with share text about joining the Angel Pool
-- Wire it to a new menu item in `AgentMenuDrawer.tsx` under Actions: `{ icon: Briefcase, label: 'Invite Angel Investor', description: 'Share Angel Pool signup link', onClick: onInviteAngelInvestor }`
+### 5. Add agreement link to profiles
+**Edit**: `src/components/profile/UserStatsSection.tsx`
+- Add a second button below the existing "Agent Terms" button: "Angel Pool Agreement — Tap to view & sign" for any user who has agent or referral stats (they may also be investors)
 
-### 6. Theme confirmation
-Already set — `defaultTheme="light"` in `App.tsx` line 376. No changes needed.
+### 6. Add agreement link to Supporter Menu
+**Edit**: `src/components/supporter/SupporterMenuDrawer.tsx`
+- Add "Angel Pool Agreement" item in the Account section alongside the existing supporter agreement
+
+### 7. Add agreement link to Angel Pool page
+**Edit**: `src/pages/AngelPool.tsx`
+- Add a quick-access button to `/angel-pool-agreement` below the portfolio hero, styled like the "Terms Accepted" badge but navigating to the full agreement page
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| `src/pages/AgentAgreement.tsx` | Create (standalone agreement page with accept) |
-| `src/App.tsx` | Edit (add route + lazy import) |
-| `src/components/agent/AgentMenuDrawer.tsx` | Edit (add Agreement + Invite Angel Investor menu items) |
-| `src/components/dashboards/AgentDashboard.tsx` | Edit (add onInviteAngelInvestor handler) |
-| `src/components/profile/UserStatsSection.tsx` | Edit (add agreement link for agents/investors) |
+| `src/components/angel-pool/agreement/AngelPoolAgreementContent.ts` | Create |
+| `src/hooks/useAngelPoolAgreement.ts` | Create |
+| `src/pages/AngelPoolAgreement.tsx` | Create |
+| `src/App.tsx` | Edit (add route) |
+| `src/components/profile/UserStatsSection.tsx` | Edit (add angel pool agreement button) |
+| `src/components/supporter/SupporterMenuDrawer.tsx` | Edit (add menu item) |
+| `src/pages/AngelPool.tsx` | Edit (link "Terms Accepted" badge to agreement page) |
+
+## Technical Notes
+- Reuses `agent_agreement_acceptance` table with `agreement_version = 'angel-pool-v1.0'` to avoid new migrations
+- No new DB tables needed
+- Agent sharing of angel investor link already works via the existing "Invite Investor" 🦄 action in AgentMenuDrawer
+- Light theme already configured — no changes needed
 
