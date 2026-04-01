@@ -55,8 +55,9 @@ export function OpportunitySummaryCard() {
         {/* Main figure */}
         <div className="px-5 pb-4">
           <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1">Total Rent Demand</p>
-          <p className="text-xl sm:text-3xl font-black text-foreground tracking-tight leading-none truncate">
-            {formatAmount(summary.total_rent_requested)}
+          <p className="text-lg sm:text-3xl font-black text-foreground tracking-tight leading-none truncate">
+            <span className="sm:hidden">{formatAmountCompact(summary.total_rent_requested)}</span>
+            <span className="hidden sm:inline">{formatAmount(summary.total_rent_requested)}</span>
           </p>
           <p className="mt-2 text-[11px] font-semibold italic bg-gradient-to-r from-[hsl(270,80%,60%)] to-[hsl(300,70%,55%)] bg-clip-text text-transparent tracking-wide">
             ✨ Welile is turning rent into an asset
