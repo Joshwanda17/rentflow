@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
-  Home, Wallet, ChevronLeft, ArrowUpRight, Coins
+  Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
+  BarChart3, Lock, Clock, PieChart, ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useWallet } from '@/hooks/useWallet';
 import { InvestmentSelectionSheet, type PoolType } from './InvestmentSelectionSheet';
-import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from './constants';
+import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD, TOTAL_POOL_UGX } from './constants';
 import { hapticTap } from '@/lib/haptics';
 import { toast } from 'sonner';
 
@@ -278,36 +280,169 @@ export function CapitalOpportunityEntry() {
           </div>
         </div>
 
-        {hasCommitment ? (
+        {hasCommitment && mockCommitment ? (
           <>
-            <div className="px-5 pb-3">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
-                Latest Mock Commitment
-              </p>
-              <p className="text-2xl sm:text-3xl font-black text-foreground mt-1">
-                {formatAmountCompact(mockCommitment.amount)}
-              </p>
-              <p className="text-[11px] text-primary font-semibold mt-1">
-                {mockCommitment.pool === 'tenant' ? 'Tenant Support Pool' : 'Angel Pool'}
-              </p>
+            {/* Pool identity + badge */}
+            <div className="px-5 pb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
+                  {mockCommitment.pool === 'tenant' ? 'Total Commitment' : 'Your Angel Position'}
+                </p>
+                <p className="text-2xl sm:text-3xl font-black text-foreground mt-1">
+                  {formatAmountCompact(mockCommitment.amount)}
+                </p>
+                <p className="text-[11px] text-primary font-semibold mt-1">
+                  {mockCommitment.pool === 'tenant'
+                    ? '✨ Welile is turning rent into an asset'
+                    : '🚀 Early angel — building equity in Welile'}
+                </p>
+              </div>
+              <Badge variant="outline" className="border-success/40 text-success bg-success/5 text-[10px] font-bold">
+                ● ACTIVE
+              </Badge>
             </div>
 
-            <div className="px-5 pb-4 grid grid-cols-2 gap-2">
+            {/* Key metrics grid */}
+            <div className="px-5 pb-3">
+              {mockCommitment.pool === 'tenant' ? (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-center">
+                    <Home className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                    <p className="text-lg font-black text-foreground">1</p>
+                    <p className="text-[9px] text-muted-foreground font-medium">Active Pool</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-center">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                    <p className="text-lg font-black text-success">15%</p>
+                    <p className="text-[9px] text-muted-foreground font-medium">Monthly ROI</p>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-center">
+                    <Clock className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                    <p className="text-lg font-black text-foreground">30d</p>
+                    <p className="text-[9px] text-muted-foreground font-medium">Cycle</p>
+                  </div>
+                </div>
+              ) : (() => {
+                const shares = Math.floor(mockCommitment.amount / PRICE_PER_SHARE);
+                const poolPct = (shares / TOTAL_SHARES) * 100;
+                const companyPct = (POOL_PERCENT / TOTAL_SHARES) * shares;
+                return (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-center">
+                      <PieChart className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                      <p className="text-lg font-black text-primary">{shares}</p>
+                      <p className="text-[9px] text-muted-foreground font-medium">Shares</p>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-center">
+                      <BarChart3 className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                      <p className="text-lg font-black text-primary">{poolPct.toFixed(2)}%</p>
+                      <p className="text-[9px] text-muted-foreground font-medium">Pool %</p>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-center">
+                      <Rocket className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                      <p className="text-lg font-black text-primary">{companyPct.toFixed(4)}%</p>
+                      <p className="text-[9px] text-muted-foreground font-medium">Company %</p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Details rows */}
+            <div className="px-5 pb-3 space-y-2">
+              {mockCommitment.pool === 'tenant' ? (
+                <>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5" /> Monthly Return
+                    </span>
+                    <span className="font-bold text-success">Up to 15%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Zap className="h-3.5 w-3.5" /> Deployment Speed
+                    </span>
+                    <span className="font-bold">24–72 hours</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Wallet className="h-3.5 w-3.5" /> Payouts
+                    </span>
+                    <span className="font-bold">Monthly to wallet</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Shield className="h-3.5 w-3.5" /> Risk Control
+                    </span>
+                    <span className="font-bold">Verified & insured</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {VALUATIONS.map((v) => {
+                    const shares = Math.floor(mockCommitment.amount / PRICE_PER_SHARE);
+                    const companyPct = (POOL_PERCENT / TOTAL_SHARES) * shares;
+                    const futureVal = (companyPct / 100) * v.value * UGX_PER_USD;
+                    return (
+                      <div key={v.label} className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <TrendingUp className="h-3.5 w-3.5" /> At {v.label} valuation
+                        </span>
+                        <span className="font-black text-success">{formatAmountCompact(futureVal)}</span>
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Lock className="h-3.5 w-3.5" /> Horizon
+                    </span>
+                    <span className="font-bold">Long-term</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Shield className="h-3.5 w-3.5" /> Pool Equity
+                    </span>
+                    <span className="font-bold text-primary">Up to {POOL_PERCENT}%</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="px-5 pb-3 grid grid-cols-1 gap-2">
               <Button
                 type="button"
                 onClick={handleOpenSelection}
-                className="h-11 rounded-xl text-sm font-bold"
+                className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2 uppercase tracking-wide"
               >
-                Add More
+                {mockCommitment.pool === 'tenant' ? (
+                  <><Home className="h-4 w-4" /> Support Tenant <ChevronRight className="h-4 w-4" /></>
+                ) : (
+                  <><Rocket className="h-4 w-4" /> Add More <ChevronRight className="h-4 w-4" /></>
+                )}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleManageCommitment}
-                className="h-11 rounded-xl text-sm font-bold"
+                className="w-full h-11 rounded-2xl text-sm font-bold gap-2"
               >
-                Manage
+                <Wallet className="h-4 w-4" /> Withdraw Capital
               </Button>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-3 flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
+              <span>⏱ Avg. cycle: 30 days</span>
+              <span>·</span>
+              <span>Min: {formatAmountCompact(PRICE_PER_SHARE)}</span>
+            </div>
+
+            <div className="px-5 pb-4">
+              <p className="text-[9px] text-muted-foreground/70 text-center leading-relaxed">
+                Returns are projected based on historical performance. Capital is deployed into verified
+                {mockCommitment.pool === 'tenant' ? ' rent facilitation agreements' : ' equity allocation pools'} managed by Welile with reserve protections.
+              </p>
             </div>
           </>
         ) : (
