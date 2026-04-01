@@ -131,7 +131,7 @@ export function FundAccountDialog({
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-4 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="h-4 w-4 text-success" />
                     <span className="text-sm font-bold text-success">Expected Monthly Return</span>
