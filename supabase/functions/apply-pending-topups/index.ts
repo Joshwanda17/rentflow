@@ -175,6 +175,31 @@ Deno.serve(async (req) => {
       metadata: { portfolio_id, total_applied: totalPending, new_capital: newInvestment, applied_by: user.id },
     });
 
+    // 6. Notify CFO + COO executives
+    try {
+      const { data: execs } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["cfo", "coo"])
+        .eq("enabled", true);
+      if (execs && execs.length > 0) {
+        const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
+        if (uniqueIds.length > 0) {
+          await supabase.from("notifications").insert(
+            uniqueIds.map((uid: string) => ({
+              user_id: uid,
+              title: "✅ Portfolio Top-Ups Applied",
+              message: `${pendingOps.length} pending top-up(s) totaling UGX ${totalPending.toLocaleString()} applied to "${accountLabel}" (${portfolio.portfolio_code}). New capital: UGX ${newInvestment.toLocaleString()}.`,
+              type: "success",
+              metadata: { portfolio_id, total_applied: totalPending, new_capital: newInvestment, portfolio_code: portfolio.portfolio_code, applied_by: user.id },
+            }))
+          );
+        }
+      }
+    } catch (notifErr) {
+      console.error("[apply-pending-topups] Executive notification error (non-blocking):", notifErr);
+    }
+
     console.log(`[apply-pending-topups] Manager ${user.id} applied ${pendingOps.length} pending top-ups (${totalPending}) to ${portfolio_id}. New total: ${newInvestment}`);
 
     return new Response(JSON.stringify({

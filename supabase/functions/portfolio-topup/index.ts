@@ -184,6 +184,31 @@ Deno.serve(async (req) => {
       metadata: { portfolio_id, amount: topupAmount, status: "pending" },
     });
 
+    // 5. Notify CFO + COO executives
+    try {
+      const { data: execs } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["cfo", "coo"])
+        .eq("enabled", true);
+      if (execs && execs.length > 0) {
+        const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
+        if (uniqueIds.length > 0) {
+          await supabase.from("notifications").insert(
+            uniqueIds.map((uid: string) => ({
+              user_id: uid,
+              title: "📊 Portfolio Top-Up Submitted",
+              message: `UGX ${topupAmount.toLocaleString()} self-service top-up for "${accountLabel}" (${portfolio.portfolio_code}) — pending verification.`,
+              type: "info",
+              metadata: { portfolio_id, amount: topupAmount, portfolio_code: portfolio.portfolio_code, submitted_by: user.id },
+            }))
+          );
+        }
+      }
+    } catch (notifErr) {
+      console.error("[portfolio-topup] Executive notification error (non-blocking):", notifErr);
+    }
+
     console.log(`[portfolio-topup] User ${user.id} created pending top-up for ${portfolio_id} with ${topupAmount}`);
 
     return new Response(JSON.stringify({
