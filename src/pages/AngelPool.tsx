@@ -39,9 +39,11 @@ export default function AngelPool() {
   const scrollToCalc = () => calcRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const walletBalance = wallet?.balance ?? 0;
-  const sharesSold = MOCK_TOTAL_RAISED / PRICE_PER_SHARE;
-  const sharesRemaining = TOTAL_SHARES - sharesSold;
-  const progress = (MOCK_TOTAL_RAISED / TOTAL_POOL_UGX) * 100;
+
+  // Mock data for the portfolio hero
+  const myInvestment = 5_000_000;
+  const myShares = Math.floor(myInvestment / 20_000);
+  const monthlyReturn = myInvestment * 0.15;
 
   // Mock data for the portfolio hero
   const myInvestment = 5_000_000;
