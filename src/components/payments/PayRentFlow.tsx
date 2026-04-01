@@ -37,11 +37,11 @@ const WALLET_METHOD: PaymentMethod = {
   id: 'wallet',
   name: 'Wallet Balance',
   type: 'wallet',
+  region: 'local',
   icon: 'Wallet',
-  fee: '0',
-  feeType: 'fixed' as const,
+  fee: 'Free',
+  eta: 'Instant',
   description: 'Pay directly from your wallet',
-};
 
 export default function PayRentFlow({
   open,
