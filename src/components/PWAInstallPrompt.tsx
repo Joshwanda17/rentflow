@@ -218,12 +218,6 @@ export default function PWAInstallPrompt() {
                       : 'How to Install'}
                 </Button>
 
-                <button
-                  onClick={handleDismiss}
-                  className="w-full text-center text-xs text-muted-foreground py-2 hover:text-foreground transition-colors touch-manipulation"
-                >
-                  Not now
-                </button>
               </div>
 
               {/* Footer info */}
