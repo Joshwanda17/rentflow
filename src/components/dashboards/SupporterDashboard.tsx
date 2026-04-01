@@ -50,7 +50,7 @@ import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCateg
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
-import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
+import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
@@ -463,7 +463,7 @@ export default function SupporterDashboard({
               <h2 className="text-sm font-black text-foreground tracking-tight">Capital Opportunities</h2>
             </div>
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-            <OpportunitySummaryCard />
+            <FunderCapitalOpportunities />
           </div>
 
           {/* ═══ MY FUNDED HOUSES (collapsible) ═══ */}
