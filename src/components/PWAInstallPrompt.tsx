@@ -93,10 +93,10 @@ export default function PWAInstallPrompt() {
     }
   };
 
+  // Dismiss just closes the current prompt view; it will reappear on next page load since there's no cooldown
   const handleDismiss = () => {
     setShowPrompt(false);
     setShowInstallGuide(false);
-    localStorage.setItem('welile_install_dismissed_at', Date.now().toString());
   };
 
   useEffect(() => {
