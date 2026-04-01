@@ -1,10 +1,16 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Users, ArrowRight, Calculator, Zap, Shield } from 'lucide-react';
+import { Users, ArrowRight, Calculator, Zap, Shield, Download, Share } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import welileLogo from '@/assets/welile-logo.png';
+import { globalDeferredPrompt, clearGlobalPrompt } from '@/hooks/usePWAInstall';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 interface IntentOption {
   role: 'tenant' | 'agent' | 'landlord' | 'supporter';
@@ -59,11 +65,83 @@ const itemVariants = {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
+    globalDeferredPrompt as BeforeInstallPromptEvent | null
+  );
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [installing, setInstalling] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as any).standalone === true;
+    setIsInstalled(standalone);
+
+    // iOS detection
+    const ua = navigator.userAgent;
+    const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    setIsIOS(iOS || isIPadOS);
+
+    // Listen for beforeinstallprompt (may fire after mount)
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    // Also pick up global if it was captured before mount
+    if (globalDeferredPrompt && !installPrompt) {
+      setInstallPrompt(globalDeferredPrompt as BeforeInstallPromptEvent);
+    }
+
+    const installedHandler = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+    window.addEventListener('appinstalled', installedHandler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
+  }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (isIOS) {
+      setShowIOSGuide(true);
+      return;
+    }
+
+    const prompt = installPrompt || (globalDeferredPrompt as BeforeInstallPromptEvent | null);
+    if (!prompt) return;
+
+    try {
+      setInstalling(true);
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsInstalled(true);
+        localStorage.setItem('welile_pwa_installed', 'true');
+        localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+      }
+      setInstallPrompt(null);
+      clearGlobalPrompt();
+    } catch (err) {
+      console.error('[PWA] Install error:', err);
+    } finally {
+      setInstalling(false);
+    }
+  }, [installPrompt, isIOS]);
 
   const handleIntent = (role: string) => {
     hapticTap();
     navigate(`/auth?role=${role}`);
   };
+
+  const canShowInstall = !isInstalled && (isIOS || !!installPrompt || !!globalDeferredPrompt);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -86,6 +164,69 @@ export default function Landing() {
           Explore housing & funding instantly
         </motion.p>
       </header>
+
+      {/* Install App Banner */}
+      <AnimatePresence>
+        {canShowInstall && (
+          <motion.div
+            className="px-5 pb-4 max-w-lg mx-auto w-full"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <button
+              onClick={() => { hapticTap(); handleInstall(); }}
+              disabled={installing}
+              className={cn(
+                "w-full flex items-center justify-center gap-3 p-4 rounded-2xl font-bold text-base transition-all touch-manipulation",
+                "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg",
+                "hover:shadow-xl hover:brightness-110 active:scale-[0.97]",
+                installing && "opacity-70 cursor-wait"
+              )}
+            >
+              <Download className="h-5 w-5" />
+              {installing ? 'Installing…' : 'Install Welile App'}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* iOS Install Guide */}
+      <AnimatePresence>
+        {showIOSGuide && (
+          <motion.div
+            className="px-5 pb-4 max-w-lg mx-auto w-full"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+              <p className="font-semibold text-foreground text-sm">Install on iPhone/iPad:</p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                  <span>Tap the <Share className="inline h-4 w-4 -mt-0.5" /> Share button in Safari</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                  <span>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                  <span>Tap <strong>"Add"</strong> to install</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowIOSGuide(false)}
+                className="text-xs text-muted-foreground underline mt-2"
+              >
+                Dismiss
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Intent Selection */}
       <main className="flex-1 px-5 pb-8 flex flex-col justify-center max-w-lg mx-auto w-full">
@@ -116,15 +257,12 @@ export default function Landing() {
                 "touch-manipulation"
               )}
             >
-              {/* Intent emoji */}
               <div className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0",
                 "bg-gradient-to-br", option.gradient, "shadow-sm"
               )}>
                 <span className="drop-shadow-sm">{option.emoji}</span>
               </div>
-
-              {/* Intent text */}
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-foreground text-[15px] leading-tight">
                   {option.intent}
@@ -133,7 +271,6 @@ export default function Landing() {
                   {option.outcome}
                 </p>
               </div>
-
               <ArrowRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
             </motion.button>
           ))}
