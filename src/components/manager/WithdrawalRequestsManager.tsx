@@ -1552,10 +1552,10 @@ export function WithdrawalRequestsManager() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-success" />
-              Forward to CFO
+              Withdrawal Request
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Approve and forward this withdrawal to the CFO for the next stage of review.
+              This withdrawal request is pending CFO approval. You can view details below.
             </AlertDialogDescription>
           </AlertDialogHeader>
           
