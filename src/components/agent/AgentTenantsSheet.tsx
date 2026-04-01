@@ -44,6 +44,11 @@ interface AgentTenantsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface AgentPaymentSummary {
+  total: number;
+  lastPaidAt: string | null;
+}
+
 type FilterTab = 'all' | 'owing' | 'active' | 'cleared' | 'new' | 'no-phone';
 type SortMode = 'balance' | 'name' | 'recent';
 
@@ -71,6 +76,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [sortMode, setSortMode] = useState<SortMode>('balance');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
+  const [agentPayments, setAgentPayments] = useState<Record<string, AgentPaymentSummary>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
 
@@ -95,14 +101,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
       if (tenantList.length > 0) {
         const tenantIds = tenantList.map(t => t.id);
-        const { data: rentRequests } = await supabase
-          .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status, tenant_no_smartphone')
-          .in('tenant_id', tenantIds)
-          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed']);
+        const [{ data: rentRequests }, { data: walletDeposits }] = await Promise.all([
+          supabase
+            .from('rent_requests')
+            .select('tenant_id, total_repayment, amount_repaid, status, tenant_no_smartphone')
+            .in('tenant_id', tenantIds)
+            .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed']),
+          supabase
+            .from('wallet_deposits')
+            .select('user_id, amount, created_at')
+            .eq('agent_id', user.id)
+            .in('user_id', tenantIds)
+            .order('created_at', { ascending: false }),
+        ]);
 
         const balances: Record<string, number> = {};
         const totals: Record<string, { total: number; paid: number }> = {};
+        const paymentMap: Record<string, AgentPaymentSummary> = {};
         const phoneMap: Record<string, boolean> = {};
         const statusMap: Record<string, Set<string>> = {};
         (rentRequests || []).forEach(rr => {
@@ -114,8 +129,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
           if (rr.status) statusMap[rr.tenant_id].add(rr.status);
         });
+        (walletDeposits || []).forEach((deposit) => {
+          const existing = paymentMap[deposit.user_id] || { total: 0, lastPaidAt: null };
+          paymentMap[deposit.user_id] = {
+            total: existing.total + Number(deposit.amount || 0),
+            lastPaidAt: existing.lastPaidAt || deposit.created_at,
+          };
+        });
         setTenantBalances(balances);
         setTenantTotals(totals);
+        setAgentPayments(paymentMap);
         setNoSmartphoneMap(phoneMap);
         setTenantStatuses(statusMap);
       }
@@ -436,8 +459,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const isLoadingThis = loadingRequests === tenant.id;
               const balance = tenantBalances[tenant.id] || 0;
               const totals = tenantTotals[tenant.id] || { total: 0, paid: 0 };
+              const paymentSummary = agentPayments[tenant.id] || { total: 0, lastPaidAt: null };
               const progressPct = totals.total > 0 ? Math.min(100, Math.round((totals.paid / totals.total) * 100)) : 0;
               const hasDebt = balance > 0;
+              const hasAgentPaid = paymentSummary.total > 0;
               const isNoSmartphone = noSmartphoneMap[tenant.id] || false;
 
               const formatPhoneForWA = (phone: string) => {
@@ -490,6 +515,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           <Phone className="h-2.5 w-2.5" />
                           {tenant.phone}
                         </p>
+                        <p className={`text-[10px] mt-1 font-medium ${hasAgentPaid ? 'text-success' : 'text-muted-foreground'}`}>
+                          {hasAgentPaid
+                            ? `You paid ${formatUGX(paymentSummary.total)}${paymentSummary.lastPaidAt ? ` · last ${formatDistanceToNow(new Date(paymentSummary.lastPaidAt), { addSuffix: true })}` : ''}`
+                            : 'No payment recorded from you yet'}
+                        </p>
                         {/* Payment Progress Bar */}
                         {totals.total > 0 && (
                           <div className="mt-1.5">
@@ -516,6 +546,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                             <span className="text-sm font-bold text-destructive font-mono">
                               {formatUGX(balance)}
                             </span>
+                          ) : hasAgentPaid ? (
+                            <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0 gap-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" />
+                              You paid
+                            </Badge>
                           ) : tenant.verified ? (
                             <Badge variant="secondary" className="text-[10px] bg-success/15 text-success border-0 gap-0.5">
                               <CheckCircle2 className="h-2.5 w-2.5" />
@@ -556,6 +591,28 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="overflow-hidden border-t border-border/50"
                       >
                         <div className="p-3.5 space-y-3 bg-muted/10">
+                          <div className={`rounded-xl border p-3 ${hasAgentPaid ? 'border-success/30 bg-success/5' : 'border-border/60 bg-background/80'}`}>
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Your payments</p>
+                                <p className={`text-sm font-semibold ${hasAgentPaid ? 'text-success' : 'text-foreground'}`}>
+                                  {hasAgentPaid ? formatUGX(paymentSummary.total) : 'No payment yet'}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] text-muted-foreground">Status</p>
+                                <p className={`text-xs font-medium ${hasDebt ? 'text-destructive' : 'text-success'}`}>
+                                  {hasDebt ? 'Still owing' : 'Balance reduced / cleared'}
+                                </p>
+                              </div>
+                            </div>
+                            {paymentSummary.lastPaidAt && (
+                              <p className="text-[10px] text-muted-foreground mt-2">
+                                Last paid {formatDistanceToNow(new Date(paymentSummary.lastPaidAt), { addSuffix: true })}
+                              </p>
+                            )}
+                          </div>
+
                           {/* No-smartphone tools */}
                           {isNoSmartphone && (
                             <div className="space-y-2">
