@@ -1,113 +1,72 @@
-# Angel Pool Test Module — Isolated Build
 
-## Approach
 
-Build the Angel Investment module in a completely isolated `src/components/angel-pool/` directory with its own page at `/angel-pool`. No existing files will be modified except `App.tsx` (one lazy import + one route). No database tables — all data is mock/static for testing.
+# Capital Opportunities — Investment Entry & Selection Flow
 
-group routes if new pages are to be made
+## Overview
 
-this new feature is to be added on the funder dashboard, replicate the funder dashboard place it in this folder.
+Replace the current static Angel Pool opportunity card in `/angel-pool` with a conversion-focused entry card and a selection modal (Drawer on mobile, Dialog on desktop) that lets users choose between **Tenant Support Pool** and **Angel Pool**. After selection, the entry card transforms to show active investment state. All mock data, no database.
 
-**remove the dark mode, not needed.**
+## Files to Create/Edit
 
-## Structure
+### New file: `src/components/angel-pool/CapitalOpportunityEntry.tsx`
+The main entry component with two states:
+
+**Default State (no investment):**
+- Headline: "Grow Your Capital" with supporting text about verified opportunities
+- Single highlight metric: total opportunity size (e.g. "USh 1.2B+ in active demand")
+- Trust row: 4 compact indicators (Verified · Insured · 24hr Deploy · Active Network)
+- Primary CTA: "Explore Opportunities" → opens selection modal
+- Clean card matching existing `OpportunitySummaryCard` border/shadow style
+
+**Post-Selection State:**
+- Shows selected pool name + badge
+- Current invested value and key metric (monthly return for Tenant, shares owned for Angel)
+- Primary action: "Add More Funds"
+- Secondary action: "Manage Investment"
+- No pool selection shown — only the user's active investment
+
+State is held in local `useState` (mock, no persistence).
+
+### New file: `src/components/angel-pool/InvestmentSelectionSheet.tsx`
+Responsive modal component:
+- Uses `Drawer` (vaul) on mobile (`md:` breakpoint), `Dialog` on desktop via a `useMediaQuery` or simple width check
+- Title: "Choose Your Investment"
+- Two option cards side by side on desktop, stacked on mobile:
+
+**Card 1 — Tenant Support Pool:**
+- Icon + title + 1-line description ("Fund verified rent requests, earn monthly returns")
+- Metrics: Monthly Return: 15% · Deploy: 24–72hrs · Payout: Monthly
+- Trust line: "Verified & insured"
+- CTA button: "Support Tenant"
+
+**Card 2 — Angel Pool:**
+- Icon + title + 1-line description ("Own shares in Welile's future growth")
+- Metrics: Equity: up to 8% · Horizon: Long-term · Ownership: Shares
+- Trust line: "Early-stage opportunity"
+- CTA button: "Invest in Angel Pool"
+
+Clicking a CTA closes the modal and calls back with the selected pool type.
+
+### Edit: `src/pages/AngelPool.tsx`
+- Remove the current inline Angel Pool opportunity card (lines ~260–373)
+- Import and render `<CapitalOpportunityEntry />` in the Capital Opportunities section
+- Pass mock investment state and handlers
+
+## Interaction Flow
 
 ```text
-src/
-  components/angel-pool/
-    constants.ts              — Global constants
-    mockData.ts               — Static mock investors, pledges, feed events
-    AngelCalculator.tsx       — Investment calculator + future value simulator
-    AngelPoolDashboard.tsx    — Pool metrics, progress bar, scarcity, leaderboard
-    AngelActivityFeed.tsx     — Mock live activity feed with timed animations
-    AngelInvestorCard.tsx     — Share allocation card (dark, exportable)
-    AngelHeroCard.tsx         — Hero card (replicates HeroBalanceCard style)
-  pages/
-    AngelPool.tsx             — Full page assembling all components
+Entry Card (default) → CTA click → Selection Sheet opens
+  → User picks "Support Tenant" or "Angel Pool"
+  → Sheet closes → Entry Card transforms to active state
+  → Shows invested amount, key metric, "Add More" / "Manage" buttons
 ```
 
-## Constants (`constants.ts`)
+## Technical Details
 
-```typescript
-export const TOTAL_POOL_UGX = 500_000_000;
-export const TOTAL_SHARES = 25_000;
-export const PRICE_PER_SHARE = 20_000;
-export const POOL_PERCENT = 8;
-```
+- `useIsMobile` hook (or `window.innerWidth < 768`) to switch between Drawer and Dialog
+- All state is local `useState` — selected pool, mock invested amount
+- Reuses existing UI primitives: `Card`, `Button`, `Badge`, `Drawer`, `Dialog`
+- Responsive: cards stack on mobile, side-by-side on `sm:` breakpoint
+- Typography hierarchy via Tailwind: `text-lg font-black` for headline, `text-xs` for trust indicators
+- No new npm dependencies
 
-## Components
-
-### 1. AngelCalculator
-
-- Amount input (slider + field, UGX)
-- Auto-calculates: shares, pool ownership %, company ownership %
-- Future value simulator: toggle between $1B / $3B / $5B valuations
-- Shows estimated value at each valuation
-- Dark glassmorphism card matching HeroBalanceCard style
-
-### 2. AngelPoolDashboard
-
-- 4 metric cards: Total Raised, Target (500M), % Filled, Shares Remaining
-- Animated progress bar (reuses existing Progress component with custom styling)
-- Scarcity indicator: "Only X shares remaining" with urgency color
-- Leaderboard: top 5 contributors sorted by amount (mock data)
-
-### 3. AngelActivityFeed
-
-- Simulated live feed using `setInterval` to cycle through mock events
-- Format: "+ UGX X pledged — Name" / "+ UGX X secured — Name"
-- Auto-scrolling list with fade-in animation (CSS transitions, no framer-motion)
-
-### 4. AngelInvestorCard
-
-- Dark premium card with: investor name, amount, shares, date, pool status %
-- "Reserved for 48 hours" urgency tag
-- "Secure your position" CTA
-- Uses `html-to-image` (already may be available, or we use a simple canvas fallback) for WhatsApp sharing as PNG
-
-### 5. AngelHeroCard
-
-- Replicates the `HeroBalanceCard` mesh gradient + glassmorphism style
-- Shows: Pool Target, Current Raised, ROI indicator (8% equity pool)
-- Two action buttons: "Invest Now" and "View Pool"
-
-## Page (`AngelPool.tsx`)
-
-- Full-page layout matching the supporter dashboard structure
-- Sections stacked vertically: Hero → Calculator → Pool Dashboard → Activity Feed → Share Card Generator
-- Mobile-first, dark theme via Tailwind dark classes on the container
-- No auth required (test page)
-
-## Routing Change (`App.tsx`)
-
-Add one lazy import and one route — no other file touched:
-
-```typescript
-const AngelPool = lazy(() => import('@/pages/AngelPool'));
-// In Routes:
-<Route path="/angel-pool" element={<AngelPool />} />
-```
-
-## Mock Data (`mockData.ts`)
-
-Pre-populated arrays of:
-
-- 10 mock investors with names, amounts, dates
-- 15 mock activity feed events (pledges + confirmations)
-- Pool progress set to ~35% filled (175M raised) for demo
-
-## Design
-
-- Reuses existing UI primitives: `Card`, `Button`, `Progress`, `Input`
-- Dark container background with gradient accents matching primary color
-- Glassmorphism on hero and calculator cards
-- Large touch targets (44px min), compact number formatting on mobile
-- No new npm dependencies needed
-- we adding a new feature in the funder dashboard, 
-
-## What is NOT touched
-
-- No database migrations
-- No edge functions
-- No changes to supporter dashboard, wallet, or any existing component
-- Only `App.tsx` gets one import + one route line
