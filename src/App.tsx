@@ -121,6 +121,7 @@ const InvestorPortfolioPublic = lazy(() => import('./pages/InvestorPortfolioPubl
 const RentMoney = lazy(() => import('./pages/RentMoney'));
 const FindAHouse = lazy(() => import('./pages/FindAHouse'));
 const LandlordAgreement = lazy(() => import('./pages/LandlordAgreement'));
+const AngelPool = lazy(() => import('./pages/AngelPool'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
@@ -252,6 +253,7 @@ function AppRoutes() {
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/manager-access" element={<ManagerAccess />} />
           <Route path="/become-supporter" element={<BecomeSupporter />} />
+          <Route path="/angel-pool" element={<AngelPool />} />
           <Route path="/vendor-portal" element={<VendorPortal />} />
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
