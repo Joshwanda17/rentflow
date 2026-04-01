@@ -55,7 +55,7 @@ export function FundAccountDialog({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-5 py-4">
+        <div className="space-y-3 py-2">
           {/* Account Info */}
           <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
             <p className="text-xs text-muted-foreground">Funding account</p>
