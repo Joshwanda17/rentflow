@@ -73,7 +73,11 @@ export default function ExecutiveDashboardLayout({
               <button
                 key={item.id}
                 onClick={() => {
-                  onTabChange(item.id);
+                  if (item.route) {
+                    navigate(item.route);
+                  } else {
+                    onTabChange(item.id);
+                  }
                   onItemClick?.();
                 }}
                 className={cn(
