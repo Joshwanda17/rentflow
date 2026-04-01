@@ -31,6 +31,8 @@ function StatItem({ icon: Icon, label, value, iconColor }: StatItemProps) {
 const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
 export function UserStatsSection({ stats, loading }: UserStatsSectionProps) {
+  const navigate = useNavigate();
+
   if (loading) {
     return (
       <div className="space-y-2">
