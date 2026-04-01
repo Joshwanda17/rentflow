@@ -235,15 +235,6 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
           paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
         }}
       >
-        <div className="max-w-md mx-auto flex gap-3">
-          <Button 
-            variant="outline" 
-            className="flex-1 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
-            onClick={onClose}
-            style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
-          >
-            Maybe Later
-          </Button>
           {canAutoInstall && onInstall && (
             <Button 
               className="flex-1 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
