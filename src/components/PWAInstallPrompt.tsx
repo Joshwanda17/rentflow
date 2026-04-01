@@ -24,13 +24,8 @@ export default function PWAInstallPrompt() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const hasRecentlyDismissed = useCallback(() => {
-    const dismissedAt = localStorage.getItem('welile_install_dismissed_at');
-    if (!dismissedAt) return false;
-    const dismissedTime = parseInt(dismissedAt, 10);
-    // Re-prompt every 30 minutes
-    return Date.now() - dismissedTime < 30 * 60 * 1000;
-  }, []);
+  // No dismiss cooldown — always show until installed
+  const hasRecentlyDismissed = useCallback(() => false, []);
 
   const isMobile = platform.device === 'mobile' || platform.device === 'tablet';
 
@@ -98,10 +93,10 @@ export default function PWAInstallPrompt() {
     }
   };
 
+  // Dismiss just closes the current prompt view; it will reappear on next page load since there's no cooldown
   const handleDismiss = () => {
     setShowPrompt(false);
     setShowInstallGuide(false);
-    localStorage.setItem('welile_install_dismissed_at', Date.now().toString());
   };
 
   useEffect(() => {
@@ -157,7 +152,6 @@ export default function PWAInstallPrompt() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-            onClick={handleDismiss}
           />
 
           {/* Card */}
@@ -171,12 +165,6 @@ export default function PWAInstallPrompt() {
             <div className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
               {/* Header band */}
               <div className="bg-primary px-6 pt-8 pb-6 text-center relative">
-                <button
-                  onClick={handleDismiss}
-                  className="absolute top-3 right-3 p-1.5 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors touch-manipulation"
-                >
-                  <X className="h-4 w-4 text-primary-foreground/80" />
-                </button>
 
                 <motion.div
                   initial={{ scale: 0 }}
@@ -230,12 +218,6 @@ export default function PWAInstallPrompt() {
                       : 'How to Install'}
                 </Button>
 
-                <button
-                  onClick={handleDismiss}
-                  className="w-full text-center text-xs text-muted-foreground py-2 hover:text-foreground transition-colors touch-manipulation"
-                >
-                  Not now
-                </button>
               </div>
 
               {/* Footer info */}

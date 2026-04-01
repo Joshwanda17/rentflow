@@ -89,13 +89,6 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full hover:bg-muted transition-colors touch-manipulation"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
       </div>
 
       {/* Content */}
@@ -243,14 +236,6 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
         }}
       >
         <div className="max-w-md mx-auto flex gap-3">
-          <Button 
-            variant="outline" 
-            className="flex-1 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
-            onClick={onClose}
-            style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
-          >
-            Maybe Later
-          </Button>
           {canAutoInstall && onInstall && (
             <Button 
               className="flex-1 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
