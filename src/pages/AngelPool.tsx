@@ -45,11 +45,6 @@ export default function AngelPool() {
   const myShares = Math.floor(myInvestment / 20_000);
   const monthlyReturn = myInvestment * 0.15;
 
-  // Mock data for the portfolio hero
-  const myInvestment = 5_000_000;
-  const myShares = Math.floor(myInvestment / PRICE_PER_SHARE);
-  const monthlyReturn = myInvestment * 0.15;
-
   const menuItems = [
     { icon: CreditCard, label: 'Add Investment', onClick: scrollToCalc },
   ];
