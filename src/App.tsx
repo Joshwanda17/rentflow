@@ -123,6 +123,7 @@ const FindAHouse = lazy(() => import('./pages/FindAHouse'));
 const LandlordAgreement = lazy(() => import('./pages/LandlordAgreement'));
 const AgentAgreement = lazy(() => import('./pages/AgentAgreement'));
 const AngelPool = lazy(() => import('./pages/AngelPool'));
+const AngelPoolAgreement = lazy(() => import('./pages/AngelPoolAgreement'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
