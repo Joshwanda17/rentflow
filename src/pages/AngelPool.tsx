@@ -19,12 +19,7 @@ import { NotificationBell } from '@/components/supporter/NotificationBell';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
-import { AngelCalculator } from '@/components/angel-pool/AngelCalculator';
-import { AngelPoolDashboard } from '@/components/angel-pool/AngelPoolDashboard';
-import { AngelActivityFeed } from '@/components/angel-pool/AngelActivityFeed';
-import { AngelInvestorCard } from '@/components/angel-pool/AngelInvestorCard';
-import { MOCK_TOTAL_RAISED, MOCK_INVESTORS } from '@/components/angel-pool/mockData';
-import { TOTAL_POOL_UGX, PRICE_PER_SHARE, TOTAL_SHARES, POOL_PERCENT } from '@/components/angel-pool/constants';
+import { CapitalOpportunityEntry } from '@/components/angel-pool/CapitalOpportunityEntry';
 import { useAuth } from '@/hooks/useAuth';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 
