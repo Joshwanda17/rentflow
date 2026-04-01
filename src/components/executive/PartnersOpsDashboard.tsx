@@ -122,7 +122,7 @@ export function PartnersOpsDashboard() {
   // ═══ RENDER TAB CONTENT ═══
   const renderTabContent = () => {
     switch (tab) {
-      case 'portfolios': return <COOPartnersPage readOnly />;
+      case 'portfolios': return <COOPartnersPage />;
       case 'capital': return <PartnerCapitalFlow />;
       case 'roi': return (
         <div className="space-y-3">
