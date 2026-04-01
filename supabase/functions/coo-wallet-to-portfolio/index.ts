@@ -223,6 +223,15 @@ Deno.serve(async (req) => {
 
     console.log(`[coo-wallet-to-portfolio] COO ${user.id} moved ${topupAmount} from partner ${partnerId} wallet to portfolio ${portfolio_id}`);
 
+    // Notify managers (fire-and-forget)
+    const supabaseUrl2 = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    fetch(`${supabaseUrl2}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey2}` },
+      body: JSON.stringify({ title: "📊 COO Portfolio Transfer", body: `UGX ${topupAmount.toLocaleString()} wallet → portfolio for ${accountLabel} (${portfolio.portfolio_code})`, url: "/manager" }),
+    }).catch(() => {});
+
     return jsonRes({
       success: true,
       amount: topupAmount,

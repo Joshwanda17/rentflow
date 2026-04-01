@@ -316,6 +316,15 @@ Deno.serve(async (req) => {
 
     console.log(`Created ${role} invite for ${email} by ${creatorRole} ${user.id}${parentAgentId ? ' (sub-agent)' : ''}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "👤 Supporter Invited", body: "Activity: supporter invite", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({ 
       success: true, 
       invite: {

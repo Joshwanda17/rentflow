@@ -111,6 +111,15 @@ Deno.serve(async (req) => {
     ];
     await serviceClient.from("notifications").insert(notifications);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "🔄 Tenant Transferred", body: "Activity: tenant transfer", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

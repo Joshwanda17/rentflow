@@ -164,6 +164,15 @@ serve(async (req) => {
 
     console.log(`[credit-listing-bonus] Listing ${listing.title} verified, bonus queued for CFO approval`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "🏡 Listing Bonus", body: "Activity: listing bonus", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({
       success: true,
       message: "Listing verified — bonus forwarded to CFO for approval",

@@ -348,6 +348,15 @@ serve(async (req) => {
       );
     }
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "🏠 Rent Request Processed", body: "Activity: rent request", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({ error: 'Invalid action' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 

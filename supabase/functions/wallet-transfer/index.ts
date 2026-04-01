@@ -210,6 +210,15 @@ serve(async (req) => {
 
     console.log(`Transfer successful: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "💳 Wallet Transfer", body: "Activity: wallet transfer", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({ success: true, message: 'Transfer completed successfully' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

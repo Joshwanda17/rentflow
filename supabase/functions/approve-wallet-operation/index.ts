@@ -446,6 +446,15 @@ Deno.serve(async (req) => {
 
     console.log(`[approve-wallet-op] Manager ${userId} ${action}d ${results.length} operations`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "✅ Wallet Operation", body: "Activity: wallet operation", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

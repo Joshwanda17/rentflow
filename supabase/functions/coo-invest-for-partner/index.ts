@@ -203,6 +203,15 @@ Deno.serve(async (req) => {
 
     console.log(`[coo-invest-for-partner] COO ${caller.id} invested ${amount} from partner ${partner_id}'s wallet. Balance: ${partnerWallet.balance} → ${newBalance}. Ref: ${referenceId}, TxGroup: ${txGroupId}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "📊 COO Investment", body: "Activity: investment for partner", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

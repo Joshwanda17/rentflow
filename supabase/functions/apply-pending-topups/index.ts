@@ -202,6 +202,15 @@ Deno.serve(async (req) => {
 
     console.log(`[apply-pending-topups] Manager ${user.id} applied ${pendingOps.length} pending top-ups (${totalPending}) to ${portfolio_id}. New total: ${newInvestment}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "✅ Pending Top-Ups Applied", body: "Activity: pending top-ups applied", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({
       success: true,
       count: pendingOps.length,

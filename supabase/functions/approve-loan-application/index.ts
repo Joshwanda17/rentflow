@@ -236,6 +236,15 @@ Deno.serve(async (req) => {
 
     console.log('Loan application approved successfully:', applicationId);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "📋 Loan Approved", body: "Activity: loan approved", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({ success: true, message: 'Loan approved and disbursed' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

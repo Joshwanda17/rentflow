@@ -158,6 +158,11 @@ export default function BroadcastMessageDialog({ trigger }: BroadcastMessageDial
         console.log('Push notification attempted:', pushError);
       }
 
+      // Notify managers about broadcast (fire-and-forget)
+      supabase.functions.invoke('notify-managers', {
+        body: { title: '📢 Broadcast Sent', body: `Broadcast message sent to ${successCount} users`, url: '/manager' }
+      }).catch(() => {});
+
       toast.success(`Message sent to ${successCount} users!`, {
         icon: <CheckCircle className="h-4 w-4 text-success" />,
       });

@@ -207,6 +207,15 @@ Deno.serve(async (req) => {
 
     console.log(`[register-tenant] Successfully created tenant ${userId}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "👤 Tenant Registered", body: "Activity: new tenant", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({
       user_id: userId,
       existing: false,

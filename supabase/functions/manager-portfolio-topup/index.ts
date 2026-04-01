@@ -209,6 +209,15 @@ Deno.serve(async (req) => {
 
     console.log(`[manager-portfolio-topup] Manager ${user.id} submitted ${methodLabel} top-up for ${portfolio_id} (partner: ${partnerId}) amount ${topupAmount}${refLabel}`);
 
+    // Notify managers (fire-and-forget)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "📊 Manager Portfolio Top-Up", body: `UGX ${topupAmount.toLocaleString()} top-up for ${accountLabel} (${portfolio.portfolio_code})`, url: "/manager" }),
+    }).catch(() => {});
+
     return jsonRes({
       success: true,
       amount: topupAmount,

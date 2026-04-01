@@ -181,6 +181,15 @@ Deno.serve(async (req) => {
       ? updatedRent.total_repayment - updatedRent.amount_repaid
       : outstanding - payAmount;
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "🏠 Rent Payment", body: "Activity: rent payment", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

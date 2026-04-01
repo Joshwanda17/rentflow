@@ -252,6 +252,16 @@ export function InlineRoleToggle({
       console.error('Failed to log role change:', error);
     }
   };
+  const fetchManagerIds = async (): Promise<string[]> => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'manager')
+        .eq('enabled', true);
+      return data ? [...new Set(data.map(r => r.user_id))] : [];
+    } catch { return []; }
+  };
 
   const executeAddRole = async (role: AppRole) => {
     setLoadingRole(role);
@@ -280,6 +290,11 @@ export function InlineRoleToggle({
           }
         });
       } catch {}
+      
+      // Notify managers about role change (fire-and-forget)
+      supabase.functions.invoke('send-push-notification', {
+        body: { userIds: await fetchManagerIds(), payload: { title: '👤 Role Added', body: `${role} role added to ${userName}`, url: '/manager', type: 'info' } }
+      }).catch(() => {});
       
       hapticSuccess();
       toast.success(`Added ${role} role to ${userName}`);
@@ -322,6 +337,11 @@ export function InlineRoleToggle({
           }
         });
       } catch {}
+      
+      // Notify managers about role change (fire-and-forget)
+      supabase.functions.invoke('send-push-notification', {
+        body: { userIds: await fetchManagerIds(), payload: { title: '🔒 Role Removed', body: `${role} role removed from ${userName}`, url: '/manager', type: 'info' } }
+      }).catch(() => {});
       
       hapticSuccess();
       toast.success(`Removed ${role} role from ${userName}`);
