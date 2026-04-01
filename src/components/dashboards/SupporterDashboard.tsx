@@ -463,7 +463,7 @@ export default function SupporterDashboard({
               <h2 className="text-sm font-black text-foreground tracking-tight">Capital Opportunities</h2>
             </div>
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-            <OpportunitySummaryCard />
+            <FunderCapitalOpportunities />
           </div>
 
           {/* ═══ MY FUNDED HOUSES (collapsible) ═══ */}
