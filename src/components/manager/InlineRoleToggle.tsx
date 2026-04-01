@@ -252,6 +252,16 @@ export function InlineRoleToggle({
       console.error('Failed to log role change:', error);
     }
   };
+  const fetchManagerIds = async (): Promise<string[]> => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'manager')
+        .eq('enabled', true);
+      return data ? [...new Set(data.map(r => r.user_id))] : [];
+    } catch { return []; }
+  };
 
   const executeAddRole = async (role: AppRole) => {
     setLoadingRole(role);
