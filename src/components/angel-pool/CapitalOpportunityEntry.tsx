@@ -1,44 +1,71 @@
 import { useState } from 'react';
 import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
-  Plus, Settings, Home, Wallet, ChevronRight
+  Home, Wallet, ChevronLeft, ArrowUpRight, Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useWallet } from '@/hooks/useWallet';
 import { InvestmentSelectionSheet, type PoolType } from './InvestmentSelectionSheet';
+import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from './constants';
 import { hapticTap } from '@/lib/haptics';
 
 export function CapitalOpportunityEntry() {
   const { formatAmountCompact } = useCurrency();
+  const { wallet } = useWallet();
+  const walletBalance = wallet?.balance ?? 0;
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedPool, setSelectedPool] = useState<PoolType | null>(null);
-
-  // Mock invested state
-  const mockTenantInvestment = 2_500_000;
-  const mockTenantReturn = mockTenantInvestment * 0.15;
-  const mockAngelInvestment = 5_000_000;
-  const mockAngelShares = Math.floor(mockAngelInvestment / 20_000);
+  const [amount, setAmount] = useState(0);
 
   const handleSelect = (pool: PoolType) => {
     hapticTap();
     setSelectedPool(pool);
+    setAmount(0);
   };
 
-  const handleReset = () => {
+  const handleBack = () => {
     setSelectedPool(null);
+    setAmount(0);
   };
 
-  // ─── POST-SELECTION: ACTIVE INVESTMENT STATE ───
+  const handleAmountChange = (val: string) => {
+    const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(num)) setAmount(Math.min(num, walletBalance > 0 ? walletBalance : 500_000_000));
+    else setAmount(0);
+  };
+
+  // ─── Angel Pool calculations ───
+  const angelShares = Math.floor(amount / PRICE_PER_SHARE);
+  const poolOwnership = (angelShares / TOTAL_SHARES) * 100;
+  const companyOwnership = (POOL_PERCENT / TOTAL_SHARES) * angelShares;
+
+  // ─── Tenant Pool calculations ───
+  const tenantMonthlyReturn = amount * 0.15;
+  const tenantDailyReturn = amount * 0.005;
+
+  const isValidAmount = amount >= PRICE_PER_SHARE;
+  const exceedsBalance = walletBalance > 0 && amount > walletBalance;
+
+  // ─── POST-SELECTION: INVESTMENT ENTRY WITH LIVE PREVIEW ───
   if (selectedPool) {
     const isTenant = selectedPool === 'tenant';
-    const investedAmount = isTenant ? mockTenantInvestment : mockAngelInvestment;
 
     return (
       <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
-        {/* Header */}
+        {/* Header with back */}
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={handleBack}
+              className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted active:scale-95 transition-all min-h-[36px] min-w-[36px] flex items-center justify-center"
+            >
+              <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+            </button>
             <div className={`p-2 rounded-xl ${isTenant ? 'bg-success/10' : 'bg-primary/10'}`}>
               {isTenant
                 ? <Home className="h-4 w-4 text-success" />
@@ -50,65 +77,153 @@ export function CapitalOpportunityEntry() {
                 {isTenant ? 'Tenant Support Pool' : 'Angel Pool'}
               </h3>
               <p className="text-[10px] text-muted-foreground font-medium leading-tight">
-                Active Investment
+                Enter investment amount
               </p>
             </div>
           </div>
-          <Badge
-            variant="outline"
-            className="text-[9px] px-2 py-0.5 border-success/40 text-success bg-success/5 font-bold uppercase tracking-wider"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-success mr-1 animate-pulse" />
-            Active
-          </Badge>
         </div>
 
-        {/* Investment value */}
+        {/* Wallet balance indicator */}
         <div className="px-5 pb-3">
-          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
-            Current Value
-          </p>
-          <p className="text-2xl sm:text-3xl font-black text-foreground mt-1">
-            {formatAmountCompact(investedAmount)}
-          </p>
-        </div>
-
-        {/* Key metric */}
-        <div className="px-5 pb-4">
-          <div className="rounded-xl bg-muted/50 px-4 py-3 flex items-center justify-between">
-            {isTenant ? (
-              <>
-                <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5" /> Monthly Return
-                </span>
-                <span className="text-sm font-black text-success">
-                  +{formatAmountCompact(mockTenantReturn)}/mo
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-                  <Wallet className="h-3.5 w-3.5" /> Shares Owned
-                </span>
-                <span className="text-sm font-black text-primary">{mockAngelShares} shares</span>
-              </>
-            )}
+          <div className="rounded-xl bg-muted/40 px-3 py-2 flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5" /> Wallet Balance
+            </span>
+            <span className="text-sm font-black text-foreground">
+              {formatAmountCompact(walletBalance)}
+            </span>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="px-5 pb-4 space-y-2">
-          <Button className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2">
-            <Plus className="h-4 w-4" />
-            Add More Funds
-          </Button>
+        {/* Amount input */}
+        <div className="px-5 pb-3 space-y-2">
+          <label className="text-xs text-muted-foreground font-semibold block">
+            Amount (UGX)
+          </label>
+          <Input
+            type="text"
+            inputMode="numeric"
+            value={amount > 0 ? amount.toLocaleString() : ''}
+            onChange={(e) => handleAmountChange(e.target.value)}
+            placeholder={`Min ${PRICE_PER_SHARE.toLocaleString()}`}
+            className="text-lg font-bold h-12"
+          />
+          <Slider
+            value={[amount]}
+            onValueChange={([v]) => setAmount(v)}
+            min={0}
+            max={walletBalance > 0 ? walletBalance : 50_000_000}
+            step={PRICE_PER_SHARE}
+            className="mt-1"
+          />
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>0</span>
+            <span>{formatAmountCompact(walletBalance > 0 ? walletBalance : 50_000_000)}</span>
+          </div>
+          {exceedsBalance && (
+            <p className="text-[11px] text-destructive font-medium">
+              Amount exceeds your wallet balance
+            </p>
+          )}
+        </div>
+
+        {/* ─── LIVE PREVIEW ─── */}
+        {amount > 0 && (
+          <div className="px-5 pb-4 space-y-2">
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
+              Investment Preview
+            </p>
+
+            {isTenant ? (
+              /* Tenant Pool Preview */
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Coins className="h-3 w-3" /> Investment
+                  </span>
+                  <span className="font-black text-foreground">{formatAmountCompact(amount)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <TrendingUp className="h-3 w-3" /> Monthly Return (15%)
+                  </span>
+                  <span className="font-black text-success">+{formatAmountCompact(tenantMonthlyReturn)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <ArrowUpRight className="h-3 w-3" /> Daily Return
+                  </span>
+                  <span className="font-bold text-foreground">+{formatAmountCompact(tenantDailyReturn)}/day</span>
+                </div>
+                <div className="h-px bg-border/60" />
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Deploy Speed</span>
+                  <span className="font-bold">24–72hrs</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Payout</span>
+                  <span className="font-bold">Monthly</span>
+                </div>
+              </div>
+            ) : (
+              /* Angel Pool Preview */
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2.5">
+                <div className="grid grid-cols-3 gap-2 pb-2">
+                  <div className="rounded-lg bg-primary/5 p-2 text-center">
+                    <p className="text-lg font-black text-primary">{angelShares}</p>
+                    <p className="text-[9px] text-muted-foreground font-medium">Shares</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/5 p-2 text-center">
+                    <p className="text-lg font-black text-primary">{poolOwnership.toFixed(2)}%</p>
+                    <p className="text-[9px] text-muted-foreground font-medium">Pool %</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/5 p-2 text-center">
+                    <p className="text-lg font-black text-primary">{companyOwnership.toFixed(4)}%</p>
+                    <p className="text-[9px] text-muted-foreground font-medium">Company %</p>
+                  </div>
+                </div>
+
+                {/* Future value at valuations */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" /> Future Value Estimates
+                  </p>
+                  {VALUATIONS.map((v) => {
+                    const futureVal = (companyOwnership / 100) * v.value * UGX_PER_USD;
+                    return (
+                      <div key={v.label} className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">At {v.label} valuation</span>
+                        <span className="font-black text-success">{formatAmountCompact(futureVal)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="h-px bg-border/60" />
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Equity Pool</span>
+                  <span className="font-bold text-primary">Up to {POOL_PERCENT}%</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Horizon</span>
+                  <span className="font-bold">Long-term</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="px-5 pb-4">
           <Button
-            variant="outline"
-            onClick={handleReset}
-            className="w-full h-11 rounded-2xl text-sm font-semibold gap-2"
+            disabled={!isValidAmount || exceedsBalance}
+            className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2"
           >
-            <Settings className="h-4 w-4" />
-            Manage Investment
+            {isTenant ? (
+              <><Home className="h-4 w-4" /> Support Tenant</>
+            ) : (
+              <><Rocket className="h-4 w-4" /> Invest in Angel Pool</>
+            )}
           </Button>
         </div>
 
@@ -118,7 +233,7 @@ export function CapitalOpportunityEntry() {
             <Shield className="h-3 w-3" /> Capital Protected
           </span>
           <span>•</span>
-          <span>{isTenant ? '15% monthly' : '8% equity pool'}</span>
+          <span>Min: {formatAmountCompact(PRICE_PER_SHARE)}</span>
         </div>
       </div>
     );
@@ -128,7 +243,6 @@ export function CapitalOpportunityEntry() {
   return (
     <>
       <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
-        {/* Header */}
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-primary/10">
@@ -145,7 +259,6 @@ export function CapitalOpportunityEntry() {
           </div>
         </div>
 
-        {/* Highlight metric */}
         <div className="px-5 pb-3">
           <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
             Active Opportunity Size
@@ -158,7 +271,6 @@ export function CapitalOpportunityEntry() {
           </p>
         </div>
 
-        {/* Trust indicators */}
         <div className="px-5 pb-4">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground font-medium">
             <span className="flex items-center gap-1">
@@ -176,7 +288,6 @@ export function CapitalOpportunityEntry() {
           </div>
         </div>
 
-        {/* Primary CTA */}
         <div className="px-5 pb-4">
           <Button
             onClick={() => { hapticTap(); setSheetOpen(true); }}
@@ -187,7 +298,6 @@ export function CapitalOpportunityEntry() {
           </Button>
         </div>
 
-        {/* Footer */}
         <div className="px-5 pb-4 flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
           <span>2 pools available</span>
           <span>•</span>
