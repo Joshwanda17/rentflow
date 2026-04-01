@@ -201,6 +201,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, message: `Processed ${processed}/${items.length} payments` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "💳 Platform Expense", body: "Activity: expense transfer", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('Error:', error);

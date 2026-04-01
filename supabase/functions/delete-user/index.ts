@@ -100,6 +100,15 @@ Deno.serve(async (req) => {
     // Delete profile last (other FKs reference it)
     await supabaseAdmin.from('profiles').delete().eq('id', user_id);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "🗑️ User Deleted", body: "Activity: user deleted", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({ success: true, message: 'User deleted successfully' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error('Delete user error:', error);

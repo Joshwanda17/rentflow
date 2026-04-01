@@ -165,6 +165,15 @@ Deno.serve(async (req) => {
       results.push({ id: wId, status: 'rejected', refunded });
     }
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "❌ Withdrawal Rejected", body: "Activity: withdrawal rejected", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({ success: true, results }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

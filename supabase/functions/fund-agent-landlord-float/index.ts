@@ -248,6 +248,15 @@ Deno.serve(async (req) => {
       },
     })
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "🏦 Float Funded", body: "Activity: agent float funded", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

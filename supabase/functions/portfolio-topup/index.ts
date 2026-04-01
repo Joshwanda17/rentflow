@@ -211,6 +211,15 @@ Deno.serve(async (req) => {
 
     console.log(`[portfolio-topup] User ${user.id} created pending top-up for ${portfolio_id} with ${topupAmount}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "📊 Portfolio Top-Up", body: "Activity: portfolio top-up", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({
       success: true,
       amount: topupAmount,

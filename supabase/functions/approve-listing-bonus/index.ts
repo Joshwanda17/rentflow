@@ -171,6 +171,15 @@ Deno.serve(async (req) => {
       },
     })
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "🏡 Listing Bonus Approved", body: "Activity: listing bonus approved", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({
       success: true,
       action: 'approved',

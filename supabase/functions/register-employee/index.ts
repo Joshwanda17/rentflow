@@ -136,6 +136,15 @@ Deno.serve(async (req) => {
       created_by: created_by || caller.id,
     });
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "👤 Employee Registered", body: "Activity: new employee", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({ success: true, user_id: userId, employee_id }),
       {

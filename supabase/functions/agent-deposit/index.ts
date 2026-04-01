@@ -599,6 +599,15 @@ Deno.serve(async (req) => {
 
     console.log(`[agent-deposit] Deposit completed: User ${targetUserId}, Amount: ${amount}, Repayment: ${repaymentAmount}, Commission: ${commission}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "💰 Agent Deposit", body: "Activity: deposit", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

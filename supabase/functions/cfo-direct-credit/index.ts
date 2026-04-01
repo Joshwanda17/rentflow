@@ -165,6 +165,15 @@ Deno.serve(async (req) => {
     });
 
     const verb = op === "credit" ? "credited to" : "debited from";
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "💳 CFO Direct Credit", body: "Activity: direct credit", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify({
       success: true,
       message: `UGX ${amount.toLocaleString()} ${verb} ${targetProfile.full_name}`,

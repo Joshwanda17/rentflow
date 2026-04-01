@@ -326,6 +326,15 @@ Deno.serve(async (req) => {
 
     console.log(`[fund-tenants] Supporter ${user.id} funded ${results.length} tenants, total: ${totalFunding}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "💚 Tenants Funded", body: "Activity: tenants funded", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

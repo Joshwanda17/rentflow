@@ -202,6 +202,15 @@ Deno.serve(async (req) => {
     const newBalance = updatedRows[0].balance;
     console.log(`[agent-withdrawal] Completed: Amount: ${amount}, New balance: ${newBalance}`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "💸 Agent Withdrawal", body: "Activity: withdrawal", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

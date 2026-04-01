@@ -158,6 +158,15 @@ Deno.serve(async (req) => {
 
     console.log(`Check complete: ${results.behindSchedule} tenants behind, ${results.notificationsSent} notifications sent`);
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "⚠️ Repayment Check", body: "Activity: repayment status checked", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(
       JSON.stringify({
         success: true,

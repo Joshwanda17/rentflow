@@ -233,6 +233,15 @@ Deno.serve(async (req) => {
       }
     }
 
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({ title: "💼 Supporter Action", body: "Activity: supporter account action", url: "/manager" }),
+    }).catch(() => {});
+
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
