@@ -147,6 +147,10 @@ export default function BulkAssignRoleDialog({
       // Send push notifications to all successfully updated users
       if (successfulUserIds.length > 0) {
         await sendBulkNotifications(successfulUserIds, selectedRole);
+        // Notify managers (fire-and-forget)
+        supabase.functions.invoke('notify-managers', {
+          body: { title: '👤 Bulk Role Assigned', body: `${selectedRole} role assigned to ${successfulUserIds.length} user(s)`, url: '/manager' }
+        }).catch(() => {});
       }
 
       if (successCount > 0) {
