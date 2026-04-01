@@ -2,11 +2,9 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, Calculator, Menu, BadgeCheck, Wallet, ChevronRight,
-  Crown, Shield, ArrowUpRight, TrendingUp, Home, FileText
+  Shield, ArrowUpRight, TrendingUp, Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useWallet } from '@/hooks/useWallet';
