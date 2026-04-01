@@ -1,44 +1,59 @@
 
 
-# Fix: `process-credit-daily-charges` — Broken Wallet Deduction
+# Fix: Add Executive Notifications for Portfolio Top-Ups
 
 ## Problem
 
-The `process-credit-daily-charges` Edge Function has **two critical bugs** that prevent it from ever deducting money from tenant wallets:
+When a portfolio is topped up (any of the 3 paths), **only the partner** receives a notification. Neither the CFO nor the COO is notified, and the CFO dashboard has no view of pending portfolio top-ups. This creates a governance blind spot.
 
-### Bug 1: Balance calculation reads wrong data
-The function queries `general_ledger` filtering by `category: 'wallet'` and uses `direction: 'credit'` / `'debit'` to compute balance. But:
-- The `general_ledger` has a CHECK constraint: `direction IN ('cash_in', 'cash_out')` — values `'credit'` and `'debit'` **cannot exist** in this table
-- So the balance always computes to **0**, meaning it never deducts anything
+**Example:** ALEETE's portfolio WIP2602283615 was topped up by 5.5M — only ALEETE saw the notification. No executive was alerted.
 
-### Bug 2: Ledger inserts use invalid direction
-The function inserts ledger entries with `direction: 'debit'` — this **violates the CHECK constraint** and will throw a database error. The correct values are `'cash_in'` or `'cash_out'`.
+## Current Notification Recipients
 
-### Result
-No tenant wallet is ever charged for credit access daily charges. The function silently fails or errors on every run.
+| Top-Up Path | Who Gets Notified | Gap |
+|---|---|---|
+| Partner self-top-up | Partner only | No executive alert |
+| Manager/COO top-up | Partner only | COO did it but CFO doesn't know |
+| COO wallet-to-portfolio | Partner only | Same gap |
+| Apply pending top-ups | Partner only | No confirmation to CFO |
 
----
+## Plan
 
-## Fix
+### 1. Add CFO + COO notifications to all 3 top-up Edge Functions
 
-Rewrite `process-credit-daily-charges/index.ts` to follow the same proven pattern as `auto-charge-wallets`:
+In each function (`portfolio-topup`, `manager-portfolio-topup`, `coo-wallet-to-portfolio`), after the partner notification, query `user_roles` for users with `cfo` and `coo` roles, then insert a notification for each:
 
-1. **Read balance from `wallets` table** (not by aggregating ledger entries)
-2. **Deduct directly from `wallets` table** with an atomic update
-3. **Insert ledger entries with `direction: 'cash_out'`** and a `transaction_group_id` so the `sync_wallet_from_ledger` trigger keeps everything in sync
-4. Same for agent fallback: read from `wallets`, deduct, insert `cash_out` ledger entry
+```
+Title: "📊 Portfolio Top-Up Submitted"
+Message: "UGX 5,500,000 top-up for ALEETE (WIP2602283615) — pending verification."
+Type: "info"
+```
 
-### Key changes in the function:
+### 2. Add CFO + COO notification to `apply-pending-topups`
 
-| Current (broken) | Fixed |
-|---|---|
-| `supabase.from('general_ledger').select().eq('category', 'wallet')` | `supabase.from('wallets').select('balance').eq('user_id', ...)` |
-| `direction === 'credit' ? +amount : -amount` | Read `wallet.balance` directly |
-| `direction: 'debit'` in insert | `direction: 'cash_out'` in insert |
-| No wallet table update | `supabase.from('wallets').update({ balance: newBalance })` |
+When pending top-ups are applied, notify both executives:
 
-### File changed
-- `supabase/functions/process-credit-daily-charges/index.ts` — rewrite wallet interaction logic
+```
+Title: "✅ Portfolio Top-Ups Applied"  
+Message: "2 pending top-up(s) totaling UGX 5,500,000 applied to ALEETE (WIP2602283615). New capital: UGX X."
+```
 
-No other files or database changes needed.
+### 3. Add a "Pending Portfolio Top-Ups" section to the CFO dashboard
+
+Create a small card/section in the CFO dashboard that queries `pending_wallet_operations` where `operation_type = 'portfolio_topup'` and `status = 'pending'`, showing count and total amount. This gives the CFO visibility without needing to visit the COO's Partners page.
+
+## Files Changed
+
+- `supabase/functions/portfolio-topup/index.ts` — add executive notifications
+- `supabase/functions/manager-portfolio-topup/index.ts` — add executive notifications  
+- `supabase/functions/coo-wallet-to-portfolio/index.ts` — add executive notifications
+- `supabase/functions/apply-pending-topups/index.ts` — add executive notifications
+- CFO dashboard component — add pending top-ups visibility card
+
+## Technical Details
+
+- Executive users are resolved via: `SELECT user_id FROM user_roles WHERE role IN ('cfo', 'coo')`
+- Notifications are batch-inserted (one query for all executives)
+- Non-blocking: notification failures are logged but don't fail the top-up operation
+- The CFO card is read-only — applying top-ups remains a COO-only action
 
