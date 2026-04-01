@@ -149,6 +149,7 @@ export function AgentMenuDrawer({
         { icon: Banknote, label: 'Cash Payouts', description: 'Verify & pay cash-outs', path: '/agent/cash-payouts', accent: 'orange-500', badge: '💵' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
         { icon: Heart, label: 'Invite Funder', description: 'Share signup link for funders', onClick: onInviteFunder, accent: 'primary', badge: '💜' },
+        { icon: Briefcase, label: 'Invite Investor', description: 'Share Angel Pool signup', onClick: onInviteAngelInvestor, accent: 'purple-500', badge: '🦄' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
