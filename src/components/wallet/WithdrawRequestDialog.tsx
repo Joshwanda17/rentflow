@@ -268,13 +268,11 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="p-4 rounded-2xl border border-border bg-muted/30"
+                className="p-4 rounded-2xl border border-border bg-muted/30 text-center"
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-bold text-foreground uppercase tracking-wider">Approval Pipeline</p>
-                </div>
-                <WithdrawalStepTracker status="pending" createdAt={new Date().toISOString()} />
+                <p className="text-sm text-muted-foreground">
+                  ⏳ Awaiting approval — you'll be notified once it's processed. Thank you for your patience!
+                </p>
               </motion.div>
 
               <Button onClick={handleClose} className="w-full h-12 rounded-xl text-base font-bold">
