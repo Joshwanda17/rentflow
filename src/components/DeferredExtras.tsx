@@ -5,14 +5,10 @@ import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
 import { useAuth } from "@/hooks/useAuth";
 
-const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
-
-// GlobalSettingsToolbar moved to FloatingToolbar
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
 const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
 const IOSShareReceiver = lazy(() => import("@/components/IOSShareReceiver"));
 
-// Error boundary to prevent deferred extras from crashing the entire app
 class ExtrasBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
@@ -44,17 +40,12 @@ export default function DeferredExtras() {
 
   if (!ready) return null;
 
-  const shouldShowGlobalPrompts = pathname !== '/settings';
-
   return (
     <ExtrasBoundary>
       <Suspense fallback={null}>
         <IOSOptimizations />
         <IOSLinkHandler />
         <IOSShareReceiver />
-        {shouldShowGlobalPrompts && !user && <PWAInstallPrompt />}
-        
-        {/* GlobalSettingsToolbar now in FloatingToolbar */}
       </Suspense>
     </ExtrasBoundary>
   );
