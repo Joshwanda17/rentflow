@@ -18,7 +18,7 @@ export function TodayCollectionsCard({ agentId, onViewTenants }: Props) {
         .from('rent_requests')
         .select('id, tenant_id, daily_repayment, total_repayment, amount_repaid, status')
         .eq('agent_id', agentId)
-        .in('status', ['approved', 'disbursed', 'active', 'repaying']);
+        .in('status', ['approved', 'disbursed', 'active', 'repaying', 'funded']);
 
       const allRequests = requests || [];
       if (allRequests.length === 0) return { owingCount: 0, totalDailyDue: 0, totalOwing: 0, topTenants: [] };

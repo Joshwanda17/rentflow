@@ -36,7 +36,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
         .from('rent_requests')
         .select('tenant_id, rent_amount, daily_repayment, amount_repaid, total_repayment, disbursed_at, status, request_latitude, request_longitude')
         .eq('agent_id', agentId)
-        .in('status', ['approved', 'disbursed', 'active']);
+        .in('status', ['approved', 'disbursed', 'active', 'funded', 'repaying']);
 
       if (!requests?.length) return [];
 
