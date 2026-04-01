@@ -69,6 +69,7 @@ interface AgentMenuDrawerProps {
   onManageFunders?: () => void;
   onOpenPartnerDashboard?: () => void;
   onInviteFunder?: () => void;
+  onInviteAngelInvestor?: () => void;
 }
 
 interface MenuItem {
