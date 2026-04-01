@@ -267,15 +267,6 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                 </motion.div>
               )}
 
-              {hasWithdrawnToday && (
-                <div className="flex items-center gap-3 p-4 rounded-2xl bg-warning/10 border border-warning/20">
-                  <Clock className="h-5 w-5 shrink-0 text-warning" />
-                  <div>
-                    <p className="text-sm font-bold text-foreground">Daily limit reached</p>
-                    <p className="text-xs text-muted-foreground">Come back tomorrow for another withdrawal</p>
-                  </div>
-                </div>
-              )}
 
               {!meetsMinBalance && (
                 <div className="flex items-start gap-3 p-4 rounded-2xl bg-destructive/10 border border-destructive/20">
