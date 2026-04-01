@@ -1,85 +1,68 @@
-# Investigation: Agent Deposit Flow -- Financial Integrity Issues
 
-## Scenario Analyzed
 
-Agent (e.g., Akampurira Onesmus) deposits money to their own wallet, then uses `agent-deposit` to deposit money onto tenants' wallets who have active rent balances.
+# Fix Plan: Partner Wallet Payout + Tenant Rent Payment from Wallet
 
----
+## Two Bugs Being Fixed
 
-## How It Currently Works
+### Bug 1: Partner "Pay to Wallet" — Missing `transaction_group_id`
+When the COO clicks "Pay to Wallet" for a partner, a `pending_wallet_operations` record is created **without a `transaction_group_id`**. When the CFO approves it, the `approve-wallet-operation` function copies this null value to the `general_ledger`. The `sync_wallet_from_ledger` trigger requires a non-null `transaction_group_id` to fire — so the partner's wallet **never gets credited**.
 
-When an agent calls `agent-deposit` for a tenant with an active rent request:
+**Fix**: Generate a `crypto.randomUUID()` as `transaction_group_id` when creating the pending operation in `COOPartnersPage.tsx`.
 
-1. Agent's wallet balance is checked (must cover the amount)
-2. Tenant's active rent request is found
-3. Auto-repayment is calculated (`repaymentAmount = min(amount, remainingBalance)`)
-4. Commission RPC (`credit_agent_rent_commission`) is called -- credits agent via ledger trigger
-5. Landlord wallet is credited directly (bypassing ledger trigger)
-6. Repayment RPC (`record_rent_request_repayment`) is called -- updates rent_requests, inserts repayment row, AND inserts a `rent_repayment` ledger entry
-7. Remaining deposit goes to tenant wallet (direct update)
-8. Agent wallet is deducted by full amount (direct update with optimistic lock)
-9. A `cash_out` ledger entry is written for the agent (no `transaction_group_id`)
-10. **A SECOND `rent_repayment` ledger entry is written for the tenant** (lines 349-362)
+### Bug 2: Tenant "Pay Rent" — Completely Fake (No Backend)
+The current `PayRentFlow.tsx` is a UI-only mockup:
+- Payment success/failure is determined by `Math.random() > 0.2`
+- No backend function is called
+- No wallet deduction occurs
+- No rent request repayment is recorded
+- The tenant's outstanding balance never changes
 
----
-
-## Bugs Found
-
-### BUG 1: Double Ledger Entry for Tenant Rent Repayment (Critical)
-
-- The `record_rent_request_repayment` RPC (step 6) already inserts a `rent_repayment` entry into `general_ledger`
-- The edge function ALSO inserts a second `rent_repayment` entry (step 10, lines 349-362)
-- **Impact**: Every agent deposit that triggers auto-repayment creates **two identical ledger records** for the tenant. This corrupts audit trails and could cause double-counting in financial reports.
-
-### BUG 2: Landlord Wallet Credited Without Ledger Entry (Medium)
-
-- The landlord's wallet is updated directly (lines 263-279) with no corresponding `general_ledger` entry
-- This violates the single-writer principle and the "all money movement must go through the ledger" constitution rule
-- **Impact**: Landlord receives funds that are invisible in the ledger -- untraceable money movement
-
-### BUG 3: Race Condition on Agent Wallet (Medium)
-
-- `credit_agent_rent_commission` RPC inserts a ledger entry with `transaction_group_id`, which fires `sync_wallet_from_ledger` trigger to credit agent's wallet
-- Immediately after, the edge function reads `freshAgentWallet.balance` and deducts `amount`
-- If the trigger already fired, the optimistic lock (`eq('balance', freshAgentWallet.balance)`) will see the commission-inflated balance and deduct correctly
-- If the trigger hasn't fired yet, the lock passes but the subsequent trigger credit adds commission on top of the already-deducted balance -- net result is correct but order-dependent
-- **Impact**: Potential for silent failures if optimistic lock fails due to timing
-
-### BUG 4: Tenant Wallet Updated Without Ledger Entry (Medium)
-
-- When `depositAmount > 0` (excess after repayment), the tenant's wallet is updated directly (lines 311-316) with no `general_ledger` entry
-- **Impact**: Untraceable wallet credit for the tenant
+**Fix**: Create a new `tenant-pay-rent` Edge Function and wire the `PayRentFlow` to call it. The function will:
+1. Verify the tenant's identity
+2. Check wallet balance ≥ payment amount
+3. Call `record_rent_request_repayment` RPC to reduce outstanding balance
+4. Insert a `cash_out` ledger entry with `transaction_group_id` → trigger auto-deducts from wallet
+5. Route funds to landlord wallet via ledger entry
+6. Return success with updated balance
 
 ---
 
-## Proposed Fix Plan
+## Changes
 
-### Step 1: Remove duplicate ledger entry in edge function
+### 1. `src/components/coo/COOPartnersPage.tsx`
+Add `transaction_group_id: crypto.randomUUID()` to the `pending_wallet_operations` insert in `handlePay` (~line 2626).
 
-Delete lines 348-362 in `agent-deposit/index.ts` (the second `rent_repayment` ledger insert). The RPC already handles this.
+### 2. New: `supabase/functions/tenant-pay-rent/index.ts`
+New Edge Function that:
+- Authenticates the tenant via JWT
+- Accepts `{ amount, description? }` in request body
+- Looks up tenant's active rent request (`status IN ('funded', 'disbursed', 'repaying')`)
+- Validates: amount > 0, amount ≤ wallet balance, amount ≤ outstanding balance
+- Calls `record_rent_request_repayment` RPC to update rent_requests
+- Inserts `cash_out` ledger entry (category `rent_repayment`) with `transaction_group_id` → triggers wallet deduction
+- Inserts `cash_in` ledger entry for the landlord (category `landlord_rent_payment`) with `transaction_group_id` → triggers landlord wallet credit
+- Notifies tenant and landlord
+- Returns `{ success, amount_paid, remaining_balance, new_wallet_balance }`
 
-### Step 2: Add landlord ledger entry
+### 3. `src/components/payments/PayRentFlow.tsx`
+Replace the fake `handleProcessingComplete` with real logic:
+- Import `supabase` client and `useAuth`
+- Accept `walletBalance` prop (from `TenantPaymentsWidget`)
+- Add "Wallet" as a payment method option (first/default)
+- On confirm: call `supabase.functions.invoke('tenant-pay-rent', { body: { amount } })`
+- Show real success/failure based on the response
+- Display actual receipt data (amount deducted, remaining rent, new wallet balance)
 
-After crediting the landlord wallet, insert a `general_ledger` entry with direction `cash_in`, category `landlord_rent_payment`, for the landlord user.
-
-### Step 3: Add tenant wallet deposit ledger entry
-
-When `depositAmount > 0`, insert a `general_ledger` entry for the tenant (category `wallet_deposit`, direction `cash_in`) so the excess deposit is traceable.
-
-### Step 4: Fix agent wallet deduction timing
-
-Move the agent wallet deduction BEFORE the commission RPC call to avoid the race condition. Use the commission as a separate, trigger-driven credit.
+### 4. `src/components/payments/TenantPaymentsWidget.tsx`
+- Pass real wallet balance and rent data (from hooks) instead of hardcoded defaults
+- Pass `walletBalance` to `PayRentFlow`
 
 ---
 
 ## Technical Details
 
-**Files to modify:**
+- Follows the single-writer principle: wallet changes happen only via `sync_wallet_from_ledger` trigger
+- Uses `record_rent_request_repayment` RPC as the sole source of truth for rent repayment (no duplicate writes)
+- Landlord routing uses the existing `auto_route_rent_funds` pattern (landlord → caretaker → agent fallback)
+- Agent commission (UGX 10,000) is NOT triggered here — commissions are only for agent-facilitated collections, not self-payments by tenants
 
-- `supabase/functions/agent-deposit/index.ts` -- all 4 fixes above
-
-**No database migrations needed** -- the RPCs and triggers are correct; the bugs are in the edge function's duplicate/missing ledger writes and direct wallet mutations.
-
-THE TENANTS OUTSTANDING BALANCE DOES NOT DECRESE ALSO THE AMOUNT ON THEIR WALLETS DOES NOT CHANGE. SO THEIR COULD BE  A BUG . ALSO THE AGENT MUST SEE THAT THEY HAVE PAID FOR THOSE TENANTS. EMPHASIS ON AGENT AKAMPURIRA ONESMUS. MORE EMPHASIS THEIR.  THE AGENT MUST BE ABLE TO SEE THE TENNATS WHOSE BALANCE HAS DECREASED AND ALSO THE ONES THAT HAVE NOT PAID. 
-
-&nbsp;
