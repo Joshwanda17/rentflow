@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
-  Home, Wallet, ChevronLeft, ArrowUpRight, Coins
+  Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
+  BarChart3, Lock, Clock, PieChart, ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useWallet } from '@/hooks/useWallet';
 import { InvestmentSelectionSheet, type PoolType } from './InvestmentSelectionSheet';
-import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from './constants';
+import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD, TOTAL_POOL_UGX } from './constants';
 import { hapticTap } from '@/lib/haptics';
 import { toast } from 'sonner';
 
