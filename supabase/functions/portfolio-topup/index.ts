@@ -103,24 +103,9 @@ Deno.serve(async (req) => {
 
     const txGroupId = crypto.randomUUID();
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
-
-    // 1. Deduct from wallet (optimistic lock)
-    const { error: deductErr } = await supabase
-      .from("wallets")
-      .update({ balance: currentBalance - topupAmount, updated_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .eq("balance", currentBalance);
-
-    if (deductErr) {
-      return new Response(JSON.stringify({ error: "Balance changed, please try again" }), {
-        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 2. DO NOT increase investment_amount directly — deposit is pending until maturity
     const now = new Date().toISOString();
 
-    // Insert into pending_wallet_operations with operation_type = 'portfolio_topup'
+    // 1. Record pending operation FIRST (no wallet mutation yet)
     const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
       user_id: user.id,
       amount: topupAmount,
@@ -136,13 +121,7 @@ Deno.serve(async (req) => {
     });
 
     if (pendingErr) {
-      // Rollback wallet
-      await supabase
-        .from("wallets")
-        .update({ balance: currentBalance, updated_at: new Date().toISOString() })
-        .eq("user_id", user.id);
-
-      return new Response(JSON.stringify({ error: "Failed to record pending top-up. Wallet restored." }), {
+      return new Response(JSON.stringify({ error: "Failed to record pending top-up." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
