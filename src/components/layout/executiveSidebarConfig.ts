@@ -10,6 +10,7 @@ export interface SidebarItem {
   label: string;
   icon: typeof BarChart3;
   id: string;
+  route?: string;
 }
 
 export interface SidebarSection {
