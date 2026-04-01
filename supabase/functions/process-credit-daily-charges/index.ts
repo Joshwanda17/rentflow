@@ -44,45 +44,32 @@ Deno.serve(async (req) => {
       let dailyCharge = Number(draw.daily_charge);
 
       if (isOverdue) {
-        // Compound: add daily interest on outstanding
         const compoundInterest = Math.round(openingBalance * DAILY_COMPOUND_RATE);
         dailyCharge = dailyCharge + compoundInterest;
       }
 
-      // Try deduct from user's wallet first
-      const { data: userWalletEntries } = await supabase
-        .from('general_ledger')
-        .select('amount, direction')
+      // Read user wallet balance from wallets table
+      const { data: userWallet } = await supabase
+        .from('wallets')
+        .select('balance')
         .eq('user_id', draw.user_id)
-        .eq('category', 'wallet');
+        .single();
 
-      let userBalance = 0;
-      if (userWalletEntries) {
-        userBalance = userWalletEntries.reduce((sum: number, e: any) => {
-          return sum + (e.direction === 'credit' ? Number(e.amount) : -Number(e.amount));
-        }, 0);
-      }
-
-      let userDeducted = Math.min(Math.max(userBalance, 0), dailyCharge);
+      const userBalance = Math.max(Number(userWallet?.balance ?? 0), 0);
+      let userDeducted = Math.min(userBalance, dailyCharge);
       let remaining = dailyCharge - userDeducted;
       let agentDeducted = 0;
 
       // Fallback to agent wallet if insufficient
       if (remaining > 0 && draw.agent_id) {
-        const { data: agentWalletEntries } = await supabase
-          .from('general_ledger')
-          .select('amount, direction')
+        const { data: agentWallet } = await supabase
+          .from('wallets')
+          .select('balance')
           .eq('user_id', draw.agent_id)
-          .eq('category', 'wallet');
+          .single();
 
-        let agentBalance = 0;
-        if (agentWalletEntries) {
-          agentBalance = agentWalletEntries.reduce((sum: number, e: any) => {
-            return sum + (e.direction === 'credit' ? Number(e.amount) : -Number(e.amount));
-          }, 0);
-        }
-
-        agentDeducted = Math.min(Math.max(agentBalance, 0), remaining);
+        const agentBalance = Math.max(Number(agentWallet?.balance ?? 0), 0);
+        agentDeducted = Math.min(agentBalance, remaining);
         remaining -= agentDeducted;
       }
 
@@ -109,13 +96,14 @@ Deno.serve(async (req) => {
         deduction_status: deductionStatus,
       });
 
-      // Debit user wallet
+      // Debit user wallet via ledger + wallet update
       const groupId = crypto.randomUUID();
       if (userDeducted > 0) {
+        // Insert cash_out ledger entry (sync_wallet_from_ledger trigger handles wallet)
         await supabase.from('general_ledger').insert({
           user_id: draw.user_id,
           amount: userDeducted,
-          direction: 'debit',
+          direction: 'cash_out',
           category: 'credit_access_repayment',
           source_table: 'credit_access_draws',
           source_id: draw.id,
@@ -127,16 +115,17 @@ Deno.serve(async (req) => {
 
       // Debit agent wallet if used
       if (agentDeducted > 0 && draw.agent_id) {
+        const agentGroupId = crypto.randomUUID();
         await supabase.from('general_ledger').insert({
           user_id: draw.agent_id,
           amount: agentDeducted,
-          direction: 'debit',
+          direction: 'cash_out',
           category: 'credit_access_agent_fallback',
           source_table: 'credit_access_draws',
           source_id: draw.id,
           description: `Agent fallback for credit charge - user shortfall`,
           transaction_date: today,
-          transaction_group_id: groupId,
+          transaction_group_id: agentGroupId,
         });
       }
 
