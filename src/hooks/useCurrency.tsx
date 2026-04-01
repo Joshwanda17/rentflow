@@ -417,7 +417,7 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
       return `${currency.symbol}${(converted / 1000000000).toFixed(1)}B`;
     }
     if (converted >= 1000000) {
-      return `${currency.symbol}${(converted / 1000000).toFixed(1)}M`;
+      return `${currency.symbol}${(converted / 1000000).toFixed(2)}M`;
     }
     if (converted >= 1000) {
       return `${currency.symbol}${(converted / 1000).toFixed(0)}K`;

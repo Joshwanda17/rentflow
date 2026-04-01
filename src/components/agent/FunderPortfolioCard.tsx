@@ -1,7 +1,7 @@
-import { formatUGX } from '@/lib/rentCalculations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PiggyBank, TrendingUp, Wallet, Phone } from 'lucide-react';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface FunderPortfolioCardProps {
   funder: {
@@ -17,6 +17,8 @@ interface FunderPortfolioCardProps {
 }
 
 export function FunderPortfolioCard({ funder, stats }: FunderPortfolioCardProps) {
+  const { formatAmountCompact, formatAmount } = useCurrency();
+
   return (
     <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
       <CardContent className="p-4 space-y-3">
@@ -39,17 +41,26 @@ export function FunderPortfolioCard({ funder, stats }: FunderPortfolioCardProps)
           <div className="rounded-xl bg-background/80 p-3 text-center">
             <PiggyBank className="h-4 w-4 mx-auto text-primary mb-1" />
             <p className="text-[10px] text-muted-foreground">Invested</p>
-            <p className="text-sm font-bold">{formatUGX(stats.totalInvested)}</p>
+            <p className="text-sm font-bold truncate">
+              <span className="sm:hidden">{formatAmountCompact(stats.totalInvested)}</span>
+              <span className="hidden sm:inline">{formatAmount(stats.totalInvested)}</span>
+            </p>
           </div>
           <div className="rounded-xl bg-background/80 p-3 text-center">
             <TrendingUp className="h-4 w-4 mx-auto text-success mb-1" />
             <p className="text-[10px] text-muted-foreground">Returns</p>
-            <p className="text-sm font-bold text-success">{formatUGX(stats.totalROI)}</p>
+            <p className="text-sm font-bold text-success truncate">
+              <span className="sm:hidden">{formatAmountCompact(stats.totalROI)}</span>
+              <span className="hidden sm:inline">{formatAmount(stats.totalROI)}</span>
+            </p>
           </div>
           <div className="rounded-xl bg-background/80 p-3 text-center">
             <Wallet className="h-4 w-4 mx-auto text-warning mb-1" />
             <p className="text-[10px] text-muted-foreground">Wallet</p>
-            <p className="text-sm font-bold">{formatUGX(stats.walletBalance)}</p>
+            <p className="text-sm font-bold truncate">
+              <span className="sm:hidden">{formatAmountCompact(stats.walletBalance)}</span>
+              <span className="hidden sm:inline">{formatAmount(stats.walletBalance)}</span>
+            </p>
           </div>
           <div className="rounded-xl bg-background/80 p-3 text-center">
             <p className="text-lg font-bold text-primary">{stats.activeCount}</p>
