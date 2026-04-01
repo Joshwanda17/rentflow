@@ -97,6 +97,7 @@ export default function CFODashboardPage() {
           <div className="space-y-4">
             <PlatformVsWalletSummary />
             <ChannelBalanceTracker />
+            <PendingPortfolioTopUps />
             <CFOReceivablesTracker />
             <FinancialOverview />
             <ListingBonusApprovalQueue filter="pending_cfo" />
