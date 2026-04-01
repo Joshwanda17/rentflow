@@ -143,14 +143,27 @@ Deno.serve(async (req) => {
 
     if (rpcErr) {
       console.error("RPC error:", rpcErr);
-      // The cash_out entry already went through — log the inconsistency
       return new Response(
         JSON.stringify({ error: "Payment recorded but repayment update failed. Contact support.", partial: true }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 3. Get updated wallet balance
+    // 3. Credit the assigned agent's commission (non-blocking)
+    const { error: commissionErr } = await supabaseAdmin.rpc(
+      "credit_agent_rent_commission",
+      {
+        p_rent_request_id: rentRequest.id,
+        p_repayment_amount: payAmount,
+        p_source_table: "tenant_pay_rent",
+        p_source_id: rentRequest.id,
+      }
+    );
+    if (commissionErr) {
+      console.error("Commission error (non-blocking):", commissionErr);
+    }
+
+    // 4. Get updated wallet balance
     const { data: updatedProfile } = await supabaseAdmin
       .from("profiles")
       .select("wallet_balance")
