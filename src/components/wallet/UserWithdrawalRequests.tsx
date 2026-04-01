@@ -284,17 +284,9 @@ export function UserWithdrawalRequests() {
                       className="overflow-hidden"
                     >
                       <div className="px-3 pb-3 pt-1 border-t border-border/50">
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                          Approval Progress
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          ⏳ Awaiting approval — you'll be notified once it's processed.
                         </p>
-                        <WithdrawalStepTracker
-                          status={request.status}
-                          createdAt={request.created_at}
-                          managerApprovedAt={request.manager_approved_at}
-                          cfoApprovedAt={request.cfo_approved_at}
-                          cooApprovedAt={request.coo_approved_at}
-                          processedAt={request.processed_at}
-                         />
                         {/* Show payout code for cash withdrawals */}
                         {request.payout_code && request.payout_method === 'cash' && (
                           <div className="mt-3 p-3 rounded-lg bg-primary/5 border-2 border-primary/20 text-center space-y-2">
