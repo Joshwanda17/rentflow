@@ -31,6 +31,7 @@ const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ defaul
 const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
 const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
 const FloatingToolbar = lazy(() => import("@/components/FloatingToolbar"));
+const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 
 // Index is the entry router — must be eager for instant redirect
 import Index from "./pages/Index";
