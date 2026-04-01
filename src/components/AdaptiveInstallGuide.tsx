@@ -89,13 +89,6 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-2 rounded-full hover:bg-muted transition-colors touch-manipulation"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
       </div>
 
       {/* Content */}
