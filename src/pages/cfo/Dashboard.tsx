@@ -25,6 +25,7 @@ import { AgentCashReconciliation } from '@/components/cfo/AgentCashReconciliatio
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { CFOReceivablesTracker } from '@/components/cfo/CFOReceivablesTracker';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
+import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
