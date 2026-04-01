@@ -206,17 +206,19 @@ export function InvestmentWithdrawButton() {
           </p>
         </div>
 
-        {/* Approval Progress */}
-        <div className="pt-1">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Approval Progress</p>
-          <WithdrawalStepTracker
-            variant="partner"
-            status={existingRequest.status}
-            createdAt={existingRequest.requested_at || existingRequest.created_at}
-            partnerOpsApprovedAt={existingRequest.partner_ops_approved_at}
-            cooClearedAt={existingRequest.coo_approved_at}
-            cfoProcessedAt={existingRequest.cfo_processed_at}
-          />
+        {/* Awaiting approval message */}
+        <div className="pt-1 text-center">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="mx-auto w-14 h-14 rounded-full bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center mb-2"
+          >
+            <CalendarCheck className="h-7 w-7 text-success" />
+          </motion.div>
+          <p className="text-sm text-muted-foreground">
+            ⏳ Awaiting approval — you'll be notified once each stage is complete. Thank you for your patience!
+          </p>
         </div>
 
         {/* Explanation */}
