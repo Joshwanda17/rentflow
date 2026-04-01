@@ -1,41 +1,44 @@
-# Fix Sunueli Alex's Outstanding Balance
+# Make Funder Dashboard Digits & Text Responsive
 
-## Investigation Results
+## Problem
 
-**Tenant:** Sunueli Alex (`3b293a8d-6046-429b-8295-0eb121e88577`)
-**Rent Request:** `3fae669e-1336-4cfd-a401-aa49f88d238a`
+Large numbers on the Funder (Supporter) dashboard overflow on mobile screens (391px viewport). Values like "USh 7,580,000" are too long and get truncated or break layout. The user wants compact formatting like "7.58M" and responsive text sizing throughout.
 
+this must only be on mobile devices or small screens
 
-| Field           | Current Value | Expected    |
-| --------------- | ------------- | ----------- |
-| total_repayment | 816,005       | 816,005     |
-| amount_repaid   | 81,606        | **310,309** |
-| outstanding     | 734,399       | **505,696** |
+## Changes
 
+### 1. `src/components/supporter/PortfolioSummaryCards.tsx`
 
-The system only recorded 6 repayments (81,606 total), but the reference system shows 310,309 should have been repaid — a gap of **228,703** in unrecorded repayments.
+- **Main balance**: Use `formatAmountCompact` instead of `formatAmount` for the hero balance when value >= 100,000 (so "USh 758,000" becomes "758K", "USh 7,580,000" becomes "7.6M")
+- **Stats grid values**: Already using `formatAmountCompact` — no change needed
+- **Portfolio footer**: Already compact — no change needed
 
-## Data Repair Plan
+### 2. `src/components/supporter/OpportunitySummaryCard.tsx`
 
-Execute a database migration with three statements:
+- **Total Rent Demand**: Switch from `formatAmount` to `formatAmountCompact` for the main figure (line 59)
+- **Min amount footer**: Switch to `formatAmountCompact` (line 128)
+- Reduce font size on the main figure to `text-lg sm:text-2xl` for better fit
 
-1. **Update `rent_requests.amount_repaid**` to `310,309` (so outstanding = 816,005 − 310,309 = **505,696**)
-2. **Insert an audit log** documenting this manual correction with metadata showing before/after values
-3. No code changes needed — this is a data-only fix. IT SHOULD BE A PERMANENT FIX 
+### 3. `src/components/agent/FunderPortfolioCard.tsx`
 
-## SQL to Execute
+- Replace all `formatUGX(...)` calls with `useCurrency().formatAmountCompact(...)` so values like "2,500,000" display as "2.5M"
+- Add `truncate` to value text elements to prevent overflow
 
-```sql
-UPDATE rent_requests 
-SET amount_repaid = 310309 
-WHERE id = '3fae669e-1336-4cfd-a401-aa49f88d238a';
+### 4. `src/hooks/useCurrency.tsx` — Improve compact formatting precision
 
-INSERT INTO audit_logs (action_type, user_id, table_name, record_id, metadata)
-VALUES (
-  'manual_data_repair_amount_repaid',
-  '3b293a8d-6046-429b-8295-0eb121e88577',
-  'rent_requests',
-  '3fae669e-1336-4cfd-a401-aa49f88d238a',
-  '{"reason":"Outstanding balance correction per reference system","before":{"amount_repaid":81606,"outstanding":734399},"after":{"amount_repaid":310309,"outstanding":505696}}'
-);
-```
+- Update `formatAmountCompact` to show 2 decimal places for millions (e.g., "7.58M" instead of "7.6M") to match the user's expectation
+- Current: `(converted / 1000000).toFixed(1)` → Change to `.toFixed(2)` for M values
+- Keep 1 decimal for B values, 0 for K values
+
+### 5. General text responsiveness
+
+- Add `truncate` or `text-[clamp(...)]` to any remaining value displays in the dashboard
+- Ensure all stat labels use responsive font sizes (`text-[10px]` or `text-xs`)
+
+## Files to Edit
+
+- `src/hooks/useCurrency.tsx` — improve compact format precision for M values
+- `src/components/supporter/PortfolioSummaryCards.tsx` — use compact format for main balance
+- `src/components/supporter/OpportunitySummaryCard.tsx` — use compact format for rent demand
+- `src/components/agent/FunderPortfolioCard.tsx` — switch to compact currency formatting
