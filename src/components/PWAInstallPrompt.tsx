@@ -165,12 +165,6 @@ export default function PWAInstallPrompt() {
             <div className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
               {/* Header band */}
               <div className="bg-primary px-6 pt-8 pb-6 text-center relative">
-                <button
-                  onClick={handleDismiss}
-                  className="absolute top-3 right-3 p-1.5 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 transition-colors touch-manipulation"
-                >
-                  <X className="h-4 w-4 text-primary-foreground/80" />
-                </button>
 
                 <motion.div
                   initial={{ scale: 0 }}
