@@ -82,6 +82,21 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
       if (!user || !open) return;
       setCheckingDailyLimit(true);
       try {
+        // Partners/supporters are exempt from daily withdrawal limit
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['partner', 'supporter'] as any[])
+          .eq('enabled', true)
+          .limit(1);
+        
+        if (roles && roles.length > 0) {
+          setHasWithdrawnToday(false);
+          setCheckingDailyLimit(false);
+          return;
+        }
+
         const todayEAT = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }));
         const startOfDay = new Date(todayEAT.getFullYear(), todayEAT.getMonth(), todayEAT.getDate()).toISOString();
         const endOfDay = new Date(todayEAT.getFullYear(), todayEAT.getMonth(), todayEAT.getDate() + 1).toISOString();
