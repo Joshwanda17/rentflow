@@ -50,7 +50,7 @@ import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCateg
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
-import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
+import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
