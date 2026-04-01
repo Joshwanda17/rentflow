@@ -83,6 +83,7 @@ export default function AngelPool() {
                 variant="outline"
                 size="sm"
                 className="text-[10px] border-2 border-success/50 text-success hover:bg-success/10 gap-1 rounded-xl h-8 px-2 font-bold min-h-[36px]"
+                onClick={() => navigate('/angel-pool-agreement')}
               >
                 <BadgeCheck className="h-3 w-3" />
                 Terms Accepted

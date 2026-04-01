@@ -141,6 +141,7 @@ export function SupporterMenuDrawer({
       title: 'Account',
       items: [
         { icon: ScrollText, label: 'Agreement', description: 'Terms & conditions', onClick: onViewAgreement },
+        { icon: ScrollText, label: 'Angel Pool Agreement', description: 'View & sign pool terms', path: '/angel-pool-agreement' },
         { icon: Settings, label: 'Settings', description: 'Account preferences', path: '/settings' },
         { icon: HelpCircle, label: 'Help', description: 'Get assistance', path: '/settings' },
       ]
