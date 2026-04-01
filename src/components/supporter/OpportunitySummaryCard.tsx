@@ -9,7 +9,7 @@ import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 
 export function OpportunitySummaryCard() {
   const { summary, loading } = useOpportunitySummary();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, formatAmountCompact } = useCurrency();
   const [showFundDialog, setShowFundDialog] = useState(false);
 
   if (loading) {
