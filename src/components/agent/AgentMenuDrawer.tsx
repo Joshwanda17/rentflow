@@ -114,6 +114,7 @@ export function AgentMenuDrawer({
   onManageFunders,
   onOpenPartnerDashboard,
   onInviteFunder,
+  onInviteAngelInvestor,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('actions');
