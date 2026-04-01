@@ -11,7 +11,7 @@ export default function WalletMonitoringPanel() {
     queryFn: async () => {
       const [walletsCountRes, pendingSettlementsRes, completedSettlementsRes] = await Promise.all([
         supabase.from('wallets').select('balance', { count: 'exact' }),
-        supabase.from('withdrawal_requests').select('amount').in('status', ['pending', 'manager_approved', 'cfo_approved']),
+        supabase.from('withdrawal_requests').select('amount').eq('status', 'pending'),
         supabase.from('withdrawal_requests').select('amount').eq('status', 'approved'),
       ]);
 

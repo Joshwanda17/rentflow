@@ -637,28 +637,26 @@ export function WithdrawalRequestsManager() {
 
     setProcessing(selectedRequest.id);
     try {
-      // Manager approval now moves to 'manager_approved' — not final 'approved'
-      // No wallet deduction yet; that happens at COO stage
+      // Manager approval — withdrawal goes directly to CFO dashboard
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'manager_approved',
+          status: 'pending',
           manager_approved_at: new Date().toISOString(),
           manager_approved_by: user.id,
-          transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selectedRequest.id);
 
       if (requestError) throw requestError;
 
-      toast.success('Withdrawal forwarded to CFO for review!');
+      toast.success('Withdrawal noted — visible on CFO dashboard');
       setApproveDialogOpen(false);
       setTransactionId('');
       setSelectedRequest(null);
       fetchRequests();
     } catch (error: any) {
-      console.error('Error approving withdrawal:', error);
-      toast.error(error.message || 'Failed to approve withdrawal');
+      console.error('Error processing withdrawal:', error);
+      toast.error(error.message || 'Failed to process withdrawal');
     } finally {
       setProcessing(null);
     }
@@ -1554,10 +1552,10 @@ export function WithdrawalRequestsManager() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-success" />
-              Forward to CFO
+              Withdrawal Request
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Approve and forward this withdrawal to the CFO for the next stage of review.
+              This withdrawal request is pending CFO approval. You can view details below.
             </AlertDialogDescription>
           </AlertDialogHeader>
           
@@ -1615,7 +1613,7 @@ export function WithdrawalRequestsManager() {
 
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
               <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">
-                ℹ️ This will forward the request to the CFO → COO approval chain. No funds will be deducted yet.
+                ℹ️ This request goes directly to the CFO for approval and payment. No manager action needed.
               </p>
             </div>
 

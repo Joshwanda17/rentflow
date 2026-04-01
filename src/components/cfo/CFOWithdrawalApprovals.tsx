@@ -50,7 +50,7 @@ export function CFOWithdrawalApprovals() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .eq('status', 'manager_approved')
+        .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -90,14 +90,16 @@ export function CFOWithdrawalApprovals() {
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'cfo_approved',
+          status: 'approved',
           cfo_approved_at: new Date().toISOString(),
           cfo_approved_by: user.id,
+          processed_by: user.id,
+          processed_at: new Date().toISOString(),
           transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
-      toast.success('Forwarded to COO for final approval & payment');
+      toast.success('Withdrawal approved & payment confirmed!');
       setApproveOpen(false);
       setSelected(null);
       setTransactionId('');
@@ -201,7 +203,7 @@ export function CFOWithdrawalApprovals() {
 
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] text-muted-foreground">
-                      Manager approved {req.manager_approved_at ? formatDistanceToNow(new Date(req.manager_approved_at), { addSuffix: true }) : ''}
+                      Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
                     </p>
                     <div className="flex gap-2">
                       <Button
@@ -216,12 +218,12 @@ export function CFOWithdrawalApprovals() {
                       </Button>
                       <Button
                         size="sm"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={() => { setSelected(req); setTransactionId(''); setApproveOpen(true); }}
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Approve → COO
+                        Approve & Pay
                       </Button>
                     </div>
                   </div>
@@ -236,9 +238,9 @@ export function CFOWithdrawalApprovals() {
       <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Withdrawal?</AlertDialogTitle>
+            <AlertDialogTitle>Approve Withdrawal & Confirm Payment</AlertDialogTitle>
             <AlertDialogDescription>
-              Enter the Transaction ID to forward <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> to the COO for final approval.
+              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}. Enter the Transaction ID to confirm payment.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
@@ -249,8 +251,8 @@ export function CFOWithdrawalApprovals() {
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()}>
-              {processing ? 'Approving...' : 'Approve & Forward'}
+            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()} className="bg-emerald-600 hover:bg-emerald-700">
+              {processing ? 'Processing...' : 'Approve & Confirm Payment'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
