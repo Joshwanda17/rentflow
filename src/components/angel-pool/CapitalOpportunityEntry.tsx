@@ -4,7 +4,6 @@ import {
   Home, Wallet, ChevronLeft, ArrowUpRight, Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -12,6 +11,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { InvestmentSelectionSheet, type PoolType } from './InvestmentSelectionSheet';
 import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from './constants';
 import { hapticTap } from '@/lib/haptics';
+import { toast } from 'sonner';
 
 export function CapitalOpportunityEntry() {
   const { formatAmountCompact } = useCurrency();
@@ -21,6 +21,12 @@ export function CapitalOpportunityEntry() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedPool, setSelectedPool] = useState<PoolType | null>(null);
   const [amount, setAmount] = useState(0);
+  const [mockCommitment, setMockCommitment] = useState<{ pool: PoolType; amount: number } | null>(null);
+
+  const handleOpenSelection = () => {
+    hapticTap();
+    setSheetOpen(true);
+  };
 
   const handleSelect = (pool: PoolType) => {
     hapticTap();
@@ -51,13 +57,29 @@ export function CapitalOpportunityEntry() {
   const isValidAmount = amount >= PRICE_PER_SHARE;
   const exceedsBalance = walletBalance > 0 && amount > walletBalance;
 
+  const handleInvest = () => {
+    if (!selectedPool || !isValidAmount || exceedsBalance) return;
+
+    hapticTap();
+    setMockCommitment({ pool: selectedPool, amount });
+    toast.success(`${selectedPool === 'tenant' ? 'Tenant support' : 'Angel pool'} commitment recorded (mock).`);
+    setSelectedPool(null);
+    setAmount(0);
+  };
+
+  const handleManageCommitment = () => {
+    if (!mockCommitment) return;
+    hapticTap();
+    setSelectedPool(mockCommitment.pool);
+    setAmount(mockCommitment.amount);
+  };
+
   // ─── POST-SELECTION: INVESTMENT ENTRY WITH LIVE PREVIEW ───
   if (selectedPool) {
     const isTenant = selectedPool === 'tenant';
 
     return (
       <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
-        {/* Header with back */}
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <button
@@ -83,7 +105,6 @@ export function CapitalOpportunityEntry() {
           </div>
         </div>
 
-        {/* Wallet balance indicator */}
         <div className="px-5 pb-3">
           <div className="rounded-xl bg-muted/40 px-3 py-2 flex items-center justify-between">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
@@ -95,7 +116,6 @@ export function CapitalOpportunityEntry() {
           </div>
         </div>
 
-        {/* Amount input */}
         <div className="px-5 pb-3 space-y-2">
           <label className="text-xs text-muted-foreground font-semibold block">
             Amount (UGX)
@@ -127,7 +147,6 @@ export function CapitalOpportunityEntry() {
           )}
         </div>
 
-        {/* ─── LIVE PREVIEW ─── */}
         {amount > 0 && (
           <div className="px-5 pb-4 space-y-2">
             <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
@@ -135,7 +154,6 @@ export function CapitalOpportunityEntry() {
             </p>
 
             {isTenant ? (
-              /* Tenant Pool Preview */
               <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground flex items-center gap-1.5">
@@ -166,7 +184,6 @@ export function CapitalOpportunityEntry() {
                 </div>
               </div>
             ) : (
-              /* Angel Pool Preview */
               <div className="rounded-xl border border-border/60 bg-muted/30 p-3 space-y-2.5">
                 <div className="grid grid-cols-3 gap-2 pb-2">
                   <div className="rounded-lg bg-primary/5 p-2 text-center">
@@ -183,7 +200,6 @@ export function CapitalOpportunityEntry() {
                   </div>
                 </div>
 
-                {/* Future value at valuations */}
                 <div className="space-y-1.5">
                   <p className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" /> Future Value Estimates
@@ -213,9 +229,10 @@ export function CapitalOpportunityEntry() {
           </div>
         )}
 
-        {/* CTA */}
         <div className="px-5 pb-4">
           <Button
+            type="button"
+            onClick={handleInvest}
             disabled={!isValidAmount || exceedsBalance}
             className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2"
           >
@@ -227,7 +244,6 @@ export function CapitalOpportunityEntry() {
           </Button>
         </div>
 
-        {/* Footer */}
         <div className="px-5 pb-4 flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">
             <Shield className="h-3 w-3" /> Capital Protected
@@ -239,7 +255,8 @@ export function CapitalOpportunityEntry() {
     );
   }
 
-  // ─── DEFAULT STATE: PERSUASIVE ENTRY CARD ───
+  const hasCommitment = Boolean(mockCommitment);
+
   return (
     <>
       <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
@@ -250,59 +267,98 @@ export function CapitalOpportunityEntry() {
             </div>
             <div>
               <h3 className="font-black text-foreground text-sm tracking-tight">
-                Grow Your Capital
+                {hasCommitment ? 'Commitment Recorded' : 'Grow Your Capital'}
               </h3>
               <p className="text-[10px] text-muted-foreground font-medium leading-tight">
-                Choose verified, structured investment opportunities
+                {hasCommitment
+                  ? 'Your latest test investment is now staged in this module'
+                  : 'Choose verified, structured investment opportunities'}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="px-5 pb-3">
-          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
-            Active Opportunity Size
-          </p>
-          <p className="text-2xl sm:text-3xl font-black text-foreground mt-1">
-            USh 1.2B<span className="text-lg text-muted-foreground font-bold">+</span>
-          </p>
-          <p className="text-[11px] text-primary font-semibold mt-1">
-            🚀 Capital demand is growing — invest early
-          </p>
-        </div>
+        {hasCommitment ? (
+          <>
+            <div className="px-5 pb-3">
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
+                Latest Mock Commitment
+              </p>
+              <p className="text-2xl sm:text-3xl font-black text-foreground mt-1">
+                {formatAmountCompact(mockCommitment.amount)}
+              </p>
+              <p className="text-[11px] text-primary font-semibold mt-1">
+                {mockCommitment.pool === 'tenant' ? 'Tenant Support Pool' : 'Angel Pool'}
+              </p>
+            </div>
 
-        <div className="px-5 pb-4">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground font-medium">
-            <span className="flex items-center gap-1">
-              <BadgeCheck className="h-3 w-3 text-success" /> Verified
-            </span>
-            <span className="flex items-center gap-1">
-              <Shield className="h-3 w-3 text-primary" /> Insured
-            </span>
-            <span className="flex items-center gap-1">
-              <Zap className="h-3 w-3 text-warning" /> 24hr Deploy
-            </span>
-            <span className="flex items-center gap-1">
-              <Users className="h-3 w-3 text-muted-foreground" /> Active Network
-            </span>
-          </div>
-        </div>
+            <div className="px-5 pb-4 grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                onClick={handleOpenSelection}
+                className="h-11 rounded-xl text-sm font-bold"
+              >
+                Add More
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleManageCommitment}
+                className="h-11 rounded-xl text-sm font-bold"
+              >
+                Manage
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="px-5 pb-3">
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">
+                Active Opportunity Size
+              </p>
+              <p className="text-2xl sm:text-3xl font-black text-foreground mt-1">
+                USh 1.2B<span className="text-lg text-muted-foreground font-bold">+</span>
+              </p>
+              <p className="text-[11px] text-primary font-semibold mt-1">
+                🚀 Capital demand is growing — invest early
+              </p>
+            </div>
 
-        <div className="px-5 pb-4">
-          <Button
-            onClick={() => { hapticTap(); setSheetOpen(true); }}
-            className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2"
-          >
-            <Rocket className="h-4 w-4" />
-            Explore Opportunities
-          </Button>
-        </div>
+            <div className="px-5 pb-4">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground font-medium">
+                <span className="flex items-center gap-1">
+                  <BadgeCheck className="h-3 w-3 text-success" /> Verified
+                </span>
+                <span className="flex items-center gap-1">
+                  <Shield className="h-3 w-3 text-primary" /> Insured
+                </span>
+                <span className="flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-warning" /> 24hr Deploy
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3 text-muted-foreground" /> Active Network
+                </span>
+              </div>
+            </div>
 
-        <div className="px-5 pb-4 flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
-          <span>2 pools available</span>
-          <span>•</span>
-          <span>From USh 20K</span>
-        </div>
+            <div className="px-5 pb-4">
+              <Button
+                type="button"
+                onClick={handleOpenSelection}
+                className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2"
+              >
+                <Rocket className="h-4 w-4" />
+                Explore Opportunities
+              </Button>
+            </div>
+
+            <div className="px-5 pb-4 flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
+              <span>2 pools available</span>
+              <span>•</span>
+              <span>From USh 20K</span>
+            </div>
+          </>
+        )}
       </div>
 
       <InvestmentSelectionSheet
