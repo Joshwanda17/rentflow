@@ -119,7 +119,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
     if (!user) { toast.error('Please log in first'); return; }
     const currentStatus = checkWorkingHours();
     if (!currentStatus.isOpen) { toast.error(currentStatus.message); setWorkingHoursStatus(currentStatus); return; }
-    if (hasWithdrawnToday) { toast.error('Only one withdrawal per day is allowed.'); return; }
+    
     if (!meetsMinBalance) { toast.error('Wallet balance must be at least UGX 5,000'); return; }
     if (amount < 500) { toast.error('Minimum withdrawal is UGX 500'); return; }
     if (amount > walletBalance) { toast.error('Insufficient balance'); return; }
