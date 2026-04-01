@@ -85,6 +85,24 @@ export function UserStatsSection({ stats, loading }: UserStatsSectionProps) {
           </div>
         </div>
       )}
+      {/* Agent Agreement Quick Access */}
+      {(hasAgentStats || hasReferralStats) && (
+        <button
+          onClick={() => navigate('/agent-agreement')}
+          className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <ScrollText className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium text-sm">Agent Terms & Conditions</p>
+              <p className="text-xs text-muted-foreground">Tap to view agreement</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+      )}
     </div>
   );
 }
