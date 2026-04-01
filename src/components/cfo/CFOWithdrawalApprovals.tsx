@@ -90,14 +90,16 @@ export function CFOWithdrawalApprovals() {
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'cfo_approved',
+          status: 'approved',
           cfo_approved_at: new Date().toISOString(),
           cfo_approved_by: user.id,
+          processed_by: user.id,
+          processed_at: new Date().toISOString(),
           transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
-      toast.success('Forwarded to COO for final approval & payment');
+      toast.success('Withdrawal approved & payment confirmed!');
       setApproveOpen(false);
       setSelected(null);
       setTransactionId('');
