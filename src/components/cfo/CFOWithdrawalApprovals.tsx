@@ -203,7 +203,7 @@ export function CFOWithdrawalApprovals() {
 
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] text-muted-foreground">
-                      Manager approved {req.manager_approved_at ? formatDistanceToNow(new Date(req.manager_approved_at), { addSuffix: true }) : ''}
+                      Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
                     </p>
                     <div className="flex gap-2">
                       <Button
@@ -218,12 +218,12 @@ export function CFOWithdrawalApprovals() {
                       </Button>
                       <Button
                         size="sm"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={() => { setSelected(req); setTransactionId(''); setApproveOpen(true); }}
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Approve → COO
+                        Approve & Pay
                       </Button>
                     </div>
                   </div>
