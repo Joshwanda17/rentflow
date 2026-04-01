@@ -421,7 +421,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
               {/* ── AMOUNT SECTION ── */}
               <AnimatePresence>
-                {isPayoutValid() && meetsMinBalance && !hasWithdrawnToday && workingHoursStatus.isOpen && (
+                {isPayoutValid() && meetsMinBalance && workingHoursStatus.isOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
