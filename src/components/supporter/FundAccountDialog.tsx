@@ -47,7 +47,7 @@ export function FundAccountDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
@@ -55,7 +55,7 @@ export function FundAccountDialog({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-5 py-4">
+        <div className="space-y-3 py-2">
           {/* Account Info */}
           <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
             <p className="text-xs text-muted-foreground">Funding account</p>
@@ -131,7 +131,7 @@ export function FundAccountDialog({
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-4 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="h-4 w-4 text-success" />
                     <span className="text-sm font-bold text-success">Expected Monthly Return</span>
