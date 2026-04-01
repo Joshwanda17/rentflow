@@ -1,28 +1,31 @@
 
 
-# Fix Aleete Lilian's Data & Prevent Recurrence
+# Fix PWA Install — Only on /welcome, Working Install Button
 
-## Data Repair (SQL updates via insert tool)
+## Problem
+1. The PWA install prompt (`PWAInstallPrompt`) is rendered globally in `DeferredExtras.tsx` for all non-authenticated users on all routes except `/settings`
+2. The `beforeinstallprompt` event is captured globally in `usePWAInstall.tsx` but can be lost across re-renders or route changes
+3. Users click "Install" but nothing happens because the deferred prompt may have been consumed or lost
 
-**User:** Aleete Lilian — `0f27c113-3e22-474c-99e5-7ccfe66859b7`
+## Plan
 
-Two updates needed:
+### 1. Move PWA install prompt to `/welcome` route only
+- **Remove** `PWAInstallPrompt` from `DeferredExtras.tsx` entirely
+- **Add** the install prompt directly into `Landing.tsx` (the `/welcome` page component)
 
-1. **Portfolio capital**: Update `investor_portfolios` where `portfolio_code = 'WIP2602283615'` — set `investment_amount` to **38,056,400** (was 32,547,000 + 5,509,400 top-up)
+### 2. Simplify the install logic in Landing.tsx
+- Use a local `useEffect` in `Landing.tsx` to listen for `beforeinstallprompt` and store the event in component state
+- Also check the global `globalDeferredPrompt` from `usePWAInstall.tsx` as a fallback (the event may have fired before the component mounted)
+- Show an "Install App" button on the Landing page when a prompt is available
+- For iOS: show the manual install guide (Add to Home Screen instructions)
+- On successful install, redirect to `/auth`
 
-2. **Wallet balance**: Update `wallets` where `user_id = '0f27c113-3e22-474c-99e5-7ccfe66859b7'` — set `balance` to **1,000,000** (the 1,000,000 that was double-deducted)
+### 3. Keep the global early-capture in usePWAInstall.tsx
+- The module-level `beforeinstallprompt` listener that saves the event globally is valuable — it captures the event before React mounts
+- `Landing.tsx` will import and use this cached event as a fallback
 
-3. **Audit log**: Insert an audit record documenting this manual correction for traceability.
-
-## Prevention (Already Done)
-
-The root cause — the `portfolio-topup` Edge Function performing a manual wallet deduction AND a ledger insert (causing double-deduction via the `sync_wallet_from_ledger` trigger) — was already fixed in the previous session. The function now:
-- Relies solely on the ledger trigger for wallet deduction (Single-Writer Principle)
-- Includes a post-ledger negative-balance check with automatic reversal
-
-No additional code changes are needed. The fix applies to all future top-ups globally.
-
-## Files to Edit
-- **Database only** — two UPDATE statements and one INSERT (audit log)
-- No code file changes required
+### Files to Edit
+- `src/components/DeferredExtras.tsx` — remove `PWAInstallPrompt` import and rendering
+- `src/pages/Landing.tsx` — integrate install button with direct `beforeinstallprompt` handling
+- `src/hooks/usePWAInstall.tsx` — export `globalDeferredPrompt` for Landing to consume
 
