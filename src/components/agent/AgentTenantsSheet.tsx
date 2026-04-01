@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, User, Phone, PhoneCall, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt, AlertTriangle, CheckCircle2, Clock, Users, Share2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { NoSmartphoneScheduleManager } from './NoSmartphoneScheduleManager';
