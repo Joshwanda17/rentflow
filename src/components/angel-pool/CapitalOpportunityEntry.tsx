@@ -14,8 +14,12 @@ import { useWallet } from '@/hooks/useWallet';
 import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from './constants';
 import { hapticTap } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { InvestmentSelectionSheet, type PoolType } from './InvestmentSelectionSheet';
 
-type PoolType = 'tenant' | 'angel';
+type ViewState = 'default' | 'investing';
+
+// ─── Mock demand metric ───
+const MOCK_ACTIVE_DEMAND = 127_400_000;
 
 // ─── Shared Amount Input ───
 function AmountInput({
@@ -160,11 +164,83 @@ function AngelPreview({ amount, formatAmountCompact }: { amount: number; formatA
   );
 }
 
+// ═══════════════════════════════════════════
+// ─── DEFAULT GATEWAY CARD ───
+// ═══════════════════════════════════════════
+function DefaultEntryCard({
+  onOpenSelection,
+  formatAmountCompact,
+}: {
+  onOpenSelection: () => void;
+  formatAmountCompact: (n: number) => string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
+      <div className="px-5 pt-5 pb-4 space-y-4">
+        {/* Icon + Headline */}
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <TrendingUp className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-black text-foreground text-base tracking-tight leading-tight">
+              Put Your Capital to Work
+            </h3>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
+              Verified opportunities. Structured returns. Choose your path.
+            </p>
+          </div>
+        </div>
+
+        {/* Highlight Metric */}
+        <div className="rounded-xl bg-muted/40 border border-border/40 px-4 py-3 text-center">
+          <p className="text-2xl font-black text-foreground tracking-tight">
+            {formatAmountCompact(MOCK_ACTIVE_DEMAND)}
+          </p>
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-0.5">
+            Active Capital Demand
+          </p>
+        </div>
+
+        {/* Trust Indicators */}
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+            <BadgeCheck className="h-3 w-3 text-success" /> Verified
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+            <Shield className="h-3 w-3 text-primary" /> Insured
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+            <Users className="h-3 w-3" /> Active Network
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+            <Lock className="h-3 w-3" /> Structured
+          </span>
+        </div>
+
+        {/* Primary CTA */}
+        <Button
+          onClick={() => { hapticTap(); onOpenSelection(); }}
+          className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2"
+        >
+          <Rocket className="h-4 w-4" /> Explore Investment Options
+          <ChevronRight className="h-4 w-4 ml-auto" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// ─── MAIN COMPONENT ───
+// ═══════════════════════════════════════════
 export function CapitalOpportunityEntry() {
   const { formatAmountCompact } = useCurrency();
   const { wallet } = useWallet();
   const walletBalance = wallet?.balance ?? 0;
 
+  const [viewState, setViewState] = useState<ViewState>('default');
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<PoolType>('tenant');
   const [tenantAmount, setTenantAmount] = useState(0);
   const [angelAmount, setAngelAmount] = useState(0);
@@ -175,10 +251,6 @@ export function CapitalOpportunityEntry() {
     const value = !isNaN(num) ? Math.min(num, max) : 0;
     pool === 'tenant' ? setTenantAmount(value) : setAngelAmount(value);
   };
-
-  const amount = activeTab === 'tenant' ? tenantAmount : angelAmount;
-  const isValidAmount = amount >= PRICE_PER_SHARE;
-  const exceedsBalance = walletBalance > 0 && amount > walletBalance;
 
   const handleInvest = (pool: PoolType) => {
     const amt = pool === 'tenant' ? tenantAmount : angelAmount;
@@ -194,10 +266,39 @@ export function CapitalOpportunityEntry() {
     pool === 'tenant' ? setTenantAmount(0) : setAngelAmount(0);
   };
 
+  const handlePoolSelect = (pool: PoolType) => {
+    setActiveTab(pool);
+    setViewState('investing');
+  };
+
+  // ─── DEFAULT STATE: Gateway Card ───
+  if (viewState === 'default') {
+    return (
+      <>
+        <DefaultEntryCard
+          onOpenSelection={() => setSheetOpen(true)}
+          formatAmountCompact={formatAmountCompact}
+        />
+        <InvestmentSelectionSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          onSelect={handlePoolSelect}
+        />
+      </>
+    );
+  }
+
+  // ─── INVESTING STATE: Tabs with input ───
   return (
     <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
-      {/* Header */}
-      <div className="px-5 pt-5 pb-3 flex items-center gap-2.5">
+      {/* Header with back */}
+      <div className="px-5 pt-4 pb-3 flex items-center gap-2.5">
+        <button
+          onClick={() => { hapticTap(); setViewState('default'); }}
+          className="p-1.5 -ml-1.5 rounded-lg hover:bg-muted/60 transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+        </button>
         <div className="p-2 rounded-xl bg-primary/10">
           <TrendingUp className="h-4 w-4 text-primary" />
         </div>
@@ -235,7 +336,6 @@ export function CapitalOpportunityEntry() {
 
           {/* ─── TENANT SUPPORT TAB ─── */}
           <TabsContent value="tenant" className="mt-3 space-y-3">
-            {/* Info banner */}
             <div className="rounded-xl bg-success/5 border border-success/20 p-3">
               <p className="text-xs font-bold text-foreground">Fund verified rent requests</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">Earn monthly returns from tenant repayments</p>
@@ -276,7 +376,6 @@ export function CapitalOpportunityEntry() {
 
           {/* ─── ANGEL POOL TAB ─── */}
           <TabsContent value="angel" className="mt-3 space-y-3">
-            {/* Info banner */}
             <div className="rounded-xl bg-primary/5 border border-primary/20 p-3">
               <p className="text-xs font-bold text-foreground">Own shares in Welile's future</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">Early-stage equity — up to {POOL_PERCENT}% pool</p>
