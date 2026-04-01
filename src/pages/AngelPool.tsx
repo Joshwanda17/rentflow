@@ -59,7 +59,7 @@ export default function AngelPool() {
       <DashboardHeader
         currentRole={currentRole || 'supporter'}
         availableRoles={availableRoles.length ? availableRoles : ['supporter']}
-        onRoleChange={changeRole}
+        onRoleChange={switchRole}
         onSignOut={signOut}
         menuItems={menuItems}
       />
