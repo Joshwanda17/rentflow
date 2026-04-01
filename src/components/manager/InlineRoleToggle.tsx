@@ -281,6 +281,11 @@ export function InlineRoleToggle({
         });
       } catch {}
       
+      // Notify managers about role change (fire-and-forget)
+      supabase.functions.invoke('send-push-notification', {
+        body: { userIds: await fetchManagerIds(), payload: { title: '👤 Role Added', body: `${role} role added to ${userName}`, url: '/manager', type: 'info' } }
+      }).catch(() => {});
+      
       hapticSuccess();
       toast.success(`Added ${role} role to ${userName}`);
       onRolesUpdated?.();
