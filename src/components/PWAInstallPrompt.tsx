@@ -28,7 +28,8 @@ export default function PWAInstallPrompt() {
     const dismissedAt = localStorage.getItem('welile_install_dismissed_at');
     if (!dismissedAt) return false;
     const dismissedTime = parseInt(dismissedAt, 10);
-    return Date.now() - dismissedTime < 2 * 60 * 60 * 1000;
+    // Re-prompt every 30 minutes
+    return Date.now() - dismissedTime < 30 * 60 * 1000;
   }, []);
 
   const isMobile = platform.device === 'mobile' || platform.device === 'tablet';
