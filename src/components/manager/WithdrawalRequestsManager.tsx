@@ -1645,7 +1645,7 @@ export function WithdrawalRequestsManager() {
               ) : (
                 <CheckCircle className="h-4 w-4 mr-2" />
               )}
-              Approve → CFO
+              Approve & Pay
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
