@@ -35,13 +35,14 @@ const STEPS: Step[] = [
 
 const WALLET_METHOD: PaymentMethod = {
   id: 'wallet',
+const WALLET_METHOD: PaymentMethod = {
   name: 'Wallet Balance',
   type: 'wallet',
   region: 'local',
   icon: 'Wallet',
   fee: 'Free',
   eta: 'Instant',
-  description: 'Pay directly from your wallet',
+};
 
 export default function PayRentFlow({
   open,
