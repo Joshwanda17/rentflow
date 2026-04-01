@@ -40,7 +40,7 @@ export default function FinancialMetricsCards() {
         supabase.from('general_ledger').select('amount, direction').gte('transaction_date', monthISO).limit(500),
         supabase.from('agent_collections').select('amount').limit(500),
         supabase.from('wallets').select('balance').limit(500),
-        supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).in('status', ['pending', 'manager_approved', 'cfo_approved']),
+        supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
       ]);
 
