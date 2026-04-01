@@ -1613,7 +1613,7 @@ export function WithdrawalRequestsManager() {
 
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
               <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">
-                ℹ️ This will forward the request to the CFO → COO approval chain. No funds will be deducted yet.
+                ℹ️ This request goes directly to the CFO for approval and payment. No manager action needed.
               </p>
             </div>
 
