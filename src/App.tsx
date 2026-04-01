@@ -393,6 +393,7 @@ const App = () => (
                       <Suspense fallback={null}>
                         <DeferredExtras />
                         <FloatingToolbar />
+                        <PWAInstallPrompt />
                         <Toaster />
                         <Sonner />
                       </Suspense>
