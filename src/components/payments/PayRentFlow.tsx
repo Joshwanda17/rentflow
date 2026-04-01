@@ -35,7 +35,6 @@ const STEPS: Step[] = [
 
 const WALLET_METHOD: PaymentMethod = {
   id: 'wallet',
-const WALLET_METHOD: PaymentMethod = {
   name: 'Wallet Balance',
   type: 'wallet',
   region: 'local',
