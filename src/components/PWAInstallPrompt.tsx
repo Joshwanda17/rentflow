@@ -24,13 +24,8 @@ export default function PWAInstallPrompt() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const hasRecentlyDismissed = useCallback(() => {
-    const dismissedAt = localStorage.getItem('welile_install_dismissed_at');
-    if (!dismissedAt) return false;
-    const dismissedTime = parseInt(dismissedAt, 10);
-    // Re-prompt every 30 minutes
-    return Date.now() - dismissedTime < 30 * 60 * 1000;
-  }, []);
+  // No dismiss cooldown — always show until installed
+  const hasRecentlyDismissed = useCallback(() => false, []);
 
   const isMobile = platform.device === 'mobile' || platform.device === 'tablet';
 
