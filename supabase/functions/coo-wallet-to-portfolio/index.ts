@@ -196,6 +196,31 @@ Deno.serve(async (req) => {
       metadata: { portfolio_id, amount: topupAmount, status: "pending" },
     });
 
+    // 6. Notify CFO + COO executives
+    try {
+      const { data: execs } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["cfo", "coo"])
+        .eq("enabled", true);
+      if (execs && execs.length > 0) {
+        const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
+        if (uniqueIds.length > 0) {
+          await supabase.from("notifications").insert(
+            uniqueIds.map((uid: string) => ({
+              user_id: uid,
+              title: "📊 Wallet → Portfolio Transfer",
+              message: `UGX ${topupAmount.toLocaleString()} moved from partner wallet to "${accountLabel}" (${portfolio.portfolio_code}) — pending verification.`,
+              type: "info",
+              metadata: { portfolio_id, amount: topupAmount, portfolio_code: portfolio.portfolio_code, initiated_by: user.id, source: "wallet" },
+            }))
+          );
+        }
+      }
+    } catch (notifErr) {
+      console.error("[coo-wallet-to-portfolio] Executive notification error (non-blocking):", notifErr);
+    }
+
     console.log(`[coo-wallet-to-portfolio] COO ${user.id} moved ${topupAmount} from partner ${partnerId} wallet to portfolio ${portfolio_id}`);
 
     return jsonRes({
