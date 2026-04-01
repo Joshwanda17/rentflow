@@ -373,61 +373,6 @@ export default function AngelPool() {
             </div>
           </div>
 
-          {/* ═══ INVESTMENT CALCULATOR ═══ */}
-          <div ref={calcRef} className="space-y-4">
-            <div className="flex items-center gap-2 px-1">
-              <div className="w-1 h-5 rounded-full bg-amber-500" />
-              <h2 className="text-sm font-black text-foreground tracking-tight">Investment Calculator</h2>
-            </div>
-            <AngelCalculator />
-          </div>
-
-          {/* ═══ POOL DASHBOARD ═══ */}
-          <div ref={poolRef} className="space-y-4">
-            <div className="flex items-center gap-2 px-1">
-              <div className="w-1 h-5 rounded-full bg-success" />
-              <h2 className="text-sm font-black text-foreground tracking-tight">Pool Dashboard</h2>
-            </div>
-            <AngelPoolDashboard />
-          </div>
-
-          {/* ═══ LIVE ACTIVITY ═══ */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 px-1">
-              <div className="w-1 h-5 rounded-full bg-primary" />
-              <h2 className="text-sm font-black text-foreground tracking-tight">Live Activity</h2>
-            </div>
-            <AngelActivityFeed />
-          </div>
-
-          {/* ═══ SHARE CARD GENERATOR ═══ */}
-          <Collapsible>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <div className="w-1 h-5 rounded-full bg-amber-500" />
-                <h2 className="text-sm font-black text-foreground tracking-tight">Share Card</h2>
-              </div>
-              <CollapsibleTrigger asChild>
-                <button className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border/60 shadow-sm hover:bg-accent/30 transition-colors touch-manipulation active:scale-[0.98]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <span className="text-lg">🎴</span>
-                    </div>
-                    <div className="text-left">
-                      <span className="font-bold text-sm text-foreground">Generate Share Card</span>
-                      <p className="text-[10px] text-muted-foreground">Create & share on WhatsApp</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="pt-3">
-                  <AngelInvestorCard />
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
 
         </main>
       </div>
