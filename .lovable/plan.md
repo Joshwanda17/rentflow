@@ -1,41 +1,44 @@
 
 
-# Fix: Add Agent Commission to Tenant Self-Pay Rent Flow
+# Fix: `process-credit-daily-charges` — Broken Wallet Deduction
 
 ## Problem
-When a tenant pays rent via `tenant-pay-rent`, no agent commission is credited. The `credit_agent_rent_commission` RPC is never called, so the assigned agent misses their UGX 10,000 flat commission (8k/2k sub-agent split if applicable).
 
-## How It Should Work
-The `credit_agent_rent_commission` RPC already resolves the correct agent from `COALESCE(assigned_agent_id, agent_id)` on the rent request — so it will always pay the **assigned agent**, not whoever triggers the payment.
+The `process-credit-daily-charges` Edge Function has **two critical bugs** that prevent it from ever deducting money from tenant wallets:
 
-## Change
+### Bug 1: Balance calculation reads wrong data
+The function queries `general_ledger` filtering by `category: 'wallet'` and uses `direction: 'credit'` / `'debit'` to compute balance. But:
+- The `general_ledger` has a CHECK constraint: `direction IN ('cash_in', 'cash_out')` — values `'credit'` and `'debit'` **cannot exist** in this table
+- So the balance always computes to **0**, meaning it never deducts anything
 
-### `supabase/functions/tenant-pay-rent/index.ts`
+### Bug 2: Ledger inserts use invalid direction
+The function inserts ledger entries with `direction: 'debit'` — this **violates the CHECK constraint** and will throw a database error. The correct values are `'cash_in'` or `'cash_out'`.
 
-After the `record_rent_request_repayment` RPC call succeeds (line 142), add:
+### Result
+No tenant wallet is ever charged for credit access daily charges. The function silently fails or errors on every run.
 
-```typescript
-// 3. Credit the assigned agent's commission (RPC resolves agent from rent request)
-const { error: commissionErr } = await supabaseAdmin.rpc(
-  "credit_agent_rent_commission",
-  {
-    p_rent_request_id: rentRequest.id,
-    p_repayment_amount: payAmount,
-    p_source_table: "tenant_pay_rent",
-    p_source_id: rentRequest.id,
-  }
-);
-if (commissionErr) {
-  console.error("Commission error (non-blocking):", commissionErr);
-  // Non-blocking — payment already succeeded, commission failure is logged but doesn't fail the tenant
-}
-```
+---
 
-This is a single line addition. The RPC handles:
-- Looking up the assigned agent from the rent request
-- Sub-agent / parent-agent 8k/2k split
-- Idempotency guard (won't double-credit)
-- Ledger entry with `transaction_group_id` → wallet trigger fires automatically
+## Fix
 
-No other files need changes.
+Rewrite `process-credit-daily-charges/index.ts` to follow the same proven pattern as `auto-charge-wallets`:
+
+1. **Read balance from `wallets` table** (not by aggregating ledger entries)
+2. **Deduct directly from `wallets` table** with an atomic update
+3. **Insert ledger entries with `direction: 'cash_out'`** and a `transaction_group_id` so the `sync_wallet_from_ledger` trigger keeps everything in sync
+4. Same for agent fallback: read from `wallets`, deduct, insert `cash_out` ledger entry
+
+### Key changes in the function:
+
+| Current (broken) | Fixed |
+|---|---|
+| `supabase.from('general_ledger').select().eq('category', 'wallet')` | `supabase.from('wallets').select('balance').eq('user_id', ...)` |
+| `direction === 'credit' ? +amount : -amount` | Read `wallet.balance` directly |
+| `direction: 'debit'` in insert | `direction: 'cash_out'` in insert |
+| No wallet table update | `supabase.from('wallets').update({ balance: newBalance })` |
+
+### File changed
+- `supabase/functions/process-credit-daily-charges/index.ts` — rewrite wallet interaction logic
+
+No other files or database changes needed.
 
