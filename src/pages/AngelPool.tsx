@@ -30,7 +30,7 @@ export default function AngelPool() {
   const { profile } = useProfile();
   const { wallet } = useWallet();
   const { formatAmount, formatAmountCompact } = useCurrency();
-  const { currentRole, availableRoles, changeRole, signOut } = useAuth();
+  const { role: currentRole, roles: availableRoles, switchRole, signOut } = useAuth();
   const [showWallet, setShowWallet] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
