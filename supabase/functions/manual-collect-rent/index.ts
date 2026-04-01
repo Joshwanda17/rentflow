@@ -71,14 +71,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify caller is staff (manager, operations, super_admin, coo, cfo, ceo)
-    const { data: managerProfile } = await supabase
-      .from("profiles")
-      .select("agent_type")
-      .eq("id", user.id)
-      .single();
+    // Verify caller is staff via user_roles table
     const allowedRoles = ["manager", "super_admin", "operations", "coo", "cfo", "ceo", "employee"];
-    if (!managerProfile || !allowedRoles.includes(managerProfile.agent_type)) {
+    const { data: userRoles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const hasAllowedRole = userRoles?.some((r: any) => allowedRoles.includes(r.role));
+    if (!hasAllowedRole) {
       return new Response(JSON.stringify({ error: "Only authorized staff can collect rent manually" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
