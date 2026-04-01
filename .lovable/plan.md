@@ -1,31 +1,41 @@
+# Fix Sunueli Alex's Outstanding Balance
+
+## Investigation Results
+
+**Tenant:** Sunueli Alex (`3b293a8d-6046-429b-8295-0eb121e88577`)
+**Rent Request:** `3fae669e-1336-4cfd-a401-aa49f88d238a`
 
 
-# Fix PWA Install — Only on /welcome, Working Install Button
+| Field           | Current Value | Expected    |
+| --------------- | ------------- | ----------- |
+| total_repayment | 816,005       | 816,005     |
+| amount_repaid   | 81,606        | **310,309** |
+| outstanding     | 734,399       | **505,696** |
 
-## Problem
-1. The PWA install prompt (`PWAInstallPrompt`) is rendered globally in `DeferredExtras.tsx` for all non-authenticated users on all routes except `/settings`
-2. The `beforeinstallprompt` event is captured globally in `usePWAInstall.tsx` but can be lost across re-renders or route changes
-3. Users click "Install" but nothing happens because the deferred prompt may have been consumed or lost
 
-## Plan
+The system only recorded 6 repayments (81,606 total), but the reference system shows 310,309 should have been repaid — a gap of **228,703** in unrecorded repayments.
 
-### 1. Move PWA install prompt to `/welcome` route only
-- **Remove** `PWAInstallPrompt` from `DeferredExtras.tsx` entirely
-- **Add** the install prompt directly into `Landing.tsx` (the `/welcome` page component)
+## Data Repair Plan
 
-### 2. Simplify the install logic in Landing.tsx
-- Use a local `useEffect` in `Landing.tsx` to listen for `beforeinstallprompt` and store the event in component state
-- Also check the global `globalDeferredPrompt` from `usePWAInstall.tsx` as a fallback (the event may have fired before the component mounted)
-- Show an "Install App" button on the Landing page when a prompt is available
-- For iOS: show the manual install guide (Add to Home Screen instructions)
-- On successful install, redirect to `/auth`
+Execute a database migration with three statements:
 
-### 3. Keep the global early-capture in usePWAInstall.tsx
-- The module-level `beforeinstallprompt` listener that saves the event globally is valuable — it captures the event before React mounts
-- `Landing.tsx` will import and use this cached event as a fallback
+1. **Update `rent_requests.amount_repaid**` to `310,309` (so outstanding = 816,005 − 310,309 = **505,696**)
+2. **Insert an audit log** documenting this manual correction with metadata showing before/after values
+3. No code changes needed — this is a data-only fix. IT SHOULD BE A PERMANENT FIX 
 
-### Files to Edit
-- `src/components/DeferredExtras.tsx` — remove `PWAInstallPrompt` import and rendering
-- `src/pages/Landing.tsx` — integrate install button with direct `beforeinstallprompt` handling
-- `src/hooks/usePWAInstall.tsx` — export `globalDeferredPrompt` for Landing to consume
+## SQL to Execute
 
+```sql
+UPDATE rent_requests 
+SET amount_repaid = 310309 
+WHERE id = '3fae669e-1336-4cfd-a401-aa49f88d238a';
+
+INSERT INTO audit_logs (action_type, user_id, table_name, record_id, metadata)
+VALUES (
+  'manual_data_repair_amount_repaid',
+  '3b293a8d-6046-429b-8295-0eb121e88577',
+  'rent_requests',
+  '3fae669e-1336-4cfd-a401-aa49f88d238a',
+  '{"reason":"Outstanding balance correction per reference system","before":{"amount_repaid":81606,"outstanding":734399},"after":{"amount_repaid":310309,"outstanding":505696}}'
+);
+```
