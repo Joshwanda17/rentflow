@@ -126,12 +126,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Record double-entry ledger
-    await supabase.from("general_ledger").insert([
+    // 2. Record ledger entry — the sync_wallet_from_ledger trigger handles wallet deduction
+    const { error: ledgerErr } = await supabase.from("general_ledger").insert([
       {
         user_id: user.id,
         amount: topupAmount,
-        direction: "debit",
+        direction: "cash_out",
         category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
       {
         user_id: user.id,
         amount: topupAmount,
-        direction: "credit",
+        direction: "cash_in",
         category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
@@ -153,6 +153,45 @@ Deno.serve(async (req) => {
         transaction_date: now,
       },
     ]);
+
+    if (ledgerErr) {
+      console.error("[portfolio-topup] Ledger insert failed:", ledgerErr);
+      return new Response(JSON.stringify({ error: "Failed to record ledger entry" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 3. Post-ledger verification: ensure wallet didn't go negative (race condition guard)
+    const { data: postWallet } = await supabase
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
+
+    if (postWallet && Number(postWallet.balance) < 0) {
+      // Race condition: rollback by inserting a reversal ledger entry
+      await supabase.from("general_ledger").insert([{
+        user_id: user.id,
+        amount: topupAmount,
+        direction: "cash_in",
+        category: "portfolio_topup_reversal",
+        source_table: "investor_portfolios",
+        source_id: portfolio_id,
+        transaction_group_id: crypto.randomUUID(),
+        description: `Reversal: insufficient balance for ${accountLabel} top-up`,
+        ledger_scope: "wallet",
+        transaction_date: now,
+      }]);
+
+      // Cancel pending op
+      await supabase.from("pending_wallet_operations")
+        .update({ status: "cancelled" })
+        .eq("transaction_group_id", txGroupId);
+
+      return new Response(JSON.stringify({ error: "Insufficient wallet balance" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // 4. Notify user
     await supabase.from("notifications").insert({
