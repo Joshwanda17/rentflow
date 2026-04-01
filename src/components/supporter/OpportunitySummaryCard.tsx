@@ -126,7 +126,8 @@ export function OpportunitySummaryCard() {
               Avg. cycle: 30 days
             </span>
             <span className="text-border">•</span>
-            <span>Min: {formatAmount(50000)}</span>
+            <span className="sm:hidden">Min: {formatAmountCompact(50000)}</span>
+            <span className="hidden sm:inline">Min: {formatAmount(50000)}</span>
           </div>
 
           <p className="text-[9px] text-muted-foreground/60 text-center leading-relaxed">
