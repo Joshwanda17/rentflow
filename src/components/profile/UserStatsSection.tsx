@@ -1,5 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { UserStats } from '@/hooks/useUserStats';
-import { Users, Building, UsersRound, Heart, Wallet, FileText, Banknote, Receipt, Home, MapPin, Truck, DollarSign } from 'lucide-react';
+import { Users, Building, UsersRound, Heart, Wallet, FileText, Banknote, Receipt, Home, MapPin, Truck, DollarSign, ScrollText, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface UserStatsSectionProps {
