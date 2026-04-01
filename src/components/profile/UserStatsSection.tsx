@@ -1,5 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { UserStats } from '@/hooks/useUserStats';
-import { Users, Building, UsersRound, Heart, Wallet, FileText, Banknote, Receipt, Home, MapPin, Truck, DollarSign } from 'lucide-react';
+import { Users, Building, UsersRound, Heart, Wallet, FileText, Banknote, Receipt, Home, MapPin, Truck, DollarSign, ScrollText, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface UserStatsSectionProps {
@@ -30,6 +31,8 @@ function StatItem({ icon: Icon, label, value, iconColor }: StatItemProps) {
 const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
 export function UserStatsSection({ stats, loading }: UserStatsSectionProps) {
+  const navigate = useNavigate();
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -81,6 +84,24 @@ export function UserStatsSection({ stats, loading }: UserStatsSectionProps) {
             <StatItem icon={Heart} label="Supporters Registered" value={stats.supportersRegistered} iconColor="text-pink-500" />
           </div>
         </div>
+      )}
+      {/* Agent Agreement Quick Access */}
+      {(hasAgentStats || hasReferralStats) && (
+        <button
+          onClick={() => navigate('/agent-agreement')}
+          className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <ScrollText className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-medium text-sm">Agent Terms & Conditions</p>
+              <p className="text-xs text-muted-foreground">Tap to view agreement</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
       )}
     </div>
   );

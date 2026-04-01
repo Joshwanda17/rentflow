@@ -121,6 +121,7 @@ const InvestorPortfolioPublic = lazy(() => import('./pages/InvestorPortfolioPubl
 const RentMoney = lazy(() => import('./pages/RentMoney'));
 const FindAHouse = lazy(() => import('./pages/FindAHouse'));
 const LandlordAgreement = lazy(() => import('./pages/LandlordAgreement'));
+const AgentAgreement = lazy(() => import('./pages/AgentAgreement'));
 const AngelPool = lazy(() => import('./pages/AngelPool'));
 
 // Detect iOS standalone mode for cache settings
@@ -281,6 +282,7 @@ function AppRoutes() {
           <Route path="/tv-dashboard" element={<TVDashboard />} />
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/landlord-agreement" element={<LandlordAgreement />} />
+          <Route path="/agent-agreement" element={<AgentAgreement />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/staff" element={<StaffPortal />} />
           {/* Role-isolated executive dashboards */}

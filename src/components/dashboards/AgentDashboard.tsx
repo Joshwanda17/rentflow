@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
@@ -391,13 +392,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
         onInviteFunder={() => {
           setMenuOpen(false);
-          const funderLink = `${window.location.origin}/auth?ref=${user.id}&role=funder`;
+          const funderLink = `${getPublicOrigin()}/auth?ref=${user.id}&role=funder`;
           const shareText = `Join Welile as a funder and start earning! Sign up here: ${funderLink}`;
           if (navigator.share) {
             navigator.share({ title: 'Become a Welile Funder', text: shareText, url: funderLink }).catch(() => {});
           } else {
             navigator.clipboard.writeText(funderLink).then(() => {
               import('sonner').then(({ toast }) => toast.success('Funder signup link copied!'));
+            });
+          }
+        }}
+        onInviteAngelInvestor={() => {
+          setMenuOpen(false);
+          const investorLink = `${getPublicOrigin()}/auth?ref=${user.id}&role=supporter`;
+          const shareText = `🦄 Join the Welile Angel Pool — invest in Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
+          if (navigator.share) {
+            navigator.share({ title: 'Invest in Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
+          } else {
+            navigator.clipboard.writeText(investorLink).then(() => {
+              import('sonner').then(({ toast }) => toast.success('Angel investor signup link copied!'));
             });
           }
         }}
