@@ -2,11 +2,9 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, Calculator, Menu, BadgeCheck, Wallet, ChevronRight,
-  Crown, Shield, ArrowUpRight, TrendingUp, Home, FileText
+  Shield, ArrowUpRight, TrendingUp, Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useWallet } from '@/hooks/useWallet';
@@ -19,12 +17,7 @@ import { NotificationBell } from '@/components/supporter/NotificationBell';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
-import { AngelCalculator } from '@/components/angel-pool/AngelCalculator';
-import { AngelPoolDashboard } from '@/components/angel-pool/AngelPoolDashboard';
-import { AngelActivityFeed } from '@/components/angel-pool/AngelActivityFeed';
-import { AngelInvestorCard } from '@/components/angel-pool/AngelInvestorCard';
-import { MOCK_TOTAL_RAISED, MOCK_INVESTORS } from '@/components/angel-pool/mockData';
-import { TOTAL_POOL_UGX, PRICE_PER_SHARE, TOTAL_SHARES, POOL_PERCENT } from '@/components/angel-pool/constants';
+import { CapitalOpportunityEntry } from '@/components/angel-pool/CapitalOpportunityEntry';
 import { useAuth } from '@/hooks/useAuth';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 
@@ -44,13 +37,10 @@ export default function AngelPool() {
   const scrollToCalc = () => calcRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const walletBalance = wallet?.balance ?? 0;
-  const sharesSold = MOCK_TOTAL_RAISED / PRICE_PER_SHARE;
-  const sharesRemaining = TOTAL_SHARES - sharesSold;
-  const progress = (MOCK_TOTAL_RAISED / TOTAL_POOL_UGX) * 100;
 
   // Mock data for the portfolio hero
   const myInvestment = 5_000_000;
-  const myShares = Math.floor(myInvestment / PRICE_PER_SHARE);
+  const myShares = Math.floor(myInvestment / 20_000);
   const monthlyReturn = myInvestment * 0.15;
 
   const menuItems = [
@@ -257,120 +247,7 @@ export default function AngelPool() {
               <h2 className="text-sm font-black text-foreground tracking-tight">Capital Opportunities</h2>
             </div>
 
-            {/* Angel Pool Opportunity Card — Matches OpportunitySummaryCard style */}
-            <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm">
-              {/* Header bar */}
-              <div className="px-5 pt-5 pb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-primary/10">
-                    <TrendingUp className="h-4.5 w-4.5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-foreground text-sm tracking-tight">Angel Pool</h3>
-                    <p className="text-[10px] text-muted-foreground font-medium leading-tight">Early equity opportunity in Welile Technologies</p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-[9px] px-2 py-0.5 border-success/40 text-success bg-success/5 font-bold uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success mr-1 animate-pulse" />
-                  Active
-                </Badge>
-              </div>
-
-              {/* Main amount */}
-              <div className="px-5 pb-3">
-                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Total Pool Target</p>
-                <p className="text-2xl sm:text-3xl font-black text-foreground mt-1">
-                  <span className="sm:hidden">{formatAmountCompact(TOTAL_POOL_UGX)}</span>
-                  <span className="hidden sm:inline">{formatAmount(TOTAL_POOL_UGX)}</span>
-                </p>
-                <p className="text-[11px] text-primary font-semibold mt-1">
-                  🚀 Welile is building the future of rent finance
-                </p>
-              </div>
-
-              {/* Stats row — matches funder's 3-column stat grid */}
-              <div className="grid grid-cols-3 gap-px bg-border/40">
-                <div className="bg-card px-3 py-4 text-center">
-                  <div className="flex items-center justify-center mb-1">
-                    <Home className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <p className="text-xl font-black text-foreground">{sharesSold.toLocaleString()}</p>
-                  <p className="text-[9px] text-muted-foreground font-medium mt-0.5">Shares Sold</p>
-                </div>
-                <div className="bg-card px-3 py-4 text-center">
-                  <div className="flex items-center justify-center mb-1">
-                    <Crown className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <p className="text-xl font-black text-foreground">{MOCK_INVESTORS.length}</p>
-                  <p className="text-[9px] text-muted-foreground font-medium mt-0.5">Angel Investors</p>
-                </div>
-                <div className="bg-card px-3 py-4 text-center">
-                  <div className="flex items-center justify-center mb-1">
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <p className="text-xl font-black text-foreground">{sharesRemaining.toLocaleString()}</p>
-                  <p className="text-[9px] text-muted-foreground font-medium mt-0.5">Shares Left</p>
-                </div>
-              </div>
-
-              {/* Features list — matches funder's feature rows */}
-              <div className="px-5 py-4 space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <TrendingUp className="h-3 w-3" /> Equity Pool
-                  </span>
-                  <span className="font-bold text-primary">Up to {POOL_PERCENT}%</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <Wallet className="h-3 w-3" /> Min Investment
-                  </span>
-                  <span className="font-bold">{formatAmountCompact(PRICE_PER_SHARE)}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <Crown className="h-3 w-3" /> Pool Status
-                  </span>
-                  <span className="font-bold">{progress.toFixed(0)}% Filled</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <Shield className="h-3 w-3" /> Risk Control
-                  </span>
-                  <span className="font-bold">Verified & Secured</span>
-                </div>
-              </div>
-
-              {/* CTA — matches funder's SUPPORT TENANT button */}
-              <div className="px-5 pb-4">
-                <Button
-                  onClick={scrollToCalc}
-                  className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2"
-                >
-                  <Crown className="h-4 w-4" />
-                  INVEST IN POOL
-                </Button>
-              </div>
-
-              {/* Withdraw-style button */}
-              <div className="px-5 pb-4">
-                <Button
-                  variant="outline"
-                  onClick={scrollToPool}
-                  className="w-full h-11 rounded-2xl text-sm font-semibold gap-2"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                  View Pool Dashboard
-                </Button>
-              </div>
-
-              {/* Footer info — matches funder's footer */}
-              <div className="px-5 pb-4 flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
-                <span>⏱ Price: {formatAmountCompact(PRICE_PER_SHARE)}/share</span>
-                <span>•</span>
-                <span>Min: {formatAmountCompact(PRICE_PER_SHARE)}</span>
-              </div>
-            </div>
+            <CapitalOpportunityEntry />
           </div>
 
 
