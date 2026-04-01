@@ -38,7 +38,7 @@ const WALLET_METHOD: PaymentMethod = {
   name: 'Wallet Balance',
   type: 'wallet',
   icon: 'Wallet',
-  fee: 0,
+  fee: '0',
   feeType: 'fixed' as const,
   description: 'Pay directly from your wallet',
 };
