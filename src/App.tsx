@@ -253,6 +253,7 @@ function AppRoutes() {
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/manager-access" element={<ManagerAccess />} />
           <Route path="/become-supporter" element={<BecomeSupporter />} />
+          <Route path="/angel-pool" element={<AngelPool />} />
           <Route path="/vendor-portal" element={<VendorPortal />} />
           <Route path="/deposits-management" element={<DepositsManagement />} />
           <Route path="/install" element={<Install />} />
