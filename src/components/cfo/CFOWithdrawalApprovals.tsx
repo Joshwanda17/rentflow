@@ -251,8 +251,8 @@ export function CFOWithdrawalApprovals() {
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()}>
-              {processing ? 'Approving...' : 'Approve & Forward'}
+            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()} className="bg-emerald-600 hover:bg-emerald-700">
+              {processing ? 'Processing...' : 'Approve & Confirm Payment'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
