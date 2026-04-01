@@ -1,59 +1,92 @@
+&nbsp;
 
-
-# Fix: Add Executive Notifications for Portfolio Top-Ups
+# Add Push Notifications for All Activities to Managers
 
 ## Problem
 
-When a portfolio is topped up (any of the 3 paths), **only the partner** receives a notification. Neither the CFO nor the COO is notified, and the CFO dashboard has no view of pending portfolio top-ups. This creates a governance blind spot.
+Managers currently receive **zero push notifications** for platform activities. All push notifications are sent only to the directly involved user (partner, agent, tenant). Managers have no real-time mobile alerts for critical operations happening on the platform.
 
-**Example:** ALEETE's portfolio WIP2602283615 was topped up by 5.5M — only ALEETE saw the notification. No executive was alerted.
+## Approach
 
-## Current Notification Recipients
+Create a **shared helper function** that all edge functions can call to notify managers after any significant activity. This avoids duplicating the same "query manager roles + send push" logic across 30+ functions.
 
-| Top-Up Path | Who Gets Notified | Gap |
-|---|---|---|
-| Partner self-top-up | Partner only | No executive alert |
-| Manager/COO top-up | Partner only | COO did it but CFO doesn't know |
-| COO wallet-to-portfolio | Partner only | Same gap |
-| Apply pending top-ups | Partner only | No confirmation to CFO |
+WHEN A DEPOSIT IS MADE THE COO SHOULD BE NOTIFIED, THEN WHEN HE APPROVES TE DEPOSIT, THE FINANCIAL OPS SHOULD BE NOTIFIED AFTER VERIFYING THE DEPOSIT THE CFO ALSO SHOULD BE NOTIFIED, WHEN THE CFO APPROVES ALSO. FOR EACH WALLET ACTIVITY THE MANAGERS SHOULD RECEIVE THE NOTIFICATIONS.
 
-## Plan
+### Step 1: Create a shared `notify-managers` helper Edge Function
 
-### 1. Add CFO + COO notifications to all 3 top-up Edge Functions
+A lightweight internal-only edge function that other functions call. It accepts a title, body, and optional metadata, then:
 
-In each function (`portfolio-topup`, `manager-portfolio-topup`, `coo-wallet-to-portfolio`), after the partner notification, query `user_roles` for users with `cfo` and `coo` roles, then insert a notification for each:
+1. Queries `user_roles` for all users with `role = 'manager'` and `enabled = true`
+2. Sends push notifications to all of them via the existing `send-push-notification` function
 
-```
-Title: "📊 Portfolio Top-Up Submitted"
-Message: "UGX 5,500,000 top-up for ALEETE (WIP2602283615) — pending verification."
-Type: "info"
-```
+This keeps the logic in one place and makes it trivial to add manager notifications to any function.
 
-### 2. Add CFO + COO notification to `apply-pending-topups`
+### Step 2: Add manager push notifications to all key edge functions
 
-When pending top-ups are applied, notify both executives:
+Each function will add a single `fetch()` call to `notify-managers` after its main operation succeeds. Activities to cover:
 
-```
-Title: "✅ Portfolio Top-Ups Applied"  
-Message: "2 pending top-up(s) totaling UGX 5,500,000 applied to ALEETE (WIP2602283615). New capital: UGX X."
-```
 
-### 3. Add a "Pending Portfolio Top-Ups" section to the CFO dashboard
+| Category                 | Edge Functions                                                                                                                                        | Notification Example                       |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Deposits**             | `approve-deposit`, `agent-deposit`                                                                                                                    | "💰 Deposit approved: UGX X for [user]"    |
+| **Withdrawals**          | `agent-withdrawal`, `reject-withdrawal`, `approve-wallet-operation`                                                                                   | "💸 Withdrawal requested: UGX X by [user]" |
+| **Rent**                 | `approve-rent-request`, `fund-tenants`, `tenant-pay-rent`, `manual-collect-rent`, `disburse-rent-to-landlord`                                         | "🏠 Rent request approved for [tenant]"    |
+| **Portfolio/Investment** | `portfolio-topup`, `manager-portfolio-topup`, `coo-wallet-to-portfolio`, `apply-pending-topups`, `coo-invest-for-partner`, `agent-invest-for-partner` | "📊 Portfolio top-up: UGX X for [partner]" |
+| **User Management**      | `create-supporter-invite`, `register-tenant`, `register-employee`, `transfer-tenant`, `delete-user`                                                   | "👤 New tenant registered by [agent]"      |
+| **Financial Ops**        | `fund-rent-pool`, `fund-agent-landlord-float`, `platform-expense-transfer`, `cfo-direct-credit`, `wallet-transfer`                                    | "🏦 Rent pool funded: UGX X"               |
+| **Credit**               | `process-credit-draw`, `approve-loan-application`                                                                                                     | "📋 Loan application approved for [user]"  |
+| **Listings**             | `credit-listing-bonus`, `approve-listing-bonus`                                                                                                       | "🏡 Listing bonus credited for [house]"    |
+| **Supporter**            | `activate-supporter`, `supporter-account-action`, `process-supporter-roi`                                                                             | "💼 Supporter activated: [name]"           |
+| **Repayments**           | `check-repayment-status`                                                                                                                              | "⚠️ Overdue repayment detected: [tenant]"  |
 
-Create a small card/section in the CFO dashboard that queries `pending_wallet_operations` where `operation_type = 'portfolio_topup'` and `status = 'pending'`, showing count and total amount. This gives the CFO visibility without needing to visit the COO's Partners page.
 
-## Files Changed
+### Step 3: Add manager push from client-side actions
 
-- `supabase/functions/portfolio-topup/index.ts` — add executive notifications
-- `supabase/functions/manager-portfolio-topup/index.ts` — add executive notifications  
-- `supabase/functions/coo-wallet-to-portfolio/index.ts` — add executive notifications
-- `supabase/functions/apply-pending-topups/index.ts` — add executive notifications
-- CFO dashboard component — add pending top-ups visibility card
+For activities triggered from the UI that don't go through edge functions (role changes, broadcast messages), add a call to `send-push-notification` targeting manager user IDs:
+
+- `BulkAssignRoleDialog` / `BulkRemoveRoleDialog` — role changes
+- `InlineRoleToggle` / `MobileRoleEditor` — individual role changes
+- `BroadcastMessageDialog` — broadcast sent
+
+## Files to Create
+
+- `supabase/functions/notify-managers/index.ts` — shared helper
+
+## Files to Edit (~25 edge functions)
+
+- All edge functions listed in the table above — add a single non-blocking `fetch()` call to `notify-managers` after the main operation
+- `src/components/manager/BulkAssignRoleDialog.tsx` — add manager push
+- `src/components/manager/BulkRemoveRoleDialog.tsx` — add manager push
+- `src/components/manager/InlineRoleToggle.tsx` — add manager push
+- `src/components/chat/BroadcastMessageDialog.tsx` — add manager push
 
 ## Technical Details
 
-- Executive users are resolved via: `SELECT user_id FROM user_roles WHERE role IN ('cfo', 'coo')`
-- Notifications are batch-inserted (one query for all executives)
-- Non-blocking: notification failures are logged but don't fail the top-up operation
-- The CFO card is read-only — applying top-ups remains a COO-only action
+`**notify-managers` function pattern:**
 
+```typescript
+// Receives: { title, body, url?, type? }
+// 1. Queries user_roles for role='manager', enabled=true
+// 2. Calls send-push-notification with those user IDs
+// Non-blocking, fire-and-forget from callers
+```
+
+**Caller pattern (in each edge function):**
+
+```typescript
+// After main operation succeeds, fire-and-forget:
+fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Authorization: `Bearer ${supabaseServiceKey}` },
+  body: JSON.stringify({
+    title: "💰 Deposit Approved",
+    body: `UGX ${amount.toLocaleString()} deposit for ${userName}`,
+    url: "/deposits"
+  })
+}).catch(() => {});  // Never block the main operation
+```
+
+- All notifications are **non-blocking** — failures are silently caught
+- The `notify-managers` function deduplicates by querying `user_roles` each time (managers may change)
+- Note: Per the database write-suppression policy, these are **push-only** — no rows are inserted into the `notifications` table
+- &nbsp;
