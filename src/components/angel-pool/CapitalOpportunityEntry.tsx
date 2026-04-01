@@ -216,11 +216,19 @@ export function CapitalOpportunityEntry() {
           onValueChange={(v) => { hapticTap(); setActiveTab(v as PoolType); }}
           className="w-full"
         >
-          <TabsList className="w-full grid grid-cols-2 h-11 rounded-xl">
-            <TabsTrigger value="tenant" className="rounded-lg text-xs font-bold gap-1.5">
+          <TabsList variant="pills" className="w-full grid grid-cols-2 gap-2">
+            <TabsTrigger
+              value="tenant"
+              variant="pills"
+              className="rounded-full text-xs font-bold gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               <Home className="h-3.5 w-3.5" /> Tenant Support
             </TabsTrigger>
-            <TabsTrigger value="angel" className="rounded-lg text-xs font-bold gap-1.5">
+            <TabsTrigger
+              value="angel"
+              variant="pills"
+              className="rounded-full text-xs font-bold gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               <Rocket className="h-3.5 w-3.5" /> Angel Pool
             </TabsTrigger>
           </TabsList>
