@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, ArrowUpRight, ArrowDownLeft, History, CreditCard } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, CreditCard } from 'lucide-react';
 import { formatCurrency } from '@/lib/paymentMethods';
 import PayRentFlow from './PayRentFlow';
 import DepositFlow from './DepositFlow';
@@ -11,12 +11,18 @@ interface TenantPaymentsWidgetProps {
   rentDue?: number;
   dueDate?: Date;
   onViewHistory?: () => void;
+  landlord?: string;
+  property?: string;
+  onPaymentComplete?: () => void;
 }
 
 export default function TenantPaymentsWidget({
-  walletBalance = 150000,
-  rentDue = 500000,
+  walletBalance = 0,
+  rentDue = 0,
   dueDate = new Date(),
+  landlord,
+  property,
+  onPaymentComplete,
 }: TenantPaymentsWidgetProps) {
   const [showPayRent, setShowPayRent] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
@@ -31,7 +37,6 @@ export default function TenantPaymentsWidget({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Balances */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-background/50 rounded-lg">
               <p className="text-xs text-muted-foreground">Rent Money</p>
@@ -44,9 +49,8 @@ export default function TenantPaymentsWidget({
             </div>
           </div>
 
-          {/* Action buttons */}
           <div className="grid grid-cols-2 gap-2">
-            <Button onClick={() => setShowPayRent(true)} className="gap-2">
+            <Button onClick={() => setShowPayRent(true)} className="gap-2" disabled={rentDue <= 0}>
               <ArrowUpRight className="w-4 h-4" />
               Pay Rent
             </Button>
@@ -58,7 +62,16 @@ export default function TenantPaymentsWidget({
         </CardContent>
       </Card>
 
-      <PayRentFlow open={showPayRent} onOpenChange={setShowPayRent} rentDue={rentDue} dueDate={dueDate} />
+      <PayRentFlow
+        open={showPayRent}
+        onOpenChange={setShowPayRent}
+        rentDue={rentDue}
+        dueDate={dueDate}
+        walletBalance={walletBalance}
+        landlord={landlord}
+        property={property}
+        onPaymentComplete={onPaymentComplete}
+      />
       <DepositFlow open={showDeposit} onOpenChange={setShowDeposit} walletBalance={walletBalance} />
     </>
   );

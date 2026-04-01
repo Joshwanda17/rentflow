@@ -2623,6 +2623,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
 
       // Create pending wallet operation for CFO approval
+      const txnGroupId = crypto.randomUUID();
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
         user_id: p.investorId,
         amount: roiAmount,
@@ -2632,6 +2633,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         source_id: p.portfolioId,
         reference_id: refId,
         operation_type: 'roi_wallet_credit',
+        transaction_group_id: txnGroupId,
         description: `ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}`,
         linked_party: user.id,
         status: 'pending',
