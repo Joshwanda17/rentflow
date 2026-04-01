@@ -18,7 +18,7 @@ export default function AngelPoolAgreement() {
     const name = profile?.full_name || profile?.phone || 'Participant';
     const date = new Date().toLocaleDateString();
     text = text.replace('[Participant Name]', name);
-    text = text.replaceAll('[Date]', date);
+    text = text.split('[Date]').join(date);
     return text;
   };
 

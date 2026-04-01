@@ -87,21 +87,38 @@ export function UserStatsSection({ stats, loading }: UserStatsSectionProps) {
       )}
       {/* Agent Agreement Quick Access */}
       {(hasAgentStats || hasReferralStats) && (
-        <button
-          onClick={() => navigate('/agent-agreement')}
-          className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <ScrollText className="h-4 w-4 text-primary" />
+        <div className="space-y-2">
+          <button
+            onClick={() => navigate('/agent-agreement')}
+            className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <ScrollText className="h-4 w-4 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-sm">Agent Terms & Conditions</p>
+                <p className="text-xs text-muted-foreground">Tap to view agreement</p>
+              </div>
             </div>
-            <div className="text-left">
-              <p className="font-medium text-sm">Agent Terms & Conditions</p>
-              <p className="text-xs text-muted-foreground">Tap to view agreement</p>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => navigate('/angel-pool-agreement')}
+            className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <ScrollText className="h-4 w-4 text-amber-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-sm">Angel Pool Agreement</p>
+                <p className="text-xs text-muted-foreground">Tap to view & sign</p>
+              </div>
             </div>
-          </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </button>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
       )}
     </div>
   );
