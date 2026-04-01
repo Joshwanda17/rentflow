@@ -29,6 +29,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Security Logs', icon: Lock, id: 'security' },
         { label: 'Developer Tools', icon: Wrench, id: 'tools' },
         { label: 'System Logs', icon: FileText, id: 'system-logs' },
+        { label: 'Platform Users', icon: Users, id: 'platform-users', route: '/platform-users' },
       ],
     },
   ],
