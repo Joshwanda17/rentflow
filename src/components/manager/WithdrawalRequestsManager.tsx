@@ -637,28 +637,26 @@ export function WithdrawalRequestsManager() {
 
     setProcessing(selectedRequest.id);
     try {
-      // Manager approval now moves to 'manager_approved' — not final 'approved'
-      // No wallet deduction yet; that happens at COO stage
+      // Manager approval — withdrawal goes directly to CFO dashboard
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'manager_approved',
+          status: 'pending',
           manager_approved_at: new Date().toISOString(),
           manager_approved_by: user.id,
-          transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selectedRequest.id);
 
       if (requestError) throw requestError;
 
-      toast.success('Withdrawal forwarded to CFO for review!');
+      toast.success('Withdrawal noted — visible on CFO dashboard');
       setApproveDialogOpen(false);
       setTransactionId('');
       setSelectedRequest(null);
       fetchRequests();
     } catch (error: any) {
-      console.error('Error approving withdrawal:', error);
-      toast.error(error.message || 'Failed to approve withdrawal');
+      console.error('Error processing withdrawal:', error);
+      toast.error(error.message || 'Failed to process withdrawal');
     } finally {
       setProcessing(null);
     }
