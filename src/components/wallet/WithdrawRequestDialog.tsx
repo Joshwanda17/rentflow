@@ -75,46 +75,6 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
     if (open) setWorkingHoursStatus(checkWorkingHours());
   }, [open]);
 
-  useEffect(() => {
-    const checkDailyLimit = async () => {
-      if (!user || !open) return;
-      setCheckingDailyLimit(true);
-      try {
-        // Partners/supporters are exempt from daily withdrawal limit
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .in('role', ['partner', 'supporter'] as any[])
-          .eq('enabled', true)
-          .limit(1);
-        
-        if (roles && roles.length > 0) {
-          setHasWithdrawnToday(false);
-          setCheckingDailyLimit(false);
-          return;
-        }
-
-        const todayEAT = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }));
-        const startOfDay = new Date(todayEAT.getFullYear(), todayEAT.getMonth(), todayEAT.getDate()).toISOString();
-        const endOfDay = new Date(todayEAT.getFullYear(), todayEAT.getMonth(), todayEAT.getDate() + 1).toISOString();
-        const { data } = await supabase
-          .from('withdrawal_requests')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .gte('created_at', startOfDay)
-          .lt('created_at', endOfDay)
-          .limit(1);
-        setHasWithdrawnToday((data?.length ?? 0) > 0);
-      } catch (e) {
-        console.warn('Could not check daily withdrawal limit', e);
-      } finally {
-        setCheckingDailyLimit(false);
-      }
-    };
-    checkDailyLimit();
-  }, [user, open]);
 
   useEffect(() => {
     const fetchSavedNumber = async () => {
