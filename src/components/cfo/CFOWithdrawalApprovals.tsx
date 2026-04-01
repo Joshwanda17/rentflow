@@ -238,9 +238,9 @@ export function CFOWithdrawalApprovals() {
       <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Withdrawal?</AlertDialogTitle>
+            <AlertDialogTitle>Approve Withdrawal & Confirm Payment</AlertDialogTitle>
             <AlertDialogDescription>
-              Enter the Transaction ID to forward <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> to the COO for final approval.
+              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}. Enter the Transaction ID to confirm payment.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
