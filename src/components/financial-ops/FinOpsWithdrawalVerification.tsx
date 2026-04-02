@@ -106,15 +106,16 @@ export function FinOpsWithdrawalVerification() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // Section A: Approve (no TID) → fin_ops_approved
+  // Section A: Approve with TID → fin_ops_approved
   const handleApprove = async () => {
-    if (!user || !selected) return;
+    if (!user || !selected || reference.trim().length < 3) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
           status: 'fin_ops_approved',
+          fin_ops_reference: reference.trim().toUpperCase(),
           fin_ops_approved_at: new Date().toISOString(),
           fin_ops_approved_by: user.id,
           updated_at: new Date().toISOString(),
@@ -127,12 +128,13 @@ export function FinOpsWithdrawalVerification() {
         action_type: 'fin_ops_approve_withdrawal',
         record_id: selected.id,
         table_name: 'withdrawal_requests',
-        metadata: { amount: selected.amount, target_user: selected.user_id },
+        metadata: { amount: selected.amount, target_user: selected.user_id, reference: reference.trim().toUpperCase() },
       });
 
       toast.success('Withdrawal approved & forwarded to CFO');
       setApproveOpen(false);
       setSelected(null);
+      setReference('');
       fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
