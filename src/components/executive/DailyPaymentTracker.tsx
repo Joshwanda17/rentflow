@@ -565,6 +565,55 @@ export function DailyPaymentTracker() {
           tenant={deleteTarget}
         />
       )}
+
+      {/* Collect Reason Dialog */}
+      <Dialog open={!!collectTarget} onOpenChange={(open) => { if (!open) { setCollectTarget(null); setCollectReason(''); } }}>
+        <DialogContent stable className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Collect Rent</DialogTitle>
+            <DialogDescription className="text-xs">
+              {collectTarget?.name} — Daily: {formatUGX(collectTarget?.amount || 0)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">
+              Reason for collection <span className="text-destructive">*</span>
+            </label>
+            <Textarea
+              value={collectReason}
+              onChange={(e) => setCollectReason(e.target.value)}
+              placeholder="e.g. Daily rent repayment instalment..."
+              className="min-h-[60px] text-sm"
+              maxLength={500}
+            />
+            {collectReason.length > 0 && collectReason.trim().length < 10 && (
+              <p className="text-[10px] text-destructive">Minimum 10 characters ({collectReason.trim().length}/10)</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setCollectTarget(null); setCollectReason(''); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={collectReason.trim().length < 10 || collectMutation.isPending}
+              onClick={() => {
+                if (collectTarget) {
+                  collectMutation.mutate({ rentRequestId: collectTarget.id, collectionReason: collectReason.trim() });
+                }
+              }}
+              className="gap-1"
+            >
+              {collectMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
+              Confirm Collection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
