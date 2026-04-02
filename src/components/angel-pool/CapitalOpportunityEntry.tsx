@@ -542,6 +542,12 @@ export function CapitalOpportunityEntry() {
       <>
         <DefaultEntryCard onOpenSelection={() => setSheetOpen(true)} formatAmountCompact={formatAmountCompact} />
         <InvestmentSelectionSheet open={sheetOpen} onOpenChange={setSheetOpen} onSelect={handlePoolSelect} />
+        <AngelPoolAgreementDialog
+          open={showAgreementDialog}
+          onAccept={handleAgreementAccept}
+          onClose={() => { setShowAgreementDialog(false); setPendingAngelSwitch(null); }}
+          isLoading={angelAgreementLoading}
+        />
       </>
     );
   }
