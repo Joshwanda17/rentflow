@@ -19,7 +19,7 @@ export function PendingPortfolioTopUps() {
       if (error) throw error;
       return ops || [];
     },
-    refetchInterval: 30000,
+    refetchInterval: false, // Manual refresh only — cost optimization
   });
 
   const totalPending = (data || []).reduce((s, op) => s + Number(op.amount), 0);
