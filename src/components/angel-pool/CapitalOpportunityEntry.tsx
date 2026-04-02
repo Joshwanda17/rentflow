@@ -459,9 +459,44 @@ export function CapitalOpportunityEntry() {
     pool === 'tenant' ? setTenantAmount(0) : setAngelAmount(0);
   };
 
+  const { isAccepted: angelAgreementAccepted, isLoading: angelAgreementLoading, acceptAgreement: acceptAngelAgreement } = useAngelPoolAgreement();
+  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [pendingAngelSwitch, setPendingAngelSwitch] = useState<'select' | 'tab' | null>(null);
+
   const handlePoolSelect = (pool: PoolType) => {
+    if (pool === 'angel' && !angelAgreementAccepted) {
+      setPendingAngelSwitch('select');
+      setShowAgreementDialog(true);
+      return;
+    }
     setActiveTab(pool);
     setViewState('investing');
+  };
+
+  const handleAngelTabSwitch = useCallback(() => {
+    if (!angelAgreementAccepted) {
+      setPendingAngelSwitch('tab');
+      setShowAgreementDialog(true);
+      return false;
+    }
+    return true;
+  }, [angelAgreementAccepted]);
+
+  const handleAgreementAccept = async () => {
+    const ok = await acceptAngelAgreement();
+    if (ok) {
+      setShowAgreementDialog(false);
+      if (pendingAngelSwitch === 'select') {
+        setActiveTab('angel');
+        setViewState('investing');
+      } else {
+        setActiveTab('angel');
+      }
+      setPendingAngelSwitch(null);
+      toast.success('Angel Pool Agreement accepted!');
+    } else {
+      toast.error('Failed to accept. Please try again.');
+    }
   };
 
   const handleBackToInvesting = (pool: PoolType) => {
