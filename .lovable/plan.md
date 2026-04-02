@@ -1,22 +1,20 @@
 
 
-# Fix: Widen the Next Payout Date Input
+# Wallet Deduction: TUMWSIGYE ISAAC — UGX 75,000
 
-The date input on the partner portfolio detail view (line 1622) is set to `w-36` which is too narrow — the date text gets clipped.
+## User Verified
 
-## Change
+| Field | Value |
+|-------|-------|
+| Name | TUMWSIGYE ISAAC |
+| ID | 89787456-e4ec-4166-82eb-7b367e4ec353 |
+| Balance | UGX 75,000 |
+| Deduction | UGX 75,000 |
+| New Balance | UGX 0 |
 
-**File:** `src/components/coo/COOPartnersPage.tsx` (line 1622)
+## Execution
 
-Change the input width from `w-36` to `w-48`:
+Insert a `cash_out` ledger entry (category: `wallet_deduction_general_adjustment`, reason: "Money was paid out to user") which triggers `sync_wallet_from_ledger`. Record in `wallet_deductions` and `audit_logs`.
 
-```tsx
-// Before
-className="h-7 w-36 text-xs"
-
-// After
-className="h-7 w-48 text-xs"
-```
-
-One line change, no other files affected.
+Same process as the previous 9 deductions — one direct database operation via psql.
 
