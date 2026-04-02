@@ -70,6 +70,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
   const [bankName, setBankName] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [reason, setReason] = useState('');
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
   useEffect(() => {
