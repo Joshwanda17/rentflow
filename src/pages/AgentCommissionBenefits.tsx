@@ -1,7 +1,9 @@
-import { ArrowLeft, Percent, Users, Award, BookOpen } from 'lucide-react';
+import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import WelileLogo from '@/assets/welile-logo.jpeg';
+import WelileServiceCentrePoster from '@/assets/welile-service-centre-poster.jpeg';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
@@ -19,6 +21,49 @@ const AgentCommissionBenefits = () => {
       </header>
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto pb-8">
+        {/* Service Centre Materials */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <ImageIcon className="h-4 w-4 text-primary" />
+              </div>
+              Service Centre Materials
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-sm text-muted-foreground">Download and print these materials to set up a Welile Service Centre anywhere.</p>
+
+            {/* Welile Logo */}
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border/60 overflow-hidden bg-muted/30">
+                <img src={WelileLogo} alt="Welile Logo" className="w-full object-contain" />
+              </div>
+              <p className="text-sm font-semibold text-foreground text-center">Welile Logo</p>
+              <Button variant="outline" asChild className="w-full gap-2">
+                <a href={WelileLogo} download="WELILE_LOGO.jpeg">
+                  <Download className="h-4 w-4" />
+                  Download Welile Logo
+                </a>
+              </Button>
+            </div>
+
+            {/* Welile Service Centre Poster */}
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border/60 overflow-hidden bg-muted/30">
+                <img src={WelileServiceCentrePoster} alt="Welile Service Centre Poster" className="w-full object-contain" />
+              </div>
+              <p className="text-sm font-semibold text-foreground text-center">Welile Service Centre Poster</p>
+              <Button variant="outline" asChild className="w-full gap-2">
+                <a href={WelileServiceCentrePoster} download="WELILE_SERVICE_CENTRE_POSTER.jpeg">
+                  <Download className="h-4 w-4" />
+                  Download Service Centre Poster
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Repayment Commission */}
         <Card>
           <CardHeader className="pb-2">
