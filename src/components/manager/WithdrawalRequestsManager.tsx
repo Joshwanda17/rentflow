@@ -688,10 +688,10 @@ export function WithdrawalRequestsManager() {
       // Notification removed - table dropped
 
       toast.success('Withdrawal rejected');
+      setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
       setRejectDialogOpen(false);
       setRejectionReason('');
       setSelectedRequest(null);
-      fetchRequests();
     } catch (error: any) {
       console.error('Error rejecting withdrawal:', error);
       toast.error(error.message || 'Failed to reject withdrawal');
