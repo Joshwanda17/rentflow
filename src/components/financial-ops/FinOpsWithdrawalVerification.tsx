@@ -31,6 +31,7 @@ interface WithdrawalRequest {
   bank_account_number: string | null;
   bank_account_name: string | null;
   agent_location: string | null;
+  reason: string | null;
   created_at: string;
   fin_ops_reference: string | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };

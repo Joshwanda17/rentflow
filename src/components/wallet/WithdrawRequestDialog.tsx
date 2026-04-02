@@ -430,7 +430,29 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                 </div>
               )}
 
-              {/* ── AMOUNT SECTION ── */}
+              {/* ── REASON FOR WITHDRAWAL ── */}
+              {payoutMode && isPayoutValid() && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-2"
+                >
+                  <Label className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Why are you withdrawing?
+                  </Label>
+                  <Textarea
+                    placeholder="Include reason and phone number or A/C"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="min-h-[70px] rounded-xl text-sm"
+                  />
+                  {reason.length > 0 && reason.trim().length < 10 && (
+                    <p className="text-[10px] text-destructive">Reason must be at least 10 characters</p>
+                  )}
+                </motion.div>
+              )}
+
               <AnimatePresence>
                 {isPayoutValid() && meetsMinBalance && workingHoursStatus.isOpen && (
                   <motion.div
