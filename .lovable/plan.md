@@ -1,30 +1,27 @@
 
 
-# Replace "Active" Badge with White Check Icon
+# Add Welile Service Centre Images with Download Buttons
 
-## Change
+## What Changes
 
-In `src/components/supporter/FunderCapitalOpportunities.tsx`, replace the `<Badge>Active</Badge>` on the Tenant Support tab (lines 282–286) with a white `Check` icon from lucide-react.
+Add a new "Service Centre Materials" card section to the Agent Commission Benefits page, displaying two uploaded images (Welile Logo and Welile Service Centre Poster) with download buttons for each.
 
-### File: `src/components/supporter/FunderCapitalOpportunities.tsx`
+## Implementation
 
-**Line 282–286** — Replace:
-```tsx
-{portfolioCount >= 1 && (
-  <Badge variant="success" size="sm" className="ml-1 text-[8px] px-1.5 py-0 uppercase tracking-wider">
-    Active
-  </Badge>
-)}
-```
-With:
-```tsx
-{portfolioCount >= 1 && (
-  <Check className="h-3.5 w-3.5 text-white" />
-)}
-```
+### 1. Copy uploaded images to `src/assets/`
+- `user-uploads://WELILE_LOGO.jpeg` → `src/assets/welile-logo.jpeg`
+- `user-uploads://REQUEST_RENT_HERE.jpeg` → `src/assets/welile-service-centre-poster.jpeg`
 
-Add `Check` to the existing lucide-react import.
+### 2. Update `src/pages/AgentCommissionBenefits.tsx`
+- Import `Download` icon from lucide-react
+- Import both images from `@/assets/`
+- Add a new Card section (e.g. "Service Centre Materials") with:
+  - Each image displayed in a rounded container at full width
+  - Label beneath each: "Welile Logo" and "Welile Service Centre Poster"
+  - A "Download" button under each image that triggers a high-quality download using an anchor tag with `download` attribute
+- Place this section at the top of the cards (before commission details) so agents see it prominently
 
 ### Files Modified
-- `src/components/supporter/FunderCapitalOpportunities.tsx`
+- **Copy**: 2 images into `src/assets/`
+- **Edit**: `src/pages/AgentCommissionBenefits.tsx`
 
