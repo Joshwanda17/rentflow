@@ -43,15 +43,11 @@ const formatCurrency = (v: number) =>
 
 export function FinOpsWithdrawalVerification() {
   const { user } = useAuth();
-  // Section A: pending requests
   const [pendingRequests, setPendingRequests] = useState<WithdrawalRequest[]>([]);
-  // Section B: cfo_approved requests awaiting TID
-  const [tidRequests, setTidRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
-  const [tidOpen, setTidOpen] = useState(false);
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [reference, setReference] = useState('');
@@ -73,31 +69,17 @@ export function FinOpsWithdrawalVerification() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      const [pendingRes, tidRes] = await Promise.all([
-        supabase
-          .from('withdrawal_requests')
-          .select('*')
-          .in('status', ['pending', 'requested'])
-          .order('created_at', { ascending: true })
-          .limit(100),
-        supabase
-          .from('withdrawal_requests')
-          .select('*')
-          .eq('status', 'cfo_approved')
-          .order('created_at', { ascending: true })
-          .limit(100),
-      ]);
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .in('status', ['pending', 'requested'])
+        .order('created_at', { ascending: true })
+        .limit(100);
 
-      if (pendingRes.error) throw pendingRes.error;
-      if (tidRes.error) throw tidRes.error;
+      if (error) throw error;
 
-      const [pendingWithProfiles, tidWithProfiles] = await Promise.all([
-        fetchProfiles(pendingRes.data || []),
-        fetchProfiles(tidRes.data || []),
-      ]);
-
+      const pendingWithProfiles = await fetchProfiles(data || []);
       setPendingRequests(pendingWithProfiles);
-      setTidRequests(tidWithProfiles);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
@@ -108,47 +90,8 @@ export function FinOpsWithdrawalVerification() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // Section A: Approve with TID → fin_ops_approved
+  // Single-step: Approve with TID/Receipt/Bank Ref → approved (final)
   const handleApprove = async () => {
-    if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
-    setProcessing(selected.id);
-    try {
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'fin_ops_approved',
-          fin_ops_reference: reference.trim().toUpperCase(),
-          fin_ops_payment_method: paymentMethod,
-          fin_ops_approved_at: new Date().toISOString(),
-          fin_ops_approved_by: user.id,
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq('id', selected.id);
-      if (error) throw error;
-
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'fin_ops_approve_withdrawal',
-        record_id: selected.id,
-        table_name: 'withdrawal_requests',
-        metadata: { amount: selected.amount, target_user: selected.user_id, reference: reference.trim().toUpperCase(), payment_method: paymentMethod },
-      });
-
-      toast.success('Withdrawal approved & forwarded to CFO');
-      setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
-      setApproveOpen(false);
-      setSelected(null);
-      setReference('');
-      setPaymentMethod('');
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to approve');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  // Section B: Enter TID & complete → approved
-  const handleTidComplete = async () => {
     if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
     setProcessing(selected.id);
     try {
@@ -158,6 +101,8 @@ export function FinOpsWithdrawalVerification() {
           status: 'approved',
           fin_ops_reference: reference.trim().toUpperCase(),
           fin_ops_payment_method: paymentMethod,
+          fin_ops_approved_at: new Date().toISOString(),
+          fin_ops_approved_by: user.id,
           fin_ops_verified_by: user.id,
           fin_ops_verified_at: new Date().toISOString(),
           processed_at: new Date().toISOString(),
@@ -166,10 +111,6 @@ export function FinOpsWithdrawalVerification() {
         .eq('id', selected.id);
       if (error) throw error;
 
-      // No ledger deduction here — funds were already deducted at request time
-      // via transaction_group_id: wallet-withdraw-{id}
-      // Just record the completion audit with TID reference
-
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'fin_ops_complete_withdrawal',
@@ -177,20 +118,20 @@ export function FinOpsWithdrawalVerification() {
         table_name: 'withdrawal_requests',
         metadata: {
           amount: selected.amount,
+          target_user: selected.user_id,
           reference: reference.trim().toUpperCase(),
           payment_method: paymentMethod,
-          target_user: selected.user_id,
         },
       });
 
-      toast.success('Withdrawal completed with TID!');
-      setTidRequests(prev => prev.filter(r => r.id !== selected.id));
-      setTidOpen(false);
+      toast.success('Withdrawal approved & completed!');
+      setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
+      setApproveOpen(false);
       setSelected(null);
       setReference('');
       setPaymentMethod('');
     } catch (e: any) {
-      toast.error(e.message || 'Failed to complete');
+      toast.error(e.message || 'Failed to approve');
     } finally {
       setProcessing(null);
     }
@@ -205,7 +146,6 @@ export function FinOpsWithdrawalVerification() {
       });
       if (rejectErr) throw rejectErr;
 
-      // Verify the row was actually rejected
       const result = data?.results?.find((r: any) => r.id === selected.id);
       if (result?.status !== 'rejected') {
         toast.error(`Rejection failed: ${result?.status || 'unknown error'}`);
@@ -214,7 +154,6 @@ export function FinOpsWithdrawalVerification() {
 
       toast.success('Withdrawal rejected');
       setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
-      setTidRequests(prev => prev.filter(r => r.id !== selected.id));
       setRejectOpen(false);
       setRejectionReason('');
       setSelected(null);
@@ -232,11 +171,10 @@ export function FinOpsWithdrawalVerification() {
     return null;
   };
 
-  const renderRequestCard = (req: WithdrawalRequest, variant: 'pending' | 'tid') => {
+  const renderRequestCard = (req: WithdrawalRequest) => {
     const bankLabel = getPayoutLabel(req);
-    const borderClass = variant === 'pending' ? 'border-amber-500/30 bg-amber-500/5' : 'border-emerald-500/30 bg-emerald-500/5';
     return (
-      <div key={req.id} className={`p-3 rounded-xl border ${borderClass} space-y-2`}>
+      <div key={req.id} className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <UserAvatar fullName={req.user?.full_name || ''} avatarUrl={req.user?.avatar_url} size="sm" />
@@ -248,7 +186,6 @@ export function FinOpsWithdrawalVerification() {
           <p className="text-base font-black">{formatCurrency(req.amount)}</p>
         </div>
 
-        {/* Recipient name */}
         {(req.mobile_money_name || req.bank_account_name) && (
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
             <span className="text-xs font-bold text-foreground">
@@ -271,7 +208,6 @@ export function FinOpsWithdrawalVerification() {
 
         {bankLabel && <p className="text-xs text-muted-foreground">{bankLabel}</p>}
 
-        {/* Reason */}
         {req.reason && (
           <div className="px-2 py-1.5 rounded-lg bg-muted/50 border border-border/50">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Reason</p>
@@ -284,40 +220,25 @@ export function FinOpsWithdrawalVerification() {
             Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
           </p>
           <div className="flex gap-2">
-            {variant === 'pending' && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs text-destructive border-destructive/30"
-                  onClick={() => { setSelected(req); setRejectOpen(true); }}
-                  disabled={!!processing}
-                >
-                  <XCircle className="h-3 w-3 mr-1" />
-                  Reject
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-                  onClick={() => { setSelected(req); setApproveOpen(true); }}
-                  disabled={!!processing}
-                >
-                  <ArrowRight className="h-3 w-3 mr-1" />
-                  Approve
-                </Button>
-              </>
-            )}
-            {variant === 'tid' && (
-              <Button
-                size="sm"
-                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => { setSelected(req); setReference(''); setTidOpen(true); }}
-                disabled={!!processing}
-              >
-                <Banknote className="h-3 w-3 mr-1" />
-                Enter TID & Complete
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs text-destructive border-destructive/30"
+              onClick={() => { setSelected(req); setRejectOpen(true); }}
+              disabled={!!processing}
+            >
+              <XCircle className="h-3 w-3 mr-1" />
+              Reject
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={() => { setSelected(req); setApproveOpen(true); }}
+              disabled={!!processing}
+            >
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Approve & Complete
+            </Button>
           </div>
         </div>
       </div>
@@ -336,7 +257,6 @@ export function FinOpsWithdrawalVerification() {
 
   return (
     <>
-      {/* Section A: Pending Approvals */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -361,37 +281,17 @@ export function FinOpsWithdrawalVerification() {
             </p>
           ) : (
             <div className="space-y-2">
-              {pendingRequests.map(req => renderRequestCard(req, 'pending'))}
+              {pendingRequests.map(req => renderRequestCard(req))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Section B: Awaiting TID Completion (CFO approved) */}
-      {tidRequests.length > 0 && (
-        <Card className="mt-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-emerald-500" />
-              Awaiting TID Completion
-              <Badge variant="secondary" className="text-xs">
-                {tidRequests.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {tidRequests.map(req => renderRequestCard(req, 'tid'))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Approve Dialog with requester details and TID */}
+      {/* Approve & Complete Dialog */}
       <AlertDialog open={approveOpen} onOpenChange={(open) => { setApproveOpen(open); if (!open) { setReference(''); setPaymentMethod(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Withdrawal</AlertDialogTitle>
+            <AlertDialogTitle>Approve & Complete Withdrawal</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 pt-1">
                 {selected && (
@@ -471,124 +371,9 @@ export function FinOpsWithdrawalVerification() {
             <Button
               onClick={handleApprove}
               disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
-            >
-              {processing ? 'Processing...' : 'Approve & Forward'}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* TID Completion Dialog */}
-      <AlertDialog open={tidOpen} onOpenChange={(open) => { setTidOpen(open); if (!open) { setReference(''); setPaymentMethod(''); } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Complete with Transaction ID</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Review details and enter TID to finalize payout.</p>
-                {selected && (
-                  <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Requester</span>
-                      <span className="font-medium text-foreground">{selected.user?.full_name || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phone</span>
-                      <span className="font-medium text-foreground">{selected.user?.phone || selected.mobile_money_number || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Payout Method</span>
-                      <span className="font-medium text-foreground capitalize">{selected.payout_method?.replace('_', ' ') || 'N/A'}</span>
-                    </div>
-                    {selected.payout_method === 'mobile_money' && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">MoMo Provider</span>
-                          <span className="font-medium text-foreground">{selected.mobile_money_provider || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">MoMo Number</span>
-                          <span className="font-medium text-foreground">{selected.mobile_money_number || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Recipient Name</span>
-                          <span className="font-medium text-foreground">{selected.mobile_money_name || 'N/A'}</span>
-                        </div>
-                      </>
-                    )}
-                    {selected.payout_method === 'bank' && (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Bank</span>
-                          <span className="font-medium text-foreground">{selected.bank_name || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Account</span>
-                          <span className="font-medium text-foreground">{selected.bank_account_number || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Account Name</span>
-                          <span className="font-medium text-foreground">{selected.bank_account_name || 'N/A'}</span>
-                        </div>
-                      </>
-                    )}
-                    {selected.payout_method === 'cash' && (selected as any).cash_location && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Cash Location</span>
-                        <span className="font-medium text-foreground">{(selected as any).cash_location}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between border-t border-border pt-2 mt-1">
-                      <span className="text-muted-foreground font-medium">Amount</span>
-                      <span className="font-bold text-foreground">{formatCurrency(selected.amount)}</span>
-                    </div>
-                    {selected.reason && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Reason</span>
-                        <span className="font-medium text-foreground text-right max-w-[60%]">{selected.reason}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Payment Method Used</p>
-                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select payment method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mtn_momo">MTN Mobile Money</SelectItem>
-                      <SelectItem value="airtel_money">Airtel Money</SelectItem>
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="cash">Cash</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                    {paymentMethod === 'cash' ? 'Receipt Number' : paymentMethod === 'bank_transfer' ? 'Bank Reference' : 'Transaction ID (TID)'}
-                  </p>
-                  <Input
-                    placeholder={paymentMethod === 'cash' ? 'Enter receipt number' : paymentMethod === 'bank_transfer' ? 'Enter bank reference' : 'Enter TID to confirm payment'}
-                    value={reference}
-                    onChange={e => setReference(e.target.value)}
-                    className="font-mono uppercase"
-                  />
-                  {reference.length > 0 && reference.trim().length < 3 && (
-                    <p className="text-[10px] text-destructive mt-1">Must be at least 3 characters</p>
-                  )}
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button
-              onClick={handleTidComplete}
-              disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              {processing ? 'Processing...' : 'Complete Withdrawal'}
+              {processing ? 'Processing...' : 'Approve & Complete'}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

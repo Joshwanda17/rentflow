@@ -176,7 +176,6 @@ export default function CFODashboard() {
                   <ArrowDownToLine className="h-4 w-4 text-primary" />
                   Withdrawal Approvals
                 </h3>
-                <CFOWithdrawalApprovals />
                 <CFOPartnerPayoutProcessing />
               </div>
             </div>

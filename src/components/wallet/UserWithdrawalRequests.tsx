@@ -178,7 +178,7 @@ export function UserWithdrawalRequests() {
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className={`rounded-xl border ${statusConfig.borderColor} ${
-                  ['pending', 'fin_ops_approved', 'cfo_approved'].includes(request.status)
+                  request.status === 'pending'
                     ? 'bg-amber-500/5' 
                     : 'bg-muted/30'
                 } cursor-pointer active:scale-[0.99] transition-transform`}

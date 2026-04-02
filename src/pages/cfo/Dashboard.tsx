@@ -63,7 +63,6 @@ export default function CFODashboardPage() {
         return (
           <div className="space-y-6">
             <WithdrawalRequestsManager />
-            <CFOWithdrawalApprovals />
             <CFOPartnerPayoutProcessing />
           </div>
         );
