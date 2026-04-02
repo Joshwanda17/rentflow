@@ -498,6 +498,7 @@ Every rent repayment triggers a 10% commission split across up to 3 agent roles:
 | Rent application facilitation | UGX 5,000 |
 | Sub-agent registration | UGX 10,000 |
 | Tenant replacement | UGX 20,000 |
+| Service Centre setup (verified & CFO-approved) | UGX 25,000 |
 
 ### Double-Entry Marketing Expense Pattern
 
