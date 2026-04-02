@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -7,10 +7,6 @@ interface BeforeInstallPromptEvent extends Event {
 
 // Global storage for the deferred prompt to prevent losing it on re-renders
 export let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
-
-export function clearGlobalPrompt() {
-  globalDeferredPrompt = null;
-}
 
 // Capture the prompt as early as possible (before React even loads)
 if (typeof window !== 'undefined') {
@@ -22,50 +18,34 @@ if (typeof window !== 'undefined') {
 }
 
 export function usePWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(globalDeferredPrompt);
   const [isInstallable, setIsInstallable] = useState(!!globalDeferredPrompt);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const promptTriggered = useRef(false);
 
   useEffect(() => {
     // Check if already installed
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as any).standalone === true;
     setIsInstalled(isStandalone);
 
-    // Enhanced iOS detection (includes iPad on iOS 13+)
-    const ua = navigator.userAgent;
-    const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
-    const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-    setIsIOS(iOS || isIPadOS);
-
-    // Listen for beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
       console.log('[PWA] beforeinstallprompt event fired');
       e.preventDefault();
-      const promptEvent = e as BeforeInstallPromptEvent;
-      globalDeferredPrompt = promptEvent;
-      setDeferredPrompt(promptEvent);
+      globalDeferredPrompt = e as BeforeInstallPromptEvent;
       setIsInstallable(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Listen for app installed
     const handleAppInstalled = () => {
-      console.log('[PWA] App installed event fired');
+      console.log('[PWA] App installed');
       setIsInstalled(true);
       setIsInstallable(false);
-      setDeferredPrompt(null);
       globalDeferredPrompt = null;
     };
 
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Check if prompt was already captured globally
+    // Sync state if prompt was already captured globally
     if (globalDeferredPrompt) {
-      setDeferredPrompt(globalDeferredPrompt);
       setIsInstallable(true);
     }
 
@@ -75,58 +55,48 @@ export function usePWAInstall() {
     };
   }, []);
 
-  const promptInstall = useCallback(async () => {
-    const promptToUse = deferredPrompt || globalDeferredPrompt;
-    
-    if (!promptToUse) {
-      console.log('[PWA] No deferred prompt available');
-      return false;
+  const promptInstall = useCallback(async (): Promise<boolean> => {
+    let prompt = globalDeferredPrompt;
+
+    // Retry: if prompt is null, wait 800ms and check again
+    if (!prompt) {
+      console.log('[PWA] No prompt yet, retrying in 800ms...');
+      await new Promise(r => setTimeout(r, 800));
+      prompt = globalDeferredPrompt;
     }
 
-    // Prevent multiple triggers
-    if (promptTriggered.current) {
-      console.log('[PWA] Prompt already triggered');
+    if (!prompt) {
+      console.log('[PWA] No deferred prompt available after retry');
       return false;
     }
 
     try {
-      promptTriggered.current = true;
       console.log('[PWA] Triggering install prompt...');
-      
-      await promptToUse.prompt();
-      const { outcome } = await promptToUse.userChoice;
-      
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
       console.log('[PWA] User choice:', outcome);
-      
+
+      // Clear after userChoice resolves
+      globalDeferredPrompt = null;
+      setIsInstallable(false);
+
       if (outcome === 'accepted') {
         setIsInstalled(true);
         localStorage.setItem('welile_pwa_installed', 'true');
         localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+        return true;
       }
-      
-      // Always clear the prompt after use — it's single-use in Chrome
-      setDeferredPrompt(null);
-      setIsInstallable(false);
-      globalDeferredPrompt = null;
-      promptTriggered.current = false;
-      
-      return outcome === 'accepted';
+      return false;
     } catch (error) {
       console.error('[PWA] Error prompting install:', error);
-      // Clear on error too — the prompt is likely consumed
-      setDeferredPrompt(null);
-      setIsInstallable(false);
-      globalDeferredPrompt = null;
-      promptTriggered.current = false;
       return false;
     }
-  }, [deferredPrompt]);
+  }, []);
 
   return {
     isInstallable,
     isInstalled,
-    isIOS,
     promptInstall,
-    hasPrompt: !!(deferredPrompt || globalDeferredPrompt),
+    hasPrompt: !!globalDeferredPrompt,
   };
 }

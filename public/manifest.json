@@ -111,9 +111,5 @@
       "url": "url"
     }
   },
-  "related_applications": [],
-  "handle_links": "preferred",
-  "launch_handler": {
-    "client_mode": ["navigate-existing", "auto"]
-  }
+  "related_applications": []
 }
