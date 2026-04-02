@@ -1915,6 +1915,36 @@ export type Database = {
         }
         Relationships: []
       }
+      angel_pool_config: {
+        Row: {
+          id: string
+          pool_equity_percent: number
+          price_per_share: number
+          total_pool_ugx: number
+          total_shares: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          pool_equity_percent?: number
+          price_per_share?: number
+          total_pool_ugx?: number
+          total_shares?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          pool_equity_percent?: number
+          price_per_share?: number
+          total_pool_ugx?: number
+          total_shares?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       angel_pool_investments: {
         Row: {
           amount: number
