@@ -81,11 +81,16 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
         await supabase.from('house_listings').update(updates).eq('id', listingId);
       }
 
-      await supabase.from('lc1_chairpersons').update({
+      const { error: lc1Error, data: updatedRows } = await supabase.from('lc1_chairpersons').update({
         name: form.name.trim(),
         phone: form.phone.trim() || null,
         village: form.village.trim() || null,
-      }).eq('id', lc1.id);
+      }).eq('id', lc1.id).select();
+
+      if (lc1Error) throw lc1Error;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error('Update failed — no rows were modified. You may lack permission.');
+      }
 
       await supabase.from('audit_logs').insert({
         user_id: user.id,
