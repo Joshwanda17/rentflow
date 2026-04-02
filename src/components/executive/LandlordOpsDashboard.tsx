@@ -1028,10 +1028,27 @@ export function LandlordOpsDashboard() {
           </div>
         )}
         <div className="space-y-2">
-          {emptyHouses.map(house => (
-            <HouseCard key={house.id} house={house} onImages={setPreviewImages} onAdjust={setAdjustListing} onAction={setActionDialog} onAssign={handleAssignPerson} />
-          ))}
-          {emptyHouses.length === 0 && (
+          {emptyLandlords.map(landlord => {
+            const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
+            return (
+              <div key={landlord.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">{landlord.name}</p>
+                    {landlord.phone && <p className="text-xs text-muted-foreground">{landlord.phone}</p>}
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">{houseCount} {houseCount === 1 ? 'house' : 'houses'}</Badge>
+                </div>
+                <div className="rounded-lg bg-orange-500/10 px-2.5 py-1.5">
+                  <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                    <UserX className="h-3 w-3" /> No tenants linked
+                  </p>
+                </div>
+                {landlord.property_address && <p className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{landlord.property_address}</p>}
+              </div>
+            );
+          })}
+          {emptyLandlords.length === 0 && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
               <p className="font-semibold">No empty houses! 🎉</p>
@@ -1047,11 +1064,35 @@ export function LandlordOpsDashboard() {
     return (
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedHouses.length})</h2>
+        <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedLandlords.length})</h2>
         <div className="space-y-2">
-          {occupiedHouses.map(house => (
-            <HouseCard key={house.id} house={house} onImages={setPreviewImages} showTenant showLandlord onAssign={handleAssignPerson} />
-          ))}
+          {occupiedLandlords.map(landlord => {
+            const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
+            return (
+              <div key={landlord.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">{landlord.name}</p>
+                    {landlord.phone && <p className="text-xs text-muted-foreground">{landlord.phone}</p>}
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">{houseCount} {houseCount === 1 ? 'house' : 'houses'}</Badge>
+                </div>
+                {landlord.tenants && landlord.tenants.length > 0 && (
+                  <div className="space-y-1">
+                    {landlord.tenants.map((t: { name: string; phone: string | null }, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
+                          <p className="text-xs font-medium truncate">{t.name}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {landlord.property_address && <p className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{landlord.property_address}</p>}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
