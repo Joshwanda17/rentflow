@@ -327,11 +327,12 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                   <TableHead className="text-right hidden md:table-cell">Company %</TableHead>
                   <TableHead className="hidden lg:table-cell">Date</TableHead>
                   <TableHead className="hidden sm:table-cell">Status</TableHead>
+                  {userRole === 'ceo' && <TableHead className="w-12">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginated.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={userRole === 'ceo' ? 9 : 8} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
                 )}
                 {paginated.map((inv, i) => (
                   <TableRow key={inv.investor_id}>
@@ -342,7 +343,27 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                     <TableCell className="text-right hidden md:table-cell">{inv.pool_pct.toFixed(4)}%</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.company_pct.toFixed(4)}%</TableCell>
                     <TableCell className="hidden lg:table-cell">{format(new Date(inv.latest_date), 'dd MMM yyyy')}</TableCell>
-                    <TableCell className="hidden sm:table-cell"><span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">{inv.status}</span></TableCell>
+                    <TableCell className="hidden sm:table-cell"><span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{inv.status}</span></TableCell>
+                    {userRole === 'ceo' && (
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openAction('edit', inv)}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" /> Edit Shares
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openAction('suspend', inv)}>
+                              <Ban className="h-3.5 w-3.5 mr-2" /> Suspend
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => openAction('delete', inv)}>
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
