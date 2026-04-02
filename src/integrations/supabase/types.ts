@@ -9152,6 +9152,25 @@ export type Database = {
         | "risk_score_changed"
         | "account_flagged"
         | "reminder_sent"
+        | "deposit_approved"
+        | "deposit_rejected"
+        | "withdrawal_requested"
+        | "withdrawal_approved"
+        | "withdrawal_rejected"
+        | "wallet_transfer"
+        | "portfolio_topup"
+        | "rent_disbursed"
+        | "roi_distributed"
+        | "loan_approved"
+        | "loan_rejected"
+        | "expense_transfer"
+        | "agent_collection"
+        | "role_changed"
+        | "user_deleted"
+        | "password_reset"
+        | "login_success"
+        | "listing_created"
+        | "listing_approved"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -9343,6 +9362,25 @@ export const Constants = {
         "risk_score_changed",
         "account_flagged",
         "reminder_sent",
+        "deposit_approved",
+        "deposit_rejected",
+        "withdrawal_requested",
+        "withdrawal_approved",
+        "withdrawal_rejected",
+        "wallet_transfer",
+        "portfolio_topup",
+        "rent_disbursed",
+        "roi_distributed",
+        "loan_approved",
+        "loan_rejected",
+        "expense_transfer",
+        "agent_collection",
+        "role_changed",
+        "user_deleted",
+        "password_reset",
+        "login_success",
+        "listing_created",
+        "listing_approved",
       ],
     },
   },

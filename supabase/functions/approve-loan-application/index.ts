@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -235,6 +236,9 @@ Deno.serve(async (req) => {
     });
 
     console.log('Loan application approved successfully:', applicationId);
+
+    // Log system event
+    logSystemEvent(supabase, 'loan_approved', user.id, 'loan_applications', applicationId, { amount: application.amount, borrower_id: application.applicant_id, lender_id: application.agent_id });
 
 
     // Notify managers (fire-and-forget)

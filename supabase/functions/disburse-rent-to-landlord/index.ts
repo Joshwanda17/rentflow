@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -267,6 +268,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "🏠 Rent Disbursed", body: "Activity: rent disbursed", url: "/manager" }),
     }).catch(() => {});
 
+
+    // Log system event
+    logSystemEvent(serviceClient, 'rent_disbursed', user.id, 'rent_requests', rent_request_id, { rent_amount: request.rent_amount, landlord_id: request.landlord_id, payout_method: method });
 
     return new Response(
       JSON.stringify({

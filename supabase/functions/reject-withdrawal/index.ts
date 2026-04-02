@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -161,6 +162,9 @@ Deno.serve(async (req) => {
           refunded,
         },
       });
+
+      // Log system event
+      logSystemEvent(admin, 'withdrawal_rejected', user.id, withdrawal_type === 'float' ? 'agent_float_withdrawals' : 'withdrawal_requests', wId, { amount: wr.amount, withdrawal_type, refunded });
 
       results.push({ id: wId, status: 'rejected', refunded });
     }

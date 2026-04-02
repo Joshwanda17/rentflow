@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -301,6 +302,9 @@ serve(async (req) => {
 
       // Don't await — fire and forget
       Promise.all(smsPromises).catch(e => console.error("SMS batch error:", e));
+
+      // Log system event
+      logSystemEvent(adminClient, 'rent_request_approved', approverId, 'rent_requests', rent_request_id, { rent_amount: rentRequest.rent_amount, tenant_id: rentRequest.tenant_id });
 
       return new Response(
         JSON.stringify({

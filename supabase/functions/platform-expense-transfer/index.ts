@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -117,6 +118,9 @@ serve(async (req) => {
         record_id: refId,
         metadata: { agent_id: agentId, amount, category: expense_category || fa.expense_category, description },
       });
+
+      // Log system event
+      logSystemEvent(adminClient, 'expense_transfer', user.id, 'platform_expense_transfers', refId, { amount, agent_id: agentId, category: expense_category || fa.expense_category });
 
       return new Response(JSON.stringify({ success: true, message: `UGX ${amount.toLocaleString()} transferred to ${fa.profiles?.full_name || 'agent'}` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }

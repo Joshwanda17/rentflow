@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidateWalletTransfer } from "../_shared/shadowValidation.ts";
@@ -209,6 +210,9 @@ serve(async (req) => {
     }
 
     console.log(`Transfer successful: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
+
+    // Log system event
+    logSystemEvent(adminClient, 'wallet_transfer', senderId, 'wallets', txGroupId, { amount, recipient_id: resolvedRecipientId });
 
 
     // Notify managers (fire-and-forget)

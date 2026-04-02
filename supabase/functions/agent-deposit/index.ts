@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -598,6 +599,9 @@ Deno.serve(async (req) => {
       .single();
 
     console.log(`[agent-deposit] Deposit completed: User ${targetUserId}, Amount: ${amount}, Repayment: ${repaymentAmount}, Commission: ${commission}`);
+
+    // Log system event
+    logSystemEvent(adminClient, 'agent_collection', agentId, 'wallet_deposits', targetUserId!, { amount, repayment: repaymentAmount, commission });
 
 
     // Notify managers (fire-and-forget)

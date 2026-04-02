@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -488,6 +489,13 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[approve-deposit] ${processorName} ${action}d ${results.filter(r => r.status !== 'error').length}/${depositRequests.length} deposits`);
+
+    // Log system events for each processed deposit
+    for (const r of results) {
+      if (r.status !== 'error') {
+        logSystemEvent(supabaseAdmin, action === 'approve' ? 'deposit_approved' : 'deposit_rejected', user.id, 'deposit_requests', r.id, { amount: r.amount, user_id: r.user_id });
+      }
+    }
 
 
     // Notify managers (fire-and-forget)
