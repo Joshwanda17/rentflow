@@ -620,8 +620,8 @@ export function LandlordOpsDashboard() {
     return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
   }, [rows]);
 
-  const totalMonthlyRevenue = occupiedHouses.reduce((s, h) => s + h.monthly_rent, 0);
-  const lostMonthlyRevenue = emptyHouses.reduce((s, h) => s + h.monthly_rent, 0);
+  const totalMonthlyRevenue = occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  const lostMonthlyRevenue = emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
 
   // ─── Back Button ───
   const BackButton = () => (
