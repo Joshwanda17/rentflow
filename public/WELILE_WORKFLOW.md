@@ -630,7 +630,6 @@ Full access to all Manager features + system configuration + role assignment wit
 | Feature | Component | Description |
 |---------|-----------|-------------|
 | Reconciliation | `CFOReconciliationPanel` | Compare wallets vs ledger, detect gaps |
-| Withdrawal Approvals | `CFOWithdrawalApprovals` | CFO-stage authorization |
 | Partner Payouts | `CFOPartnerPayoutProcessing` | Partner payout processing |
 | Receivables Tracker | `CFOReceivablesTracker` | Track outstanding receivables |
 | Revenue & Expense | `RevenueExpenseDashboard` | Revenue vs expense analysis |
