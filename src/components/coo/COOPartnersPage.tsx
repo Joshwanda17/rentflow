@@ -2578,7 +2578,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         source_table: 'investor_portfolios',
         source_id: p.portfolioId,
         reference_id: refId,
-        description: `ROI compounded: ${formatUGX(roiAmount)} added to portfolio. New principal: ${formatUGX(newAmount)}`,
+        description: `ROI compounded: ${formatUGX(roiAmount)} added to portfolio. New principal: ${formatUGX(newAmount)}. Reason: ${reason}`,
         linked_party: user.id,
       });
 
