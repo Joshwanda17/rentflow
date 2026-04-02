@@ -148,6 +148,17 @@ Deno.serve(async (req) => {
       description: `House listing bonus (CFO approved)`,
     })
 
+    // Credit event bonus to commission accrual ledger
+    await serviceClient.rpc('credit_agent_event_bonus', {
+      p_agent_id: approval.agent_id,
+      p_tenant_id: null,
+      p_event_type: 'house_listed',
+      p_source_id: approval.id,
+    }).then(({ error: bonusErr }) => {
+      if (bonusErr) console.error('[approve-listing-bonus] Event bonus ledger error:', bonusErr.message);
+      else console.log('[approve-listing-bonus] house_listed bonus credited to ledger');
+    })
+
     // Notify agent
     await serviceClient.from('notifications').insert({
       user_id: approval.agent_id,

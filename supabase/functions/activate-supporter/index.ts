@@ -244,6 +244,17 @@ Deno.serve(async (req) => {
         .from("agent_subagents")
         .insert({ parent_agent_id: parentAgentId, sub_agent_id: authData.user.id, source: 'invite' });
       if (subAgentError) console.error("[activate-supporter] Sub-agent error:", subAgentError);
+
+      // Credit sub-agent registration bonus to commission accrual ledger
+      await adminClient.rpc('credit_agent_event_bonus', {
+        p_agent_id: parentAgentId,
+        p_tenant_id: null,
+        p_event_type: 'subagent_registration',
+        p_source_id: authData.user.id,
+      }).then(({ error: bonusErr }) => {
+        if (bonusErr) console.error('[activate-supporter] Event bonus ledger error:', bonusErr.message);
+        else console.log('[activate-supporter] subagent_registration bonus credited to parent agent');
+      });
     }
 
     // Update invite - store the final email used

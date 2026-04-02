@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
       p_amount: totalCollected,
     });
 
-    // Credit agent 5% commission on this repayment
+    // Credit agent 10% commission on this repayment
     if (rr.id && totalCollected > 0) {
       await supabase.rpc("credit_agent_rent_commission", {
         p_rent_request_id: rr.id,
