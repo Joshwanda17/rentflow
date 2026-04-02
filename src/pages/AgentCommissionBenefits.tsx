@@ -1,4 +1,4 @@
-import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2 } from 'lucide-react';
+import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,36 +10,36 @@ const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
 
   const handleShareWhatsApp = () => {
-    const shareText = `💰 *Welile Agent Commission Benefits*
+    const shareText = `💰 *How You Earn Money as a Welile Agent*
 
-📊 *Repayment Commission — 10%*
-Every tenant repayment earns agents 10%, split by role:
-• Source Agent (onboarded tenant): *2%*
-• Tenant Manager (assigned agent): *8%*
+🏠 *Every Time Your Tenant Pays Rent — You Get 10%*
 
-👥 *Recruiter Override*
-If the Manager was recruited by another agent:
-• Source Agent: 2%
-• Tenant Manager: 6%
-• Recruiter Override: 2%
-Total always = 10%
+Example: If a tenant pays back UGX 100,000...
+✅ You get UGX 10,000 automatically!
 
-🏆 *Event-Based Bonuses*
-• Rent request posted: *UGX 5,000*
-• Empty house listed: *UGX 5,000*
-• Tenant replacement: *UGX 20,000*
-• Sub-agent registration: *UGX 10,000*
+Here's how it works:
+• The agent who REGISTERED the tenant gets *2%* (UGX 2,000)
+• The agent MANAGING the tenant gets *8%* (UGX 8,000)
+• If you registered AND manage the tenant — you keep the full *10%*!
 
-📒 All commissions tracked transparently in the ledger.
+👥 *Bonus for Recruiting Other Agents*
+If you brought another agent to Welile, you get *2%* from every tenant THEY manage. It's free money!
+
+🎁 *Extra Cash Bonuses*
+• Help a tenant apply for rent → *UGX 5,000*
+• List an empty house → *UGX 5,000*
+• Replace a tenant in a house → *UGX 20,000*
+• Register a new agent under you → *UGX 10,000*
+
+💵 All your earnings go straight to your Welile Wallet.
 
 👉 Join Welile as an Agent: https://welilereceipts.com/join`;
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
-    // Try native share first on mobile
     if (navigator.share) {
       navigator.share({
-        title: 'Welile Agent Commission Benefits',
+        title: 'How You Earn Money as a Welile Agent',
         text: shareText,
       }).catch(() => {
         window.open(whatsappUrl, '_blank');
@@ -59,7 +59,7 @@ Total always = 10%
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-white/10 rounded-xl h-10 w-10">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-base font-bold text-white flex-1">Agent Commission Benefits</h1>
+          <h1 className="text-base font-bold text-white flex-1">How You Earn Money 💰</h1>
           <Button variant="ghost" size="icon" onClick={handleShareWhatsApp} className="text-white hover:bg-white/10 rounded-xl h-10 w-10">
             <Share2 className="h-5 w-5" />
           </Button>
@@ -67,6 +67,194 @@ Total always = 10%
       </header>
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto pb-8">
+
+        {/* Quick Summary */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-center space-y-2">
+              <div className="text-3xl">💵</div>
+              <p className="text-base font-bold text-foreground">Every time your tenant pays rent, you earn money!</p>
+              <p className="text-sm text-muted-foreground">You get <span className="font-bold text-primary text-lg">10%</span> of every repayment — automatically sent to your wallet.</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* How the 10% is shared */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
+              How the 10% is Shared
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>When a tenant pays back rent, <span className="font-semibold text-foreground">two agents can earn</span> from that payment:</p>
+
+            <div className="space-y-3">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground text-sm">1️⃣ The Agent Who Registered the Tenant</p>
+                <p className="text-xs mt-1">This is the person who first brought the tenant to Welile. You get <span className="font-bold text-primary">2%</span> of every repayment — forever!</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground text-sm">2️⃣ The Agent Managing the Tenant Now</p>
+                <p className="text-xs mt-1">This is the agent currently assigned to the tenant. You get <span className="font-bold text-primary">8%</span> of every repayment.</p>
+              </div>
+              <div className="rounded-xl bg-primary/10 border border-primary/20 p-3">
+                <p className="font-semibold text-foreground text-sm">⭐ If You Are Both?</p>
+                <p className="text-xs mt-1">If you registered the tenant AND you are managing them — you keep the <span className="font-bold text-primary">full 10%</span>! That's the best position to be in.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Real Example */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <BookOpen className="h-4 w-4 text-primary" />
+              </div>
+              Real Money Example
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p className="text-muted-foreground">Let's say a tenant pays back <span className="font-bold text-foreground">UGX 100,000</span>. Here's who gets paid:</p>
+
+            <div className="rounded-xl border border-border/60 overflow-hidden">
+              <div className="bg-muted/50 px-3 py-2 font-semibold text-foreground text-xs uppercase tracking-wide">
+                💰 Who Gets What
+              </div>
+              <div className="divide-y divide-border/40">
+                <div className="flex justify-between px-3 py-2.5">
+                  <span className="text-muted-foreground">Agent who registered tenant (2%)</span>
+                  <span className="font-bold text-foreground">UGX 2,000</span>
+                </div>
+                <div className="flex justify-between px-3 py-2.5">
+                  <span className="text-muted-foreground">Agent managing tenant (8%)</span>
+                  <span className="font-bold text-foreground">UGX 8,000</span>
+                </div>
+                <div className="flex justify-between px-3 py-2.5 bg-primary/5">
+                  <span className="font-semibold text-foreground">Total Earned</span>
+                  <span className="font-bold text-primary">UGX 10,000</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground italic">💡 If you're both the registering agent and the manager, you take home the full UGX 10,000!</p>
+          </CardContent>
+        </Card>
+
+        {/* Recruiter Bonus */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-accent/50">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              Earn from Agents You Recruit
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>Did you bring another agent to Welile? <span className="font-semibold text-foreground">You earn 2% from every tenant they manage!</span></p>
+
+            <div className="rounded-xl bg-muted/40 p-3 space-y-2">
+              <p className="text-xs font-semibold text-foreground">📖 Example:</p>
+              <p className="text-xs">You recruited Agent Mary. Mary manages a tenant who pays UGX 100,000.</p>
+              <div className="space-y-1 mt-2">
+                <div className="flex justify-between text-xs"><span>Agent who registered tenant</span><span className="font-medium text-foreground">UGX 2,000 (2%)</span></div>
+                <div className="flex justify-between text-xs"><span>Mary (managing agent)</span><span className="font-medium text-foreground">UGX 6,000 (6%)</span></div>
+                <div className="flex justify-between text-xs"><span>You (recruited Mary) 🎉</span><span className="font-medium text-foreground">UGX 2,000 (2%)</span></div>
+                <div className="flex justify-between text-xs border-t border-border/40 pt-1.5 font-semibold text-foreground"><span>Total</span><span>UGX 10,000 (10%)</span></div>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground italic">💡 The more agents you recruit, the more you earn — without doing extra work!</p>
+          </CardContent>
+        </Card>
+
+        {/* Extra Bonuses */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Award className="h-4 w-4 text-primary" />
+              </div>
+              Extra Cash Bonuses 🎁
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <p className="text-sm text-muted-foreground mb-3">You also earn bonus cash for helping Welile grow:</p>
+
+            <div className="rounded-xl border border-border/60 overflow-hidden">
+              <div className="divide-y divide-border/40">
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Help a tenant apply for rent</p>
+                    <p className="text-xs text-muted-foreground">When you help post a rent request</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">List an empty house</p>
+                    <p className="text-xs text-muted-foreground">Find and list a vacant house for Welile</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Replace a tenant</p>
+                    <p className="text-xs text-muted-foreground">Find a new tenant for a vacated house</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 20,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Register a new agent</p>
+                    <p className="text-xs text-muted-foreground">Bring someone new to join as a Welile agent</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 10,000</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Where does the money go */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-muted">
+                <Star className="h-4 w-4 text-primary" />
+              </div>
+              Where Does My Money Go?
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>All the money you earn goes straight into your <span className="font-semibold text-foreground">Welile Wallet</span>. You can see every earning clearly:</p>
+            <ul className="space-y-1.5">
+              <li className="flex gap-2">
+                <span className="text-primary">✅</span>
+                <span>How much you earned</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary">✅</span>
+                <span>Which tenant the money came from</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary">✅</span>
+                <span>Why you earned it (registration, managing, bonus, etc.)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary">✅</span>
+                <span>You can withdraw anytime to Mobile Money</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
         {/* Service Centre Materials */}
         <Card>
           <CardHeader className="pb-2">
@@ -74,13 +262,12 @@ Total always = 10%
               <div className="p-1.5 rounded-lg bg-primary/10">
                 <ImageIcon className="h-4 w-4 text-primary" />
               </div>
-              Service Centre Materials
+              Posters & Branding
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <p className="text-sm text-muted-foreground">Download and print these materials to set up a Welile Service Centre anywhere.</p>
+            <p className="text-sm text-muted-foreground">Download these images to print and set up your own Welile Service Centre.</p>
 
-            {/* Welile Logo */}
             <div className="space-y-3">
               <div className="rounded-xl border border-border/60 overflow-hidden bg-muted/30">
                 <img src={WelileLogo} alt="Welile Logo" className="w-full object-contain" />
@@ -94,7 +281,6 @@ Total always = 10%
               </Button>
             </div>
 
-            {/* Welile Service Centre Poster */}
             <div className="space-y-3">
               <div className="rounded-xl border border-border/60 overflow-hidden bg-muted/30">
                 <img src={WelileServiceCentrePoster} alt="Welile Service Centre Poster" className="w-full object-contain" />
@@ -110,167 +296,6 @@ Total always = 10%
           </CardContent>
         </Card>
 
-        {/* Repayment Commission */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <Percent className="h-4 w-4 text-primary" />
-              </div>
-              Repayment Commission — 10%
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Each tenant repayment triggers a commission of <span className="font-semibold text-foreground">exactly 10%</span> of the repayment amount. This is split among agents based on their role.</p>
-
-            <div className="rounded-xl border border-border/60 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="text-left px-3 py-2 font-semibold text-foreground">Role</th>
-                    <th className="text-right px-3 py-2 font-semibold text-foreground">Share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-t border-border/40">
-                    <td className="px-3 py-2.5">
-                      <span className="font-medium text-foreground">Source Agent</span>
-                      <br />
-                      <span className="text-xs">The agent who onboarded the tenant</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-primary">2%</td>
-                  </tr>
-                  <tr className="border-t border-border/40">
-                    <td className="px-3 py-2.5">
-                      <span className="font-medium text-foreground">Tenant Manager</span>
-                      <br />
-                      <span className="text-xs">The currently assigned agent</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-primary">8%</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recruiter Override */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="p-1.5 rounded-lg bg-accent/50">
-                <Users className="h-4 w-4 text-primary" />
-              </div>
-              Recruiter Override
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>If the Tenant Manager was recruited by another agent, the <span className="font-semibold text-foreground">recruiter receives 2%</span> of the total repayment, and the Manager keeps the remaining <span className="font-semibold text-foreground">6%</span>.</p>
-
-            <div className="bg-muted/40 rounded-xl p-3 space-y-1.5">
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Example — UGX 100,000 repayment</p>
-              <div className="flex justify-between"><span>Source Agent (2%)</span><span className="font-medium text-foreground">UGX 2,000</span></div>
-              <div className="flex justify-between"><span>Tenant Manager (6%)</span><span className="font-medium text-foreground">UGX 6,000</span></div>
-              <div className="flex justify-between"><span>Recruiter Override (2%)</span><span className="font-medium text-foreground">UGX 2,000</span></div>
-              <div className="flex justify-between border-t border-border/40 pt-1.5 font-semibold text-foreground"><span>Total</span><span>UGX 10,000 (10%)</span></div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Edge Cases */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="p-1.5 rounded-lg bg-muted">
-                <BookOpen className="h-4 w-4 text-primary" />
-              </div>
-              Important Rules
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2.5 text-sm text-muted-foreground">
-              <li className="flex gap-2">
-                <span className="text-primary font-bold">•</span>
-                <span>Only <span className="font-medium text-foreground">one Source Agent</span> and <span className="font-medium text-foreground">one Manager</span> per tenant.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary font-bold">•</span>
-                <span>If Source and Manager are the <span className="font-medium text-foreground">same person</span>, they receive the full <span className="font-semibold text-foreground">10%</span>.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary font-bold">•</span>
-                <span>If there is <span className="font-medium text-foreground">no recruiter</span>, the Manager keeps the full <span className="font-semibold text-foreground">8%</span>.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary font-bold">•</span>
-                <span>Commission must <span className="font-medium text-foreground">always total exactly 10%</span> — never exceed this.</span>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-
-        {/* Event-Based Bonuses */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <Award className="h-4 w-4 text-primary" />
-              </div>
-              Event-Based Bonuses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-xl border border-border/60 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="text-left px-3 py-2 font-semibold text-foreground">Event</th>
-                    <th className="text-right px-3 py-2 font-semibold text-foreground">Bonus</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-t border-border/40">
-                    <td className="px-3 py-2.5 text-muted-foreground">Rent request posted</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 5,000</td>
-                  </tr>
-                  <tr className="border-t border-border/40">
-                    <td className="px-3 py-2.5 text-muted-foreground">Empty house listed</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 5,000</td>
-                  </tr>
-                  <tr className="border-t border-border/40">
-                    <td className="px-3 py-2.5 text-muted-foreground">Tenant replacement</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 20,000</td>
-                  </tr>
-                  <tr className="border-t border-border/40">
-                    <td className="px-3 py-2.5 text-muted-foreground">Sub-agent registration</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 10,000</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Ledger Tracking */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="p-1.5 rounded-lg bg-muted">
-                <BookOpen className="h-4 w-4 text-primary" />
-              </div>
-              Ledger Tracking
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            <p>All commissions are logged in a ledger for full transparency, recording:</p>
-            <ul className="mt-2 space-y-1 list-disc list-inside">
-              <li>Agent ID &amp; Tenant ID</li>
-              <li>Event type (repayment, onboarding, listing, etc.)</li>
-              <li>Commission amount &amp; percentage</li>
-              <li>Timestamp</li>
-            </ul>
-          </CardContent>
-        </Card>
         {/* Share CTA */}
         <Button 
           onClick={handleShareWhatsApp} 
