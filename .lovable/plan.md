@@ -1,52 +1,48 @@
 
 
-# Restructure Wallet Withdrawal Flow: 4-Stage Pipeline
+# Add Audit Reason Textarea to Payout & Top-Up Actions
 
-## New Flow
-```text
-User Request (pending)
-  → Financial Ops Approves (fin_ops_approved)
-    → CFO Approves (cfo_approved)
-      → Financial Ops enters TID & completes (approved)
-```
-
-## Current Flow (broken)
-Financial Ops currently does TID verification AND approval in one step (`pending` → `fin_ops_verified`), then CFO does final approval (`fin_ops_verified` → `approved`). The user wants Financial Ops to approve first without a TID, CFO to approve second, then Financial Ops to enter the TID and mark complete.
+## Problem
+The **Compound**, **Pay to Wallet**, and **Top-Up** actions in the COO Partners section proceed without requiring a reason. For audit compliance, each action needs a mandatory reason field with the placeholder: *"Include reason and phone number or A/C"*.
 
 ## Changes
 
-### 1. `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — Split into two sections
+### 1. `src/components/coo/COOPartnersPage.tsx` — NearingPayoutsDialog
 
-**Section A — "Pending Approvals"**: Fetches `status = 'pending'`. Approve button sets status to `fin_ops_approved` (no TID required). Reject still works as-is.
+**Add per-portfolio reason state:**
+- Add `reasons` state: `Record<string, string>` keyed by portfolioId
+- Add a `<Textarea>` above each portfolio's action buttons with placeholder `"Include reason and phone number or A/C"`
+- Disable Compound/Pay buttons until the reason has at least 10 characters
 
-**Section B — "Awaiting TID Completion"**: Fetches `status = 'cfo_approved'`. Shows requests that the CFO has approved. "Complete" button requires a TID, sets status to `approved`, records `fin_ops_reference`, `fin_ops_verified_by`, `fin_ops_verified_at`, and `processed_at`.
+**Pass reason into handlers:**
+- `handleCompound`: include `reason` in the audit_logs metadata and ledger description
+- `handlePay`: include `reason` in the pending_wallet_operations description and audit_logs metadata
 
-### 2. `src/components/cfo/CFOWithdrawalApprovals.tsx` — Change filter
+### 2. Top-Up submission (if initiated from COO Partners page)
 
-Change the query filter from `fin_ops_verified` to `fin_ops_approved`. CFO approval sets status to `cfo_approved` (instead of `approved`). Remove `processed_at`/`processed_by` — final processing happens at TID stage.
+Search for the top-up submission handler in `COOPartnersPage.tsx` and add the same `<Textarea>` requirement with the same placeholder before the top-up action can proceed.
 
-### 3. `src/components/wallet/WithdrawalStepTracker.tsx` — Update wallet steps
+### 3. `src/components/cfo/PendingPortfolioTopUps.tsx` — Display reason
 
-Replace the 4-step wallet chain with:
-1. **Requested** — Withdrawal submitted (`createdAt`)
-2. **Financial Review** — Fin Ops approval (`finOpsApprovedAt`)
-3. **CFO Approval** — CFO sign-off (`cfoApprovedAt`)
-4. **Payment Verified** — TID entered & completed (`finOpsVerifiedAt` or `processedAt`)
+If the reason is stored in the `description` or `metadata` field, display it in the top-up list so CFO reviewers can see it.
 
-Add `finOpsApprovedAt` and `finOpsVerifiedAt` props.
+## UI Preview
+Each portfolio card in the Nearing Payouts dialog gets a textarea between the stats grid and the action buttons:
 
-### 4. `src/components/wallet/UserWithdrawalRequests.tsx` — Add new status labels
-
-Add `fin_ops_approved` status config (label: "Fin Ops Approved", blue). Update `cfo_approved` label. Update the step tracker props to pass the new timestamps. Add `fin_ops_approved` to the pending count filter.
-
-### 5. Database migration — Add `fin_ops_approved_at` column
-
-Add `fin_ops_approved_at TIMESTAMPTZ` and `fin_ops_approved_by UUID` columns to `withdrawal_requests` to track the first Financial Ops approval separately from the final TID verification.
+```text
+┌─────────────────────────────────┐
+│  Partner Name         3d away   │
+│  [Principal] [Returns Due]      │
+│  [Contrib Date] [Payout Date]   │
+│  ┌─────────────────────────┐    │
+│  │ Include reason and      │    │
+│  │ phone number or A/C     │    │
+│  └─────────────────────────┘    │
+│  [Compound]    [Pay to Wallet]  │
+└─────────────────────────────────┘
+```
 
 ## Files Modified
-- `supabase/migration` — add `fin_ops_approved_at`, `fin_ops_approved_by` columns
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — split into approve + TID complete
-- `src/components/cfo/CFOWithdrawalApprovals.tsx` — filter `fin_ops_approved`, set `cfo_approved`
-- `src/components/wallet/WithdrawalStepTracker.tsx` — new 4-step wallet chain
-- `src/components/wallet/UserWithdrawalRequests.tsx` — new status labels + tracker props
+- `src/components/coo/COOPartnersPage.tsx` — add reason textarea + validation to NearingPayoutsDialog and top-up flow
+- `src/components/cfo/PendingPortfolioTopUps.tsx` — show reason in pending list
 
