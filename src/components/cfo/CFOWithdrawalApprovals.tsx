@@ -121,15 +121,18 @@ export function CFOWithdrawalApprovals() {
     if (!user || !selected || !rejectionReason.trim()) return;
     setProcessing(selected.id);
     try {
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'rejected',
-          rejection_reason: rejectionReason.trim(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', selected.id);
+      const { data, error } = await supabase.functions.invoke('reject-withdrawal', {
+        body: { withdrawal_ids: [selected.id], reason: rejectionReason.trim(), withdrawal_type: 'wallet' },
+      });
       if (error) throw error;
+
+      // Verify the row was actually rejected
+      const result = data?.results?.find((r: any) => r.id === selected.id);
+      if (result?.status !== 'rejected') {
+        toast.error(`Rejection failed: ${result?.status || 'unknown error'}`);
+        return;
+      }
+
       toast.success('Withdrawal rejected');
       setRequests(prev => prev.filter(r => r.id !== selected.id));
       setRejectOpen(false);

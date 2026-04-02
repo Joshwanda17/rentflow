@@ -637,19 +637,21 @@ export function WithdrawalRequestsManager() {
 
     setProcessing(selectedRequest.id);
     try {
-      // Manager approval — withdrawal goes directly to CFO dashboard
-      const { error: requestError } = await supabase
+      // Manager approval — advance status so it leaves the pending queue permanently
+      const { error: requestError, count } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'pending',
+          status: 'manager_approved',
           manager_approved_at: new Date().toISOString(),
           manager_approved_by: user.id,
+          updated_at: new Date().toISOString(),
         } as any)
-        .eq('id', selectedRequest.id);
+        .eq('id', selectedRequest.id)
+        .eq('status', 'pending');
 
       if (requestError) throw requestError;
 
-      toast.success('Withdrawal noted — visible on CFO dashboard');
+      toast.success('Withdrawal approved — forwarded to Financial Ops');
       setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
       setApproveDialogOpen(false);
       setTransactionId('');

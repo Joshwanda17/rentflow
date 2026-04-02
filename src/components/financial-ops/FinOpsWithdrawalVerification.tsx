@@ -208,10 +208,17 @@ export function FinOpsWithdrawalVerification() {
     if (!user || !selected || rejectionReason.trim().length < 10) return;
     setProcessing(selected.id);
     try {
-      const { error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
+      const { data, error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
         body: { withdrawal_ids: [selected.id], reason: rejectionReason.trim(), withdrawal_type: 'wallet' },
       });
       if (rejectErr) throw rejectErr;
+
+      // Verify the row was actually rejected
+      const result = data?.results?.find((r: any) => r.id === selected.id);
+      if (result?.status !== 'rejected') {
+        toast.error(`Rejection failed: ${result?.status || 'unknown error'}`);
+        return;
+      }
 
       toast.success('Withdrawal rejected');
       setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
