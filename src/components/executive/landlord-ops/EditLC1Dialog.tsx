@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
 
 interface LC1Data {
+  id: string;
   name: string;
   phone: string | null;
   village: string | null;
@@ -34,27 +35,17 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
     const fetchFresh = async () => {
       setLoading(true);
       try {
-        if (lc1.phone) {
-          const { data } = await supabase
-            .from('lc1_chairpersons')
-            .select('name, phone, village')
-            .eq('phone', lc1.phone)
-            .maybeSingle();
-          if (!cancelled) {
-            setForm({
-              name: data?.name || lc1.name || '',
-              phone: data?.phone || lc1.phone || '',
-              village: data?.village || lc1.village || '',
-            });
-          }
-        } else {
-          if (!cancelled) {
-            setForm({
-              name: lc1.name || '',
-              phone: lc1.phone || '',
-              village: lc1.village || '',
-            });
-          }
+        const { data } = await supabase
+          .from('lc1_chairpersons')
+          .select('name, phone, village')
+          .eq('id', lc1.id)
+          .maybeSingle();
+        if (!cancelled) {
+          setForm({
+            name: data?.name || lc1.name || '',
+            phone: data?.phone || lc1.phone || '',
+            village: data?.village || lc1.village || '',
+          });
         }
       } catch {
         if (!cancelled) {
@@ -90,21 +81,11 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
         await supabase.from('house_listings').update(updates).eq('id', listingId);
       }
 
-      if (lc1.phone) {
-        const { data: existingLc1 } = await supabase
-          .from('lc1_chairpersons')
-          .select('id')
-          .eq('phone', lc1.phone)
-          .maybeSingle();
-
-        if (existingLc1) {
-          await supabase.from('lc1_chairpersons').update({
-            name: form.name.trim(),
-            phone: form.phone.trim(),
-            village: form.village.trim(),
-          }).eq('id', existingLc1.id);
-        }
-      }
+      await supabase.from('lc1_chairpersons').update({
+        name: form.name.trim(),
+        phone: form.phone.trim() || null,
+        village: form.village.trim() || null,
+      }).eq('id', lc1.id);
 
       await supabase.from('audit_logs').insert({
         user_id: user.id,

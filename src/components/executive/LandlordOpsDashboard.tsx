@@ -199,7 +199,7 @@ export function LandlordOpsDashboard() {
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' } | null>(null);
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
-  const [editLC1, setEditLC1] = useState<{ name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
+  const [editLC1, setEditLC1] = useState<{ id: string; name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
   const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -796,7 +796,7 @@ export function LandlordOpsDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setEditLC1({ name: lc1.name, phone: lc1.phone, village: lc1.village, listingIds: lc1.listingIds })}
+                    onClick={() => setEditLC1({ id: lc1.id, name: lc1.name, phone: lc1.phone, village: lc1.village, listingIds: lc1.listingIds })}
                     className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
                     title="Edit LC1"
                   >
