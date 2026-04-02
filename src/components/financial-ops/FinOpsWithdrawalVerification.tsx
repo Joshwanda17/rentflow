@@ -110,7 +110,7 @@ export function FinOpsWithdrawalVerification() {
 
   // Section A: Approve with TID → fin_ops_approved
   const handleApprove = async () => {
-    if (!user || !selected || reference.trim().length < 3) return;
+    if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
