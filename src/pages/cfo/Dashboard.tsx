@@ -11,7 +11,7 @@ import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalReques
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
-import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
+
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
@@ -63,7 +63,6 @@ export default function CFODashboardPage() {
         return (
           <div className="space-y-6">
             <WithdrawalRequestsManager />
-            <CFOWithdrawalApprovals />
             <CFOPartnerPayoutProcessing />
           </div>
         );

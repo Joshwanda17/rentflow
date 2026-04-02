@@ -19,7 +19,7 @@ import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalReques
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
-import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
+
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { DisbursementRegistry } from '@/components/cfo/DisbursementRegistry';
 import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
@@ -176,7 +176,6 @@ export default function CFODashboard() {
                   <ArrowDownToLine className="h-4 w-4 text-primary" />
                   Withdrawal Approvals
                 </h3>
-                <CFOWithdrawalApprovals />
                 <CFOPartnerPayoutProcessing />
               </div>
             </div>

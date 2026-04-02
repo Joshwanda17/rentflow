@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, User, Briefcase, DollarSign, Shield, Banknote } from 'lucide-react';
+import { CheckCircle, Clock, User, Briefcase, Shield, Banknote } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -45,9 +45,7 @@ export function WithdrawalStepTracker({
 
   const walletSteps: StepData[] = [
     { label: 'Requested', description: 'Withdrawal submitted', icon: User, completedAt: createdAt },
-    { label: 'Financial Review', description: 'Fin Ops approval', icon: Briefcase, completedAt: finOpsApprovedAt },
-    { label: 'CFO Approval', description: 'CFO sign-off', icon: DollarSign, completedAt: cfoApprovedAt },
-    { label: 'Payment Verified', description: 'TID entered & completed', icon: Banknote, completedAt: finOpsVerifiedAt || processedAt },
+    { label: 'Approved & Paid', description: 'Fin Ops approved with TID', icon: Banknote, completedAt: finOpsApprovedAt || processedAt },
   ];
 
   const partnerSteps: StepData[] = [
@@ -67,11 +65,9 @@ export function WithdrawalStepTracker({
       if (partnerOpsApprovedAt) return 2;
       return 1;
     }
-    // Wallet: pending → fin_ops_approved → cfo_approved → approved
-    if (status === 'approved') return 4;
-    if (finOpsVerifiedAt || processedAt) return 4;
-    if (cfoApprovedAt) return 3;
-    if (finOpsApprovedAt) return 2;
+    // Wallet: pending → approved (single step)
+    if (status === 'approved') return 2;
+    if (finOpsApprovedAt || processedAt) return 2;
     return 1;
   };
 
