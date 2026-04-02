@@ -1043,9 +1043,9 @@ Funds credited to agent wallet
 - **Payroll**: Monthly batch + individual transfers via `platform-expense-transfer`
 - **Proxy Agent Assignments**: Searchable User Pickers (name/phone) for non-smartphone users
 
-### Withdrawal Approval (Stage 3)
-- Reviews `manager_approved` withdrawals
-- Approve → `cfo_approved` → goes to COO
+### Withdrawal Approval
+- **Note:** Wallet withdrawal approvals are now handled entirely by Financial Ops (single-step) — CFO no longer has a separate withdrawal approval queue
+- CFO retains oversight of financial statements, solvency, and reconciliation
 
 ### Cashout Agent Activity
 - `CashoutAgentActivity` — Monitor agent cashout patterns
