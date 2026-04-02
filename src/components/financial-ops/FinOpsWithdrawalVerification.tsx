@@ -389,7 +389,7 @@ export function FinOpsWithdrawalVerification() {
       )}
 
       {/* Approve Dialog with requester details and TID */}
-      <AlertDialog open={approveOpen} onOpenChange={(open) => { setApproveOpen(open); if (!open) setReference(''); }}>
+      <AlertDialog open={approveOpen} onOpenChange={(open) => { setApproveOpen(open); if (!open) { setReference(''); setPaymentMethod(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Withdrawal</AlertDialogTitle>
