@@ -1,36 +1,35 @@
 
 
-# Fix: EditLC1Dialog Saves Not Persisting
+# Agent Commission Detail Breakdown
 
-## Root Cause
+## Problem
+The current agent earnings list shows only the earning type, a generic description, and the amount. Agents cannot see **who** the commission came from, **what role** they played, or **what percentage** they earned.
 
-The `EditLC1Dialog` receives `{ name, phone, village, listingIds }` but **not the LC1 `id`**. The save function (line 93) tries to find the `lc1_chairpersons` record by phone — but if phone is null/empty, the update is skipped entirely. Even when phone exists, a phone change would cause a lookup mismatch.
+## Approach
+Enhance the existing earnings history on `/agent-earnings` to show rich detail by joining `agent_earnings` with `commission_accrual_ledger` and resolving tenant/source names from `profiles`.
 
-Meanwhile, the LC1 list now comes from the `lc1_chairpersons` table which has a proper `id` field, but it's never passed to the dialog.
+## Changes
 
-## Fix
+### 1. Update `useAgentEarnings` hook
+- Join `source_user_id` to `profiles(full_name)` in the earnings query so each earning shows who triggered it
+- Also fetch the agent's `commission_accrual_ledger` entries (status: earned/approved/paid) to get `commission_role`, `event_type`, `percentage`, `repayment_amount`, and `tenant_id` with tenant name
+- Expose a new `detailedEarnings` array that merges ledger context into each earning record (matched by `source_id` or `rent_request_id` + timestamp proximity)
 
-### 1. Pass `id` to `EditLC1Dialog`
+### 2. Update `AgentEarnings.tsx` — Earnings History cards
+- Expand each earning card to show:
+  - **Tenant name** — who the repayment/event was for (from ledger join or source profile)
+  - **Your role** — "Source Agent (2%)" or "Tenant Manager (8%)" or "Recruiter Override (2%)" based on `commission_role`
+  - **Calculation** — e.g. "8% of UGX 125,000 repayment = UGX 10,000" using `percentage` and `repayment_amount`
+  - For bonuses: show the triggering event clearly (e.g. "Tenant registration: John Doe")
+- Add a tap-to-expand interaction on each card to keep the list clean but allow drill-down
+- Keep the existing date grouping and tabs structure
 
-**File: `src/components/executive/landlord-ops/EditLC1Dialog.tsx`**
-- Add `id: string` to the `LC1Data` interface
-- Change `handleSave` to update `lc1_chairpersons` by `id` directly instead of phone lookup:
-  ```ts
-  await supabase.from('lc1_chairpersons').update({
-    name: form.name.trim(),
-    phone: form.phone.trim() || null,
-    village: form.village.trim() || null,
-  }).eq('id', lc1.id);
-  ```
-- Also use `id` for the fresh-fetch in `useEffect` (query by `id` instead of `phone`)
-
-### 2. Pass `id` from the edit button
-
-**File: `src/components/executive/LandlordOpsDashboard.tsx`**
-- Line ~799: Add `id: lc1.id` to the `setEditLC1` call
-- Update the `editLC1` state type to include `id: string`
+### 3. RLS consideration
+- `commission_accrual_ledger` needs an RLS policy allowing agents to SELECT their own rows (`.eq('agent_id', user.id)`)
+- Add migration: `CREATE POLICY "Agents can view own commissions" ON commission_accrual_ledger FOR SELECT TO authenticated USING (agent_id = auth.uid())`
 
 ## Files Modified
-- `src/components/executive/landlord-ops/EditLC1Dialog.tsx` — use `id` for DB update + fetch
-- `src/components/executive/LandlordOpsDashboard.tsx` — pass `id` to dialog
+- DB migration: RLS policy on `commission_accrual_ledger` for agent self-read
+- `src/hooks/useAgentEarnings.ts` — fetch ledger detail + source profiles
+- `src/pages/AgentEarnings.tsx` — expandable detail cards showing role, tenant, calculation
 
