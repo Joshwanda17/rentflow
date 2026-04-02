@@ -89,9 +89,13 @@ export function AgentEarningsOverview() {
         const amount = Number(e.amount);
         existing.total += amount;
         existing.count++;
-        if (e.earning_type === 'commission') existing.commission += amount;
-        else if (e.earning_type === 'approval_bonus') existing.bonus += amount;
-        else existing.other += amount;
+        if (['commission', 'rent_commission', 'investment_commission', 'subagent_commission', 'subagent_override'].includes(e.earning_type)) {
+          existing.commission += amount;
+        } else if (['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'facilitation_bonus', 'listing_bonus', 'registration', 'registration_bonus', 'referral_bonus', 'referral'].includes(e.earning_type)) {
+          existing.bonus += amount;
+        } else {
+          existing.other += amount;
+        }
         agentMap.set(e.agent_id, existing);
       });
 
