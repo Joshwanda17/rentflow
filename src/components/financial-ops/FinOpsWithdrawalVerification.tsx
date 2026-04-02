@@ -207,10 +207,11 @@ export function FinOpsWithdrawalVerification() {
       if (rejectErr) throw rejectErr;
 
       toast.success('Withdrawal rejected');
+      setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
+      setTidRequests(prev => prev.filter(r => r.id !== selected.id));
       setRejectOpen(false);
       setRejectionReason('');
       setSelected(null);
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to reject');
     } finally {

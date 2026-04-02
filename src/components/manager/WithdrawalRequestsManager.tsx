@@ -744,8 +744,9 @@ export function WithdrawalRequestsManager() {
     setBatchProcessing(false);
     setBatchRejectDialogOpen(false);
     setRejectionReason('');
+    const rejectedIds = new Set(selectedRequests.map(r => r.id));
+    setRequests(prev => prev.filter(r => !rejectedIds.has(r.id)));
     clearSelection();
-    fetchRequests();
 
     if (failed === 0) {
       toast.success(`Successfully rejected ${processed} request${processed > 1 ? 's' : ''}`);
