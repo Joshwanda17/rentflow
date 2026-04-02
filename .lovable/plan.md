@@ -1,53 +1,63 @@
 
 
-# Fix COO Partner Portfolio Top-Up & Add Dedicated Nav Items
+# Two-Stage Wallet Withdrawal Chain: Financial Ops → CFO
 
-## Problem
-1. **Top-up failure**: The COO's partner portfolio top-up dialog (`FundInvestmentAccountDialog`) calls the `manager-portfolio-topup` edge function, which returns "Failed to send a request to the Edge Function". This is likely a deployment issue — the function exists but may need redeployment. Additionally, the function already allows COO role access (line 44: `allowedRoles = ["coo", "manager", "cfo", "super_admin"]`), so the backend logic is correct.
+## Summary
 
-2. **Missing dedicated nav**: There is no "Partner Top-ups" card or sidebar item in the COO, CFO, or Partner Ops dashboards, making the feature hard to discover.
+Wallet withdrawal requests currently go straight to the CFO. The new flow routes them through Financial Operations first for verification (with a mandatory reference), then to the CFO for final approval (no TID required). Partner withdrawals remain unchanged (Partner Ops → COO → CFO).
 
-## Root Cause Analysis
-The edge function `manager-portfolio-topup` exists and its RBAC already includes COO. The "Failed to send a request" error is a client-side invocation or deployment issue. We need to:
-- Ensure the function deploys correctly (trigger redeploy by touching the file)
-- Add a `PendingPortfolioTopUps` view to the COO dashboard
-- Add sidebar items for "Partner Top-ups" in COO, CFO, and Partner Ops
+## New Flow
+
+```text
+User withdraws → pending
+  → Financial Ops verifies (enters reference, logged) → fin_ops_verified
+  → CFO approves (no TID needed, just approve) → approved → user notified
+```
+
+Either stage can reject.
 
 ## Changes
 
-### 1. Redeploy `manager-portfolio-topup` edge function
-- Add a minor comment/whitespace change to `supabase/functions/manager-portfolio-topup/index.ts` to trigger redeployment
+### 1. Database Migration
+- Add `fin_ops_verified` to the `withdrawal_requests` status values (alter CHECK constraint or enum)
+- Add columns: `fin_ops_reference` (text), `fin_ops_verified_by` (uuid), `fin_ops_verified_at` (timestamptz)
+- RLS: ensure CFO and financial_ops roles can SELECT/UPDATE
 
-### 2. Add "Partner Top-ups" sidebar item to COO dashboard
-**File: `src/components/layout/executiveSidebarConfig.ts`**
-- Add `{ label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' }` to the COO Governance section
-- Add `{ label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' }` to the CFO Finance section
+### 2. Financial Ops — Add Wallet Withdrawals to Command Center
+**File: `src/components/financial-ops/FinancialOpsCommandCenter.tsx`**
+- The "Withdrawals & Payouts" view already shows `PendingWalletOperationsWidget` — add a new `FinOpsWithdrawalVerification` component alongside it
 
-### 3. Add "Partner Top-ups" tab content to COO dashboard
-**File: `src/pages/coo/Dashboard.tsx`**
-- Import `PendingPortfolioTopUps` from `@/components/cfo/PendingPortfolioTopUps`
-- Add a `case 'partner-topups'` that renders the `PendingPortfolioTopUps` component with back button and section header
+**New file: `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`**
+- Queries `withdrawal_requests` where `status = 'pending'`
+- Shows user name, amount, MoMo details, age
+- "Verify & Forward" button opens dialog requiring a **reference** (min 3 chars)
+- On verify: updates `withdrawal_requests` → `status = 'fin_ops_verified'`, stores `fin_ops_reference`, `fin_ops_verified_by`, `fin_ops_verified_at`, inserts `audit_logs` entry
+- Reject button with mandatory reason
 
-### 4. Add "Partner Top-ups" tab content to CFO dashboard
-**File: `src/pages/cfo/Dashboard.tsx`**
-- Add a `case 'partner-topups'` that renders `PendingPortfolioTopUps` as a dedicated view (it's currently only on the overview page)
+### 3. CFO Dashboard — Change to Receive Verified Requests Only
+**File: `src/components/cfo/CFOWithdrawalApprovals.tsx`**
+- Change query filter from `.eq('status', 'pending')` to `.eq('status', 'fin_ops_verified')`
+- Display the Fin Ops reference on each card (read-only, shows who verified and when)
+- Remove the TID input requirement — change "Approve & Pay" to just "Approve"
+- On approve: set `status = 'approved'`, `cfo_approved_at`, `cfo_approved_by`, `processed_at`, `processed_by` — no `transaction_id` required
+- Insert `audit_logs` entry
+- Send user notification: "Withdrawal successful"
 
-### 5. Add "Partner Top-ups" quick nav card to COO dashboard
-**File: `src/pages/coo/Dashboard.tsx`**
-- Add a new entry to `quickNavItems` array: `{ id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' }`
-
-### 6. Add "Partner Top-ups" tab to Partner Ops dashboard
-**File: `src/components/executive/PartnersOpsDashboard.tsx`**
-- Add a `topups` tab option alongside existing `portfolios | capital | roi` tabs
-- Render `PendingPortfolioTopUps` when the `topups` tab is active
+### 4. Approval Queue Alignment
+**File: `src/components/financial-ops/ApprovalQueue.tsx`**
+- The existing `wallet_withdrawals` queue already handles withdrawals — ensure its approve action also sets `fin_ops_verified` (not `manager_approved`) with a reference, to align with the new chain
 
 ## Files Changed
 
 | File | Action |
 |------|--------|
-| `supabase/functions/manager-portfolio-topup/index.ts` | Touch to redeploy |
-| `src/components/layout/executiveSidebarConfig.ts` | Add sidebar items for COO & CFO |
-| `src/pages/coo/Dashboard.tsx` | Add quick nav card + tab case |
-| `src/pages/cfo/Dashboard.tsx` | Add dedicated tab case |
-| `src/components/executive/PartnersOpsDashboard.tsx` | Add "Top-ups" tab |
+| Migration SQL | Add `fin_ops_verified` status + 3 new columns |
+| `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` | **Create** — Fin Ops verification UI with reference input |
+| `src/components/financial-ops/FinancialOpsCommandCenter.tsx` | Add `FinOpsWithdrawalVerification` to withdrawals view |
+| `src/components/cfo/CFOWithdrawalApprovals.tsx` | Query `fin_ops_verified`, remove TID, show Fin Ops ref |
+| `src/components/financial-ops/ApprovalQueue.tsx` | Align wallet withdrawal approve to set `fin_ops_verified` |
+
+## Risks
+- Existing `pending` withdrawals will need to go through Fin Ops first (no bypass) — this is intentional for accountability
+- Bulk approve in ApprovalQueue will also require individual references (or be limited to the new verify action)
 
