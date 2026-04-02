@@ -1426,7 +1426,7 @@ Float-related categories excluded from personal wallet sync
 |---------|------|
 | **Deposit** | Choose channel (MoMo/Bank/Agent Cash) → Enter amount → Submit TID → Pending approval |
 | **Transfer** | Search recipient → Enter amount → Optimistic lock check → Atomic debit/credit |
-| **Withdrawal** | Select payout method → Enter amount → 4-stage approval queue |
+| **Withdrawal** | Select payout method → Enter amount → Single-step Financial Ops approval (TID/receipt/bank ref required) |
 
 ### Deposit Channels
 - **Mobile Money**: TID mandatory, provider selection (MTN, Airtel), Merchant Codes: 090777/4380664
