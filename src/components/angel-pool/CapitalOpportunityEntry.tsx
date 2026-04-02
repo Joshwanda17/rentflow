@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
   Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
@@ -16,6 +16,8 @@ import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } 
 import { hapticTap } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { InvestmentSelectionSheet, type PoolType } from './InvestmentSelectionSheet';
+import { useAngelPoolAgreement } from '@/hooks/useAngelPoolAgreement';
+import { AngelPoolAgreementDialog } from './agreement/AngelPoolAgreementDialog';
 
 type ViewState = 'default' | 'investing' | 'committed';
 
@@ -457,9 +459,44 @@ export function CapitalOpportunityEntry() {
     pool === 'tenant' ? setTenantAmount(0) : setAngelAmount(0);
   };
 
+  const { isAccepted: angelAgreementAccepted, isLoading: angelAgreementLoading, acceptAgreement: acceptAngelAgreement } = useAngelPoolAgreement();
+  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [pendingAngelSwitch, setPendingAngelSwitch] = useState<'select' | 'tab' | null>(null);
+
   const handlePoolSelect = (pool: PoolType) => {
+    if (pool === 'angel' && !angelAgreementAccepted) {
+      setPendingAngelSwitch('select');
+      setShowAgreementDialog(true);
+      return;
+    }
     setActiveTab(pool);
     setViewState('investing');
+  };
+
+  const handleAngelTabSwitch = useCallback(() => {
+    if (!angelAgreementAccepted) {
+      setPendingAngelSwitch('tab');
+      setShowAgreementDialog(true);
+      return false;
+    }
+    return true;
+  }, [angelAgreementAccepted]);
+
+  const handleAgreementAccept = async () => {
+    const ok = await acceptAngelAgreement();
+    if (ok) {
+      setShowAgreementDialog(false);
+      if (pendingAngelSwitch === 'select') {
+        setActiveTab('angel');
+        setViewState('investing');
+      } else {
+        setActiveTab('angel');
+      }
+      setPendingAngelSwitch(null);
+      toast.success('Angel Pool Agreement accepted!');
+    } else {
+      toast.error('Failed to accept. Please try again.');
+    }
   };
 
   const handleBackToInvesting = (pool: PoolType) => {
@@ -527,7 +564,13 @@ export function CapitalOpportunityEntry() {
       </div>
 
       <div className="px-5 pb-4">
-        <Tabs value={activeTab} onValueChange={(v) => { hapticTap(); setActiveTab(v as PoolType); }} className="w-full">
+        <AngelPoolAgreementDialog
+          open={showAgreementDialog}
+          onAccept={handleAgreementAccept}
+          onClose={() => { setShowAgreementDialog(false); setPendingAngelSwitch(null); }}
+          isLoading={angelAgreementLoading}
+        />
+        <Tabs value={activeTab} onValueChange={(v) => { hapticTap(); if (v === 'angel' && !handleAngelTabSwitch()) return; setActiveTab(v as PoolType); }} className="w-full">
           <TabsList variant="pills" className="w-full grid grid-cols-2 gap-2">
             <TabsTrigger value="tenant" variant="pills"
               className="rounded-full text-xs font-bold gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
