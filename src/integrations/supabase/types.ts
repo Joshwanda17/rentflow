@@ -8301,6 +8301,39 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_deductions: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          deducted_by: string
+          id: string
+          ledger_entry_id: string | null
+          reason: string
+          target_user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          created_at?: string
+          deducted_by: string
+          id?: string
+          ledger_entry_id?: string | null
+          reason: string
+          target_user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          deducted_by?: string
+          id?: string
+          ledger_entry_id?: string | null
+          reason?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       wallet_deposits: {
         Row: {
           agent_id: string
