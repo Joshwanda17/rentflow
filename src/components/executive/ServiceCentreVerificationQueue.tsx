@@ -210,16 +210,16 @@ export function ServiceCentreVerificationQueue() {
                         )}
                       </div>
                       <div className="flex gap-2 mt-1">
-                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-green-500/10 text-green-700 font-medium">
+                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium">
                           {agent.landlord_count} Landlord{agent.landlord_count !== 1 ? 's' : ''}
                         </span>
-                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-700 font-medium">
+                        <span className="text-xs px-1.5 py-0.5 rounded-md bg-secondary text-secondary-foreground font-medium">
                           {agent.lc1_count} LC1{agent.lc1_count !== 1 ? 's' : ''}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-700 font-semibold">
+                      <span className="text-xs px-2 py-1 rounded-full bg-accent text-accent-foreground font-semibold">
                         Awaiting Setup
                       </span>
                     </div>
