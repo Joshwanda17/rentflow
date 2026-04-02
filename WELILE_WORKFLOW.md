@@ -559,13 +559,39 @@ New → Active → Top Earner
 - **`agent-deposit`**: Process agent deposits
 - **`agent-withdrawal`**: Process agent withdrawals
 - **`agent-invest-for-partner`**: Proxy investment flow
-- **`credit-listing-bonus`**: Award listing bonus
-- **`credit-landlord-registration-bonus`**: Landlord reg bonus
-- **`credit-landlord-verification-bonus`**: Verification bonus
+- **`credit-listing-bonus`**: Award listing bonus (triggers `credit_agent_event_bonus` RPC)
+- **`credit-landlord-registration-bonus`**: Landlord reg bonus (triggers `credit_agent_event_bonus` RPC)
+- **`credit-landlord-verification-bonus`**: Verification bonus (triggers `credit_agent_event_bonus` RPC)
 - **`approve-listing-bonus`**: Manager approves listing bonus
 - **`send-collection-sms`**: SMS confirmation after collection
 - **`process-agent-advance-deductions`**: Daily advance repayments
 - **`manual-collect-rent`**: Manual rent collection recording
+- **`tenant-pay-rent`**: Direct tenant wallet-to-rent payment (validates balance, creates ledger entry, calls `record_rent_request_repayment` + `credit_agent_rent_commission` RPCs)
+- **`wallet-deduction`**: Financial Ops wallet deduction tool (deducts from user wallet with mandatory reason, creates ledger + audit entries)
+- **`notify-managers`**: Fire-and-forget manager notification (queries `user_roles` for enabled managers, calls `send-push-notification` for all matching user IDs; supports `additionalRoles` param for notifying beyond managers)
+
+### 4.18.1 Agent Commission Benefits Page
+
+**Route:** `/agent-commission-benefits` (accessible from agent hamburger menu, icon color `#7214c9`)
+
+**UI Component:** `AgentCommissionBenefits.tsx`
+
+**Purpose:** Plain-language ("ordinary man") page explaining the full commission model with concrete money examples so agents understand exactly how they earn.
+
+**Content Sections:**
+1. **How You Earn** — Explains 10% repayment commission with UGX 100,000 example
+2. **Commission Split Table** — Source 2%, Manager 8%, Recruiter Override 2%
+3. **Event Bonuses Table** — UGX 5,000–20,000 per activity
+4. **Career Path** — Team Leader (2+ sub-agents → cash advances), 50 tenants → Electric Bike
+
+**WhatsApp Sharing:**
+- Uses `navigator.share` Web Share API (mobile)
+- Falls back to `https://wa.me/?text=...` URL (desktop)
+- Shares structured text summary of commission model with Welile branding
+
+**Branding Assets:**
+- High-resolution "Welile Service Centre" logo and poster available for download
+- Agents can print these for field setup and recruitment
 
 ---
 
