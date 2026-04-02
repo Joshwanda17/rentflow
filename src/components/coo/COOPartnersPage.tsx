@@ -2551,7 +2551,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
-  const handleCompound = async (p: NearingPayoutPortfolio) => {
+  const handleCompound = async (p: NearingPayoutPortfolio, reason: string) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
     try {
       const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
