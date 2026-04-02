@@ -118,6 +118,7 @@ export function PartnersOpsDashboard() {
     { key: 'portfolios', label: 'Portfolios', icon: Wallet },
     { key: 'capital', label: 'Capital Flow', icon: DollarSign },
     { key: 'roi', label: 'Returns Payouts', icon: TrendingUp },
+    { key: 'topups', label: 'Top-ups', icon: PlusCircle },
   ];
 
   // ═══ RENDER TAB CONTENT ═══
