@@ -127,10 +127,14 @@ export default function Landing() {
         localStorage.setItem('welile_pwa_installed', 'true');
         localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
       }
+      // Always clear — Chrome prompts are single-use
       setInstallPrompt(null);
       clearGlobalPrompt();
     } catch (err) {
       console.error('[PWA] Install error:', err);
+      // Clear on error too — prompt is likely consumed
+      setInstallPrompt(null);
+      clearGlobalPrompt();
     } finally {
       setInstalling(false);
     }

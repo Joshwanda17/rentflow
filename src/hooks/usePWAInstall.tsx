@@ -7,11 +7,9 @@ interface BeforeInstallPromptEvent extends Event {
 
 // Global storage for the deferred prompt to prevent losing it on re-renders
 export let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
-let promptCaptured = false;
 
 export function clearGlobalPrompt() {
   globalDeferredPrompt = null;
-  promptCaptured = false;
 }
 
 // Capture the prompt as early as possible (before React even loads)
@@ -20,8 +18,7 @@ if (typeof window !== 'undefined') {
     console.log('[PWA] Early capture: beforeinstallprompt event fired');
     e.preventDefault();
     globalDeferredPrompt = e as BeforeInstallPromptEvent;
-    promptCaptured = true;
-  }, { once: false });
+  });
 }
 
 export function usePWAInstall() {
@@ -103,19 +100,23 @@ export function usePWAInstall() {
       
       if (outcome === 'accepted') {
         setIsInstalled(true);
-        setIsInstallable(false);
-        // Store that installation was completed for redirect logic
         localStorage.setItem('welile_pwa_installed', 'true');
         localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
       }
       
+      // Always clear the prompt after use — it's single-use in Chrome
       setDeferredPrompt(null);
+      setIsInstallable(false);
       globalDeferredPrompt = null;
       promptTriggered.current = false;
       
       return outcome === 'accepted';
     } catch (error) {
       console.error('[PWA] Error prompting install:', error);
+      // Clear on error too — the prompt is likely consumed
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+      globalDeferredPrompt = null;
       promptTriggered.current = false;
       return false;
     }
@@ -126,7 +127,6 @@ export function usePWAInstall() {
     isInstalled,
     isIOS,
     promptInstall,
-    // Expose whether we have a prompt ready
     hasPrompt: !!(deferredPrompt || globalDeferredPrompt),
   };
 }
