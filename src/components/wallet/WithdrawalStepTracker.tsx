@@ -13,11 +13,14 @@ interface WithdrawalStepTrackerProps {
   variant?: 'wallet' | 'partner';
   status: string;
   createdAt: string;
-  // Wallet chain
-  managerApprovedAt?: string | null;
+  // Wallet chain (new 4-stage)
+  finOpsApprovedAt?: string | null;
   cfoApprovedAt?: string | null;
-  cooApprovedAt?: string | null;
+  finOpsVerifiedAt?: string | null;
   processedAt?: string | null;
+  // Legacy wallet props (kept for backwards compat)
+  managerApprovedAt?: string | null;
+  cooApprovedAt?: string | null;
   // Partner chain
   partnerOpsApprovedAt?: string | null;
   cooClearedAt?: string | null;
@@ -28,10 +31,12 @@ export function WithdrawalStepTracker({
   variant = 'wallet',
   status,
   createdAt,
-  managerApprovedAt,
+  finOpsApprovedAt,
   cfoApprovedAt,
-  cooApprovedAt,
+  finOpsVerifiedAt,
   processedAt,
+  managerApprovedAt,
+  cooApprovedAt,
   partnerOpsApprovedAt,
   cooClearedAt,
   cfoProcessedAt,
@@ -40,9 +45,9 @@ export function WithdrawalStepTracker({
 
   const walletSteps: StepData[] = [
     { label: 'Requested', description: 'Withdrawal submitted', icon: User, completedAt: createdAt },
-    { label: 'Manager Review', description: 'Manager approval', icon: Briefcase, completedAt: managerApprovedAt },
-    { label: 'CFO Review', description: 'CFO approval', icon: DollarSign, completedAt: cfoApprovedAt },
-    { label: 'COO Approval & Payment', description: 'Final approval & payout', icon: Shield, completedAt: cooApprovedAt || processedAt },
+    { label: 'Financial Review', description: 'Fin Ops approval', icon: Briefcase, completedAt: finOpsApprovedAt },
+    { label: 'CFO Approval', description: 'CFO sign-off', icon: DollarSign, completedAt: cfoApprovedAt },
+    { label: 'Payment Verified', description: 'TID entered & completed', icon: Banknote, completedAt: finOpsVerifiedAt || processedAt },
   ];
 
   const partnerSteps: StepData[] = [
@@ -54,7 +59,6 @@ export function WithdrawalStepTracker({
 
   const steps = variant === 'partner' ? partnerSteps : walletSteps;
 
-  // Determine current active step
   const getActiveStepIndex = () => {
     if (variant === 'partner') {
       if (status === 'approved') return 4;
@@ -63,9 +67,11 @@ export function WithdrawalStepTracker({
       if (partnerOpsApprovedAt) return 2;
       return 1;
     }
+    // Wallet: pending → fin_ops_approved → cfo_approved → approved
     if (status === 'approved') return 4;
+    if (finOpsVerifiedAt || processedAt) return 4;
     if (cfoApprovedAt) return 3;
-    if (managerApprovedAt) return 2;
+    if (finOpsApprovedAt) return 2;
     return 1;
   };
 

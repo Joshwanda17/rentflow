@@ -92,7 +92,7 @@ export function UserWithdrawalRequests() {
           label: 'Pending',
           pulse: true,
         };
-      case 'manager_approved':
+      case 'fin_ops_approved':
         return {
           icon: Clock,
           color: 'text-blue-500',
@@ -107,7 +107,7 @@ export function UserWithdrawalRequests() {
           color: 'text-purple-500',
           bgColor: 'bg-purple-500/10',
           borderColor: 'border-purple-500/30',
-          label: 'COO Review',
+          label: 'Awaiting TID',
           pulse: true,
         };
       case 'approved':
@@ -140,7 +140,7 @@ export function UserWithdrawalRequests() {
     }
   };
 
-  const pendingCount = requests.filter(r => ['pending', 'manager_approved', 'cfo_approved'].includes(r.status)).length;
+  const pendingCount = requests.filter(r => ['pending', 'fin_ops_approved', 'cfo_approved'].includes(r.status)).length;
   const displayedRequests = expanded ? requests : requests.slice(0, 3);
 
   if (loading) {
@@ -196,7 +196,7 @@ export function UserWithdrawalRequests() {
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ delay: index * 0.05 }}
                 className={`rounded-xl border ${statusConfig.borderColor} ${
-                  ['pending', 'manager_approved', 'cfo_approved'].includes(request.status)
+                  ['pending', 'fin_ops_approved', 'cfo_approved'].includes(request.status)
                     ? 'bg-amber-500/5' 
                     : 'bg-muted/30'
                 } cursor-pointer active:scale-[0.99] transition-transform`}

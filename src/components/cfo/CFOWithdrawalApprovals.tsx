@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  ArrowDownToLine, CheckCircle, XCircle, Clock, Loader2, RefreshCw,
-  Smartphone, User,
+  ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
+  Smartphone,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -15,7 +14,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { UserAvatar } from '@/components/UserAvatar';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
 interface WithdrawalRequest {
@@ -27,10 +26,8 @@ interface WithdrawalRequest {
   mobile_money_provider: string | null;
   mobile_money_name: string | null;
   created_at: string;
-  manager_approved_at: string | null;
-  fin_ops_reference: string | null;
-  fin_ops_verified_by: string | null;
-  fin_ops_verified_at: string | null;
+  fin_ops_approved_at: string | null;
+  fin_ops_approved_by: string | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
 
@@ -43,7 +40,6 @@ export function CFOWithdrawalApprovals() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [transactionId, setTransactionId] = useState(''); // kept for state cleanup only
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(v);
@@ -53,7 +49,7 @@ export function CFOWithdrawalApprovals() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .eq('status', 'fin_ops_verified')
+        .eq('status', 'fin_ops_approved')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -86,6 +82,7 @@ export function CFOWithdrawalApprovals() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
+  // CFO approves → cfo_approved (NOT final approved — TID stage comes next)
   const handleApprove = async () => {
     if (!user || !selected) return;
     setProcessing(selected.id);
@@ -93,16 +90,14 @@ export function CFOWithdrawalApprovals() {
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'approved',
+          status: 'cfo_approved',
           cfo_approved_at: new Date().toISOString(),
           cfo_approved_by: user.id,
-          processed_by: user.id,
-          processed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
 
-      // Audit log
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'cfo_approve_withdrawal',
@@ -111,7 +106,7 @@ export function CFOWithdrawalApprovals() {
         metadata: { amount: selected.amount, target_user: selected.user_id },
       });
 
-      toast.success('Withdrawal approved!');
+      toast.success('Withdrawal approved — forwarded to Fin Ops for TID completion');
       setApproveOpen(false);
       setSelected(null);
       fetchRequests();
@@ -130,9 +125,8 @@ export function CFOWithdrawalApprovals() {
         .from('withdrawal_requests')
         .update({
           status: 'rejected',
-          processed_by: user.id,
-          processed_at: new Date().toISOString(),
           rejection_reason: rejectionReason.trim(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', selected.id);
       if (error) throw error;
@@ -212,16 +206,11 @@ export function CFOWithdrawalApprovals() {
                     </div>
                   )}
 
-                  {(req as any).fin_ops_reference && (
+                  {req.fin_ops_approved_at && (
                     <div className="flex items-center gap-1.5 text-xs">
-                      <Badge variant="outline" className="text-[10px] font-mono">
-                        Ref: {(req as any).fin_ops_reference}
+                      <Badge variant="outline" className="text-[10px]">
+                        ✓ Fin Ops approved {formatDistanceToNow(new Date(req.fin_ops_approved_at), { addSuffix: true })}
                       </Badge>
-                      {(req as any).fin_ops_verified_at && (
-                        <span className="text-muted-foreground">
-                          Verified {formatDistanceToNow(new Date((req as any).fin_ops_verified_at), { addSuffix: true })}
-                        </span>
-                      )}
                     </div>
                   )}
 
@@ -264,10 +253,7 @@ export function CFOWithdrawalApprovals() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Withdrawal</AlertDialogTitle>
             <AlertDialogDescription>
-              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}.
-              {(selected as any)?.fin_ops_reference && (
-                <> Fin Ops Reference: <strong className="font-mono">{(selected as any).fin_ops_reference}</strong></>
-              )}
+              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}. After your approval, Financial Ops will enter the TID to complete the payout.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -289,7 +275,7 @@ export function CFOWithdrawalApprovals() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea
-            placeholder="Reason for rejection..."
+            placeholder="Reason for rejection (min 10 characters)..."
             value={rejectionReason}
             onChange={e => setRejectionReason(e.target.value)}
             className="mt-2"
@@ -298,7 +284,7 @@ export function CFOWithdrawalApprovals() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReject}
-              disabled={!rejectionReason.trim() || !!processing}
+              disabled={rejectionReason.trim().length < 10 || !!processing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {processing ? 'Rejecting...' : 'Reject'}

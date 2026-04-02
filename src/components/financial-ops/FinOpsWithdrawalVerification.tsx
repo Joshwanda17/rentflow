@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone, ArrowRight,
+  Smartphone, ArrowRight, Banknote,
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -32,6 +32,7 @@ interface WithdrawalRequest {
   bank_account_name: string | null;
   agent_location: string | null;
   created_at: string;
+  fin_ops_reference: string | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
 
@@ -40,43 +41,60 @@ const formatCurrency = (v: number) =>
 
 export function FinOpsWithdrawalVerification() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
+  // Section A: pending requests
+  const [pendingRequests, setPendingRequests] = useState<WithdrawalRequest[]>([]);
+  // Section B: cfo_approved requests awaiting TID
+  const [tidRequests, setTidRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [tidOpen, setTidOpen] = useState(false);
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [reference, setReference] = useState('');
 
+  const fetchProfiles = async (data: any[]) => {
+    if (!data.length) return [];
+    const userIds = [...new Set(data.map(r => r.user_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone, avatar_url')
+      .in('id', userIds);
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    return data.map(r => ({
+      ...r,
+      user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
+    }));
+  };
+
   const fetchRequests = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('withdrawal_requests')
-        .select('*')
-        .in('status', ['pending', 'requested'])
-        .order('created_at', { ascending: true })
-        .limit(100);
+      const [pendingRes, tidRes] = await Promise.all([
+        supabase
+          .from('withdrawal_requests')
+          .select('*')
+          .in('status', ['pending', 'requested'])
+          .order('created_at', { ascending: true })
+          .limit(100),
+        supabase
+          .from('withdrawal_requests')
+          .select('*')
+          .eq('status', 'cfo_approved')
+          .order('created_at', { ascending: true })
+          .limit(100),
+      ]);
 
-      if (error) throw error;
+      if (pendingRes.error) throw pendingRes.error;
+      if (tidRes.error) throw tidRes.error;
 
-      if (data && data.length > 0) {
-        const userIds = [...new Set(data.map(r => r.user_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, avatar_url')
-          .in('id', userIds);
+      const [pendingWithProfiles, tidWithProfiles] = await Promise.all([
+        fetchProfiles(pendingRes.data || []),
+        fetchProfiles(tidRes.data || []),
+      ]);
 
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-        setRequests(
-          (data as any[]).map(r => ({
-            ...r,
-            user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
-          }))
-        );
-      } else {
-        setRequests([]);
-      }
+      setPendingRequests(pendingWithProfiles);
+      setTidRequests(tidWithProfiles);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
@@ -87,26 +105,62 @@ export function FinOpsWithdrawalVerification() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  const handleVerify = async () => {
+  // Section A: Approve (no TID) → fin_ops_approved
+  const handleApprove = async () => {
+    if (!user || !selected) return;
+    setProcessing(selected.id);
+    try {
+      const { error } = await supabase
+        .from('withdrawal_requests')
+        .update({
+          status: 'fin_ops_approved',
+          fin_ops_approved_at: new Date().toISOString(),
+          fin_ops_approved_by: user.id,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq('id', selected.id);
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'fin_ops_approve_withdrawal',
+        record_id: selected.id,
+        table_name: 'withdrawal_requests',
+        metadata: { amount: selected.amount, target_user: selected.user_id },
+      });
+
+      toast.success('Withdrawal approved & forwarded to CFO');
+      setApproveOpen(false);
+      setSelected(null);
+      fetchRequests();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to approve');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  // Section B: Enter TID & complete → approved
+  const handleTidComplete = async () => {
     if (!user || !selected || reference.trim().length < 3) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'fin_ops_verified',
+          status: 'approved',
           fin_ops_reference: reference.trim().toUpperCase(),
           fin_ops_verified_by: user.id,
           fin_ops_verified_at: new Date().toISOString(),
+          processed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
 
-      // Audit log
       await supabase.from('audit_logs').insert({
         user_id: user.id,
-        action_type: 'fin_ops_verify_withdrawal',
+        action_type: 'fin_ops_complete_withdrawal',
         record_id: selected.id,
         table_name: 'withdrawal_requests',
         metadata: {
@@ -116,13 +170,13 @@ export function FinOpsWithdrawalVerification() {
         },
       });
 
-      toast.success('Withdrawal verified & forwarded to CFO');
-      setVerifyOpen(false);
+      toast.success('Withdrawal completed with TID!');
+      setTidOpen(false);
       setSelected(null);
       setReference('');
       fetchRequests();
     } catch (e: any) {
-      toast.error(e.message || 'Failed to verify');
+      toast.error(e.message || 'Failed to complete');
     } finally {
       setProcessing(null);
     }
@@ -153,7 +207,82 @@ export function FinOpsWithdrawalVerification() {
     const method = req.payout_method || 'mobile_money';
     if (method === 'bank_transfer') return `🏦 ${req.bank_name || 'Bank'} · ${req.bank_account_number || '—'}`;
     if (method === 'cash') return `💵 Cash at: ${req.agent_location || 'Agent'}`;
-    return null; // MoMo shown separately
+    return null;
+  };
+
+  const renderRequestCard = (req: WithdrawalRequest, variant: 'pending' | 'tid') => {
+    const bankLabel = getPayoutLabel(req);
+    const borderClass = variant === 'pending' ? 'border-amber-500/30 bg-amber-500/5' : 'border-emerald-500/30 bg-emerald-500/5';
+    return (
+      <div key={req.id} className={`p-3 rounded-xl border ${borderClass} space-y-2`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <UserAvatar fullName={req.user?.full_name || ''} avatarUrl={req.user?.avatar_url} size="sm" />
+            <div>
+              <p className="text-sm font-bold">{req.user?.full_name}</p>
+              <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
+            </div>
+          </div>
+          <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+        </div>
+
+        {req.mobile_money_number && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Smartphone className="h-3 w-3" />
+            <span className={`uppercase font-medium ${req.mobile_money_provider === 'mtn' ? 'text-yellow-600' : 'text-red-500'}`}>
+              {req.mobile_money_provider || 'MoMo'}
+            </span>
+            <span>•</span>
+            <span>{req.mobile_money_number}</span>
+            {req.mobile_money_name && <><span>•</span><span>{req.mobile_money_name}</span></>}
+          </div>
+        )}
+
+        {bankLabel && <p className="text-xs text-muted-foreground">{bankLabel}</p>}
+
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground">
+            Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+          </p>
+          <div className="flex gap-2">
+            {variant === 'pending' && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs text-destructive border-destructive/30"
+                  onClick={() => { setSelected(req); setRejectOpen(true); }}
+                  disabled={!!processing}
+                >
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Reject
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                  onClick={() => { setSelected(req); setApproveOpen(true); }}
+                  disabled={!!processing}
+                >
+                  <ArrowRight className="h-3 w-3 mr-1" />
+                  Approve
+                </Button>
+              </>
+            )}
+            {variant === 'tid' && (
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => { setSelected(req); setReference(''); setTidOpen(true); }}
+                disabled={!!processing}
+              >
+                <Banknote className="h-3 w-3 mr-1" />
+                Enter TID & Complete
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -168,15 +297,16 @@ export function FinOpsWithdrawalVerification() {
 
   return (
     <>
+      {/* Section A: Pending Approvals */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <ArrowDownToLine className="h-4 w-4 text-primary" />
-              Wallet Withdrawals
-              {requests.length > 0 && (
+              Pending Withdrawals
+              {pendingRequests.length > 0 && (
                 <Badge variant="destructive" className="text-xs animate-pulse">
-                  {requests.length}
+                  {pendingRequests.length}
                 </Badge>
               )}
             </CardTitle>
@@ -186,106 +316,83 @@ export function FinOpsWithdrawalVerification() {
           </div>
         </CardHeader>
         <CardContent>
-          {requests.length === 0 ? (
+          {pendingRequests.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
               No pending wallet withdrawals
             </p>
           ) : (
             <div className="space-y-2">
-              {requests.map(req => {
-                const bankLabel = getPayoutLabel(req);
-                return (
-                  <div
-                    key={req.id}
-                    className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <UserAvatar fullName={req.user?.full_name || ''} avatarUrl={req.user?.avatar_url} size="sm" />
-                        <div>
-                          <p className="text-sm font-bold">{req.user?.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
-                        </div>
-                      </div>
-                      <p className="text-base font-black">{formatCurrency(req.amount)}</p>
-                    </div>
-
-                    {req.mobile_money_number && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Smartphone className="h-3 w-3" />
-                        <span className={`uppercase font-medium ${req.mobile_money_provider === 'mtn' ? 'text-yellow-600' : 'text-red-500'}`}>
-                          {req.mobile_money_provider || 'MoMo'}
-                        </span>
-                        <span>•</span>
-                        <span>{req.mobile_money_number}</span>
-                        {req.mobile_money_name && <><span>•</span><span>{req.mobile_money_name}</span></>}
-                      </div>
-                    )}
-
-                    {bankLabel && (
-                      <p className="text-xs text-muted-foreground">{bankLabel}</p>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] text-muted-foreground">
-                        Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs text-destructive border-destructive/30"
-                          onClick={() => { setSelected(req); setRejectOpen(true); }}
-                          disabled={!!processing}
-                        >
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Reject
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-                          onClick={() => { setSelected(req); setReference(''); setVerifyOpen(true); }}
-                          disabled={!!processing}
-                        >
-                          <ArrowRight className="h-3 w-3 mr-1" />
-                          Verify & Forward
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {pendingRequests.map(req => renderRequestCard(req, 'pending'))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Verify Dialog */}
-      <AlertDialog open={verifyOpen} onOpenChange={setVerifyOpen}>
+      {/* Section B: Awaiting TID Completion (CFO approved) */}
+      {tidRequests.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Banknote className="h-4 w-4 text-emerald-500" />
+              Awaiting TID Completion
+              <Badge variant="secondary" className="text-xs">
+                {tidRequests.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {tidRequests.map(req => renderRequestCard(req, 'tid'))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approve Dialog (no TID required) */}
+      <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Verify & Forward to CFO</AlertDialogTitle>
+            <AlertDialogTitle>Approve & Forward to CFO</AlertDialogTitle>
             <AlertDialogDescription>
-              Verifying <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> withdrawal for {selected?.user?.full_name}. Enter a reference to confirm verification.
+              Approve <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> withdrawal for {selected?.user?.full_name}. This will forward the request to the CFO for sign-off.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleApprove}
+              disabled={!!processing}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {processing ? 'Processing...' : 'Approve & Forward'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* TID Completion Dialog */}
+      <AlertDialog open={tidOpen} onOpenChange={setTidOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Complete with Transaction ID</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the TID for <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> withdrawal to {selected?.user?.full_name}. This finalizes the payout.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
-            placeholder="Enter Reference / TID"
+            placeholder="Enter Transaction ID (TID)"
             value={reference}
             onChange={e => setReference(e.target.value)}
             className="font-mono uppercase"
           />
-          <p className="text-[10px] text-muted-foreground">
-            This will forward the request to the CFO for final approval.
-          </p>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleVerify}
+              onClick={handleTidComplete}
               disabled={!!processing || reference.trim().length < 3}
-              className="bg-primary hover:bg-primary/90"
+              className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {processing ? 'Processing...' : 'Verify & Forward'}
+              {processing ? 'Processing...' : 'Complete Withdrawal'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
