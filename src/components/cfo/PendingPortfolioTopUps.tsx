@@ -52,11 +52,18 @@ export function PendingPortfolioTopUps() {
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {data!.map((op) => (
-                <div key={op.id} className="flex items-center justify-between text-sm border-b border-border/40 pb-1">
-                  <span className="text-muted-foreground truncate max-w-[60%]">
-                    {op.description || 'Portfolio top-up'}
-                  </span>
-                  <span className="font-medium">UGX {Number(op.amount).toLocaleString()}</span>
+                <div key={op.id} className="flex flex-col gap-0.5 text-sm border-b border-border/40 pb-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground truncate max-w-[60%]">
+                      {op.description || 'Portfolio top-up'}
+                    </span>
+                    <span className="font-medium">UGX {Number(op.amount).toLocaleString()}</span>
+                  </div>
+                  {op.metadata && typeof op.metadata === 'object' && (op.metadata as any).reason && (
+                    <p className="text-[10px] text-muted-foreground/70 italic truncate">
+                      Reason: {(op.metadata as any).reason}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
