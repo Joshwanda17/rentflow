@@ -655,9 +655,10 @@ Full access to all Manager features + system configuration + role assignment wit
 - Income Statement, Balance Sheet, Cash Flow views
 - Compact currency display (3.5M, 120K) with tooltips
 - CSV export for offline auditing
-- Mandatory CFO sign-off for: ROI payouts, commissions, withdrawals
+- Mandatory CFO sign-off for: ROI payouts, commissions
 - Buffer/escrow monitoring
 - Coverage ratio and liquidity indicators
+- **Note:** Wallet withdrawal approvals are now handled entirely by Financial Ops (single-step) — CFO no longer has a separate withdrawal approval queue
 
 ---
 
