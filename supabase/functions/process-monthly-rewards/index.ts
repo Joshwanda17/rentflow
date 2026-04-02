@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log("Monthly referral rewards processed successfully!");
+    // Processing complete
 
     return new Response(
       JSON.stringify({ 

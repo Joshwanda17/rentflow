@@ -209,7 +209,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Transfer successful: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
+    // Success logged via system event only
 
     // Log system event
     logSystemEvent(adminClient, 'wallet_transfer', senderId, 'wallets', txGroupId, { amount, recipient_id: resolvedRecipientId });

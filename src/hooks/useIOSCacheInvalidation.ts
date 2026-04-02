@@ -278,9 +278,8 @@ export function useIOSCacheInvalidation() {
 
   // Expose manual refresh function
   const forceRefresh = useCallback(async () => {
-    console.log('[Mobile Cache] Manual refresh triggered');
     await checkServiceWorkerUpdate();
-    await invalidateAllData(false); // Show toast for manual refresh
+    await invalidateAllData(false);
   }, [checkServiceWorkerUpdate, invalidateAllData]);
 
   return { 
