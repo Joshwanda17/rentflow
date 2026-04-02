@@ -186,10 +186,10 @@ export function FinOpsWithdrawalVerification() {
       });
 
       toast.success('Withdrawal completed with TID!');
+      setTidRequests(prev => prev.filter(r => r.id !== selected.id));
       setTidOpen(false);
       setSelected(null);
       setReference('');
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to complete');
     } finally {
