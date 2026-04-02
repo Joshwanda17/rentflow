@@ -11,6 +11,8 @@ export default function CEODashboardPage() {
     switch (activeTab) {
       case 'staff-performance':
         return <StaffPerformancePanel />;
+      case 'angel-pool':
+        return <AngelPoolManagementPanel userRole="ceo" />;
       default:
         return <CEODashboard />;
     }

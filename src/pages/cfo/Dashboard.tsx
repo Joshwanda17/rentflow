@@ -101,6 +101,8 @@ export default function CFODashboardPage() {
             <PendingPortfolioTopUps />
           </div>
         );
+      case 'angel-pool':
+        return <AngelPoolManagementPanel userRole="cfo" />;
       default:
         return (
           <div className="space-y-4">
