@@ -29,6 +29,49 @@ function writeLocalCache(userId: string, data: { earnings: Earning[]; paidOut: n
   } catch {}
 }
 
+export interface EarningBreakdown {
+  rentCommission: number;
+  investmentCommission: number;
+  subagentCommission: number;
+  registrationBonus: number;
+  verificationBonus: number;
+  facilitationBonus: number;
+  listingBonus: number;
+  approvalBonus: number;
+  referralBonus: number;
+  other: number;
+}
+
+const EARNING_CATEGORIES: Record<string, keyof EarningBreakdown> = {
+  commission: 'rentCommission',
+  rent_commission: 'rentCommission',
+  investment_commission: 'investmentCommission',
+  subagent_commission: 'subagentCommission',
+  subagent_override: 'subagentCommission',
+  registration: 'registrationBonus',
+  registration_bonus: 'registrationBonus',
+  verification_bonus: 'verificationBonus',
+  rent_funded_bonus: 'facilitationBonus',
+  facilitation_bonus: 'facilitationBonus',
+  listing_bonus: 'listingBonus',
+  approval_bonus: 'approvalBonus',
+  referral_bonus: 'referralBonus',
+  referral: 'referralBonus',
+};
+
+function buildBreakdown(data: Earning[]): EarningBreakdown {
+  const b: EarningBreakdown = {
+    rentCommission: 0, investmentCommission: 0, subagentCommission: 0,
+    registrationBonus: 0, verificationBonus: 0, facilitationBonus: 0,
+    listingBonus: 0, approvalBonus: 0, referralBonus: 0, other: 0,
+  };
+  data.forEach(e => {
+    const cat = EARNING_CATEGORIES[e.earning_type] || 'other';
+    b[cat] += Number(e.amount);
+  });
+  return b;
+}
+
 export function useAgentEarnings() {
   const { user } = useAuth();
   const [earnings, setEarnings] = useState<Earning[]>([]);
@@ -38,12 +81,19 @@ export function useAgentEarnings() {
   const [bonusTotal, setBonusTotal] = useState(0);
   const [totalPaidOut, setTotalPaidOut] = useState(0);
   const [availableToWithdraw, setAvailableToWithdraw] = useState(0);
+  const [breakdown, setBreakdown] = useState<EarningBreakdown>({
+    rentCommission: 0, investmentCommission: 0, subagentCommission: 0,
+    registrationBonus: 0, verificationBonus: 0, facilitationBonus: 0,
+    listingBonus: 0, approvalBonus: 0, referralBonus: 0, other: 0,
+  });
 
   const computeTotals = (data: Earning[], paidOut: number, walletBalance: number) => {
     const total = data.reduce((sum, e) => sum + Number(e.amount), 0);
+    const b = buildBreakdown(data);
     setTotalEarnings(total);
-    setCommissionTotal(data.filter(e => e.earning_type === 'commission').reduce((sum, e) => sum + Number(e.amount), 0));
-    setBonusTotal(data.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'listing_bonus'].includes(e.earning_type)).reduce((sum, e) => sum + Number(e.amount), 0));
+    setCommissionTotal(b.rentCommission + b.investmentCommission + b.subagentCommission);
+    setBonusTotal(b.registrationBonus + b.verificationBonus + b.facilitationBonus + b.listingBonus + b.approvalBonus + b.referralBonus);
+    setBreakdown(b);
     setTotalPaidOut(paidOut);
     setAvailableToWithdraw(Math.max(0, walletBalance));
   };
@@ -125,6 +175,7 @@ export function useAgentEarnings() {
     totalEarnings,
     commissionTotal,
     bonusTotal,
+    breakdown,
     totalPaidOut,
     availableToWithdraw,
     refreshEarnings: fetchEarnings,
