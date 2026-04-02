@@ -650,10 +650,10 @@ export function WithdrawalRequestsManager() {
       if (requestError) throw requestError;
 
       toast.success('Withdrawal noted — visible on CFO dashboard');
+      setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
       setApproveDialogOpen(false);
       setTransactionId('');
       setSelectedRequest(null);
-      fetchRequests();
     } catch (error: any) {
       console.error('Error processing withdrawal:', error);
       toast.error(error.message || 'Failed to process withdrawal');
