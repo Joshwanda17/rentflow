@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut } from 'lucide-react';
+import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
@@ -215,6 +215,15 @@ const DashboardHeader = memo(function DashboardHeader({
                       <Globe className="h-4 w-4 text-primary" />
                     </div>
                     Messages
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate('/agent-commission-benefits')}
+                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                  >
+                    <div className="p-1.5 rounded-lg bg-primary/10">
+                      <Coins className="h-4 w-4 text-primary" />
+                    </div>
+                    Agent Commission Benefits
                   </DropdownMenuItem>
 
                   {menuItems.length > 0 && <DropdownMenuSeparator />}

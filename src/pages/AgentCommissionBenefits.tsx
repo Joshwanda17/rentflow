@@ -1,0 +1,188 @@
+import { ArrowLeft, Percent, Users, Award, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+const AgentCommissionBenefits = () => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-primary shadow-sm">
+        <div className="px-3 py-2.5 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-white/10 rounded-xl h-10 w-10">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-base font-bold text-white">Agent Commission Benefits</h1>
+        </div>
+      </header>
+
+      <div className="p-4 space-y-4 max-w-2xl mx-auto pb-8">
+        {/* Repayment Commission */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Percent className="h-4 w-4 text-primary" />
+              </div>
+              Repayment Commission — 10%
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>Each tenant repayment triggers a commission of <span className="font-semibold text-foreground">exactly 10%</span> of the repayment amount. This is split among agents based on their role.</p>
+
+            <div className="rounded-xl border border-border/60 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="text-left px-3 py-2 font-semibold text-foreground">Role</th>
+                    <th className="text-right px-3 py-2 font-semibold text-foreground">Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-2.5">
+                      <span className="font-medium text-foreground">Source Agent</span>
+                      <br />
+                      <span className="text-xs">The agent who onboarded the tenant</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-primary">2%</td>
+                  </tr>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-2.5">
+                      <span className="font-medium text-foreground">Tenant Manager</span>
+                      <br />
+                      <span className="text-xs">The currently assigned agent</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-primary">8%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recruiter Override */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-accent/50">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              Recruiter Override
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>If the Tenant Manager was recruited by another agent, the <span className="font-semibold text-foreground">recruiter receives 2%</span> of the total repayment, and the Manager keeps the remaining <span className="font-semibold text-foreground">6%</span>.</p>
+
+            <div className="bg-muted/40 rounded-xl p-3 space-y-1.5">
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Example — UGX 100,000 repayment</p>
+              <div className="flex justify-between"><span>Source Agent (2%)</span><span className="font-medium text-foreground">UGX 2,000</span></div>
+              <div className="flex justify-between"><span>Tenant Manager (6%)</span><span className="font-medium text-foreground">UGX 6,000</span></div>
+              <div className="flex justify-between"><span>Recruiter Override (2%)</span><span className="font-medium text-foreground">UGX 2,000</span></div>
+              <div className="flex justify-between border-t border-border/40 pt-1.5 font-semibold text-foreground"><span>Total</span><span>UGX 10,000 (10%)</span></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Edge Cases */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-muted">
+                <BookOpen className="h-4 w-4 text-primary" />
+              </div>
+              Important Rules
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2.5 text-sm text-muted-foreground">
+              <li className="flex gap-2">
+                <span className="text-primary font-bold">•</span>
+                <span>Only <span className="font-medium text-foreground">one Source Agent</span> and <span className="font-medium text-foreground">one Manager</span> per tenant.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary font-bold">•</span>
+                <span>If Source and Manager are the <span className="font-medium text-foreground">same person</span>, they receive the full <span className="font-semibold text-foreground">10%</span>.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary font-bold">•</span>
+                <span>If there is <span className="font-medium text-foreground">no recruiter</span>, the Manager keeps the full <span className="font-semibold text-foreground">8%</span>.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary font-bold">•</span>
+                <span>Commission must <span className="font-medium text-foreground">always total exactly 10%</span> — never exceed this.</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Event-Based Bonuses */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Award className="h-4 w-4 text-primary" />
+              </div>
+              Event-Based Bonuses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-xl border border-border/60 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="text-left px-3 py-2 font-semibold text-foreground">Event</th>
+                    <th className="text-right px-3 py-2 font-semibold text-foreground">Bonus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-2.5 text-muted-foreground">Rent request posted</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 5,000</td>
+                  </tr>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-2.5 text-muted-foreground">Empty house listed</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 5,000</td>
+                  </tr>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-2.5 text-muted-foreground">Tenant replacement</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 20,000</td>
+                  </tr>
+                  <tr className="border-t border-border/40">
+                    <td className="px-3 py-2.5 text-muted-foreground">Sub-agent registration</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-foreground">UGX 10,000</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Ledger Tracking */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-muted">
+                <BookOpen className="h-4 w-4 text-primary" />
+              </div>
+              Ledger Tracking
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <p>All commissions are logged in a ledger for full transparency, recording:</p>
+            <ul className="mt-2 space-y-1 list-disc list-inside">
+              <li>Agent ID &amp; Tenant ID</li>
+              <li>Event type (repayment, onboarding, listing, etc.)</li>
+              <li>Commission amount &amp; percentage</li>
+              <li>Timestamp</li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default AgentCommissionBenefits;
