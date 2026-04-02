@@ -600,6 +600,9 @@ Deno.serve(async (req) => {
 
     console.log(`[agent-deposit] Deposit completed: User ${targetUserId}, Amount: ${amount}, Repayment: ${repaymentAmount}, Commission: ${commission}`);
 
+    // Log system event
+    logSystemEvent(adminClient, 'agent_collection', agentId, 'wallet_deposits', targetUserId!, { amount, repayment: repaymentAmount, commission });
+
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {

@@ -163,6 +163,9 @@ Deno.serve(async (req) => {
         },
       });
 
+      // Log system event
+      logSystemEvent(admin, 'withdrawal_rejected', user.id, withdrawal_type === 'float' ? 'agent_float_withdrawals' : 'withdrawal_requests', wId, { amount: wr.amount, withdrawal_type, refunded });
+
       results.push({ id: wId, status: 'rejected', refunded });
     }
 

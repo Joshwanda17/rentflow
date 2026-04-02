@@ -269,6 +269,9 @@ Deno.serve(async (req) => {
     }).catch(() => {});
 
 
+    // Log system event
+    logSystemEvent(serviceClient, 'rent_disbursed', user.id, 'rent_requests', rent_request_id, { rent_amount: request.rent_amount, landlord_id: request.landlord_id, payout_method: method });
+
     return new Response(
       JSON.stringify({
         success: true,

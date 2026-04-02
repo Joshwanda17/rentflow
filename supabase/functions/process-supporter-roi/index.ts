@@ -230,6 +230,9 @@ Deno.serve(async (req) => {
         }).eq('id', rr.id);
 
         results.totalAmount += roiAmount;
+        // Log system event
+        logSystemEvent(supabase, 'roi_distributed', rr.supporter_id, 'supporter_roi_payments', rr.id, { amount: roiAmount, payment_number: paymentNumber, reinvested: shouldReinvest });
+
         console.log(`[process-supporter-roi] ${shouldReinvest ? 'Reinvested' : 'Paid'} ${roiAmount} for supporter ${rr.supporter_id} (payment #${paymentNumber})`);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);

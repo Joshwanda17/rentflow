@@ -303,6 +303,9 @@ serve(async (req) => {
       // Don't await — fire and forget
       Promise.all(smsPromises).catch(e => console.error("SMS batch error:", e));
 
+      // Log system event
+      logSystemEvent(adminClient, 'rent_request_approved', approverId, 'rent_requests', rent_request_id, { rent_amount: rentRequest.rent_amount, tenant_id: rentRequest.tenant_id });
+
       return new Response(
         JSON.stringify({
           success: true,

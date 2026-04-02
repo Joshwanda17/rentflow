@@ -211,6 +211,9 @@ serve(async (req) => {
 
     console.log(`Transfer successful: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
 
+    // Log system event
+    logSystemEvent(adminClient, 'wallet_transfer', senderId, 'wallets', txGroupId, { amount, recipient_id: resolvedRecipientId });
+
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
