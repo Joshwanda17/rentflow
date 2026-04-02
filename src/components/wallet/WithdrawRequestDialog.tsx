@@ -133,13 +133,21 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
+        const isMomo = payoutMode === 'mtn' || payoutMode === 'airtel';
         const { error } = await supabase.from('withdrawal_requests').insert({
           user_id: user.id,
           amount,
           status: 'pending' as const,
-          mobile_money_number: payoutMode === 'mtn' || payoutMode === 'airtel' ? momoNumber.trim() : null,
-          mobile_money_provider: payoutMode === 'mtn' || payoutMode === 'airtel' ? payoutMode : null,
-        });
+          mobile_money_number: isMomo ? momoNumber.trim() : null,
+          mobile_money_provider: isMomo ? payoutMode : null,
+          mobile_money_name: isMomo ? momoName.trim() : null,
+          payout_method: payoutMode === 'bank' ? 'bank_transfer' : payoutMode === 'cash' ? 'cash' : 'mobile_money',
+          bank_name: payoutMode === 'bank' ? bankName : null,
+          bank_account_name: payoutMode === 'bank' ? bankAccountName.trim() : null,
+          bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
+          agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
+          reason: reason.trim(),
+        } as any);
         if (error) throw error;
 
         if (payoutMode === 'mtn' || payoutMode === 'airtel') {
