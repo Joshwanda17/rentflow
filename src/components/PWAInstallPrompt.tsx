@@ -223,11 +223,7 @@ export default function PWAInstallPrompt() {
                   style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
                 >
                   <Download className="h-5 w-5" />
-                  {isInstalling
-                    ? 'Installing…'
-                    : platform.installMethod === 'prompt'
-                      ? 'Install Now'
-                      : 'How to Install'}
+                  {isInstalling ? 'Installing…' : 'Install App'}
                 </Button>
 
               </div>
