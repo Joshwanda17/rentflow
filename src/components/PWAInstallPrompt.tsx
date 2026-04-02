@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { detectPlatform, getBrowserName, getOSName } from '@/lib/platformDetection';
+import { detectPlatform } from '@/lib/platformDetection';
 import AdaptiveInstallGuide from './AdaptiveInstallGuide';
 
 const features = [
@@ -15,61 +15,38 @@ const features = [
 ];
 
 export default function PWAInstallPrompt() {
-  const { isInstallable, isInstalled, promptInstall, hasPrompt } = usePWAInstall();
+  const { isInstallable, isInstalled, promptInstall, hasPrompt, isIOS } = usePWAInstall();
   const [showPrompt, setShowPrompt] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [platform] = useState(() => detectPlatform());
   const [isInstalling, setIsInstalling] = useState(false);
-  const [autoInstallAttempted, setAutoInstallAttempted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // No dismiss cooldown — always show until installed
-  const hasRecentlyDismissed = useCallback(() => false, []);
-
-  const isMobile = platform.device === 'mobile' || platform.device === 'tablet';
-
+  // Show the prompt only when we actually have a native prompt OR on iOS
   useEffect(() => {
     if (isInstalled) return;
-    if (hasRecentlyDismissed()) return;
 
     if (platform.os === 'ios') {
+      // iOS: show manual install guide
       setShowPrompt(true);
       const timer = setTimeout(() => setShowInstallGuide(true), 300);
       return () => clearTimeout(timer);
     }
 
-    setShowPrompt(true);
-  }, [isInstalled, platform, hasRecentlyDismissed]);
-
-  useEffect(() => {
-    if (autoInstallAttempted) return;
-    if (isInstalled) return;
-    if (hasRecentlyDismissed()) return;
-
-    if ((isInstallable || hasPrompt) && platform.installMethod === 'prompt') {
-      setAutoInstallAttempted(true);
-      const timer = setTimeout(async () => {
-        console.log('[PWA] Auto-triggering install prompt...');
-        const success = await promptInstall();
-        if (success) {
-          setShowPrompt(false);
-          toast.success('App installed!');
-          navigate('/auth', { replace: true });
-        } else {
-          setShowPrompt(true);
-        }
-      }, 400);
-      return () => clearTimeout(timer);
+    // Android/Desktop Chrome: only show when native prompt is available
+    if (isInstallable || hasPrompt) {
+      setShowPrompt(true);
+    } else {
+      setShowPrompt(false);
     }
-  }, [isInstallable, hasPrompt, platform.installMethod, isInstalled, autoInstallAttempted, promptInstall, navigate, hasRecentlyDismissed]);
+  }, [isInstalled, platform.os, isInstallable, hasPrompt]);
 
   const handleInstall = async () => {
     if (isInstalling) return;
     setIsInstalling(true);
 
     try {
-      // Try native prompt immediately
       if (isInstallable || hasPrompt) {
         const success = await promptInstall();
         if (success) {
@@ -78,23 +55,15 @@ export default function PWAInstallPrompt() {
           setTimeout(() => navigate('/auth', { replace: true }), 1000);
           return;
         }
-      }
-
-      // Prompt may not be ready yet — wait and retry once
-      await new Promise(r => setTimeout(r, 800));
-      const retrySuccess = await promptInstall();
-      if (retrySuccess) {
+        // Prompt was dismissed — hide the modal (prompt is consumed)
         setShowPrompt(false);
-        toast.success('App installed! Redirecting to login...');
-        setTimeout(() => navigate('/auth', { replace: true }), 1000);
         return;
       }
 
-      // iOS special case: show share instruction
+      // iOS: show share instruction
       if (platform.os === 'ios') {
         toast.info('Tap the Share button ⎋ then "Add to Home Screen"', { duration: 6000 });
       }
-      // Android/other: stay silent, keep button visible
     } catch (error) {
       console.error('[PWA] Install error:', error);
     } finally {
@@ -102,12 +71,12 @@ export default function PWAInstallPrompt() {
     }
   };
 
-  // Dismiss just closes the current prompt view; it will reappear on next page load since there's no cooldown
   const handleDismiss = () => {
     setShowPrompt(false);
     setShowInstallGuide(false);
   };
 
+  // Post-install redirect
   useEffect(() => {
     const justInstalled = localStorage.getItem('welile_pwa_installed');
     const installedAt = localStorage.getItem('welile_pwa_installed_at');
@@ -123,24 +92,10 @@ export default function PWAInstallPrompt() {
 
   if (isInstalled) return null;
 
-  if (showInstallGuide) {
+  if (showInstallGuide && platform.os === 'ios') {
     return (
       <AdaptiveInstallGuide
         onClose={handleDismiss}
-        onInstall={(platform.installMethod === 'prompt' && (isInstallable || hasPrompt)) ? async () => {
-          setIsInstalling(true);
-          try {
-            const success = await promptInstall();
-            if (success) {
-              toast.success('App installed!');
-              navigate('/auth', { replace: true });
-              return true;
-            }
-            return false;
-          } finally {
-            setIsInstalling(false);
-          }
-        } : undefined}
       />
     );
   }
@@ -229,7 +184,6 @@ export default function PWAInstallPrompt() {
                   <Download className="h-5 w-5" />
                   {isInstalling ? 'Installing…' : 'Install App'}
                 </Button>
-
               </div>
 
               {/* Footer info */}
