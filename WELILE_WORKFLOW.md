@@ -1436,7 +1436,11 @@ Repayment hierarchy:
   2. Accumulated debt
   3. Future daily installments (advances next_charge_date)
     ↓
-Agent earns 5% commission (via credit_agent_rent_commission RPC)
+Agent earns 10% commission split (via credit_agent_rent_commission RPC):
+  - Source Agent: 2% of repayment amount
+  - Tenant Manager: 8% (or 6% if recruiter exists)
+  - Recruiter Override: 2% (if recruiter exists, from manager's share)
+  Platform records cash_out/marketing_expense (platform scope) + cash_in/agent_commission (wallet scope)
     ↓
 If RPC fails → deductions reversed
 ```
