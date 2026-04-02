@@ -28,6 +28,9 @@ interface WithdrawalRequest {
   mobile_money_name: string | null;
   created_at: string;
   manager_approved_at: string | null;
+  fin_ops_reference: string | null;
+  fin_ops_verified_by: string | null;
+  fin_ops_verified_at: string | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
 
@@ -40,7 +43,7 @@ export function CFOWithdrawalApprovals() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [transactionId, setTransactionId] = useState('');
+  const [transactionId, setTransactionId] = useState(''); // kept for state cleanup only
 
   const formatCurrency = (v: number) =>
     new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(v);
@@ -50,7 +53,7 @@ export function CFOWithdrawalApprovals() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .eq('status', 'pending')
+        .eq('status', 'fin_ops_verified')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -84,7 +87,7 @@ export function CFOWithdrawalApprovals() {
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
   const handleApprove = async () => {
-    if (!user || !selected || !transactionId.trim()) return;
+    if (!user || !selected) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
@@ -95,14 +98,22 @@ export function CFOWithdrawalApprovals() {
           cfo_approved_by: user.id,
           processed_by: user.id,
           processed_at: new Date().toISOString(),
-          transaction_id: transactionId.trim().toUpperCase(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
-      toast.success('Withdrawal approved & payment confirmed!');
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'cfo_approve_withdrawal',
+        record_id: selected.id,
+        table_name: 'withdrawal_requests',
+        metadata: { amount: selected.amount, target_user: selected.user_id },
+      });
+
+      toast.success('Withdrawal approved!');
       setApproveOpen(false);
       setSelected(null);
-      setTransactionId('');
       fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
@@ -201,6 +212,19 @@ export function CFOWithdrawalApprovals() {
                     </div>
                   )}
 
+                  {(req as any).fin_ops_reference && (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        Ref: {(req as any).fin_ops_reference}
+                      </Badge>
+                      {(req as any).fin_ops_verified_at && (
+                        <span className="text-muted-foreground">
+                          Verified {formatDistanceToNow(new Date((req as any).fin_ops_verified_at), { addSuffix: true })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] text-muted-foreground">
                       Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
@@ -219,11 +243,11 @@ export function CFOWithdrawalApprovals() {
                       <Button
                         size="sm"
                         className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => { setSelected(req); setTransactionId(''); setApproveOpen(true); }}
+                        onClick={() => { setSelected(req); setApproveOpen(true); }}
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Approve & Pay
+                        Approve
                       </Button>
                     </div>
                   </div>
@@ -238,21 +262,18 @@ export function CFOWithdrawalApprovals() {
       <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Withdrawal & Confirm Payment</AlertDialogTitle>
+            <AlertDialogTitle>Approve Withdrawal</AlertDialogTitle>
             <AlertDialogDescription>
-              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}. Enter the Transaction ID to confirm payment.
+              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}.
+              {(selected as any)?.fin_ops_reference && (
+                <> Fin Ops Reference: <strong className="font-mono">{(selected as any).fin_ops_reference}</strong></>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <Input
-            placeholder="Enter Transaction ID"
-            value={transactionId}
-            onChange={e => setTransactionId(e.target.value)}
-            className="font-mono uppercase"
-          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()} className="bg-emerald-600 hover:bg-emerald-700">
-              {processing ? 'Processing...' : 'Approve & Confirm Payment'}
+            <AlertDialogAction onClick={handleApprove} disabled={!!processing} className="bg-emerald-600 hover:bg-emerald-700">
+              {processing ? 'Processing...' : 'Approve Withdrawal'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

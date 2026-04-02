@@ -293,11 +293,11 @@ export function ApprovalQueue() {
           if (rejectErr) throw rejectErr;
         } else {
           const updateFields: Record<string, unknown> = {
-            status: 'manager_approved',
-            manager_approved_by: user.id,
-            manager_approved_at: new Date().toISOString(),
+            status: 'fin_ops_verified',
+            fin_ops_verified_by: user.id,
+            fin_ops_verified_at: new Date().toISOString(),
+            fin_ops_reference: payoutProof.trim().toUpperCase(),
             updated_at: new Date().toISOString(),
-            payout_proof: payoutProof.trim(),
           };
           const selectedItem = items.find(i => selected.has(i.id));
           const method = selectedItem?.payoutDetails?.method || 'mobile_money';

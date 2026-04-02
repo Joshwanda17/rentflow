@@ -8456,6 +8456,9 @@ export type Database = {
           coo_approved_by: string | null
           created_at: string
           dispatched_at: string | null
+          fin_ops_reference: string | null
+          fin_ops_verified_at: string | null
+          fin_ops_verified_by: string | null
           id: string
           manager_approved_at: string | null
           manager_approved_by: string | null
@@ -8491,6 +8494,9 @@ export type Database = {
           coo_approved_by?: string | null
           created_at?: string
           dispatched_at?: string | null
+          fin_ops_reference?: string | null
+          fin_ops_verified_at?: string | null
+          fin_ops_verified_by?: string | null
           id?: string
           manager_approved_at?: string | null
           manager_approved_by?: string | null
@@ -8526,6 +8532,9 @@ export type Database = {
           coo_approved_by?: string | null
           created_at?: string
           dispatched_at?: string | null
+          fin_ops_reference?: string | null
+          fin_ops_verified_at?: string | null
+          fin_ops_verified_by?: string | null
           id?: string
           manager_approved_at?: string | null
           manager_approved_by?: string | null
