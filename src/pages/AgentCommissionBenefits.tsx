@@ -1,10 +1,11 @@
-import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star } from 'lucide-react';
+import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/assets/welile-logo.jpeg';
 import WelileServiceCentrePoster from '@/assets/welile-service-centre-poster.jpeg';
 import { toast } from 'sonner';
+import { ServiceCentreSubmissionForm } from '@/components/agent/ServiceCentreSubmissionForm';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
