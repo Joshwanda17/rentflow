@@ -107,9 +107,9 @@ export function CFOWithdrawalApprovals() {
       });
 
       toast.success('Withdrawal approved — forwarded to Fin Ops for TID completion');
+      setRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
       setSelected(null);
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
     } finally {
