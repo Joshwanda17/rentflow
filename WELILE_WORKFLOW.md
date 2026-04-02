@@ -1245,7 +1245,7 @@ Mobile-first, card-based navigation matching the COO/Tenant Ops pattern:
 
 ### Live Pulse Strip
 - Real-time metrics via RPC `get_financial_ops_pulse`
-- Includes: pending, requested, manager_approved, cfo_approved counts
+- Includes: pending withdrawal counts, approval rates
 - Total volume, approval rates
 
 ### TID Verification Tab (High Priority)
