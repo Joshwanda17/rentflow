@@ -1,17 +1,20 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAngelPoolConfig } from '@/hooks/useAngelPoolConfig';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { Settings, Download, ArrowUpDown, TrendingUp, Users, PieChart, DollarSign, BarChart3, Layers } from 'lucide-react';
+import { Settings, Download, ArrowUpDown, TrendingUp, Users, PieChart, DollarSign, BarChart3, Layers, Trash2, Ban, Pencil, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Props {
   userRole: string;
@@ -29,6 +32,7 @@ interface Investor {
 }
 
 export function AngelPoolManagementPanel({ userRole }: Props) {
+  const qc = useQueryClient();
   const { config, isLoading: configLoading, updateConfig } = useAngelPoolConfig();
   const [editOpen, setEditOpen] = useState(false);
   const [editValues, setEditValues] = useState({ total_pool_ugx: 0, total_shares: 0, price_per_share: 0, pool_equity_percent: 0 });
@@ -36,6 +40,13 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 15;
+
+  // Shareholder action states
+  const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | null>(null);
+  const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
+  const [actionReason, setActionReason] = useState('');
+  const [editShares, setEditShares] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Fetch investments joined with profiles
   const { data: investments = [], isLoading: investLoading } = useQuery({
@@ -105,6 +116,78 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       shares: i.total_shares,
     }));
   }, [investments]);
+
+  const openAction = (type: 'delete' | 'suspend' | 'edit', inv: Investor) => {
+    setActionType(type);
+    setSelectedInvestor(inv);
+    setActionReason('');
+    setEditShares(inv.total_shares);
+  };
+
+  const closeAction = () => { setActionType(null); setSelectedInvestor(null); setActionReason(''); setActionLoading(false); };
+
+  const handleAction = async () => {
+    if (!selectedInvestor || !actionType) return;
+    if (actionReason.trim().length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+    setActionLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (actionType === 'delete') {
+        const { error } = await supabase
+          .from('angel_pool_investments')
+          .update({ status: 'deleted' })
+          .eq('investor_id', selectedInvestor.investor_id)
+          .eq('status', 'confirmed');
+        if (error) throw error;
+      } else if (actionType === 'suspend') {
+        const { error } = await supabase
+          .from('angel_pool_investments')
+          .update({ status: 'suspended' })
+          .eq('investor_id', selectedInvestor.investor_id)
+          .eq('status', 'confirmed');
+        if (error) throw error;
+      } else if (actionType === 'edit') {
+        // Update shares for all confirmed investments — simple proportional update
+        const shareDiff = editShares - selectedInvestor.total_shares;
+        if (shareDiff === 0) { toast.info('No changes to save'); setActionLoading(false); return; }
+        // For simplicity, update all confirmed rows for this investor to new total
+        const { error } = await supabase
+          .from('angel_pool_investments')
+          .update({
+            shares: editShares,
+            amount: editShares * config.price_per_share,
+            pool_ownership_percent: (editShares / config.total_shares) * 100,
+            company_ownership_percent: (editShares / config.total_shares) * config.pool_equity_percent,
+          })
+          .eq('investor_id', selectedInvestor.investor_id)
+          .eq('status', 'confirmed');
+        if (error) throw error;
+      }
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: `angel_pool_shareholder_${actionType}`,
+        table_name: 'angel_pool_investments',
+        record_id: selectedInvestor.investor_id,
+        metadata: {
+          investor_name: selectedInvestor.name,
+          reason: actionReason.trim(),
+          ...(actionType === 'edit' ? { old_shares: selectedInvestor.total_shares, new_shares: editShares } : {}),
+        } as any,
+      });
+
+      toast.success(`Shareholder ${actionType === 'delete' ? 'deleted' : actionType === 'suspend' ? 'suspended' : 'updated'} successfully`);
+      qc.invalidateQueries({ queryKey: ['angel-pool-management-investors'] });
+      closeAction();
+    } catch (err: any) {
+      toast.error(err.message || 'Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const exportCSV = () => {
     const headers = ['#', 'Name', 'Shares', 'Amount (USh)', 'Pool %', 'Company %', 'Date', 'Status'];
@@ -244,11 +327,12 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                   <TableHead className="text-right hidden md:table-cell">Company %</TableHead>
                   <TableHead className="hidden lg:table-cell">Date</TableHead>
                   <TableHead className="hidden sm:table-cell">Status</TableHead>
+                  {userRole === 'ceo' && <TableHead className="w-12">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginated.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={userRole === 'ceo' ? 9 : 8} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
                 )}
                 {paginated.map((inv, i) => (
                   <TableRow key={inv.investor_id}>
@@ -259,7 +343,27 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                     <TableCell className="text-right hidden md:table-cell">{inv.pool_pct.toFixed(4)}%</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.company_pct.toFixed(4)}%</TableCell>
                     <TableCell className="hidden lg:table-cell">{format(new Date(inv.latest_date), 'dd MMM yyyy')}</TableCell>
-                    <TableCell className="hidden sm:table-cell"><span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">{inv.status}</span></TableCell>
+                    <TableCell className="hidden sm:table-cell"><span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{inv.status}</span></TableCell>
+                    {userRole === 'ceo' && (
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openAction('edit', inv)}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" /> Edit Shares
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openAction('suspend', inv)}>
+                              <Ban className="h-3.5 w-3.5 mr-2" /> Suspend
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => openAction('delete', inv)}>
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -290,6 +394,61 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={updateConfig.isPending}>{updateConfig.isPending ? 'Saving...' : 'Save Changes'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shareholder Action Dialog — CEO only */}
+      <Dialog open={!!actionType} onOpenChange={(open) => { if (!open) closeAction(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === 'delete' && '🗑️ Delete Shareholder'}
+              {actionType === 'suspend' && '⛔ Suspend Shareholder'}
+              {actionType === 'edit' && '✏️ Edit Shareholder'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedInvestor && (
+                <span className="font-medium text-foreground">{selectedInvestor.name}</span>
+              )}
+              {' — '}
+              {actionType === 'delete' && 'This will mark all confirmed investments as deleted.'}
+              {actionType === 'suspend' && 'This will suspend all confirmed investments for this shareholder.'}
+              {actionType === 'edit' && 'Update the share allocation for this shareholder.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {actionType === 'edit' && (
+              <div>
+                <Label>New Total Shares</Label>
+                <Input type="number" min={0} value={editShares} onChange={e => setEditShares(Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current: {selectedInvestor?.total_shares.toLocaleString()} shares · New amount: USh {(editShares * config.price_per_share).toLocaleString()}
+                </p>
+              </div>
+            )}
+            <div>
+              <Label>Reason for {actionType} <span className="text-destructive">*</span></Label>
+              <Textarea
+                placeholder="Provide a detailed reason (min 10 characters)..."
+                value={actionReason}
+                onChange={e => setActionReason(e.target.value)}
+                className="mt-1"
+              />
+              {actionReason.length > 0 && actionReason.trim().length < 10 && (
+                <p className="text-xs text-destructive mt-1">{10 - actionReason.trim().length} more characters needed</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAction} disabled={actionLoading}>Cancel</Button>
+            <Button
+              variant={actionType === 'delete' ? 'destructive' : 'default'}
+              onClick={handleAction}
+              disabled={actionLoading || actionReason.trim().length < 10}
+            >
+              {actionLoading ? 'Processing...' : actionType === 'delete' ? 'Delete' : actionType === 'suspend' ? 'Suspend' : 'Save Changes'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
