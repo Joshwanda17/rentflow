@@ -181,6 +181,19 @@ export function FinancialOpsCommandCenter() {
             <p className="text-xs text-muted-foreground">Post opportunity summaries for supporters</p>
           </div>
         </button>
+        {/* Wallet Deductions */}
+        <button
+          onClick={() => setView('deductions')}
+          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[80px]"
+        >
+          <div className="h-12 w-12 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
+            <MinusCircle className="h-6 w-6 text-orange-600" />
+          </div>
+          <div>
+            <p className="font-bold text-base">Wallet Deductions</p>
+            <p className="text-xs text-muted-foreground">Remove funds from user wallets</p>
+          </div>
+        </button>
       </div>
 
       {/* More Tools Button */}
