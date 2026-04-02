@@ -2735,7 +2735,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               const isDone = completed[p.portfolioId];
               const refPreview = `${p.portfolioId.slice(0, 8)}`;
               return (
-                <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone && "opacity-60 border-green-500/40 bg-green-500/5")}>
+                <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5")}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold text-sm truncate">{p.name}</p>
