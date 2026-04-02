@@ -92,6 +92,14 @@ export default function CFODashboardPage() {
         );
       case 'advanced-ledgers':
         return <LedgerHub />;
+      case 'partner-topups':
+        return (
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold">📊 Partner Top-ups</h1>
+            <p className="text-sm text-muted-foreground">Pending portfolio top-up requests awaiting verification.</p>
+            <PendingPortfolioTopUps />
+          </div>
+        );
       default:
         return (
           <div className="space-y-4">

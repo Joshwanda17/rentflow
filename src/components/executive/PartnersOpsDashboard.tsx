@@ -20,8 +20,9 @@ import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
+import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 
-type Tab = 'portfolios' | 'capital' | 'roi';
+type Tab = 'portfolios' | 'capital' | 'roi' | 'topups';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -117,6 +118,7 @@ export function PartnersOpsDashboard() {
     { key: 'portfolios', label: 'Portfolios', icon: Wallet },
     { key: 'capital', label: 'Capital Flow', icon: DollarSign },
     { key: 'roi', label: 'Returns Payouts', icon: TrendingUp },
+    { key: 'topups', label: 'Top-ups', icon: PlusCircle },
   ];
 
   // ═══ RENDER TAB CONTENT ═══
@@ -134,6 +136,7 @@ export function PartnersOpsDashboard() {
           <ROIPaymentHistory />
         </div>
       );
+      case 'topups': return <PendingPortfolioTopUps />;
       default: return null;
     }
   };

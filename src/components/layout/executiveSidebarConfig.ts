@@ -45,6 +45,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'General Ledger', icon: ClipboardList, id: 'ledger' },
         { label: 'Commission Payouts', icon: Banknote, id: 'commissions' },
         { label: 'Withdrawals', icon: Wallet, id: 'withdrawals' },
+        { label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' },
       ],
     },
     {
@@ -82,6 +83,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Alerts', icon: AlertTriangle, id: 'alerts' },
         { label: 'Withdrawal Approvals', icon: Banknote, id: 'withdrawals' },
         { label: 'Partners', icon: Handshake, id: 'partners' },
+        { label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' },
         { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
       ],
     },
