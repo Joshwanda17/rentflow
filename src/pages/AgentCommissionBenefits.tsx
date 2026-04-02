@@ -59,7 +59,10 @@ Total always = 10%
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-white/10 rounded-xl h-10 w-10">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-base font-bold text-white">Agent Commission Benefits</h1>
+          <h1 className="text-base font-bold text-white flex-1">Agent Commission Benefits</h1>
+          <Button variant="ghost" size="icon" onClick={handleShareWhatsApp} className="text-white hover:bg-white/10 rounded-xl h-10 w-10">
+            <Share2 className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
