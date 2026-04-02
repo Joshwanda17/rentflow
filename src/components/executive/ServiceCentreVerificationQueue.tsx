@@ -158,7 +158,7 @@ export function ServiceCentreVerificationQueue() {
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader className="pb-2ientes">
+      <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Building2 className="h-4 w-4 text-primary" />
           Service Centre Pipeline
@@ -166,7 +166,7 @@ export function ServiceCentreVerificationQueue() {
             <span className="ml-auto bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
               {(setups?.length || 0) + eligibleNotSubmitted.length}
             </span>
-          trend)}
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
