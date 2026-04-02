@@ -708,6 +708,7 @@ export function LandlordOpsDashboard() {
       ? lc1Groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()) || g.village?.toLowerCase().includes(search.toLowerCase()) || g.phone?.includes(search))
       : lc1Groups;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({lc1Groups.length})</h2>
@@ -742,6 +743,19 @@ export function LandlordOpsDashboard() {
           {lc1Groups.length === 0 && !search && <p className="text-center text-muted-foreground py-8">No LC1 data recorded yet</p>}
         </div>
       </div>
+      <LandlordDialogs
+        editLandlord={editLandlord} setEditLandlord={setEditLandlord}
+        editLC1={editLC1} setEditLC1={setEditLC1}
+        assignPerson={assignPerson} setAssignPerson={setAssignPerson}
+        deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
+        deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+        deleting={deleting} setDeleting={setDeleting}
+        previewImages={previewImages} setPreviewImages={setPreviewImages}
+        adjustListing={adjustListing} setAdjustListing={setAdjustListing}
+        actionDialog={actionDialog} setActionDialog={setActionDialog}
+        user={user} refetchAll={refetchAll}
+      />
+      </>
     );
   }
 
