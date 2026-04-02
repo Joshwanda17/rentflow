@@ -510,10 +510,10 @@ export function FinOpsWithdrawalVerification() {
                         </div>
                       </>
                     )}
-                    {selected.payout_method === 'cash' && selected.cash_location && (
+                    {selected.payout_method === 'cash' && (selected as any).cash_location && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Cash Location</span>
-                        <span className="font-medium text-foreground">{selected.cash_location}</span>
+                        <span className="font-medium text-foreground">{(selected as any).cash_location}</span>
                       </div>
                     )}
                     <div className="flex justify-between border-t border-border pt-2 mt-1">
