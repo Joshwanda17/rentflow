@@ -43,8 +43,10 @@ const BREAKDOWN_ITEMS: {
 export default function AgentEarnings() {
   const navigate = useNavigate();
   const { user, role, loading: authLoading } = useAuth();
-  const { earnings, loading, totalEarnings, commissionTotal, bonusTotal, breakdown, availableToWithdraw, totalPaidOut, refreshEarnings } = useAgentEarnings();
+  const { earnings, detailedEarnings, loading, totalEarnings, commissionTotal, bonusTotal, breakdown, availableToWithdraw, totalPaidOut, refreshEarnings, ROLE_LABELS } = useAgentEarnings();
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
+  const [breakdownExpanded, setBreakdownExpanded] = useState(false);
+  const [expandedEarningId, setExpandedEarningId] = useState<string | null>(null);
   const [breakdownExpanded, setBreakdownExpanded] = useState(false);
 
   useEffect(() => {
