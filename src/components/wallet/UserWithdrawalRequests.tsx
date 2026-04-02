@@ -140,7 +140,7 @@ export function UserWithdrawalRequests() {
     }
   };
 
-  const pendingCount = requests.filter(r => ['pending', 'manager_approved', 'cfo_approved'].includes(r.status)).length;
+  const pendingCount = requests.filter(r => ['pending', 'fin_ops_approved', 'cfo_approved'].includes(r.status)).length;
   const displayedRequests = expanded ? requests : requests.slice(0, 3);
 
   if (loading) {
