@@ -90,6 +90,22 @@ export function FinancialOpsCommandCenter() {
     );
   }
 
+  // Sub-view: Wallet Deductions
+  if (view === 'deductions') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <MinusCircle className="h-5 w-5 text-orange-600" />
+          Wallet Deductions
+        </h2>
+        <WalletDeductionPanel />
+      </div>
+    );
+  }
+
   // Sub-view: Active tool
   if (activeTool) {
     return (
