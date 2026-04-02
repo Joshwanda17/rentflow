@@ -5,7 +5,7 @@ import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
   Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
   BarChart3, Lock, Clock, PieChart, ChevronRight,
-  Building, CircleDollarSign, UserCheck, MapPin, ArrowDownToLine
+  Building, CircleDollarSign, UserCheck, MapPin, ArrowDownToLine, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -280,9 +280,7 @@ export function FunderCapitalOpportunities() {
                   className="rounded-full text-xs font-bold gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   <Home className="h-3.5 w-3.5" /> Tenant Support
                   {portfolioCount >= 1 && (
-                    <Badge variant="success" size="sm" className="ml-1 text-[8px] px-1.5 py-0 uppercase tracking-wider">
-                      Active
-                    </Badge>
+                    <Check className="h-3.5 w-3.5 text-white" />
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="angel" variant="pills"
