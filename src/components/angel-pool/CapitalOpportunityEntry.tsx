@@ -564,7 +564,13 @@ export function CapitalOpportunityEntry() {
       </div>
 
       <div className="px-5 pb-4">
-        <Tabs value={activeTab} onValueChange={(v) => { hapticTap(); setActiveTab(v as PoolType); }} className="w-full">
+        <AngelPoolAgreementDialog
+          open={showAgreementDialog}
+          onAccept={handleAgreementAccept}
+          onClose={() => { setShowAgreementDialog(false); setPendingAngelSwitch(null); }}
+          isLoading={angelAgreementLoading}
+        />
+        <Tabs value={activeTab} onValueChange={(v) => { hapticTap(); if (v === 'angel' && !handleAngelTabSwitch()) return; setActiveTab(v as PoolType); }} className="w-full">
           <TabsList variant="pills" className="w-full grid grid-cols-2 gap-2">
             <TabsTrigger value="tenant" variant="pills"
               className="rounded-full text-xs font-bold gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
