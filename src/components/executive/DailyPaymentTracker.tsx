@@ -501,7 +501,8 @@ export function DailyPaymentTracker() {
                             disabled={collectingId === t.rent_request_id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              collectMutation.mutate(t.rent_request_id);
+                              setCollectTarget({ id: t.rent_request_id, name: t.tenant_name, amount: t.daily_repayment });
+                              setCollectReason('');
                             }}
                             className="h-7 px-2 text-[10px] gap-1"
                           >
