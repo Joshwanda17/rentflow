@@ -13,6 +13,17 @@ root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;fl
   <style>@keyframes s{to{transform:rotate(360deg)}}@media(prefers-color-scheme:dark){div[style*=f8fafc]{background:#0f172a!important}}</style>
 </div>`;
 
+// Unregister service workers in preview/iframe to prevent stale cache issues
+const isInIframe = (() => {
+  try { return window.self !== window.top; } catch { return true; }
+})();
+
+if (isPreviewHost || isInIframe) {
+  navigator.serviceWorker?.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister());
+  });
+}
+
 // Clear app caches in background — never blocks startup, never touches auth
 const clearAppCaches = () => {
   try {
