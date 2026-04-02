@@ -2835,7 +2835,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                                 disabled={!!isProcessing}
                                 onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'already_paid' }))}
                               >
-                                <CheckCircle className="h-3 w-3" />
+                                <CheckCircle2 className="h-3 w-3" />
                                 Already Paid
                               </Button>
                             </div>
