@@ -3,7 +3,7 @@ import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
   Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
   BarChart3, Lock, Clock, PieChart, ChevronRight,
-  Building, CircleDollarSign, UserCheck, MapPin, Plus, ArrowDownToLine
+  Building, CircleDollarSign, UserCheck, MapPin, Plus, ArrowDownToLine, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
