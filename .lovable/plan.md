@@ -1,104 +1,107 @@
 
 
-# Plan: Exhaustive Update of WELILE_WORKFLOW.md (Both Files)
+# Service Centre Setup & Verification Flow
 
-## Problem
+## What We're Building
 
-Both `WELILE_WORKFLOW.md` (root) and `public/WELILE_WORKFLOW.md` have several sections that are **outdated or inconsistent** with the current codebase. The user wants every section updated with full UI and backend detail — not summaries.
+A complete workflow where agents set up physical Welile Service Centres, submit proof with GPS location, get verified by Agent Ops Manager, and receive UGX 25,000 from the CFO — all tracked as a marketing expense through the platform ledger.
 
-## Key Discrepancies Found
+## Flow
 
-### 1. Agent Commission Model (CRITICAL — Both files wrong)
+```text
+Agent prints poster/logo → Takes photo of setup → Submits with GPS location
+    ↓
+Agent Ops Manager sees submission → Verifies GPS + agent details → Marks "Verified"
+    ↓
+CFO sees verified submissions → Approves → UGX 25,000 sent to agent wallet
+    ↓
+Platform ledger: cash_out/marketing_expense (platform) + cash_in/agent_commission (wallet)
+```
 
-**Root file** (Section 4.13): Says "5% commission" and "Sub-agent signup: UGX 500". The latest migration (`20260402132328`) confirms:
-- **10% total commission** on rent repayments (not 5%)
-- Source Agent: 2%, Manager Agent: 8% (or 6% if recruiter exists + 2% recruiter override)
-- Flat bonuses: UGX 5,000 (listings, verifications, rent applications), UGX 10,000 (sub-agent registration), UGX 20,000 (tenant replacement)
-- Platform-side outflows categorized as `marketing_expense` (not generic `agent_commission`)
+## Changes
 
-**Public file** (Section 23): Says "5% on rent repayments", "Sub-Agent Split: Sub-agent 4%, Super Agent 1%". Also wrong.
+### 1. New Database Table: `service_centre_setups`
 
-**Section 45 (Cash Flow Summary)** in public file: References "5% commission" and "UGX 500/tenant registration". Both wrong.
+```sql
+CREATE TABLE public.service_centre_setups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id UUID NOT NULL REFERENCES auth.users(id),
+  photo_url TEXT NOT NULL,
+  latitude NUMERIC NOT NULL,
+  longitude NUMERIC NOT NULL,
+  location_name TEXT,           -- e.g. "Kampala Road, near Shell Petrol Station"
+  agent_name TEXT NOT NULL,
+  agent_phone TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',  -- pending → verified → approved → paid
+  verified_by UUID REFERENCES auth.users(id),
+  verified_at TIMESTAMPTZ,
+  approved_by UUID REFERENCES auth.users(id),
+  approved_at TIMESTAMPTZ,
+  rejection_reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
 
-### 2. Double-Entry Commission Ledger (Missing from public file)
+With RLS policies for:
+- Agents: INSERT own submissions, SELECT own submissions
+- Agent Ops Manager roles: SELECT all, UPDATE (to verify)
+- CFO/manager roles: SELECT verified, UPDATE (to approve)
 
-The commission functions now create **paired entries**:
-- Platform: `cash_out`, category `marketing_expense`, scope `platform`
-- Agent: `cash_in`, category `agent_commission`, scope `wallet`
+Storage bucket `service-centre-photos` for the setup photos.
 
-Both linked via shared `transaction_group_id`. This is documented in root file's Section 34 but **not reflected** in:
-- Root Section 4.13 (Agent Earnings Model)
-- Root Section 17.4 (Repayment Accounting — still says "5% commission")
-- Public Section 23 (Agent Earnings)
-- Public Section 31 (Double-Entry Ledger — doesn't mention `marketing_expense`)
-- Public Section 45 (Cash Flow Summary)
+### 2. Agent Commission Benefits Page — New Sections
 
-### 3. `credit_agent_event_bonus` Function (Missing from both files)
+Add to `AgentCommissionBenefits.tsx` after the branding card:
 
-A new RPC that handles flat-fee bonuses with the same double-entry marketing expense pattern. Not documented in the Edge Functions registry or the RPCs section.
+**Printing Instructions Card:**
+- Step-by-step guide in plain language
+- Color codes: Primary Purple `#7214c9`, White `#FFFFFF`, Black text
+- Paper size recommendation (A3 or A2 for poster, A4 for logo)
+- Where to print (any print shop, show them the downloaded image)
+- How to mount (visible wall, window, or signboard)
 
-### 4. Missing Edge Functions (Both files)
+**Submit Your Service Centre Card:**
+- Photo upload (camera capture preferred)
+- GPS capture button (reuse existing geolocation pattern)
+- Location name text input
+- Agent name + phone auto-filled from profile
+- Submit button → inserts into `service_centre_setups`
 
-Functions present in `supabase/functions/` but missing from documentation:
-- `angel-pool-invest` — Angel Pool share investment (25K shares × UGX 20K, 8% pool allocation)
-- `tenant-pay-rent` — Direct tenant rent payment
-- `wallet-deduction` — Financial Ops wallet deduction tool
-- `notify-managers` — Manager notification system (fire-and-forget)
-- `provision-staff-passwords` — Staff password provisioning
-- `bulk-password-reset` — Mass password reset
-- `diagnose-auth` — Auth diagnostics
+**My Submissions Card:**
+- List of agent's own submissions with status badges (Pending → Verified → Approved → Paid)
 
-Root file is missing several of these; public file lists some but not all.
+### 3. Agent Ops Dashboard — Service Centre Verification Queue
 
-### 5. Agent Commission Benefits Page (Missing from both files)
+New component `ServiceCentreVerificationQueue` added to `AgentOpsDashboard.tsx`:
+- Shows all `pending` submissions
+- Displays photo, GPS on map link, agent name, phone, submission date
+- "Verify" button → updates status to `verified`, sets `verified_by` and `verified_at`
+- "Reject" button with mandatory reason
 
-New UI page `AgentCommissionBenefits` at `/agent-commission-benefits` with:
-- Plain-language commission explanation
-- WhatsApp sharing via `navigator.share` API with `wa.me` fallback
-- Real money examples (UGX 100,000 base)
+### 4. CFO Approval — Service Centre Payout
 
-### 6. `set_ledger_scope` Trigger Update (Missing)
+Add a section to the CFO dashboard (or Financial Ops tools) showing `verified` service centre setups:
+- Shows verified submissions with verifier name
+- "Approve & Pay UGX 25,000" button
+- On approval: calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'service_centre_setup'`, `p_amount = 25000`
+- This creates the double-entry: `cash_out`/`marketing_expense`/`platform` + `cash_in`/`agent_commission`/`wallet`
+- Updates status to `paid`
 
-The trigger now routes `marketing_expense` category to `platform` scope automatically. Not documented in Section 19.6 (root) or anywhere in public file.
+### 5. Update `credit_agent_event_bonus` RPC
 
-### 7. Transaction Categories Incomplete
+No changes needed — it already accepts arbitrary bonus types and amounts. We just call it with `service_centre_setup` as the type and `25000` as the amount.
 
-Neither file lists `marketing_expense` as a Cash Out category, nor `withdrawal_pending` or `withdrawal_reversal`.
+### 6. Documentation Update
 
-### 8. Notify Managers Pattern (Undocumented)
+Update both `WELILE_WORKFLOW.md` files:
+- Add Service Centre Setup bonus (UGX 25,000) to the event bonuses table
+- Document the 3-step approval pipeline (pending → verified → approved/paid)
+- Add to edge function registry if a new edge function is created
 
-Fire-and-forget manager notification used across bulk role operations, broadcasts, and agent withdrawals. Not documented.
+## Technical Details
 
-## Changes to Make
-
-### File 1: `WELILE_WORKFLOW.md` (Root — 2349 lines)
-
-| Section | Line Range | Change |
-|---------|-----------|--------|
-| 4.10 Sub-Agent Network | ~446-452 | Update sub-agent signup bonus from UGX 500 to UGX 10,000 |
-| 4.13 Agent Earnings Model | ~468-479 | Rewrite with 10% commission split (2%/8%/recruiter 2%), updated bonuses, marketing_expense ledger |
-| 4.18 Backend Edge Functions | ~508-519 | Add `notify-managers`, `wallet-deduction`, `tenant-pay-rent` |
-| 17.4 Repayment Accounting | ~1364 | Change "5% commission" to "10% commission via credit_agent_rent_commission" |
-| 19.5 Transaction Categories | ~1560-1574 | Add `marketing_expense`, `withdrawal_pending`, `withdrawal_reversal` to Cash Out |
-| 19.6 Key Database Triggers | ~1575-1584 | Add `set_ledger_scope` routing for `marketing_expense` → platform |
-| 19.7 Key RPCs | ~1585-1591 | Add `credit_agent_event_bonus()` RPC |
-| 31.1 Edge Function Registry | ~1924-2038 | Add missing functions: `angel-pool-invest`, `tenant-pay-rent`, `wallet-deduction`, `notify-managers` |
-| Appendix F Changelog | ~2322-2346 | Add v3.3 entries for commission model update and marketing_expense categorization |
-
-### File 2: `public/WELILE_WORKFLOW.md` (1934 lines)
-
-| Section | Line Range | Change |
-|---------|-----------|--------|
-| Section 23 Agent Earnings | ~977-1001 | Rewrite: 10% commission (2% source / 8% manager / recruiter override 2%), updated bonuses, double-entry marketing_expense pattern |
-| Section 31 Double-Entry Ledger | ~1143-1163 | Add marketing_expense category explanation |
-| Section 32 Edge Functions | ~1166-1287 | Add missing functions: `angel-pool-invest`, `tenant-pay-rent`, `wallet-deduction`, `notify-managers` |
-| Section 45 Cash Flow Summary | ~1640-1687 | Update Agent cash flow: 10% commission, correct bonus amounts, marketing_expense as platform outflow |
-| Add new section or subsection | After Section 23 or in Section 5 | Document `AgentCommissionBenefits` page with WhatsApp sharing |
-
-## Implementation Approach
-
-1. Update **root** `WELILE_WORKFLOW.md` first — all sections listed above with full detail (not summaries)
-2. Update **public** `WELILE_WORKFLOW.md` — mirror the same corrections
-3. Bump version to **v3.3** with dated changelog entries
-4. Ensure all monetary amounts, percentages, and ledger categories match the latest migration SQL exactly
+- **Photo upload**: Uses existing `supabase.storage` pattern (see `deposit-proofs` bucket usage in `DepositFlow.tsx`)
+- **GPS capture**: Reuses the `navigator.geolocation.getCurrentPosition` pattern used across 16+ existing components
+- **Payout**: Uses existing `credit_agent_event_bonus` RPC — no new edge function needed for the payment itself; the CFO UI calls the RPC directly via the service role or an existing edge function wrapper
+- **Realtime**: Optional — can add `service_centre_setups` to realtime publication for live status updates on the agent side
 
