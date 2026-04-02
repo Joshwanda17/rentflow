@@ -416,13 +416,13 @@ export function FinOpsWithdrawalVerification() {
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleTidComplete}
               disabled={!!processing || reference.trim().length < 3}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {processing ? 'Processing...' : 'Complete Withdrawal'}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
