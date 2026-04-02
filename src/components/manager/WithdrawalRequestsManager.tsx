@@ -650,10 +650,10 @@ export function WithdrawalRequestsManager() {
       if (requestError) throw requestError;
 
       toast.success('Withdrawal noted — visible on CFO dashboard');
+      setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
       setApproveDialogOpen(false);
       setTransactionId('');
       setSelectedRequest(null);
-      fetchRequests();
     } catch (error: any) {
       console.error('Error processing withdrawal:', error);
       toast.error(error.message || 'Failed to process withdrawal');
@@ -688,10 +688,10 @@ export function WithdrawalRequestsManager() {
       // Notification removed - table dropped
 
       toast.success('Withdrawal rejected');
+      setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
       setRejectDialogOpen(false);
       setRejectionReason('');
       setSelectedRequest(null);
-      fetchRequests();
     } catch (error: any) {
       console.error('Error rejecting withdrawal:', error);
       toast.error(error.message || 'Failed to reject withdrawal');
@@ -744,8 +744,9 @@ export function WithdrawalRequestsManager() {
     setBatchProcessing(false);
     setBatchRejectDialogOpen(false);
     setRejectionReason('');
+    const rejectedIds = new Set(selectedRequests.map(r => r.id));
+    setRequests(prev => prev.filter(r => !rejectedIds.has(r.id)));
     clearSelection();
-    fetchRequests();
 
     if (failed === 0) {
       toast.success(`Successfully rejected ${processed} request${processed > 1 ? 's' : ''}`);

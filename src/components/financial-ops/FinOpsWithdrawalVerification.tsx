@@ -132,10 +132,10 @@ export function FinOpsWithdrawalVerification() {
       });
 
       toast.success('Withdrawal approved & forwarded to CFO');
+      setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
       setSelected(null);
       setReference('');
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
     } finally {
@@ -186,10 +186,10 @@ export function FinOpsWithdrawalVerification() {
       });
 
       toast.success('Withdrawal completed with TID!');
+      setTidRequests(prev => prev.filter(r => r.id !== selected.id));
       setTidOpen(false);
       setSelected(null);
       setReference('');
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to complete');
     } finally {
@@ -207,10 +207,11 @@ export function FinOpsWithdrawalVerification() {
       if (rejectErr) throw rejectErr;
 
       toast.success('Withdrawal rejected');
+      setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
+      setTidRequests(prev => prev.filter(r => r.id !== selected.id));
       setRejectOpen(false);
       setRejectionReason('');
       setSelected(null);
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to reject');
     } finally {

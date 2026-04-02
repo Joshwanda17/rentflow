@@ -112,11 +112,11 @@ export function COOWithdrawalApprovals() {
         .eq('id', selected.id);
       if (error) throw error;
       toast.success('Withdrawal approved & payment confirmed!');
+      setRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
       setTransactionId('');
       setTransactionTime('');
       setSelected(null);
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
     } finally {
@@ -139,10 +139,10 @@ export function COOWithdrawalApprovals() {
         .eq('id', selected.id);
       if (error) throw error;
       toast.success('Withdrawal rejected');
+      setRequests(prev => prev.filter(r => r.id !== selected.id));
       setRejectOpen(false);
       setRejectionReason('');
       setSelected(null);
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to reject');
     } finally {
