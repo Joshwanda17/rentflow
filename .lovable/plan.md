@@ -1,48 +1,26 @@
 
 
-# Add Audit Reason Textarea to Payout & Top-Up Actions
-
-## Problem
-The **Compound**, **Pay to Wallet**, and **Top-Up** actions in the COO Partners section proceed without requiring a reason. For audit compliance, each action needs a mandatory reason field with the placeholder: *"Include reason and phone number or A/C"*.
+# Wallet Withdrawal: Add Reason, Save All Payout Details, Show on FinOps
 
 ## Changes
 
-### 1. `src/components/coo/COOPartnersPage.tsx` — NearingPayoutsDialog
+### 1. Database Migration — Add `reason` column
+Add `reason TEXT` to `withdrawal_requests` (nullable for backward compat, but UI will require it).
 
-**Add per-portfolio reason state:**
-- Add `reasons` state: `Record<string, string>` keyed by portfolioId
-- Add a `<Textarea>` above each portfolio's action buttons with placeholder `"Include reason and phone number or A/C"`
-- Disable Compound/Pay buttons until the reason has at least 10 characters
+### 2. `src/components/wallet/WithdrawRequestDialog.tsx` — Require reason + save all fields
+- Add `reason` state and a `<Textarea>` with placeholder *"Why are you withdrawing?"* (min 10 chars)
+- Add reason to `isFormValid` check
+- **Fix the insert** to include all collected payout fields that are currently missing:
+  - `mobile_money_name`, `payout_method`, `bank_name`, `bank_account_name`, `bank_account_number`, `agent_location`, `reason`
 
-**Pass reason into handlers:**
-- `handleCompound`: include `reason` in the audit_logs metadata and ledger description
-- `handlePay`: include `reason` in the pending_wallet_operations description and audit_logs metadata
-
-### 2. Top-Up submission (if initiated from COO Partners page)
-
-Search for the top-up submission handler in `COOPartnersPage.tsx` and add the same `<Textarea>` requirement with the same placeholder before the top-up action can proceed.
-
-### 3. `src/components/cfo/PendingPortfolioTopUps.tsx` — Display reason
-
-If the reason is stored in the `description` or `metadata` field, display it in the top-up list so CFO reviewers can see it.
-
-## UI Preview
-Each portfolio card in the Nearing Payouts dialog gets a textarea between the stats grid and the action buttons:
-
-```text
-┌─────────────────────────────────┐
-│  Partner Name         3d away   │
-│  [Principal] [Returns Due]      │
-│  [Contrib Date] [Payout Date]   │
-│  ┌─────────────────────────┐    │
-│  │ Include reason and      │    │
-│  │ phone number or A/C     │    │
-│  └─────────────────────────┘    │
-│  [Compound]    [Pay to Wallet]  │
-└─────────────────────────────────┘
-```
+### 3. `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — Show all details + ledger on TID
+- Add `reason` to the `WithdrawalRequest` interface
+- In `renderRequestCard`: display **recipient name** (`mobile_money_name` or `bank_account_name`) prominently, and show the `reason` in a visible info block
+- In `handleTidComplete`: after status update, insert a `cash_out` ledger entry with the TID reference — this records the transaction but does NOT double-deduct (balance was already deducted on request creation by the `trg_deduct_wallet_on_withdrawal_request` trigger)
+- Stay on the same page after completion (already the case)
 
 ## Files Modified
-- `src/components/coo/COOPartnersPage.tsx` — add reason textarea + validation to NearingPayoutsDialog and top-up flow
-- `src/components/cfo/PendingPortfolioTopUps.tsx` — show reason in pending list
+- DB migration: `ALTER TABLE withdrawal_requests ADD COLUMN IF NOT EXISTS reason TEXT`
+- `src/components/wallet/WithdrawRequestDialog.tsx`
+- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
 
