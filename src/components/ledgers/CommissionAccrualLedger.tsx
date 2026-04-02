@@ -16,6 +16,21 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   rejected: { label: 'Rejected', color: 'bg-destructive/10 text-destructive border-destructive/30', icon: XCircle },
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  source_agent: 'Source',
+  tenant_manager: 'Manager',
+  recruiter_override: 'Recruiter',
+  event_bonus: 'Bonus',
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  repayment: 'Repayment',
+  rent_request_posted: 'Rent Request',
+  house_listed: 'House Listed',
+  tenant_replacement: 'Replacement',
+  subagent_registration: 'Sub-Agent Reg',
+};
+
 export function CommissionAccrualLedger() {
   const [statusFilter, setStatusFilter] = useState('all');
   const queryClient = useQueryClient();
