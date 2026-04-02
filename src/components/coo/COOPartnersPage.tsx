@@ -2741,9 +2741,13 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <p className="font-semibold text-sm truncate">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
                     </div>
-                    {isDone ? (
+                    {isDone === 'pending' ? (
+                      <Badge className="shrink-0 text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                        ⏳ Pending Approval
+                      </Badge>
+                    ) : isDone === 'compounded' ? (
                       <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
-                        ✓ {isDone === 'compounded' ? 'Compounded' : 'Paid'}
+                        ✓ Compounded
                       </Badge>
                     ) : (
                       <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
