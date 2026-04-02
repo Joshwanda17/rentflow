@@ -265,9 +265,9 @@ function AngelCommittedSummary({
               <p className="text-[10px] text-muted-foreground">Early-stage equity in Welile Technologies</p>
             </div>
           </div>
-          <Badge variant="primary" size="sm" className="uppercase tracking-wider text-[9px] font-bold">
-            Active
-          </Badge>
+          <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+            <Check className="h-3.5 w-3.5 text-white" />
+          </div>
         </div>
 
         {/* Total Investment */}
