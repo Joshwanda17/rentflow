@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,6 @@ interface LC1Data {
   name: string;
   phone: string | null;
   village: string | null;
-  /** The house_listing IDs that reference this LC1 (by name+phone key) */
   listingIds: string[];
 }
 
@@ -26,16 +25,52 @@ interface Props {
 export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', village: '' });
 
-  const initForm = () => {
-    if (!lc1) return;
-    setForm({
-      name: lc1.name || '',
-      phone: lc1.phone || '',
-      village: lc1.village || '',
-    });
-  };
+  useEffect(() => {
+    if (!open || !lc1) return;
+    let cancelled = false;
+    const fetchFresh = async () => {
+      setLoading(true);
+      try {
+        if (lc1.phone) {
+          const { data } = await supabase
+            .from('lc1_chairpersons')
+            .select('name, phone, village')
+            .eq('phone', lc1.phone)
+            .maybeSingle();
+          if (!cancelled) {
+            setForm({
+              name: data?.name || lc1.name || '',
+              phone: data?.phone || lc1.phone || '',
+              village: data?.village || lc1.village || '',
+            });
+          }
+        } else {
+          if (!cancelled) {
+            setForm({
+              name: lc1.name || '',
+              phone: lc1.phone || '',
+              village: lc1.village || '',
+            });
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setForm({
+            name: lc1.name || '',
+            phone: lc1.phone || '',
+            village: lc1.village || '',
+          });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchFresh();
+    return () => { cancelled = true; };
+  }, [open, lc1]);
 
   const handleSave = async () => {
     if (!lc1 || !user) return;
@@ -45,19 +80,16 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
     }
     setSaving(true);
     try {
-      // Update all house_listings that have this LC1 (matched by original name+phone)
       const updates: Record<string, string | null> = {
         lc1_chairperson_name: form.name.trim(),
         lc1_chairperson_phone: form.phone.trim() || null,
         lc1_chairperson_village: form.village.trim() || null,
       };
 
-      // Update matching listings
       for (const listingId of lc1.listingIds) {
         await supabase.from('house_listings').update(updates).eq('id', listingId);
       }
 
-      // Also update lc1_chairpersons table if matching record exists
       if (lc1.phone) {
         const { data: existingLc1 } = await supabase
           .from('lc1_chairpersons')
@@ -74,7 +106,6 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
         }
       }
 
-      // Audit log
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'lc1_profile_edited',
@@ -99,32 +130,38 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); else initForm(); }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-base">Edit LC1 Chairperson</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <Label className="text-xs">Name *</Label>
-            <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="LC1 Chairperson name" />
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Phone</Label>
-            <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" />
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs">Name *</Label>
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="LC1 Chairperson name" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Phone</Label>
+              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="07XXXXXXXX" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Village</Label>
+              <Input value={form.village} onChange={e => setForm(f => ({ ...f, village: e.target.value }))} placeholder="Village name" />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              This will update {lc1?.listingIds.length || 0} house listing(s) linked to this LC1.
+            </p>
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Changes
+            </Button>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Village</Label>
-            <Input value={form.village} onChange={e => setForm(f => ({ ...f, village: e.target.value }))} placeholder="Village name" />
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            This will update {lc1?.listingIds.length || 0} house listing(s) linked to this LC1.
-          </p>
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Changes
-          </Button>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
