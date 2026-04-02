@@ -11,6 +11,10 @@ import { UserProfileSheet } from './UserProfileSheet';
 import { DeleteRentRequestDialog } from './DeleteRentRequestDialog';
 import { DeleteHistoryViewer } from './DeleteHistoryViewer';
 import { RepaymentTrendChart } from './RepaymentTrendChart';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
@@ -54,12 +58,14 @@ export function DailyPaymentTracker() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<typeof filtered[0] | null>(null);
   const [collectingId, setCollectingId] = useState<string | null>(null);
+  const [collectTarget, setCollectTarget] = useState<{ id: string; name: string; amount: number } | null>(null);
+  const [collectReason, setCollectReason] = useState('');
 
   const collectMutation = useMutation({
-    mutationFn: async (rentRequestId: string) => {
+    mutationFn: async ({ rentRequestId, collectionReason }: { rentRequestId: string; collectionReason: string }) => {
       setCollectingId(rentRequestId);
       const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
-        body: { rent_request_id: rentRequestId },
+        body: { rent_request_id: rentRequestId, reason: collectionReason },
       });
       if (error) {
         const msg = await extractFromErrorObject(error, 'Collection failed.');
@@ -73,6 +79,8 @@ export function DailyPaymentTracker() {
         title: '✅ Rent Collected',
         description: `UGX ${Number(data.total_collected).toLocaleString()} deducted. Tenant: ${Number(data.tenant_deducted).toLocaleString()}, Agent: ${Number(data.agent_deducted).toLocaleString()}`,
       });
+      setCollectTarget(null);
+      setCollectReason('');
       refetch();
       queryClient.invalidateQueries({ queryKey: ['repayment-trend-7d'] });
     },
@@ -493,7 +501,8 @@ export function DailyPaymentTracker() {
                             disabled={collectingId === t.rent_request_id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              collectMutation.mutate(t.rent_request_id);
+                              setCollectTarget({ id: t.rent_request_id, name: t.tenant_name, amount: t.daily_repayment });
+                              setCollectReason('');
                             }}
                             className="h-7 px-2 text-[10px] gap-1"
                           >
@@ -556,6 +565,55 @@ export function DailyPaymentTracker() {
           tenant={deleteTarget}
         />
       )}
+
+      {/* Collect Reason Dialog */}
+      <Dialog open={!!collectTarget} onOpenChange={(open) => { if (!open) { setCollectTarget(null); setCollectReason(''); } }}>
+        <DialogContent stable className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Collect Rent</DialogTitle>
+            <DialogDescription className="text-xs">
+              {collectTarget?.name} — Daily: {formatUGX(collectTarget?.amount || 0)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">
+              Reason for collection <span className="text-destructive">*</span>
+            </label>
+            <Textarea
+              value={collectReason}
+              onChange={(e) => setCollectReason(e.target.value)}
+              placeholder="e.g. Daily rent repayment instalment..."
+              className="min-h-[60px] text-sm"
+              maxLength={500}
+            />
+            {collectReason.length > 0 && collectReason.trim().length < 10 && (
+              <p className="text-[10px] text-destructive">Minimum 10 characters ({collectReason.trim().length}/10)</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setCollectTarget(null); setCollectReason(''); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={collectReason.trim().length < 10 || collectMutation.isPending}
+              onClick={() => {
+                if (collectTarget) {
+                  collectMutation.mutate({ rentRequestId: collectTarget.id, collectionReason: collectReason.trim() });
+                }
+              }}
+              className="gap-1"
+            >
+              {collectMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
+              Confirm Collection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
