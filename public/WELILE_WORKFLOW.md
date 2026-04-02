@@ -1,6 +1,6 @@
 # Welile Technologies — Complete Platform Workflow & Feature Reference
 
-> **Last Updated:** April 2026  
+> **Last Updated:** April 2, 2026  
 > **Platform:** Welile Technologies Limited — Rent-guarantee and rent-facilitation fintech  
 > **Stack:** React 18 + Vite 5 + Tailwind CSS + TypeScript | Lovable Cloud (Supabase)  
 > **Target Scale:** 40M+ users across Africa and globally
@@ -598,7 +598,7 @@ Full access to all Manager features + system configuration + role assignment wit
 | Payment Analytics | `PaymentModeAnalytics` | MTN/Airtel/Cash/Wallet distribution charts |
 | Reports | `FinancialReportsPanel` | Downloadable revenue summaries |
 | Alerts | `FinancialAlertsPanel` | Anomaly detection (payments > 2M UGX) |
-| Withdrawal Approvals | `COOWithdrawalApprovals` | Multi-stage withdrawal processing |
+| Withdrawal Approvals | `COOWithdrawalApprovals` | Partner withdrawal processing (wallet withdrawals handled by Financial Ops) |
 | Partner Withdrawals | `COOPartnerWithdrawalApprovals` | Partner withdrawal queue |
 | Partners Management | `COOPartnersPage` | Full partner oversight with search, filters, CSV, bulk import |
 | Partner Import | `PartnerImportDialog` | Excel bulk import |
@@ -630,7 +630,6 @@ Full access to all Manager features + system configuration + role assignment wit
 | Feature | Component | Description |
 |---------|-----------|-------------|
 | Reconciliation | `CFOReconciliationPanel` | Compare wallets vs ledger, detect gaps |
-| Withdrawal Approvals | `CFOWithdrawalApprovals` | CFO-stage authorization |
 | Partner Payouts | `CFOPartnerPayoutProcessing` | Partner payout processing |
 | Receivables Tracker | `CFOReceivablesTracker` | Track outstanding receivables |
 | Revenue & Expense | `RevenueExpenseDashboard` | Revenue vs expense analysis |
@@ -656,9 +655,10 @@ Full access to all Manager features + system configuration + role assignment wit
 - Income Statement, Balance Sheet, Cash Flow views
 - Compact currency display (3.5M, 120K) with tooltips
 - CSV export for offline auditing
-- Mandatory CFO sign-off for: ROI payouts, commissions, withdrawals
+- Mandatory CFO sign-off for: ROI payouts, commissions
 - Buffer/escrow monitoring
 - Coverage ratio and liquidity indicators
+- **Note:** Wallet withdrawal approvals are now handled entirely by Financial Ops (single-step) — CFO no longer has a separate withdrawal approval queue
 
 ---
 
@@ -873,13 +873,32 @@ User submits → Manager reviews → Approved/Rejected
 | Minimum Balance | UGX 5,000 must remain after withdrawal |
 | Daily Limit | Maximum daily withdrawal enforced |
 
-### 4-Stage Approval Pipeline
+### Pre-Deduction at Request Time
+
+When a user submits a withdrawal request, the requested amount is **immediately deducted** from their wallet balance via a `cash_out` ledger entry with `category: 'withdrawal_pending'` and `transaction_group_id: wallet-withdraw-{withdrawalId}`. This ensures funds are held during the approval process and prevents double-spending.
+
+### Single-Step Approval Pipeline
 
 ```
-Requested → Manager Review → CFO Approval → COO Final Approval
+Requested (funds held) → Financial Ops Approve & Complete (enter TID/Receipt/Bank Ref)
 ```
 
-**Tracked via:** `WithdrawalStepTracker`
+Financial Operations reviews the request, selects the actual payment method used (MTN MoMo, Airtel Money, Bank Transfer, or Cash), and enters the corresponding Transaction ID (TID), Bank Reference, or Receipt Number to complete the request directly. Status transitions from `pending` → `approved` in one step.
+
+**Tracked via:** `WithdrawalStepTracker` (2-step: Requested → Approved & Paid)
+
+### Rejection & Idempotent Refund
+
+If a withdrawal is rejected, the system automatically refunds the pre-deducted amount via a `cash_in` ledger entry with `category: 'withdrawal_reversal'` and `transaction_group_id: wallet-reject-{withdrawalId}`. The refund is **idempotent** — the system checks for an existing entry with the same `transaction_group_id` before inserting, preventing double refunds on retries or edge function re-runs.
+
+For float withdrawals, the same idempotency pattern applies using `transaction_group_id: float-reject-{withdrawalId}`.
+
+### Key Guarantees
+
+- **No double deductions**: Single `cash_out` at request time with unique `transaction_group_id`
+- **No double refunds**: Existence check on `transaction_group_id` before inserting reversal
+- **Ledger traceable**: Every wallet change tied to a ledger entry
+- **Safe against retries**: Edge function re-runs skip already-processed refunds
 
 **Investment withdrawals** pause rewards immediately and are subject to **90-day notice period**.
 
@@ -1394,7 +1413,7 @@ Fire-and-forget pattern — errors logged but never block the main transaction.
 | Role assignment | `super_admin`, `manager`, `cto` |
 | Account freeze/delete | `super_admin`, `manager`, `cto`, `coo` |
 | Deposit approval | `manager`, `coo` |
-| Withdrawal approval | 4-stage hierarchy |
+| Withdrawal approval | Financial Ops single-step (TID/receipt/bank ref required) |
 | Proxy investment | `agent`, `coo` |
 
 ### Financial Safety
@@ -1425,7 +1444,8 @@ Agent creates invite (temp password) → Partner activates → Portfolios linked
 ### Withdrawal Processing
 
 ```
-Requested → Manager Review → CFO Sign-off → COO Final Approval → Disbursed
+Requested (wallet pre-deducted) → Financial Ops Approve & Complete (TID/Receipt/Bank Ref) → Done
+Rejected → Idempotent refund via withdrawal_reversal ledger entry
 ```
 
 ### Monthly ROI Payout
@@ -1651,7 +1671,7 @@ OUT: 10% platform fee on guaranteed rent → tenant's Welile Homes
 ```
 IN:  Monthly ROI rewards (15% or 20% compounding)
 OUT: Wallet-to-pool investment (instant, no approval)
-OUT: Withdrawals (90-day notice, 4-stage approval)
+OUT: Withdrawals (90-day notice, single-step Financial Ops approval)
 ```
 
 ### Platform (Welile)
