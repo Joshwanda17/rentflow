@@ -8,19 +8,20 @@ import { TidVerification } from './TidVerification';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
+import { WalletDeductionPanel } from './WalletDeductionPanel';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { 
   ShieldCheck, Banknote, X, ArrowLeft, Menu, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits' | 'withdrawals' | 'opportunities';
+type View = 'home' | 'deposits' | 'withdrawals' | 'opportunities' | 'deductions';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit';
 
 const tools = [
@@ -85,6 +86,22 @@ export function FinancialOpsCommandCenter() {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <OpportunitySummaryForm onClose={() => setView('home')} />
+      </div>
+    );
+  }
+
+  // Sub-view: Wallet Deductions
+  if (view === 'deductions') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <MinusCircle className="h-5 w-5 text-orange-600" />
+          Wallet Deductions
+        </h2>
+        <WalletDeductionPanel />
       </div>
     );
   }
@@ -162,6 +179,19 @@ export function FinancialOpsCommandCenter() {
           <div>
             <p className="font-bold text-base">Capital Opportunities</p>
             <p className="text-xs text-muted-foreground">Post opportunity summaries for supporters</p>
+          </div>
+        </button>
+        {/* Wallet Deductions */}
+        <button
+          onClick={() => setView('deductions')}
+          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[80px]"
+        >
+          <div className="h-12 w-12 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
+            <MinusCircle className="h-6 w-6 text-orange-600" />
+          </div>
+          <div>
+            <p className="font-bold text-base">Wallet Deductions</p>
+            <p className="text-xs text-muted-foreground">Remove funds from user wallets</p>
           </div>
         </button>
       </div>
