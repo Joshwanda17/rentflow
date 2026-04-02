@@ -1292,8 +1292,8 @@ export function LandlordOpsDashboard() {
 
         {navItems.filter(n => !n.priority).map(item => (
           <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-            item.id === 'empty' ? `${emptyHouses.length}` :
-            item.id === 'occupied' ? `${occupiedHouses.length}` :
+            item.id === 'empty' ? `${emptyLandlords.length}` :
+            item.id === 'occupied' ? `${occupiedLandlords.length}` :
             item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
             item.id === 'agents' ? `${agentSummary.length}` : undefined
           } />
