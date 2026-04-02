@@ -99,7 +99,13 @@ export default function AgentEarnings() {
     }
   };
 
-  const renderEarningsList = (earningsList: typeof earnings) => {
+  const getRoleLabel = (role: string | null, pct: number | null): string => {
+    if (!role) return '';
+    const label = ROLE_LABELS[role] || role.replace(/_/g, ' ');
+    return pct != null ? `${label} (${pct}%)` : label;
+  };
+
+  const renderEarningsList = (earningsList: DetailedEarning[]) => {
     if (earningsList.length === 0) {
       return (
         <div className="text-center py-12 text-muted-foreground">
@@ -127,27 +133,80 @@ export default function AgentEarnings() {
               </Badge>
             </div>
             <div className="space-y-2">
-              {grouped[date].map(earning => (
-                <div key={earning.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/50">
-                  <div className="p-2 rounded-lg bg-muted/50">
-                    {getEarningIcon(earning.earning_type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium capitalize">{getEarningLabel(earning.earning_type)}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {earning.description || 'Earning recorded'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(earning.created_at), 'h:mm a')}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono font-semibold text-success">
-                      +{formatUGX(Number(earning.amount))}
-                    </p>
-                  </div>
-                </div>
-              ))}
+              {grouped[date].map(earning => {
+                const isExpanded = expandedEarningId === earning.id;
+                const ledger = earning.ledger;
+                const hasDetail = !!(ledger || earning.sourceName);
+
+                return (
+                  <Collapsible
+                    key={earning.id}
+                    open={isExpanded}
+                    onOpenChange={() => {
+                      hapticTap();
+                      setExpandedEarningId(isExpanded ? null : earning.id);
+                    }}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <div className={`flex items-center gap-4 p-4 rounded-lg bg-secondary/50 cursor-pointer transition-colors hover:bg-secondary/80 ${isExpanded ? 'rounded-b-none' : ''}`}>
+                        <div className="p-2 rounded-lg bg-muted/50">
+                          {getEarningIcon(earning.earning_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium capitalize">{getEarningLabel(earning.earning_type)}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {ledger?.tenant_name || earning.sourceName
+                              ? (ledger?.tenant_name || earning.sourceName)
+                              : (earning.description || 'Earning recorded')}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(earning.created_at), 'h:mm a')}
+                          </p>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <p className="font-mono font-semibold text-success">
+                            +{formatUGX(Number(earning.amount))}
+                          </p>
+                          {hasDetail && (
+                            <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          )}
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    {hasDetail && (
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 pt-2 bg-secondary/30 rounded-b-lg border-t border-border/40 space-y-1.5">
+                          {ledger?.commission_role && (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] font-medium">
+                                {getRoleLabel(ledger.commission_role, ledger.percentage)}
+                              </Badge>
+                            </div>
+                          )}
+                          {ledger?.tenant_name && (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">Tenant:</span> {ledger.tenant_name}
+                            </p>
+                          )}
+                          {earning.sourceName && !ledger?.tenant_name && (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">From:</span> {earning.sourceName}
+                            </p>
+                          )}
+                          {ledger?.percentage != null && ledger?.repayment_amount != null && ledger.repayment_amount > 0 && (
+                            <p className="text-xs font-mono text-primary">
+                              {ledger.percentage}% of {formatUGX(ledger.repayment_amount)} = {formatUGX(earning.amount)}
+                            </p>
+                          )}
+                          {earning.description && (
+                            <p className="text-[11px] text-muted-foreground">{earning.description}</p>
+                          )}
+                        </div>
+                      </CollapsibleContent>
+                    )}
+                  </Collapsible>
+                );
+              })}
             </div>
           </div>
         ))}
