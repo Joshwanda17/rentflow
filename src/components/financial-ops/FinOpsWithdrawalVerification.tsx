@@ -389,13 +389,12 @@ export function FinOpsWithdrawalVerification() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleApprove}
               disabled={!!processing}
-              className="bg-primary hover:bg-primary/90"
             >
               {processing ? 'Processing...' : 'Approve & Forward'}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
