@@ -291,10 +291,22 @@ export function ApprovalQueue() {
       } else if (activeQueue === 'wallet_withdrawals') {
         if (bulkAction === 'reject') {
           // Use edge function for proper rejection with notification & audit
-          const { error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
+          const { data: rejectData, error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
             body: { withdrawal_ids: ids, reason, withdrawal_type: 'wallet' },
           });
           if (rejectErr) throw rejectErr;
+
+          // Only remove rows that were actually rejected
+          const rejectedIds = (rejectData?.results || [])
+            .filter((r: any) => r.status === 'rejected')
+            .map((r: any) => r.id);
+          const failedCount = ids.length - rejectedIds.length;
+          if (failedCount > 0) {
+            toast.warning(`${failedCount} item(s) could not be rejected`);
+          }
+          // Override ids for cache update below
+          ids.length = 0;
+          ids.push(...rejectedIds);
         } else {
           const updateFields: Record<string, unknown> = {
             status: 'fin_ops_verified',
