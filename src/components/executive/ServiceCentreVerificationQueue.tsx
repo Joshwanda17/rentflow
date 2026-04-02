@@ -176,9 +176,17 @@ export function ServiceCentreVerificationQueue() {
               <Star className="h-3 w-3" />
               Eligible ({eligibleNotSubmitted.length})
             </TabsTrigger>
-            <TabsTrigger value="pending" className="text-xs gap-1">
+            <TabsTrigger
+              value="pending"
+              className="text-xs gap-1 relative data-[state=inactive]:animate-pulse data-[state=inactive]:bg-destructive/15 data-[state=inactive]:text-destructive"
+            >
               <Loader2 className="h-3 w-3" />
               Pending ({setups?.length || 0})
+              {(setups?.length || 0) > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                  {setups?.length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
