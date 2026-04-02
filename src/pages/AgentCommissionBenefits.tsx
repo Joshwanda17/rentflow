@@ -2,6 +2,8 @@ import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon } from 
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import WelileLogo from '@/assets/welile-logo.jpeg';
+import WelileServiceCentrePoster from '@/assets/welile-service-centre-poster.jpeg';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
