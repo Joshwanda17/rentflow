@@ -102,9 +102,9 @@ export function PartnerOpsWithdrawalQueue() {
       });
 
       toast.success('Forwarded for Operations Clearance');
+      setRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
       setSelected(null);
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
     } finally {
