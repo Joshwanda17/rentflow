@@ -7,10 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ArrowLeft, TrendingUp, Gift, Percent, Calendar, RefreshCw,
   ArrowDownLeft, Banknote, Users, Home, CheckCircle, UserPlus,
-  PiggyBank, Award, ChevronDown, ChevronUp,
+  PiggyBank, Award, ChevronDown, ChevronUp, Info,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useAgentEarnings, EarningBreakdown } from '@/hooks/useAgentEarnings';
+import { useAgentEarnings, EarningBreakdown, DetailedEarning } from '@/hooks/useAgentEarnings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { MobileMoneySettings } from '@/components/agent/MobileMoneySettings';
@@ -18,6 +18,7 @@ import { RequestCommissionPayoutDialog } from '@/components/agent/RequestCommiss
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
 import { UserWithdrawalRequests } from '@/components/wallet/UserWithdrawalRequests';
 import { hapticTap } from '@/lib/haptics';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const BREAKDOWN_ITEMS: {
   key: keyof EarningBreakdown;
