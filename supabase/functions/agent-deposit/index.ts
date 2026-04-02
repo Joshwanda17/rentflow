@@ -327,11 +327,11 @@ Deno.serve(async (req) => {
       if (remainingBalance > 0) {
         // Auto-pay towards rent
         repaymentAmount = Math.min(amount, remainingBalance);
-        commission = AGENT_COMMISSION_FLAT;
+        commission = Math.round(repaymentAmount * AGENT_COMMISSION_RATE); // 10% of repayment
         landlordPayment = repaymentAmount - commission;
         depositAmount = amount - repaymentAmount;
 
-        console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, Commission: ${commission}, To landlord: ${landlordPayment}`);
+        console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, Commission (10%): ${commission}, To landlord: ${landlordPayment}`);
 
         // FIX: Resolve landlord's USER ID via their phone number in profiles
         // landlord_id references the landlords table, not a user profile
