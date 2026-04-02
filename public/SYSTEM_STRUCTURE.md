@@ -691,9 +691,9 @@ Agent → Collects Repayments (field) → Platform → Supporter ROI
 │                   │ Agent commissions                │
 │                   │ Deposit requests                 │
 ├───────────────────┼──────────────────────────────────┤
-│ 4-Stage Approval  │ External withdrawals             │
-│ (Request → Mgr    │   (cash-out from platform)       │
-│  → CFO → COO)     │                                  │
+│ Financial Ops     │ External withdrawals             │
+│ Single-Step       │   (TID/Receipt/Bank Ref required)│
+│                   │                                  │
 └───────────────────┴──────────────────────────────────┘
 ```
 
