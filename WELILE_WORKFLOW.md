@@ -599,7 +599,7 @@ ROI calculated on deployed capital
     ↓
 Rewards credited to supporter wallet
     ↓
-Supporter can withdraw (4-stage approval)
+Supporter can withdraw (single-step Financial Ops approval)
 ```
 
 ## 5.5 Investment Accounts (Portfolios)
