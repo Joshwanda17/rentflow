@@ -132,7 +132,7 @@ Every supporter has **one wallet** with a single balance denominated in UGX. The
 | Destination | Category | Description |
 |-------------|----------|-------------|
 | Rent Management Pool | `supporter_rent_fund` | Direct investment into the pool |
-| External Withdrawal | `withdrawal` | Cash-out to Mobile Money (requires 4-stage approval) |
+| External Withdrawal | `withdrawal` | Cash-out to Mobile Money (single-step Financial Ops approval) |
 | Wallet Transfer | `wallet_transfer` | Funds sent to another user |
 | Agent Proxy Investment | (deducted by agent) | Agent invests from their wallet on supporter's behalf |
 
