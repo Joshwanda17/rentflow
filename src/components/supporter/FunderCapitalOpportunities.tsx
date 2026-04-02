@@ -221,14 +221,39 @@ export function FunderCapitalOpportunities() {
     setAngelAmount(!isNaN(num) ? Math.min(num, max) : 0);
   };
 
-  const handleAngelInvest = () => {
+  const [investLoading, setInvestLoading] = useState(false);
+
+  const handleAngelInvest = useCallback(async () => {
     if (angelAmount < PRICE_PER_SHARE) return;
     if (walletBalance > 0 && angelAmount > walletBalance) return;
     hapticTap();
-    toast.success(`Angel pool investment of ${formatAmountCompact(angelAmount)} committed.`);
-    setAngelAmount(0);
-    window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
-  };
+    setInvestLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('angel-pool-invest', {
+        body: { amount: angelAmount },
+      });
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Investment failed. Please try again.');
+        toast.error(msg);
+        return;
+      }
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      toast.success(
+        `🎉 ${data.shares} shares secured! Ref: ${data.reference_id}`,
+        { description: `Pool ownership: ${data.pool_ownership_percent.toFixed(4)}%` }
+      );
+      setAngelAmount(0);
+      window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
+      window.dispatchEvent(new CustomEvent('wallet-balance-changed'));
+    } catch (err: any) {
+      toast.error(err?.message || 'Investment failed');
+    } finally {
+      setInvestLoading(false);
+    }
+  }, [angelAmount, walletBalance]);
 
   const handlePoolSelect = (pool: PoolType) => {
     setActiveTab(pool);
