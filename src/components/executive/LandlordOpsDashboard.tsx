@@ -194,6 +194,8 @@ export function LandlordOpsDashboard() {
   const { toast } = useToast();
   const [view, setView] = useState<View>('home');
   const [search, setSearch] = useState('');
+  const [landlordPage, setLandlordPage] = useState(1);
+  const [landlordCategory, setLandlordCategory] = useState('all');
   const [verifying, setVerifying] = useState<string | null>(null);
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
