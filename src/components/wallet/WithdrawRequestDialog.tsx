@@ -546,6 +546,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                       ? 'Select method ↑'
                       : !isPayoutValid()
                       ? 'Fill details ↑'
+                      : reason.trim().length < 10
+                      ? 'Add reason ↑'
                       : amount < 500
                       ? 'Enter amount'
                       : 'Withdraw'
