@@ -445,10 +445,16 @@ Advance expires or is fully repaid → status changes
 Agent recruits sub-agents (agent_subagents table)
     ↓
 Parent agent earns:
-  - UGX 500 per sub-agent signup
-  - 1% commission on sub-agent collections
+  - UGX 10,000 per sub-agent signup (flat event bonus via credit_agent_event_bonus RPC)
+  - 2% recruiter override on sub-agent managed tenant repayments
+    (deducted from manager's 8% share → manager keeps 6%, recruiter gets 2%)
     ↓
 Sub-agent analytics: /sub-agents page
+    ↓
+Platform records both:
+  - cash_out / marketing_expense / platform scope (platform debit)
+  - cash_in / agent_commission / wallet scope (agent credit)
+  Both linked via shared transaction_group_id
 ```
 
 ## 4.11 Agent Tasks & Escalations
