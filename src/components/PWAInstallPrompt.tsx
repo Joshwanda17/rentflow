@@ -236,7 +236,7 @@ export default function PWAInstallPrompt() {
               <div className="border-t border-border px-6 py-3 flex items-center justify-center gap-1.5">
                 <Smartphone className="h-3 w-3 text-muted-foreground" />
                 <span className="text-[11px] text-muted-foreground">
-                  {getBrowserName(platform.browser)} · {getOSName(platform.os)}
+                  Works like a native app
                 </span>
               </div>
             </div>
