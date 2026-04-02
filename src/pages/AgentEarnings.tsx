@@ -47,7 +47,6 @@ export default function AgentEarnings() {
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [breakdownExpanded, setBreakdownExpanded] = useState(false);
   const [expandedEarningId, setExpandedEarningId] = useState<string | null>(null);
-  const [breakdownExpanded, setBreakdownExpanded] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
