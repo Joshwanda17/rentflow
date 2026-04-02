@@ -149,7 +149,7 @@ export function FinOpsWithdrawalVerification() {
 
   // Section B: Enter TID & complete → approved
   const handleTidComplete = async () => {
-    if (!user || !selected || reference.trim().length < 3) return;
+    if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
