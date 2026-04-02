@@ -111,7 +111,7 @@ serve(async (req) => {
 
     const safeDescription = typeof description === 'string' ? description.trim().slice(0, 500) : 'Wallet transfer';
 
-    console.log(`Processing transfer: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
+    // Debug log removed for cost optimization
 
     if (senderId === resolvedRecipientId) {
       if (shouldSample(shadowConfig)) {
@@ -209,7 +209,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Transfer successful: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
+    // Success logged via system event only
 
     // Log system event
     logSystemEvent(adminClient, 'wallet_transfer', senderId, 'wallets', txGroupId, { amount, recipient_id: resolvedRecipientId });

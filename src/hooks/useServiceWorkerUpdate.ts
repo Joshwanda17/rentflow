@@ -136,8 +136,8 @@ export function useServiceWorkerUpdate() {
       });
     }
     
-    // Check every 30 seconds (reduced from 3s for battery/CPU efficiency)
-    const interval = setInterval(checkForUpdates, 30 * 1000);
+    // Check every 5 minutes (was 30s — cost optimization)
+    const interval = setInterval(checkForUpdates, 5 * 60 * 1000);
     
     // Also check when the page becomes visible or gains focus
     const onVisibilityChange = () => {
