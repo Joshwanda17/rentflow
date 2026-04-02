@@ -196,10 +196,15 @@ export function AgentEarningsOverview() {
 
   const getEarningTypeLabel = (type: string) => {
     switch (type) {
-      case 'commission': return 'Commission';
-      case 'approval_bonus': return 'Approval Bonus';
-      case 'registration_bonus': return 'Registration Bonus';
+      case 'commission': case 'rent_commission': return 'Rent Commission';
+      case 'investment_commission': return 'Investment Commission';
+      case 'subagent_commission': case 'subagent_override': return 'Sub-Agent Override';
+      case 'registration': case 'registration_bonus': return 'Registration Bonus';
       case 'verification_bonus': return 'Verification Bonus';
+      case 'rent_funded_bonus': case 'facilitation_bonus': return 'Facilitation Bonus';
+      case 'listing_bonus': return 'Listing Bonus';
+      case 'approval_bonus': return 'Approval Bonus';
+      case 'referral_bonus': case 'referral': return 'Referral Bonus';
       default: return type.replace(/_/g, ' ');
     }
   };
