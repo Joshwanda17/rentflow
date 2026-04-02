@@ -118,6 +118,7 @@ export function FinOpsWithdrawalVerification() {
         .update({
           status: 'fin_ops_approved',
           fin_ops_reference: reference.trim().toUpperCase(),
+          fin_ops_payment_method: paymentMethod,
           fin_ops_approved_at: new Date().toISOString(),
           fin_ops_approved_by: user.id,
           updated_at: new Date().toISOString(),
