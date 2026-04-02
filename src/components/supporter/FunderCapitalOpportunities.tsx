@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
   Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
