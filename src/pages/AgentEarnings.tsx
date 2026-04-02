@@ -7,10 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ArrowLeft, TrendingUp, Gift, Percent, Calendar, RefreshCw,
   ArrowDownLeft, Banknote, Users, Home, CheckCircle, UserPlus,
-  PiggyBank, Award, ChevronDown, ChevronUp,
+  PiggyBank, Award, ChevronDown, ChevronUp, Info,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useAgentEarnings, EarningBreakdown } from '@/hooks/useAgentEarnings';
+import { useAgentEarnings, EarningBreakdown, DetailedEarning } from '@/hooks/useAgentEarnings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { MobileMoneySettings } from '@/components/agent/MobileMoneySettings';
@@ -18,6 +18,7 @@ import { RequestCommissionPayoutDialog } from '@/components/agent/RequestCommiss
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
 import { UserWithdrawalRequests } from '@/components/wallet/UserWithdrawalRequests';
 import { hapticTap } from '@/lib/haptics';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const BREAKDOWN_ITEMS: {
   key: keyof EarningBreakdown;
@@ -42,9 +43,10 @@ const BREAKDOWN_ITEMS: {
 export default function AgentEarnings() {
   const navigate = useNavigate();
   const { user, role, loading: authLoading } = useAuth();
-  const { earnings, loading, totalEarnings, commissionTotal, bonusTotal, breakdown, availableToWithdraw, totalPaidOut, refreshEarnings } = useAgentEarnings();
+  const { earnings, detailedEarnings, loading, totalEarnings, commissionTotal, bonusTotal, breakdown, availableToWithdraw, totalPaidOut, refreshEarnings, ROLE_LABELS } = useAgentEarnings();
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [breakdownExpanded, setBreakdownExpanded] = useState(false);
+  const [expandedEarningId, setExpandedEarningId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -54,11 +56,11 @@ export default function AgentEarnings() {
     }
   }, [user, role, authLoading, navigate]);
 
-  const commissionEarnings = earnings.filter(e => ['commission', 'rent_commission', 'investment_commission', 'subagent_commission', 'subagent_override'].includes(e.earning_type));
-  const bonusEarnings = earnings.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'facilitation_bonus', 'listing_bonus', 'registration', 'registration_bonus', 'referral_bonus', 'referral'].includes(e.earning_type));
+  const detailedCommissions = detailedEarnings.filter(e => ['commission', 'rent_commission', 'investment_commission', 'subagent_commission', 'subagent_override'].includes(e.earning_type));
+  const detailedBonuses = detailedEarnings.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'facilitation_bonus', 'listing_bonus', 'registration', 'registration_bonus', 'referral_bonus', 'referral'].includes(e.earning_type));
 
-  const groupByDate = (earningsList: typeof earnings) => {
-    const grouped: Record<string, typeof earnings> = {};
+  const groupByDate = (earningsList: DetailedEarning[]) => {
+    const grouped: Record<string, DetailedEarning[]> = {};
     earningsList.forEach(earning => {
       const date = format(new Date(earning.created_at), 'yyyy-MM-dd');
       if (!grouped[date]) grouped[date] = [];
@@ -97,7 +99,13 @@ export default function AgentEarnings() {
     }
   };
 
-  const renderEarningsList = (earningsList: typeof earnings) => {
+  const getRoleLabel = (role: string | null, pct: number | null): string => {
+    if (!role) return '';
+    const label = ROLE_LABELS[role] || role.replace(/_/g, ' ');
+    return pct != null ? `${label} (${pct}%)` : label;
+  };
+
+  const renderEarningsList = (earningsList: DetailedEarning[]) => {
     if (earningsList.length === 0) {
       return (
         <div className="text-center py-12 text-muted-foreground">
@@ -125,27 +133,80 @@ export default function AgentEarnings() {
               </Badge>
             </div>
             <div className="space-y-2">
-              {grouped[date].map(earning => (
-                <div key={earning.id} className="flex items-center gap-4 p-4 rounded-lg bg-secondary/50">
-                  <div className="p-2 rounded-lg bg-muted/50">
-                    {getEarningIcon(earning.earning_type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium capitalize">{getEarningLabel(earning.earning_type)}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {earning.description || 'Earning recorded'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(earning.created_at), 'h:mm a')}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono font-semibold text-success">
-                      +{formatUGX(Number(earning.amount))}
-                    </p>
-                  </div>
-                </div>
-              ))}
+              {grouped[date].map(earning => {
+                const isExpanded = expandedEarningId === earning.id;
+                const ledger = earning.ledger;
+                const hasDetail = !!(ledger || earning.sourceName);
+
+                return (
+                  <Collapsible
+                    key={earning.id}
+                    open={isExpanded}
+                    onOpenChange={() => {
+                      hapticTap();
+                      setExpandedEarningId(isExpanded ? null : earning.id);
+                    }}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <div className={`flex items-center gap-4 p-4 rounded-lg bg-secondary/50 cursor-pointer transition-colors hover:bg-secondary/80 ${isExpanded ? 'rounded-b-none' : ''}`}>
+                        <div className="p-2 rounded-lg bg-muted/50">
+                          {getEarningIcon(earning.earning_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium capitalize">{getEarningLabel(earning.earning_type)}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {ledger?.tenant_name || earning.sourceName
+                              ? (ledger?.tenant_name || earning.sourceName)
+                              : (earning.description || 'Earning recorded')}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(earning.created_at), 'h:mm a')}
+                          </p>
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <p className="font-mono font-semibold text-success">
+                            +{formatUGX(Number(earning.amount))}
+                          </p>
+                          {hasDetail && (
+                            <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          )}
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    {hasDetail && (
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 pt-2 bg-secondary/30 rounded-b-lg border-t border-border/40 space-y-1.5">
+                          {ledger?.commission_role && (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] font-medium">
+                                {getRoleLabel(ledger.commission_role, ledger.percentage)}
+                              </Badge>
+                            </div>
+                          )}
+                          {ledger?.tenant_name && (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">Tenant:</span> {ledger.tenant_name}
+                            </p>
+                          )}
+                          {earning.sourceName && !ledger?.tenant_name && (
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">From:</span> {earning.sourceName}
+                            </p>
+                          )}
+                          {ledger?.percentage != null && ledger?.repayment_amount != null && ledger.repayment_amount > 0 && (
+                            <p className="text-xs font-mono text-primary">
+                              {ledger.percentage}% of {formatUGX(ledger.repayment_amount)} = {formatUGX(earning.amount)}
+                            </p>
+                          )}
+                          {earning.description && (
+                            <p className="text-[11px] text-muted-foreground">{earning.description}</p>
+                          )}
+                        </div>
+                      </CollapsibleContent>
+                    )}
+                  </Collapsible>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -305,13 +366,13 @@ export default function AgentEarnings() {
           <CardContent>
             <Tabs defaultValue="all" className="space-y-4">
               <TabsList className="w-full">
-                <TabsTrigger value="all" className="flex-1">All ({earnings.length})</TabsTrigger>
-                <TabsTrigger value="commissions" className="flex-1">Commissions ({commissionEarnings.length})</TabsTrigger>
-                <TabsTrigger value="bonuses" className="flex-1">Bonuses ({bonusEarnings.length})</TabsTrigger>
+                <TabsTrigger value="all" className="flex-1">All ({detailedEarnings.length})</TabsTrigger>
+                <TabsTrigger value="commissions" className="flex-1">Commissions ({detailedCommissions.length})</TabsTrigger>
+                <TabsTrigger value="bonuses" className="flex-1">Bonuses ({detailedBonuses.length})</TabsTrigger>
               </TabsList>
-              <TabsContent value="all">{renderEarningsList(earnings)}</TabsContent>
-              <TabsContent value="commissions">{renderEarningsList(commissionEarnings)}</TabsContent>
-              <TabsContent value="bonuses">{renderEarningsList(bonusEarnings)}</TabsContent>
+              <TabsContent value="all">{renderEarningsList(detailedEarnings)}</TabsContent>
+              <TabsContent value="commissions">{renderEarningsList(detailedCommissions)}</TabsContent>
+              <TabsContent value="bonuses">{renderEarningsList(detailedBonuses)}</TabsContent>
             </Tabs>
           </CardContent>
         </Card>
