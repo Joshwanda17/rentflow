@@ -473,8 +473,8 @@ export function LandlordOpsDashboard() {
     return [...map.values()].sort((a, b) => (b.listingCount + b.tenantCount) - (a.listingCount + a.tenantCount));
   }, [rows, noLandlordList]);
 
-  // LC1 grouping (includes listingIds for editing)
-  const lc1Groups = useMemo(() => {
+  // LC1 grouping from house_listings (kept for backward compat)
+  const lc1GroupsFromListings = useMemo(() => {
     const map = new Map<string, { name: string; phone: string | null; village: string | null; houseCount: number; listingIds: string[] }>();
     rows.forEach(r => {
       if (!r.lc1_chairperson_name) return;
@@ -489,6 +489,75 @@ export function LandlordOpsDashboard() {
     });
     return [...map.values()].sort((a, b) => b.houseCount - a.houseCount);
   }, [rows]);
+
+  // ─── Full LC1 Chairpersons Query (from lc1_chairpersons table) ───
+  const { data: fullLC1Data, refetch: refetchLC1 } = useQuery({
+    queryKey: ['landlord-ops-full-lc1'],
+    queryFn: async () => {
+      // 1. Fetch all LC1 chairpersons
+      const allLC1: { id: string; name: string; phone: string; village: string; created_at: string }[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase.from('lc1_chairpersons').select('id, name, phone, village, created_at')
+          .order('name').range(offset, offset + 999);
+        if (data && data.length > 0) { allLC1.push(...data); offset += 1000; hasMore = data.length === 1000; }
+        else hasMore = false;
+      }
+
+      // 2. Get landlord links via rent_requests.lc1_id
+      const lc1Ids = allLC1.map(l => l.id);
+      const landlordIdsByLC1 = new Map<string, Set<string>>();
+      for (let i = 0; i < lc1Ids.length; i += 50) {
+        const { data: rr } = await supabase.from('rent_requests')
+          .select('lc1_id, landlord_id')
+          .in('lc1_id', lc1Ids.slice(i, i + 50))
+          .not('landlord_id', 'is', null);
+        if (rr) rr.forEach(r => {
+          if (!r.landlord_id) return;
+          if (!landlordIdsByLC1.has(r.lc1_id)) landlordIdsByLC1.set(r.lc1_id, new Set());
+          landlordIdsByLC1.get(r.lc1_id)!.add(r.landlord_id);
+        });
+      }
+
+      // 3. Also link via house_listings phone match
+      const lc1PhoneMap = new Map(allLC1.map(l => [l.phone, l.id]));
+      const listingPhones = [...new Set(rows.filter(r => r.lc1_chairperson_phone).map(r => r.lc1_chairperson_phone!))];
+      rows.forEach(r => {
+        if (!r.lc1_chairperson_phone || !r.landlord_id) return;
+        const lc1Id = lc1PhoneMap.get(r.lc1_chairperson_phone);
+        if (lc1Id) {
+          if (!landlordIdsByLC1.has(lc1Id)) landlordIdsByLC1.set(lc1Id, new Set());
+          landlordIdsByLC1.get(lc1Id)!.add(r.landlord_id);
+        }
+      });
+
+      // 4. Fetch all unique landlord details
+      const allLandlordIds = [...new Set([...landlordIdsByLC1.values()].flatMap(s => [...s]))];
+      const landlordMap = new Map<string, { id: string; name: string; phone: string; property_address: string; verified: boolean | null; village: string | null }>();
+      for (let i = 0; i < allLandlordIds.length; i += 50) {
+        const { data: ll } = await supabase.from('landlords')
+          .select('id, name, phone, property_address, verified, village')
+          .in('id', allLandlordIds.slice(i, i + 50));
+        if (ll) ll.forEach(l => landlordMap.set(l.id, l));
+      }
+
+      // 5. Build final data
+      return allLC1.map(lc1 => {
+        const landlordIds = landlordIdsByLC1.get(lc1.id);
+        const landlords = landlordIds
+          ? [...landlordIds].map(lid => landlordMap.get(lid)).filter(Boolean) as { id: string; name: string; phone: string; property_address: string; verified: boolean | null; village: string | null }[]
+          : [];
+        // Also get listingIds from house_listings for edit dialog
+        const listingIds = rows.filter(r => r.lc1_chairperson_phone === lc1.phone).map(r => r.id);
+        return { ...lc1, landlords, listingIds };
+      });
+    },
+    staleTime: 60000,
+    enabled: view === 'lc1' || view === 'home',
+  });
+
+  const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
@@ -550,7 +619,7 @@ export function LandlordOpsDashboard() {
     </button>
   );
 
-  const refetchAll = () => { refetch(); refetchLandlords(); };
+  const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
 
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
@@ -718,8 +787,8 @@ export function LandlordOpsDashboard() {
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
         <div className="space-y-2">
-          {filtered.map((lc1, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-1.5">
+          {filtered.map((lc1) => (
+            <div key={lc1.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-bold text-sm">{lc1.name}</p>
@@ -727,16 +796,34 @@ export function LandlordOpsDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setEditLC1(lc1)}
+                    onClick={() => setEditLC1({ name: lc1.name, phone: lc1.phone, village: lc1.village, listingIds: lc1.listingIds })}
                     className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
                     title="Edit LC1"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
-                  <Badge variant="outline" className="text-[10px]">{lc1.houseCount} {lc1.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{lc1.landlords.length} {lc1.landlords.length === 1 ? 'landlord' : 'landlords'}</Badge>
                 </div>
               </div>
               {lc1.phone && <PhoneLinks phone={lc1.phone} name={lc1.name} />}
+              {/* Landlords under this LC1 */}
+              {lc1.landlords.length > 0 && (
+                <div className="mt-2 pl-3 border-l-2 border-primary/20 space-y-1.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Landlords</p>
+                  {lc1.landlords.map(ll => (
+                    <div key={ll.id} className="flex items-center justify-between gap-2 py-1">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{ll.name}</p>
+                        {ll.property_address && <p className="text-[10px] text-muted-foreground truncate">{ll.property_address}</p>}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {ll.verified && <Badge className="bg-emerald-500/20 text-emerald-700 border-0 text-[9px] h-4 px-1">Verified</Badge>}
+                        <PhoneLinks phone={ll.phone} name={ll.name} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No LC1 chairpersons found</p>}
