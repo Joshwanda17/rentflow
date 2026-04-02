@@ -50,7 +50,7 @@ export function CFOWithdrawalApprovals() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .eq('status', 'pending')
+        .eq('status', 'fin_ops_verified')
         .order('created_at', { ascending: false })
         .limit(100);
 
