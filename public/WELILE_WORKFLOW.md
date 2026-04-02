@@ -1733,12 +1733,14 @@ OUT: 10% to Welile Homes (automatic savings)
 
 ### Agent
 ```
-IN:  Registration rewards (UGX 500/tenant)
-IN:  Verification bonuses (UGX 5,000 each)
-IN:  Approval bonuses (UGX 5,000 each)
-IN:  5% commission on repayments (4% for sub-agents)
-IN:  1% passive override on sub-agent collections
-IN:  2% landlord management fee
+IN:  Sub-agent registration bonus (UGX 10,000 per sub-agent)
+IN:  Verification bonuses (UGX 5,000 each: listing, landlord verification, rent application)
+IN:  Tenant replacement bonus (UGX 20,000)
+IN:  10% commission on rent repayments:
+       - Source Agent: 2% of repayment
+       - Tenant Manager: 8% (or 6% if recruiter exists)
+       - Recruiter Override: 2% (from manager's share)
+IN:  2% landlord management fee (non-smartphone landlords)
 IN:  2% proxy investment commission
 OUT: Cash advances (33% compounding access fee)
 OUT: Proxy investments for partners
@@ -1765,10 +1767,13 @@ IN:  Access Fees (23/28/33% compounding monthly)
 IN:  Request Fees (UGX 10,000 or 20,000)
 IN:  Platform Fees on credit (5% compounding)
 IN:  10% guaranteed rent program fees
-OUT: Agent commissions and bonuses
+OUT: Agent commissions and bonuses (categorized as marketing_expense in ledger)
+     - 10% rent repayment commission (double-entry: cash_out/marketing_expense/platform + cash_in/agent_commission/wallet)
+     - Fixed event bonuses: UGX 5K–20K per activity (same double-entry pattern)
 OUT: Supporter monthly rewards
 OUT: Welile Homes growth rewards (5% monthly)
 OUT: Operational expenses
+OUT: Withdrawal pre-deductions (withdrawal_pending) and reversals (withdrawal_reversal)
 ```
 
 ---
