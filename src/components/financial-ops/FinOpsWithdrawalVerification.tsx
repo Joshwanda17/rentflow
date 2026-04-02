@@ -186,6 +186,7 @@ export function FinOpsWithdrawalVerification() {
         metadata: {
           amount: selected.amount,
           reference: reference.trim().toUpperCase(),
+          payment_method: paymentMethod,
           target_user: selected.user_id,
         },
       });
