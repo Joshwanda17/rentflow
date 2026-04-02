@@ -976,21 +976,59 @@ dailyRepayment = ceil(totalRepayment / durationDays)
 
 ## 23. Agent Earnings & Commission Structure
 
-### Fixed Activity Rewards
+### 10% Rent Repayment Commission (via `credit_agent_rent_commission` RPC)
+
+Every rent repayment triggers a **10% total commission** split across up to 3 agent roles:
+
+| Role | Share | Condition |
+|------|-------|-----------|
+| Source Agent | 2% | Agent who originally registered the tenant |
+| Tenant Manager | 8% | Agent currently managing the tenant (if no recruiter) |
+| Tenant Manager | 6% | Agent currently managing the tenant (if recruiter exists) |
+| Recruiter Override | 2% | Agent who recruited the Tenant Manager (from manager's share) |
+
+**Concrete Example:** Tenant repays UGX 100,000 → Total commission = UGX 10,000
+- Source Agent: UGX 2,000
+- Tenant Manager: UGX 8,000 (or UGX 6,000 if recruiter exists)
+- Recruiter: UGX 2,000 (only if recruiter exists, taken from manager's share)
+
+### Fixed Event Bonuses (via `credit_agent_event_bonus` RPC)
 
 | Activity | Reward |
 |----------|--------|
-| Tenant Registration | UGX 500 |
-| Tenant Verification | UGX 5,000 |
-| Rent Verification | UGX 5,000 |
-| Approval Bonus | UGX 5,000 |
+| Verified house listing | UGX 5,000 |
+| Landlord location verification | UGX 5,000 |
+| Rent application facilitation | UGX 5,000 |
+| Sub-agent registration | UGX 10,000 |
+| Tenant replacement | UGX 20,000 |
 
-### Commission
+### Double-Entry Marketing Expense Pattern
 
-- **5% on rent repayments** collected from assigned tenants
-- **Sub-Agent Split:** Sub-agent 4%, Super Agent 1% passive override
-- **2% landlord management fee** for managing non-smartphone landlords
-- **2% proxy investment commission** on facilitated investments
+All agent earnings (commissions and bonuses) are classified as platform **marketing expenses**. Every agent wallet credit is paired with a corresponding platform debit:
+
+```
+Platform Side (Debit):
+  direction: cash_out
+  category: marketing_expense
+  ledger_scope: platform
+  description: "Marketing expense: Agent commission on repayment"
+
+Agent Side (Credit):
+  direction: cash_in
+  category: agent_commission
+  ledger_scope: wallet
+  description: "Commission on repayment: Source agent 2%"
+
+Both entries share the same transaction_group_id for full auditability.
+The set_ledger_scope() trigger automatically routes marketing_expense → platform scope.
+```
+
+### Other Commissions
+
+| Action | Reward |
+|--------|--------|
+| Proxy investment facilitation | 2% commission |
+| Landlord management fee (non-smartphone landlords) | 2% |
 
 ### Career Path
 
@@ -998,6 +1036,18 @@ dailyRepayment = ceil(totalRepayment / durationDays)
 |-----------|--------|
 | Team Leader (2+ sub-agents) | Cash advances (UGX 300K–30M) |
 | 50 repaying tenants | Electric Bike |
+
+### Agent Commission Benefits Page (UI)
+
+**Route:** `/agent-commission-benefits` (accessible from agent hamburger menu, icon color `#7214c9`)
+
+**Purpose:** Plain-language page explaining the full commission model with concrete money examples so agents understand exactly how they earn.
+
+**Content:** How You Earn section, Commission Split Table, Event Bonuses Table, Career Path milestones.
+
+**WhatsApp Sharing:** Uses `navigator.share` Web Share API (mobile) with `https://wa.me/?text=...` fallback (desktop). Shares structured text summary of commission model.
+
+**Branding Assets:** High-resolution "Welile Service Centre" logo and poster available for download and printing.
 
 ---
 
@@ -1150,12 +1200,44 @@ Supporters NEVER see tenant names, landlord details, agent info, or phone number
 | Obligation | OBLIGATION | Debts/commitments | Yes |
 | System Control | SYSTEM_CONTROL | Buffer/escrow | Varies |
 | Revenue | REVENUE | Deferred/recognized | Varies |
-| Expense | EXPENSE | Costs/rewards | Varies |
+| Expense | EXPENSE | Costs/rewards (includes `marketing_expense`) | Varies |
 | Settlement | SETTLEMENT | Banking | Varies |
 
 ### How It Works
 
-Every financial action creates **two ledger entries** (debit + credit) that must balance. Wallet sync trigger (`sync_wallet_from_ledger`) automatically adjusts balances.
+Every financial action creates **two ledger entries** (debit + credit) that must balance. Wallet sync trigger (`sync_wallet_from_ledger`) automatically adjusts balances only when `transaction_group_id` is set.
+
+### Marketing Expense Category
+
+Agent commissions and bonuses are platform **marketing expenses**. The `set_ledger_scope()` trigger (BEFORE INSERT on `general_ledger`) automatically routes any entry with `category = 'marketing_expense'` to `ledger_scope = 'platform'`, ensuring these costs are tracked on the platform ledger — not the agent's personal wallet.
+
+```
+set_ledger_scope() routing:
+  marketing_expense → platform scope
+  rent_float_funding, landlord_float_payout, agent_advance_* → bridge scope
+  all other categories → wallet scope (default)
+```
+
+### Transaction Categories (Cash Out)
+
+| Category | Description |
+|----------|-------------|
+| `marketing_expense` | Platform debit for agent commissions & bonuses |
+| `withdrawal_pending` | Pre-deduction at withdrawal request time |
+| `withdrawal_reversal` | Refund on rejection (idempotent via `wallet-reject-{id}`) |
+| `rent_facilitation_payout` | Landlord rent disbursement |
+| `supporter_platform_rewards` | Monthly supporter rewards |
+| `operational_expenses` | General operations |
+| `wallet_transfer` | Peer-to-peer transfer |
+| *(+ 6 more categories)* | See root WELILE_WORKFLOW.md Section 19.5 for full list |
+
+### Key RPCs
+
+| Function | Purpose |
+|----------|---------|
+| `record_rent_request_repayment()` | Atomic repayment: updates rent_requests, landlords, creates ledger entry |
+| `credit_agent_rent_commission()` | 10% commission split with double-entry marketing expense (Source 2% / Manager 8% or 6% / Recruiter 2%) |
+| `credit_agent_event_bonus()` | Flat-fee bonus with double-entry marketing expense (params: `p_agent_id`, `p_bonus_type`, `p_amount`, `p_source_table`, `p_source_id`, `p_description`) |
 
 ### Corrections
 
@@ -1239,6 +1321,9 @@ NEVER edit entries. Post **reversing entries** instead.
 | `process-credit-draw` | Credit draw processing |
 | `import-partners` | Bulk partner import |
 | `partner-ops-automation` | Partner operations automation |
+| `wallet-deduction` | Financial Ops wallet deduction (mandatory reason, creates ledger + audit entries) |
+| `tenant-pay-rent` | Tenant direct rent payment from wallet (validates balance → ledger `cash_out` → `record_rent_request_repayment` RPC → `credit_agent_rent_commission` RPC → fire-and-forget `notify-managers`) |
+| `angel-pool-invest` | Angel Pool share investment (max 25,000 shares × UGX 20,000/share, 8% pool equity; validates balance + capacity, records in `angel_pool_investments`, creates `cash_out` ledger entry) |
 
 #### Financial Processing
 | Function | Description |
@@ -1648,12 +1733,14 @@ OUT: 10% to Welile Homes (automatic savings)
 
 ### Agent
 ```
-IN:  Registration rewards (UGX 500/tenant)
-IN:  Verification bonuses (UGX 5,000 each)
-IN:  Approval bonuses (UGX 5,000 each)
-IN:  5% commission on repayments (4% for sub-agents)
-IN:  1% passive override on sub-agent collections
-IN:  2% landlord management fee
+IN:  Sub-agent registration bonus (UGX 10,000 per sub-agent)
+IN:  Verification bonuses (UGX 5,000 each: listing, landlord verification, rent application)
+IN:  Tenant replacement bonus (UGX 20,000)
+IN:  10% commission on rent repayments:
+       - Source Agent: 2% of repayment
+       - Tenant Manager: 8% (or 6% if recruiter exists)
+       - Recruiter Override: 2% (from manager's share)
+IN:  2% landlord management fee (non-smartphone landlords)
 IN:  2% proxy investment commission
 OUT: Cash advances (33% compounding access fee)
 OUT: Proxy investments for partners
@@ -1680,10 +1767,13 @@ IN:  Access Fees (23/28/33% compounding monthly)
 IN:  Request Fees (UGX 10,000 or 20,000)
 IN:  Platform Fees on credit (5% compounding)
 IN:  10% guaranteed rent program fees
-OUT: Agent commissions and bonuses
+OUT: Agent commissions and bonuses (categorized as marketing_expense in ledger)
+     - 10% rent repayment commission (double-entry: cash_out/marketing_expense/platform + cash_in/agent_commission/wallet)
+     - Fixed event bonuses: UGX 5K–20K per activity (same double-entry pattern)
 OUT: Supporter monthly rewards
 OUT: Welile Homes growth rewards (5% monthly)
 OUT: Operational expenses
+OUT: Withdrawal pre-deductions (withdrawal_pending) and reversals (withdrawal_reversal)
 ```
 
 ---
@@ -1931,4 +2021,4 @@ OUT: Operational expenses
 
 ---
 
-*This document is the authoritative complete reference for the Welile platform. All UI components, business logic, edge functions, event architecture, cost optimizations, and governance flows are documented here. Last updated: April 2026.*
+*This document is the authoritative complete reference for the Welile platform. All UI components, business logic, edge functions, event architecture, cost optimizations, and governance flows are documented here. Version 3.3 — Last updated: April 2026.*

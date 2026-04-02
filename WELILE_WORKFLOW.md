@@ -445,10 +445,16 @@ Advance expires or is fully repaid → status changes
 Agent recruits sub-agents (agent_subagents table)
     ↓
 Parent agent earns:
-  - UGX 500 per sub-agent signup
-  - 1% commission on sub-agent collections
+  - UGX 10,000 per sub-agent signup (flat event bonus via credit_agent_event_bonus RPC)
+  - 2% recruiter override on sub-agent managed tenant repayments
+    (deducted from manager's 8% share → manager keeps 6%, recruiter gets 2%)
     ↓
 Sub-agent analytics: /sub-agents page
+    ↓
+Platform records both:
+  - cash_out / marketing_expense / platform scope (platform debit)
+  - cash_in / agent_commission / wallet scope (agent credit)
+  Both linked via shared transaction_group_id
 ```
 
 ## 4.11 Agent Tasks & Escalations
@@ -467,15 +473,58 @@ Sub-agent analytics: /sub-agents page
 
 ## 4.13 Agent Earnings Model
 
-| Action | Reward |
-|--------|--------|
+### 10% Rent Repayment Commission (via `credit_agent_rent_commission` RPC)
+
+Every rent repayment triggers a 10% commission split across up to 3 agent roles:
+
+| Role | Share | Condition |
+|------|-------|-----------|
+| Source Agent | 2% | Agent who originally registered the tenant |
+| Tenant Manager | 8% | Agent currently managing the tenant (if no recruiter) |
+| Tenant Manager | 6% | Agent currently managing the tenant (if recruiter exists) |
+| Recruiter Override | 2% | Agent who recruited the Tenant Manager (from manager's share) |
+
+**Example:** Tenant repays UGX 100,000 → Total commission = UGX 10,000
+- Source Agent: UGX 2,000
+- Tenant Manager: UGX 8,000 (or UGX 6,000 if recruiter exists)
+- Recruiter: UGX 2,000 (only if recruiter exists, taken from manager's share)
+
+### Fixed Event Bonuses (via `credit_agent_event_bonus` RPC)
+
+| Activity | Reward |
+|----------|--------|
 | Verified house listing | UGX 5,000 |
 | Landlord location verification | UGX 5,000 |
-| Rent funding facilitation bonus | UGX 5,000 |
-| Rent repayment commission | 5% (base) × streak multiplier |
-| Sub-agent signup | UGX 500 |
-| Sub-agent collections | 1% commission |
+| Rent application facilitation | UGX 5,000 |
+| Sub-agent registration | UGX 10,000 |
+| Tenant replacement | UGX 20,000 |
+
+### Double-Entry Marketing Expense Pattern
+
+All agent earnings (commissions and bonuses) are platform **marketing expenses**. Every agent wallet credit is paired with a platform debit:
+
+```
+Platform Side (Debit):
+  direction: cash_out
+  category: marketing_expense
+  ledger_scope: platform
+  description: "Marketing expense: Agent commission on repayment" (or bonus description)
+
+Agent Side (Credit):
+  direction: cash_in
+  category: agent_commission
+  ledger_scope: wallet
+  description: "Commission on repayment: Source agent 2%" (or specific role/bonus)
+
+Both entries share the same transaction_group_id for auditability.
+```
+
+### Other Commissions
+
+| Action | Reward |
+|--------|--------|
 | Proxy investment facilitation | 2% commission |
+| Landlord management fee (non-smartphone landlords) | 2% |
 
 ## 4.14 Performance Tiering
 
@@ -510,13 +559,39 @@ New → Active → Top Earner
 - **`agent-deposit`**: Process agent deposits
 - **`agent-withdrawal`**: Process agent withdrawals
 - **`agent-invest-for-partner`**: Proxy investment flow
-- **`credit-listing-bonus`**: Award listing bonus
-- **`credit-landlord-registration-bonus`**: Landlord reg bonus
-- **`credit-landlord-verification-bonus`**: Verification bonus
+- **`credit-listing-bonus`**: Award listing bonus (triggers `credit_agent_event_bonus` RPC)
+- **`credit-landlord-registration-bonus`**: Landlord reg bonus (triggers `credit_agent_event_bonus` RPC)
+- **`credit-landlord-verification-bonus`**: Verification bonus (triggers `credit_agent_event_bonus` RPC)
 - **`approve-listing-bonus`**: Manager approves listing bonus
 - **`send-collection-sms`**: SMS confirmation after collection
 - **`process-agent-advance-deductions`**: Daily advance repayments
 - **`manual-collect-rent`**: Manual rent collection recording
+- **`tenant-pay-rent`**: Direct tenant wallet-to-rent payment (validates balance, creates ledger entry, calls `record_rent_request_repayment` + `credit_agent_rent_commission` RPCs)
+- **`wallet-deduction`**: Financial Ops wallet deduction tool (deducts from user wallet with mandatory reason, creates ledger + audit entries)
+- **`notify-managers`**: Fire-and-forget manager notification (queries `user_roles` for enabled managers, calls `send-push-notification` for all matching user IDs; supports `additionalRoles` param for notifying beyond managers)
+
+### 4.18.1 Agent Commission Benefits Page
+
+**Route:** `/agent-commission-benefits` (accessible from agent hamburger menu, icon color `#7214c9`)
+
+**UI Component:** `AgentCommissionBenefits.tsx`
+
+**Purpose:** Plain-language ("ordinary man") page explaining the full commission model with concrete money examples so agents understand exactly how they earn.
+
+**Content Sections:**
+1. **How You Earn** — Explains 10% repayment commission with UGX 100,000 example
+2. **Commission Split Table** — Source 2%, Manager 8%, Recruiter Override 2%
+3. **Event Bonuses Table** — UGX 5,000–20,000 per activity
+4. **Career Path** — Team Leader (2+ sub-agents → cash advances), 50 tenants → Electric Bike
+
+**WhatsApp Sharing:**
+- Uses `navigator.share` Web Share API (mobile)
+- Falls back to `https://wa.me/?text=...` URL (desktop)
+- Shares structured text summary of commission model with Welile branding
+
+**Branding Assets:**
+- High-resolution "Welile Service Centre" logo and poster available for download
+- Agents can print these for field setup and recruitment
 
 ---
 
@@ -1361,7 +1436,11 @@ Repayment hierarchy:
   2. Accumulated debt
   3. Future daily installments (advances next_charge_date)
     ↓
-Agent earns 5% commission (via credit_agent_rent_commission RPC)
+Agent earns 10% commission split (via credit_agent_rent_commission RPC):
+  - Source Agent: 2% of repayment amount
+  - Tenant Manager: 8% (or 6% if recruiter exists)
+  - Recruiter Override: 2% (if recruiter exists, from manager's share)
+  Platform records cash_out/marketing_expense (platform scope) + cash_in/agent_commission (wallet scope)
     ↓
 If RPC fails → deductions reversed
 ```
@@ -1571,23 +1650,39 @@ UI Components: `IncomeStatementView.tsx`, `CashFlowView.tsx`, `BalanceSheetView.
 | `coo_proxy_investment` | COO proxy investment for partner |
 | `pool_rent_deployment` | Pool deployment to tenant |
 | `wallet_transfer` | Peer-to-peer transfer |
+| `marketing_expense` | **Agent commissions & bonuses as platform marketing cost** (auto-routed to `platform` scope by `set_ledger_scope` trigger) |
+| `withdrawal_pending` | Wallet pre-deduction at withdrawal request time (funds held until approval/rejection) |
+| `withdrawal_reversal` | Refund of pre-deducted funds on withdrawal rejection (idempotent via deterministic `transaction_group_id`: `wallet-reject-{id}` or `float-reject-{id}`) |
 
 ## 19.6 Key Database Triggers
 
 | Trigger | Purpose |
 |---------|---------|
 | `sync_wallet_from_ledger` | Auto-sync wallet balance from ledger entries (only when `transaction_group_id` is set) |
-| `auto_assign_ledger_scope` | Classify entries as wallet/platform/bridge |
-| Float exclusion | Prevents float categories from inflating personal wallets |
+| `auto_assign_ledger_scope` / `set_ledger_scope()` | Classify entries as wallet/platform/bridge. **Routes `marketing_expense` category → `platform` scope automatically.** Also routes float categories (`rent_float_funding`, `landlord_float_payout`, `agent_advance_*`) to `bridge` scope to prevent float from inflating personal wallets |
 | `trg_enforce_property_chain` | Blocks incomplete property chains |
 | `trg_auto_assign_landlord_on_rent_request` | Auto-assigns landlord |
+
+### `set_ledger_scope()` Routing Logic (BEFORE INSERT trigger on general_ledger)
+
+```sql
+-- Automatic scope assignment based on category:
+IF category IN ('rent_float_funding','landlord_float_payout','agent_advance_*') THEN
+  scope = 'bridge'
+ELSIF category = 'marketing_expense' THEN
+  scope = 'platform'
+ELSIF ledger_scope IS NULL THEN
+  scope = 'wallet'  -- default for user-facing transactions
+END IF;
+```
 
 ## 19.7 Key RPCs
 
 | Function | Purpose |
 |----------|---------|
-| `record_rent_request_repayment()` | Atomic repayment: updates rent_requests, landlords, creates ledger entry |
-| `credit_agent_rent_commission()` | Credits 5% commission: updates wallet + ledger + agent_earnings |
+| `record_rent_request_repayment()` | Atomic repayment: updates rent_requests.amount_repaid, landlords receivables, creates general_ledger entry. Accepts optional `transaction_group_id`. |
+| `credit_agent_rent_commission()` | Credits **10% commission** split across Source (2%), Manager (8% or 6%), and Recruiter (2% override). Creates **paired double-entry** per agent role: platform debit (`cash_out`/`marketing_expense`/`platform` scope) + agent credit (`cash_in`/`agent_commission`/`wallet` scope). Also inserts into `agent_earnings` and `commission_accrual_ledger`. Idempotent via `rent_request_id` + `repayment_amount` check. |
+| `credit_agent_event_bonus()` | Credits flat-fee event bonuses (UGX 5,000–20,000) with same double-entry marketing expense pattern. Parameters: `p_agent_id`, `p_bonus_type` (e.g., `listing`, `verification`, `registration`, `replacement`), `p_amount`, `p_source_table`, `p_source_id`, `p_description`. |
 
 ## 19.8 Ledger Account Hierarchy
 
@@ -1992,9 +2087,9 @@ Missing any link → blocked by trg_enforce_property_chain
 | `process-supporter-roi` | ROI calculation |
 | `process-investment-interest` | Interest processing |
 | `approve-listing-bonus` | Listing bonus approval |
-| `credit-listing-bonus` | Award listing bonus |
-| `credit-landlord-registration-bonus` | Landlord reg bonus |
-| `credit-landlord-verification-bonus` | Verification bonus |
+| `credit-listing-bonus` | Award listing bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'listing'`, `p_amount = 5000`) |
+| `credit-landlord-registration-bonus` | Landlord reg bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'registration'`, `p_amount = 5000`) |
+| `credit-landlord-verification-bonus` | Verification bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'verification'`, `p_amount = 5000`) |
 
 ### Financial - Platform Operations
 | Function | Purpose |
@@ -2007,6 +2102,13 @@ Missing any link → blocked by trg_enforce_property_chain
 | `batch-recalculate-credit-limits` | Recalculate limits |
 | `refresh-daily-stats` | Snapshot refresh |
 | `seed-test-funds` | Test data |
+| `wallet-deduction` | Financial Ops wallet deduction (mandatory reason, creates ledger + audit entries, deducts from user wallet) |
+| `tenant-pay-rent` | Tenant direct rent payment from wallet (validates balance → ledger cash_out → `record_rent_request_repayment` RPC → `credit_agent_rent_commission` RPC → fire-and-forget `notify-managers`) |
+| `angel-pool-invest` | Angel Pool share investment (validates balance + capacity, max 25,000 shares × UGX 20,000/share, 8% pool equity allocation; records shares in `angel_pool_investments`, creates `cash_out` ledger entry) |
+| `notify-managers` | Fire-and-forget manager notification hub (queries `user_roles` for enabled `manager` role + optional `additionalRoles`, deduplicates user IDs, calls `send-push-notification` with payload `{title, body, url, type}`) |
+| `provision-staff-passwords` | Bulk staff password provisioning |
+| `bulk-password-reset` | Mass password reset across multiple users |
+| `diagnose-auth` | Auth diagnostics and troubleshooting utility |
 
 ### Communications
 | Function | Purpose |
@@ -2319,7 +2421,7 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 
 ---
 
-# Appendix F: Changelog (v2.0 → v3.0 → v3.1 → v3.2)
+# Appendix F: Changelog (v2.0 → v3.0 → v3.1 → v3.2 → v3.3)
 
 | Feature | Change |
 |---------|--------|
@@ -2343,7 +2445,15 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 | **Predictive Prefetch Removed** | REMOVED (v3.1) — Deleted `predictivePrefetch.ts` (duplicated `user-snapshot` logic, caused ~50% redundant edge function calls on login) |
 | **Batch Processing** | OPTIMIZED (v3.1) — `batch-process-financials` uses `Promise.allSettled` for parallel anomaly flagging |
 | **Double-Credit Fix** | RESOLVED (v3.2) — `wallet-transfer` → ledger-only writes with `transaction_group_id`; `credit_agent_rent_commission` → sole commission writer with idempotency guard; `record_rent_request_repayment` → accepts optional `transaction_group_id`; `approve-deposit` → stripped of all inline commission logic, delegates to RPCs |
+| **Agent Commission Model** | CORRECTED (v3.3) — Updated from 5% to **10% total commission** with proper split: Source 2%, Manager 8% (or 6% with recruiter), Recruiter Override 2%. Sub-agent signup bonus corrected from UGX 500 to **UGX 10,000** |
+| **Marketing Expense Categorization** | NEW (v3.3) — All agent commissions and bonuses are platform **marketing expenses**. Platform-side debit uses `cash_out`/`marketing_expense`/`platform` scope; agent-side credit uses `cash_in`/`agent_commission`/`wallet` scope. Both linked via `transaction_group_id` |
+| **`credit_agent_event_bonus` RPC** | NEW (v3.3) — Flat-fee bonus RPC with double-entry marketing expense pattern (UGX 5,000 for listings/verifications/applications, UGX 10,000 for sub-agent registration, UGX 20,000 for tenant replacement) |
+| **`set_ledger_scope` Trigger Update** | UPDATED (v3.3) — Now auto-routes `marketing_expense` category to `platform` scope |
+| **Transaction Categories** | EXPANDED (v3.3) — Added `marketing_expense`, `withdrawal_pending`, `withdrawal_reversal` to Cash Out categories |
+| **Missing Edge Functions** | DOCUMENTED (v3.3) — Added `tenant-pay-rent`, `wallet-deduction`, `angel-pool-invest`, `notify-managers`, `provision-staff-passwords`, `bulk-password-reset`, `diagnose-auth` to registry |
+| **Agent Commission Benefits Page** | NEW (v3.3) — `/agent-commission-benefits` UI page with plain-language commission explanation, WhatsApp sharing, money examples, and branding assets |
+| **Withdrawal Pipeline** | SIMPLIFIED (v3.3) — Single-step Financial Ops approval (pending → approved). Pre-deduction at request time (`withdrawal_pending`), idempotent rejection refund (`withdrawal_reversal` with deterministic `transaction_group_id`) |
 
 ---
 
-*End of Document — Version 3.2*
+*End of Document — Version 3.3*
