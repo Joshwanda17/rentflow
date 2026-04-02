@@ -1413,7 +1413,7 @@ Fire-and-forget pattern — errors logged but never block the main transaction.
 | Role assignment | `super_admin`, `manager`, `cto` |
 | Account freeze/delete | `super_admin`, `manager`, `cto`, `coo` |
 | Deposit approval | `manager`, `coo` |
-| Withdrawal approval | 4-stage hierarchy |
+| Withdrawal approval | Financial Ops single-step (TID/receipt/bank ref required) |
 | Proxy investment | `agent`, `coo` |
 
 ### Financial Safety
