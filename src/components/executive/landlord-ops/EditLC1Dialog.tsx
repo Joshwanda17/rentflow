@@ -81,21 +81,11 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
         await supabase.from('house_listings').update(updates).eq('id', listingId);
       }
 
-      if (lc1.phone) {
-        const { data: existingLc1 } = await supabase
-          .from('lc1_chairpersons')
-          .select('id')
-          .eq('phone', lc1.phone)
-          .maybeSingle();
-
-        if (existingLc1) {
-          await supabase.from('lc1_chairpersons').update({
-            name: form.name.trim(),
-            phone: form.phone.trim(),
-            village: form.village.trim(),
-          }).eq('id', existingLc1.id);
-        }
-      }
+      await supabase.from('lc1_chairpersons').update({
+        name: form.name.trim(),
+        phone: form.phone.trim() || null,
+        village: form.village.trim() || null,
+      }).eq('id', lc1.id);
 
       await supabase.from('audit_logs').insert({
         user_id: user.id,
