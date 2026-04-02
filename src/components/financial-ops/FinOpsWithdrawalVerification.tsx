@@ -172,7 +172,7 @@ export function FinOpsWithdrawalVerification() {
         amount: selected.amount,
         direction: 'cash_out',
         category: 'wallet_withdrawal',
-        description: `Wallet withdrawal completed. TID: ${reference.trim().toUpperCase()}`,
+        description: `Wallet withdrawal completed via ${paymentMethod}. TID: ${reference.trim().toUpperCase()}`,
         source_table: 'withdrawal_requests',
         source_id: selected.id,
         linked_party: user.id,
