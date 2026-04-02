@@ -72,7 +72,7 @@ const DashboardHeader = memo(function DashboardHeader({
   headerActions,
 }: DashboardHeaderProps) {
   const navigate = useNavigate();
-  const { isInstalled, isInstallable, promptInstall } = usePWAInstall();
+  const { isInstalled, hasPrompt: isInstallable, promptInstall } = usePWAInstall();
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
 
   const handleInstallClick = async () => {

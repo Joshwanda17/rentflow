@@ -5,7 +5,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+export let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+
+export function clearGlobalPrompt() {
+  globalDeferredPrompt = null;
+  notifyListeners(false);
+}
 const listeners = new Set<(v: boolean) => void>();
 
 function notifyListeners(hasPrompt: boolean) {
