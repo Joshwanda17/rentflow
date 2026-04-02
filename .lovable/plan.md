@@ -1,26 +1,36 @@
 
 
-# Wallet Withdrawal: Add Reason, Save All Payout Details, Show on FinOps
+# Fix: EditLC1Dialog Saves Not Persisting
 
-## Changes
+## Root Cause
 
-### 1. Database Migration — Add `reason` column
-Add `reason TEXT` to `withdrawal_requests` (nullable for backward compat, but UI will require it).
+The `EditLC1Dialog` receives `{ name, phone, village, listingIds }` but **not the LC1 `id`**. The save function (line 93) tries to find the `lc1_chairpersons` record by phone — but if phone is null/empty, the update is skipped entirely. Even when phone exists, a phone change would cause a lookup mismatch.
 
-### 2. `src/components/wallet/WithdrawRequestDialog.tsx` — Require reason + save all fields
-- Add `reason` state and a `<Textarea>` with placeholder *"Why are you withdrawing?"* (min 10 chars)
-- Add reason to `isFormValid` check
-- **Fix the insert** to include all collected payout fields that are currently missing:
-  - `mobile_money_name`, `payout_method`, `bank_name`, `bank_account_name`, `bank_account_number`, `agent_location`, `reason`
+Meanwhile, the LC1 list now comes from the `lc1_chairpersons` table which has a proper `id` field, but it's never passed to the dialog.
 
-### 3. `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — Show all details + ledger on TID
-- Add `reason` to the `WithdrawalRequest` interface
-- In `renderRequestCard`: display **recipient name** (`mobile_money_name` or `bank_account_name`) prominently, and show the `reason` in a visible info block
-- In `handleTidComplete`: after status update, insert a `cash_out` ledger entry with the TID reference — this records the transaction but does NOT double-deduct (balance was already deducted on request creation by the `trg_deduct_wallet_on_withdrawal_request` trigger)
-- Stay on the same page after completion (already the case)
+## Fix
+
+### 1. Pass `id` to `EditLC1Dialog`
+
+**File: `src/components/executive/landlord-ops/EditLC1Dialog.tsx`**
+- Add `id: string` to the `LC1Data` interface
+- Change `handleSave` to update `lc1_chairpersons` by `id` directly instead of phone lookup:
+  ```ts
+  await supabase.from('lc1_chairpersons').update({
+    name: form.name.trim(),
+    phone: form.phone.trim() || null,
+    village: form.village.trim() || null,
+  }).eq('id', lc1.id);
+  ```
+- Also use `id` for the fresh-fetch in `useEffect` (query by `id` instead of `phone`)
+
+### 2. Pass `id` from the edit button
+
+**File: `src/components/executive/LandlordOpsDashboard.tsx`**
+- Line ~799: Add `id: lc1.id` to the `setEditLC1` call
+- Update the `editLC1` state type to include `id: string`
 
 ## Files Modified
-- DB migration: `ALTER TABLE withdrawal_requests ADD COLUMN IF NOT EXISTS reason TEXT`
-- `src/components/wallet/WithdrawRequestDialog.tsx`
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
+- `src/components/executive/landlord-ops/EditLC1Dialog.tsx` — use `id` for DB update + fetch
+- `src/components/executive/LandlordOpsDashboard.tsx` — pass `id` to dialog
 
