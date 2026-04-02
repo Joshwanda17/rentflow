@@ -1,4 +1,4 @@
-import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer } from 'lucide-react';
+import { ArrowLeft, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer, Zap, MapPin, Bike, Wallet, HandCoins, Building2, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
 • List an empty house → *UGX 5,000*
 • Replace a tenant in a house → *UGX 20,000*
 • Register a new agent under you → *UGX 10,000*
+• Set up a Welile Service Centre → *UGX 25,000*
 
 💵 All your earnings go straight to your Welile Wallet.
 
@@ -69,16 +70,158 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
 
       <div className="p-4 space-y-4 max-w-2xl mx-auto pb-8">
 
-        {/* Quick Summary */}
+        {/* ========== ALL EARNING OPPORTUNITIES AT A GLANCE ========== */}
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center space-y-2">
-              <div className="text-3xl">💵</div>
-              <p className="text-base font-bold text-foreground">Every time your tenant pays rent, you earn money!</p>
-              <p className="text-sm text-muted-foreground">You get <span className="font-bold text-primary text-lg">10%</span> of every repayment — automatically sent to your wallet.</p>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Zap className="h-5 w-5 text-primary" />
+              All Ways You Can Earn 💰
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-0">
+            <p className="text-xs text-muted-foreground mb-3">Here is every opportunity to make money as a Welile Agent — all in one place:</p>
+            <div className="rounded-xl border border-primary/20 overflow-hidden">
+              <div className="bg-primary/10 px-3 py-2 text-xs font-bold text-foreground uppercase tracking-wide">
+                📊 Your Earning Opportunities
+              </div>
+              <div className="divide-y divide-border/40">
+                {/* Recurring */}
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <DollarSign className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Rent Repayment Commission</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">10%</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Every time your tenant pays rent — you earn 10% automatically, forever!</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Users className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Recruiter Override</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">2%</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Earn 2% from every tenant managed by agents YOU recruited</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <HandCoins className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Collect Rent from Tenants</p>
+                      <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Float</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Go out and collect rent directly — record it in the app and build your collection streaks</p>
+                  </div>
+                </div>
+
+                {/* One-time bonuses */}
+                <div className="bg-muted/30 px-3 py-1.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">One-Time Cash Bonuses</p>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Building2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Set Up a Service Centre</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 25,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Print poster, mount it, submit photo + GPS — get paid after verification!</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Award className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Replace a Tenant</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 20,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Find a new tenant for a vacated house</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <UserPlus className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Register a New Agent</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 10,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Bring someone new to join as a Welile agent under you</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <BookOpen className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Help a Tenant Apply for Rent</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Help post a rent request for a tenant who needs help</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">List an Empty House</p>
+                      <span className="text-xs font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Find and list a vacant house for Welile</p>
+                  </div>
+                </div>
+
+                {/* Career growth */}
+                <div className="bg-muted/30 px-3 py-1.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Career Growth Rewards</p>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Wallet className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Cash Advance Access</p>
+                      <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">2+ agents</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Recruit 2+ sub-agents and become a Team Leader — unlock cash advances from Welile</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Bike className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Electric Bike Reward 🏍️</p>
+                      <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">50 tenants</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Manage 50 active tenants and earn an electric bike to boost your fieldwork!</p>
+                  </div>
+                </div>
+
+                <div className="px-3 py-2.5 flex items-start gap-2.5">
+                  <Share2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-semibold text-foreground">Invite a Funder</p>
+                      <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Referral</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Share your referral link to bring investors who fund rent — helping you and your tenants</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* ========== DETAILED SECTIONS ========== */}
 
         {/* How the 10% is shared */}
         <Card>
@@ -175,7 +318,7 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
           </CardContent>
         </Card>
 
-        {/* Extra Bonuses */}
+        {/* Extra Bonuses — UPDATED with Service Centre */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -190,19 +333,12 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
 
             <div className="rounded-xl border border-border/60 overflow-hidden">
               <div className="divide-y divide-border/40">
-                <div className="flex justify-between items-center px-3 py-3">
+                <div className="flex justify-between items-center px-3 py-3 bg-primary/5">
                   <div>
-                    <p className="text-sm font-medium text-foreground">Help a tenant apply for rent</p>
-                    <p className="text-xs text-muted-foreground">When you help post a rent request</p>
+                    <p className="text-sm font-medium text-foreground">🏪 Set up a Service Centre</p>
+                    <p className="text-xs text-muted-foreground">Print poster, mount, submit photo + GPS</p>
                   </div>
-                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
-                </div>
-                <div className="flex justify-between items-center px-3 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">List an empty house</p>
-                    <p className="text-xs text-muted-foreground">Find and list a vacant house for Welile</p>
-                  </div>
-                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 25,000</span>
                 </div>
                 <div className="flex justify-between items-center px-3 py-3">
                   <div>
@@ -218,6 +354,54 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
                   </div>
                   <span className="font-bold text-primary whitespace-nowrap">UGX 10,000</span>
                 </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Help a tenant apply for rent</p>
+                    <p className="text-xs text-muted-foreground">When you help post a rent request</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                </div>
+                <div className="flex justify-between items-center px-3 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">List an empty house</p>
+                    <p className="text-xs text-muted-foreground">Find and list a vacant house for Welile</p>
+                  </div>
+                  <span className="font-bold text-primary whitespace-nowrap">UGX 5,000</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Career Growth */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Zap className="h-4 w-4 text-primary" />
+              </div>
+              Career Growth & Rewards 🚀
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>The harder you work, the more Welile rewards you. Here's what's ahead:</p>
+
+            <div className="space-y-3">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground text-sm">🎖️ Team Leader (2+ Sub-Agents)</p>
+                <p className="text-xs mt-1">Recruit at least 2 agents under you and become a <span className="font-bold text-foreground">Team Leader</span>. This unlocks <span className="font-bold text-primary">cash advances</span> from Welile — money you can use for your fieldwork and pay back over time.</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground text-sm">🏍️ Electric Bike (50 Active Tenants)</p>
+                <p className="text-xs mt-1">Manage <span className="font-bold text-foreground">50 active tenants</span> and earn a <span className="font-bold text-primary">free electric bike</span> from Welile! This helps you move faster and serve more tenants.</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground text-sm">🔗 Invite a Funder</p>
+                <p className="text-xs mt-1">Share your referral link with potential investors. When they fund rent for your tenants, <span className="font-bold text-foreground">everyone wins</span> — tenants get rent, you earn commissions, and the funder earns returns.</p>
+              </div>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground text-sm">📈 Collection Streaks</p>
+                <p className="text-xs mt-1">Collect rent consistently and build <span className="font-bold text-foreground">collection streaks</span>. Longer streaks earn you <span className="font-bold text-primary">streak multiplier badges</span> and increase your performance tier.</p>
               </div>
             </div>
           </CardContent>
