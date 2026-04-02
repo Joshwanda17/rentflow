@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins } from 'lucide-react';
+import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
@@ -147,7 +147,7 @@ const DashboardHeader = memo(function DashboardHeader({
                             <span className="text-base">{config.emoji}</span>
                             <span>{config.label}</span>
                             {isActive && (
-                              <span className="ml-auto text-primary text-xs">✓</span>
+                              <Check className="ml-auto h-4 w-4 text-white" />
                             )}
                           </button>
                         );
