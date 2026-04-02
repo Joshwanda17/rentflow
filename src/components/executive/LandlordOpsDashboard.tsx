@@ -282,10 +282,10 @@ export function LandlordOpsDashboard() {
         }
       }
 
-      // Collect all landlord IDs to fetch tenants from house_listings
+      // Collect all landlord IDs to fetch tenants
       const landlordIds = allData.map(l => l.id);
 
-      // Fetch all house_listings tenant mappings for these landlords
+      // Fetch tenant mappings from house_listings
       const landlordTenantsRaw: { landlord_id: string; tenant_id: string }[] = [];
       for (let i = 0; i < landlordIds.length; i += 50) {
         const { data: hlData } = await supabase
@@ -294,6 +294,16 @@ export function LandlordOpsDashboard() {
           .in('landlord_id', landlordIds.slice(i, i + 50))
           .not('tenant_id', 'is', null);
         if (hlData) landlordTenantsRaw.push(...(hlData as any[]));
+      }
+
+      // Also fetch tenant-landlord links from rent_requests (primary linkage)
+      for (let i = 0; i < landlordIds.length; i += 50) {
+        const { data: rrData } = await supabase
+          .from('rent_requests')
+          .select('landlord_id, tenant_id')
+          .in('landlord_id', landlordIds.slice(i, i + 50))
+          .not('tenant_id', 'is', null);
+        if (rrData) landlordTenantsRaw.push(...(rrData as any[]));
       }
 
       // Build landlord -> tenant_ids map
