@@ -2588,7 +2588,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         action_type: 'roi_compounded',
         table_name: 'investor_portfolios',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId },
+        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId, reason },
       });
 
       // Notify partner
