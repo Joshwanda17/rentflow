@@ -76,9 +76,7 @@ const DashboardHeader = memo(function DashboardHeader({
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
 
   const handleInstallClick = async () => {
-    if (isIOS) {
-      setShowIOSGuide(true);
-    } else if (isInstallable) {
+    if (isInstallable) {
       await promptInstall();
     } else {
       navigate('/install');
