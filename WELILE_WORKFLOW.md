@@ -1659,17 +1659,30 @@ UI Components: `IncomeStatementView.tsx`, `CashFlowView.tsx`, `BalanceSheetView.
 | Trigger | Purpose |
 |---------|---------|
 | `sync_wallet_from_ledger` | Auto-sync wallet balance from ledger entries (only when `transaction_group_id` is set) |
-| `auto_assign_ledger_scope` | Classify entries as wallet/platform/bridge |
-| Float exclusion | Prevents float categories from inflating personal wallets |
+| `auto_assign_ledger_scope` / `set_ledger_scope()` | Classify entries as wallet/platform/bridge. **Routes `marketing_expense` category → `platform` scope automatically.** Also routes float categories (`rent_float_funding`, `landlord_float_payout`, `agent_advance_*`) to `bridge` scope to prevent float from inflating personal wallets |
 | `trg_enforce_property_chain` | Blocks incomplete property chains |
 | `trg_auto_assign_landlord_on_rent_request` | Auto-assigns landlord |
+
+### `set_ledger_scope()` Routing Logic (BEFORE INSERT trigger on general_ledger)
+
+```sql
+-- Automatic scope assignment based on category:
+IF category IN ('rent_float_funding','landlord_float_payout','agent_advance_*') THEN
+  scope = 'bridge'
+ELSIF category = 'marketing_expense' THEN
+  scope = 'platform'
+ELSIF ledger_scope IS NULL THEN
+  scope = 'wallet'  -- default for user-facing transactions
+END IF;
+```
 
 ## 19.7 Key RPCs
 
 | Function | Purpose |
 |----------|---------|
-| `record_rent_request_repayment()` | Atomic repayment: updates rent_requests, landlords, creates ledger entry |
-| `credit_agent_rent_commission()` | Credits 5% commission: updates wallet + ledger + agent_earnings |
+| `record_rent_request_repayment()` | Atomic repayment: updates rent_requests.amount_repaid, landlords receivables, creates general_ledger entry. Accepts optional `transaction_group_id`. |
+| `credit_agent_rent_commission()` | Credits **10% commission** split across Source (2%), Manager (8% or 6%), and Recruiter (2% override). Creates **paired double-entry** per agent role: platform debit (`cash_out`/`marketing_expense`/`platform` scope) + agent credit (`cash_in`/`agent_commission`/`wallet` scope). Also inserts into `agent_earnings` and `commission_accrual_ledger`. Idempotent via `rent_request_id` + `repayment_amount` check. |
+| `credit_agent_event_bonus()` | Credits flat-fee event bonuses (UGX 5,000–20,000) with same double-entry marketing expense pattern. Parameters: `p_agent_id`, `p_bonus_type` (e.g., `listing`, `verification`, `registration`, `replacement`), `p_amount`, `p_source_table`, `p_source_id`, `p_description`. |
 
 ## 19.8 Ledger Account Hierarchy
 
