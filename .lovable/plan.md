@@ -1,51 +1,37 @@
 
-Fix the Chrome install flow by removing the logic that consumes the native install prompt before the user taps the button, and only show the install CTA when a real deferred prompt exists.
 
-What I found:
-- `src/components/PWAInstallPrompt.tsx` auto-calls `promptInstall()` after 400ms when `beforeinstallprompt` is available.
-- In Chrome, that event is single-use. If it gets consumed or dismissed once, the button can remain visible but no usable prompt remains.
-- The current UI also shows the modal on Android even when there is no actual prompt yet, which creates a false “Install App” button that cannot complete installation.
-- The screenshot/footer issue was already cleaned up, so the main remaining problem is the prompt lifecycle, not the label.
+# Wallet Deductions — Execution Plan
 
-Planned changes:
+## Status: 9 of 10 Users Found
 
-1. Update `src/components/PWAInstallPrompt.tsx`
-- Remove the auto-install `useEffect` that triggers the prompt automatically.
-- Gate the Android/desktop install modal so it only appears when `isInstallable || hasPrompt` is true.
-- Keep iOS on the manual guide path.
-- Keep the button click as the only place that calls `promptInstall()`.
-- If the prompt is unavailable, do not show a fake install CTA; optionally close the modal or keep it hidden until the event arrives.
+All users were located except **TUMWESIGYE ISAAC** — no profile with that name exists in the database. There is a "Tumwesigye mediud" but no "Tumwesigye Isaac". Please confirm the correct name or phone number for this user.
 
-2. Tighten the install state in `src/hooks/usePWAInstall.tsx`
-- Clear installable state consistently after a dismissed/used prompt so the UI does not keep advertising installation when Chrome has no active prompt left.
-- Keep `appinstalled` handling and local storage redirect logic intact.
+## Verified Users & Balances
 
-3. Reduce conflicting/manual fallback behavior
-- Ensure Android Chrome does not fall back into instruction-style install guidance from `AdaptiveInstallGuide`.
-- Reserve manual instructions for iOS only, since Chrome should rely on the native prompt.
+| User | Balance (UGX) | Deduction (UGX) | Match |
+|------|--------------|-----------------|-------|
+| CATHERINE KARUNGI | 1,050,000 | 1,050,000 | ✓ Exact |
+| ALEETE LILIAN | 1,000,000 | 1,000,000 | ✓ Exact |
+| Mata Pius | 900,000 | 900,000 | ✓ Exact |
+| NAMUGGA SHERRY | 750,000 | 750,000 | ✓ Exact |
+| KABAHETERE SANDRA | 600,000 | 600,000 | ✓ Exact |
+| NAKANWAGI RITAH L | 450,000 | 450,000 | ✓ Exact |
+| KASIMBA NOAH | 320,000 | 320,000 | ✓ Exact |
+| KABANDA LIVINGSTONE | 105,000 | 105,000 | ✓ Exact |
+| CAROLINE LUBALE BULUBA | 75,000 | 75,000 | ✓ Exact |
+| TUMWESIGYE ISAAC | — | 75,000 | ✗ Not found |
 
-4. Verify related entry points
-- Check any alternate install surfaces such as `src/pages/Landing.tsx` so they follow the same “only show install when prompt exists” rule and do not reintroduce the same bug.
+All 9 found users have **exactly the requested amount** as their balance, so all deductions will succeed.
 
-Technical details:
-```text
-Desired Chrome flow:
-beforeinstallprompt fires
-  -> store deferred prompt
-  -> show Install App button
-user taps button
-  -> call prompt()
-  -> await userChoice
-  -> accepted => mark installed, hide UI
-  -> dismissed => clear prompt + hide CTA until browser provides a new event
-```
+## Execution Steps
 
-Files to update:
-- `src/components/PWAInstallPrompt.tsx`
-- `src/hooks/usePWAInstall.tsx`
-- likely `src/pages/Landing.tsx` for consistency
+1. **Call the `wallet-deduction` edge function** 9 times (one per user) with:
+   - `category: "general_adjustment"`
+   - `reason: "Money was paid out to user"`
+2. Each call creates a `cash_out` ledger entry, triggers `sync_wallet_from_ledger`, records in `wallet_deductions`, and logs to `audit_logs`
+3. Report results with before/after balances
 
-Expected result:
-- On Chrome, the Install button will no longer “pretend” to work after the prompt has already been consumed.
-- Users will only see the install button when the browser has actually provided a usable native install prompt.
-- iOS manual install remains unchanged.
+## Action Needed
+
+Please confirm or correct the name for **TUMWESIGYE ISAAC** so all 10 deductions can proceed. Once confirmed, I will execute all deductions.
+
