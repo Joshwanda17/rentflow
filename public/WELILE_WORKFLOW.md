@@ -1200,12 +1200,44 @@ Supporters NEVER see tenant names, landlord details, agent info, or phone number
 | Obligation | OBLIGATION | Debts/commitments | Yes |
 | System Control | SYSTEM_CONTROL | Buffer/escrow | Varies |
 | Revenue | REVENUE | Deferred/recognized | Varies |
-| Expense | EXPENSE | Costs/rewards | Varies |
+| Expense | EXPENSE | Costs/rewards (includes `marketing_expense`) | Varies |
 | Settlement | SETTLEMENT | Banking | Varies |
 
 ### How It Works
 
-Every financial action creates **two ledger entries** (debit + credit) that must balance. Wallet sync trigger (`sync_wallet_from_ledger`) automatically adjusts balances.
+Every financial action creates **two ledger entries** (debit + credit) that must balance. Wallet sync trigger (`sync_wallet_from_ledger`) automatically adjusts balances only when `transaction_group_id` is set.
+
+### Marketing Expense Category
+
+Agent commissions and bonuses are platform **marketing expenses**. The `set_ledger_scope()` trigger (BEFORE INSERT on `general_ledger`) automatically routes any entry with `category = 'marketing_expense'` to `ledger_scope = 'platform'`, ensuring these costs are tracked on the platform ledger — not the agent's personal wallet.
+
+```
+set_ledger_scope() routing:
+  marketing_expense → platform scope
+  rent_float_funding, landlord_float_payout, agent_advance_* → bridge scope
+  all other categories → wallet scope (default)
+```
+
+### Transaction Categories (Cash Out)
+
+| Category | Description |
+|----------|-------------|
+| `marketing_expense` | Platform debit for agent commissions & bonuses |
+| `withdrawal_pending` | Pre-deduction at withdrawal request time |
+| `withdrawal_reversal` | Refund on rejection (idempotent via `wallet-reject-{id}`) |
+| `rent_facilitation_payout` | Landlord rent disbursement |
+| `supporter_platform_rewards` | Monthly supporter rewards |
+| `operational_expenses` | General operations |
+| `wallet_transfer` | Peer-to-peer transfer |
+| *(+ 6 more categories)* | See root WELILE_WORKFLOW.md Section 19.5 for full list |
+
+### Key RPCs
+
+| Function | Purpose |
+|----------|---------|
+| `record_rent_request_repayment()` | Atomic repayment: updates rent_requests, landlords, creates ledger entry |
+| `credit_agent_rent_commission()` | 10% commission split with double-entry marketing expense (Source 2% / Manager 8% or 6% / Recruiter 2%) |
+| `credit_agent_event_bonus()` | Flat-fee bonus with double-entry marketing expense (params: `p_agent_id`, `p_bonus_type`, `p_amount`, `p_source_table`, `p_source_id`, `p_description`) |
 
 ### Corrections
 
