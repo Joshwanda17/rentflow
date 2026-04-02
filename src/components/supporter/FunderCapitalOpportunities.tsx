@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
   Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
@@ -219,14 +221,39 @@ export function FunderCapitalOpportunities() {
     setAngelAmount(!isNaN(num) ? Math.min(num, max) : 0);
   };
 
-  const handleAngelInvest = () => {
+  const [investLoading, setInvestLoading] = useState(false);
+
+  const handleAngelInvest = useCallback(async () => {
     if (angelAmount < PRICE_PER_SHARE) return;
     if (walletBalance > 0 && angelAmount > walletBalance) return;
     hapticTap();
-    toast.success(`Angel pool investment of ${formatAmountCompact(angelAmount)} committed.`);
-    setAngelAmount(0);
-    window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
-  };
+    setInvestLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('angel-pool-invest', {
+        body: { amount: angelAmount },
+      });
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Investment failed. Please try again.');
+        toast.error(msg);
+        return;
+      }
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      toast.success(
+        `🎉 ${data.shares} shares secured! Ref: ${data.reference_id}`,
+        { description: `Pool ownership: ${data.pool_ownership_percent.toFixed(4)}%` }
+      );
+      setAngelAmount(0);
+      window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
+      window.dispatchEvent(new CustomEvent('wallet-balance-changed'));
+    } catch (err: any) {
+      toast.error(err?.message || 'Investment failed');
+    } finally {
+      setInvestLoading(false);
+    }
+  }, [angelAmount, walletBalance]);
 
   const handlePoolSelect = (pool: PoolType) => {
     setActiveTab(pool);
@@ -360,9 +387,9 @@ export function FunderCapitalOpportunities() {
                   exceedsBalance={walletBalance > 0 && angelAmount > walletBalance} />
                 <AngelPreview amount={angelAmount} formatAmountCompact={formatAmountCompact} />
                 <Button type="button" onClick={handleAngelInvest}
-                  disabled={angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
+                  disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
                   className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2">
-                  <Rocket className="h-4 w-4" /> Invest in Angel Pool
+                  <Rocket className="h-4 w-4" /> {investLoading ? 'Processing…' : 'Invest in Angel Pool'}
                 </Button>
                 <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Capital Protected</span>
@@ -454,9 +481,9 @@ export function FunderCapitalOpportunities() {
                 exceedsBalance={walletBalance > 0 && angelAmount > walletBalance} />
               <AngelPreview amount={angelAmount} formatAmountCompact={formatAmountCompact} />
               <Button type="button" onClick={handleAngelInvest}
-                disabled={angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
+                disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
                 className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2">
-                <Rocket className="h-4 w-4" /> Invest in Angel Pool
+                <Rocket className="h-4 w-4" /> {investLoading ? 'Processing…' : 'Invest in Angel Pool'}
               </Button>
             </TabsContent>
           </Tabs>

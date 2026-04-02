@@ -1915,6 +1915,74 @@ export type Database = {
         }
         Relationships: []
       }
+      angel_pool_investments: {
+        Row: {
+          amount: number
+          company_ownership_percent: number
+          created_at: string
+          id: string
+          investor_id: string
+          pool_ownership_percent: number
+          reference_id: string | null
+          shares: number
+          status: string
+          transaction_group_id: string | null
+        }
+        Insert: {
+          amount: number
+          company_ownership_percent: number
+          created_at?: string
+          id?: string
+          investor_id: string
+          pool_ownership_percent: number
+          reference_id?: string | null
+          shares: number
+          status?: string
+          transaction_group_id?: string | null
+        }
+        Update: {
+          amount?: number
+          company_ownership_percent?: number
+          created_at?: string
+          id?: string
+          investor_id?: string
+          pool_ownership_percent?: number
+          reference_id?: string | null
+          shares?: number
+          status?: string
+          transaction_group_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "angel_pool_investments_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "angel_pool_investments_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "angel_pool_investments_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "angel_pool_investments_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action_type: string

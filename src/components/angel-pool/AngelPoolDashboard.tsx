@@ -2,7 +2,7 @@ import { Target, TrendingUp, PieChart, Layers } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { TOTAL_POOL_UGX, TOTAL_SHARES, PRICE_PER_SHARE } from './constants';
-import { MOCK_TOTAL_RAISED, MOCK_INVESTORS } from './mockData';
+import { useAngelPoolData } from '@/hooks/useAngelPoolData';
 
 const formatCompact = (n: number) => {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
@@ -12,14 +12,11 @@ const formatCompact = (n: number) => {
 };
 
 export function AngelPoolDashboard() {
-  const raised = MOCK_TOTAL_RAISED;
-  const sharesSold = raised / PRICE_PER_SHARE;
-  const sharesRemaining = TOTAL_SHARES - sharesSold;
-  const progress = (raised / TOTAL_POOL_UGX) * 100;
+  const { totalRaised, sharesRemaining, progress, topInvestors, isLoading } = useAngelPoolData();
 
-  const topInvestors = [...MOCK_INVESTORS]
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 5);
+  if (isLoading) {
+    return <div className="h-48 rounded-2xl bg-muted/50 animate-pulse" />;
+  }
 
   return (
     <div className="space-y-4">
@@ -31,7 +28,7 @@ export function AngelPoolDashboard() {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] text-muted-foreground">Total Raised</p>
-            <p className="text-lg font-black">USh {formatCompact(raised)}</p>
+            <p className="text-lg font-black">USh {formatCompact(totalRaised)}</p>
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-card p-3 flex items-start gap-2.5">
@@ -83,7 +80,10 @@ export function AngelPoolDashboard() {
           <CardTitle className="text-sm">Top Contributors</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {topInvestors.map((inv, i) => (
+          {topInvestors.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">No investments yet. Be the first!</p>
+          )}
+          {topInvestors.slice(0, 5).map((inv, i) => (
             <div key={inv.id} className="flex items-center gap-3 py-1.5">
               <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                 {i + 1}
