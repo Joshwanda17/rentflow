@@ -154,6 +154,7 @@ export function PartnersOpsDashboard() {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <ShareSupporterRecruit />
           <Button size="sm" className="gap-1.5 text-xs" onClick={() => { setCreateForUser(null); setCreateOpen(true); }}>
             <PlusCircle className="h-3.5 w-3.5" /> Create
           </Button>

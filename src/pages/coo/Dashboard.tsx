@@ -188,9 +188,12 @@ export default function COODashboardPage() {
 
             {/* Quick Navigation Grid */}
             <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 px-0.5">
-                Quick Actions
-              </p>
+              <div className="flex items-center justify-between mb-3 px-0.5">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Quick Actions
+                </p>
+                <ShareSupporterRecruit />
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
                 {quickNavItems.map((item) => (
                   <button
