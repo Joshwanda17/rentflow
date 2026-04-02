@@ -483,7 +483,7 @@ export function FunderCapitalOpportunities() {
               <Button type="button" onClick={handleAngelInvest}
                 disabled={investLoading || angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
                 className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2">
-                <Rocket className="h-4 w-4" /> {investLoading ? 'Processing…' : 'Invest in Angel Pool'}
+                <Rocket className="h-4 w-4" /> {investLoading ? 'Processing…' : 'Fund in Angel Pool'}
               </Button>
             </TabsContent>
           </Tabs>
