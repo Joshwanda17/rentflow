@@ -115,7 +115,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
   const MIN_BALANCE = 5000;
   const meetsMinBalance = walletBalance >= MIN_BALANCE;
-  const isFormValid = meetsMinBalance && amount >= 500 && amount <= walletBalance && isPayoutValid() && workingHoursStatus.isOpen;
+  const isFormValid = meetsMinBalance && amount >= 500 && amount <= walletBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
 
   const handleSubmit = async () => {
     if (!user) { toast.error('Please log in first'); return; }
