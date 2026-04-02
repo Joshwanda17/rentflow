@@ -461,16 +461,87 @@ export function FinOpsWithdrawalVerification() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Complete with Transaction ID</AlertDialogTitle>
-            <AlertDialogDescription>
-              Enter the TID for <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> withdrawal to {selected?.user?.full_name}. This finalizes the payout.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">Review details and enter TID to finalize payout.</p>
+                {selected && (
+                  <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Requester</span>
+                      <span className="font-medium text-foreground">{selected.user?.full_name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Phone</span>
+                      <span className="font-medium text-foreground">{selected.user?.phone || selected.mobile_money_number || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payout Method</span>
+                      <span className="font-medium text-foreground capitalize">{selected.payout_method?.replace('_', ' ') || 'N/A'}</span>
+                    </div>
+                    {selected.payout_method === 'mobile_money' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">MoMo Provider</span>
+                          <span className="font-medium text-foreground">{selected.mobile_money_provider || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">MoMo Number</span>
+                          <span className="font-medium text-foreground">{selected.mobile_money_number || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Recipient Name</span>
+                          <span className="font-medium text-foreground">{selected.mobile_money_name || 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
+                    {selected.payout_method === 'bank' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Bank</span>
+                          <span className="font-medium text-foreground">{selected.bank_name || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Account</span>
+                          <span className="font-medium text-foreground">{selected.bank_account_number || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Account Name</span>
+                          <span className="font-medium text-foreground">{selected.bank_account_name || 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
+                    {selected.payout_method === 'cash' && (selected as any).cash_location && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Cash Location</span>
+                        <span className="font-medium text-foreground">{(selected as any).cash_location}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-t border-border pt-2 mt-1">
+                      <span className="text-muted-foreground font-medium">Amount</span>
+                      <span className="font-bold text-foreground">{formatCurrency(selected.amount)}</span>
+                    </div>
+                    {selected.reason && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Reason</span>
+                        <span className="font-medium text-foreground text-right max-w-[60%]">{selected.reason}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <Input
+                    placeholder="Enter Transaction ID (TID)"
+                    value={reference}
+                    onChange={e => setReference(e.target.value)}
+                    className="font-mono uppercase"
+                  />
+                  {reference.length > 0 && reference.trim().length < 3 && (
+                    <p className="text-[10px] text-destructive mt-1">TID must be at least 3 characters</p>
+                  )}
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <Input
-            placeholder="Enter Transaction ID (TID)"
-            value={reference}
-            onChange={e => setReference(e.target.value)}
-            className="font-mono uppercase"
-          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
