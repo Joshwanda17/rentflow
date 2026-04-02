@@ -2519,6 +2519,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'paid'>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
@@ -2550,7 +2551,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
-  const handleCompound = async (p: NearingPayoutPortfolio) => {
+  const handleCompound = async (p: NearingPayoutPortfolio, reason: string) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'compound' }));
     try {
       const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
@@ -2577,7 +2578,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         source_table: 'investor_portfolios',
         source_id: p.portfolioId,
         reference_id: refId,
-        description: `ROI compounded: ${formatUGX(roiAmount)} added to portfolio. New principal: ${formatUGX(newAmount)}`,
+        description: `ROI compounded: ${formatUGX(roiAmount)} added to portfolio. New principal: ${formatUGX(newAmount)}. Reason: ${reason}`,
         linked_party: user.id,
       });
 
@@ -2587,7 +2588,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         action_type: 'roi_compounded',
         table_name: 'investor_portfolios',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId },
+        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId, reason },
       });
 
       // Notify partner
@@ -2609,7 +2610,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
-  const handlePay = async (p: NearingPayoutPortfolio) => {
+  const handlePay = async (p: NearingPayoutPortfolio, reason: string) => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'pay' }));
     try {
       const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
@@ -2634,10 +2635,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         reference_id: refId,
         operation_type: 'roi_wallet_credit',
         transaction_group_id: txnGroupId,
-        description: `ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}`,
+        description: `ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
         linked_party: user.id,
         status: 'pending',
-        metadata: { partner_name: p.name, roi_percentage: p.roiPercentage, investment_amount: p.investmentAmount, initiated_by: user.id },
+        metadata: { partner_name: p.name, roi_percentage: p.roiPercentage, investment_amount: p.investmentAmount, initiated_by: user.id, reason },
       });
       if (pendErr) throw pendErr;
 
@@ -2647,7 +2648,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         action_type: 'roi_payout_requested',
         table_name: 'pending_wallet_operations',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name },
+        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason },
       });
 
       // Notify partner
@@ -2770,29 +2771,40 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
                     <span className="font-mono">{refPreview}</span>
                   </div>
-                  {/* Action Buttons */}
+                  {/* Audit Reason + Action Buttons */}
                   {!isDone && (
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs gap-1.5"
-                        disabled={!!isProcessing}
-                        onClick={() => handleCompound(p)}
-                      >
-                        {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
-                        Compound
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="flex-1 text-xs gap-1.5"
-                        disabled={!!isProcessing}
-                        onClick={() => handlePay(p)}
-                      >
-                        {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
-                        Pay to Wallet
-                      </Button>
+                    <div className="space-y-2 pt-1">
+                      <Textarea
+                        placeholder="Include reason and phone number or A/C"
+                        className="min-h-[60px] text-xs"
+                        value={reasons[p.portfolioId] || ''}
+                        onChange={e => setReasons(prev => ({ ...prev, [p.portfolioId]: e.target.value }))}
+                      />
+                      {(reasons[p.portfolioId]?.length || 0) > 0 && (reasons[p.portfolioId]?.length || 0) < 10 && (
+                        <p className="text-[10px] text-destructive">Reason must be at least 10 characters</p>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs gap-1.5"
+                          disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                          onClick={() => handleCompound(p, reasons[p.portfolioId])}
+                        >
+                          {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
+                          Compound
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="flex-1 text-xs gap-1.5"
+                          disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                          onClick={() => handlePay(p, reasons[p.portfolioId])}
+                        >
+                          {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
+                          Pay to Wallet
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
