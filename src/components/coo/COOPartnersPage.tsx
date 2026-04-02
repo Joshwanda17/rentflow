@@ -2771,29 +2771,40 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
                     <span className="font-mono">{refPreview}</span>
                   </div>
-                  {/* Action Buttons */}
+                  {/* Audit Reason + Action Buttons */}
                   {!isDone && (
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs gap-1.5"
-                        disabled={!!isProcessing}
-                        onClick={() => handleCompound(p)}
-                      >
-                        {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
-                        Compound
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="flex-1 text-xs gap-1.5"
-                        disabled={!!isProcessing}
-                        onClick={() => handlePay(p)}
-                      >
-                        {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
-                        Pay to Wallet
-                      </Button>
+                    <div className="space-y-2 pt-1">
+                      <Textarea
+                        placeholder="Include reason and phone number or A/C"
+                        className="min-h-[60px] text-xs"
+                        value={reasons[p.portfolioId] || ''}
+                        onChange={e => setReasons(prev => ({ ...prev, [p.portfolioId]: e.target.value }))}
+                      />
+                      {(reasons[p.portfolioId]?.length || 0) > 0 && (reasons[p.portfolioId]?.length || 0) < 10 && (
+                        <p className="text-[10px] text-destructive">Reason must be at least 10 characters</p>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs gap-1.5"
+                          disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                          onClick={() => handleCompound(p, reasons[p.portfolioId])}
+                        >
+                          {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
+                          Compound
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="flex-1 text-xs gap-1.5"
+                          disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                          onClick={() => handlePay(p, reasons[p.portfolioId])}
+                        >
+                          {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
+                          Pay to Wallet
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
