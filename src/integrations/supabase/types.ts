@@ -9116,16 +9116,27 @@ export type Database = {
         Returns: boolean
       }
       is_supporter: { Args: never; Returns: boolean }
-      log_system_event: {
-        Args: {
-          p_event_type: Database["public"]["Enums"]["system_event_type"]
-          p_metadata?: Json
-          p_related_entity_id?: string
-          p_related_entity_type?: string
-          p_user_id: string
-        }
-        Returns: string
-      }
+      log_system_event:
+        | {
+            Args: {
+              p_event_type: Database["public"]["Enums"]["system_event_type"]
+              p_metadata?: Json
+              p_related_entity_id?: string
+              p_related_entity_type?: string
+              p_user_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_event_type: Database["public"]["Enums"]["system_event_type"]
+              p_metadata?: Json
+              p_related_entity_id?: string
+              p_related_entity_type?: string
+              p_user_id: string
+            }
+            Returns: string
+          }
       lookup_ai_id: { Args: { p_ai_id: string }; Returns: Json }
       lookup_profile_by_phone_last9: {
         Args: { phone_last9: string }
