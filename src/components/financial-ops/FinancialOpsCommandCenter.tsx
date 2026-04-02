@@ -8,19 +8,20 @@ import { TidVerification } from './TidVerification';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
+import { WalletDeductionPanel } from './WalletDeductionPanel';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { 
   ShieldCheck, Banknote, X, ArrowLeft, Menu, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits' | 'withdrawals' | 'opportunities';
+type View = 'home' | 'deposits' | 'withdrawals' | 'opportunities' | 'deductions';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit';
 
 const tools = [
