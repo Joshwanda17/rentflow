@@ -21,8 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits' | 'withdrawals' | 'opportunities' | 'deductions';
-type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit';
+type View = 'home' | 'deposits';
+type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions';
 
 const tools = [
   { id: 'ops' as const, label: 'Ops Center', icon: Gauge },
@@ -31,6 +31,9 @@ const tools = [
   { id: 'recon' as const, label: 'Reconciliation', icon: Scale },
   { id: 'ledgers' as const, label: 'Ledgers', icon: BookOpen },
   { id: 'audit' as const, label: 'Audit Trail', icon: Shield },
+  { id: 'withdrawals' as const, label: 'Withdrawals & Payouts', icon: Banknote },
+  { id: 'opportunities' as const, label: 'Capital Opportunities', icon: TrendingUp },
+  { id: 'deductions' as const, label: 'Wallet Deductions', icon: MinusCircle },
 ];
 
 export function FinancialOpsCommandCenter() {
@@ -60,52 +63,6 @@ export function FinancialOpsCommandCenter() {
     );
   }
 
-  // Sub-view: Withdrawals & Payouts
-  if (view === 'withdrawals') {
-    return (
-      <div className="space-y-4">
-        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <Banknote className="h-5 w-5 text-destructive" />
-          Withdrawals & Payouts
-        </h2>
-        <FinOpsWithdrawalVerification />
-        <PendingWalletOperationsWidget />
-        <FloatPayoutVerification />
-      </div>
-    );
-  }
-
-  // Sub-view: Post Capital Opportunities
-  if (view === 'opportunities') {
-    return (
-      <div className="space-y-4">
-        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <OpportunitySummaryForm onClose={() => setView('home')} />
-      </div>
-    );
-  }
-
-  // Sub-view: Wallet Deductions
-  if (view === 'deductions') {
-    return (
-      <div className="space-y-4 max-w-2xl w-full">
-        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <MinusCircle className="h-5 w-5 text-orange-600" />
-          Wallet Deductions
-        </h2>
-        <WalletDeductionPanel />
-      </div>
-    );
-  }
-
   // Sub-view: Active tool
   if (activeTool) {
     return (
@@ -119,11 +76,34 @@ export function FinancialOpsCommandCenter() {
         {activeTool === 'recon' && <ReconciliationDashboard />}
         {activeTool === 'ledgers' && <LedgerHub />}
         {activeTool === 'audit' && <AuditFeed />}
+        {activeTool === 'withdrawals' && (
+          <>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-destructive" />
+              Withdrawals & Payouts
+            </h2>
+            <FinOpsWithdrawalVerification />
+            <PendingWalletOperationsWidget />
+            <FloatPayoutVerification />
+          </>
+        )}
+        {activeTool === 'opportunities' && (
+          <OpportunitySummaryForm onClose={() => setActiveTool(null)} />
+        )}
+        {activeTool === 'deductions' && (
+          <div className="max-w-2xl w-full">
+            <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
+              <MinusCircle className="h-5 w-5 text-orange-600" />
+              Wallet Deductions
+            </h2>
+            <WalletDeductionPanel />
+          </div>
+        )}
       </div>
     );
   }
 
-  // Home: 2 buttons + menu
+  // Home: Verify Deposits + More Tools
   return (
     <div className="space-y-6">
       <FinancialOpsPulseStrip />
@@ -153,47 +133,6 @@ export function FinancialOpsCommandCenter() {
             <DepositStatsPanel onOpenVerification={() => setView('deposits')} />
           )}
         </AnimatePresence>
-
-        {/* Withdrawals & Payouts */}
-        <button
-          onClick={() => setView('withdrawals')}
-          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-destructive/30 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/50 transition-all text-left min-h-[80px]"
-        >
-          <div className="h-12 w-12 rounded-xl bg-destructive/15 flex items-center justify-center shrink-0">
-            <Banknote className="h-6 w-6 text-destructive" />
-          </div>
-          <div>
-            <p className="font-bold text-base">Withdrawals & Payouts</p>
-            <p className="text-xs text-muted-foreground">Process wallet & float payouts</p>
-          </div>
-        </button>
-
-        {/* Capital Opportunities */}
-        <button
-          onClick={() => setView('opportunities')}
-          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-success/30 bg-success/5 hover:bg-success/10 hover:border-success/50 transition-all text-left min-h-[80px]"
-        >
-          <div className="h-12 w-12 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
-            <TrendingUp className="h-6 w-6 text-success" />
-          </div>
-          <div>
-            <p className="font-bold text-base">Capital Opportunities</p>
-            <p className="text-xs text-muted-foreground">Post opportunity summaries for supporters</p>
-          </div>
-        </button>
-        {/* Wallet Deductions */}
-        <button
-          onClick={() => setView('deductions')}
-          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[80px]"
-        >
-          <div className="h-12 w-12 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
-            <MinusCircle className="h-6 w-6 text-orange-600" />
-          </div>
-          <div>
-            <p className="font-bold text-base">Wallet Deductions</p>
-            <p className="text-xs text-muted-foreground">Remove funds from user wallets</p>
-          </div>
-        </button>
       </div>
 
       {/* More Tools Button */}
