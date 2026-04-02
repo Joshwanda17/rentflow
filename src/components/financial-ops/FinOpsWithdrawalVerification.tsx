@@ -227,6 +227,15 @@ export function FinOpsWithdrawalVerification() {
           <p className="text-base font-black">{formatCurrency(req.amount)}</p>
         </div>
 
+        {/* Recipient name */}
+        {(req.mobile_money_name || req.bank_account_name) && (
+          <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+            <span className="text-xs font-bold text-foreground">
+              Recipient: {req.mobile_money_name || req.bank_account_name}
+            </span>
+          </div>
+        )}
+
         {req.mobile_money_number && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Smartphone className="h-3 w-3" />
@@ -240,6 +249,14 @@ export function FinOpsWithdrawalVerification() {
         )}
 
         {bankLabel && <p className="text-xs text-muted-foreground">{bankLabel}</p>}
+
+        {/* Reason */}
+        {req.reason && (
+          <div className="px-2 py-1.5 rounded-lg bg-muted/50 border border-border/50">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Reason</p>
+            <p className="text-xs text-foreground">{req.reason}</p>
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <p className="text-[10px] text-muted-foreground">
