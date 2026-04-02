@@ -260,20 +260,18 @@ export function useIOSCacheInvalidation() {
     };
   }, [queryClient, invalidateAllData, quickRefresh, checkVersionMismatch, checkServiceWorkerUpdate]);
 
-  // Periodic background refresh for mobile PWAs (every 60 seconds while active)
+  // Periodic background refresh for mobile PWAs (every 5 minutes while active — cost optimized)
   useEffect(() => {
     if (!mobileInfoRef.current.isMobilePWA) return;
 
     const intervalId = setInterval(() => {
-      // Only refresh if page is visible and it's been a while
       if (document.visibilityState === 'visible') {
         const timeSinceRefresh = Date.now() - lastRefreshRef.current;
-        if (timeSinceRefresh > 45 * 1000) {
-          console.log('[Mobile Cache] Periodic background refresh');
+        if (timeSinceRefresh > 4 * 60 * 1000) {
           quickRefresh();
         }
       }
-    }, 60 * 1000);
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, [quickRefresh]);

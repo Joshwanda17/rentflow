@@ -78,8 +78,7 @@ export function UserWithdrawalRequests() {
 
   useEffect(() => {
     fetchRequests();
-    const interval = setInterval(fetchRequests, 60_000);
-    return () => clearInterval(interval);
+    // No polling — manual refresh only (cost optimization)
   }, [user, fetchRequests]);
 
   const getStatusConfig = (status: string) => {
