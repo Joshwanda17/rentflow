@@ -15,6 +15,18 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
+    // Early exit if no credit limits exist
+    const { count, error: countErr } = await supabase
+      .from('credit_access_limits')
+      .select('user_id', { count: 'exact', head: true });
+
+    if (countErr) throw countErr;
+    if (!count || count === 0) {
+      return new Response(JSON.stringify({ processed: 0, skipped: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get all users with credit access limits
     const { data: limits, error } = await supabase
       .from('credit_access_limits')

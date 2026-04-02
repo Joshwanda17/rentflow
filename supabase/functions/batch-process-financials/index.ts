@@ -16,6 +16,20 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Idempotency: check if we already ran in the last 4 minutes
+    const { data: recentRun } = await supabase
+      .from('system_events')
+      .select('id')
+      .eq('event_type', 'batch_financial_run')
+      .gte('created_at', new Date(Date.now() - 4 * 60 * 1000).toISOString())
+      .limit(1);
+
+    if (recentRun && recentRun.length > 0) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'Already ran recently' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const results: Record<string, unknown> = {};
 
     // 1. Batch auto-approve deposits with TID matching
@@ -26,7 +40,7 @@ Deno.serve(async (req) => {
     const { data: dispatchResult, error: dispatchErr } = await supabase.rpc("auto_dispatch_withdrawals", { p_batch_size: 200 });
     results.auto_dispatch = dispatchErr ? { error: dispatchErr.message } : dispatchResult;
 
-    // 3. Anomaly detection: velocity abuse via server-side RPC (no client-side grouping)
+    // 3. Anomaly detection: velocity abuse via server-side RPC
     const { data: velocityAbusers, error: velocityErr } = await supabase.rpc("detect_velocity_abuse", {
       p_window_minutes: 60,
       p_threshold: 5,
