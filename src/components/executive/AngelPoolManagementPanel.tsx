@@ -32,6 +32,7 @@ interface Investor {
 }
 
 export function AngelPoolManagementPanel({ userRole }: Props) {
+  const qc = useQueryClient();
   const { config, isLoading: configLoading, updateConfig } = useAngelPoolConfig();
   const [editOpen, setEditOpen] = useState(false);
   const [editValues, setEditValues] = useState({ total_pool_ugx: 0, total_shares: 0, price_per_share: 0, pool_equity_percent: 0 });
@@ -39,6 +40,13 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 15;
+
+  // Shareholder action states
+  const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | null>(null);
+  const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
+  const [actionReason, setActionReason] = useState('');
+  const [editShares, setEditShares] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Fetch investments joined with profiles
   const { data: investments = [], isLoading: investLoading } = useQuery({
