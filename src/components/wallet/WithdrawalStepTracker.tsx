@@ -45,9 +45,7 @@ export function WithdrawalStepTracker({
 
   const walletSteps: StepData[] = [
     { label: 'Requested', description: 'Withdrawal submitted', icon: User, completedAt: createdAt },
-    { label: 'Financial Review', description: 'Fin Ops approval', icon: Briefcase, completedAt: finOpsApprovedAt },
-    { label: 'CFO Approval', description: 'CFO sign-off', icon: DollarSign, completedAt: cfoApprovedAt },
-    { label: 'Payment Verified', description: 'TID entered & completed', icon: Banknote, completedAt: finOpsVerifiedAt || processedAt },
+    { label: 'Approved & Paid', description: 'Fin Ops approved with TID', icon: Banknote, completedAt: finOpsApprovedAt || processedAt },
   ];
 
   const partnerSteps: StepData[] = [
