@@ -15,6 +15,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInHours } from 'date-fns';
 import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
 type QueueType = 'deposits' | 'wallet_withdrawals' | 'wallet_ops';
