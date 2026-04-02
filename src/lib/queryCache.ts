@@ -15,12 +15,12 @@ const memoryCache = new Map<string, CacheEntry<any>>();
 
 // Default TTLs by data type
 export const CACHE_TTL = {
-  WALLET_BALANCE: 60_000,       // 1 min - updated via realtime
-  TRANSACTIONS: 120_000,        // 2 min - rarely changes between actions
-  PROFILE: 300_000,             // 5 min - rarely changes
-  DASHBOARD_METRICS: 180_000,   // 3 min - executive dashboards
-  NOTIFICATIONS_COUNT: 60_000,  // 1 min
-  STATIC_DATA: 600_000,         // 10 min - roles, settings
+  WALLET_BALANCE: 120_000,       // 2 min - updated via realtime
+  TRANSACTIONS: 300_000,         // 5 min - rarely changes between actions
+  PROFILE: 600_000,              // 10 min - rarely changes
+  DASHBOARD_METRICS: 600_000,    // 10 min - executive dashboards (was 3 min)
+  NOTIFICATIONS_COUNT: 120_000,  // 2 min
+  STATIC_DATA: 1_800_000,        // 30 min - roles, settings (was 10 min)
 } as const;
 
 function getStorageKey(key: string): string {
