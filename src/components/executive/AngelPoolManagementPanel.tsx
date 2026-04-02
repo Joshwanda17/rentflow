@@ -397,6 +397,61 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Shareholder Action Dialog — CEO only */}
+      <Dialog open={!!actionType} onOpenChange={(open) => { if (!open) closeAction(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === 'delete' && '🗑️ Delete Shareholder'}
+              {actionType === 'suspend' && '⛔ Suspend Shareholder'}
+              {actionType === 'edit' && '✏️ Edit Shareholder'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedInvestor && (
+                <span className="font-medium text-foreground">{selectedInvestor.name}</span>
+              )}
+              {' — '}
+              {actionType === 'delete' && 'This will mark all confirmed investments as deleted.'}
+              {actionType === 'suspend' && 'This will suspend all confirmed investments for this shareholder.'}
+              {actionType === 'edit' && 'Update the share allocation for this shareholder.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {actionType === 'edit' && (
+              <div>
+                <Label>New Total Shares</Label>
+                <Input type="number" min={0} value={editShares} onChange={e => setEditShares(Number(e.target.value))} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current: {selectedInvestor?.total_shares.toLocaleString()} shares · New amount: USh {(editShares * config.price_per_share).toLocaleString()}
+                </p>
+              </div>
+            )}
+            <div>
+              <Label>Reason for {actionType} <span className="text-destructive">*</span></Label>
+              <Textarea
+                placeholder="Provide a detailed reason (min 10 characters)..."
+                value={actionReason}
+                onChange={e => setActionReason(e.target.value)}
+                className="mt-1"
+              />
+              {actionReason.length > 0 && actionReason.trim().length < 10 && (
+                <p className="text-xs text-destructive mt-1">{10 - actionReason.trim().length} more characters needed</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAction} disabled={actionLoading}>Cancel</Button>
+            <Button
+              variant={actionType === 'delete' ? 'destructive' : 'default'}
+              onClick={handleAction}
+              disabled={actionLoading || actionReason.trim().length < 10}
+            >
+              {actionLoading ? 'Processing...' : actionType === 'delete' ? 'Delete' : actionType === 'suspend' ? 'Suspend' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
