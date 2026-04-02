@@ -2804,16 +2804,53 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                           {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
                           Compound
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="flex-1 text-xs gap-1.5"
-                          disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                          onClick={() => handlePay(p, reasons[p.portfolioId])}
-                        >
-                          {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
-                          Pay to Wallet
-                        </Button>
+                        {!payMode[p.portfolioId] ? (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="flex-1 text-xs gap-1.5"
+                            disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                            onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }))}
+                          >
+                            <Wallet className="h-3 w-3" />
+                            Pay
+                          </Button>
+                        ) : (
+                          <div className="flex-1 flex flex-col gap-1.5">
+                            <div className="flex gap-1.5">
+                              <Button
+                                size="sm"
+                                variant={payMode[p.portfolioId] === 'wallet' ? 'default' : 'outline'}
+                                className="flex-1 text-[10px] gap-1 px-2"
+                                disabled={!!isProcessing}
+                                onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }))}
+                              >
+                                <Wallet className="h-3 w-3" />
+                                To Wallet
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={payMode[p.portfolioId] === 'already_paid' ? 'default' : 'outline'}
+                                className="flex-1 text-[10px] gap-1 px-2"
+                                disabled={!!isProcessing}
+                                onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'already_paid' }))}
+                              >
+                                <CheckCircle className="h-3 w-3" />
+                                Already Paid
+                              </Button>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="w-full text-xs gap-1.5"
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                              onClick={() => handlePay(p, reasons[p.portfolioId], payMode[p.portfolioId]!)}
+                            >
+                              {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                              Confirm {payMode[p.portfolioId] === 'wallet' ? 'Pay to Wallet' : 'Already Paid'}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
