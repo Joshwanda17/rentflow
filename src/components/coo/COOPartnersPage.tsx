@@ -2648,7 +2648,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         action_type: 'roi_payout_requested',
         table_name: 'pending_wallet_operations',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name },
+        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason },
       });
 
       // Notify partner
