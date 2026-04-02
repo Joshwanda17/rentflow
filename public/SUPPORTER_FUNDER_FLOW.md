@@ -456,7 +456,7 @@ Step 2: System calculates earliest_process_date (90 days from now)
 Step 3: Rewards are IMMEDIATELY PAUSED (rewards_paused = true)
 Step 4: Request enters investment_withdrawal_requests with status "pending"
 Step 5: After 90 days, operations processes the withdrawal
-Step 6: 4-stage approval: Manager → CFO → COO → Disbursed
+Step 6: Financial Ops reviews → enters TID/Receipt/Bank Ref → Approved & Complete
 Step 7: Funds returned to supporter's wallet or Mobile Money
 ```
 

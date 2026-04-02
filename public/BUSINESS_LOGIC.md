@@ -800,7 +800,7 @@ OUT: 10% platform fee on guaranteed rent → tenant's Welile Homes
 ```
 IN:  Monthly ROI rewards (15% or 20% compounding)
 OUT: Wallet-to-pool investment (instant, no approval)
-OUT: Withdrawals (90-day notice, 4-stage approval)
+OUT: Withdrawals (90-day notice, single-step Financial Ops approval)
 ```
 
 ### Platform (Welile) Cash Flow
