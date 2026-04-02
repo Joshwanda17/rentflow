@@ -2846,7 +2846,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                               disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
                               onClick={() => handlePay(p, reasons[p.portfolioId], payMode[p.portfolioId]!)}
                             >
-                              {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                              {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                               Confirm {payMode[p.portfolioId] === 'wallet' ? 'Pay to Wallet' : 'Already Paid'}
                             </Button>
                           </div>
