@@ -1,6 +1,6 @@
 # Welile Technologies — Complete Platform Workflow & Feature Reference
 
-> **Last Updated:** April 2026  
+> **Last Updated:** April 2, 2026  
 > **Platform:** Welile Technologies Limited — Rent-guarantee and rent-facilitation fintech  
 > **Stack:** React 18 + Vite 5 + Tailwind CSS + TypeScript | Lovable Cloud (Supabase)  
 > **Target Scale:** 40M+ users across Africa and globally
