@@ -262,21 +262,18 @@ export function CFOWithdrawalApprovals() {
       <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Withdrawal & Confirm Payment</AlertDialogTitle>
+            <AlertDialogTitle>Approve Withdrawal</AlertDialogTitle>
             <AlertDialogDescription>
-              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}. Enter the Transaction ID to confirm payment.
+              Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}.
+              {(selected as any)?.fin_ops_reference && (
+                <> Fin Ops Reference: <strong className="font-mono">{(selected as any).fin_ops_reference}</strong></>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <Input
-            placeholder="Enter Transaction ID"
-            value={transactionId}
-            onChange={e => setTransactionId(e.target.value)}
-            className="font-mono uppercase"
-          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApprove} disabled={!!processing || !transactionId.trim()} className="bg-emerald-600 hover:bg-emerald-700">
-              {processing ? 'Processing...' : 'Approve & Confirm Payment'}
+            <AlertDialogAction onClick={handleApprove} disabled={!!processing} className="bg-emerald-600 hover:bg-emerald-700">
+              {processing ? 'Processing...' : 'Approve Withdrawal'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
