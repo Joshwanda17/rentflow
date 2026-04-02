@@ -2421,7 +2421,7 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 
 ---
 
-# Appendix F: Changelog (v2.0 → v3.0 → v3.1 → v3.2)
+# Appendix F: Changelog (v2.0 → v3.0 → v3.1 → v3.2 → v3.3)
 
 | Feature | Change |
 |---------|--------|
@@ -2445,7 +2445,15 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 | **Predictive Prefetch Removed** | REMOVED (v3.1) — Deleted `predictivePrefetch.ts` (duplicated `user-snapshot` logic, caused ~50% redundant edge function calls on login) |
 | **Batch Processing** | OPTIMIZED (v3.1) — `batch-process-financials` uses `Promise.allSettled` for parallel anomaly flagging |
 | **Double-Credit Fix** | RESOLVED (v3.2) — `wallet-transfer` → ledger-only writes with `transaction_group_id`; `credit_agent_rent_commission` → sole commission writer with idempotency guard; `record_rent_request_repayment` → accepts optional `transaction_group_id`; `approve-deposit` → stripped of all inline commission logic, delegates to RPCs |
+| **Agent Commission Model** | CORRECTED (v3.3) — Updated from 5% to **10% total commission** with proper split: Source 2%, Manager 8% (or 6% with recruiter), Recruiter Override 2%. Sub-agent signup bonus corrected from UGX 500 to **UGX 10,000** |
+| **Marketing Expense Categorization** | NEW (v3.3) — All agent commissions and bonuses are platform **marketing expenses**. Platform-side debit uses `cash_out`/`marketing_expense`/`platform` scope; agent-side credit uses `cash_in`/`agent_commission`/`wallet` scope. Both linked via `transaction_group_id` |
+| **`credit_agent_event_bonus` RPC** | NEW (v3.3) — Flat-fee bonus RPC with double-entry marketing expense pattern (UGX 5,000 for listings/verifications/applications, UGX 10,000 for sub-agent registration, UGX 20,000 for tenant replacement) |
+| **`set_ledger_scope` Trigger Update** | UPDATED (v3.3) — Now auto-routes `marketing_expense` category to `platform` scope |
+| **Transaction Categories** | EXPANDED (v3.3) — Added `marketing_expense`, `withdrawal_pending`, `withdrawal_reversal` to Cash Out categories |
+| **Missing Edge Functions** | DOCUMENTED (v3.3) — Added `tenant-pay-rent`, `wallet-deduction`, `angel-pool-invest`, `notify-managers`, `provision-staff-passwords`, `bulk-password-reset`, `diagnose-auth` to registry |
+| **Agent Commission Benefits Page** | NEW (v3.3) — `/agent-commission-benefits` UI page with plain-language commission explanation, WhatsApp sharing, money examples, and branding assets |
+| **Withdrawal Pipeline** | SIMPLIFIED (v3.3) — Single-step Financial Ops approval (pending → approved). Pre-deduction at request time (`withdrawal_pending`), idempotent rejection refund (`withdrawal_reversal` with deterministic `transaction_group_id`) |
 
 ---
 
-*End of Document — Version 3.2*
+*End of Document — Version 3.3*
