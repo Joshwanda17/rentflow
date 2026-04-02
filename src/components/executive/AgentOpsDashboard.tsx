@@ -16,12 +16,39 @@ import { AgentEscalationQueue } from './AgentEscalationQueue';
 import { ServiceCentreVerificationQueue } from './ServiceCentreVerificationQueue';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
-import { Users, Banknote, DollarSign } from 'lucide-react';
+import { 
+  Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
+  ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
+  ChevronLeft, Briefcase, TrendingUp
+} from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
+
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers';
+
+const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
+  { key: 'pipeline', icon: Briefcase, label: 'Pipeline', color: 'bg-primary', priority: true },
+  { key: 'service-centres', icon: Building2, label: 'Service Centres', color: 'bg-orange-500', priority: true },
+  { key: 'directory', icon: Search, label: 'Agents', color: 'bg-blue-500', priority: true },
+  { key: 'tasks', icon: ClipboardList, label: 'Tasks', color: 'bg-emerald-500', priority: true },
+  { key: 'escalations', icon: AlertTriangle, label: 'Escalations', color: 'bg-red-500' },
+  { key: 'connector', icon: UserPlus, label: 'Connect', color: 'bg-violet-500' },
+  { key: 'float-payouts', icon: Wallet, label: 'Float Payouts', color: 'bg-pink-500' },
+  { key: 'performance', icon: TrendingUp, label: 'Performance', color: 'bg-teal-500' },
+  { key: 'lifecycle', icon: BarChart3, label: 'Lifecycle', color: 'bg-indigo-500' },
+  { key: 'leaderboard', icon: Trophy, label: 'Leaderboard', color: 'bg-amber-500' },
+  { key: 'earnings', icon: Banknote, label: 'Earnings', color: 'bg-green-500' },
+  { key: 'alerts', icon: Bell, label: 'Alerts', color: 'bg-slate-500' },
+  { key: 'transfers', icon: ArrowLeftRight, label: 'Transfers', color: 'bg-cyan-600' },
+  { key: 'brief', icon: DollarSign, label: 'Daily Brief', color: 'bg-rose-500' },
+];
 
 export function AgentOpsDashboard() {
+  const [activeView, setActiveView] = useState<ActiveView>(null);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  const isMobile = useIsMobile();
 
   const { data: earnings, isLoading } = useQuery({
     queryKey: ['exec-agent-earnings'],
@@ -109,102 +136,124 @@ export function AgentOpsDashboard() {
     { key: 'amount', label: 'Amount (UGX)', render: (v) => Number(v || 0).toLocaleString() },
   ];
 
-  const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
+  const fmt = (n: number) => n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : n.toLocaleString();
 
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Rent Pipeline */}
-      <RentPipelineQueue stage="tenant_ops_approved" />
+  const viewLabel = NAV_ITEMS.find(i => i.key === activeView)?.label || '';
 
-      {/* Daily Brief */}
-      <AgentOpsBrief />
-
-      {/* KPIs */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-        <KPICard title="Active Agents" value={uniqueAgents} icon={Users} loading={isLoading} />
-        <KPICard title="Total Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
-        <KPICard title="Commissions Paid" value={fmt(totalCommissions)} icon={DollarSign} color="bg-blue-500/10 text-blue-600" />
-      </div>
-
-      {/* 🔍 Agent Directory — PROMINENT */}
-      <AgentDirectory />
-
-      {/* Connect Tenant to Agent */}
-      <AgentTenantConnector />
-
-      {/* Performance & Lifecycle */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-        <AgentPerformanceTiers />
-        <AgentLifecyclePipeline />
-      </div>
-
-      {/* Tasks & Escalations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-        <AgentTaskManager />
-        <AgentEscalationQueue />
-      </div>
-
-      {/* Service Centre Verification */}
-      <ServiceCentreVerificationQueue />
-
-      {/* Landlord Float Payout Reviews */}
-      <AgentOpsFloatPayoutReview />
-
-      {/* Alerts */}
-      <AgentAlertFeed />
-
-      {/* Leaderboard & Earnings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-        <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 overflow-x-auto">
+  // Render sub-view content
+  const renderSubView = () => {
+    switch (activeView) {
+      case 'pipeline': return <RentPipelineQueue stage="tenant_ops_approved" />;
+      case 'brief': return <AgentOpsBrief />;
+      case 'directory': return <AgentDirectory />;
+      case 'connector': return <AgentTenantConnector />;
+      case 'performance': return <AgentPerformanceTiers />;
+      case 'lifecycle': return <AgentLifecyclePipeline />;
+      case 'tasks': return <AgentTaskManager />;
+      case 'escalations': return <AgentEscalationQueue />;
+      case 'service-centres': return <ServiceCentreVerificationQueue />;
+      case 'float-payouts': return <AgentOpsFloatPayoutReview />;
+      case 'alerts': return <AgentAlertFeed />;
+      case 'transfers': return (
+        <div className="rounded-2xl border border-border bg-card p-3">
+          <TenantTransferPanel />
+        </div>
+      );
+      case 'leaderboard': return (
+        <div className="rounded-2xl border border-border bg-card p-3 overflow-x-auto">
           <h3 className="text-sm font-semibold mb-3">🏆 Agent Leaderboard</h3>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={leaderboard} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis type="number" className="text-xs" />
               <YAxis dataKey="agent_name" type="category" className="text-xs" width={80} />
               <Tooltip />
-              <Bar
-                dataKey="total"
-                fill="hsl(var(--primary))"
-                radius={[0, 4, 4, 0]}
-                cursor="pointer"
-                onClick={(data: any) => {
-                  if (data?.agent_id) openAgentProfile(data.agent_id);
-                }}
-              />
+              <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} cursor="pointer"
+                onClick={(data: any) => { if (data?.agent_id) openAgentProfile(data.agent_id); }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div>
-          <h3 className="text-sm font-semibold mb-3">Recent Earnings</h3>
-          <ExecutiveDataTable
-            data={earnings || []}
-            columns={earningsColumns}
-            loading={isLoading}
-            title="Agent Earnings"
-            filters={[{
-              key: 'earning_type',
-              label: 'Type',
-              options: [
-                { value: 'commission', label: 'Commission' },
-                { value: 'referral', label: 'Referral' },
-                { value: 'bonus', label: 'Bonus' },
-              ],
-            }]}
-          />
-        </div>
+      );
+      case 'earnings': return (
+        <ExecutiveDataTable data={earnings || []} columns={earningsColumns} loading={isLoading} title="Agent Earnings"
+          filters={[{ key: 'earning_type', label: 'Type', options: [
+            { value: 'commission', label: 'Commission' },
+            { value: 'referral', label: 'Referral' },
+            { value: 'bonus', label: 'Bonus' },
+          ]}]}
+        />
+      );
+      default: return null;
+    }
+  };
+
+  // MOBILE: Show sub-view inline with back button
+  if (isMobile && activeView) {
+    return (
+      <div className="space-y-3">
+        <button
+          onClick={() => setActiveView(null)}
+          className="flex items-center gap-2 text-sm font-semibold text-primary active:scale-95 transition-transform touch-manipulation py-2"
+        >
+          <ChevronLeft className="h-5 w-5" />
+          Back to Overview
+        </button>
+        <h2 className="text-lg font-bold">{viewLabel}</h2>
+        {renderSubView()}
+        <UserProfileDialog open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)} user={selectedAgent} />
+      </div>
+    );
+  }
+
+  // DESKTOP: Show sub-view inline (no grid replacement)
+  if (!isMobile && activeView) {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => setActiveView(null)}
+          className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to Agent Ops Overview
+        </button>
+        {renderSubView()}
+        <UserProfileDialog open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)} user={selectedAgent} />
+      </div>
+    );
+  }
+
+  // HOME VIEW: KPIs + Quick Nav Grid
+  return (
+    <div className="space-y-4">
+      {/* KPIs — compact on mobile */}
+      <div className="grid grid-cols-3 gap-2">
+        <KPICard title="Agents" value={uniqueAgents} icon={Users} loading={isLoading} />
+        <KPICard title="Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
+        <KPICard title="Commissions" value={fmt(totalCommissions)} icon={DollarSign} color="bg-blue-500/10 text-blue-600" />
       </div>
 
-      {/* Tenant Transfer */}
-      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
-        <TenantTransferPanel />
+      {/* Quick Nav Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setActiveView(item.key)}
+            className={cn(
+              "flex flex-col items-center gap-2 p-4 rounded-2xl border border-border bg-card",
+              "active:scale-95 transition-all touch-manipulation min-h-[88px]",
+              "hover:shadow-md hover:border-primary/30",
+              item.priority && "ring-1 ring-primary/20"
+            )}
+          >
+            <div className={cn("p-3 rounded-xl shadow-sm", item.color)}>
+              <item.icon className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xs sm:text-sm font-semibold text-center leading-tight">{item.label}</span>
+          </button>
+        ))}
       </div>
 
-      <UserProfileDialog
-        open={!!selectedAgent}
-        onOpenChange={(open) => !open && setSelectedAgent(null)}
-        user={selectedAgent}
-      />
+      <UserProfileDialog open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)} user={selectedAgent} />
     </div>
   );
 }
