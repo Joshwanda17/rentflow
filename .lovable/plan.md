@@ -1,30 +1,42 @@
 
 
-# Fix: Manual Rent Collection Missing Reason in Tenant Ops
+# Enhance Approve Dialog with Requester Details and TID Input
 
 ## Problem
-The **Collect** button in the Tenant Ops `DailyPaymentTracker` calls the `manual-collect-rent` edge function **without a `reason`** parameter. The edge function requires a reason of at least 10 characters (line 97), so every collection attempt fails with "A reason of at least 10 characters is required".
+When a Financial Operations manager taps **Approve** on a pending withdrawal, the current dialog only shows the amount and name with a simple confirm button. It does not display the requester's phone number, and it requires TID entry in a separate step later. The manager wants both the requester info and TID entry consolidated into the Approve dialog.
 
-The `TenantRentCollector` component correctly prompts for a reason, but the `DailyPaymentTracker` skips it entirely.
+## Changes
 
-## Fix
+### Edit: `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
 
-### Edit `src/components/executive/DailyPaymentTracker.tsx`
+**Update the Approve dialog (lines 382–400)** to:
 
-1. Add state for a collect dialog that captures a reason before invoking the edge function:
-   - `collectTarget` state to track which rent request the manager wants to collect from
-   - `collectReason` state for the mandatory reason text input
+1. Display the requester's **full name**, **phone number**, **mobile money details**, and **recipient name** prominently in the dialog body
+2. Add a **Transaction ID (TID)** input field (font-mono, uppercase, minimum 3 characters)
+3. Change the confirm button to "Approve & Complete" — disabled until TID is entered
+4. Update `handleApprove` to also save the TID reference (set status directly to `fin_ops_approved` with the reference stored, or if TID is provided, complete the full flow)
 
-2. Change the **Collect** button from directly calling `collectMutation.mutate(id)` to opening a small confirmation dialog/sheet that:
-   - Shows tenant name and daily amount
-   - Has a text input for the reason (minimum 10 characters)
-   - Has a "Confirm Collection" button that calls the mutation with `{ rentRequestId, collectionReason }`
+The dialog will look like:
+```text
+┌──────────────────────────────┐
+│ Approve Withdrawal           │
+│                              │
+│ Name: John Doe               │
+│ Phone: 0771234567            │
+│ MoMo: MTN · 0771234567      │
+│ Recipient: John Doe          │
+│ Amount: UGX 50,000           │
+│ Reason: "Salary advance..."  │
+│                              │
+│ [Transaction ID input      ] │
+│                              │
+│     [Cancel]  [Approve]      │
+└──────────────────────────────┘
+```
 
-3. Update the `collectMutation` to pass the reason in the request body:
-   ```ts
-   body: { rent_request_id: rentRequestId, reason: collectionReason }
-   ```
+5. The **Approve** button remains disabled until TID has at least 3 characters
+6. On confirm, the status updates to `fin_ops_approved` with the TID stored in `fin_ops_reference`
 
 ### Files Changed
-- **Edit**: `src/components/executive/DailyPaymentTracker.tsx` — add reason input dialog and pass reason to edge function
+- **Edit**: `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — enhance approve dialog with requester details and TID input
 
