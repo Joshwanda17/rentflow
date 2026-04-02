@@ -12,6 +12,7 @@ import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
+import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { useIsMobile } from '@/hooks/use-mobile';

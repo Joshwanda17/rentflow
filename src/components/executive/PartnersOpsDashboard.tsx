@@ -21,6 +21,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
+import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 
 type Tab = 'portfolios' | 'capital' | 'roi' | 'topups';
 
