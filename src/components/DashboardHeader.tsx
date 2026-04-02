@@ -267,9 +267,6 @@ const DashboardHeader = memo(function DashboardHeader({
         </div>
       </header>
 
-      {showIOSGuide && (
-        <IOSInstallGuide onClose={() => setShowIOSGuide(false)} />
-      )}
     </>
   );
 });
