@@ -7,6 +7,7 @@ import { AuditFeed } from './AuditFeed';
 import { TidVerification } from './TidVerification';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
+import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
