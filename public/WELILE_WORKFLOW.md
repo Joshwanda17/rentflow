@@ -1444,7 +1444,8 @@ Agent creates invite (temp password) → Partner activates → Portfolios linked
 ### Withdrawal Processing
 
 ```
-Requested → Manager Review → CFO Sign-off → COO Final Approval → Disbursed
+Requested (wallet pre-deducted) → Financial Ops Approve & Complete (TID/Receipt/Bank Ref) → Done
+Rejected → Idempotent refund via withdrawal_reversal ledger entry
 ```
 
 ### Monthly ROI Payout
