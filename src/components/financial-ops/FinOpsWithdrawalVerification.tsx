@@ -196,6 +196,7 @@ export function FinOpsWithdrawalVerification() {
       setTidOpen(false);
       setSelected(null);
       setReference('');
+      setPaymentMethod('');
     } catch (e: any) {
       toast.error(e.message || 'Failed to complete');
     } finally {
