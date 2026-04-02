@@ -62,10 +62,10 @@ export function DailyPaymentTracker() {
   const [collectReason, setCollectReason] = useState('');
 
   const collectMutation = useMutation({
-    mutationFn: async (rentRequestId: string) => {
+    mutationFn: async ({ rentRequestId, collectionReason }: { rentRequestId: string; collectionReason: string }) => {
       setCollectingId(rentRequestId);
       const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
-        body: { rent_request_id: rentRequestId },
+        body: { rent_request_id: rentRequestId, reason: collectionReason },
       });
       if (error) {
         const msg = await extractFromErrorObject(error, 'Collection failed.');
