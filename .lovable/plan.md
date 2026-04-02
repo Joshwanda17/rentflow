@@ -1,30 +1,31 @@
 
 
-# Enhance TID Completion Dialog with Full Requester Details
+# Add "Agent Commission Benefits" Tab to Hamburger Menu
 
-## Current State
+## What Changes
 
-The **Approve** dialog (Section A: pending → fin_ops_approved) already shows the requester's name, phone, MoMo details, recipient, amount, reason, and requires a TID — this matches the user's requirements.
+Add a new menu item called **"Agent Commission Benefits"** in the agent dashboard's hamburger menu, placed directly below the "Messages" link. This links to a new informational page that displays the commission structure and rules.
 
-However, the **TID Completion** dialog (Section B: cfo_approved → approved/completed) is minimal — it only shows amount and name in a single sentence. It lacks the full requester details and payout method information.
+## Implementation
 
-## Changes
+### 1. New Page: `src/pages/AgentCommissionBenefits.tsx`
+A static informational page displaying the commission structure in a clean, card-based layout:
 
-### File: `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
+- **Repayment Commission (10%)** — split logic explained with clear examples
+- **Role Definitions** — Source Agent (2%), Tenant Manager (8%), Recruiter Override (2%)
+- **Edge Cases** — same agent gets full 10%, no recruiter means manager keeps 8%
+- **Event-Based Bonuses** — table showing the 4 fixed bonuses (UGX 5,000–20,000)
+- **Ledger Tracking** — brief note on what's logged (agent_id, tenant_id, event_type, etc.)
+- Back navigation header
 
-**Update the TID Completion Dialog (lines 460-485)** to match the Approve dialog layout:
+### 2. Add Route: `src/App.tsx`
+Register `/agent-commission-benefits` route pointing to the new page.
 
-1. Add a detail card showing:
-   - Requester name and phone
-   - Payout method (MoMo number + provider, bank details, or cash location)
-   - Recipient name (mobile_money_name or bank_account_name)
-   - Amount (bold)
-   - Reason (if provided)
-2. Keep the TID input field with validation (min 3 chars)
-3. Same layout pattern already used in the Approve dialog — just replicate the `selected` detail block
+### 3. Add Menu Item: `src/components/DashboardHeader.tsx`
+Insert a new `DropdownMenuItem` immediately after the "Messages" link (line 218) that navigates to `/agent-commission-benefits`. Icon: a coins/receipt icon from lucide-react (e.g., `Receipt` or `Coins`).
 
-This is a single-file UI change — no backend or database modifications needed. The existing `handleTidComplete` function already handles the ledger entry, audit log, and wallet deduction correctly.
-
-### Files Modified
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — expand TID completion dialog with full requester details
+### Files Changed
+- **New**: `src/pages/AgentCommissionBenefits.tsx`
+- **Edit**: `src/App.tsx` — add route
+- **Edit**: `src/components/DashboardHeader.tsx` — add menu item below Messages
 
