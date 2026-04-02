@@ -1,60 +1,106 @@
-# Replace "Active" Badge with Check Icon & Rename "Invest" to "Fund Angel Pool"
+# Angel Pool Management Page for CEO & CFO Dashboards
 
-## What Changes
+## Overview
 
-### 1. Replace "Active" Badge with Check Icon (both Tenant and Angel committed views)
+Create a dedicated **Angel Pool** sidebar item for both the CEO and CFO dashboards, rendering a comprehensive management page with KPIs, shareholder chart, sortable/exportable table, and a CEO-only edit dialog for pool parameters.
 
-In `TenantCommittedSummary` (line 161-163) and `AngelCommittedSummary` (line 268-270), replace:
+## Changes
 
-```tsx
-<Badge variant="success" ...>Active</Badge>
+### 1. Add Sidebar Items
+
+**File**: `src/components/layout/executiveSidebarConfig.ts`
+
+- Add `{ label: 'Angel Pool', icon: Layers, id: 'angel-pool' }` to both the `ceo` and `cfo` sidebar sections
+- Import `Layers` icon
+
+### 2. Create Angel Pool Management Panel
+
+**New file**: `src/components/executive/AngelPoolManagementPanel.tsx`
+
+**Layout (top to bottom):**
+
+1. **Header row** — Title "Angel Pool" + "Edit Pool Settings" button (visible only when `userRole === 'ceo'`). Button opens an edit dialog.
+2. **KPI Cards** (4-column grid, responsive 2-col on mobile):
+  - Total Raised (USh) — from `useAngelPoolData`
+  - Pool Target (USh) — from constants
+  - Shares Sold / Remaining
+  - Pool Fill % (progress)
+  - Total Shareholders (count of unique investors)
+  - Company Equity Allocated (shares sold / total × 8%)
+3. **Shareholder Distribution Chart** — Recharts `BarChart` showing top 10 shareholders by shares owned. Responsive via `ResponsiveContainer`. X-axis: investor name (truncated), Y-axis: shares.
+4. **Shareholders Table** — Using existing `ExecutiveDataTable` pattern or raw table with:
+  - Columns: #, Name, Shares, Amount (USh), Pool %, Company %, Date, Status
+  - **Sorting**: Click column headers to sort ascending/descending
+  - **Export CSV**: Button that generates and downloads a CSV of all shareholders
+  - **Responsive**: Hides secondary columns on mobile via `hidden sm:table-cell`
+  - **Pagination**: 15 rows per page
+5. **Edit Pool Settings Dialog** (CEO-only):
+  - Fields: Total Pool Target (UGX), Total Shares, Price Per Share, Company Equity %
+  - These update local state / constants (since pool params are currently hardcoded in `constants.ts`, the dialog will call an edge function or store in a config table)
+  - For now: store in a new `angel_pool_config` table (single row) with fallback to hardcoded constants
+  - Only the CEO role can see and interact with this button
+
+### 3. Database Migration
+
+Create `angel_pool_config` table:
+
+```sql
+CREATE TABLE public.angel_pool_config (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  total_pool_ugx bigint NOT NULL DEFAULT 500000000,
+  total_shares integer NOT NULL DEFAULT 25000,
+  price_per_share integer NOT NULL DEFAULT 20000,
+  pool_equity_percent numeric(5,2) NOT NULL DEFAULT 8.00,
+  updated_at timestamptz DEFAULT now(),
+  updated_by uuid REFERENCES auth.users(id)
+);
+
+ALTER TABLE public.angel_pool_config ENABLE ROW LEVEL SECURITY;
+
+-- Anyone authenticated can read
+CREATE POLICY "Authenticated read angel_pool_config"
+  ON public.angel_pool_config FOR SELECT TO authenticated USING (true);
+
+-- Only CEO can update (via edge function with service role, but policy as safety net)
+CREATE POLICY "CEO update angel_pool_config"
+  ON public.angel_pool_config FOR UPDATE TO authenticated
+  USING (public.has_role(auth.uid(), 'ceo'));
+
+CREATE POLICY "CEO insert angel_pool_config"
+  ON public.angel_pool_config FOR INSERT TO authenticated
+  WITH CHECK (public.has_role(auth.uid(), 'ceo'));
+
+-- Seed default row
+INSERT INTO public.angel_pool_config (total_pool_ugx, total_shares, price_per_share, pool_equity_percent)
+VALUES (500000000, 25000, 20000, 8.00);
 ```
 
-with a white check icon on a purple circular background:
+### 4. Hook: `useAngelPoolConfig`
 
-```tsx
-<div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
-  <Check className="h-3.5 w-3.5 text-white" />
-</div>
-```
+**New file**: `src/hooks/useAngelPoolConfig.ts`
 
-### 2. Rename "Invest" to "Fund Angel Pool"
+- Fetches the single row from `angel_pool_config`
+- Falls back to hardcoded constants if no row exists
+- Provides a `updateConfig` mutation (upsert) for the CEO edit dialog
 
-- **Line 337**: `Invest More` → `Fund Angel Pool`
-- **Line 633**: `Invest in Angel Pool` → `Fund Angel Pool`
-- **Line 457**: Toast message: `Angel pool investment of...` → `Angel Pool funded with...`
+### 5. Wire into CEO & CFO Dashboard Pages
 
-### 3. Add Post-Funding Chain Explanation (info block in AngelCommittedSummary)
+**File**: `src/pages/ceo/Dashboard.tsx`
 
-don't add it i need explanation to me 
+- Import `AngelPoolManagementPanel`
+- Add case `'angel-pool'` → `<AngelPoolManagementPanel userRole="ceo" />`
 
-Add a small info section after the CTAs in `AngelCommittedSummary` explaining what happens after funding:
+**File**: `src/pages/cfo/Dashboard.tsx`
 
-```
-What happens next:
-1. Wallet balance deducted instantly
-2. Shares allocated to your account
-3. Ownership % calculated and recorded
-4. Investment appears on Angel Pool dashboard
-5. Returns realized at company exit events
-```
+- Import `AngelPoolManagementPanel`
+- Add case `'angel-pool'` → `<AngelPoolManagementPanel userRole="cfo" />`
 
-This will be a collapsible or compact text block below the footer.
+### Files Changed
 
-## The Full Chain (for your reference)
-
-When a user taps "Fund Angel Pool":
-
-1. **Frontend** calls the `angel-pool-invest` edge function with the amount
-2. **Edge function** validates: auth, minimum amount (USh 20,000/share), pool capacity (25,000 total shares), wallet balance
-3. **Shares calculated**: `shares = floor(amount / 20,000)`; actual amount = shares × 20,000
-4. **Ownership computed**: pool % = (shares / 25,000) × 100; company % = (shares / 25,000) × 8
-5. **Ledger entry** created (`cash_out`, category `angel_pool_investment`) — this triggers the `sync_wallet_from_ledger` trigger which auto-deducts wallet balance
-6. **Investment record** inserted into `angel_pool_investments` table with status `confirmed`
-7. **System event** logged via `logSystemEvent`
-8. **Response** returns: reference ID, shares, ownership percentages, new balance
-9. **Dashboard** (`AngelPoolDashboard`) shows real-time aggregates: total raised, shares remaining, investor leaderboard
-
-## Files Changed
-
-- **Edit**: `src/components/angel-pool/CapitalOpportunityEntry.tsx` — badge → check icon, rename buttons, add chain info
+- **Edit**: `src/components/layout/executiveSidebarConfig.ts` — add Angel Pool sidebar item to CEO and CFO
+- **New**: `src/components/executive/AngelPoolManagementPanel.tsx` — full panel with KPIs, chart, table, edit dialog
+- **New**: `src/hooks/useAngelPoolConfig.ts` — config fetch/update hook
+- **Edit**: `src/pages/ceo/Dashboard.tsx` — add angel-pool tab case
+- **Edit**: `src/pages/cfo/Dashboard.tsx` — add angel-pool tab case
+- **Migration**: Create `angel_pool_config` table with RLS
+- ensure to log for auditing.
