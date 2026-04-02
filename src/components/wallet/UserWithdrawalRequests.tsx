@@ -92,7 +92,7 @@ export function UserWithdrawalRequests() {
           label: 'Pending',
           pulse: true,
         };
-      case 'manager_approved':
+      case 'fin_ops_approved':
         return {
           icon: Clock,
           color: 'text-blue-500',
