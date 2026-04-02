@@ -31,13 +31,20 @@ export function ServiceCentrePayoutApproval() {
     setProcessingId(setup.id);
     try {
       // Call credit_agent_event_bonus RPC for UGX 25,000
-      const { error: rpcError } = await supabase.rpc('credit_agent_event_bonus', {
+      const { data: result, error: rpcError } = await supabase.rpc('credit_agent_event_bonus', {
         p_agent_id: setup.agent_id,
-        p_bonus_type: 'service_centre_setup',
-        p_amount: 25000,
-        p_description: `Service Centre setup bonus — ${setup.location_name || 'New location'}`,
+        p_event_type: 'service_centre_setup',
+        p_tenant_id: setup.agent_id, // self-referencing for non-tenant events
+        p_source_id: setup.id,
       });
       if (rpcError) throw rpcError;
+
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      if (parsed?.status === 'error') throw new Error(parsed.message);
+      if (parsed?.status === 'already_credited') {
+        toast.info('This setup was already paid.');
+        return;
+      }
 
       // Update the setup status to 'paid'
       const { error: updateErr } = await supabase
@@ -66,7 +73,7 @@ export function ServiceCentrePayoutApproval() {
           <Building2 className="h-4 w-4 text-primary" />
           Service Centre Payout Approval
           {setups?.length ? (
-            <span className="ml-auto bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{setups.length}</span>
+            <span className="ml-auto bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">{setups.length}</span>
           ) : null}
         </CardTitle>
       </CardHeader>
