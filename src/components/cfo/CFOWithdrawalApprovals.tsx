@@ -28,6 +28,9 @@ interface WithdrawalRequest {
   mobile_money_name: string | null;
   created_at: string;
   manager_approved_at: string | null;
+  fin_ops_reference: string | null;
+  fin_ops_verified_by: string | null;
+  fin_ops_verified_at: string | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
 
