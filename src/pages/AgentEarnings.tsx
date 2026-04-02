@@ -366,13 +366,13 @@ export default function AgentEarnings() {
           <CardContent>
             <Tabs defaultValue="all" className="space-y-4">
               <TabsList className="w-full">
-                <TabsTrigger value="all" className="flex-1">All ({earnings.length})</TabsTrigger>
-                <TabsTrigger value="commissions" className="flex-1">Commissions ({commissionEarnings.length})</TabsTrigger>
-                <TabsTrigger value="bonuses" className="flex-1">Bonuses ({bonusEarnings.length})</TabsTrigger>
+                <TabsTrigger value="all" className="flex-1">All ({detailedEarnings.length})</TabsTrigger>
+                <TabsTrigger value="commissions" className="flex-1">Commissions ({detailedCommissions.length})</TabsTrigger>
+                <TabsTrigger value="bonuses" className="flex-1">Bonuses ({detailedBonuses.length})</TabsTrigger>
               </TabsList>
-              <TabsContent value="all">{renderEarningsList(earnings)}</TabsContent>
-              <TabsContent value="commissions">{renderEarningsList(commissionEarnings)}</TabsContent>
-              <TabsContent value="bonuses">{renderEarningsList(bonusEarnings)}</TabsContent>
+              <TabsContent value="all">{renderEarningsList(detailedEarnings)}</TabsContent>
+              <TabsContent value="commissions">{renderEarningsList(detailedCommissions)}</TabsContent>
+              <TabsContent value="bonuses">{renderEarningsList(detailedBonuses)}</TabsContent>
             </Tabs>
           </CardContent>
         </Card>
