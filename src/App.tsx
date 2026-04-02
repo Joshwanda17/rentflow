@@ -287,6 +287,7 @@ function AppRoutes() {
           <Route path="/landlord-agreement" element={<LandlordAgreement />} />
           <Route path="/agent-agreement" element={<AgentAgreement />} />
           <Route path="/angel-pool-agreement" element={<AngelPoolAgreement />} />
+          <Route path="/agent-commission-benefits" element={<AgentCommissionBenefits />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/staff" element={<StaffPortal />} />
           {/* Role-isolated executive dashboards */}

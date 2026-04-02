@@ -216,6 +216,15 @@ const DashboardHeader = memo(function DashboardHeader({
                     </div>
                     Messages
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => navigate('/agent-commission-benefits')}
+                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                  >
+                    <div className="p-1.5 rounded-lg bg-primary/10">
+                      <Coins className="h-4 w-4 text-primary" />
+                    </div>
+                    Agent Commission Benefits
+                  </DropdownMenuItem>
 
                   {menuItems.length > 0 && <DropdownMenuSeparator />}
                   
