@@ -409,23 +409,6 @@ export default function SupporterDashboard({
             totalReturn={totalRoiEarned}
           />
 
-          {/* ═══ MY PORTFOLIOS — Big, Unmissable Card ═══ */}
-          <button
-            onClick={() => { hapticTap(); navigate('/investment-portfolio'); }}
-            className="w-full rounded-2xl bg-card border-2 border-primary/20 p-4 flex items-center gap-4 active:scale-[0.98] transition-all touch-manipulation shadow-sm hover:border-primary/40 min-h-[72px]"
-          >
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Wallet className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="font-bold text-base text-foreground">My Portfolios</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {totalRentContributed > 0 ? 'View & manage your active investments' : 'View & manage your investments'}
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
-          </button>
-
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
             <button
