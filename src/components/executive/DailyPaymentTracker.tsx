@@ -58,6 +58,8 @@ export function DailyPaymentTracker() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<typeof filtered[0] | null>(null);
   const [collectingId, setCollectingId] = useState<string | null>(null);
+  const [collectTarget, setCollectTarget] = useState<{ id: string; name: string; amount: number } | null>(null);
+  const [collectReason, setCollectReason] = useState('');
 
   const collectMutation = useMutation({
     mutationFn: async (rentRequestId: string) => {
