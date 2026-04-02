@@ -1,95 +1,51 @@
 
+Fix the Chrome install flow by removing the logic that consumes the native install prompt before the user taps the button, and only show the install CTA when a real deferred prompt exists.
 
-# Commission Engine: 10% Repayment Split + Event Bonuses
+What I found:
+- `src/components/PWAInstallPrompt.tsx` auto-calls `promptInstall()` after 400ms when `beforeinstallprompt` is available.
+- In Chrome, that event is single-use. If it gets consumed or dismissed once, the button can remain visible but no usable prompt remains.
+- The current UI also shows the modal on Android even when there is no actual prompt yet, which creates a false “Install App” button that cannot complete installation.
+- The screenshot/footer issue was already cleaned up, so the main remaining problem is the prompt lifecycle, not the label.
 
-## Current State
-- `credit_agent_rent_commission` RPC pays a **flat UGX 10,000** per repayment (8k agent + 2k parent override)
-- Only tracks the **current assigned agent** via `COALESCE(assigned_agent_id, agent_id)`
-- No concept of "Source Agent" (onboarding) vs "Manager" (current) split
-- `commission_accrual_ledger` exists but lacks `percentage` and `event_type` columns
-- `rentCalculations.ts` has `calculateAgentCommission` returning 5% (unused in the RPC)
+Planned changes:
 
-## New Split Logic (always totals exactly 10%)
+1. Update `src/components/PWAInstallPrompt.tsx`
+- Remove the auto-install `useEffect` that triggers the prompt automatically.
+- Gate the Android/desktop install modal so it only appears when `isInstallable || hasPrompt` is true.
+- Keep iOS on the manual guide path.
+- Keep the button click as the only place that calls `promptInstall()`.
+- If the prompt is unavailable, do not show a fake install CTA; optionally close the modal or keep it hidden until the event arrives.
 
+2. Tighten the install state in `src/hooks/usePWAInstall.tsx`
+- Clear installable state consistently after a dismissed/used prompt so the UI does not keep advertising installation when Chrome has no active prompt left.
+- Keep `appinstalled` handling and local storage redirect logic intact.
+
+3. Reduce conflicting/manual fallback behavior
+- Ensure Android Chrome does not fall back into instruction-style install guidance from `AdaptiveInstallGuide`.
+- Reserve manual instructions for iOS only, since Chrome should rely on the native prompt.
+
+4. Verify related entry points
+- Check any alternate install surfaces such as `src/pages/Landing.tsx` so they follow the same “only show install when prompt exists” rule and do not reintroduce the same bug.
+
+Technical details:
 ```text
-Repayment of UGX 100,000:
-
-Case 1: Source ≠ Manager, Manager has no recruiter
-  Source (agent_id):            UGX  2,000  (2%)
-  Manager (assigned_agent_id):  UGX  8,000  (8%)
-  Total:                        UGX 10,000  (10%) ✓
-
-Case 2: Source ≠ Manager, Manager was recruited by another agent
-  Source (agent_id):            UGX  2,000  (2%)
-  Manager (assigned_agent_id):  UGX  6,000  (6%)
-  Recruiter (parent_agent_id):  UGX  2,000  (2%)
-  Total:                        UGX 10,000  (10%) ✓
-
-Case 3: Source = Manager (same person)
-  Agent gets full:              UGX 10,000  (10%)
-  (recruiter override still applies if exists → 8% + 2%)
-
-Case 4: No assigned_agent_id → agent_id is both source & manager
-  Same as Case 3
+Desired Chrome flow:
+beforeinstallprompt fires
+  -> store deferred prompt
+  -> show Install App button
+user taps button
+  -> call prompt()
+  -> await userChoice
+  -> accepted => mark installed, hide UI
+  -> dismissed => clear prompt + hide CTA until browser provides a new event
 ```
 
-## Changes
+Files to update:
+- `src/components/PWAInstallPrompt.tsx`
+- `src/hooks/usePWAInstall.tsx`
+- likely `src/pages/Landing.tsx` for consistency
 
-### 1. Database Migration
-
-**Add columns to `commission_accrual_ledger`:**
-- `percentage NUMERIC` — the percentage rate applied
-- `event_type TEXT` — enum-like: `repayment`, `rent_request_posted`, `house_listed`, `tenant_replacement`, `subagent_registration`
-- `commission_role TEXT` — `source_agent`, `tenant_manager`, `recruiter_override`
-- `rent_request_id UUID` — link back to the rent request
-- `repayment_amount NUMERIC` — the repayment this commission was calculated from
-
-### 2. Rewrite `credit_agent_rent_commission` RPC
-
-Replace flat UGX 10,000 logic with percentage-based split:
-
-1. Look up `agent_id` (Source) and `assigned_agent_id` (Manager) from `rent_requests`
-2. If Source = Manager (or no assigned_agent_id): treat as single agent getting 10%
-3. If Source ≠ Manager: Source gets 2%, Manager gets 8%
-4. If Manager has a recruiter in `agent_subagents`: Manager drops to 6%, recruiter gets 2%
-5. Each split inserts into both `general_ledger` (wallet credit) and `commission_accrual_ledger` (audit)
-6. Idempotency guard per source_id + agent_id combination (already exists)
-7. Total commission = `ROUND(p_repayment_amount * 0.10)` — computed once, splits derived from it
-
-### 3. Event-Based Bonus RPC: `credit_agent_event_bonus`
-
-New RPC for fixed-amount event commissions:
-- `rent_request_posted` → UGX 5,000
-- `house_listed` → UGX 5,000
-- `tenant_replacement` → UGX 20,000
-- `subagent_registration` → UGX 10,000
-
-Inserts into `general_ledger` + `commission_accrual_ledger` with `event_type` set. Same idempotency pattern.
-
-### 4. Update `rentCalculations.ts`
-
-- Change `calculateAgentCommission` from 5% to 10%
-- Add helper constants: `COMMISSION_RATE = 0.10`, `SOURCE_RATE = 0.02`, `MANAGER_RATE = 0.08`, `RECRUITER_RATE = 0.02`
-- Add event bonus constants map
-
-### 5. Update `CommissionAccrualLedger.tsx`
-
-- Display new columns: `percentage`, `event_type`, `commission_role`
-- Group/filter by event type
-
-### 6. No caller changes needed
-
-All edge functions already call `credit_agent_rent_commission` with the same signature — the RPC change is backward-compatible (same params, returns jsonb).
-
-## Files Changed
-
-| File | Action |
-|------|--------|
-| Migration SQL | Add columns to `commission_accrual_ledger`, rewrite RPC, create event bonus RPC |
-| `src/lib/rentCalculations.ts` | Update rates and add constants |
-| `src/components/ledgers/CommissionAccrualLedger.tsx` | Display new fields |
-
-## Risks
-- Existing flat UGX 10,000 commissions in ledger will not have the new columns populated (historical data) — acceptable, new columns are nullable
-- 10% of repayment may be larger or smaller than the old flat 10,000 — this is the intended business change
-
+Expected result:
+- On Chrome, the Install button will no longer “pretend” to work after the prompt has already been consumed.
+- Users will only see the install button when the browser has actually provided a usable native install prompt.
+- iOS manual install remains unchanged.
