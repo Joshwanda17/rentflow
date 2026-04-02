@@ -11,6 +11,10 @@ import { UserProfileSheet } from './UserProfileSheet';
 import { DeleteRentRequestDialog } from './DeleteRentRequestDialog';
 import { DeleteHistoryViewer } from './DeleteHistoryViewer';
 import { RepaymentTrendChart } from './RepaymentTrendChart';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from '@/components/ui/dialog';
 import {
   CheckCircle2, XCircle, Search, RefreshCw, Users,
   Banknote, AlertTriangle, TrendingUp, Phone, MessageCircle,
