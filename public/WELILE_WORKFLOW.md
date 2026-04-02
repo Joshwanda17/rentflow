@@ -1321,6 +1321,9 @@ NEVER edit entries. Post **reversing entries** instead.
 | `process-credit-draw` | Credit draw processing |
 | `import-partners` | Bulk partner import |
 | `partner-ops-automation` | Partner operations automation |
+| `wallet-deduction` | Financial Ops wallet deduction (mandatory reason, creates ledger + audit entries) |
+| `tenant-pay-rent` | Tenant direct rent payment from wallet (validates balance → ledger `cash_out` → `record_rent_request_repayment` RPC → `credit_agent_rent_commission` RPC → fire-and-forget `notify-managers`) |
+| `angel-pool-invest` | Angel Pool share investment (max 25,000 shares × UGX 20,000/share, 8% pool equity; validates balance + capacity, records in `angel_pool_investments`, creates `cash_out` ledger entry) |
 
 #### Financial Processing
 | Function | Description |
