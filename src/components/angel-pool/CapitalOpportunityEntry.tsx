@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   TrendingUp, Shield, Zap, Users, BadgeCheck, Rocket,
   Home, Wallet, ChevronLeft, ArrowUpRight, Coins,
