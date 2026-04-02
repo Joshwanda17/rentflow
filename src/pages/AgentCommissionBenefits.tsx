@@ -1,12 +1,55 @@
-import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/assets/welile-logo.jpeg';
 import WelileServiceCentrePoster from '@/assets/welile-service-centre-poster.jpeg';
+import { toast } from 'sonner';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
+
+  const handleShareWhatsApp = () => {
+    const shareText = `💰 *Welile Agent Commission Benefits*
+
+📊 *Repayment Commission — 10%*
+Every tenant repayment earns agents 10%, split by role:
+• Source Agent (onboarded tenant): *2%*
+• Tenant Manager (assigned agent): *8%*
+
+👥 *Recruiter Override*
+If the Manager was recruited by another agent:
+• Source Agent: 2%
+• Tenant Manager: 6%
+• Recruiter Override: 2%
+Total always = 10%
+
+🏆 *Event-Based Bonuses*
+• Rent request posted: *UGX 5,000*
+• Empty house listed: *UGX 5,000*
+• Tenant replacement: *UGX 20,000*
+• Sub-agent registration: *UGX 10,000*
+
+📒 All commissions tracked transparently in the ledger.
+
+👉 Join Welile as an Agent: https://welilereceipts.com/join`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+
+    // Try native share first on mobile
+    if (navigator.share) {
+      navigator.share({
+        title: 'Welile Agent Commission Benefits',
+        text: shareText,
+      }).catch(() => {
+        window.open(whatsappUrl, '_blank');
+      });
+    } else {
+      window.open(whatsappUrl, '_blank');
+    }
+    
+    toast.success('Sharing commission benefits');
+  };
 
   return (
     <div className="min-h-screen bg-background">
