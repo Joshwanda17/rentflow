@@ -1,6 +1,6 @@
 {
-  "name": "Welile Manager",
-  "short_name": "Manager",
+"name": "Welile.com",
+  "short_name": "Welile.com",
   "description": "Welile Manager Dashboard - Administrative access for managers",
   "start_url": "/manager-login",
   "display": "standalone",

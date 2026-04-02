@@ -30,7 +30,7 @@ export function useManagerPWAInstall() {
 
     // Update iOS meta tags for manager branding
     const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (appleTitle) appleTitle.setAttribute('content', 'Welile Manager');
+    if (appleTitle) appleTitle.setAttribute('content', 'Welile.com');
 
     // Listen for Android install prompt
     const handler = (e: Event) => {
