@@ -107,7 +107,11 @@ export function PendingWalletOperationsWidget() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const msg = await extractFromErrorObject(error, `Failed to ${action} operation`);
+        toast.error(msg);
+        return;
+      }
 
       toast.success(`Operation ${action}d successfully`);
       setOperations(prev => prev.filter(op => op.id !== opId));
