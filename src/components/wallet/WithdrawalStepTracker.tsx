@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, User, Briefcase, DollarSign, Shield, Banknote } from 'lucide-react';
+import { CheckCircle, Clock, User, Briefcase, Shield, Banknote } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
