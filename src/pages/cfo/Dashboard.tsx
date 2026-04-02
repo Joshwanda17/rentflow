@@ -26,6 +26,7 @@ import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutRevie
 import { CFOReceivablesTracker } from '@/components/cfo/CFOReceivablesTracker';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
+import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManagementPanel';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -100,6 +101,8 @@ export default function CFODashboardPage() {
             <PendingPortfolioTopUps />
           </div>
         );
+      case 'angel-pool':
+        return <AngelPoolManagementPanel userRole="cfo" />;
       default:
         return (
           <div className="space-y-4">

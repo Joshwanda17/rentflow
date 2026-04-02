@@ -2,7 +2,7 @@ import {
   BarChart3, Shield, Banknote, ClipboardList, BookOpen, Server, Code, Lock, Wrench,
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
-  Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck
+  Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -60,6 +60,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       { label: 'Cash Reconciliation', icon: Scale, id: 'cash-reconciliation' },
       { label: 'Landlord Payouts', icon: Home, id: 'landlord-payouts' },
       { label: 'Advanced Ledgers', icon: BookOpen, id: 'advanced-ledgers' },
+      { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
     ],
   },
   ],
@@ -121,6 +122,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Users & Coverage', icon: Globe, id: 'users' },
         { label: 'Financial Health', icon: Shield, id: 'financial' },
         { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
+        { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
       ],
     },
   ],
