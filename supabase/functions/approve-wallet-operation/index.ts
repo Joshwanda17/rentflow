@@ -40,17 +40,17 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify manager role
-    const { data: managerRole } = await adminClient
+    // Verify authorized role
+    const allowedRoles = ['manager', 'coo', 'cfo', 'cto', 'super_admin'];
+    const { data: userRoles } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .eq("role", "manager")
-      .maybeSingle();
+      .in("role", allowedRoles);
 
-    if (!managerRole) {
+    if (!userRoles || userRoles.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Only managers can approve wallet operations" }),
+        JSON.stringify({ error: "You do not have permission to approve wallet operations" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

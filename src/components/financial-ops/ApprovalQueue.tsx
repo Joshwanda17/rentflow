@@ -284,7 +284,10 @@ export function ApprovalQueue() {
         const response = await supabase.functions.invoke('approve-wallet-operation', {
           body: { ids, action: bulkAction, reason: bulkAction === 'reject' ? reason : undefined },
         });
-        if (response.error) throw response.error;
+        if (response.error) {
+          const msg = await extractFromErrorObject(response.error, 'Wallet operation failed');
+          throw new Error(msg);
+        }
       } else if (activeQueue === 'wallet_withdrawals') {
         if (bulkAction === 'reject') {
           // Use edge function for proper rejection with notification & audit

@@ -134,7 +134,11 @@ export function PendingWalletOperationsWidget() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Bulk approve failed');
+        toast.error(msg);
+        return;
+      }
 
       toast.success(`${operations.length} operations approved`);
       setOperations([]);
