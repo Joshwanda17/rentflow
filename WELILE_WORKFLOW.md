@@ -473,15 +473,58 @@ Platform records both:
 
 ## 4.13 Agent Earnings Model
 
-| Action | Reward |
-|--------|--------|
+### 10% Rent Repayment Commission (via `credit_agent_rent_commission` RPC)
+
+Every rent repayment triggers a 10% commission split across up to 3 agent roles:
+
+| Role | Share | Condition |
+|------|-------|-----------|
+| Source Agent | 2% | Agent who originally registered the tenant |
+| Tenant Manager | 8% | Agent currently managing the tenant (if no recruiter) |
+| Tenant Manager | 6% | Agent currently managing the tenant (if recruiter exists) |
+| Recruiter Override | 2% | Agent who recruited the Tenant Manager (from manager's share) |
+
+**Example:** Tenant repays UGX 100,000 → Total commission = UGX 10,000
+- Source Agent: UGX 2,000
+- Tenant Manager: UGX 8,000 (or UGX 6,000 if recruiter exists)
+- Recruiter: UGX 2,000 (only if recruiter exists, taken from manager's share)
+
+### Fixed Event Bonuses (via `credit_agent_event_bonus` RPC)
+
+| Activity | Reward |
+|----------|--------|
 | Verified house listing | UGX 5,000 |
 | Landlord location verification | UGX 5,000 |
-| Rent funding facilitation bonus | UGX 5,000 |
-| Rent repayment commission | 5% (base) × streak multiplier |
-| Sub-agent signup | UGX 500 |
-| Sub-agent collections | 1% commission |
+| Rent application facilitation | UGX 5,000 |
+| Sub-agent registration | UGX 10,000 |
+| Tenant replacement | UGX 20,000 |
+
+### Double-Entry Marketing Expense Pattern
+
+All agent earnings (commissions and bonuses) are platform **marketing expenses**. Every agent wallet credit is paired with a platform debit:
+
+```
+Platform Side (Debit):
+  direction: cash_out
+  category: marketing_expense
+  ledger_scope: platform
+  description: "Marketing expense: Agent commission on repayment" (or bonus description)
+
+Agent Side (Credit):
+  direction: cash_in
+  category: agent_commission
+  ledger_scope: wallet
+  description: "Commission on repayment: Source agent 2%" (or specific role/bonus)
+
+Both entries share the same transaction_group_id for auditability.
+```
+
+### Other Commissions
+
+| Action | Reward |
+|--------|--------|
 | Proxy investment facilitation | 2% commission |
+| Landlord management fee (non-smartphone landlords) | 2% |
 
 ## 4.14 Performance Tiering
 
