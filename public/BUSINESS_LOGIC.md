@@ -535,7 +535,7 @@ Financial Operations reviews the request, selects the payment method (MTN MoMo, 
 
 #### 15.2 Rent Delivery
 
-Deploying pool funds to landlords is a **manager-initiated action** for approved rent requests. Does not require the full 4-stage hierarchy since it follows the rent approval workflow.
+Deploying pool funds to landlords is a **manager-initiated action** for approved rent requests. This follows the rent approval workflow, separate from the withdrawal approval process.
 
 #### 15.3 Agent Commissions & Proxy Investments
 
