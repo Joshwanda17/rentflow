@@ -69,7 +69,7 @@ export default function PWAInstallPrompt() {
     setIsInstalling(true);
 
     try {
-      // Always try native prompt first
+      // Try native prompt immediately
       if (isInstallable || hasPrompt) {
         const success = await promptInstall();
         if (success) {
@@ -80,19 +80,23 @@ export default function PWAInstallPrompt() {
         }
       }
 
-      // Fallback: iOS gets a toast instruction, others get the guide
+      // Prompt may not be ready yet — wait and retry once
+      await new Promise(r => setTimeout(r, 800));
+      const retrySuccess = await promptInstall();
+      if (retrySuccess) {
+        setShowPrompt(false);
+        toast.success('App installed! Redirecting to login...');
+        setTimeout(() => navigate('/auth', { replace: true }), 1000);
+        return;
+      }
+
+      // iOS special case: show share instruction
       if (platform.os === 'ios') {
         toast.info('Tap the Share button ⎋ then "Add to Home Screen"', { duration: 6000 });
-      } else {
-        toast.info('Open your browser menu (⋮) and tap "Install app"', { duration: 6000 });
       }
+      // Android/other: stay silent, keep button visible
     } catch (error) {
       console.error('[PWA] Install error:', error);
-      if (platform.os === 'ios') {
-        toast.info('Tap the Share button ⎋ then "Add to Home Screen"', { duration: 6000 });
-      } else {
-        toast.info('Open your browser menu (⋮) and tap "Install app"', { duration: 6000 });
-      }
     } finally {
       setIsInstalling(false);
     }
@@ -232,7 +236,7 @@ export default function PWAInstallPrompt() {
               <div className="border-t border-border px-6 py-3 flex items-center justify-center gap-1.5">
                 <Smartphone className="h-3 w-3 text-muted-foreground" />
                 <span className="text-[11px] text-muted-foreground">
-                  {getBrowserName(platform.browser)} · {getOSName(platform.os)}
+                  Works like a native app
                 </span>
               </div>
             </div>
