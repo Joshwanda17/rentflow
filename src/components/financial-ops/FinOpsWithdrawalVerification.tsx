@@ -552,14 +552,31 @@ export function FinOpsWithdrawalVerification() {
                   </div>
                 )}
                 <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Payment Method Used</p>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mtn_momo">MTN Mobile Money</SelectItem>
+                      <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    {paymentMethod === 'cash' ? 'Receipt Number' : paymentMethod === 'bank_transfer' ? 'Bank Reference' : 'Transaction ID (TID)'}
+                  </p>
                   <Input
-                    placeholder="Enter Transaction ID (TID)"
+                    placeholder={paymentMethod === 'cash' ? 'Enter receipt number' : paymentMethod === 'bank_transfer' ? 'Enter bank reference' : 'Enter TID to confirm payment'}
                     value={reference}
                     onChange={e => setReference(e.target.value)}
                     className="font-mono uppercase"
                   />
                   {reference.length > 0 && reference.trim().length < 3 && (
-                    <p className="text-[10px] text-destructive mt-1">TID must be at least 3 characters</p>
+                    <p className="text-[10px] text-destructive mt-1">Must be at least 3 characters</p>
                   )}
                 </div>
               </div>
