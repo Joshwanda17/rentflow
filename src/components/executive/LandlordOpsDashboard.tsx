@@ -428,6 +428,10 @@ export function LandlordOpsDashboard() {
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
   const occupiedHouses = rows.filter(l => l.tenant_id);
 
+  // Landlord-level occupied/empty derived from tenants array (includes rent_requests linkage)
+  const occupiedLandlords = landlordsList.filter(l => l.tenants && l.tenants.length > 0);
+  const emptyLandlords = landlordsList.filter(l => !l.tenants || l.tenants.length === 0);
+
   // House count per landlord from house_listings
   const landlordHouseCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -616,8 +620,8 @@ export function LandlordOpsDashboard() {
     return [...map.entries()].sort((a, b) => b[1].listings.length - a[1].listings.length);
   }, [rows]);
 
-  const totalMonthlyRevenue = occupiedHouses.reduce((s, h) => s + h.monthly_rent, 0);
-  const lostMonthlyRevenue = emptyHouses.reduce((s, h) => s + h.monthly_rent, 0);
+  const totalMonthlyRevenue = occupiedLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
+  const lostMonthlyRevenue = emptyLandlords.reduce((s, l) => s + (l.monthly_rent || 0), 0);
 
   // ─── Back Button ───
   const BackButton = () => (
@@ -1016,18 +1020,35 @@ export function LandlordOpsDashboard() {
     return (
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen className="h-5 w-5 text-destructive" /> Empty Houses ({emptyHouses.length})</h2>
-        {emptyHouses.length > 0 && (
+        <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen className="h-5 w-5 text-destructive" /> Empty Houses ({emptyLandlords.length})</h2>
+        {emptyLandlords.length > 0 && (
           <div className="rounded-xl border-2 border-destructive/30 p-3 flex items-start gap-3">
             <DoorOpen className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm font-semibold text-destructive">{emptyHouses.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
+            <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
           </div>
         )}
         <div className="space-y-2">
-          {emptyHouses.map(house => (
-            <HouseCard key={house.id} house={house} onImages={setPreviewImages} onAdjust={setAdjustListing} onAction={setActionDialog} onAssign={handleAssignPerson} />
-          ))}
-          {emptyHouses.length === 0 && (
+          {emptyLandlords.map(landlord => {
+            const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
+            return (
+              <div key={landlord.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">{landlord.name}</p>
+                    {landlord.phone && <p className="text-xs text-muted-foreground">{landlord.phone}</p>}
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">{houseCount} {houseCount === 1 ? 'house' : 'houses'}</Badge>
+                </div>
+                <div className="rounded-lg bg-orange-500/10 px-2.5 py-1.5">
+                  <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                    <UserX className="h-3 w-3" /> No tenants linked
+                  </p>
+                </div>
+                {landlord.property_address && <p className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{landlord.property_address}</p>}
+              </div>
+            );
+          })}
+          {emptyLandlords.length === 0 && (
             <div className="text-center py-12">
               <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-green-500" />
               <p className="font-semibold">No empty houses! 🎉</p>
@@ -1043,11 +1064,35 @@ export function LandlordOpsDashboard() {
     return (
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedHouses.length})</h2>
+        <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedLandlords.length})</h2>
         <div className="space-y-2">
-          {occupiedHouses.map(house => (
-            <HouseCard key={house.id} house={house} onImages={setPreviewImages} showTenant showLandlord onAssign={handleAssignPerson} />
-          ))}
+          {occupiedLandlords.map(landlord => {
+            const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
+            return (
+              <div key={landlord.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">{landlord.name}</p>
+                    {landlord.phone && <p className="text-xs text-muted-foreground">{landlord.phone}</p>}
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">{houseCount} {houseCount === 1 ? 'house' : 'houses'}</Badge>
+                </div>
+                {landlord.tenants && landlord.tenants.length > 0 && (
+                  <div className="space-y-1">
+                    {landlord.tenants.map((t: { name: string; phone: string | null }, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between gap-2 rounded-lg bg-green-500/10 px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-semibold text-green-700 dark:text-green-400">👤 Tenant</p>
+                          <p className="text-xs font-medium truncate">{t.name}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {landlord.property_address && <p className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{landlord.property_address}</p>}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -1187,9 +1232,9 @@ export function LandlordOpsDashboard() {
 
       {/* KPIs - compact grid */}
       <div className="grid grid-cols-2 gap-2">
-        <KPICard title="Total Properties" value={rows.length} icon={Home} loading={isLoading} />
-        <KPICard title="Occupied" value={occupiedHouses.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} />
-        <KPICard title="Empty" value={emptyHouses.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
+        <KPICard title="Total Properties" value={landlordsList.length} icon={Home} loading={isLoading} />
+        <KPICard title="Occupied" value={occupiedLandlords.length} icon={UserCheck} loading={isLoading} color="bg-green-500/10 text-green-600" subtitle={`UGX ${fmt(totalMonthlyRevenue)}/mo`} />
+        <KPICard title="Empty" value={emptyLandlords.length} icon={DoorOpen} loading={isLoading} color="bg-red-500/10 text-red-600" subtitle={`UGX ${fmt(lostMonthlyRevenue)}/mo lost`} />
         <KPICard title="Landlords" value={landlordsList.length} icon={Building2} loading={isLoading} color="bg-sky-500/10 text-sky-600" subtitle={`${verifiedLandlords.length} verified`} />
         <KPICard title="Cities" value={cityGroups.length} icon={Globe} loading={isLoading} color="bg-teal-500/10 text-teal-600" subtitle="operating in" />
         <KPICard title="No Landlord" value={noLandlordList.length} icon={UserX} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="need listing" />
@@ -1247,8 +1292,8 @@ export function LandlordOpsDashboard() {
 
         {navItems.filter(n => !n.priority).map(item => (
           <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
-            item.id === 'empty' ? `${emptyHouses.length}` :
-            item.id === 'occupied' ? `${occupiedHouses.length}` :
+            item.id === 'empty' ? `${emptyLandlords.length}` :
+            item.id === 'occupied' ? `${occupiedLandlords.length}` :
             item.id === 'verify' ? (unverifiedListings.length > 0 ? `${unverifiedListings.length}` : undefined) :
             item.id === 'agents' ? `${agentSummary.length}` : undefined
           } />
