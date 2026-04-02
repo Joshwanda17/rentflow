@@ -271,6 +271,14 @@ Total always = 10%
             </ul>
           </CardContent>
         </Card>
+        {/* Share CTA */}
+        <Button 
+          onClick={handleShareWhatsApp} 
+          className="w-full gap-2 bg-[#25D366] hover:bg-[#1da851] text-white font-semibold py-6 rounded-xl text-base"
+        >
+          <Share2 className="h-5 w-5" />
+          Share on WhatsApp
+        </Button>
       </div>
     </div>
   );
