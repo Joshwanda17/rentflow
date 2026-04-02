@@ -147,7 +147,7 @@ const DashboardHeader = memo(function DashboardHeader({
                             <span className="text-base">{config.emoji}</span>
                             <span>{config.label}</span>
                             {isActive && (
-                              <span className="ml-auto text-primary text-xs">✓</span>
+                              <Check className="ml-auto h-4 w-4 text-white" />
                             )}
                           </button>
                         );
