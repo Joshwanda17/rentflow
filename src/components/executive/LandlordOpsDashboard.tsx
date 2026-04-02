@@ -1020,11 +1020,11 @@ export function LandlordOpsDashboard() {
     return (
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen className="h-5 w-5 text-destructive" /> Empty Houses ({emptyHouses.length})</h2>
-        {emptyHouses.length > 0 && (
+        <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen className="h-5 w-5 text-destructive" /> Empty Houses ({emptyLandlords.length})</h2>
+        {emptyLandlords.length > 0 && (
           <div className="rounded-xl border-2 border-destructive/30 p-3 flex items-start gap-3">
             <DoorOpen className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm font-semibold text-destructive">{emptyHouses.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
+            <p className="text-sm font-semibold text-destructive">{emptyLandlords.length} empty — UGX {fmt(lostMonthlyRevenue)}/mo lost revenue</p>
           </div>
         )}
         <div className="space-y-2">
