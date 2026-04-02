@@ -56,11 +56,11 @@ export default function AgentEarnings() {
     }
   }, [user, role, authLoading, navigate]);
 
-  const commissionEarnings = earnings.filter(e => ['commission', 'rent_commission', 'investment_commission', 'subagent_commission', 'subagent_override'].includes(e.earning_type));
-  const bonusEarnings = earnings.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'facilitation_bonus', 'listing_bonus', 'registration', 'registration_bonus', 'referral_bonus', 'referral'].includes(e.earning_type));
+  const detailedCommissions = detailedEarnings.filter(e => ['commission', 'rent_commission', 'investment_commission', 'subagent_commission', 'subagent_override'].includes(e.earning_type));
+  const detailedBonuses = detailedEarnings.filter(e => ['approval_bonus', 'verification_bonus', 'rent_funded_bonus', 'facilitation_bonus', 'listing_bonus', 'registration', 'registration_bonus', 'referral_bonus', 'referral'].includes(e.earning_type));
 
-  const groupByDate = (earningsList: typeof earnings) => {
-    const grouped: Record<string, typeof earnings> = {};
+  const groupByDate = (earningsList: DetailedEarning[]) => {
+    const grouped: Record<string, DetailedEarning[]> = {};
     earningsList.forEach(earning => {
       const date = format(new Date(earning.created_at), 'yyyy-MM-dd');
       if (!grouped[date]) grouped[date] = [];
