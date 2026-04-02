@@ -191,7 +191,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
                    <TrendingUp className="h-5 w-5 text-success" />
                    <span className="font-bold text-success text-lg">{formatUGX(commissionEarned)}</span>
                  </div>
-                 <p className="text-xs text-muted-foreground">5% commission credited to your wallet</p>
+                 <p className="text-xs text-muted-foreground">10% commission credited to your wallet</p>
                </div>
              )}
              

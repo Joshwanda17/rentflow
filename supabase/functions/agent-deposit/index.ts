@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const AGENT_COMMISSION_FLAT = 10000; // Flat UGX 10,000 commission
+const AGENT_COMMISSION_RATE = 0.10; // 10% commission on repayments
 
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
@@ -327,11 +327,11 @@ Deno.serve(async (req) => {
       if (remainingBalance > 0) {
         // Auto-pay towards rent
         repaymentAmount = Math.min(amount, remainingBalance);
-        commission = AGENT_COMMISSION_FLAT;
+        commission = Math.round(repaymentAmount * AGENT_COMMISSION_RATE); // 10% of repayment
         landlordPayment = repaymentAmount - commission;
         depositAmount = amount - repaymentAmount;
 
-        console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, Commission: ${commission}, To landlord: ${landlordPayment}`);
+        console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, Commission (10%): ${commission}, To landlord: ${landlordPayment}`);
 
         // FIX: Resolve landlord's USER ID via their phone number in profiles
         // landlord_id references the landlords table, not a user profile
