@@ -103,8 +103,11 @@ export function CommissionAccrualLedger() {
                   <div>
                     <p className="text-xs font-semibold">{(entry as any).agent?.full_name || 'Unknown'}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {entry.source_type} · {(entry as any).tenant?.full_name || '—'}
+                      {EVENT_LABELS[(entry as any).event_type] || entry.source_type} · {ROLE_LABELS[(entry as any).commission_role] || ''} · {(entry as any).tenant?.full_name || '—'}
                     </p>
+                    {(entry as any).percentage != null && (
+                      <p className="text-[10px] font-medium text-primary mt-0.5">{(entry as any).percentage}% of {formatUGX((entry as any).repayment_amount || 0)}</p>
+                    )}
                     {entry.description && <p className="text-[10px] text-muted-foreground mt-0.5">{entry.description}</p>}
                     <p className="text-[9px] text-muted-foreground mt-0.5">{format(new Date(entry.earned_at), 'MMM d, HH:mm')}</p>
                   </div>
