@@ -2136,13 +2136,18 @@ export type Database = {
           amount: number
           approved_at: string | null
           approved_by: string | null
+          commission_role: string | null
           created_at: string
           description: string | null
           earned_at: string
+          event_type: string | null
           id: string
           paid_at: string | null
+          percentage: number | null
           rejected_at: string | null
           rejection_reason: string | null
+          rent_request_id: string | null
+          repayment_amount: number | null
           source_id: string | null
           source_type: string
           status: string
@@ -2153,13 +2158,18 @@ export type Database = {
           amount: number
           approved_at?: string | null
           approved_by?: string | null
+          commission_role?: string | null
           created_at?: string
           description?: string | null
           earned_at?: string
+          event_type?: string | null
           id?: string
           paid_at?: string | null
+          percentage?: number | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          rent_request_id?: string | null
+          repayment_amount?: number | null
           source_id?: string | null
           source_type: string
           status?: string
@@ -2170,13 +2180,18 @@ export type Database = {
           amount?: number
           approved_at?: string | null
           approved_by?: string | null
+          commission_role?: string | null
           created_at?: string
           description?: string | null
           earned_at?: string
+          event_type?: string | null
           id?: string
           paid_at?: string | null
+          percentage?: number | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          rent_request_id?: string | null
+          repayment_amount?: number | null
           source_id?: string | null
           source_type?: string
           status?: string
@@ -2238,6 +2253,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
@@ -8653,15 +8675,33 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
-      credit_agent_rent_commission: {
+      credit_agent_event_bonus: {
         Args: {
-          p_rent_request_id: string
-          p_repayment_amount: number
+          p_agent_id: string
+          p_event_type: string
           p_source_id?: string
-          p_source_table?: string
+          p_tenant_id: string
         }
         Returns: Json
       }
+      credit_agent_rent_commission:
+        | {
+            Args: {
+              p_rent_request_id: string
+              p_repayment_amount: number
+              p_source_id?: string
+              p_source_table?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_rent_request_id: string
+              p_repayment_amount: number
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
