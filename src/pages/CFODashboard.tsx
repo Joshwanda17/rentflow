@@ -28,6 +28,7 @@ import { ThresholdAlerts } from '@/components/cfo/ThresholdAlerts';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
+import { ServiceCentrePayoutApproval } from '@/components/cfo/ServiceCentrePayoutApproval';
 
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -147,6 +148,7 @@ export default function CFODashboard() {
 
           {/* Payout Authorization Tab */}
           <TabsContent value="payouts" className="space-y-6">
+            <ServiceCentrePayoutApproval />
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">

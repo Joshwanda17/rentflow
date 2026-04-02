@@ -13,6 +13,7 @@ import { AgentOpsBrief } from './AgentOpsBrief';
 import { AgentAlertFeed } from './AgentAlertFeed';
 import { AgentTaskManager } from './AgentTaskManager';
 import { AgentEscalationQueue } from './AgentEscalationQueue';
+import { ServiceCentreVerificationQueue } from './ServiceCentreVerificationQueue';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { Users, Banknote, DollarSign } from 'lucide-react';
@@ -142,6 +143,9 @@ export function AgentOpsDashboard() {
         <AgentTaskManager />
         <AgentEscalationQueue />
       </div>
+
+      {/* Service Centre Verification */}
+      <ServiceCentreVerificationQueue />
 
       {/* Landlord Float Payout Reviews */}
       <AgentOpsFloatPayoutReview />

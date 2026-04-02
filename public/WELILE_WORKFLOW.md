@@ -1001,6 +1001,7 @@ Every rent repayment triggers a **10% total commission** split across up to 3 ag
 | Rent application facilitation | UGX 5,000 |
 | Sub-agent registration | UGX 10,000 |
 | Tenant replacement | UGX 20,000 |
+| Service Centre setup (verified & CFO-approved) | UGX 25,000 |
 
 ### Double-Entry Marketing Expense Pattern
 
@@ -1048,6 +1049,18 @@ The set_ledger_scope() trigger automatically routes marketing_expense → platfo
 **WhatsApp Sharing:** Uses `navigator.share` Web Share API (mobile) with `https://wa.me/?text=...` fallback (desktop). Shares structured text summary of commission model.
 
 **Branding Assets:** High-resolution "Welile Service Centre" logo and poster available for download and printing.
+
+**Printing Instructions:** On-page step-by-step guide with colour codes (Purple `#7214c9`, White `#FFFFFF`, Black `#000000`), paper sizes (A3/A2 for poster, A4 for logo), and mounting advice.
+
+**Service Centre Setup Submission & Payout Pipeline:**
+```
+Agent submits photo + GPS (pending) → Agent Ops verifies (verified) → CFO approves & pays UGX 25,000 (paid)
+```
+- Submission form: photo upload, GPS capture, location name, auto-filled agent details → `service_centre_setups` table
+- Agent Ops Dashboard: `ServiceCentreVerificationQueue` — verify or reject with mandatory reason
+- CFO Dashboard: `ServiceCentrePayoutApproval` — calls `credit_agent_event_bonus(p_event_type='service_centre_setup')` for UGX 25,000
+- Ledger: Platform debit (`marketing_expense`) + Agent credit (`agent_commission`) via shared `transaction_group_id`
+- Database: `service_centre_setups` table with RLS; Storage: `service-centre-photos` bucket (public)
 
 ---
 

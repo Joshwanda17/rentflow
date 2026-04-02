@@ -1,10 +1,11 @@
-import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star } from 'lucide-react';
+import { ArrowLeft, Percent, Users, Award, BookOpen, Download, ImageIcon, Share2, DollarSign, Star, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/assets/welile-logo.jpeg';
 import WelileServiceCentrePoster from '@/assets/welile-service-centre-poster.jpeg';
 import { toast } from 'sonner';
+import { ServiceCentreSubmissionForm } from '@/components/agent/ServiceCentreSubmissionForm';
 
 const AgentCommissionBenefits = () => {
   const navigate = useNavigate();
@@ -295,6 +296,85 @@ If you brought another agent to Welile, you get *2%* from every tenant THEY mana
             </div>
           </CardContent>
         </Card>
+
+        {/* Printing Instructions */}
+        <Card className="border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Printer className="h-4 w-4 text-primary" />
+              </div>
+              How to Print & Set Up Your Service Centre 🏪
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p className="font-semibold text-foreground">Follow these simple steps:</p>
+
+            <div className="space-y-3">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground">Step 1: Download the Images ⬇️</p>
+                <p className="text-xs mt-1">Tap the download buttons above to save the <span className="font-medium text-foreground">Welile Logo</span> and the <span className="font-medium text-foreground">Service Centre Poster</span> to your phone.</p>
+              </div>
+
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground">Step 2: Go to Any Print Shop 🖨️</p>
+                <p className="text-xs mt-1">Take your phone to any nearby print shop (cyber café, stationery shop). Show them the downloaded images and ask them to print:</p>
+                <ul className="text-xs mt-2 space-y-1 ml-3">
+                  <li>• <span className="font-medium text-foreground">Poster:</span> Print on <span className="font-bold">A3</span> or <span className="font-bold">A2</span> paper (big size for walls)</li>
+                  <li>• <span className="font-medium text-foreground">Logo:</span> Print on <span className="font-bold">A4</span> paper (normal size for windows/doors)</li>
+                  <li>• Ask for <span className="font-medium text-foreground">colour printing</span> on thick/glossy paper</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground">Step 3: Official Colour Codes 🎨</p>
+                <p className="text-xs mt-1">Tell the print shop to use these exact colours:</p>
+                <div className="flex gap-3 mt-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md border" style={{ backgroundColor: '#7214c9' }} />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Purple</p>
+                      <p className="text-[10px] font-mono">#7214c9</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md border bg-white" />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">White</p>
+                      <p className="text-[10px] font-mono">#FFFFFF</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md border bg-black" />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Black</p>
+                      <p className="text-[10px] font-mono">#000000</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-muted/40 p-3">
+                <p className="font-semibold text-foreground">Step 4: Mount at Your Location 📌</p>
+                <p className="text-xs mt-1">Put up the poster and logo where people can easily see them:</p>
+                <ul className="text-xs mt-2 space-y-1 ml-3">
+                  <li>• On a <span className="font-medium text-foreground">visible wall</span> facing the road or walkway</li>
+                  <li>• On a <span className="font-medium text-foreground">window or glass door</span></li>
+                  <li>• On a <span className="font-medium text-foreground">signboard</span> at the entrance</li>
+                  <li>• Make sure it's <span className="font-medium text-foreground">not blocked</span> by anything</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl bg-primary/10 border border-primary/20 p-3">
+                <p className="font-semibold text-foreground">Step 5: Take a Photo & Submit Below 📸</p>
+                <p className="text-xs mt-1">After mounting, take a clear photo of your setup and submit it below. Once verified by Agent Ops and approved by the CFO, you will earn <span className="font-bold text-primary">UGX 25,000</span> straight to your wallet!</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Service Centre Submission Form + My Submissions */}
+        <ServiceCentreSubmissionForm />
 
         {/* Share CTA */}
         <Button 
