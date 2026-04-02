@@ -873,13 +873,32 @@ User submits → Manager reviews → Approved/Rejected
 | Minimum Balance | UGX 5,000 must remain after withdrawal |
 | Daily Limit | Maximum daily withdrawal enforced |
 
-### 4-Stage Approval Pipeline
+### Pre-Deduction at Request Time
+
+When a user submits a withdrawal request, the requested amount is **immediately deducted** from their wallet balance via a `cash_out` ledger entry with `category: 'withdrawal_pending'` and `transaction_group_id: wallet-withdraw-{withdrawalId}`. This ensures funds are held during the approval process and prevents double-spending.
+
+### Single-Step Approval Pipeline
 
 ```
-Requested → Manager Review → CFO Approval → COO Final Approval
+Requested (funds held) → Financial Ops Approve & Complete (enter TID/Receipt/Bank Ref)
 ```
 
-**Tracked via:** `WithdrawalStepTracker`
+Financial Operations reviews the request, selects the actual payment method used (MTN MoMo, Airtel Money, Bank Transfer, or Cash), and enters the corresponding Transaction ID (TID), Bank Reference, or Receipt Number to complete the request directly. Status transitions from `pending` → `approved` in one step.
+
+**Tracked via:** `WithdrawalStepTracker` (2-step: Requested → Approved & Paid)
+
+### Rejection & Idempotent Refund
+
+If a withdrawal is rejected, the system automatically refunds the pre-deducted amount via a `cash_in` ledger entry with `category: 'withdrawal_reversal'` and `transaction_group_id: wallet-reject-{withdrawalId}`. The refund is **idempotent** — the system checks for an existing entry with the same `transaction_group_id` before inserting, preventing double refunds on retries or edge function re-runs.
+
+For float withdrawals, the same idempotency pattern applies using `transaction_group_id: float-reject-{withdrawalId}`.
+
+### Key Guarantees
+
+- **No double deductions**: Single `cash_out` at request time with unique `transaction_group_id`
+- **No double refunds**: Existence check on `transaction_group_id` before inserting reversal
+- **Ledger traceable**: Every wallet change tied to a ledger entry
+- **Safe against retries**: Edge function re-runs skip already-processed refunds
 
 **Investment withdrawals** pause rewards immediately and are subject to **90-day notice period**.
 
