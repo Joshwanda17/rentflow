@@ -598,7 +598,7 @@ Full access to all Manager features + system configuration + role assignment wit
 | Payment Analytics | `PaymentModeAnalytics` | MTN/Airtel/Cash/Wallet distribution charts |
 | Reports | `FinancialReportsPanel` | Downloadable revenue summaries |
 | Alerts | `FinancialAlertsPanel` | Anomaly detection (payments > 2M UGX) |
-| Withdrawal Approvals | `COOWithdrawalApprovals` | Multi-stage withdrawal processing |
+| Withdrawal Approvals | `COOWithdrawalApprovals` | Partner withdrawal processing (wallet withdrawals handled by Financial Ops) |
 | Partner Withdrawals | `COOPartnerWithdrawalApprovals` | Partner withdrawal queue |
 | Partners Management | `COOPartnersPage` | Full partner oversight with search, filters, CSV, bulk import |
 | Partner Import | `PartnerImportDialog` | Excel bulk import |
