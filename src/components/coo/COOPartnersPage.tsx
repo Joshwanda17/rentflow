@@ -1614,17 +1614,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 <div>
                                   <span className="text-muted-foreground">Next Payout</span>
                                   {editingNextPayoutId === p.id ? (
-                                    <div className="flex items-center gap-1.5 mt-1">
+                                    <div className="flex items-center gap-1 mt-1">
                                       <Input
                                         type="date"
                                         value={editingNextPayoutDate}
                                         onChange={e => setEditingNextPayoutDate(e.target.value)}
-                                        className="h-7 w-48 text-xs"
+                                        className="h-7 w-full text-xs"
                                       />
-                                      <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => handleSaveNextPayoutDate(p.id)} disabled={savingPortfolio}>
+                                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => handleSaveNextPayoutDate(p.id)} disabled={savingPortfolio}>
                                         {savingPortfolio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                                       </Button>
-                                      <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => setEditingNextPayoutId(null)}>
+                                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setEditingNextPayoutId(null)}>
                                         <X className="h-3 w-3" />
                                       </Button>
                                     </div>
