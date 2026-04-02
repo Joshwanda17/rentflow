@@ -714,68 +714,57 @@ export function LandlordOpsDashboard() {
           ))}
         </div>
 
-        {/* Compact landlord list */}
-        <div className="space-y-1.5">
-          {paginated.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">No landlords found</div>
-          ) : (
-            paginated.map(landlord => {
-              const houseCount = landlordHouseCounts.get(landlord.id) || landlord.number_of_houses || 0;
-              const tenantCount = landlord.tenants?.length || 0;
-              return (
-                <div key={landlord.id} className="rounded-xl border border-border bg-card hover:shadow-md hover:border-primary/30 transition-all">
-                  <div className="p-3 flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-sky-500/10 flex items-center justify-center flex-shrink-0">
-                      <Building2 className="h-4 w-4 text-sky-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground truncate">{landlord.name}</p>
+        {/* Landlord list table */}
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs">Name</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden sm:table-cell">Phone</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden md:table-cell">Status</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden md:table-cell">Tenants</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground text-xs hidden lg:table-cell">Agent</th>
+                <th className="text-right px-3 py-2 font-medium text-muted-foreground text-xs">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-6 text-muted-foreground">No landlords found</td></tr>
+              ) : (
+                paginated.map(landlord => {
+                  const tenantCount = landlord.tenants?.length || 0;
+                  return (
+                    <tr key={landlord.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                      <td className="px-3 py-2.5">
+                        <span className="font-medium text-foreground">{landlord.name}</span>
+                        <span className="sm:hidden block text-[11px] text-muted-foreground">{landlord.phone || '—'}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">{landlord.phone || '—'}</td>
+                      <td className="px-3 py-2.5 hidden md:table-cell">
                         {landlord.verified ? (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-0">Verified</Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 bg-amber-100 text-amber-700 border-0">Pending</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 border-0">Pending</Badge>
                         )}
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">{houseCount} {houseCount === 1 ? 'house' : 'houses'}</Badge>
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        {landlord.phone && (
-                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                            <Phone className="h-3 w-3" />{landlord.phone}
-                          </span>
-                        )}
-                        <span className="text-[11px] text-muted-foreground">
-                          {tenantCount > 0 ? `${tenantCount} tenant${tenantCount > 1 ? 's' : ''}` : 'No tenants'}
-                        </span>
-                        {landlord.agent_name && (
-                          <span className="text-[11px] text-muted-foreground truncate">
-                            Agent: {landlord.agent_name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditLandlord({ ...landlord }); }}
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        title="Edit landlord"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteLandlord({ id: landlord.id, name: landlord.name }); }}
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                        title="Delete landlord"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+                      </td>
+                      <td className="px-3 py-2.5 text-muted-foreground hidden md:table-cell">{tenantCount > 0 ? tenantCount : '—'}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[120px] hidden lg:table-cell">{landlord.agent_name || '—'}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setEditLandlord({ ...landlord })}
+                        >
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Pagination controls */}
