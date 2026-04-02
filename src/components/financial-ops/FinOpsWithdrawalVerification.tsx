@@ -132,10 +132,10 @@ export function FinOpsWithdrawalVerification() {
       });
 
       toast.success('Withdrawal approved & forwarded to CFO');
+      setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
       setSelected(null);
       setReference('');
-      fetchRequests();
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
     } finally {
