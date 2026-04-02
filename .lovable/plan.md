@@ -1,31 +1,30 @@
 
 
-# Add "Agent Commission Benefits" Tab to Hamburger Menu
+# Replace "Active" Badge with White Check Icon
 
-## What Changes
+## Change
 
-Add a new menu item called **"Agent Commission Benefits"** in the agent dashboard's hamburger menu, placed directly below the "Messages" link. This links to a new informational page that displays the commission structure and rules.
+In `src/components/supporter/FunderCapitalOpportunities.tsx`, replace the `<Badge>Active</Badge>` on the Tenant Support tab (lines 282–286) with a white `Check` icon from lucide-react.
 
-## Implementation
+### File: `src/components/supporter/FunderCapitalOpportunities.tsx`
 
-### 1. New Page: `src/pages/AgentCommissionBenefits.tsx`
-A static informational page displaying the commission structure in a clean, card-based layout:
+**Line 282–286** — Replace:
+```tsx
+{portfolioCount >= 1 && (
+  <Badge variant="success" size="sm" className="ml-1 text-[8px] px-1.5 py-0 uppercase tracking-wider">
+    Active
+  </Badge>
+)}
+```
+With:
+```tsx
+{portfolioCount >= 1 && (
+  <Check className="h-3.5 w-3.5 text-white" />
+)}
+```
 
-- **Repayment Commission (10%)** — split logic explained with clear examples
-- **Role Definitions** — Source Agent (2%), Tenant Manager (8%), Recruiter Override (2%)
-- **Edge Cases** — same agent gets full 10%, no recruiter means manager keeps 8%
-- **Event-Based Bonuses** — table showing the 4 fixed bonuses (UGX 5,000–20,000)
-- **Ledger Tracking** — brief note on what's logged (agent_id, tenant_id, event_type, etc.)
-- Back navigation header
+Add `Check` to the existing lucide-react import.
 
-### 2. Add Route: `src/App.tsx`
-Register `/agent-commission-benefits` route pointing to the new page.
-
-### 3. Add Menu Item: `src/components/DashboardHeader.tsx`
-Insert a new `DropdownMenuItem` immediately after the "Messages" link (line 218) that navigates to `/agent-commission-benefits`. Icon: a coins/receipt icon from lucide-react (e.g., `Receipt` or `Coins`).
-
-### Files Changed
-- **New**: `src/pages/AgentCommissionBenefits.tsx`
-- **Edit**: `src/App.tsx` — add route
-- **Edit**: `src/components/DashboardHeader.tsx` — add menu item below Messages
+### Files Modified
+- `src/components/supporter/FunderCapitalOpportunities.tsx`
 
