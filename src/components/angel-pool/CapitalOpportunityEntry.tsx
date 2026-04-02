@@ -334,7 +334,7 @@ function AngelCommittedSummary({
           onClick={() => { hapticTap(); onInvestMore(); }}
           className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2 uppercase tracking-wide"
         >
-          Invest More <ChevronRight className="h-4 w-4" />
+          Fund Angel Pool <ChevronRight className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
