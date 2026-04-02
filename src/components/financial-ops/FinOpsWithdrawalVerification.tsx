@@ -9,7 +9,7 @@ import {
   Smartphone, ArrowRight, Banknote,
 } from 'lucide-react';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -389,13 +389,12 @@ export function FinOpsWithdrawalVerification() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleApprove}
               disabled={!!processing}
-              className="bg-primary hover:bg-primary/90"
             >
               {processing ? 'Processing...' : 'Approve & Forward'}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -417,13 +416,13 @@ export function FinOpsWithdrawalVerification() {
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleTidComplete}
               disabled={!!processing || reference.trim().length < 3}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {processing ? 'Processing...' : 'Complete Withdrawal'}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -445,13 +444,13 @@ export function FinOpsWithdrawalVerification() {
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleReject}
               disabled={rejectionReason.trim().length < 10 || !!processing}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
             >
               {processing ? 'Rejecting...' : 'Reject'}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
