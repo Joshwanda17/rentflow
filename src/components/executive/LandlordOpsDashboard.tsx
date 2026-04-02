@@ -619,7 +619,7 @@ export function LandlordOpsDashboard() {
     </button>
   );
 
-  const refetchAll = () => { refetch(); refetchLandlords(); };
+  const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
 
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
