@@ -66,30 +66,35 @@ export default function PWAInstallPrompt() {
 
   const handleInstall = async () => {
     if (isInstalling) return;
+    setIsInstalling(true);
 
-    if (platform.installMethod === 'prompt' && (isInstallable || hasPrompt)) {
-      setIsInstalling(true);
-      try {
+    try {
+      // Always try native prompt first
+      if (isInstallable || hasPrompt) {
         const success = await promptInstall();
         if (success) {
           setShowPrompt(false);
           toast.success('App installed! Redirecting to login...');
           setTimeout(() => navigate('/auth', { replace: true }), 1000);
-        } else {
-          if (!hasPrompt) {
-            toast.info('Tap the menu button to install manually');
-            setShowInstallGuide(true);
-          }
+          return;
         }
-      } catch (error) {
-        console.error('[PWA] Install error:', error);
-        toast.error('Installation failed. Try using the browser menu.');
-        setShowInstallGuide(true);
-      } finally {
-        setIsInstalling(false);
       }
-    } else {
-      setShowInstallGuide(true);
+
+      // Fallback: iOS gets a toast instruction, others get the guide
+      if (platform.os === 'ios') {
+        toast.info('Tap the Share button ⎋ then "Add to Home Screen"', { duration: 6000 });
+      } else {
+        toast.info('Open your browser menu (⋮) and tap "Install app"', { duration: 6000 });
+      }
+    } catch (error) {
+      console.error('[PWA] Install error:', error);
+      if (platform.os === 'ios') {
+        toast.info('Tap the Share button ⎋ then "Add to Home Screen"', { duration: 6000 });
+      } else {
+        toast.info('Open your browser menu (⋮) and tap "Install app"', { duration: 6000 });
+      }
+    } finally {
+      setIsInstalling(false);
     }
   };
 
@@ -218,11 +223,7 @@ export default function PWAInstallPrompt() {
                   style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
                 >
                   <Download className="h-5 w-5" />
-                  {isInstalling
-                    ? 'Installing…'
-                    : platform.installMethod === 'prompt'
-                      ? 'Install Now'
-                      : 'How to Install'}
+                  {isInstalling ? 'Installing…' : 'Install App'}
                 </Button>
 
               </div>
