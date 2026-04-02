@@ -445,13 +445,13 @@ export function FinOpsWithdrawalVerification() {
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <Button
               onClick={handleReject}
               disabled={rejectionReason.trim().length < 10 || !!processing}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
             >
               {processing ? 'Rejecting...' : 'Reject'}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
