@@ -178,6 +178,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
   const handleClose = () => {
     setAmount(0);
+    setReason('');
     setSuccess(false);
     onOpenChange(false);
   };
