@@ -2518,8 +2518,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
-  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'paid'>>({});
+  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [payMode, setPayMode] = useState<Record<string, 'wallet' | 'already_paid' | null>>({});
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
