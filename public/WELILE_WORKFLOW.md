@@ -2021,4 +2021,4 @@ OUT: Withdrawal pre-deductions (withdrawal_pending) and reversals (withdrawal_re
 
 ---
 
-*This document is the authoritative complete reference for the Welile platform. All UI components, business logic, edge functions, event architecture, cost optimizations, and governance flows are documented here. Last updated: April 2026.*
+*This document is the authoritative complete reference for the Welile platform. All UI components, business logic, edge functions, event architecture, cost optimizations, and governance flows are documented here. Version 3.3 — Last updated: April 2026.*
