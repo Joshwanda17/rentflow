@@ -13,11 +13,12 @@ import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePa
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
+import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck,
-  ArrowLeft, ChevronRight
+  TrendingUp, ArrowLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
