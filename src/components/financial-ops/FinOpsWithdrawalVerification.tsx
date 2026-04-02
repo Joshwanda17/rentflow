@@ -480,7 +480,7 @@ export function FinOpsWithdrawalVerification() {
       </AlertDialog>
 
       {/* TID Completion Dialog */}
-      <AlertDialog open={tidOpen} onOpenChange={setTidOpen}>
+      <AlertDialog open={tidOpen} onOpenChange={(open) => { setTidOpen(open); if (!open) { setReference(''); setPaymentMethod(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Complete with Transaction ID</AlertDialogTitle>
