@@ -2611,7 +2611,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
-  const handlePay = async (p: NearingPayoutPortfolio, reason: string) => {
+  const handlePay = async (p: NearingPayoutPortfolio, reason: string, mode: 'wallet' | 'already_paid') => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'pay' }));
     try {
       const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
@@ -2624,7 +2624,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       nextDate.setMonth(nextDate.getMonth() + 1);
       await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
 
-      // Create pending wallet operation for CFO approval
+      const operationType = mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
+      const modeLabel = mode === 'wallet' ? 'Pay to Wallet' : 'Already Paid';
+
+      // Create pending wallet operation for approval
       const txnGroupId = crypto.randomUUID();
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
         user_id: p.investorId,
@@ -2634,31 +2637,32 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         source_table: 'investor_portfolios',
         source_id: p.portfolioId,
         reference_id: refId,
-        operation_type: 'roi_wallet_credit',
+        operation_type: operationType,
         transaction_group_id: txnGroupId,
-        description: `ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
+        description: `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
         linked_party: user.id,
         status: 'pending',
-        metadata: { partner_name: p.name, roi_percentage: p.roiPercentage, investment_amount: p.investmentAmount, initiated_by: user.id, reason },
+        metadata: { partner_name: p.name, roi_percentage: p.roiPercentage, investment_amount: p.investmentAmount, initiated_by: user.id, reason, pay_mode: mode },
       });
       if (pendErr) throw pendErr;
 
       // Audit log
+      const auditAction = mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
       await supabase.from('audit_logs').insert({
         user_id: user.id,
-        action_type: 'roi_payout_requested',
+        action_type: auditAction,
         table_name: 'pending_wallet_operations',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason },
+        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode },
       });
 
       // Notify partner
       await supabase.from('notifications').insert({
         user_id: p.investorId,
-        title: 'ROI Payout Initiated',
-        message: `An ROI payout of ${formatUGX(roiAmount)} has been initiated for your wallet. Pending CFO approval. Ref: ${refId}`,
+        title: mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
+        message: `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
         type: 'payout_initiated',
-        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId },
+        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
       });
 
       // Notify all CFO role users
@@ -2671,15 +2675,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           cfoUsers.map(c => ({
             user_id: c.user_id,
             title: 'ROI Payout Awaiting Approval',
-            message: `${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending your approval. Ref: ${refId}`,
+            message: `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending approval. Ref: ${refId}`,
             type: 'approval_required',
-            metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId },
+            metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
           }))
         );
       }
 
-      toast.success(`Payout of ${formatUGX(roiAmount)} submitted for CFO approval`, { description: `Ref: ${refId}` });
-      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'paid' }));
+      toast.success(`${modeLabel}: ${formatUGX(roiAmount)} submitted for approval`, { description: `Ref: ${refId}` });
+      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'pending' }));
+      setPayMode(prev => ({ ...prev, [p.portfolioId]: null }));
       onActionComplete?.();
     } catch (err: any) {
       toast.error('Pay request failed', { description: err.message });
