@@ -594,6 +594,34 @@ New → Active → Top Earner
 - High-resolution "Welile Service Centre" logo and poster available for download
 - Agents can print these for field setup and recruitment
 
+**Printing Instructions (on-page guide):**
+- Step-by-step plain-language guide for agents
+- Colour codes: Primary Purple `#7214c9`, White `#FFFFFF`, Black `#000000`
+- Paper sizes: A3/A2 for poster, A4 for logo
+- Mounting advice: visible wall, window, signboard
+
+**Service Centre Setup Submission:**
+- Agent takes a photo of mounted poster/logo
+- GPS location captured via `navigator.geolocation.getCurrentPosition`
+- Location name text description
+- Agent name and phone auto-filled from profile
+- Submits to `service_centre_setups` table with status `pending`
+
+**Service Centre Verification & Payout Pipeline:**
+```
+Agent submits (pending) → Agent Ops Manager verifies GPS + photo (verified)
+    → CFO approves & pays UGX 25,000 (paid)
+```
+- **Agent Ops Dashboard** (`ServiceCentreVerificationQueue`): Shows pending submissions with photo, GPS map link, agent details. Verify or Reject (with mandatory 10+ char reason).
+- **CFO Dashboard** (`ServiceCentrePayoutApproval`): Shows verified submissions. "Approve & Pay UGX 25,000" button calls `credit_agent_event_bonus` RPC with `p_event_type = 'service_centre_setup'`.
+- **Ledger flow:** Platform debit (`cash_out`/`marketing_expense`/`platform`) + Agent credit (`cash_in`/`agent_commission`/`wallet`) via shared `transaction_group_id`.
+- **My Submissions:** Agent sees own submissions with status badges (Pending → Verified → Approved → Paid).
+
+**Database table: `service_centre_setups`**
+- Fields: `agent_id`, `photo_url`, `latitude`, `longitude`, `location_name`, `agent_name`, `agent_phone`, `status` (pending/verified/approved/paid/rejected), `verified_by`, `verified_at`, `approved_by`, `approved_at`, `rejection_reason`
+- Storage bucket: `service-centre-photos` (public)
+- RLS: Agents INSERT/SELECT own; Staff (manager, operations, cfo, cto, super_admin) SELECT/UPDATE all
+
 ---
 
 # 5. Supporter (Funder) Workflows
