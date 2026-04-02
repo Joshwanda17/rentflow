@@ -97,7 +97,7 @@ const DashboardHeader = memo(function DashboardHeader({
     }
   };
 
-  const showInstallButton = (isIOS && !isInstalled) || (isInstallable && !isInstalled);
+  const showInstallButton = isInstallable && !isInstalled;
 
   return (
     <>

@@ -8,6 +8,10 @@ interface BeforeInstallPromptEvent extends Event {
 // Global storage for the deferred prompt to prevent losing it on re-renders
 export let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
 
+export function clearGlobalPrompt() {
+  globalDeferredPrompt = null;
+}
+
 // Capture the prompt as early as possible (before React even loads)
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e: Event) => {
