@@ -212,6 +212,19 @@ export function CFOWithdrawalApprovals() {
                     </div>
                   )}
 
+                  {(req as any).fin_ops_reference && (
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        Ref: {(req as any).fin_ops_reference}
+                      </Badge>
+                      {(req as any).fin_ops_verified_at && (
+                        <span className="text-muted-foreground">
+                          Verified {formatDistanceToNow(new Date((req as any).fin_ops_verified_at), { addSuffix: true })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] text-muted-foreground">
                       Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
@@ -230,11 +243,11 @@ export function CFOWithdrawalApprovals() {
                       <Button
                         size="sm"
                         className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={() => { setSelected(req); setTransactionId(''); setApproveOpen(true); }}
+                        onClick={() => { setSelected(req); setApproveOpen(true); }}
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Approve & Pay
+                        Approve
                       </Button>
                     </div>
                   </div>
