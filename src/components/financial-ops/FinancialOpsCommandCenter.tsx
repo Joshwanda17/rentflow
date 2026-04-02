@@ -70,6 +70,7 @@ export function FinancialOpsCommandCenter() {
           <Banknote className="h-5 w-5 text-destructive" />
           Withdrawals & Payouts
         </h2>
+        <FinOpsWithdrawalVerification />
         <PendingWalletOperationsWidget />
         <FloatPayoutVerification />
       </div>
