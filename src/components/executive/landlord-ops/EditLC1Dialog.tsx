@@ -35,27 +35,17 @@ export function EditLC1Dialog({ lc1, open, onClose, onSaved }: Props) {
     const fetchFresh = async () => {
       setLoading(true);
       try {
-        if (lc1.phone) {
-          const { data } = await supabase
-            .from('lc1_chairpersons')
-            .select('name, phone, village')
-            .eq('phone', lc1.phone)
-            .maybeSingle();
-          if (!cancelled) {
-            setForm({
-              name: data?.name || lc1.name || '',
-              phone: data?.phone || lc1.phone || '',
-              village: data?.village || lc1.village || '',
-            });
-          }
-        } else {
-          if (!cancelled) {
-            setForm({
-              name: lc1.name || '',
-              phone: lc1.phone || '',
-              village: lc1.village || '',
-            });
-          }
+        const { data } = await supabase
+          .from('lc1_chairpersons')
+          .select('name, phone, village')
+          .eq('id', lc1.id)
+          .maybeSingle();
+        if (!cancelled) {
+          setForm({
+            name: data?.name || lc1.name || '',
+            phone: data?.phone || lc1.phone || '',
+            village: data?.village || lc1.village || '',
+          });
         }
       } catch {
         if (!cancelled) {
