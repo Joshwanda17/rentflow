@@ -454,7 +454,7 @@ export function CapitalOpportunityEntry() {
     toast.success(
       pool === 'tenant'
         ? `Tenant support of ${formatAmountCompact(amt)} committed.`
-        : `Angel pool investment of ${formatAmountCompact(amt)} committed.`
+        : `Angel Pool funded with ${formatAmountCompact(amt)} successfully.`
     );
     pool === 'tenant' ? setTenantAmount(0) : setAngelAmount(0);
   };
