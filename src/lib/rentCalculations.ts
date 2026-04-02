@@ -69,12 +69,52 @@ export function calculateInstalment(totalRepayment: number, durationDays: number
   return { amount, count };
 }
 
+// Commission engine constants
+export const COMMISSION_RATE = 0.10;       // Total commission: 10% of repayment
+export const SOURCE_RATE = 0.02;           // Source (onboarding) agent: 2%
+export const MANAGER_RATE = 0.08;          // Tenant manager: 8%
+export const RECRUITER_RATE = 0.02;        // Recruiter override: 2% (manager drops to 6%)
+
+// Event-based fixed bonuses (UGX)
+export const EVENT_BONUSES = {
+  rent_request_posted: 5000,
+  house_listed: 5000,
+  tenant_replacement: 20000,
+  subagent_registration: 10000,
+} as const;
+
+export type CommissionEventType = keyof typeof EVENT_BONUSES;
+
 /**
- * Calculate agent commission from repayment
- * 5% of rent repaid
+ * Calculate total agent commission from repayment (10%)
  */
 export function calculateAgentCommission(repaidAmount: number): number {
-  return Math.round(repaidAmount * 0.05);
+  return Math.round(repaidAmount * COMMISSION_RATE);
+}
+
+/**
+ * Calculate commission split for a repayment
+ */
+export function calculateCommissionSplit(repaidAmount: number, options: {
+  sameAgent: boolean;
+  hasRecruiter: boolean;
+}): { source: number; manager: number; recruiter: number } {
+  const total = calculateAgentCommission(repaidAmount);
+
+  if (options.sameAgent) {
+    if (options.hasRecruiter) {
+      const manager = Math.round(repaidAmount * MANAGER_RATE);
+      return { source: 0, manager, recruiter: total - manager };
+    }
+    return { source: 0, manager: total, recruiter: 0 };
+  }
+
+  const source = Math.round(repaidAmount * SOURCE_RATE);
+  if (options.hasRecruiter) {
+    const recruiter = Math.round(repaidAmount * RECRUITER_RATE);
+    return { source, manager: total - source - recruiter, recruiter };
+  }
+  return { source, manager: total - source, recruiter: 0 };
 }
 
 /**
