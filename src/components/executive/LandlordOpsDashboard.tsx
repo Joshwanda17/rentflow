@@ -428,6 +428,10 @@ export function LandlordOpsDashboard() {
   const emptyHouses = rows.filter(l => l.status === 'available' && !l.tenant_id);
   const occupiedHouses = rows.filter(l => l.tenant_id);
 
+  // Landlord-level occupied/empty derived from tenants array (includes rent_requests linkage)
+  const occupiedLandlords = landlordsList.filter(l => l.tenants && l.tenants.length > 0);
+  const emptyLandlords = landlordsList.filter(l => !l.tenants || l.tenants.length === 0);
+
   // House count per landlord from house_listings
   const landlordHouseCounts = useMemo(() => {
     const map = new Map<string, number>();
