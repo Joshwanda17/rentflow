@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone, ArrowRight, Banknote,
+  Smartphone, ArrowRight, Banknote, CreditCard, Wallet, DollarSign,
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
