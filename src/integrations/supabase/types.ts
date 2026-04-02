@@ -6837,6 +6837,60 @@ export type Database = {
           },
         ]
       }
+      service_centre_setups: {
+        Row: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          id: string
+          latitude: number
+          location_name: string | null
+          longitude: number
+          photo_url: string
+          rejection_reason: string | null
+          status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          agent_id: string
+          agent_name: string
+          agent_phone: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string
+          latitude: number
+          location_name?: string | null
+          longitude: number
+          photo_url: string
+          rejection_reason?: string | null
+          status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          agent_id?: string
+          agent_name?: string
+          agent_phone?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string
+          latitude?: number
+          location_name?: string | null
+          longitude?: number
+          photo_url?: string
+          rejection_reason?: string | null
+          status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       settlement_reconciliation_ledger: {
         Row: {
           channel: string
