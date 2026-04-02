@@ -54,6 +54,7 @@ export function FinOpsWithdrawalVerification() {
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [reference, setReference] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
