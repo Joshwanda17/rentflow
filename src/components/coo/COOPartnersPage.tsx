@@ -1619,7 +1619,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                         type="date"
                                         value={editingNextPayoutDate}
                                         onChange={e => setEditingNextPayoutDate(e.target.value)}
-                                        className="h-7 w-36 text-xs"
+                                        className="h-7 w-48 text-xs"
                                       />
                                       <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => handleSaveNextPayoutDate(p.id)} disabled={savingPortfolio}>
                                         {savingPortfolio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
