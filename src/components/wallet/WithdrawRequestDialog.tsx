@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowDownToLine, Wallet, Loader2, CheckCircle, AlertCircle, Phone, Building2, Banknote, Clock, CheckCircle2, Sparkles, Shield, TrendingDown } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowDownToLine, Wallet, Loader2, CheckCircle, AlertCircle, Phone, Building2, Banknote, Clock, CheckCircle2, Sparkles, Shield, TrendingDown, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -69,6 +70,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
   const [bankName, setBankName] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [reason, setReason] = useState('');
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
   useEffect(() => {
@@ -113,7 +115,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
   const MIN_BALANCE = 5000;
   const meetsMinBalance = walletBalance >= MIN_BALANCE;
-  const isFormValid = meetsMinBalance && amount >= 500 && amount <= walletBalance && isPayoutValid() && workingHoursStatus.isOpen;
+  const isFormValid = meetsMinBalance && amount >= 500 && amount <= walletBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
 
   const handleSubmit = async () => {
     if (!user) { toast.error('Please log in first'); return; }
@@ -131,13 +133,21 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
+        const isMomo = payoutMode === 'mtn' || payoutMode === 'airtel';
         const { error } = await supabase.from('withdrawal_requests').insert({
           user_id: user.id,
           amount,
           status: 'pending' as const,
-          mobile_money_number: payoutMode === 'mtn' || payoutMode === 'airtel' ? momoNumber.trim() : null,
-          mobile_money_provider: payoutMode === 'mtn' || payoutMode === 'airtel' ? payoutMode : null,
-        });
+          mobile_money_number: isMomo ? momoNumber.trim() : null,
+          mobile_money_provider: isMomo ? payoutMode : null,
+          mobile_money_name: isMomo ? momoName.trim() : null,
+          payout_method: payoutMode === 'bank' ? 'bank_transfer' : payoutMode === 'cash' ? 'cash' : 'mobile_money',
+          bank_name: payoutMode === 'bank' ? bankName : null,
+          bank_account_name: payoutMode === 'bank' ? bankAccountName.trim() : null,
+          bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
+          agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
+          reason: reason.trim(),
+        } as any);
         if (error) throw error;
 
         if (payoutMode === 'mtn' || payoutMode === 'airtel') {
@@ -168,6 +178,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
 
   const handleClose = () => {
     setAmount(0);
+    setReason('');
     setSuccess(false);
     onOpenChange(false);
   };
@@ -419,7 +430,29 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                 </div>
               )}
 
-              {/* ── AMOUNT SECTION ── */}
+              {/* ── REASON FOR WITHDRAWAL ── */}
+              {payoutMode && isPayoutValid() && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-2"
+                >
+                  <Label className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Why are you withdrawing?
+                  </Label>
+                  <Textarea
+                    placeholder="Include reason and phone number or A/C"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="min-h-[70px] rounded-xl text-sm"
+                  />
+                  {reason.length > 0 && reason.trim().length < 10 && (
+                    <p className="text-[10px] text-destructive">Reason must be at least 10 characters</p>
+                  )}
+                </motion.div>
+              )}
+
               <AnimatePresence>
                 {isPayoutValid() && meetsMinBalance && workingHoursStatus.isOpen && (
                   <motion.div
@@ -535,6 +568,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
                       ? 'Select method ↑'
                       : !isPayoutValid()
                       ? 'Fill details ↑'
+                      : reason.trim().length < 10
+                      ? 'Add reason ↑'
                       : amount < 500
                       ? 'Enter amount'
                       : 'Withdraw'

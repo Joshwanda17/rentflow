@@ -8529,6 +8529,7 @@ export type Database = {
           priority_level: string | null
           processed_at: string | null
           processed_by: string | null
+          reason: string | null
           rejection_reason: string | null
           status: string
           transaction_id: string | null
@@ -8569,6 +8570,7 @@ export type Database = {
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          reason?: string | null
           rejection_reason?: string | null
           status?: string
           transaction_id?: string | null
@@ -8609,6 +8611,7 @@ export type Database = {
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          reason?: string | null
           rejection_reason?: string | null
           status?: string
           transaction_id?: string | null
