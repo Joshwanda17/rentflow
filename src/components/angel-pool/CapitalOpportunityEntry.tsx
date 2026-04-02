@@ -630,7 +630,7 @@ export function CapitalOpportunityEntry() {
             <Button type="button" onClick={() => handleInvest('angel')}
               disabled={angelAmount < PRICE_PER_SHARE || (walletBalance > 0 && angelAmount > walletBalance)}
               className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2">
-              <Rocket className="h-4 w-4" /> Invest in Angel Pool
+              <Rocket className="h-4 w-4" /> Fund Angel Pool
             </Button>
             <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Capital Protected</span>
