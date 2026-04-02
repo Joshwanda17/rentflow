@@ -131,7 +131,7 @@ export function FinOpsWithdrawalVerification() {
         action_type: 'fin_ops_approve_withdrawal',
         record_id: selected.id,
         table_name: 'withdrawal_requests',
-        metadata: { amount: selected.amount, target_user: selected.user_id, reference: reference.trim().toUpperCase() },
+        metadata: { amount: selected.amount, target_user: selected.user_id, reference: reference.trim().toUpperCase(), payment_method: paymentMethod },
       });
 
       toast.success('Withdrawal approved & forwarded to CFO');
