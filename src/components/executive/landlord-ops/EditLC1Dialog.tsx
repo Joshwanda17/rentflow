@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
 
 interface LC1Data {
+  id: string;
   name: string;
   phone: string | null;
   village: string | null;
