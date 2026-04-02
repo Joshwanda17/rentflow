@@ -56,10 +56,9 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
               <Wallet className="h-3 w-3" />
               Available Balance
             </p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-[clamp(1.5rem,6vw,2.25rem)] font-black tracking-tight leading-none text-white truncate">
-                <span className="sm:hidden">{formatAmountCompact(walletBalance)}</span>
-                <span className="hidden sm:inline">{formatAmount(walletBalance)}</span>
+            <div className="flex items-baseline gap-2 min-w-0 w-full">
+              <p className="text-[clamp(1.1rem,4.5vw,2.25rem)] font-black tracking-tight leading-none text-white truncate w-full">
+                {formatAmount(walletBalance)}
               </p>
             </div>
             {totalReturn > 0 && (
