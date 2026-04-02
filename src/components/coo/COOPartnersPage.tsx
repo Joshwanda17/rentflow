@@ -2519,6 +2519,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'paid'>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
