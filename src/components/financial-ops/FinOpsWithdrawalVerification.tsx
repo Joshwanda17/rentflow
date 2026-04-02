@@ -378,20 +378,74 @@ export function FinOpsWithdrawalVerification() {
         </Card>
       )}
 
-      {/* Approve Dialog (no TID required) */}
-      <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
+      {/* Approve Dialog with requester details and TID */}
+      <AlertDialog open={approveOpen} onOpenChange={(open) => { setApproveOpen(open); if (!open) setReference(''); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve & Forward to CFO</AlertDialogTitle>
-            <AlertDialogDescription>
-              Approve <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> withdrawal for {selected?.user?.full_name}. This will forward the request to the CFO for sign-off.
+            <AlertDialogTitle>Approve Withdrawal</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-1">
+                {selected && (
+                  <>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Name</span>
+                        <span className="font-semibold text-foreground">{selected.user?.full_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Phone</span>
+                        <span className="font-mono text-foreground">{selected.user?.phone || '—'}</span>
+                      </div>
+                      {selected.mobile_money_number && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">MoMo</span>
+                          <span className="text-foreground">
+                            <span className={`uppercase font-medium ${selected.mobile_money_provider === 'mtn' ? 'text-yellow-600' : 'text-red-500'}`}>
+                              {selected.mobile_money_provider || 'MoMo'}
+                            </span>
+                            {' · '}{selected.mobile_money_number}
+                          </span>
+                        </div>
+                      )}
+                      {(selected.mobile_money_name || selected.bank_account_name) && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Recipient</span>
+                          <span className="font-semibold text-foreground">{selected.mobile_money_name || selected.bank_account_name}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Amount</span>
+                        <span className="font-black text-foreground">{formatCurrency(selected.amount)}</span>
+                      </div>
+                    </div>
+                    {selected.reason && (
+                      <div className="px-2.5 py-2 rounded-lg bg-muted/50 border border-border/50">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Reason</p>
+                        <p className="text-xs text-foreground">{selected.reason}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Transaction ID (TID)</p>
+                  <Input
+                    placeholder="Enter TID to confirm payment"
+                    value={reference}
+                    onChange={e => setReference(e.target.value)}
+                    className="font-mono uppercase"
+                  />
+                  {reference.length > 0 && reference.trim().length < 3 && (
+                    <p className="text-[10px] text-destructive mt-1">TID must be at least 3 characters</p>
+                  )}
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               onClick={handleApprove}
-              disabled={!!processing}
+              disabled={!!processing || reference.trim().length < 3}
             >
               {processing ? 'Processing...' : 'Approve & Forward'}
             </Button>
