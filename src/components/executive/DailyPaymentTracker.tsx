@@ -79,6 +79,8 @@ export function DailyPaymentTracker() {
         title: '✅ Rent Collected',
         description: `UGX ${Number(data.total_collected).toLocaleString()} deducted. Tenant: ${Number(data.tenant_deducted).toLocaleString()}, Agent: ${Number(data.agent_deducted).toLocaleString()}`,
       });
+      setCollectTarget(null);
+      setCollectReason('');
       refetch();
       queryClient.invalidateQueries({ queryKey: ['repayment-trend-7d'] });
     },
