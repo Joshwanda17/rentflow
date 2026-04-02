@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone, ArrowRight, Banknote,
+  Smartphone, ArrowRight, Banknote, CreditCard, Wallet, DollarSign,
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -54,6 +55,7 @@ export function FinOpsWithdrawalVerification() {
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [reference, setReference] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
@@ -108,7 +110,7 @@ export function FinOpsWithdrawalVerification() {
 
   // Section A: Approve with TID → fin_ops_approved
   const handleApprove = async () => {
-    if (!user || !selected || reference.trim().length < 3) return;
+    if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
@@ -116,6 +118,7 @@ export function FinOpsWithdrawalVerification() {
         .update({
           status: 'fin_ops_approved',
           fin_ops_reference: reference.trim().toUpperCase(),
+          fin_ops_payment_method: paymentMethod,
           fin_ops_approved_at: new Date().toISOString(),
           fin_ops_approved_by: user.id,
           updated_at: new Date().toISOString(),
@@ -128,7 +131,7 @@ export function FinOpsWithdrawalVerification() {
         action_type: 'fin_ops_approve_withdrawal',
         record_id: selected.id,
         table_name: 'withdrawal_requests',
-        metadata: { amount: selected.amount, target_user: selected.user_id, reference: reference.trim().toUpperCase() },
+        metadata: { amount: selected.amount, target_user: selected.user_id, reference: reference.trim().toUpperCase(), payment_method: paymentMethod },
       });
 
       toast.success('Withdrawal approved & forwarded to CFO');
@@ -136,6 +139,7 @@ export function FinOpsWithdrawalVerification() {
       setApproveOpen(false);
       setSelected(null);
       setReference('');
+      setPaymentMethod('');
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
     } finally {
@@ -145,7 +149,7 @@ export function FinOpsWithdrawalVerification() {
 
   // Section B: Enter TID & complete → approved
   const handleTidComplete = async () => {
-    if (!user || !selected || reference.trim().length < 3) return;
+    if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
     setProcessing(selected.id);
     try {
       const { error } = await supabase
@@ -153,6 +157,7 @@ export function FinOpsWithdrawalVerification() {
         .update({
           status: 'approved',
           fin_ops_reference: reference.trim().toUpperCase(),
+          fin_ops_payment_method: paymentMethod,
           fin_ops_verified_by: user.id,
           fin_ops_verified_at: new Date().toISOString(),
           processed_at: new Date().toISOString(),
@@ -167,7 +172,7 @@ export function FinOpsWithdrawalVerification() {
         amount: selected.amount,
         direction: 'cash_out',
         category: 'wallet_withdrawal',
-        description: `Wallet withdrawal completed. TID: ${reference.trim().toUpperCase()}`,
+        description: `Wallet withdrawal completed via ${paymentMethod}. TID: ${reference.trim().toUpperCase()}`,
         source_table: 'withdrawal_requests',
         source_id: selected.id,
         linked_party: user.id,
@@ -181,6 +186,7 @@ export function FinOpsWithdrawalVerification() {
         metadata: {
           amount: selected.amount,
           reference: reference.trim().toUpperCase(),
+          payment_method: paymentMethod,
           target_user: selected.user_id,
         },
       });
@@ -190,6 +196,7 @@ export function FinOpsWithdrawalVerification() {
       setTidOpen(false);
       setSelected(null);
       setReference('');
+      setPaymentMethod('');
     } catch (e: any) {
       toast.error(e.message || 'Failed to complete');
     } finally {
@@ -382,7 +389,7 @@ export function FinOpsWithdrawalVerification() {
       )}
 
       {/* Approve Dialog with requester details and TID */}
-      <AlertDialog open={approveOpen} onOpenChange={(open) => { setApproveOpen(open); if (!open) setReference(''); }}>
+      <AlertDialog open={approveOpen} onOpenChange={(open) => { setApproveOpen(open); if (!open) { setReference(''); setPaymentMethod(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Withdrawal</AlertDialogTitle>
@@ -430,15 +437,31 @@ export function FinOpsWithdrawalVerification() {
                   </>
                 )}
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Transaction ID (TID)</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Payment Method Used</p>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mtn_momo">MTN Mobile Money</SelectItem>
+                      <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    {paymentMethod === 'cash' ? 'Receipt Number' : paymentMethod === 'bank_transfer' ? 'Bank Reference' : 'Transaction ID (TID)'}
+                  </p>
                   <Input
-                    placeholder="Enter TID to confirm payment"
+                    placeholder={paymentMethod === 'cash' ? 'Enter receipt number' : paymentMethod === 'bank_transfer' ? 'Enter bank reference' : 'Enter TID to confirm payment'}
                     value={reference}
                     onChange={e => setReference(e.target.value)}
                     className="font-mono uppercase"
                   />
                   {reference.length > 0 && reference.trim().length < 3 && (
-                    <p className="text-[10px] text-destructive mt-1">TID must be at least 3 characters</p>
+                    <p className="text-[10px] text-destructive mt-1">Must be at least 3 characters</p>
                   )}
                 </div>
               </div>
@@ -448,7 +471,7 @@ export function FinOpsWithdrawalVerification() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               onClick={handleApprove}
-              disabled={!!processing || reference.trim().length < 3}
+              disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
             >
               {processing ? 'Processing...' : 'Approve & Forward'}
             </Button>
@@ -457,7 +480,7 @@ export function FinOpsWithdrawalVerification() {
       </AlertDialog>
 
       {/* TID Completion Dialog */}
-      <AlertDialog open={tidOpen} onOpenChange={setTidOpen}>
+      <AlertDialog open={tidOpen} onOpenChange={(open) => { setTidOpen(open); if (!open) { setReference(''); setPaymentMethod(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Complete with Transaction ID</AlertDialogTitle>
@@ -529,14 +552,31 @@ export function FinOpsWithdrawalVerification() {
                   </div>
                 )}
                 <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Payment Method Used</p>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mtn_momo">MTN Mobile Money</SelectItem>
+                      <SelectItem value="airtel_money">Airtel Money</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    {paymentMethod === 'cash' ? 'Receipt Number' : paymentMethod === 'bank_transfer' ? 'Bank Reference' : 'Transaction ID (TID)'}
+                  </p>
                   <Input
-                    placeholder="Enter Transaction ID (TID)"
+                    placeholder={paymentMethod === 'cash' ? 'Enter receipt number' : paymentMethod === 'bank_transfer' ? 'Enter bank reference' : 'Enter TID to confirm payment'}
                     value={reference}
                     onChange={e => setReference(e.target.value)}
                     className="font-mono uppercase"
                   />
                   {reference.length > 0 && reference.trim().length < 3 && (
-                    <p className="text-[10px] text-destructive mt-1">TID must be at least 3 characters</p>
+                    <p className="text-[10px] text-destructive mt-1">Must be at least 3 characters</p>
                   )}
                 </div>
               </div>
@@ -546,7 +586,7 @@ export function FinOpsWithdrawalVerification() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               onClick={handleTidComplete}
-              disabled={!!processing || reference.trim().length < 3}
+              disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {processing ? 'Processing...' : 'Complete Withdrawal'}
