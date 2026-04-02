@@ -976,21 +976,59 @@ dailyRepayment = ceil(totalRepayment / durationDays)
 
 ## 23. Agent Earnings & Commission Structure
 
-### Fixed Activity Rewards
+### 10% Rent Repayment Commission (via `credit_agent_rent_commission` RPC)
+
+Every rent repayment triggers a **10% total commission** split across up to 3 agent roles:
+
+| Role | Share | Condition |
+|------|-------|-----------|
+| Source Agent | 2% | Agent who originally registered the tenant |
+| Tenant Manager | 8% | Agent currently managing the tenant (if no recruiter) |
+| Tenant Manager | 6% | Agent currently managing the tenant (if recruiter exists) |
+| Recruiter Override | 2% | Agent who recruited the Tenant Manager (from manager's share) |
+
+**Concrete Example:** Tenant repays UGX 100,000 → Total commission = UGX 10,000
+- Source Agent: UGX 2,000
+- Tenant Manager: UGX 8,000 (or UGX 6,000 if recruiter exists)
+- Recruiter: UGX 2,000 (only if recruiter exists, taken from manager's share)
+
+### Fixed Event Bonuses (via `credit_agent_event_bonus` RPC)
 
 | Activity | Reward |
 |----------|--------|
-| Tenant Registration | UGX 500 |
-| Tenant Verification | UGX 5,000 |
-| Rent Verification | UGX 5,000 |
-| Approval Bonus | UGX 5,000 |
+| Verified house listing | UGX 5,000 |
+| Landlord location verification | UGX 5,000 |
+| Rent application facilitation | UGX 5,000 |
+| Sub-agent registration | UGX 10,000 |
+| Tenant replacement | UGX 20,000 |
 
-### Commission
+### Double-Entry Marketing Expense Pattern
 
-- **5% on rent repayments** collected from assigned tenants
-- **Sub-Agent Split:** Sub-agent 4%, Super Agent 1% passive override
-- **2% landlord management fee** for managing non-smartphone landlords
-- **2% proxy investment commission** on facilitated investments
+All agent earnings (commissions and bonuses) are classified as platform **marketing expenses**. Every agent wallet credit is paired with a corresponding platform debit:
+
+```
+Platform Side (Debit):
+  direction: cash_out
+  category: marketing_expense
+  ledger_scope: platform
+  description: "Marketing expense: Agent commission on repayment"
+
+Agent Side (Credit):
+  direction: cash_in
+  category: agent_commission
+  ledger_scope: wallet
+  description: "Commission on repayment: Source agent 2%"
+
+Both entries share the same transaction_group_id for full auditability.
+The set_ledger_scope() trigger automatically routes marketing_expense → platform scope.
+```
+
+### Other Commissions
+
+| Action | Reward |
+|--------|--------|
+| Proxy investment facilitation | 2% commission |
+| Landlord management fee (non-smartphone landlords) | 2% |
 
 ### Career Path
 
@@ -998,6 +1036,18 @@ dailyRepayment = ceil(totalRepayment / durationDays)
 |-----------|--------|
 | Team Leader (2+ sub-agents) | Cash advances (UGX 300K–30M) |
 | 50 repaying tenants | Electric Bike |
+
+### Agent Commission Benefits Page (UI)
+
+**Route:** `/agent-commission-benefits` (accessible from agent hamburger menu, icon color `#7214c9`)
+
+**Purpose:** Plain-language page explaining the full commission model with concrete money examples so agents understand exactly how they earn.
+
+**Content:** How You Earn section, Commission Split Table, Event Bonuses Table, Career Path milestones.
+
+**WhatsApp Sharing:** Uses `navigator.share` Web Share API (mobile) with `https://wa.me/?text=...` fallback (desktop). Shares structured text summary of commission model.
+
+**Branding Assets:** High-resolution "Welile Service Centre" logo and poster available for download and printing.
 
 ---
 
