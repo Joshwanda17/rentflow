@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 export default function Install() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const { isInstallable, isInstalled, promptInstall } = usePWAInstall();
+  const { hasPrompt: isInstallable, isInstalled, promptInstall } = usePWAInstall();
   const { user, loading } = useAuth();
   
   const appUrl = window.location.origin;
