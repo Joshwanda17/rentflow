@@ -16,6 +16,8 @@ import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } 
 import { hapticTap } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { InvestmentSelectionSheet, type PoolType } from './InvestmentSelectionSheet';
+import { useAngelPoolAgreement } from '@/hooks/useAngelPoolAgreement';
+import { AngelPoolAgreementDialog } from './agreement/AngelPoolAgreementDialog';
 
 type ViewState = 'default' | 'investing' | 'committed';
 
