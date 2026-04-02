@@ -524,17 +524,18 @@ Managers process deposits via the Deposits Management page:
 
 #### 15.1 External Withdrawals (Cash-Out)
 
-All external withdrawals follow a **4-stage approval hierarchy:**
+All external wallet withdrawals follow a **single-step Financial Ops approval:**
 
 ```
-Requested → Manager Approval → CFO Approval → COO Approval → Disbursed
+Requested (wallet pre-deducted) → Financial Ops Approve & Complete (TID/Receipt/Bank Ref) → Done
+If rejected → Idempotent refund via withdrawal_reversal ledger entry
 ```
 
-No single individual can authorize a withdrawal alone.
+Financial Operations reviews the request, selects the payment method (MTN MoMo, Airtel Money, Bank Transfer, or Cash), and enters the corresponding reference to complete.
 
 #### 15.2 Rent Delivery
 
-Deploying pool funds to landlords is a **manager-initiated action** for approved rent requests. Does not require the full 4-stage hierarchy since it follows the rent approval workflow.
+Deploying pool funds to landlords is a **manager-initiated action** for approved rent requests. This follows the rent approval workflow, separate from the withdrawal approval process.
 
 #### 15.3 Agent Commissions & Proxy Investments
 
@@ -799,7 +800,7 @@ OUT: 10% platform fee on guaranteed rent → tenant's Welile Homes
 ```
 IN:  Monthly ROI rewards (15% or 20% compounding)
 OUT: Wallet-to-pool investment (instant, no approval)
-OUT: Withdrawals (90-day notice, 4-stage approval)
+OUT: Withdrawals (90-day notice, single-step Financial Ops approval)
 ```
 
 ### Platform (Welile) Cash Flow

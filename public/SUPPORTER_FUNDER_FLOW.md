@@ -132,7 +132,7 @@ Every supporter has **one wallet** with a single balance denominated in UGX. The
 | Destination | Category | Description |
 |-------------|----------|-------------|
 | Rent Management Pool | `supporter_rent_fund` | Direct investment into the pool |
-| External Withdrawal | `withdrawal` | Cash-out to Mobile Money (requires 4-stage approval) |
+| External Withdrawal | `withdrawal` | Cash-out to Mobile Money (single-step Financial Ops approval) |
 | Wallet Transfer | `wallet_transfer` | Funds sent to another user |
 | Agent Proxy Investment | (deducted by agent) | Agent invests from their wallet on supporter's behalf |
 
@@ -456,7 +456,7 @@ Step 2: System calculates earliest_process_date (90 days from now)
 Step 3: Rewards are IMMEDIATELY PAUSED (rewards_paused = true)
 Step 4: Request enters investment_withdrawal_requests with status "pending"
 Step 5: After 90 days, operations processes the withdrawal
-Step 6: 4-stage approval: Manager → CFO → COO → Disbursed
+Step 6: Financial Ops reviews → enters TID/Receipt/Bank Ref → Approved & Complete
 Step 7: Funds returned to supporter's wallet or Mobile Money
 ```
 

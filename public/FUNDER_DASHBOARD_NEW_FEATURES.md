@@ -91,16 +91,17 @@ Withdrawal requests are processed through `WithdrawRequestDialog.tsx` with stric
 - **Auto-populated Mobile Number** — From user's profile, with option to edit.
 - **Balance Display** — Shows current balance and remaining after withdrawal.
 
-### 4-Stage Approval Pipeline
-Tracked via `WithdrawalStepTracker`:
+### Single-Step Financial Ops Approval
+Tracked via `WithdrawalStepTracker` (2-step visual: Requested → Approved & Paid):
 ```
-Requested → Manager Review → CFO Approval → COO Final Approval
+Requested (wallet pre-deducted) → Financial Ops enters TID/Receipt/Bank Ref → Approved & Complete
 ```
 
 ### Key Logic
 - Withdrawal request creates a record in `investment_withdrawal_requests` (for investment withdrawals) or wallet withdrawal queue.
+- Wallet withdrawals are pre-deducted at request time via `cash_out` ledger entry.
 - **Rewards are paused** during withdrawal processing for investment withdrawals.
-- COO has final approval authority.
+- Financial Ops has single-step approval authority for wallet withdrawals.
 
 ### Files
 - `src/components/wallet/WithdrawRequestDialog.tsx`

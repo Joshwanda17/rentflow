@@ -599,7 +599,7 @@ ROI calculated on deployed capital
     ↓
 Rewards credited to supporter wallet
     ↓
-Supporter can withdraw (4-stage approval)
+Supporter can withdraw (single-step Financial Ops approval)
 ```
 
 ## 5.5 Investment Accounts (Portfolios)
@@ -887,16 +887,13 @@ Auto-routing: Funds go to caretaker wallet instead
 
 ## 7.3 Approval Workflows
 
-### Withdrawal Approval (4-Stage)
+### Withdrawal Approval (Single-Step Financial Ops)
 ```
-User requests withdrawal
-    ↓ status: 'requested'
-Manager reviews → Approve
-    ↓ status: 'manager_approved'
-CFO reviews → Approve
-    ↓ status: 'cfo_approved'
-COO reviews → Final Approve
-    ↓ status: 'approved' → Funds released
+User requests withdrawal (wallet pre-deducted via cash_out ledger entry)
+    ↓ status: 'pending'
+Financial Ops reviews → Enters TID/Receipt/Bank Ref → Approve & Complete
+    ↓ status: 'approved' → Done
+If rejected → Idempotent refund via withdrawal_reversal ledger entry
 ```
 
 ### Deposit Approval
@@ -1046,9 +1043,9 @@ Funds credited to agent wallet
 - **Payroll**: Monthly batch + individual transfers via `platform-expense-transfer`
 - **Proxy Agent Assignments**: Searchable User Pickers (name/phone) for non-smartphone users
 
-### Withdrawal Approval (Stage 3)
-- Reviews `manager_approved` withdrawals
-- Approve → `cfo_approved` → goes to COO
+### Withdrawal Approval
+- **Note:** Wallet withdrawal approvals are now handled entirely by Financial Ops (single-step) — CFO no longer has a separate withdrawal approval queue
+- CFO retains oversight of financial statements, solvency, and reconciliation
 
 ### Cashout Agent Activity
 - `CashoutAgentActivity` — Monitor agent cashout patterns
@@ -1248,7 +1245,7 @@ Mobile-first, card-based navigation matching the COO/Tenant Ops pattern:
 
 ### Live Pulse Strip
 - Real-time metrics via RPC `get_financial_ops_pulse`
-- Includes: pending, requested, manager_approved, cfo_approved counts
+- Includes: pending withdrawal counts, approval rates
 - Total volume, approval rates
 
 ### TID Verification Tab (High Priority)
@@ -1429,7 +1426,7 @@ Float-related categories excluded from personal wallet sync
 |---------|------|
 | **Deposit** | Choose channel (MoMo/Bank/Agent Cash) → Enter amount → Submit TID → Pending approval |
 | **Transfer** | Search recipient → Enter amount → Optimistic lock check → Atomic debit/credit |
-| **Withdrawal** | Select payout method → Enter amount → 4-stage approval queue |
+| **Withdrawal** | Select payout method → Enter amount → Single-step Financial Ops approval (TID/receipt/bank ref required) |
 
 ### Deposit Channels
 - **Mobile Money**: TID mandatory, provider selection (MTN, Airtel), Merchant Codes: 090777/4380664
