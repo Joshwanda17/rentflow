@@ -159,6 +159,15 @@ export default function COODashboardPage() {
             <COOPartnersPage />
           </div>
         );
+      case 'partner-topups':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Partner Top-ups', TrendingUp)}
+            <p className="text-sm text-muted-foreground -mt-2">Pending portfolio top-up requests awaiting verification.</p>
+            <PendingPortfolioTopUps />
+          </div>
+        );
       case 'staff-performance':
         return (
           <div className="space-y-3">

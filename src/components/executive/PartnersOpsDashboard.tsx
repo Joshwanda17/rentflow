@@ -136,6 +136,7 @@ export function PartnersOpsDashboard() {
           <ROIPaymentHistory />
         </div>
       );
+      case 'topups': return <PendingPortfolioTopUps />;
       default: return null;
     }
   };
