@@ -1650,6 +1650,9 @@ UI Components: `IncomeStatementView.tsx`, `CashFlowView.tsx`, `BalanceSheetView.
 | `coo_proxy_investment` | COO proxy investment for partner |
 | `pool_rent_deployment` | Pool deployment to tenant |
 | `wallet_transfer` | Peer-to-peer transfer |
+| `marketing_expense` | **Agent commissions & bonuses as platform marketing cost** (auto-routed to `platform` scope by `set_ledger_scope` trigger) |
+| `withdrawal_pending` | Wallet pre-deduction at withdrawal request time (funds held until approval/rejection) |
+| `withdrawal_reversal` | Refund of pre-deducted funds on withdrawal rejection (idempotent via deterministic `transaction_group_id`: `wallet-reject-{id}` or `float-reject-{id}`) |
 
 ## 19.6 Key Database Triggers
 
