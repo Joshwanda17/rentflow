@@ -8611,6 +8611,7 @@ export type Database = {
           dispatched_at: string | null
           fin_ops_approved_at: string | null
           fin_ops_approved_by: string | null
+          fin_ops_payment_method: string | null
           fin_ops_reference: string | null
           fin_ops_verified_at: string | null
           fin_ops_verified_by: string | null
@@ -8652,6 +8653,7 @@ export type Database = {
           dispatched_at?: string | null
           fin_ops_approved_at?: string | null
           fin_ops_approved_by?: string | null
+          fin_ops_payment_method?: string | null
           fin_ops_reference?: string | null
           fin_ops_verified_at?: string | null
           fin_ops_verified_by?: string | null
@@ -8693,6 +8695,7 @@ export type Database = {
           dispatched_at?: string | null
           fin_ops_approved_at?: string | null
           fin_ops_approved_by?: string | null
+          fin_ops_payment_method?: string | null
           fin_ops_reference?: string | null
           fin_ops_verified_at?: string | null
           fin_ops_verified_by?: string | null
