@@ -471,7 +471,7 @@ export function FinOpsWithdrawalVerification() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               onClick={handleApprove}
-              disabled={!!processing || reference.trim().length < 3}
+              disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
             >
               {processing ? 'Processing...' : 'Approve & Forward'}
             </Button>
