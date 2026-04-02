@@ -1,56 +1,109 @@
 
 
-# Move Withdrawals, Capital Opportunities, and Wallet Deductions to More Tools
+# Angel Pool: Full Backend Integration + Test Seeding
 
-## What changes
+## Overview
 
-The three main-view buttons — **Withdrawals & Payouts**, **Capital Opportunities**, and **Wallet Deductions** — will be removed from the home grid and added as entries in the existing "More Tools" bottom sheet. Only **Verify Deposits** remains as a primary action on the home screen.
+The Angel Pool is currently a **UI-only mock** — the invest button shows a toast, no database table exists, no wallet deduction happens, and all dashboard data is hardcoded. This plan wires the full backend: table, edge function, real data hooks, and test funds.
 
-## File: `src/components/financial-ops/FinancialOpsCommandCenter.tsx`
+## Steps
 
-### 1. Expand the `tools` array
+### 1. Database Migration — `angel_pool_investments` table
 
-Add three new entries to the `tools` array (before or after existing items):
+Create table with RLS:
+
+```sql
+CREATE TABLE public.angel_pool_investments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  investor_id UUID NOT NULL REFERENCES public.profiles(id),
+  amount BIGINT NOT NULL,
+  shares INTEGER NOT NULL,
+  pool_ownership_percent NUMERIC(10,6) NOT NULL,
+  company_ownership_percent NUMERIC(10,6) NOT NULL,
+  status TEXT NOT NULL DEFAULT 'confirmed',
+  transaction_group_id UUID,
+  reference_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.angel_pool_investments ENABLE ROW LEVEL SECURITY;
+
+-- Users see own investments
+CREATE POLICY "Users view own angel investments"
+  ON public.angel_pool_investments FOR SELECT TO authenticated
+  USING (investor_id = auth.uid());
+
+-- Staff see all
+CREATE POLICY "Staff view all angel investments"
+  ON public.angel_pool_investments FOR SELECT TO authenticated
+  USING (has_role(auth.uid(), 'manager') OR has_role(auth.uid(), 'cfo') OR has_role(auth.uid(), 'coo'));
+```
+
+### 2. Edge Function — `angel-pool-invest`
+
+New file: `supabase/functions/angel-pool-invest/index.ts`
+
+- Authenticates caller via JWT
+- Validates `amount >= PRICE_PER_SHARE (20,000)`
+- Calculates: `shares = floor(amount / 20,000)`, `actual = shares * 20,000`, pool %, company %
+- Checks pool capacity: `SUM(shares) + new_shares <= 25,000`
+- Checks wallet balance >= actual amount
+- Inserts `cash_out` ledger entry with `transaction_group_id` (triggers `sync_wallet_from_ledger` automatically)
+- Inserts into `angel_pool_investments`
+- Logs system event via `logSystemEvent` (event-driven)
+- Returns: shares, ownership %, reference_id, new balance
+
+### 3. Seed Test Funds
+
+Call existing `seed-test-funds` edge function to add UGX 5,000,000 to SSENKAALI PIUS (`0b109aad-212a-4fd0-ab03-3d7aee9cf397`).
+
+### 4. Wire Frontend — `FunderCapitalOpportunities.tsx`
+
+Replace the toast-only `handleAngelInvest` (line 222-229) with:
 
 ```ts
-{ id: 'withdrawals', label: 'Withdrawals & Payouts', icon: Banknote },
-{ id: 'opportunities', label: 'Capital Opportunities', icon: TrendingUp },
-{ id: 'deductions', label: 'Wallet Deductions', icon: MinusCircle },
+const { data, error } = await supabase.functions.invoke('angel-pool-invest', {
+  body: { amount: angelAmount }
+});
 ```
 
-### 2. Update the `Tool` type
+On success: show toast with shares + reference_id, refresh wallet via `CustomEvent`. On error: show error toast.
 
-Expand `Tool` to include the new IDs:
+### 5. New Hook — `src/hooks/useAngelPoolData.ts`
 
-```ts
-type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions';
-```
+Fetches real pool state from `angel_pool_investments`:
+- Total raised, shares sold, shares remaining, progress %
+- User's own investments
+- Top investors (aggregated, joined with `profiles.full_name`)
+- Exposes all values for dashboard consumption
 
-### 3. Remove the `View` type entries and home-screen buttons
+### 6. Update `AngelPoolDashboard.tsx` — Replace Mock Data
 
-- Remove `'withdrawals' | 'opportunities' | 'deductions'` from the `View` type (it becomes just `'home' | 'deposits'`).
-- Delete the three `<button>` blocks for Withdrawals, Capital Opportunities, and Wallet Deductions from the home grid (lines ~145-190).
-- Delete the three `if (view === '...')` sub-view blocks for withdrawals, opportunities, and deductions (lines ~63-101). Move their rendering into the `activeTool` block instead.
+Remove `MOCK_TOTAL_RAISED` and `MOCK_INVESTORS` imports. Use `useAngelPoolData` hook. All KPIs and leaderboard become live database-driven.
 
-### 4. Render the new tools in the `activeTool` block
+## Event-Driven Compliance
 
-Add cases for the three new tool IDs alongside existing ones:
+- Every investment creates a `system_event` via `logSystemEvent` with type `angel_pool_investment`
+- Wallet deduction happens through the ledger trigger (`sync_wallet_from_ledger`), not direct balance edits
+- All money movement is append-only via `general_ledger`
 
-```tsx
-{activeTool === 'withdrawals' && (
-  <>
-    <FinOpsWithdrawalVerification />
-    <PendingWalletOperationsWidget />
-    <FloatPayoutVerification />
-  </>
-)}
-{activeTool === 'opportunities' && (
-  <OpportunitySummaryForm onClose={() => setActiveTool(null)} />
-)}
-{activeTool === 'deductions' && <WalletDeductionPanel />}
-```
+## Verification Checklist (500k test)
 
-### Summary
+| Metric | Expected |
+|---|---|
+| Shares | 25 |
+| Pool Ownership | 0.10% |
+| Company Ownership | 0.008% |
+| Wallet After | 4,500,000 |
+| Ledger Entry | cash_out, angel_pool_investment |
+| System Event | angel_pool_investment logged |
 
-One file changed. The home screen will show only the Verify Deposits button and the More Tools sheet will contain all 9 tools including the three moved items.
+## Files
+
+- **DB migration**: `angel_pool_investments` table + RLS
+- **New**: `supabase/functions/angel-pool-invest/index.ts`
+- **New**: `src/hooks/useAngelPoolData.ts`
+- **Edit**: `src/components/supporter/FunderCapitalOpportunities.tsx` (lines 222-229)
+- **Edit**: `src/components/angel-pool/AngelPoolDashboard.tsx` (replace mock imports with hook)
+- **Seed**: 5M UGX via `seed-test-funds` for SSENKAALI PIUS
 
