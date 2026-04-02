@@ -787,8 +787,8 @@ export function LandlordOpsDashboard() {
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
         <div className="space-y-2">
-          {filtered.map((lc1, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-1.5">
+          {filtered.map((lc1) => (
+            <div key={lc1.id} className="rounded-xl border border-border bg-card p-4 space-y-2">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-bold text-sm">{lc1.name}</p>
@@ -796,16 +796,34 @@ export function LandlordOpsDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setEditLC1(lc1)}
+                    onClick={() => setEditLC1({ name: lc1.name, phone: lc1.phone, village: lc1.village, listingIds: lc1.listingIds })}
                     className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors min-h-[32px]"
                     title="Edit LC1"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
-                  <Badge variant="outline" className="text-[10px]">{lc1.houseCount} {lc1.houseCount === 1 ? 'house' : 'houses'}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{lc1.landlords.length} {lc1.landlords.length === 1 ? 'landlord' : 'landlords'}</Badge>
                 </div>
               </div>
               {lc1.phone && <PhoneLinks phone={lc1.phone} name={lc1.name} />}
+              {/* Landlords under this LC1 */}
+              {lc1.landlords.length > 0 && (
+                <div className="mt-2 pl-3 border-l-2 border-primary/20 space-y-1.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Landlords</p>
+                  {lc1.landlords.map(ll => (
+                    <div key={ll.id} className="flex items-center justify-between gap-2 py-1">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{ll.name}</p>
+                        {ll.property_address && <p className="text-[10px] text-muted-foreground truncate">{ll.property_address}</p>}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {ll.verified && <Badge className="bg-emerald-500/20 text-emerald-700 border-0 text-[9px] h-4 px-1">Verified</Badge>}
+                        <PhoneLinks phone={ll.phone} name={ll.name} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No LC1 chairpersons found</p>}
