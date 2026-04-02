@@ -887,16 +887,13 @@ Auto-routing: Funds go to caretaker wallet instead
 
 ## 7.3 Approval Workflows
 
-### Withdrawal Approval (4-Stage)
+### Withdrawal Approval (Single-Step Financial Ops)
 ```
-User requests withdrawal
-    ↓ status: 'requested'
-Manager reviews → Approve
-    ↓ status: 'manager_approved'
-CFO reviews → Approve
-    ↓ status: 'cfo_approved'
-COO reviews → Final Approve
-    ↓ status: 'approved' → Funds released
+User requests withdrawal (wallet pre-deducted via cash_out ledger entry)
+    ↓ status: 'pending'
+Financial Ops reviews → Enters TID/Receipt/Bank Ref → Approve & Complete
+    ↓ status: 'approved' → Done
+If rejected → Idempotent refund via withdrawal_reversal ledger entry
 ```
 
 ### Deposit Approval
