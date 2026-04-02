@@ -2087,9 +2087,9 @@ Missing any link → blocked by trg_enforce_property_chain
 | `process-supporter-roi` | ROI calculation |
 | `process-investment-interest` | Interest processing |
 | `approve-listing-bonus` | Listing bonus approval |
-| `credit-listing-bonus` | Award listing bonus |
-| `credit-landlord-registration-bonus` | Landlord reg bonus |
-| `credit-landlord-verification-bonus` | Verification bonus |
+| `credit-listing-bonus` | Award listing bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'listing'`, `p_amount = 5000`) |
+| `credit-landlord-registration-bonus` | Landlord reg bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'registration'`, `p_amount = 5000`) |
+| `credit-landlord-verification-bonus` | Verification bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'verification'`, `p_amount = 5000`) |
 
 ### Financial - Platform Operations
 | Function | Purpose |
@@ -2102,6 +2102,13 @@ Missing any link → blocked by trg_enforce_property_chain
 | `batch-recalculate-credit-limits` | Recalculate limits |
 | `refresh-daily-stats` | Snapshot refresh |
 | `seed-test-funds` | Test data |
+| `wallet-deduction` | Financial Ops wallet deduction (mandatory reason, creates ledger + audit entries, deducts from user wallet) |
+| `tenant-pay-rent` | Tenant direct rent payment from wallet (validates balance → ledger cash_out → `record_rent_request_repayment` RPC → `credit_agent_rent_commission` RPC → fire-and-forget `notify-managers`) |
+| `angel-pool-invest` | Angel Pool share investment (validates balance + capacity, max 25,000 shares × UGX 20,000/share, 8% pool equity allocation; records shares in `angel_pool_investments`, creates `cash_out` ledger entry) |
+| `notify-managers` | Fire-and-forget manager notification hub (queries `user_roles` for enabled `manager` role + optional `additionalRoles`, deduplicates user IDs, calls `send-push-notification` with payload `{title, body, url, type}`) |
+| `provision-staff-passwords` | Bulk staff password provisioning |
+| `bulk-password-reset` | Mass password reset across multiple users |
+| `diagnose-auth` | Auth diagnostics and troubleshooting utility |
 
 ### Communications
 | Function | Purpose |
