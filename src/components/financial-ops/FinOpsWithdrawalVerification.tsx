@@ -166,17 +166,9 @@ export function FinOpsWithdrawalVerification() {
         .eq('id', selected.id);
       if (error) throw error;
 
-      // Record cash_out ledger entry with TID reference
-      await supabase.from('general_ledger').insert({
-        user_id: selected.user_id,
-        amount: selected.amount,
-        direction: 'cash_out',
-        category: 'wallet_withdrawal',
-        description: `Wallet withdrawal completed via ${paymentMethod}. TID: ${reference.trim().toUpperCase()}`,
-        source_table: 'withdrawal_requests',
-        source_id: selected.id,
-        linked_party: user.id,
-      } as any);
+      // No ledger deduction here — funds were already deducted at request time
+      // via transaction_group_id: wallet-withdraw-{id}
+      // Just record the completion audit with TID reference
 
       await supabase.from('audit_logs').insert({
         user_id: user.id,

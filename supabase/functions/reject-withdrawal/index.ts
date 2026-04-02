@@ -81,24 +81,70 @@ Deno.serve(async (req) => {
       const userId = withdrawal_type === 'float' ? wr.agent_id : wr.user_id;
       let refunded = false;
 
-      // For float withdrawals, the balance was already deducted from agent_landlord_float — restore it
-      // We need to restore it
+      // Idempotent refund for float withdrawals
       if (withdrawal_type === 'float') {
-        const { error: restoreErr } = await admin
-          .from('agent_landlord_float')
-          .update({
-            balance: (wr as any).amount + ((await admin.from('agent_landlord_float').select('balance').eq('agent_id', userId).single()).data?.balance || 0),
-            total_paid_out: Math.max(0, ((await admin.from('agent_landlord_float').select('total_paid_out').eq('agent_id', userId).single()).data?.total_paid_out || 0) - (wr as any).amount),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('agent_id', userId);
+        const floatTxGroupId = `float-reject-${wId}`;
+        const { data: existingFloat } = await admin
+          .from('general_ledger')
+          .select('id')
+          .eq('transaction_group_id', floatTxGroupId)
+          .limit(1);
 
-        if (!restoreErr) refunded = true;
+        if (!existingFloat || existingFloat.length === 0) {
+          // Restore float balance
+          const { error: restoreErr } = await admin
+            .from('agent_landlord_float')
+            .update({
+              balance: (wr as any).amount + ((await admin.from('agent_landlord_float').select('balance').eq('agent_id', userId).single()).data?.balance || 0),
+              total_paid_out: Math.max(0, ((await admin.from('agent_landlord_float').select('total_paid_out').eq('agent_id', userId).single()).data?.total_paid_out || 0) - (wr as any).amount),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('agent_id', userId);
+
+          if (!restoreErr) {
+            // Record reversing ledger entry
+            await admin.from('general_ledger').insert({
+              user_id: userId,
+              amount: wr.amount,
+              direction: 'cash_in',
+              category: 'withdrawal_reversal',
+              description: `Float withdrawal rejected – funds restored. Reason: ${reason.substring(0, 100)}`,
+              transaction_date: new Date().toISOString(),
+              transaction_group_id: floatTxGroupId,
+              ledger_scope: 'platform',
+            });
+            refunded = true;
+          }
+        } else {
+          refunded = true; // already refunded on a prior call
+        }
       }
 
-      // For wallet withdrawals at manager_approved/cfo_approved stage, 
-      // balance was NOT yet deducted (only deducted at COO final approval)
-      // So no refund needed for wallet withdrawals
+      // Idempotent refund for wallet withdrawals
+      if (withdrawal_type !== 'float') {
+        const txGroupId = `wallet-reject-${wId}`;
+        const { data: existing } = await admin
+          .from('general_ledger')
+          .select('id')
+          .eq('transaction_group_id', txGroupId)
+          .limit(1);
+
+        if (!existing || existing.length === 0) {
+          await admin.from('general_ledger').insert({
+            user_id: userId,
+            amount: wr.amount,
+            direction: 'cash_in',
+            category: 'withdrawal_reversal',
+            description: `Wallet withdrawal rejected – funds restored. Reason: ${reason.substring(0, 100)}`,
+            transaction_date: new Date().toISOString(),
+            transaction_group_id: txGroupId,
+            source_table: 'withdrawal_requests',
+            source_id: wId,
+            ledger_scope: 'platform',
+          });
+        }
+        refunded = true;
+      }
 
       // Update the withdrawal status
       const updateFields: Record<string, unknown> = {
@@ -127,27 +173,15 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // If refunded, create a reversing ledger entry for float
-      if (refunded && withdrawal_type === 'float') {
-        await admin.from('general_ledger').insert({
-          user_id: userId,
-          amount: wr.amount,
-          direction: 'cash_in',
-          category: 'withdrawal_reversal',
-          description: `Float withdrawal rejected – funds restored. Reason: ${reason.substring(0, 100)}`,
-          transaction_date: new Date().toISOString(),
-          transaction_group_id: `float-reject-${wId}`,
-          ledger_scope: 'platform',
-        });
-      }
-
       // Send notification to user
-      await admin.from('notifications').insert({
-        user_id: userId,
-        title: 'Cash-out Request Rejected',
-        message: `Your ${withdrawal_type === 'float' ? 'landlord float' : 'wallet'} withdrawal of UGX ${Number(wr.amount).toLocaleString()} was rejected. Reason: ${reason}${refunded ? '. Funds have been restored to your balance.' : ''}`,
-        type: 'financial',
-      }).catch(() => { /* notification table may not exist */ });
+      try {
+        await admin.from('notifications').insert({
+          user_id: userId,
+          title: 'Cash-out Request Rejected',
+          message: `Your ${withdrawal_type === 'float' ? 'landlord float' : 'wallet'} withdrawal of UGX ${Number(wr.amount).toLocaleString()} was rejected. Reason: ${reason}${refunded ? '. Funds have been restored to your balance.' : ''}`,
+          type: 'financial',
+        });
+      } catch { /* notification table may be suppressed by trigger */ }
 
       // Audit log
       await admin.from('audit_logs').insert({
