@@ -1,42 +1,38 @@
 
 
-# Enhance Approve Dialog with Requester Details and TID Input
+# Paginate Landlord List — Match Tenant Ops Format
 
 ## Problem
-When a Financial Operations manager taps **Approve** on a pending withdrawal, the current dialog only shows the amount and name with a simple confirm button. It does not display the requester's phone number, and it requires TID entry in a separate step later. The manager wants both the requester info and TID entry consolidated into the Approve dialog.
+The "All Landlords" view renders all 233 landlords at once as large, detailed cards. The user wants a compact, paginated list format matching the Tenant Ops `TenantOverviewList` style.
 
 ## Changes
 
-### Edit: `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
+### Edit: `src/components/executive/LandlordOpsDashboard.tsx` — Landlords view (lines ~640–744)
 
-**Update the Approve dialog (lines 382–400)** to:
+1. **Add pagination state**: `page` (default 1), `perPage` (20 items per page)
+2. **Slice the filtered list** to show only `filtered.slice((page-1)*perPage, page*perPage)`
+3. **Add pagination controls** at the bottom: Previous / Next buttons with "Page X of Y" indicator
+4. **Compact card format**: Shrink each landlord card to a single-row layout similar to `TenantOverviewList`:
+   - Left: user icon circle + landlord name (bold) + status badge (Verified/Pending) on same line
+   - Below name: phone number + house count + tenant count summary
+   - Right: chevron arrow
+   - Remove the expanded tenant/agent sub-cards from the list view (keep them accessible via a detail click or expandable row)
+5. **Category filter chips** (optional but matching): Add filter chips for Verified / Pending / Has Tenants / No Tenants — similar to the category chips in `TenantOverviewList`
 
-1. Display the requester's **full name**, **phone number**, **mobile money details**, and **recipient name** prominently in the dialog body
-2. Add a **Transaction ID (TID)** input field (font-mono, uppercase, minimum 3 characters)
-3. Change the confirm button to "Approve & Complete" — disabled until TID is entered
-4. Update `handleApprove` to also save the TID reference (set status directly to `fin_ops_approved` with the reference stored, or if TID is provided, complete the full flow)
-
-The dialog will look like:
+### UI Structure (per row)
 ```text
-┌──────────────────────────────┐
-│ Approve Withdrawal           │
-│                              │
-│ Name: John Doe               │
-│ Phone: 0771234567            │
-│ MoMo: MTN · 0771234567      │
-│ Recipient: John Doe          │
-│ Amount: UGX 50,000           │
-│ Reason: "Salary advance..."  │
-│                              │
-│ [Transaction ID input      ] │
-│                              │
-│     [Cancel]  [Approve]      │
-└──────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│ [👤] Mbajja Christiana    [Pending] [1 house]   │
+│      📞 0758713415 · 1 tenant · Agent: Akamp... │
+│                                    [✏️] [🗑️] > │
+└─────────────────────────────────────────────────┘
 ```
 
-5. The **Approve** button remains disabled until TID has at least 3 characters
-6. On confirm, the status updates to `fin_ops_approved` with the TID stored in `fin_ops_reference`
+### Pagination Footer
+```text
+  Showing 1-20 of 233    [← Previous]  [Next →]
+```
 
 ### Files Changed
-- **Edit**: `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — enhance approve dialog with requester details and TID input
+- **Edit**: `src/components/executive/LandlordOpsDashboard.tsx` — add pagination + compact card layout to landlords view
 
