@@ -72,14 +72,11 @@ const DashboardHeader = memo(function DashboardHeader({
   headerActions,
 }: DashboardHeaderProps) {
   const navigate = useNavigate();
-  const { isIOS, isInstalled, isInstallable, promptInstall } = usePWAInstall();
-  const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const { isInstalled, isInstallable, promptInstall } = usePWAInstall();
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
 
   const handleInstallClick = async () => {
-    if (isIOS) {
-      setShowIOSGuide(true);
-    } else if (isInstallable) {
+    if (isInstallable) {
       await promptInstall();
     } else {
       navigate('/install');
@@ -100,7 +97,7 @@ const DashboardHeader = memo(function DashboardHeader({
     }
   };
 
-  const showInstallButton = (isIOS && !isInstalled) || (isInstallable && !isInstalled);
+  const showInstallButton = isInstallable && !isInstalled;
 
   return (
     <>
@@ -270,9 +267,6 @@ const DashboardHeader = memo(function DashboardHeader({
         </div>
       </header>
 
-      {showIOSGuide && (
-        <IOSInstallGuide onClose={() => setShowIOSGuide(false)} />
-      )}
     </>
   );
 });
