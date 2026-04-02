@@ -111,7 +111,7 @@ serve(async (req) => {
 
     const safeDescription = typeof description === 'string' ? description.trim().slice(0, 500) : 'Wallet transfer';
 
-    console.log(`Processing transfer: ${senderId} -> ${resolvedRecipientId}, amount: ${amount}`);
+    // Debug log removed for cost optimization
 
     if (senderId === resolvedRecipientId) {
       if (shouldSample(shadowConfig)) {
