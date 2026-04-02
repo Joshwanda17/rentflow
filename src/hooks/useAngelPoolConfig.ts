@@ -59,9 +59,9 @@ export function useAngelPoolConfig() {
       // Audit log
       await supabase.from('audit_logs').insert({
         user_id: user.id,
-        action: 'angel_pool_config_update',
-        details: JSON.stringify(values),
-        reason: 'Updated Angel Pool configuration settings',
+        action_type: 'angel_pool_config_update',
+        table_name: 'angel_pool_config',
+        metadata: values as any,
       });
     },
     onSuccess: () => {
