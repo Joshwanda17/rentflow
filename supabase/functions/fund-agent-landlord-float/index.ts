@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
       const durationDays = request.duration_days || 'N/A'
 
       const emailSubject = `💰 Float Funded – Pay ${landlordName} & Submit Receipt`
-      const emailBody = `Hi ${agentName},\n\n${rentFormatted} has been added to your Landlord Float to pay ${landlordName}.\n\n📋 ACTION REQUIRED:\n1. Pay ${landlordName} via Mobile Money\n2. Collect a signed receipt\n3. Submit TID + receipt photos in the app\n\n📞 Landlord Contact: ${landlordPhone}\n\n📊 TENANT REPAYMENT SCHEDULE:\n💵 Daily Repayment: ${dailyRepayment}/day\n📅 Duration: ${durationDays} days\n\n💰 Your Bonus: UGX ${RENT_FUNDED_BONUS.toLocaleString()} (already credited)\n\nRemember: You will also earn 5% commission on every repayment this tenant makes!\n\n— Welile Team`
+      const emailBody = `Hi ${agentName},\n\n${rentFormatted} has been added to your Landlord Float to pay ${landlordName}.\n\n📋 ACTION REQUIRED:\n1. Pay ${landlordName} via Mobile Money\n2. Collect a signed receipt\n3. Submit TID + receipt photos in the app\n\n📞 Landlord Contact: ${landlordPhone}\n\n📊 TENANT REPAYMENT SCHEDULE:\n💵 Daily Repayment: ${dailyRepayment}/day\n📅 Duration: ${durationDays} days\n\n💰 Your Bonus: UGX ${RENT_FUNDED_BONUS.toLocaleString()} (already credited)\n\nRemember: You will also earn 10% commission on every repayment this tenant makes!\n\n— Welile Team`
 
       try {
         await serviceClient.rpc("enqueue_email" as any, {

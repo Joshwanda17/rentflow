@@ -252,6 +252,17 @@ serve(async (req) => {
           rent_request_id: rent_request_id, description: `UGX 5,000 bonus for approved tenant registration`,
         });
 
+        // Credit event bonus to commission accrual ledger
+        await adminClient.rpc('credit_agent_event_bonus', {
+          p_agent_id: rentRequest.agent_id,
+          p_tenant_id: rentRequest.tenant_id,
+          p_event_type: 'rent_request_posted',
+          p_source_id: rent_request_id,
+        }).then(({ error: bonusErr }) => {
+          if (bonusErr) console.error('[approve-rent-request] Event bonus ledger error:', bonusErr.message);
+          else console.log('[approve-rent-request] rent_request_posted bonus credited to ledger');
+        });
+
         // Agent bonus notification
         await adminClient.from('notifications').insert({
           user_id: rentRequest.agent_id,
