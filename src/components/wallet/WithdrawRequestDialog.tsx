@@ -150,6 +150,31 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
         } as any);
         if (error) throw error;
 
+        // Fetch the newly created withdrawal ID for ledger linking
+        const { data: newRow } = await supabase
+          .from('withdrawal_requests')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        // Pre-deduct wallet via ledger (sync_wallet_from_ledger trigger handles balance)
+        if (newRow) {
+          await supabase.from('general_ledger').insert({
+            user_id: user.id,
+            amount,
+            direction: 'cash_out',
+            category: 'withdrawal_pending',
+            description: 'Wallet withdrawal requested – funds held pending approval',
+            transaction_group_id: `wallet-withdraw-${newRow.id}`,
+            source_table: 'withdrawal_requests',
+            source_id: newRow.id,
+            ledger_scope: 'platform',
+          } as any);
+        }
+
         if (payoutMode === 'mtn' || payoutMode === 'airtel') {
           await supabase.from('profiles').update({ mobile_money_number: momoNumber.trim(), mobile_money_provider: payoutMode }).eq('id', user.id);
         }
