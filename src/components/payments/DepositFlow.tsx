@@ -70,6 +70,19 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     if (channel === 'bank' && !transactionId.trim()) { toast.error('Enter the bank reference number'); return false; }
     if (channel === 'agent_cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
     if (channel === 'agent_cash' && !agentName.trim()) { toast.error('Enter the agent name'); return false; }
+
+    // TID format validation
+    if (channel === 'momo') {
+      const rawTid = transactionId.trim().toUpperCase();
+      if (momoProvider === 'mtn' && !rawTid.startsWith('MP')) {
+        toast.error('MTN Transaction IDs must start with "MP"');
+        return false;
+      }
+      if (momoProvider === 'airtel' && rawTid.startsWith('MP')) {
+        toast.error('This looks like an MTN TID. Please select the correct provider.');
+        return false;
+      }
+    }
     if (!transactionDate) { toast.error('Select the transaction date'); return false; }
     if (!transactionTime) { toast.error('Enter the transaction time'); return false; }
     if (!reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
