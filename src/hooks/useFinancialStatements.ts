@@ -260,9 +260,9 @@ export function useFinancialStatements() {
       // BALANCE SHEET — Platform assets vs obligations
       // User wallet balances = custodial LIABILITY (not our money)
       // ══════════════════════════════════════════════════════════════
-      const platformCashIn = sumAll(platformIn);
-      const platformCashOut = sumAll(platformOut);
-      const platformCash = Math.max(0, platformCashIn - platformCashOut);
+      // Platform Cash = Net Operating Income (revenue earned minus platform costs)
+      // NOT sumAll — that includes pass-through items like rent deployments/repayments
+      const platformCash = Math.max(0, netOperatingIncome);
 
       const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
 
