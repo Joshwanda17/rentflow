@@ -1,8 +1,9 @@
 # Welile Platform — Exhaustive UI & Backend Workflow
 
-**Version:** 3.2  
-**Date:** 2026-03-30  
-**Status:** Living Document — Complete Feature Registry
+**Version:** 4.0  
+**Date:** 2026-04-03  
+**Status:** Living Document — Complete Feature Registry  
+**App Name:** Welile.com (PWA, all platforms)
 
 ---
 
@@ -23,26 +24,29 @@
 13. [CRM Dashboard Workflows](#13-crm-dashboard-workflows)
 14. [Tenant Operations Dashboard](#14-tenant-operations-dashboard)
 15. [Partner Operations Dashboard](#15-partner-operations-dashboard)
-16. [Financial Operations Command Center](#16-financial-operations-command-center)
-17. [Rent Request Pipeline (End-to-End)](#17-rent-request-pipeline-end-to-end)
-18. [Wallet System](#18-wallet-system)
-19. [Ledger & Accounting Engine](#19-ledger--accounting-engine)
-20. [Property & Housing](#20-property--housing)
-21. [Marketplace & E-Commerce](#21-marketplace--e-commerce)
-22. [Chat & Messaging](#22-chat--messaging)
-23. [AI Assistant](#23-ai-assistant)
-24. [Receipts & QR Scanning](#24-receipts--qr-scanning)
-25. [Loans & Credit System](#25-loans--credit-system)
-26. [Referral & Gamification](#26-referral--gamification)
-27. [Notifications & Realtime](#27-notifications--realtime)
-28. [Settings & Profile](#28-settings--profile)
-29. [Vendor Portal](#29-vendor-portal)
-30. [PWA & Offline](#30-pwa--offline)
-31. [Edge Functions (Backend Logic)](#31-edge-functions-backend-logic)
-32. [Security & RLS](#32-security--rls)
-33. [Database Schema Overview](#33-database-schema-overview)
-34. [Known Issues & Technical Debt](#34-known-issues--technical-debt)
-35. [Appendices](#appendices)
+16. [Agent Operations Dashboard](#16-agent-operations-dashboard)
+17. [Landlord Operations Dashboard](#17-landlord-operations-dashboard)
+18. [Financial Operations Command Center](#18-financial-operations-command-center)
+19. [Rent Request Pipeline (End-to-End)](#19-rent-request-pipeline-end-to-end)
+20. [Wallet System](#20-wallet-system)
+21. [Ledger & Accounting Engine](#21-ledger--accounting-engine)
+22. [Property & Housing](#22-property--housing)
+23. [Marketplace & E-Commerce](#23-marketplace--e-commerce)
+24. [Chat & Messaging](#24-chat--messaging)
+25. [AI Assistant](#25-ai-assistant)
+26. [Receipts & QR Scanning](#26-receipts--qr-scanning)
+27. [Loans & Credit System](#27-loans--credit-system)
+28. [Referral & Gamification](#28-referral--gamification)
+29. [Notifications & Realtime](#29-notifications--realtime)
+30. [Settings & Profile](#30-settings--profile)
+31. [Vendor Portal](#31-vendor-portal)
+32. [PWA & Offline](#32-pwa--offline)
+33. [Angel Pool Investment System](#33-angel-pool-investment-system)
+34. [Edge Functions (Backend Logic)](#34-edge-functions-backend-logic)
+35. [Security & RLS](#35-security--rls)
+36. [Database Schema Overview](#36-database-schema-overview)
+37. [Known Issues & Technical Debt](#37-known-issues--technical-debt)
+38. [Appendices](#appendices)
 
 ---
 
@@ -71,20 +75,44 @@ Select Role (/select-role)
 Role assigned → Dashboard (/dashboard)
 ```
 
-## 1.3 Backend Logic
+## 1.3 UI Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `Auth.tsx` | `src/pages/Auth.tsx` | Main auth page with tabs for login/signup |
+| `SelectRole.tsx` | `src/pages/SelectRole.tsx` | Post-signup role selection grid |
+| `Join.tsx` | `src/pages/Join.tsx` | Referral-driven signup (`?ref=` param) |
+| `UpdatePassword.tsx` | `src/pages/UpdatePassword.tsx` | Password update page |
+| `Landing.tsx` | `src/pages/Landing.tsx` | Public landing page |
+| `Install.tsx` | `src/pages/Install.tsx` | PWA install instructions |
+| Auth components | `src/components/auth/` | Login forms, OTP input, Google/Apple OAuth buttons, WhatsApp login |
+
+### UI Design: Auth Page
+- **Layout**: Centered card with tabs (Sign In / Sign Up)
+- **Mobile**: Full-width form, large touch targets (min 44px)
+- **Branding**: Welile.com logo at top, primary purple accent
+- **OTP Input**: 6-digit input with auto-focus progression
+- **OAuth Buttons**: Google and Apple sign-in with platform icons
+- **WhatsApp Login**: Green-branded button with WhatsApp icon
+
+## 1.4 Backend Logic
 
 - **`auth-email-hook`**: Custom email templates for verification
 - **`otp-login`**: Validates OTP codes
+- **`sms-otp`**: Sends SMS OTP via integrated provider
 - **`whatsapp-login-link`**: Generates authenticated WhatsApp deep links
 - **`admin-reset-password`**: Staff-initiated password resets
 - **`password-reset-sms`**: SMS-based password recovery
+- **`provision-staff-passwords`**: Bulk staff password provisioning
+- **`bulk-password-reset`**: Mass password reset across multiple users
+- **`diagnose-auth`**: Auth diagnostics and troubleshooting utility
 - **Identity Resolution**: Phone numbers are normalized (+256 prefix handling), matched against profiles table
 - **Session Persistence**: "Remember Me" stores session; adaptive "Welcome Back" banner shows last login method
 - **Referral Tracking**: `?ref=` and `?role=` URL params passed through auth flow to track acquisition
 - **Account Separation**: Accounts from different providers are distinct and not automatically merged
 - **Preview Domain Handling**: `preparePreviewOAuthFlow` clears service workers/caches on preview domains
 
-## 1.4 Password Reset
+## 1.5 Password Reset
 
 ```
 User requests password reset
@@ -95,16 +123,6 @@ Always redirects to custom domain (welilereceipts.com) to avoid auth-bridge toke
     ↓
 /update-password page allows setting new password
 ```
-
-## 1.5 UI Components
-
-- `src/components/auth/` — Login forms, OTP input, Google/Apple OAuth buttons, WhatsApp login
-- `src/pages/Auth.tsx` — Main auth page
-- `src/pages/SelectRole.tsx` — Post-signup role selection
-- `src/pages/Join.tsx` — Referral-driven signup
-- `src/pages/UpdatePassword.tsx` — Password update page
-- `src/pages/Landing.tsx` — Public landing page
-- `src/pages/Install.tsx` — PWA install instructions
 
 ---
 
@@ -141,6 +159,13 @@ Dashboard auto-routing:
   - Staff/Executive → /admin/dashboard (with hidden Staff nav icon)
   - User can set "Home Screen" preference to override
 ```
+
+### UI Design: Navigation
+- **MobileBottomNav**: Fixed bottom bar with 5 icons (Home, Wallet, Chat, Menu, Staff)
+- **BottomRoleSwitcher**: Horizontal pill strip for switching roles
+- **RoleSwitcher**: Dropdown selector for role switching
+- **AppBreadcrumb**: Trail navigation for nested views
+- **PageTransition**: Framer-motion slide/fade between routes
 
 ## 2.4 Role Switching
 
@@ -188,36 +213,48 @@ Dashboard auto-routing:
 
 ## 3.2 Dashboard Components
 
-- `TenantDashboard.tsx` — Main tenant view
-- `TenantMenuDrawer.tsx` — Navigation drawer
-- `RentRequestButton.tsx` — Quick rent request action
-- `RentRequestForm.tsx` — Full rent request submission
-- `RepaymentSection.tsx` — Current repayment status with payment history
-- `RepaymentHistoryDrawer.tsx` — Past repayments
-- `RepaymentScheduleView.tsx` — Future schedule
-- `PaymentStreakCalendar.tsx` — Gamified payment streak
-- `RentDiscountWidget.tsx` / `RentDiscountToggle.tsx` — Discount features
-- `RentAccessLimitCard.tsx` — Credit limit display
-- `LoanProgressWidget.tsx` — Loan progress
-- `SubscriptionStatusCard.tsx` — Welile Homes subscription
-- `AchievementBadges.tsx` / `ShareableAchievementCard.tsx` — Gamification
-- `InviteFriendsCard.tsx` — Referral prompt
-- `FindAHouseCTA.tsx` — Property discovery call-to-action
-- `NearbyHousesPreview.tsx` / `SuggestedHousesCard.tsx` — Property suggestions
-- `AvailableHousesSheet.tsx` — Browse available houses
-- `MyLandlordsSection.tsx` — Tenant's landlord info
-- `RegisterLandlordDialog.tsx` — Register own landlord
-- `IncomeTypeSelector.tsx` — Income categorization
-- `RentCalculator.tsx` / `WeeklyMonthlyCalculator.tsx` — Rate calculators
-- `ShareHouseButton.tsx` — Share property listing
-- `QuickContributeDialog.tsx` — Quick rent contribution
+### UI Design: Tenant Dashboard
+- **Layout**: Single-column mobile-first, scrollable sections
+- **Hero Section**: Wallet balance card with deposit/withdraw/transfer actions
+- **Rent Status**: Color-coded status tracker (Pending → Funded → Repaying → Complete)
+- **Daily Charge**: Prominent daily amount due with countdown
+- **Quick Actions**: Grid of action buttons (Pay Rent, Find House, Calculator, etc.)
+
+| Component | Purpose |
+|-----------|---------|
+| `TenantDashboard.tsx` | Main tenant view |
+| `TenantMenuDrawer.tsx` | Hamburger navigation drawer |
+| `RentRequestButton.tsx` | Quick rent request action |
+| `RentRequestForm.tsx` | Full rent request submission |
+| `RepaymentSection.tsx` | Current repayment status with payment history |
+| `RepaymentHistoryDrawer.tsx` | Past repayments |
+| `RepaymentScheduleView.tsx` | Future schedule |
+| `PaymentStreakCalendar.tsx` | Gamified payment streak calendar |
+| `RentDiscountWidget.tsx` / `RentDiscountToggle.tsx` | Discount features |
+| `RentAccessLimitCard.tsx` | Credit limit display |
+| `LoanProgressWidget.tsx` | Loan progress bar |
+| `SubscriptionStatusCard.tsx` | Welile Homes subscription status |
+| `AchievementBadges.tsx` / `ShareableAchievementCard.tsx` | Gamification badges |
+| `InviteFriendsCard.tsx` | Referral prompt with share link |
+| `FindAHouseCTA.tsx` | Property discovery call-to-action |
+| `NearbyHousesPreview.tsx` / `SuggestedHousesCard.tsx` | Property suggestions |
+| `AvailableHousesSheet.tsx` | Bottom sheet: browse available houses |
+| `MyLandlordsSection.tsx` | Tenant's landlord info |
+| `RegisterLandlordDialog.tsx` | Register own landlord dialog |
+| `IncomeTypeSelector.tsx` | Income categorization selector |
+| `RentCalculator.tsx` / `WeeklyMonthlyCalculator.tsx` | Rate calculators |
+| `ShareHouseButton.tsx` | Share property listing via Web Share API |
+| `QuickContributeDialog.tsx` | Quick rent contribution dialog |
+| `WelileHomesButton.tsx` | Welile Homes entry button |
+| `WhatsAppAgentButton.tsx` | Direct WhatsApp to assigned agent |
+| `RentCalculatorShareButton.tsx` | Share calculator results |
 
 ## 3.3 Rent Request Flow (Tenant Perspective)
 
 ```
 Tenant → Submits Rent Request (amount, landlord details, property)
     ↓
-Request enters 6-stage pipeline (see Section 17)
+Request enters 6-stage pipeline (see Section 19)
     ↓
 If approved & funded:
   - Daily auto-deductions begin from tenant wallet
@@ -290,6 +327,7 @@ Interactive map with Leaflet + MarkerCluster for discovery at scale
 - **`rent-reminders`**: Automated SMS/push reminders
 - **`payment-reminder`**: Payment due notifications
 - **`retry-no-smartphone-charges`**: Retry failed charges for non-smartphone users
+- **`tenant-pay-rent`**: Tenant direct rent payment from wallet (validates balance → ledger cash_out → `record_rent_request_repayment` RPC → `credit_agent_rent_commission` RPC → fire-and-forget `notify-managers`)
 
 ---
 
@@ -307,17 +345,134 @@ Interactive map with Leaflet + MarkerCluster for discovery at scale
 | `/agent-advances` | Cash advance management |
 | `/agent-advances/:id` | Advance detail |
 | `/agent/cash-payouts` | Cash payout requests |
+| `/agent-commission-benefits` | Commission model explainer page |
 | `/referrals` | Referral stats |
 | `/my-receipts` | Agent receipts |
 | `/deposit-history` | Deposit history |
 | `/transaction-history` | Transaction history |
+| `/agent-agreement` | Agent digital agreement |
 
 ## 4.2 Dashboard Components
 
-- `AgentDashboard.tsx` — Main agent view
-- Extra-large purple floating wallet button
-- `FloatingActionButton.tsx` — Quick actions FAB
-- `FloatingToolbar.tsx` — Contextual toolbar
+### UI Design: Agent Dashboard
+- **Layout**: Mobile-first, single-column with collapsible sections
+- **Hero**: Large floating purple wallet button (FAB) — opens full-screen wallet sheet
+- **Quick Stats**: 3-column grid (Float Balance, Today's Collections, Earnings)
+- **Sections**: Collapsible cards for each function (Rent Requests, Link Signups, Sub-Agents, etc.)
+- **FAB**: `FloatingActionButton.tsx` — Quick actions (Register Tenant, Collect Rent, etc.)
+- **Toolbar**: `FloatingToolbar.tsx` — Contextual toolbar with role-specific actions
+
+| Component | Purpose |
+|-----------|---------|
+| `AgentDashboard.tsx` | Main agent view (in `src/components/dashboards/`) |
+| `AgentMenuDrawer.tsx` | Hamburger navigation with icon-color `#7214c9` |
+| `AgentDailyOpsCard.tsx` | Daily operations summary card |
+| `TodayCollectionsCard.tsx` | Today's collection stats |
+| `CollectionStreakCard.tsx` | Gamified collection streak |
+| `AgentGoalCard.tsx` / `AgentGoalProgress.tsx` | Monthly goal progress |
+| `AgentActionInsights.tsx` | AI-driven action recommendations |
+| `EarningsForecastCard.tsx` | Projected earnings |
+| `EarningsRankSystemSheet.tsx` | Ranking system explainer |
+| `DailyRentExpectedCard.tsx` | Expected daily rent collections |
+| `AgentLeaderboard.tsx` | Agent performance rankings |
+| `PriorityCollectionQueue.tsx` | Priority tenant collection queue |
+| `AgentVerificationOpportunitiesCard.tsx` | Verification tasks available |
+| `VerificationOpportunitiesButton.tsx` | Quick access to verification queue |
+| `ShareablePerformanceCard.tsx` / `ShareableMilestoneCard.tsx` | Shareable achievement cards |
+
+### Registration Components
+| Component | Purpose |
+|-----------|---------|
+| `RegisterTenantDialog.tsx` | Register new tenant |
+| `RegisterLandlordDialog.tsx` | Register new landlord |
+| `RegisterSubAgentDialog.tsx` | Register sub-agent |
+| `UnifiedRegistrationDialog.tsx` | Combined registration dialog |
+| `ListEmptyHouseDialog.tsx` | Post property listing |
+| `HouseImageUploader.tsx` | Property photo upload |
+
+### Collection & Payment Components
+| Component | Purpose |
+|-----------|---------|
+| `RecordAgentCollectionDialog.tsx` | Record tenant rent collection |
+| `RecordTenantPaymentDialog.tsx` | Record tenant payment |
+| `AgentVisitDialog.tsx` | GPS check-in at tenant location |
+| `AgentVisitPaymentWizard.tsx` | Visit + payment combined flow |
+| `GeneratePaymentTokenDialog.tsx` | Generate payment token for offline |
+| `AgentReceiptDialog.tsx` | Issue receipt |
+| `AgentDepositDialog.tsx` / `AgentDepositCashDialog.tsx` | Agent deposit flows |
+| `AgentWithdrawalDialog.tsx` | Agent withdrawal request |
+| `RequestCommissionPayoutDialog.tsx` | Commission payout request |
+| `MyCommissionPayouts.tsx` | Commission payout history |
+
+### Landlord Payout Components
+| Component | Purpose |
+|-----------|---------|
+| `AgentLandlordFloatCard.tsx` | Landlord float balance card |
+| `AgentLandlordPayoutDialog.tsx` | Initiate landlord payout |
+| `AgentLandlordPayoutFlow.tsx` | Full payout flow with GPS |
+| `AgentFloatPayoutWizard.tsx` | Float payout step wizard |
+| `FloatPayoutStatusTracker.tsx` | Track payout approval status |
+| `FloatTransactionHistory.tsx` | Float transaction log |
+| `AgentOpsFloatPayoutReview.tsx` | Agent Ops review interface |
+| `AgentLandlordMapSheet.tsx` | Map showing landlord locations |
+| `LandlordRecoveryLedger.tsx` | Landlord recovery tracking |
+| `AgentDeliveryConfirmation.tsx` | Delivery proof submission |
+
+### Sub-Agent & Team Components
+| Component | Purpose |
+|-----------|---------|
+| `SubAgentsList.tsx` | Sub-agent directory |
+| `MySubAgentsSheet.tsx` | Sub-agent management sheet |
+| `SubAgentInvitesList.tsx` | Pending sub-agent invites |
+| `RecruitSubAgentCTA.tsx` | Recruitment call-to-action |
+| `QuickShareSubAgentSheet.tsx` | Share recruitment link |
+| `ShareSubAgentLink.tsx` | Sub-agent invite link |
+| `ShareReferralLink.tsx` | General referral link |
+| `SetTeamGoalDialog.tsx` | Set team goals |
+| `TeamGoalProgress.tsx` | Team goal tracking |
+
+### Tenant & Property Management
+| Component | Purpose |
+|-----------|---------|
+| `AgentTenantsSheet.tsx` | Agent's tenant directory |
+| `NearbyTenantsSheet.tsx` | GPS-proximity tenant finder |
+| `AgentTenantRentRequestsList.tsx` | Tenant rent requests list |
+| `AgentMyRentRequestsSheet.tsx` | Agent's own rent requests |
+| `AgentRentRequestDialog.tsx` | Submit rent request for tenant |
+| `AgentRentRequestsManager.tsx` | Manage rent requests |
+| `AgentRentPaymentGuide.tsx` | Payment guidance for agents |
+| `AgentTopUpTenantDialog.tsx` | Top up tenant wallet |
+| `AgentListingsSheet.tsx` | Property listings |
+| `AgentManagedPropertiesSheet.tsx` | Managed properties |
+| `AgentManagedPropertyDialog.tsx` | Property detail management |
+| `RentalFinderSheet.tsx` | Find rentals for tenants |
+| `CreditVerificationButton.tsx` | Credit verification action |
+
+### Partner/Funder Management (Agent Perspective)
+| Component | Purpose |
+|-----------|---------|
+| `AgentInvestForPartnerDialog.tsx` | Proxy investment for supporter |
+| `AgentPartnerDashboardSheet.tsx` | Partner portfolio overview |
+| `FunderManagementSheet.tsx` | Manage funder accounts |
+| `FunderPortfolioCard.tsx` | Funder summary card (invested, returns, wallet) |
+| `ProxyInvestmentHistorySheet.tsx` | Proxy investment history |
+| `AgentInvitesList.tsx` | Invites sent by agent |
+
+### Miscellaneous Agent Components
+| Component | Purpose |
+|-----------|---------|
+| `CollapsibleAgentSection.tsx` | Reusable collapsible section |
+| `CollapsibleLinkSignups.tsx` | Link signup tracking |
+| `CollapsibleRentRequests.tsx` | Rent requests section |
+| `CollapsibleSubAgents.tsx` | Sub-agents section |
+| `CollapsibleUserInvites.tsx` | User invites section |
+| `MobileMoneySettings.tsx` | MoMo payout settings |
+| `NoSmartphoneScheduleManager.tsx` | Schedule for non-smartphone tenants |
+| `PendingDepositsSection.tsx` | Pending deposit requests |
+| `LoanManagement.tsx` / `LoanPaymentCalculator.tsx` | Agent loan tools |
+| `AgentRegistrationAnalytics.tsx` | Registration performance |
+| `RecruitTenantWelileHomes.tsx` | Recruit for Welile Homes |
+| `ServiceCentreSubmissionForm.tsx` | Service Centre photo/GPS submission |
 
 ## 4.3 Registration Workflow
 
@@ -470,6 +625,8 @@ Platform records both:
 
 - Monthly targets for registrations and activations (`agent_goals`)
 - Trackable via analytics page
+- `SetTeamGoalDialog` for team-level goals
+- `TeamGoalProgress` for team tracking
 
 ## 4.13 Agent Earnings Model
 
@@ -555,23 +712,7 @@ New → Active → Top Earner
 - Agents can list products for sale via `AgentProductsSection`
 - Product management with add/edit/delete
 
-## 4.18 Backend Edge Functions
-
-- **`agent-deposit`**: Process agent deposits
-- **`agent-withdrawal`**: Process agent withdrawals
-- **`agent-invest-for-partner`**: Proxy investment flow
-- **`credit-listing-bonus`**: Award listing bonus (triggers `credit_agent_event_bonus` RPC)
-- **`credit-landlord-registration-bonus`**: Landlord reg bonus (triggers `credit_agent_event_bonus` RPC)
-- **`credit-landlord-verification-bonus`**: Verification bonus (triggers `credit_agent_event_bonus` RPC)
-- **`approve-listing-bonus`**: Manager approves listing bonus
-- **`send-collection-sms`**: SMS confirmation after collection
-- **`process-agent-advance-deductions`**: Daily advance repayments
-- **`manual-collect-rent`**: Manual rent collection recording
-- **`tenant-pay-rent`**: Direct tenant wallet-to-rent payment (validates balance, creates ledger entry, calls `record_rent_request_repayment` + `credit_agent_rent_commission` RPCs)
-- **`wallet-deduction`**: Financial Ops wallet deduction tool (deducts from user wallet with mandatory reason, creates ledger + audit entries)
-- **`notify-managers`**: Fire-and-forget manager notification (queries `user_roles` for enabled managers, calls `send-push-notification` for all matching user IDs; supports `additionalRoles` param for notifying beyond managers)
-
-### 4.18.1 Agent Commission Benefits Page
+## 4.18 Agent Commission Benefits Page
 
 **Route:** `/agent-commission-benefits` (accessible from agent hamburger menu, icon color `#7214c9`)
 
@@ -600,6 +741,8 @@ New → Active → Top Earner
 - Paper sizes: A3/A2 for poster, A4 for logo
 - Mounting advice: visible wall, window, signboard
 
+## 4.19 Service Centre Setup Workflow
+
 **Service Centre Setup Submission:**
 - Agent takes a photo of mounted poster/logo
 - GPS location captured via `navigator.geolocation.getCurrentPosition`
@@ -622,6 +765,22 @@ Agent submits (pending) → Agent Ops Manager verifies GPS + photo (verified)
 - Storage bucket: `service-centre-photos` (public)
 - RLS: Agents INSERT/SELECT own; Staff (manager, operations, cfo, cto, super_admin) SELECT/UPDATE all
 
+## 4.20 Backend Edge Functions
+
+- **`agent-deposit`**: Process agent deposits
+- **`agent-withdrawal`**: Process agent withdrawals
+- **`agent-invest-for-partner`**: Proxy investment flow
+- **`credit-listing-bonus`**: Award listing bonus (triggers `credit_agent_event_bonus` RPC)
+- **`credit-landlord-registration-bonus`**: Landlord reg bonus (triggers `credit_agent_event_bonus` RPC)
+- **`credit-landlord-verification-bonus`**: Verification bonus (triggers `credit_agent_event_bonus` RPC)
+- **`approve-listing-bonus`**: Manager approves listing bonus
+- **`send-collection-sms`**: SMS confirmation after collection
+- **`process-agent-advance-deductions`**: Daily advance repayments
+- **`manual-collect-rent`**: Manual rent collection recording
+- **`tenant-pay-rent`**: Direct tenant wallet-to-rent payment
+- **`wallet-deduction`**: Financial Ops wallet deduction tool
+- **`notify-managers`**: Fire-and-forget manager notification
+
 ---
 
 # 5. Supporter (Funder) Workflows
@@ -641,38 +800,71 @@ Agent submits (pending) → Agent Ops Manager verifies GPS + photo (verified)
 | `/calculator` | Investment calculator |
 | `/referrals` | Referral stats |
 | `/financial-statement` | Financial statements |
+| `/angel-pool` | Angel Pool investment page |
+| `/angel-pool-agreement` | Angel Pool legal agreement |
 
 ## 5.2 Dashboard Components
 
-- `SupporterDashboard.tsx` — Main supporter view
-- `HeroBalanceCard.tsx` — Large balance display (MTN-style, glassmorphism)
-- `PortfolioSummaryCards.tsx` — Portfolio overview
-- `QuickStatsRow.tsx` — Key metrics strip
-- `ModernQuickActions.tsx` — Action shortcuts
-- `ModernQuickLinks.tsx` — Navigation links
-- `VirtualHousesFeed.tsx` / `VirtualHouseCard.tsx` / `VirtualHouseDetailsSheet.tsx` — Virtual house browsing
-- `HouseOpportunities.tsx` / `RentOpportunities.tsx` — Available investments
-- `TenantsNeedingRent.tsx` — Funding needs
-- `FundingPoolCard.tsx` — Pool balance & health
-- `FundingMilestones.tsx` — Milestone tracking
-- `InvestmentCalculator.tsx` / `CalculatorShareCard.tsx` — ROI projection
-- `InvestmentGoals.tsx` / `SetGoalDialog.tsx` — Goal setting
-- `ROIEarningsCard.tsx` — ROI summary
-- `InterestPaymentHistory.tsx` — Reward history
-- `CreditRequestsFeed.tsx` — Rent credit requests
-- `SupporterLeaderboard.tsx` / `SupporterROILeaderboard.tsx` — Competitive rankings
-- `SupporterReferralStats.tsx` — Referral performance
-- `SupporterNotificationsFeed.tsx` / `NotificationBell.tsx` / `NotificationsModal.tsx` — Notifications
-- `SupporterMenuDrawer.tsx` — Navigation menu
-- `FunderPortfolioCard.tsx` — Agent-facing funder summary (invested, returns, wallet, active accounts)
-- `ModernInviteCard.tsx` — Invite flow
-- `ShareSupporterLink.tsx` / `ShareCalculatorLink.tsx` — Sharing utilities
-- `FloatingPortfolioButton.tsx` — Quick portfolio access
-- `MerchantCodePills.tsx` — Deposit codes
-- `SimpleAccountsList.tsx` / `SimpleInvestmentCard.tsx` — Account views
-- `SimpleTenantsList.tsx` — Anonymized tenant list
-- `WalletDetailsSheet.tsx` — Wallet breakdown
-- `MyInvestmentRequests.tsx` — Pending requests
+### UI Design: Supporter Dashboard
+- **Layout**: Premium glassmorphism aesthetic, dark gradient hero card
+- **Hero**: MTN-style balance card (`HeroBalanceCard.tsx`) with animated balance counter
+- **Quick Stats Row**: 4 pill-shaped stats (Total Invested, Returns, Wallet, Active Accounts)
+- **Quick Actions**: Grid of branded action buttons (Deposit, Transfer, Invest, Withdraw)
+- **Virtual Houses Feed**: Scrollable house cards showing rent performance
+- **Notification Bell**: Top-right bell icon with unread count badge
+
+| Component | Purpose |
+|-----------|---------|
+| `SupporterDashboard.tsx` | Main supporter view |
+| `HeroBalanceCard.tsx` | Large balance display (MTN-style, glassmorphism) |
+| `PortfolioSummaryCards.tsx` | Portfolio overview cards |
+| `QuickStatsRow.tsx` | Key metrics strip |
+| `ModernQuickActions.tsx` | Action shortcuts grid |
+| `ModernQuickLinks.tsx` | Navigation links row |
+| `VirtualHousesFeed.tsx` / `VirtualHouseCard.tsx` | Virtual house browsing |
+| `VirtualHouseDetailsSheet.tsx` | Virtual house detail bottom sheet |
+| `HouseOpportunities.tsx` / `RentOpportunities.tsx` | Available investments |
+| `TenantsNeedingRent.tsx` | Funding needs (anonymized) |
+| `FundingPoolCard.tsx` | Pool balance & health indicator |
+| `FundingMilestones.tsx` | Milestone tracking |
+| `InvestmentCalculator.tsx` / `CalculatorShareCard.tsx` | ROI projection tool |
+| `InvestmentGoals.tsx` / `SetGoalDialog.tsx` | Goal setting dialog |
+| `ROIEarningsCard.tsx` | ROI summary card |
+| `InterestPaymentHistory.tsx` | Reward history table |
+| `CreditRequestsFeed.tsx` | Rent credit requests feed |
+| `SupporterLeaderboard.tsx` / `SupporterROILeaderboard.tsx` | Competitive rankings |
+| `SupporterReferralStats.tsx` | Referral performance |
+| `SupporterNotificationsFeed.tsx` | Notifications feed |
+| `NotificationBell.tsx` / `NotificationsModal.tsx` | Bell icon + notification modal |
+| `SupporterMenuDrawer.tsx` | Navigation drawer |
+| `FunderPortfolioCard.tsx` | Agent-facing funder summary |
+| `ModernInviteCard.tsx` | Invite flow card |
+| `ShareSupporterLink.tsx` / `ShareCalculatorLink.tsx` | Sharing utilities |
+| `FloatingPortfolioButton.tsx` | Quick portfolio access FAB |
+| `MerchantCodePills.tsx` | Deposit merchant codes |
+| `SimpleAccountsList.tsx` / `SimpleInvestmentCard.tsx` | Account views |
+| `SimpleTenantsList.tsx` | Anonymized tenant list |
+| `WalletDetailsSheet.tsx` | Wallet breakdown sheet |
+| `MyInvestmentRequests.tsx` | Pending requests |
+| `InvestmentAccountCard.tsx` | Individual account card |
+| `InvestmentBreakdownSheet.tsx` | Investment breakdown detail |
+| `InvestmentPackageSheet.tsx` | Package selection sheet |
+| `InvestmentWithdrawButton.tsx` | Capital exit button |
+| `CreateAccountDialog.tsx` / `AccountDetailsDialog.tsx` | Account creation/detail |
+| `FundAccountDialog.tsx` | Fund account dialog |
+| `FundRentDialog.tsx` | Fund specific rent request |
+| `WithdrawAccountDialog.tsx` | Withdraw from account |
+| `RequestManagerInvestDialog.tsx` | Request manager to invest |
+| `PayoutMethodDialog.tsx` | Select payout method |
+| `UserProfileDialog.tsx` | Supporter profile view |
+| `TenantRequestDetailsDialog.tsx` | Anonymized tenant request detail |
+| `FundedHistory.tsx` | Funding history |
+| `FunderCapitalOpportunities.tsx` | Capital deployment opportunities |
+| `OpportunityHeroButton.tsx` | Opportunity CTA |
+| `OpportunitySummaryCard.tsx` | Opportunity summary |
+| `ModernOpportunityTabs.tsx` | Tabbed opportunity browser |
+| `RentCategoryFeed.tsx` | Categorized rent feed |
+| `ModernSectionHeader.tsx` | Section header with actions |
 
 ## 5.3 Capital Deployment Flow
 
@@ -730,7 +922,7 @@ Modification: Edit codes, emails, schedules, 'Invested On' dates
 One-tap PDF generation + WhatsApp sharing
 ```
 
-## 5.6 COO Wallet-to-Portfolio Transfer (NEW v3.0)
+## 5.6 COO Wallet-to-Portfolio Transfer
 
 ```
 COO/Manager/Super Admin selects a partner with wallet balance
@@ -776,6 +968,7 @@ Attributed as 'Tenant Partnership Operations' in user communications
 - **`send-supporter-agreement-email`**: Legal agreement
 - **`send-funder-statement`**: Funder statement PDF
 - **`supporter-account-action`**: Account management actions
+- **`angel-pool-invest`**: Angel Pool share investment
 
 ---
 
@@ -793,20 +986,28 @@ Attributed as 'Tenant Partnership Operations' in user communications
 
 ## 6.2 Dashboard Components
 
-- `LandlordDashboard.tsx` — Main landlord view
-- `LandlordMenuDrawer.tsx` — Navigation drawer
-- `MyPropertiesSheet.tsx` — Property portfolio
-- `MyTenantsSection.tsx` — Tenant listing
-- `LandlordPaymentHistory.tsx` — Rent payment history
-- `LandlordAddTenantDialog.tsx` — Add tenant to property
-- `RegisterPropertyDialog.tsx` — Register new property
-- `ManageTenantSubscriptionDialog.tsx` — Manage tenant subscriptions
-- `EnrollTenantWelileHomesDialog.tsx` — Enroll tenant in Welile Homes
-- `LandlordWelileHomesSection.tsx` — Welile Homes integration
-- `WelileHomesLandlordBadge.tsx` — Participation badge
-- `WelileHomesLandlordLeaderboard.tsx` — Landlord rankings
-- `TenantRating.tsx` — Rate tenants
-- `EncouragementMessageDialog.tsx` — Send encouragement to tenants
+### UI Design: Landlord Dashboard
+- **Layout**: Mobile-first, property-centric
+- **Hero**: Properties count + total rent receivable
+- **Property Cards**: Each property shows tenants, rent status, payment history
+- **Quick Actions**: Add Property, Add Tenant, View Payments
+
+| Component | Purpose |
+|-----------|---------|
+| `LandlordDashboard.tsx` | Main landlord view |
+| `LandlordMenuDrawer.tsx` | Navigation drawer |
+| `MyPropertiesSheet.tsx` | Property portfolio sheet |
+| `MyTenantsSection.tsx` | Tenant listing per property |
+| `LandlordPaymentHistory.tsx` | Rent payment history |
+| `LandlordAddTenantDialog.tsx` | Add tenant to property |
+| `RegisterPropertyDialog.tsx` | Register new property |
+| `ManageTenantSubscriptionDialog.tsx` | Manage tenant subscriptions |
+| `EnrollTenantWelileHomesDialog.tsx` | Enroll tenant in Welile Homes |
+| `LandlordWelileHomesSection.tsx` | Welile Homes integration section |
+| `WelileHomesLandlordBadge.tsx` | Participation badge |
+| `WelileHomesLandlordLeaderboard.tsx` | Landlord rankings |
+| `TenantRating.tsx` | Rate tenants |
+| `EncouragementMessageDialog.tsx` | Send encouragement to tenants |
 
 ## 6.3 Property Registration
 
@@ -883,121 +1084,155 @@ Auto-routing: Funds go to caretaker wallet instead
 
 ## 7.2 Manager Dashboard Components
 
-- `ManagerDashboard.tsx` — Main manager view
-- `DesktopManagerSidebar.tsx` — Desktop navigation
-- `MobileManagerMenu.tsx` — Mobile navigation
-- `MobileQuickActions.tsx` — Quick action buttons
-- `ManagerHubCards.tsx` — Section navigation cards
-- `ManagerKPIStrip.tsx` — Key metrics strip
-- `ManagerKPIDetailDrawer.tsx` — Drill-down details
-- `ManagerSectionHeader.tsx` — Section headers
-- `ManagerTip.tsx` — Contextual tips
-- `ManagerPinScreen.tsx` — PIN authentication
-- `MyPerformanceCard.tsx` — Staff performance
+### UI Design: Manager Dashboard
+- **Layout**: Responsive — sidebar on desktop, bottom nav + hamburger on mobile
+- **KPI Strip**: Horizontal scroll strip with key metrics
+- **Hub Cards**: Color-coded grid of department cards
+- **Quick Actions**: Priority action buttons (Approve, Review, Fund)
+- **Desktop Sidebar**: `DesktopManagerSidebar.tsx` — Full left sidebar navigation
+- **Mobile Menu**: `MobileManagerMenu.tsx` — Hamburger menu with full navigation
 
-### Agent Operations
-- `AgentDetailsDialog.tsx` — Comprehensive agent profile
-- `AgentCollectionsWidget.tsx` — Collection monitoring
-- `AgentEarningsOverview.tsx` — Earnings tracking
-- `AgentFloatManager.tsx` — Float management
-- `AgentCommissionPayoutsManager.tsx` — Commission payouts
-- `IssueAdvanceSheet.tsx` — Issue cash advance
-- `PaidAgentsHistory.tsx` — Payment history
+| Component | Purpose |
+|-----------|---------|
+| `ManagerDashboard.tsx` | Main manager view |
+| `DesktopManagerSidebar.tsx` | Desktop navigation sidebar |
+| `MobileManagerMenu.tsx` | Mobile navigation menu |
+| `MobileQuickActions.tsx` | Quick action buttons |
+| `ManagerHubCards.tsx` | Section navigation cards grid |
+| `ManagerKPIStrip.tsx` | Key metrics horizontal strip |
+| `ManagerKPIDetailDrawer.tsx` | Drill-down detail drawer |
+| `ManagerSectionHeader.tsx` | Section headers with breadcrumb |
+| `ManagerTip.tsx` | Contextual helper tips |
+| `ManagerPinScreen.tsx` | PIN authentication screen |
+| `MyPerformanceCard.tsx` | Staff performance card |
+| `DailyReportMetrics.tsx` | Daily metrics report |
+| `DashboardPermissionsTab.tsx` | Dashboard visibility controls |
+| `ForceRefreshManager.tsx` | Force cache refresh tool |
+| `PasswordResetGuide.tsx` | Password reset instructions |
 
-### User Management
-- `UserProfilesTable.tsx` — User listing with search
-- `UserDetailsDialog.tsx` / `user-details/` — Detailed user views
-- `SimpleUserCard.tsx` — Compact user card
-- `CompactUserStats.tsx` — Quick stats
-- `UserCountsSummary.tsx` — Total counts
-- `ActiveUsersCard.tsx` — Active user monitoring
-- `QuickUserLookup.tsx` — Fast user search
-- `QuickUserActions.tsx` — Inline user actions
-- `FloatingUserActions.tsx` — Floating action buttons
-- `InlineRoleToggle.tsx` / `QuickRoleEditor.tsx` / `MobileRoleEditor.tsx` — Role management
-- `BulkAssignRoleDialog.tsx` / `BulkRemoveRoleDialog.tsx` — Batch operations
-- `InactiveUsersReachOutDialog.tsx` — Re-engagement
-- `DuplicatePhoneUsersSheet.tsx` — Duplicate detection
-- `CreateUserInviteDialog.tsx` — User invitations
-- `BulkWhatsAppDialog.tsx` — Mass WhatsApp messaging
-- `UserLocationsManager.tsx` — Location tracking
+### Agent Operations Components
+| Component | Purpose |
+|-----------|---------|
+| `AgentDetailsDialog.tsx` | Comprehensive agent profile dialog |
+| `AgentCollectionsWidget.tsx` | Collection monitoring widget |
+| `AgentEarningsOverview.tsx` | Earnings tracking |
+| `AgentFloatManager.tsx` | Float management tool |
+| `AgentCommissionPayoutsManager.tsx` | Commission payout approvals |
+| `IssueAdvanceSheet.tsx` | Issue cash advance sheet |
+| `PaidAgentsHistory.tsx` | Agent payment history |
 
-### Financial Operations
-- `FinancialOverview.tsx` — Financial summary
-- `FinancialCharts.tsx` — Visual analytics
-- `FinancialAlerts.tsx` — Risk alerts
-- `FinancialStatementsPanel.tsx` — P&L, cash flow
-- `GeneralLedger.tsx` — Ledger browser
-- `ManagerLedgerSummary.tsx` — Ledger overview
-- `ManagerBankingLedger.tsx` — Banking operations
-- `DayGroupedLedger.tsx` — Date-grouped view
-- `SupporterPoolBalanceCard.tsx` — Pool health (Balance, Deployed, 15% Reserve, Deployable)
-- `ReserveAllocationPanel.tsx` — Reserve management
-- `BufferAccountPanel.tsx` — Buffer/escrow accounts
-- `BufferTrendChart.tsx` — Buffer trend analysis
-- `PeriodComparison.tsx` — Period-over-period analysis
-- `DepositRequestsManager.tsx` — Deposit processing
-- `DepositAnalytics.tsx` — Deposit metrics
-- `DepositRentAuditWidget.tsx` — Rent deposit auditing
-- `FloatingDepositsWidget.tsx` — Pending deposits
-- `ManagerDepositsWidget.tsx` — Deposit overview
-- `AddBalanceDialog.tsx` — Manual balance adjustment
-- `FundEditHistory.tsx` — Fund modification trail
-- `FundFlowTracker.tsx` — Fund routing visualization
-- `MonthlyRewardsTrigger.tsx` — Trigger monthly rewards
-- `SupporterROITrigger.tsx` — Trigger ROI calculations
+### User Management Components
+| Component | Purpose |
+|-----------|---------|
+| `UserProfilesTable.tsx` | User listing with search/filter |
+| `UserDetailsDialog.tsx` / `user-details/` | Detailed user profile views |
+| `SimpleUserCard.tsx` | Compact user card |
+| `CompactUserStats.tsx` | Quick stats strip |
+| `UserCountsSummary.tsx` | Total counts by role |
+| `ActiveUsersCard.tsx` | Active user monitoring |
+| `QuickUserLookup.tsx` | Fast user search |
+| `QuickUserActions.tsx` | Inline user action buttons |
+| `FloatingUserActions.tsx` | Floating action buttons |
+| `InlineRoleToggle.tsx` / `QuickRoleEditor.tsx` / `MobileRoleEditor.tsx` | Role management |
+| `BulkAssignRoleDialog.tsx` / `BulkRemoveRoleDialog.tsx` | Batch role operations |
+| `InactiveUsersReachOutDialog.tsx` | Re-engagement tool |
+| `DuplicatePhoneUsersSheet.tsx` | Duplicate phone detection |
+| `CreateUserInviteDialog.tsx` | User invitation dialog |
+| `BulkWhatsAppDialog.tsx` | Mass WhatsApp messaging |
+| `UserLocationsManager.tsx` | Location tracking |
+| `RoleHistoryViewer.tsx` | Role change audit trail |
 
-### Rent Pipeline
-- `RentRequestsManager.tsx` — Multi-stage queue
-- `PendingRentRequestsWidget.tsx` — Pending count
-- `ApprovedRequestsFundingWidget.tsx` — Ready-to-fund queue
-- `PaymentConfirmationsManager.tsx` — Delivery confirmations
-- `PaymentProofsManager.tsx` — Receipt verification
+### Financial Operations Components
+| Component | Purpose |
+|-----------|---------|
+| `FinancialOverview.tsx` | Financial summary dashboard |
+| `FinancialCharts.tsx` | Visual analytics charts |
+| `FinancialAlerts.tsx` | Risk alerts panel |
+| `FinancialStatementsPanel.tsx` | P&L, cash flow, balance sheet |
+| `GeneralLedger.tsx` | Ledger browser with scope filtering |
+| `ManagerLedgerSummary.tsx` | Ledger overview |
+| `ManagerBankingLedger.tsx` | Banking operations ledger |
+| `DayGroupedLedger.tsx` | Date-grouped ledger view |
+| `SupporterPoolBalanceCard.tsx` | Pool health (Balance, Deployed, 15% Reserve, Deployable) |
+| `ReserveAllocationPanel.tsx` | Reserve management |
+| `BufferAccountPanel.tsx` | Buffer/escrow accounts |
+| `BufferTrendChart.tsx` | Buffer trend analysis chart |
+| `PeriodComparison.tsx` | Period-over-period analysis |
+| `DepositRequestsManager.tsx` | Deposit processing queue |
+| `DepositAnalytics.tsx` | Deposit metrics dashboard |
+| `DepositRentAuditWidget.tsx` | Rent deposit auditing |
+| `FloatingDepositsWidget.tsx` | Pending deposits widget |
+| `ManagerDepositsWidget.tsx` | Deposit overview widget |
 
-### Investment Management
-- `InvestmentAccountsManager.tsx` — Portfolio oversight
-- `CreateInvestmentAccountDialog.tsx` — New portfolio
-- `CreateSupporterDialog.tsx` / `CreateSupporterWithAccountDialog.tsx` — Supporter creation
-- `EditInvestmentAccountDialog.tsx` — Edit portfolio
-- `FundInvestmentAccountDialog.tsx` — Fund portfolio
-- `RenewPortfolioDialog.tsx` — Portfolio renewal
-- `InvestmentEditHistoryDialog.tsx` — Edit trail
-- `PendingInvestmentRequestsWidget.tsx` — Pending investments
-- `ManagerInvestmentRequestsSection.tsx` — All investment requests
-- `SupporterInvitesList.tsx` — Pending invites
-- `PendingInvitesWidget.tsx` — Invite count
+### Investment Management Components
+| Component | Purpose |
+|-----------|---------|
+| `InvestmentAccountsManager.tsx` | Portfolio management |
+| `CreateInvestmentAccountDialog.tsx` | Create portfolio dialog |
+| `CreateSupporterDialog.tsx` | Create supporter account |
+| `CreateSupporterWithAccountDialog.tsx` | Create supporter + portfolio |
+| `EditInvestmentAccountDialog.tsx` | Edit portfolio details |
+| `FundInvestmentAccountDialog.tsx` | Fund portfolio dialog |
+| `RenewPortfolioDialog.tsx` | Renew matured portfolio |
+| `InvestmentEditHistoryDialog.tsx` | Investment edit audit log |
+| `FundEditHistory.tsx` | Fund edit audit trail |
+| `FundFlowTracker.tsx` | Capital flow visualization |
+| `ManagerInvestmentRequestsSection.tsx` | Investment request queue |
+| `PendingInvestmentRequestsWidget.tsx` | Pending investment widget |
+| `MonthlyRewardsTrigger.tsx` | Trigger monthly rewards |
+| `SupporterROITrigger.tsx` | Trigger ROI processing |
+| `SupporterInvitesList.tsx` | Supporter invitation list |
+| `AddBalanceDialog.tsx` | Manual balance adjustment |
 
-### Wallet & Approvals
-- `PendingWalletOperationsWidget.tsx` — Queued operations
-- `WithdrawalRequestsManager.tsx` — Withdrawal queue
-- `WelileHomesWithdrawalsManager.tsx` — Welile Homes withdrawals
-- `WelileHomesSubscriptionsManager.tsx` — Subscription management
-- `SubscriptionMonitorWidget.tsx` — Subscription health
+### Rent & Operational Components
+| Component | Purpose |
+|-----------|---------|
+| `RentRequestsManager.tsx` | Rent request management |
+| `PendingRentRequestsWidget.tsx` | Pending requests widget |
+| `ApprovedRequestsFundingWidget.tsx` | Approved requests needing funding |
+| `PaymentConfirmationsManager.tsx` | Payment confirmation queue |
+| `PaymentProofsManager.tsx` | Payment proof verification |
+| `WithdrawalRequestsManager.tsx` | Withdrawal approval queue |
+| `PendingWalletOperationsWidget.tsx` | Pending wallet operations |
+| `PendingInvitesWidget.tsx` | Pending invitations |
+| `PendingSellerApplicationsWidget.tsx` | Seller application queue |
+| `SubscriptionMonitorWidget.tsx` | Subscription monitoring |
+| `WelileHomesSubscriptionsManager.tsx` | Welile Homes subscriptions |
+| `WelileHomesWithdrawalsManager.tsx` | Welile Homes withdrawals |
+| `ReceiptManagement.tsx` | Receipt management |
+| `PrintableReceiptSheet.tsx` | Printable receipt generation |
+| `RecordMerchantPayment.tsx` | Record merchant payment |
+| `LoanApplicationsManager.tsx` | Loan application approvals |
+| `OrdersManager.tsx` | Marketplace order management |
+| `VendorAnalytics.tsx` | Vendor performance |
+| `OpportunitySummaryForm.tsx` | Investment opportunity form |
+| `ActivityManager.tsx` | Activity tracking |
+| `QuickActionsDropdown.tsx` | Admin quick actions |
+| `ChromecastButton.tsx` | Cast to TV display |
 
-### Operations & Analytics
-- `ActivityManager.tsx` — Activity tracking
-- `DailyReportMetrics.tsx` — Daily ops brief
-- `ForceRefreshManager.tsx` — Cache refresh
-- `ChromecastButton.tsx` — TV display mode
-
-### Audit & Compliance
-- `AuditLogViewer.tsx` — Full audit trail browser
-- `RoleHistoryViewer.tsx` — Role change history
-- `PasswordResetGuide.tsx` — Staff password reset guide
-
-### AI-Powered Tools
-- `AIBrainDashboard.tsx` — AI insights dashboard
-- `AIRecommendationCard.tsx` — AI suggestions
+### AI & Intelligence Components
+| Component | Purpose |
+|-----------|---------|
+| `AIBrainDashboard.tsx` | AI-powered insights dashboard |
+| `AIRecommendationCard.tsx` | AI action recommendations |
+| `AISessionHistory.tsx` | AI interaction history |
+| `AIUserExperienceReport.tsx` | AI-generated user experience report |
+| `AuditLogViewer.tsx` | Comprehensive audit log viewer |
 
 ## 7.3 Approval Workflows
 
-### Withdrawal Approval (Single-Step Financial Ops)
+### Withdrawal Approval (Single-Step)
 ```
-User requests withdrawal (wallet pre-deducted via cash_out ledger entry)
-    ↓ status: 'pending'
-Financial Ops reviews → Enters TID/Receipt/Bank Ref → Approve & Complete
-    ↓ status: 'approved' → Done
-If rejected → Idempotent refund via withdrawal_reversal ledger entry
+User requests withdrawal
+    ↓
+Wallet pre-deducted immediately (withdrawal_pending category)
+    ↓
+Financial Ops reviews: TID/receipt/bank ref required
+    ↓
+Approve → Mark as completed, record TID
+    ↓
+Reject → Idempotent refund via withdrawal_reversal ledger entry
+    (deterministic transaction_group_id: 'wallet-reject-{id}')
 ```
 
 ### Deposit Approval
@@ -1027,9 +1262,9 @@ Funds credited to agent wallet
 ## 7.4 Operations Departments
 
 - **Tenant Operations**: Full lifecycle management (see Section 14)
-- **Landlord Operations**: Property orchestration, vacancy tracking, listing verification, listing rejection (push back to agent), budget matching, viewing coordination with SMS alerts
+- **Landlord Operations**: Property orchestration, vacancy tracking, listing verification, listing rejection (push back to agent), budget matching, viewing coordination with SMS alerts (see Section 17)
 - **Partner Operations**: Capital management with card-based dashboard (see Section 15)
-- **Agent Operations**: Agent lifecycle, performance, float management
+- **Agent Operations**: Agent lifecycle, performance, float management (see Section 16)
 - Operations users assigned to departments via junction table
 
 ## 7.5 Backend Edge Functions
@@ -1051,6 +1286,12 @@ Funds credited to agent wallet
 
 ## 8.1 Route: `/coo/dashboard`
 
+### UI Design: COO Dashboard
+- **Layout**: Tabbed interface with horizontal scrollable tab bar
+- **Mobile**: Tabs truncated to 4 chars, full labels on desktop
+- **Tab Strip**: Colored active tab with primary background
+- **Content Area**: Full-width content below tabs
+
 ## 8.2 Tabs & Sections
 
 | Tab | Component | Purpose |
@@ -1061,19 +1302,55 @@ Funds credited to agent wallet
 | `collections` | `AgentCollectionsOverview` | Agent collection tracking |
 | `wallets` | `FinancialOpsCommandCenter` | Wallet operations |
 | `agent-activity` | `CashoutAgentActivity` | Agent cashout monitoring |
-| `analytics` | `PaymentModeAnalytics` | Payment channel analytics |
+| `analytics` | `PaymentModeAnalytics` | Payment channel analytics (donut chart) |
 | `reports` | `FinancialReportsPanel` | Financial reporting |
-| `alerts` | `FinancialAlertsPanel` | Risk & alert management |
+| `alerts` | `FinancialAlertsPanel` | Risk & alert management (large payments >2M, failed withdrawals) |
 | `withdrawals` | `COOWithdrawalApprovals` | Stage 4 withdrawal sign-off |
 | `partners` | `COOPartnersPage` | Partner management with **deletion** (mandatory reason) |
 | `staff-performance` | `StaffPerformancePanel` | Staff monitoring |
 
-### Operations Overview KPIs
+### COO-Specific Components
+
+| Component | Purpose |
+|-----------|---------|
+| `FinancialMetricsCards.tsx` | Real-time KPI cards (Total Rent, Daily/Monthly Payments, Agent Collections, System Balance, Pending/Failed Transactions) |
+| `AgentCollectionsOverview.tsx` | Agent collection tracking with filters |
+| `COODataTable.tsx` | Reusable data table for COO views |
+| `COODetailLayout.tsx` | Consistent detail page layout |
+| `COOWithdrawalApprovals.tsx` | Withdrawal approval queue |
+| `COOPartnerWithdrawalApprovals.tsx` | Partner withdrawal approvals |
+| `FinancialAlertsPanel.tsx` | Anomaly detection (large payments, failed withdrawals) |
+| `FinancialReportsPanel.tsx` | Report generation panel |
+| `FinancialTransactionsTable.tsx` | Transaction monitoring table |
+| `PaymentModeAnalytics.tsx` | Payment channel donut chart |
+| `WalletMonitoringPanel.tsx` | Wallet balance monitoring |
+
+### KPI Cards (FinancialMetricsCards)
+
+| KPI | Data Source | Threshold |
+|-----|------------|-----------|
+| Total Rent Facilitated | `general_ledger` (rent categories) | Green: growing, Red: declining |
+| Daily Payments | `general_ledger` (today's entries) | Green: >0, Yellow: <50% avg |
+| Monthly Payments | `general_ledger` (current month) | Target vs actual |
+| Agent Collections | `agent_collections` (current period) | Green: above target |
+| System Balance | `wallets` + `general_ledger` net | Red: <15% reserve |
+| Pending Transactions | `pending_wallet_operations` count | Yellow: >10, Red: >50 |
+| Failed Transactions | Failed operations count | Any: Red alert |
+
+### Overview KPIs (Clickable)
 - Active Users, Active Partners, Active Landlords
 - Earning Agents, Rent Coverage metrics
 - Each KPI links to a drill-down detail page (`/coo/*`)
 
 ### Partner Management (COOPartnersPage)
+
+| Component | Purpose |
+|-----------|---------|
+| `COOPartnersPage.tsx` | Full partner management interface |
+| `PartnerImportDialog.tsx` | Bulk import from Excel (up to 200/batch) |
+| `UpdateContributionDatesDialog.tsx` | Contribution date corrections |
+
+Features:
 - Partner-level aggregation (total invested, active portfolios, wallet balance)
 - Search and filtering across partners
 - Full CRUD: create, edit, fund, renew portfolios
@@ -1101,19 +1378,79 @@ Funds credited to agent wallet
 
 ## 9.1 Route: `/cfo/dashboard`
 
-## 9.2 Sections
+### UI Design: CFO Dashboard
+- **Layout**: Tabbed interface with 10 tabs (icons + labels)
+- **Tab Strip**: Wrap-style tabs with icon + text, primary color when active
+- **Mobile**: Tab labels truncated to 4 chars
+- **Tabs**: Overview, Cash Position, Channels, P&L, Disbursements, Statements, Solvency, Payouts, Reconcile, Ledger
 
-### Channel Balance Tracker
-- MTN, Airtel, Bank, Agent Cash channels
-- Week-over-week trend indicators
-- Daily inflow metrics
+## 9.2 Tabs & Components
 
-### Cash Position Reporting
+| Tab | Component(s) | Purpose |
+|-----|-------------|---------|
+| `overview` | `ThresholdAlerts` + `FinancialOverview` | Alerts + financial summary |
+| `cash` | `DailyCashPositionReport` | Daily cash position with Platform vs Custody split |
+| `channels` | `ChannelBalanceTracker` + `DirectCreditTool` | Channel balances + manual credit |
+| `revenue` | `RevenueExpenseDashboard` | P&L analysis |
+| `disbursements` | `DisbursementRegistry` | Disbursement tracking registry |
+| `statements` | `FinancialStatementsPanel` | P&L, cash flow, balance sheet |
+| `solvency` | `BufferAccountPanel` | Buffer/escrow monitoring |
+| `payouts` | (See below) | Multi-section payout authorization |
+| `reconciliation` | `CFOReconciliationPanel` | Reconciliation tools |
+| `ledger` | `GeneralLedger` | Full ledger browser |
+
+### CFO-Specific Components
+
+| Component | Purpose |
+|-----------|---------|
+| `ThresholdAlerts.tsx` | CFO risk threshold alerts |
+| `DailyCashPositionReport.tsx` | Separate KPIs for Platform Cash vs User Funds (Custody) |
+| `ChannelBalanceTracker.tsx` | MTN, Airtel, Bank, Agent Cash channels with week-over-week trends |
+| `DirectCreditTool.tsx` | Manual wallet credit tool (10-char reason required) |
+| `RevenueExpenseDashboard.tsx` | Revenue vs Expense analysis |
+| `DisbursementRegistry.tsx` | All disbursement records |
+| `CFOReconciliationPanel.tsx` | Bank ↔ Ledger reconciliation |
+| `BatchPayoutProcessor.tsx` | Batch payout processing tool |
+| `ServiceCentrePayoutApproval.tsx` | Service Centre payout approval queue |
+| `CFOPartnerPayoutProcessing.tsx` | Partner payout processing |
+| `CFOReceivablesTracker.tsx` | Receivables monitoring |
+| `CFOWithdrawalApprovals.tsx` | Withdrawal approval queue |
+| `PlatformVsWalletSummary.tsx` | Platform vs wallet balance comparison |
+| `PendingPortfolioTopUps.tsx` | Pending portfolio top-up queue |
+| `AgentCashReconciliation.tsx` | Agent cash reconciliation |
+| `CashoutAgentActivity.tsx` | Agent cashout pattern monitoring |
+| `CashoutAgentManager.tsx` | Cashout agent management |
+| `DeliveryPipelineTracker.tsx` | Delivery pipeline tracking |
+| `FinancialAgentsPanel.tsx` | Tagged agents for expense categories (Ops, Marketing, R&D, Salaries) |
+| `PayrollPanel.tsx` | Monthly batch + individual payroll transfers |
+| `ProxyAgentManager.tsx` | Proxy agent assignments |
+| `LandlordOpsPayoutReview.tsx` | Landlord Ops payout review |
+| `UserSearchPicker.tsx` | Searchable user picker for assignments |
+
+### Payouts Tab (Multi-Section)
+
+```
+┌─ ServiceCentrePayoutApproval ──────────────────────────┐
+│ Verified Service Centres awaiting CFO payment approval  │
+└─────────────────────────────────────────────────────────┘
+┌─ Grid: 2 columns ──────────────────────────────────────┐
+│ BatchPayoutProcessor │ SupporterROITrigger             │
+│ Batch payout engine  │ ROI authorization gates          │
+├──────────────────────┼──────────────────────────────────┤
+│ AgentCommission      │ CFOPartnerPayoutProcessing      │
+│ PayoutsManager       │ Partner withdrawal approvals     │
+└──────────────────────┴──────────────────────────────────┘
+┌─ WithdrawalRequestsManager ────────────────────────────┐
+│ All withdrawal requests across all users                │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 9.3 Cash Position Reporting
 - Separate KPIs for 'Platform Cash' and 'User Funds (Custody)'
 - Prevents accounting inflation
 - High-priority reconciliation: all user wallets vs. platform ledger net position
 
-### Ledger Hub (Full Visibility)
+## 9.4 Ledger Hub (Full Visibility)
 - Full visibility into ALL 6 specialized ledgers:
   1. Suspense Ledger (unmatched funds)
   2. Default & Recovery Ledger
@@ -1123,7 +1460,7 @@ Funds credited to agent wallet
   6. Settlement & Reconciliation Ledger
 - General Ledger browser with scope filtering (Wallet/Platform/Bridge)
 
-### Rent Request Approval (Stage 5 — Final)
+## 9.5 Rent Request Approval (Stage 5 — Final)
 - CFO sees requests at `coo_approved` status
 - Approve → Atomic operation:
   - Credits agent landlord float
@@ -1132,29 +1469,26 @@ Funds credited to agent wallet
   - Status → `funded`
 - Reject → Status → `rejected` with reason
 
-### Wallet Adjustment Tool
+## 9.6 Receivables Tracking
+- Monitors proportional revenue recognition for access and request fees
+- Revenue recognized relative to tenant repayment progress
+
+## 9.7 Wallet Adjustment Tool
 - Manual Credit: Platform → User Wallet
 - Manual Debit: User Wallet → Platform
 - 10-character mandatory audit reason
 - Double-entry ledger tracking
 
-### Receivables Tracking
-- Monitors proportional revenue recognition for access and request fees
-- Revenue recognized relative to tenant repayment progress
-
-### Disbursements
+## 9.8 Disbursements
 - **Financial Agents**: Tagged agents for expense categories (Ops, Marketing, R&D, Salaries)
 - **Payroll**: Monthly batch + individual transfers via `platform-expense-transfer`
 - **Proxy Agent Assignments**: Searchable User Pickers (name/phone) for non-smartphone users
 
-### Withdrawal Approval
-- **Note:** Wallet withdrawal approvals are now handled entirely by Financial Ops (single-step) — CFO no longer has a separate withdrawal approval queue
+## 9.9 Withdrawal Approval
+- Wallet withdrawal approvals handled by Financial Ops (single-step)
 - CFO retains oversight of financial statements, solvency, and reconciliation
 
-### Cashout Agent Activity
-- `CashoutAgentActivity` — Monitor agent cashout patterns
-
-## 9.3 Backend Edge Functions
+## 9.10 Backend Edge Functions
 
 - **`cfo-direct-credit`**: Direct wallet credit
 - **`platform-expense-transfer`**: Expense disbursement
@@ -1167,7 +1501,20 @@ Funds credited to agent wallet
 
 ## 10.1 Route: `/ceo/dashboard`
 
-## 10.2 Sections
+### UI Design: CEO Dashboard
+- **Layout**: Executive summary with large KPI cards
+- **North Star**: Prominent rent secured metric
+- **Charts**: Growth trends, utilization, health indicators
+- **Staff Panel**: Performance monitoring with heatmaps
+
+## 10.2 Components
+
+| Component | Purpose |
+|-----------|---------|
+| `CEODashboard.tsx` | Main CEO view (`src/components/executive/`) |
+| `AngelPoolManagementPanel.tsx` | Angel Pool config and shareholder management |
+
+## 10.3 Sections
 
 - **North Star Metric**: Rent Secured (UGX/month)
 - **Executive KPIs**: Active virtual houses, rent success rate, capital utilization
@@ -1176,6 +1523,7 @@ Funds credited to agent wallet
 - **Staff Performance Panel**: Audit logs, daily heatmaps, SLA compliance (idle time, response rates)
 - **ROI Trends**: `/roi-trends` — Historical return analysis
 - **Executive Hub**: `/executive-hub` — Cross-functional overview
+- **Angel Pool Management**: CEO-exclusive pool configuration and shareholder management
 
 ---
 
@@ -1183,19 +1531,44 @@ Funds credited to agent wallet
 
 ## 11.1 Route: `/cto/dashboard`
 
-## 11.2 Sections
+### UI Design: CTO Dashboard
+- **Layout**: System monitoring style with status indicators
+- **Latency Meter**: Real-time DB latency with color-coded thresholds
+- **User Admin**: Full platform user management
+- **Infrastructure Cards**: Service status grid
+
+## 11.2 Components
+
+| Component | Purpose |
+|-----------|---------|
+| `CTODashboard.tsx` | Main CTO view (`src/components/executive/`) |
+
+## 11.3 Sections
 
 - **System Health**: Real-time DB latency monitoring (Healthy <300ms, Degraded >1000ms) every 60 seconds
 - **Performance Metrics**: DB reads per session, cache hit rates, Edge Function error rates
 - **User Management**: Platform user administration (with role assignment powers)
 - **Infrastructure**: Service status, deployment health
-- **TV Dashboard**: `/tv-dashboard` — Large-screen monitoring display (ChromecastButton integration)
+- **TV Dashboard**: `/tv-dashboard` — Large-screen monitoring display (`ChromecastButton` integration)
 
 ---
 
 # 12. CMO Dashboard Workflows
 
 ## 12.1 Route: `/cmo/dashboard`
+
+### UI Design: CMO Dashboard
+- **Layout**: Marketing analytics with charts and funnels
+- **Acquisition Funnel**: Visual signup-to-activation pipeline
+- **Leaderboard**: Top referrers with avatars and rankings
+
+## 12.2 Components
+
+| Component | Purpose |
+|-----------|---------|
+| `CMODashboard.tsx` | Main CMO view (`src/components/executive/`) |
+
+## 12.3 Sections
 
 - **User Acquisition**: Signup funnel, referral performance
 - **Referral Leaderboard**: Top referrers with rankings
@@ -1208,6 +1581,19 @@ Funds credited to agent wallet
 
 ## 13.1 Route: `/crm/dashboard`
 
+### UI Design: CRM Dashboard
+- **Layout**: Customer-centric with segment cards
+- **Segment Tiles**: Color-coded by customer type
+- **Ticket Queue**: Priority-sorted support tickets
+
+## 13.2 Components
+
+| Component | Purpose |
+|-----------|---------|
+| `CRMDashboard.tsx` | Main CRM view (`src/components/executive/`) |
+
+## 13.3 Sections
+
 - **Customer Segments**: Tenant, agent, supporter categorization
 - **Support Tickets**: Issue tracking and triage
 - **Retention Metrics**: Churn indicators
@@ -1215,9 +1601,15 @@ Funds credited to agent wallet
 
 ---
 
-# 14. Tenant Operations Dashboard (NEW v3.0)
+# 14. Tenant Operations Dashboard
 
 ## 14.1 Route: Part of `/admin/dashboard` → Operations → Tenant Ops
+
+### UI Design: Tenant Ops Dashboard
+- **Pattern**: Card-based Quick Nav Grid (2-column mobile, 4-column desktop)
+- **Active State**: Primary-colored cards with white icon when active
+- **KPIs**: Clickable metric cards that filter the tenant list
+- **Back Navigation**: `ChevronLeft` "Back to Overview" header on sub-views
 
 ## 14.2 Architecture
 
@@ -1237,6 +1629,32 @@ Card-based navigation system with separate sub-views:
 | `agent-tenants` | `AgentTenantSearch` | Agent-tenant relationship search |
 | `tenant-detail` | `TenantDetailPanel` | Deep-dive into individual tenant |
 
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| `TenantOpsDashboard.tsx` | Main container with nav grid |
+| `TenantOverviewList.tsx` | Tenant list with category filters |
+| `TenantDetailPanel.tsx` | Individual tenant deep-dive |
+| `TenantBehaviorDashboard.tsx` | Behavioral analytics |
+| `TenantAgentLinker.tsx` | Link tenants to agents |
+| `TenantRentCollector.tsx` | Manual rent collection tool |
+| `TenantTransferPanel.tsx` | Transfer tenant between agents |
+| `AgentTenantSearch.tsx` | Search agent-tenant relationships |
+| `AgentTenantConnector.tsx` | Connect agents to tenants |
+| `DailyPaymentTracker.tsx` | Daily auto-deduction tracker |
+| `MissedDaysTracker.tsx` | Missed payment tracker |
+| `RepaymentTrendChart.tsx` | Repayment trend bar chart |
+| `RentPipelineQueue.tsx` | Rent pipeline approval queue |
+| `RentPipelineTracker.tsx` | Pipeline status tracker |
+| `ApprovalHistoryLog.tsx` | Approval audit trail |
+| `ExecutiveDataTable.tsx` | Data table for executive views |
+| `DeleteRentRequestDialog.tsx` | Delete rent request (mandatory reason) |
+| `DeleteHistoryViewer.tsx` | Deleted request audit log |
+| `RentAdjustmentDialog.tsx` | Adjust rent request amounts |
+| `ChangeMaturityDateDialog.tsx` | Change maturity dates |
+| `UserProfileSheet.tsx` | User profile side sheet |
+
 ## 14.3 Overview KPIs (Clickable)
 
 | KPI | Metric | Click Action |
@@ -1248,7 +1666,7 @@ Card-based navigation system with separate sub-views:
 | Rejected | Declined requests | Filters list to rejected |
 | Completed | Fully repaid requests | Filters list to completed |
 
-## 14.4 Tenant Overview List (`TenantOverviewList.tsx`)
+## 14.4 Tenant Overview List
 
 - All tenants displayed with clickable names for deep-dive
 - **Category filters**: All, Active (funded/disbursed), Pending, Rejected, Completed
@@ -1256,7 +1674,7 @@ Card-based navigation system with separate sub-views:
 - Syncs with KPI card clicks via `initialCategory` prop
 - Deduplicates by `tenant_id` (shows latest request per tenant)
 
-## 14.5 Manual Rent Collection (`TenantRentCollector.tsx`)
+## 14.5 Manual Rent Collection
 
 ```
 Tenant Ops Manager selects a tenant with active rent request
@@ -1275,7 +1693,7 @@ manual-collect-rent Edge Function:
   5. Logs to audit_logs with full metadata
 ```
 
-## 14.6 Repayment Trend Chart (`RepaymentTrendChart.tsx`)
+## 14.6 Repayment Trend Chart
 
 - Bar chart showing daily gross repayment breakdown
 - Allows Tenant Ops to monitor collection velocity
@@ -1295,13 +1713,17 @@ manual-collect-rent Edge Function:
 
 ---
 
-# 15. Partner Operations Dashboard (NEW v3.0)
+# 15. Partner Operations Dashboard
 
 ## 15.1 Route: Part of `/admin/dashboard` → Operations → Partner Ops
 
-## 15.2 Architecture
+### UI Design: Partner Ops Dashboard
+- **Pattern**: Card-based Quick Nav Grid matching COO/Tenant Ops pattern
+- **Mobile (< 768px)**: 2-column nav grid, back button on sub-views, stacked KPIs
+- **Desktop**: 3-column nav grid, wider content, KPIs in 4-column row
+- **Info icons**: Tooltips for contextual help
 
-Mobile-first, card-based navigation matching the COO/Tenant Ops pattern:
+## 15.2 Architecture
 
 | View | Component | Purpose |
 |------|-----------|---------|
@@ -1313,6 +1735,19 @@ Mobile-first, card-based navigation matching the COO/Tenant Ops pattern:
 | `roi` | `ROIPaymentHistory` | ROI payout history with trends |
 | `churn` | `PartnerChurnAlerts` | Churn risk alerts |
 
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| `PartnersOpsDashboard.tsx` | Main container with nav grid |
+| `PartnerOpsBrief.tsx` | Escalation queue |
+| `PartnerDirectory.tsx` | Contact directory |
+| `PartnerCapitalFlow.tsx` | Capital flow charts |
+| `PartnerChurnAlerts.tsx` | Churn risk monitoring |
+| `PartnerOpsWithdrawalQueue.tsx` | Withdrawal queue |
+| `ROIPaymentHistory.tsx` | ROI payment history |
+| `ROITrendsPage.tsx` | ROI trend analysis |
+
 ## 15.3 Partner Table (COOPartnersPage Integration)
 
 - Shares the same partner management interface as COO dashboard
@@ -1321,31 +1756,194 @@ Mobile-first, card-based navigation matching the COO/Tenant Ops pattern:
 - Suspend (soft-disable) and Delete (permanent with 10-char reason)
 - Portfolio renewal with auto-renewal background task
 
-## 15.4 KPI Cards
+## 15.4 Partner Returns Logic
+
+- **Returns Calculation**: ROI is a monthly rate (e.g., 20% per month)
+- **Compounding**: ROI is reinvested into the principal, increasing the next month's returns base
+- **Scheduling**: `payout_day` is auto-calculated from the contribution date (max 28)
+- **Nearing Payouts**: Displays portfolios due within 30 days
+- **Payout Dialog**: Maintains local snapshot during session, marking processed items with ✓
+- **Payout Filters**: Filter to isolate partners with payouts on the 1st of every month
+- **Manual Date Edit**: Executives can manually edit `next_roi_date` in Partner Detail view
+- **Terminology**: ROI labeled 'Returns', Invested labeled 'Principal'
+
+## 15.5 KPI Cards
 
 - Total Partners, Total Capital, Active Portfolios
 - Average ROI, Near-Maturity Count
 - Churn risk indicators
 
-## 15.5 Auto-Renewal Logic
+## 15.6 Auto-Renewal Logic
 
 - Background task runs on dashboard load (regardless of active tab)
 - Checks for matured portfolios and auto-renews based on `auto_reinvest` flag
 - Runs once per session (`autoRenewedRef`)
 
-## 15.6 Responsive Behavior
+---
 
-- **Mobile (< 768px)**: 2-column nav grid, back button on sub-views, stacked KPIs
-- **Desktop**: 3-column nav grid, wider content, KPIs in 4-column row
-- Info icons with tooltips for contextual help
+# 16. Agent Operations Dashboard
+
+## 16.1 Route: Part of `/admin/dashboard` → Operations → Agent Ops
+
+### UI Design: Agent Ops Dashboard
+- **Pattern**: Mobile-first Quick Nav Grid (2-column on mobile, 4-column on desktop)
+- **Color-coded cards**: Each nav card has distinct color coding
+- **Badge counts**: Real-time counts on navigation cards
+- **Touch-optimized**: Minimum 44px touch targets, `active:scale-95` for haptic feel
+
+## 16.2 Architecture
+
+State-driven sub-view system with Quick Nav Grid:
+
+| View | Component | Purpose |
+|------|-----------|---------|
+| `overview` | Default | Quick Nav Grid + KPI cards |
+| `pipeline` | `RentPipelineQueue` | Agent Ops rent pipeline (Stage 2) |
+| `service-centres` | `ServiceCentreVerificationQueue` | Service Centre photo/GPS verification |
+| `tasks` | `AgentTaskManager` | Task assignment and tracking |
+| `float-payouts` | `AgentOpsFloatPayoutReview` (from agent component) | Float payout review |
+| `escalations` | `AgentEscalationQueue` | Escalation resolution |
+| `lifecycle` | `AgentLifecyclePipeline` | Agent lifecycle (New→Active→Dormant) |
+| `tiers` | `AgentPerformanceTiers` | Gold/Silver/Bronze rankings |
+| `listing-bonus` | `ListingBonusApprovalQueue` | Listing bonus approvals |
+| `directory` | `AgentDirectory` | Full agent directory |
+| `proximity` | `AgentProximitySelector` | GPS-based agent assignment |
+| `brief` | `AgentOpsBrief` | Operational summary brief |
+| `collections` | `AgentCollectionsWidget` | Collection monitoring |
+| `vacancy` | `VacancyAnalytics` | Vacancy tracking analytics |
+
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| `AgentOpsDashboard.tsx` | Main container with Quick Nav Grid |
+| `ServiceCentreVerificationQueue.tsx` | Verify Service Centre submissions (photo + GPS) |
+| `AgentTaskManager.tsx` | Assign/track agent tasks |
+| `AgentEscalationQueue.tsx` | Handle agent-reported escalations |
+| `AgentLifecyclePipeline.tsx` | Visualize agent lifecycle stages |
+| `AgentPerformanceTiers.tsx` | Performance tier management |
+| `AgentDirectory.tsx` | Searchable agent directory |
+| `AgentProximitySelector.tsx` | GPS proximity-based agent finder |
+| `AgentOpsBrief.tsx` | Daily operational brief |
+| `ListingBonusApprovalQueue.tsx` | Approve listing bonuses |
+| `VacancyAnalytics.tsx` | Vacancy analysis dashboard |
+| `StaffPerformancePanel.tsx` | Staff performance monitoring |
+
+## 16.3 Service Centre Verification
+
+```
+Agent submission appears in queue
+    ↓
+Agent Ops reviews:
+  - Photo of mounted poster/logo
+  - GPS coordinates (Google Maps link)
+  - Agent details (name, phone)
+  - Location description
+    ↓
+Verify: GPS matches expected area + photo shows proper setup
+    → Status: 'verified' → forwarded to CFO for payment
+    ↓
+Reject: Mandatory 10+ character reason
+    → Status: 'rejected' → agent notified
+```
 
 ---
 
-# 16. Financial Operations Command Center
+# 17. Landlord Operations Dashboard
 
-## 16.1 Route: `/admin/financial-ops`
+## 17.1 Route: Part of `/admin/dashboard` → Operations → Landlord Ops
 
-## 16.2 Components
+### UI Design: Landlord Ops Dashboard
+- **Pattern**: Card-based Quick Nav Grid
+- **Map Integration**: Leaflet map for property visualization
+
+## 17.2 Architecture
+
+| View | Component | Purpose |
+|------|-----------|---------|
+| `overview` | Default | Landlord Ops KPIs + nav grid |
+| `pipeline` | `RentPipelineQueue` | Landlord Ops rent pipeline (Stage 3) |
+| `chain-health` | `ChainHealthTab` | Property chain health monitoring |
+| `deal-pipeline` | `DealPipeline` | Deal flow tracking |
+| `property-map` | `PropertyMapView` / `PropertyMapLeaflet` | Map-based property view |
+| `tenant-matching` | `TenantMatchingQueue` | Match tenants to properties |
+| `vacancy` | `VacancyAnalytics` | Vacancy tracking |
+
+### Components (src/components/executive/landlord-ops/)
+
+| Component | Purpose |
+|-----------|---------|
+| `LandlordOpsDashboard.tsx` | Main container |
+| `ChainHealthTab.tsx` | Property chain integrity monitoring |
+| `DealPipeline.tsx` | Deal flow visualization |
+| `PropertyMapView.tsx` / `PropertyMapLeaflet.tsx` | Map-based property view (Leaflet) |
+| `TenantMatchingQueue.tsx` | Tenant-property matching |
+| `ViewingSchedulerDialog.tsx` | Schedule property viewings |
+| `AssignPersonDialog.tsx` | Assign agent/caretaker to property |
+| `EditLandlordDialog.tsx` | Edit landlord details |
+| `EditLC1Dialog.tsx` | Edit LC1 chairperson details |
+| `EmptyHouseActionDialog.tsx` | Actions for empty houses |
+| `LandlordOpsPayoutReview.tsx` | Payout review (CFO component) |
+
+## 17.3 Listing Rejection Flow
+
+```
+Landlord Ops Manager reviews listing
+    ↓
+Approve → listing stays active
+    ↓
+Reject → status set to 'rejected' with mandatory reason (≥10 chars)
+    ↓
+Rejected listings appear on agent dashboard with red indicator
+    ↓
+Agent can fix issues and "Relist" (status → 'available')
+```
+
+## 17.4 Viewing Coordination
+
+```
+Tenant expresses interest in property
+    ↓
+Landlord Ops schedules viewing via ViewingSchedulerDialog
+    ↓
+SMS alerts sent to tenant, agent, and landlord
+    ↓
+Agent checks in via GPS at viewing location
+    ↓
+verify-viewing-checkin validates GPS proximity
+    ↓
+viewing-confirmation-sms sent post-viewing
+```
+
+---
+
+# 18. Financial Operations Command Center
+
+## 18.1 Route: `/admin/financial-ops`
+
+### UI Design: Financial Ops
+- **Layout**: Tabbed interface with TID Verification as primary tab
+- **Primary Styling**: TID tab has primary-colored border to emphasize importance
+- **Live Pulse**: Real-time metrics strip at top
+- **Queue**: Sortable/filterable approval queue
+
+## 18.2 Components
+
+| Component | Purpose |
+|-----------|---------|
+| `FinancialOpsCommandCenter.tsx` | Main container |
+| `FinancialOpsPulseStrip.tsx` | Real-time metrics strip |
+| `TidVerification.tsx` | TID verification and matching |
+| `ApprovalQueue.tsx` | Priority approval queue |
+| `AuditFeed.tsx` | Audit event feed |
+| `DepositStatsPanel.tsx` | Deposit statistics |
+| `FinOpsWithdrawalVerification.tsx` | Withdrawal verification |
+| `FloatPayoutVerification.tsx` | Float payout verification |
+| `ReconciliationDashboard.tsx` | Daily reconciliation |
+| `RequestDetailSheet.tsx` | Request detail side sheet |
+| `ScaleDashboard.tsx` | Scale monitoring |
+| `TransactionSearch.tsx` | Transaction search |
+| `WalletDeductionPanel.tsx` | Wallet deduction tool |
 
 ### Live Pulse Strip
 - Real-time metrics via RPC `get_financial_ops_pulse`
@@ -1393,9 +1991,9 @@ Mobile-first, card-based navigation matching the COO/Tenant Ops pattern:
 
 ---
 
-# 17. Rent Request Pipeline (End-to-End)
+# 19. Rent Request Pipeline (End-to-End)
 
-## 17.1 The 6-Stage Pipeline
+## 19.1 The 6-Stage Pipeline
 
 ```
 Stage 1: TENANT OPS REVIEW
@@ -1408,9 +2006,9 @@ Stage 2: AGENT OPS REVIEW
   ↓ Agent Ops validates: agent assignment, GPS, field verification
   ↓ Quick Approve → status: 'agent_ops_approved'
 
-Stage 3: MANAGER REVIEW
-  ↓ Manager validates: financial viability, risk assessment
-  ↓ Quick Approve → status: 'manager_approved'
+Stage 3: LANDLORD OPS REVIEW
+  ↓ Landlord Ops validates: landlord details, property chain, budget matching
+  ↓ Quick Approve → status: 'landlord_ops_approved'
 
 Stage 4: COO REVIEW
   ↓ COO validates: operational capacity, strategic fit
@@ -1432,7 +2030,7 @@ Stage 6: AGENT DELIVERY
   ↓ Status → 'delivered'
 ```
 
-## 17.2 Rejection at Any Stage
+## 19.2 Rejection at Any Stage
 
 ```
 Reviewer rejects with mandatory reason
@@ -1442,7 +2040,7 @@ Status → 'rejected'
 Tenant Ops can review and potentially re-submit
 ```
 
-## 17.3 Review Interface Shows
+## 19.3 Review Interface Shows
 
 - Daily repayment amount calculation
 - Assigned agent contact info
@@ -1450,7 +2048,7 @@ Tenant Ops can review and potentially re-submit
 - LC1 chairperson details
 - Approval history timeline
 
-## 17.4 Repayment Accounting (Triple-Synchronized)
+## 19.4 Repayment Accounting (Triple-Synchronized)
 
 ```
 Repayment received (auto-deduction, debt clearance, or pre-payment)
@@ -1474,7 +2072,7 @@ Agent earns 10% commission split (via credit_agent_rent_commission RPC):
 If RPC fails → deductions reversed
 ```
 
-## 17.5 Fund Routing Fallback
+## 19.5 Fund Routing Fallback
 
 ```
 auto_route_rent_funds logic:
@@ -1484,19 +2082,20 @@ auto_route_rent_funds logic:
 3. Agent wallet (property verifier) → final fallback for cash-out
 ```
 
-## 17.6 Backend
+## 19.6 Backend
 
 - **`approve-rent-request`**: Multi-stage approval handler
 - **`delete-rent-request`**: Cancel/delete request
 - **`fund-tenant-from-pool`**: Deploy pool funds
 - **`fund-tenants`**: Batch funding
-- **`disburse-rent-to-landlord`**: Record disbursement
+- **`disburse-rent-to-landlord`**: Record landlord payout
+- **`fund-agent-landlord-float`**: CFO funds agent float
 
 ---
 
-# 18. Wallet System
+# 20. Wallet System
 
-## 18.1 Wallet Architecture
+## 20.1 Core Architecture
 
 ```
 Every user has a wallet record (wallets table)
@@ -1513,20 +2112,55 @@ GREATEST(balance - amount, 0) prevents underflow
 Float-related categories excluded from personal wallet sync
 ```
 
-## 18.2 Wallet UI (`src/components/wallet/`)
+## 20.2 Wallet UI (`src/components/wallet/`)
 
-### Wallet Statement (WalletStatement.tsx)
+### UI Design: Wallet Interface
+- **Wallet Card**: Glassmorphism card with animated balance counter
+- **Action Buttons**: Circular icon buttons (Deposit, Transfer, Withdraw, Pay)
+- **Statement**: Scrollable list with direction/category filters
+- **Full-Screen Sheet**: `FullScreenWalletSheet.tsx` — Full-screen wallet experience
+- **Floating Button**: `FloatingWalletButton.tsx` — Persistent wallet access FAB
+
+| Component | Purpose |
+|-----------|---------|
+| `WalletCard.tsx` | Main wallet display card |
+| `CollapsibleWalletCard.tsx` | Collapsible wallet card |
+| `AnimatedBalance.tsx` | Animated balance counter |
+| `FullScreenWalletSheet.tsx` | Full-screen wallet sheet |
+| `FloatingWalletButton.tsx` | Persistent wallet access FAB |
+| `WalletStatement.tsx` | Transaction statement with filters |
+| `WalletLedgerStatement.tsx` | Ledger-backed statement |
+| `WalletBreakdown.tsx` | Balance breakdown by category |
+| `WalletDisclaimer.tsx` | Wallet terms disclaimer |
+| `LedgerEntryDetailDrawer.tsx` | Ledger entry detail drawer |
+| `TransactionReceipt.tsx` | Transaction receipt |
+| `RecentBalanceChanges.tsx` | Recent balance changes |
+| `RecentAutoCharges.tsx` | Recent auto-charge deductions |
+
+### Financial Service Components
+| Component | Purpose |
+|-----------|---------|
+| `DepositDialog.tsx` | Deposit funds (MoMo/Bank/Agent Cash) |
+| `SendMoneyDialog.tsx` | Send money to another user |
+| `WithdrawRequestDialog.tsx` | Request withdrawal |
+| `WithdrawalStepTracker.tsx` | Withdrawal progress tracker |
+| `RequestMoneyDialog.tsx` | Request money from another user |
+| `PayLandlordDialog.tsx` | Pay landlord directly |
+| `BillPaymentDialog.tsx` | Bill payment |
+| `FoodMarketDialog.tsx` | Food market purchase |
+| `PendingRequestsDialog.tsx` | View pending requests |
+| `UserDepositRequests.tsx` | User's deposit history |
+| `UserWithdrawalRequests.tsx` | User's withdrawal history |
+| `AgentRentRequestsWalletSection.tsx` | Rent requests in wallet context |
+| `MyReferralsCount.tsx` | Referral count display |
+
+### Wallet Statement Features
 - **Direction Filters**: 💰 Money In / 📤 Money Out
 - **Category Chips**: Filter by transaction type with counts
 - **Plain English Explanations**: Every transaction has a human-readable description
   - e.g., "Your daily rent installment was automatically deducted from your wallet"
 - **Date Grouping**: Transactions grouped by day
 - **Clear Filter**: Reset all filters
-
-### Wallet Breakdown (WalletBreakdown.tsx)
-- Commission breakdown with contextual notes
-- "Agent X made a rent repayment. You earned 5% = Y because you registered this tenant"
-- Category totals and percentages
 
 ### Financial Services
 
@@ -1546,7 +2180,7 @@ Float-related categories excluded from personal wallet sync
 - Minimum balance requirement
 - Amount slider + quick-payout chips
 
-## 18.3 Specialized Wallets
+## 20.3 Specialized Wallets
 
 | Wallet Type | Purpose |
 |-------------|---------|
@@ -1554,7 +2188,7 @@ Float-related categories excluded from personal wallet sync
 | **Landlord Float** | Agent's escrow for landlord payments (separate from personal) |
 | **Rent Management Pool** | Collective supporter capital |
 
-## 18.4 Ledger Scope Isolation
+## 20.4 Ledger Scope Isolation
 
 | Scope | Visibility | Purpose |
 |-------|-----------|---------|
@@ -1562,7 +2196,7 @@ Float-related categories excluded from personal wallet sync
 | `platform` | Staff only | Internal operations |
 | `bridge` | Both | Capital inflows, disbursements |
 
-## 18.5 Financial Safety
+## 20.5 Financial Safety
 
 | Rule | Enforcement |
 |------|-------------|
@@ -1572,7 +2206,7 @@ Float-related categories excluded from personal wallet sync
 | Rollback on failure | Balances restored if subsequent operations fail |
 | Direct edits blocked | RLS denies client-side UPDATE on wallets |
 
-## 18.6 Backend Edge Functions
+## 20.6 Backend Edge Functions
 
 - **`wallet-transfer`**: Peer-to-peer transfer
 - **`agent-deposit`**: Agent deposit processing
@@ -1582,13 +2216,14 @@ Float-related categories excluded from personal wallet sync
 - **`reject-withdrawal`**: Rejection with reason
 - **`cfo-direct-credit`**: CFO manual credit
 - **`manual-collect-rent`**: Tenant Ops manual collection with mandatory reason
+- **`wallet-deduction`**: Financial Ops wallet deduction (mandatory reason, creates ledger + audit entries)
 - **`seed-test-funds`**: Test environment seeding
 
 ---
 
-# 19. Ledger & Accounting Engine
+# 21. Ledger & Accounting Engine
 
-## 19.1 Core Ledger Tables
+## 21.1 Core Ledger Tables
 
 | Table | Purpose |
 |-------|---------|
@@ -1598,7 +2233,7 @@ Float-related categories excluded from personal wallet sync
 | `transaction_approvals` | Multi-level approval records |
 | `general_ledger` | Central ledger for all financial events |
 
-## 19.2 Double-Entry Rules
+## 21.2 Double-Entry Rules
 
 - Every financial action creates matching debit AND credit entries
 - Entries are APPEND-ONLY (never edited or deleted)
@@ -1606,7 +2241,7 @@ Float-related categories excluded from personal wallet sync
 - All entries assigned `ledger_scope` via `auto_assign_ledger_scope` trigger
 - Revenue recognized only when service obligation fulfilled (no upfront recognition)
 
-## 19.3 Six Specialized Ledgers
+## 21.3 Six Specialized Ledgers
 
 ### 1. Suspense Ledger
 - Holds unmatched/unreconciled funds
@@ -1638,18 +2273,17 @@ Float-related categories excluded from personal wallet sync
 - Channel balance verification
 - MoMo/Bank statement reconciliation
 
-## 19.4 Financial Statements
+## 21.4 Financial Statements
 
-| Statement | Route | Purpose |
-|-----------|-------|---------|
-| Income Statement | `/financial-statement` | Revenue vs. expenses |
-| Cash Flow Statement | `/financial-statement` | Cash movement analysis |
-| Balance Sheet | `/financial-statement` | Assets, obligations, equity |
-| Facilitated Volume | `/financial-statement` | Rent volume metrics |
+| Statement | Route | Component | Purpose |
+|-----------|-------|-----------|---------|
+| Income Statement | `/financial-statement` | `IncomeStatementView.tsx` | Revenue vs. expenses |
+| Cash Flow Statement | `/financial-statement` | `CashFlowView.tsx` | Cash movement analysis |
+| Balance Sheet | `/financial-statement` | `BalanceSheetView.tsx` | Assets, obligations, equity |
+| Facilitated Volume | `/financial-statement` | `FacilitatedVolumeView.tsx` | Rent volume metrics |
+| Revenue Chart | — | `RevenueChart.tsx` | Revenue visualization |
 
-UI Components: `IncomeStatementView.tsx`, `CashFlowView.tsx`, `BalanceSheetView.tsx`, `FacilitatedVolumeView.tsx`
-
-## 19.5 Transaction Categories
+## 21.5 Transaction Categories
 
 ### Cash In
 | Category | Description |
@@ -1679,41 +2313,40 @@ UI Components: `IncomeStatementView.tsx`, `CashFlowView.tsx`, `BalanceSheetView.
 | `coo_proxy_investment` | COO proxy investment for partner |
 | `pool_rent_deployment` | Pool deployment to tenant |
 | `wallet_transfer` | Peer-to-peer transfer |
-| `marketing_expense` | **Agent commissions & bonuses as platform marketing cost** (auto-routed to `platform` scope by `set_ledger_scope` trigger) |
-| `withdrawal_pending` | Wallet pre-deduction at withdrawal request time (funds held until approval/rejection) |
-| `withdrawal_reversal` | Refund of pre-deducted funds on withdrawal rejection (idempotent via deterministic `transaction_group_id`: `wallet-reject-{id}` or `float-reject-{id}`) |
+| `marketing_expense` | Agent commissions & bonuses as platform marketing cost |
+| `withdrawal_pending` | Wallet pre-deduction at withdrawal request time |
+| `withdrawal_reversal` | Refund of pre-deducted funds on withdrawal rejection |
 
-## 19.6 Key Database Triggers
+## 21.6 Key Database Triggers
 
 | Trigger | Purpose |
 |---------|---------|
 | `sync_wallet_from_ledger` | Auto-sync wallet balance from ledger entries (only when `transaction_group_id` is set) |
-| `auto_assign_ledger_scope` / `set_ledger_scope()` | Classify entries as wallet/platform/bridge. **Routes `marketing_expense` category → `platform` scope automatically.** Also routes float categories (`rent_float_funding`, `landlord_float_payout`, `agent_advance_*`) to `bridge` scope to prevent float from inflating personal wallets |
+| `auto_assign_ledger_scope` / `set_ledger_scope()` | Classify entries as wallet/platform/bridge. Routes `marketing_expense` → `platform` scope automatically. Routes float categories to `bridge` scope |
 | `trg_enforce_property_chain` | Blocks incomplete property chains |
 | `trg_auto_assign_landlord_on_rent_request` | Auto-assigns landlord |
 
-### `set_ledger_scope()` Routing Logic (BEFORE INSERT trigger on general_ledger)
+### `set_ledger_scope()` Routing Logic
 
 ```sql
--- Automatic scope assignment based on category:
 IF category IN ('rent_float_funding','landlord_float_payout','agent_advance_*') THEN
   scope = 'bridge'
 ELSIF category = 'marketing_expense' THEN
   scope = 'platform'
 ELSIF ledger_scope IS NULL THEN
-  scope = 'wallet'  -- default for user-facing transactions
+  scope = 'wallet'  -- default
 END IF;
 ```
 
-## 19.7 Key RPCs
+## 21.7 Key RPCs
 
 | Function | Purpose |
 |----------|---------|
 | `record_rent_request_repayment()` | Atomic repayment: updates rent_requests.amount_repaid, landlords receivables, creates general_ledger entry. Accepts optional `transaction_group_id`. |
-| `credit_agent_rent_commission()` | Credits **10% commission** split across Source (2%), Manager (8% or 6%), and Recruiter (2% override). Creates **paired double-entry** per agent role: platform debit (`cash_out`/`marketing_expense`/`platform` scope) + agent credit (`cash_in`/`agent_commission`/`wallet` scope). Also inserts into `agent_earnings` and `commission_accrual_ledger`. Idempotent via `rent_request_id` + `repayment_amount` check. |
-| `credit_agent_event_bonus()` | Credits flat-fee event bonuses (UGX 5,000–20,000) with same double-entry marketing expense pattern. Parameters: `p_agent_id`, `p_bonus_type` (e.g., `listing`, `verification`, `registration`, `replacement`), `p_amount`, `p_source_table`, `p_source_id`, `p_description`. |
+| `credit_agent_rent_commission()` | Credits 10% commission split with paired double-entry per agent role. Idempotent via `rent_request_id` + `repayment_amount` check. |
+| `credit_agent_event_bonus()` | Credits flat-fee event bonuses with double-entry marketing expense pattern. |
 
-## 19.8 Ledger Account Hierarchy
+## 21.8 Ledger Account Hierarchy
 
 | Group | Purpose | Allow Negative? |
 |-------|---------|----------------|
@@ -1726,9 +2359,9 @@ END IF;
 
 ---
 
-# 20. Property & Housing
+# 22. Property & Housing
 
-## 20.1 Welile Homes (Daily Rent Marketplace)
+## 22.1 Welile Homes (Daily Rent Marketplace)
 
 ### Listing Flow
 ```
@@ -1736,7 +2369,7 @@ Agent in field
     ↓
 Registers property:
   - GPS coordinates (mandatory)
-  - Photos
+  - Photos (HouseImageUploader)
   - Monthly rent amount
   - Landlord details
   - LC1 Chairperson details (must match village)
@@ -1765,7 +2398,7 @@ Agent → Landlord → Property → Tenant
 Missing any link → blocked by trg_enforce_property_chain
 ```
 
-## 20.2 UI Pages
+## 22.2 UI Pages
 
 | Route | Purpose |
 |-------|---------|
@@ -1776,26 +2409,27 @@ Missing any link → blocked by trg_enforce_property_chain
 | `/share-location` | GPS sharing for verification |
 | `/landlord-welile-homes` | Landlord property view |
 
-## 20.3 UI Components
+## 22.3 UI Components
 
-- `src/components/house/` — Property cards, detail views
+- `src/components/house/` — Property cards, detail views, image gallery
 - `src/components/welile-homes/` — Welile Homes specific components
-- `src/components/map/` — Map integration (Leaflet)
+- `src/components/map/` — Map integration (Leaflet + MarkerCluster)
 - `src/components/viewing/ViewingCheckinCard.tsx` — GPS check-in for viewings
 - `src/components/verification/VerifyLandlordButton.tsx` — Landlord verification
 - `src/components/verification/VerifyTenantButton.tsx` — Tenant verification
 
-## 20.4 Backend
+## 22.4 Backend
 
 - **`vacancy-alerts`**: Notify agents of vacancies
 - **`verify-viewing-checkin`**: GPS check-in verification
 - **`viewing-confirmation-sms`**: SMS after property viewing
+- **`og-house`**: Open Graph meta for property sharing
 
 ---
 
-# 21. Marketplace & E-Commerce
+# 23. Marketplace & E-Commerce
 
-## 21.1 UI Pages
+## 23.1 UI Pages
 
 | Route | Purpose |
 |-------|---------|
@@ -1807,7 +2441,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | `/order-history` | Past orders |
 | `/seller/:id` | Seller profile |
 
-## 21.2 Components
+## 23.2 Components
 
 - `MarketplaceSection.tsx` — Main marketplace layout
 - `ProductCard.tsx` — Product display
@@ -1818,28 +2452,28 @@ Missing any link → blocked by trg_enforce_property_chain
 - `AddProductDialog.tsx` / `EditProductDialog.tsx` — Product management
 - `AgentProductsSection.tsx` — Agent's product listings
 
-## 21.3 Backend
+## 23.3 Backend
 
 - **`product-purchase`**: Process marketplace purchase
 - **`vendor-mark-receipt`**: Mark vendor receipt
 
 ---
 
-# 22. Chat & Messaging
+# 24. Chat & Messaging
 
-## 22.1 UI Pages
+## 24.1 UI Pages
 
 | Route | Purpose |
 |-------|---------|
 | `/chat` | Chat interface |
 | `/chat-invite` | Chat invitation links |
 
-## 22.2 Components
+## 24.2 Components
 
 - `ChatDrawer.tsx` — Main chat interface
 - `ChatWindow.tsx` — Message thread
 - `ChatList.tsx` — Conversation list
-- `ChatButton.tsx` / `FloatingChatButton.tsx` — Chat access
+- `ChatButton.tsx` / `FloatingChatButton.tsx` — Chat access buttons
 - `NewChatSearch.tsx` — Start new conversation
 - `MessageReactions.tsx` — Emoji reactions
 - `TypingIndicator.tsx` — Typing status
@@ -1849,15 +2483,22 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 23. AI Assistant
+# 25. AI Assistant
 
-## 23.1 Components
+## 25.1 Components
 
 - `WelileAIChatButton.tsx` — AI chat trigger
 - `WelileAIChatDrawer.tsx` — AI chat interface
 - `EarningPredictionCard.tsx` — AI earning predictions
 
-## 23.2 Backend
+## 25.2 AI-Powered Features (Manager Dashboard)
+
+- `AIBrainDashboard.tsx` — AI-powered insights dashboard
+- `AIRecommendationCard.tsx` — AI action recommendations
+- `AISessionHistory.tsx` — AI interaction history
+- `AIUserExperienceReport.tsx` — AI-generated UX report
+
+## 25.3 Backend
 
 - **`welile-ai-chat`**: AI-powered assistant using Lovable AI models
 - Conversation history stored in `ai_chat_messages` table
@@ -1865,44 +2506,49 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 24. Receipts & QR Scanning
+# 26. Receipts & QR Scanning
 
-## 24.1 UI Pages
+## 26.1 UI Pages
 
 | Route | Purpose |
 |-------|---------|
 | `/my-receipts` | Receipt history |
 
-## 24.2 Components
+## 26.2 Components
 
 - `QuickReceiptForm.tsx` — Quick receipt entry
 - `QRScanner.tsx` — QR code scanning (html5-qrcode)
 - `ReceiptStatusTimeline.tsx` — Receipt processing status
 - `DashboardReceiptPrompt.tsx` — Dashboard receipt prompt
 
-## 24.3 Backend
+## 26.3 Backend
 
 - **`scan-receipt`**: OCR receipt scanning via AI
 
 ---
 
-# 25. Loans & Credit System
+# 27. Loans & Credit System
 
-## 25.1 UI Pages
+## 27.1 UI Pages
 
 | Route | Purpose |
 |-------|---------|
 | `/my-loans` | Loan status and management |
 
-## 25.2 Components
+## 27.2 Components
 
-- `LoanProductsSection.tsx` — Available loan products
-- `LoanProductCard.tsx` — Individual loan display
-- `CreditAccessCard.tsx` / `CreditAccessDrawSheet.tsx` — Credit limit display
-- `CreditRequestSheet.tsx` — Credit request submission
-- `LoanProgressWidget.tsx` — Progress tracking
+| Component | Purpose |
+|-----------|---------|
+| `LoanProductsSection.tsx` | Available loan products |
+| `LoanProductCard.tsx` | Individual loan display |
+| `AgentLoanProducts.tsx` | Agent-specific loan products |
+| `CreateLoanProductDialog.tsx` | Create new loan product (admin) |
+| `FoodShoppingLoansSection.tsx` | Food/shopping micro-loans |
+| `CreditAccessCard.tsx` / `CreditAccessDrawSheet.tsx` | Credit limit display |
+| `CreditRequestSheet.tsx` | Credit request submission |
+| `LoanProgressWidget.tsx` | Progress tracking |
 
-## 25.3 Backend
+## 27.3 Backend
 
 - **`approve-loan-application`**: Loan approval processing
 - **`process-credit-daily-charges`**: Daily credit charges
@@ -1911,9 +2557,9 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 26. Referral & Gamification
+# 28. Referral & Gamification
 
-## 26.1 Components
+## 28.1 Components
 
 - `ReferralLeaderboard.tsx` — Top referrers ranking
 - `ReferralStatsCard.tsx` — Personal referral stats
@@ -1923,7 +2569,7 @@ Missing any link → blocked by trg_enforce_property_chain
 - `PaymentStreakCalendar.tsx` — Payment streak visualization
 - `Confetti.tsx` — Celebration animation
 
-## 26.2 Gamification Features
+## 28.2 Gamification Features
 
 - **Collection Streaks**: Consecutive collection days → multiplier (up to 1.20x)
 - **Badges**: Performance-based badges stored in `agent_collection_streaks.badges`
@@ -1932,9 +2578,9 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 27. Notifications & Realtime
+# 29. Notifications & Realtime
 
-## 27.1 Realtime Channels (Supabase Realtime)
+## 29.1 Realtime Channels (Supabase Realtime)
 
 **Enabled for (trimmed to 3 tables for scale):**
 - `messages` — Chat messages
@@ -1942,12 +2588,9 @@ Missing any link → blocked by trg_enforce_property_chain
 - `force_refresh_signals` — Cache invalidation
 
 **Disabled for (security + performance):**
-- Wallet balances (direct)
-- Financial transactions
-- Profiles, notifications, deposit_requests, and 14 other tables removed from publication for ~80% broadcast overhead reduction
-- Critical state
+- Wallet balances (direct), Financial transactions, Profiles, notifications, deposit_requests, and 14 other tables removed for ~80% broadcast overhead reduction
 
-## 27.2 Notification Types
+## 29.2 Notification Types
 
 - Rent payment reminders
 - Approval status updates
@@ -1958,7 +2601,7 @@ Missing any link → blocked by trg_enforce_property_chain
 - Viewing confirmations
 - Vacancy alerts
 
-## 27.3 Communication Channels
+## 29.3 Communication Channels
 
 | Channel | Edge Function |
 |---------|--------------|
@@ -1967,7 +2610,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | WhatsApp | `whatsapp-login-link` |
 | Email | `send-supporter-agreement-email`, `auth-email-hook` |
 
-## 27.4 UI Components
+## 29.4 UI Components
 
 - `NotificationBell.tsx` / `NotificationsModal.tsx` — In-app notifications
 - `SupporterNotificationsFeed.tsx` — Supporter-specific feed
@@ -1977,9 +2620,9 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 28. Settings & Profile
+# 30. Settings & Profile
 
-## 28.1 UI Pages
+## 30.1 UI Pages
 
 | Route | Purpose |
 |-------|---------|
@@ -1987,27 +2630,25 @@ Missing any link → blocked by trg_enforce_property_chain
 | `/privacy` | Privacy policy |
 | `/terms` | Terms of service |
 
-## 28.2 Settings Components
+## 30.2 Components
 
-- `BiometricSecuritySection.tsx` — Biometric authentication settings
-- `PinSecuritySection.tsx` — PIN code management
-- `DiagnosticsSection.tsx` — App diagnostics & troubleshooting
-- `LegalSection.tsx` — Legal documents links
-- Home Screen preference (Default Dashboard selector)
-- "Open All Dashboards" toggle (for qualified investors)
+### Profile Management
+- `src/components/profile/` — Profile editing, avatar upload
+- `UserAvatar.tsx` — Avatar display
 
-## 28.3 Theme & Accessibility
-
+### Settings
+- `src/components/settings/` — Settings panels
 - `ThemeToggle.tsx` / `AnimatedThemeToggle.tsx` — Dark/light mode
 - `HighContrastToggle.tsx` — Accessibility contrast
 - `LanguageSwitcher.tsx` / `LocaleSwitcher.tsx` — Language selection
 - `CurrencyConverter.tsx` / `CurrencySwitcher.tsx` — Currency preferences
+- `GlobalSettingsToolbar.tsx` — Floating settings toolbar
 
 ---
 
-# 29. Vendor Portal
+# 31. Vendor Portal
 
-## 29.1 Route: `/vendor-portal`
+## 31.1 Route: `/vendor-portal`
 
 - **`vendor-login`**: Vendor authentication
 - **`vendor-mark-receipt`**: Mark receipt as processed
@@ -2015,17 +2656,20 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 30. PWA & Offline
+# 32. PWA & Offline
 
-## 30.1 Progressive Web App
+## 32.1 Progressive Web App
 
 - Service Worker via `vite-plugin-pwa`
+- App name: **Welile.com** on all devices
 - Install prompts: `PWAInstallPrompt.tsx`, `AdaptiveInstallGuide.tsx`, `IOSInstallGuide.tsx`
 - iOS optimizations: `IOSOptimizations.tsx`, `IOSLinkHandler.tsx`, `IOSShareReceiver.tsx`
 - Pull to refresh: `PullToRefresh.tsx`
 - Location permission gate: `LocationPermissionGate.tsx`
+- Manifests: `manifest.webmanifest`, `manifest.json`, `manager-manifest.json` — all name/short_name set to "Welile.com"
+- iOS meta: `apple-mobile-web-app-title` dynamically set via `useManagerPWAInstall.ts`
 
-## 30.2 Offline Strategy
+## 32.2 Offline Strategy
 
 | Data Type | Strategy | Cached Locally? |
 |-----------|----------|----------------|
@@ -2035,17 +2679,77 @@ Missing any link → blocked by trg_enforce_property_chain
 
 **Offline Queue**: Non-financial actions stored locally → background sync → server validation → UI update
 
-## 30.3 Error Handling
+## 32.3 Error Handling
 
 - `ChunkErrorBoundary.tsx` — Lazy-load error recovery
 - `ConnectionStatus.tsx` — Network state monitoring
 - `OfflineBanner.tsx` — Offline notification
+- `ScrollToTopButton.tsx` — Scroll-to-top FAB
 
 ---
 
-# 31. Edge Functions (Backend Logic)
+# 33. Angel Pool Investment System
 
-## 31.1 Complete Function Registry
+## 33.1 Route: `/angel-pool`
+
+### UI Design: Angel Pool
+- **Layout**: Investment-focused with hero card
+- **Hero**: `AngelHeroCard.tsx` — Pool stats with progress bar
+- **Calculator**: ROI/share calculator
+- **Activity Feed**: Investment history
+
+## 33.2 Components
+
+| Component | Purpose |
+|-----------|---------|
+| `AngelPoolDashboard.tsx` | Main Angel Pool view |
+| `AngelHeroCard.tsx` | Pool overview hero card |
+| `AngelCalculator.tsx` | Share/ROI calculator |
+| `AngelActivityFeed.tsx` | Investment activity feed |
+| `AngelInvestorCard.tsx` | Individual investor card |
+| `CapitalOpportunityEntry.tsx` | Investment entry point |
+| `InvestmentSelectionSheet.tsx` | Investment amount selection |
+| `AngelPoolManagementPanel.tsx` | CEO/CFO management panel |
+| Agreement components | `src/components/angel-pool/agreement/` |
+
+## 33.3 Pool Configuration (Stored in `angel_pool_config`)
+
+| Parameter | Default |
+|-----------|---------|
+| Total shares | 25,000 |
+| Price per share | UGX 20,000 |
+| Pool equity | 8% |
+| Total pool target | UGX 500M |
+
+## 33.4 Investment Flow
+
+```
+Investor selects share count
+    ↓
+angel-pool-invest Edge Function:
+  1. Validates wallet balance
+  2. Checks remaining capacity (max 25,000 total shares)
+  3. Records shares in angel_pool_investments
+  4. Creates cash_out ledger entry
+    ↓
+Ownership calculation:
+  - Pool % = (shares / 25,000) * 100
+  - Company % = (shares / 25,000) * 8
+```
+
+## 33.5 Management (CEO Exclusive)
+
+- Modify pool configuration (total shares, price, equity %)
+- Manage shareholders (delete, suspend, edit shares)
+- Audit-logged dialogs requiring mandatory 10-character reason
+- Real-time KPI metrics and shareholder distribution charts
+- Sortable/exportable shareholder list
+
+---
+
+# 34. Edge Functions (Backend Logic)
+
+## 34.1 Complete Function Registry
 
 ### Authentication & Identity
 | Function | Purpose |
@@ -2057,6 +2761,9 @@ Missing any link → blocked by trg_enforce_property_chain
 | `admin-reset-password` | Staff password reset |
 | `password-reset-sms` | SMS password recovery |
 | `vendor-login` | Vendor portal authentication |
+| `provision-staff-passwords` | Bulk staff password provisioning |
+| `bulk-password-reset` | Mass password reset |
+| `diagnose-auth` | Auth diagnostics utility |
 
 ### User Management
 | Function | Purpose |
@@ -2076,9 +2783,10 @@ Missing any link → blocked by trg_enforce_property_chain
 | `approve-deposit` | Approve pending deposit (with auto rent repayment) |
 | `approve-wallet-operation` | Generic wallet operation approval (with auto rent repayment) |
 | `reject-withdrawal` | Reject withdrawal with reason |
-| `wallet-transfer` | Peer-to-peer transfer |
+| `wallet-transfer` | Peer-to-peer transfer (ledger-only, no direct wallet updates) |
 | `cfo-direct-credit` | CFO manual credit |
 | `manual-collect-rent` | Tenant Ops manual collection (mandatory reason) |
+| `wallet-deduction` | Financial Ops wallet deduction (mandatory reason) |
 
 ### Financial - Rent Operations
 | Function | Purpose |
@@ -2093,6 +2801,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | `auto-charge-wallets` | Daily rent auto-deductions (06:00 UTC cron) |
 | `check-repayment-status` | Repayment validation |
 | `retry-no-smartphone-charges` | Retry failed charges for non-smartphone users |
+| `tenant-pay-rent` | Direct tenant wallet-to-rent payment |
 
 ### Financial - Investments
 | Function | Purpose |
@@ -2108,6 +2817,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | `create-supporter-invite` | Generate invite |
 | `register-proxy-funder` | Register funder via proxy |
 | `supporter-account-action` | Account management |
+| `angel-pool-invest` | Angel Pool share investment |
 
 ### Financial - Rewards & Processing
 | Function | Purpose |
@@ -2116,9 +2826,9 @@ Missing any link → blocked by trg_enforce_property_chain
 | `process-supporter-roi` | ROI calculation |
 | `process-investment-interest` | Interest processing |
 | `approve-listing-bonus` | Listing bonus approval |
-| `credit-listing-bonus` | Award listing bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'listing'`, `p_amount = 5000`) |
-| `credit-landlord-registration-bonus` | Landlord reg bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'registration'`, `p_amount = 5000`) |
-| `credit-landlord-verification-bonus` | Verification bonus (calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'verification'`, `p_amount = 5000`) |
+| `credit-listing-bonus` | Award listing bonus |
+| `credit-landlord-registration-bonus` | Landlord reg bonus |
+| `credit-landlord-verification-bonus` | Verification bonus |
 
 ### Financial - Platform Operations
 | Function | Purpose |
@@ -2131,13 +2841,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | `batch-recalculate-credit-limits` | Recalculate limits |
 | `refresh-daily-stats` | Snapshot refresh |
 | `seed-test-funds` | Test data |
-| `wallet-deduction` | Financial Ops wallet deduction (mandatory reason, creates ledger + audit entries, deducts from user wallet) |
-| `tenant-pay-rent` | Tenant direct rent payment from wallet (validates balance → ledger cash_out → `record_rent_request_repayment` RPC → `credit_agent_rent_commission` RPC → fire-and-forget `notify-managers`) |
-| `angel-pool-invest` | Angel Pool share investment (validates balance + capacity, max 25,000 shares × UGX 20,000/share, 8% pool equity allocation; records shares in `angel_pool_investments`, creates `cash_out` ledger entry) |
-| `notify-managers` | Fire-and-forget manager notification hub (queries `user_roles` for enabled `manager` role + optional `additionalRoles`, deduplicates user IDs, calls `send-push-notification` with payload `{title, body, url, type}`) |
-| `provision-staff-passwords` | Bulk staff password provisioning |
-| `bulk-password-reset` | Mass password reset across multiple users |
-| `diagnose-auth` | Auth diagnostics and troubleshooting utility |
+| `notify-managers` | Fire-and-forget manager notification hub |
 
 ### Communications
 | Function | Purpose |
@@ -2166,12 +2870,13 @@ Missing any link → blocked by trg_enforce_property_chain
 | `vendor-mark-receipt` | Vendor receipt marking |
 | `approve-loan-application` | Loan approval |
 | `verify-viewing-checkin` | GPS check-in |
+| `og-house` | Open Graph meta for property sharing |
 
 ---
 
-# 32. Security & RLS
+# 35. Security & RLS
 
-## 32.1 Row-Level Security
+## 35.1 Row-Level Security
 
 - **All tables** have RLS enabled
 - Users can only read/write their own data
@@ -2179,7 +2884,7 @@ Missing any link → blocked by trg_enforce_property_chain
 - Service-role access for Edge Functions on critical operations
 - `search_path = public` on critical functions to prevent hijacking
 
-## 32.2 Financial Security
+## 35.2 Financial Security
 
 | Rule | Enforcement |
 |------|-------------|
@@ -2190,7 +2895,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | Non-negative balances | CHECK constraint + trigger + app-level check |
 | Rollback on failure | Balances restored if subsequent operations fail |
 
-## 32.3 Access Isolation
+## 35.3 Access Isolation
 
 | Role | Can See | Cannot See |
 |------|---------|------------|
@@ -2200,7 +2905,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | Manager | Flows, queues, risk, solvency | Editable balances |
 | Executive | Role-specific dashboards | Cross-role data (enforced by RoleGuard) |
 
-## 32.4 Administrative Permissions
+## 35.4 Administrative Permissions
 
 | Action | Allowed Roles |
 |--------|---------------|
@@ -2211,8 +2916,9 @@ Missing any link → blocked by trg_enforce_property_chain
 | Portfolio admin actions | coo, manager |
 | Manual rent collection | operations (tenant_ops) |
 | Wallet-to-portfolio transfer | coo, manager, super_admin |
+| Angel Pool config | ceo |
 
-## 32.5 Audit Trail
+## 35.5 Audit Trail
 
 - All admin actions logged to `audit_logs`
 - Mandatory 10-character audit reason
@@ -2222,9 +2928,9 @@ Missing any link → blocked by trg_enforce_property_chain
 
 ---
 
-# 33. Database Schema Overview
+# 36. Database Schema Overview
 
-## 33.1 Core Tables
+## 36.1 Core Tables
 
 ### User & Identity
 | Table | Purpose |
@@ -2256,6 +2962,8 @@ Missing any link → blocked by trg_enforce_property_chain
 | `supporter_invites` | Invitation lifecycle & activation tokens |
 | `investment_withdrawal_requests` | Capital exit with 90-day cooldown |
 | `partner_escalations` | System-generated partner alerts |
+| `angel_pool_config` | Angel Pool configuration |
+| `angel_pool_investments` | Angel Pool share records |
 
 ### Rent System
 | Table | Purpose |
@@ -2291,12 +2999,13 @@ Missing any link → blocked by trg_enforce_property_chain
 | `agent_advance_ledger` | Advance repayment tracking |
 | `agent_advance_topups` | Advance topups |
 | `agent_subagents` | Sub-agent relationships |
+| `service_centre_setups` | Service Centre submissions |
 
 ### Platform Operations
 | Table | Purpose |
 |-------|---------|
 | `audit_logs` | Immutable audit trail |
-| `daily_platform_stats` | Cached daily snapshots (roles breakdown, transaction volume) |
+| `daily_platform_stats` | Cached daily snapshots |
 | `notifications` | User notifications |
 | `ai_chat_messages` | AI assistant history |
 | `referrals` | Referral tracking |
@@ -2305,7 +3014,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | `cfo_threshold_alerts` | CFO risk alerts |
 | `commission_accrual_ledger` | Commission lifecycle tracking |
 
-## 33.2 Key Views
+## 36.2 Key Views
 
 | View | Purpose |
 |------|---------|
@@ -2313,7 +3022,7 @@ Missing any link → blocked by trg_enforce_property_chain
 | `referral_leaderboard` | Referral rankings |
 | `user_financial_summaries` | Financial overview per user |
 
-## 33.3 Key RPCs (Database Functions)
+## 36.3 Key RPCs (Database Functions)
 
 | Function | Purpose |
 |----------|---------|
@@ -2322,16 +3031,17 @@ Missing any link → blocked by trg_enforce_property_chain
 | `get_paginated_transactions()` | Paginated transaction search |
 | `get_reconciliation_summary()` | Daily reconciliation |
 | `get_chain_health_summary()` | Property chain health |
-| `record_rent_request_repayment()` | Atomic repayment recording (updates rent_requests + landlords + ledger) |
-| `credit_agent_rent_commission()` | 5% agent commission (wallet + ledger + earnings) |
+| `record_rent_request_repayment()` | Atomic repayment recording |
+| `credit_agent_rent_commission()` | 10% agent commission (wallet + ledger + earnings) |
+| `credit_agent_event_bonus()` | Event bonus with double-entry |
 | `auto_route_rent_funds()` | Fund routing fallback |
-| `detect_velocity_abuse(window_min, threshold)` | Server-side velocity abuse detection (replaces client-side grouping) |
+| `detect_velocity_abuse(window_min, threshold)` | Server-side velocity abuse detection |
 
 ---
 
-# 34. Known Issues & Technical Debt (v3.0 → v3.2)
+# 37. Known Issues & Technical Debt
 
-## 34.1 Double-Credit Bug (CRITICAL — Identified 2026-03-26, **RESOLVED v3.2**)
+## 37.1 Double-Credit Bug (CRITICAL — Identified 2026-03-26, **RESOLVED v3.2**)
 
 **Three overlapping wallet update paths caused duplicate credits. Fixed via Single-Writer Principle.**
 
@@ -2345,25 +3055,20 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 #### Fix 1: `wallet-transfer` Edge Function → Ledger-Only
 - **Before**: Manual `.update()` on both wallets + ledger inserts WITHOUT `transaction_group_id`
 - **After**: Two `general_ledger` entries with shared `transaction_group_id` → `sync_wallet_from_ledger` trigger handles both wallet balance changes atomically
-- Removed `wallet_transactions` insert (redundant with ledger)
-- Pre-check balance before insert; post-check for safety
 
 #### Fix 2: `credit_agent_rent_commission` RPC → Sole Commission Writer
-- **Before**: RPC did direct `INSERT INTO wallets ON CONFLICT UPDATE` + ledger (no txn_group_id). Callers (`approve-deposit`) also independently credited wallet and inserted ledger entries → 2-4× overpayment
-- **After**:
-  - Removed direct wallet writes from RPC; uses `transaction_group_id` on ledger insert so trigger handles wallet credit
-  - Added **idempotency guard**: `NOT EXISTS` check on `general_ledger` where `category = 'agent_commission' AND source_id AND user_id` prevents duplicate credits
-  - `approve-deposit` stripped of all inline commission logic (earnings insert, wallet update, ledger insert, notification); now delegates entirely to `credit_agent_rent_commission` RPC
+- **Before**: RPC did direct `INSERT INTO wallets ON CONFLICT UPDATE` + ledger (no txn_group_id). Callers also independently credited wallet → 2-4× overpayment
+- **After**: Uses `transaction_group_id` on ledger insert so trigger handles wallet credit. Added idempotency guard.
 
 #### Fix 3: `record_rent_request_repayment` RPC → Optional `transaction_group_id`
-- **Before**: RPC inserted `cash_in` ledger without `transaction_group_id`. Callers also inserted their own `cash_out` ledger with `transaction_group_id` → duplicate ledger records
-- **After**: RPC accepts optional `p_transaction_group_id` parameter. If provided, the trigger handles wallet deduction atomically. Backward-compatible (defaults to NULL).
+- **Before**: RPC inserted ledger without `transaction_group_id`. Callers also inserted their own entries → duplicates
+- **After**: Accepts optional `p_transaction_group_id` parameter. Backward-compatible.
 
 ### Enforced Rules (Post-Fix)
-1. Wallet balance changes happen **only** via `sync_wallet_from_ledger` trigger (using `transaction_group_id`) OR via a single manual `.update()` — **never both**
-2. RPCs own their domain: `credit_agent_rent_commission` is the **sole** commission writer; `record_rent_request_repayment` is the **sole** repayment writer
+1. Wallet balance changes happen **only** via `sync_wallet_from_ledger` trigger OR via a single manual `.update()` — **never both**
+2. RPCs own their domain: `credit_agent_rent_commission` is the sole commission writer; `record_rent_request_repayment` is the sole repayment writer
 3. Edge functions must **not** duplicate what an RPC they call already does
-4. `auto-charge-wallets` uses manual `.update()` without `transaction_group_id` (single-writer for tenant deductions) — confirmed no duplicate ledger entries
+4. `auto-charge-wallets` uses manual `.update()` without `transaction_group_id` (single-writer for tenant deductions)
 
 ---
 
@@ -2414,14 +3119,15 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 
 ### Layout & Navigation
 - `ExecutiveDashboardLayout` — Unified sidebar for executive dashboards
-- `MobileBottomNav` — Bottom navigation bar
-- `CollapsibleQuickNav` / `QuickNavGrid` — Quick navigation
+- `MobileBottomNav` — Bottom navigation bar (5 icons)
+- `CollapsibleQuickNav` / `QuickNavGrid` — Quick navigation grid
 - `AppBreadcrumb` — Breadcrumb navigation
 - `PageTransition` — Route transitions (framer-motion)
 - `NavLink` — Active-aware navigation links
 
 ### Shared Components
 - `MetricCard` — Standardized metric display
+- `KPICard` — Executive KPI card
 - `AnimatedCard` / `AnimatedList` — Motion-enhanced components
 - `StatusIndicator` — Status dots/badges
 - `SwipeableRow` — Swipeable list items
@@ -2431,9 +3137,20 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 - `SignupPauseBanner` — Signup pause notification
 - `DeferredExtras` — Lazy-loaded non-critical components
 - `DashboardGuide` — Contextual dashboard help
+- `FloatingActionButton` — Quick actions FAB
+- `FloatingToolbar` — Contextual toolbar
+- `FloatingShareButton` — Share button FAB
+- `ShareAppButton` — App share button
+- `ScrollToTopButton` — Scroll-to-top FAB
+- `PullToRefresh` — Pull-to-refresh behavior
+- `TransactionForm` / `TransactionList` — Transaction entry/display
+- `FoodReceiptPromoCard` — Food receipt promo
+- `LoanLimitPromoCard` — Loan limit promo
+- `CurrencyConverter` / `CurrencySwitcher` — Currency tools
+- `MobileQuickMenu` — Quick menu for mobile
 
 ### Skeleton Loading
-- `src/components/skeletons/` — Loading state placeholders
+- `src/components/skeletons/` — Loading state placeholders for all card types
 
 ---
 
@@ -2450,39 +3167,70 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 
 ---
 
-# Appendix F: Changelog (v2.0 → v3.0 → v3.1 → v3.2 → v3.3)
+# Appendix F: UI Design System
 
-| Feature | Change |
-|---------|--------|
-| Tenant Ops Dashboard | NEW (v3.0) — Full Section 14 with card-based navigation, clickable KPIs, smartphone flagging, manual rent collection with mandatory reason, repayment trend charts, tenant detail deep-dive, rent request deletion |
-| Partner Ops Dashboard | NEW (v3.0) — Full Section 15 with card-based navigation, COOPartnersPage integration, auto-renewal, churn alerts |
-| Manual Rent Collection | Added mandatory reason (≥10 chars) for wallet debits by Tenant Ops |
-| COO Wallet-to-Portfolio | NEW (v3.0) — Direct transfer from partner wallet to active portfolio |
-| Funder Statement | NEW (v3.0) — `send-funder-statement` edge function for portfolio statements |
-| Proxy Funder Registration | NEW (v3.0) — `register-proxy-funder` edge function |
-| Pending Topups | NEW (v3.0) — `apply-pending-topups` for queued portfolio top-ups |
-| `coo-wallet-to-portfolio` | NEW (v3.0) — Edge function for COO wallet-to-portfolio transfers |
-| Double-Credit Bug | DOCUMENTED (v3.0) → **RESOLVED (v3.2)** — Single-Writer Principle enforced across all wallet mutation paths |
-| Transaction Categories | EXPANDED (v3.0) — Added wallet_deposit, agent_commission, referral_bonus, pending_portfolio_topup, coo_proxy_investment, pool_rent_deployment, wallet_transfer |
-| Auto-Repayment on Deposit | DOCUMENTED (v3.0) — Automatic rent repayment triggered on any wallet deposit |
-| Database Schema | EXPANDED (v3.0) — Added wallet_transactions, subscription_charges, repayments, role_access_requests, cashout_agents, cfo_threshold_alerts, commission_accrual_ledger |
-| RPCs | EXPANDED (v3.0) — Added credit_agent_rent_commission documentation |
-| Administrative Permissions | EXPANDED (v3.0) — Added manual rent collection and wallet-to-portfolio transfer permissions |
-| **Listing Rejection Flow** | NEW (v3.1) — Landlord Ops can reject house listings with mandatory reason; rejected listings appear on agent dashboard with red indicator and "Relist" button |
-| **Velocity Abuse Detection** | NEW (v3.1) — `detect_velocity_abuse` RPC replaces client-side deposit grouping in `batch-process-financials` (~95% network reduction) |
-| **Realtime Publication Trim** | OPTIMIZED (v3.1) — Reduced from 20 tables to 3 (messages, wallets, force_refresh_signals) for ~80% broadcast overhead reduction |
-| **Predictive Prefetch Removed** | REMOVED (v3.1) — Deleted `predictivePrefetch.ts` (duplicated `user-snapshot` logic, caused ~50% redundant edge function calls on login) |
-| **Batch Processing** | OPTIMIZED (v3.1) — `batch-process-financials` uses `Promise.allSettled` for parallel anomaly flagging |
-| **Double-Credit Fix** | RESOLVED (v3.2) — `wallet-transfer` → ledger-only writes with `transaction_group_id`; `credit_agent_rent_commission` → sole commission writer with idempotency guard; `record_rent_request_repayment` → accepts optional `transaction_group_id`; `approve-deposit` → stripped of all inline commission logic, delegates to RPCs |
-| **Agent Commission Model** | CORRECTED (v3.3) — Updated from 5% to **10% total commission** with proper split: Source 2%, Manager 8% (or 6% with recruiter), Recruiter Override 2%. Sub-agent signup bonus corrected from UGX 500 to **UGX 10,000** |
-| **Marketing Expense Categorization** | NEW (v3.3) — All agent commissions and bonuses are platform **marketing expenses**. Platform-side debit uses `cash_out`/`marketing_expense`/`platform` scope; agent-side credit uses `cash_in`/`agent_commission`/`wallet` scope. Both linked via `transaction_group_id` |
-| **`credit_agent_event_bonus` RPC** | NEW (v3.3) — Flat-fee bonus RPC with double-entry marketing expense pattern (UGX 5,000 for listings/verifications/applications, UGX 10,000 for sub-agent registration, UGX 20,000 for tenant replacement) |
-| **`set_ledger_scope` Trigger Update** | UPDATED (v3.3) — Now auto-routes `marketing_expense` category to `platform` scope |
-| **Transaction Categories** | EXPANDED (v3.3) — Added `marketing_expense`, `withdrawal_pending`, `withdrawal_reversal` to Cash Out categories |
-| **Missing Edge Functions** | DOCUMENTED (v3.3) — Added `tenant-pay-rent`, `wallet-deduction`, `angel-pool-invest`, `notify-managers`, `provision-staff-passwords`, `bulk-password-reset`, `diagnose-auth` to registry |
-| **Agent Commission Benefits Page** | NEW (v3.3) — `/agent-commission-benefits` UI page with plain-language commission explanation, WhatsApp sharing, money examples, and branding assets |
-| **Withdrawal Pipeline** | SIMPLIFIED (v3.3) — Single-step Financial Ops approval (pending → approved). Pre-deduction at request time (`withdrawal_pending`), idempotent rejection refund (`withdrawal_reversal` with deterministic `transaction_group_id`) |
+## Color Tokens (HSL)
+- `--primary`: Welile Purple (#7214c9)
+- `--primary-foreground`: White
+- `--background`: White (light) / Dark (dark mode)
+- `--foreground`: Dark text / Light text
+- `--muted`: Gray backgrounds
+- `--accent`: Accent highlights
+- `--destructive`: Red for errors/deletes
+
+## Typography
+- Display: Bold headings with `text-lg` to `text-2xl`
+- Body: `text-sm` for mobile, `text-base` for desktop
+
+## Component Patterns
+- **Card-based Navigation**: Quick Nav Grid (2-col mobile, 4-col desktop)
+- **Touch Targets**: Minimum 44px for all interactive elements
+- **Active State**: `active:scale-95` with `touch-manipulation` for haptic feel
+- **Badge Counts**: Real-time counts on navigation cards
+- **Committed State**: White check icon on colored background
+- **Glassmorphism**: Used for hero cards (supporter dashboard)
+- **Collapsible Sections**: Expandable sections for content-heavy pages
+- **Bottom Sheets**: Used for detail views on mobile (vaul)
+- **Skeleton Loading**: Placeholder loading states for all cards
+
+## Responsive Breakpoints
+- **Mobile (<768px)**: Single-column, 2-col nav grids, bottom nav
+- **Tablet (768-1024px)**: 3-col grids, sidebar navigation
+- **Desktop (>1024px)**: 4-col grids, full sidebar, wider content
 
 ---
 
-*End of Document — Version 3.3*
+# Appendix G: Changelog (v2.0 → v4.0)
+
+| Feature | Version | Change |
+|---------|---------|--------|
+| Tenant Ops Dashboard | v3.0 | NEW — Full Section 14 with card-based navigation |
+| Partner Ops Dashboard | v3.0 | NEW — Full Section 15 with card-based navigation |
+| Manual Rent Collection | v3.0 | Added mandatory reason (≥10 chars) |
+| COO Wallet-to-Portfolio | v3.0 | NEW — Direct transfer |
+| Funder Statement | v3.0 | NEW — `send-funder-statement` edge function |
+| Double-Credit Bug | v3.2 | RESOLVED — Single-Writer Principle |
+| Agent Commission Model | v3.3 | CORRECTED — 10% total commission with proper split |
+| Marketing Expense Pattern | v3.3 | NEW — All agent earnings as marketing expenses |
+| `credit_agent_event_bonus` RPC | v3.3 | NEW — Flat-fee bonus with double-entry |
+| Service Centre Workflow | v3.3 | NEW — Photo/GPS submission and verification |
+| Agent Commission Benefits Page | v3.3 | NEW — Plain-language explainer |
+| Withdrawal Pipeline | v3.3 | SIMPLIFIED — Single-step Financial Ops approval |
+| **Agent Ops Dashboard** | **v4.0** | **DOCUMENTED — Quick Nav Grid with 14 sub-views** |
+| **Landlord Ops Dashboard** | **v4.0** | **NEW SECTION — Chain health, property map, viewing scheduler** |
+| **Angel Pool System** | **v4.0** | **NEW SECTION — Full investment system documentation** |
+| **All Wallet Components** | **v4.0** | **DOCUMENTED — 26 wallet components catalogued** |
+| **All Agent Components** | **v4.0** | **DOCUMENTED — 86 agent components catalogued** |
+| **All Supporter Components** | **v4.0** | **DOCUMENTED — 58 supporter components catalogued** |
+| **UI Design System** | **v4.0** | **NEW — Appendix F with design tokens and patterns** |
+| **Financial Ops Components** | **v4.0** | **DOCUMENTED — 13 Financial Ops components** |
+| **CFO Components** | **v4.0** | **DOCUMENTED — 23 CFO-specific components** |
+| **COO Components** | **v4.0** | **DOCUMENTED — 14 COO-specific components** |
+| **Manager Components** | **v4.0** | **DOCUMENTED — 100+ manager components** |
+| **AI Features** | **v4.0** | **DOCUMENTED — 4 AI-powered manager components** |
+| **PWA Branding** | **v4.0** | **UPDATED — App name "Welile.com" on all devices** |
+| **Edge Functions** | **v4.0** | **COMPLETE — All 81 edge functions documented** |
+
+---
+
+*End of Document — Version 4.0*
