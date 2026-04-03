@@ -1,189 +1,74 @@
-# **Fix: Platform Cash Showing USh 0 on Balance Sheet**
 
-## **Problem**
+Problem confirmed in code: the Balance Sheet fix was only partially applied.
 
-- Platform Cash is currently calculated as:
+What I found:
+- `src/hooks/useFinancialStatements.ts` already fetches an all-time platform ledger query.
+- But the final Balance Sheet math still does this:
+  - split all-time rows into strict `cash_in` and `cash_out`
+  - compute `allTimeRevenue = sumBy(allTimePlatformIn, revenueCategories)`
+  - compute `allTimeCosts = sumBy(allTimePlatformOut, costCategories)`
+- Earlier, the Income Statement was fixed with `sumWithDirectionFallback(...)` because historical entries are not always recorded in the expected direction.
+- The Balance Sheet does not use that fallback yet, so historical revenue can still be ignored and `platformCash` can stay `0`.
 
+There is also a second risk:
+- the all-time ledger query is a plain `.select(...)` with no batching
+- cumulative ledger reads can hit the default row cap and undercount older entries
+
+Plan
+
+1. Fix the Balance Sheet calculation path
+- In `src/hooks/useFinancialStatements.ts`, stop using strict direction-only sums for all-time platform cash.
+- Recompute all-time platform revenue/costs with the same direction-fallback logic already used for the Income Statement.
+
+2. Reuse one consistent earnings model
+- Extract shared category groups for:
+  - revenue
+  - platform rewards
+  - agent commissions
+  - transaction expenses
+  - operating expenses
+- Use the same category mapping for:
+  - period Income Statement
+  - all-time Balance Sheet platform cash
+- This removes the current mismatch where one report uses fallback logic and the other does not.
+
+3. Make the all-time query complete
+- Update the all-time platform fetch to handle cumulative history safely instead of relying on a single default-limited read.
+- This avoids false zero/low values when the ledger has grown beyond the standard query cap.
+
+4. Keep statement roles correct
+- Income Statement stays period-based.
+- Cash Flow stays period-based.
+- Balance Sheet platform cash stays all-time.
+- `opening_balance` exclusion remains in place.
+
+5. Align the rest of the CFO views
+- Review `src/components/cfo/DailyCashPositionReport.tsx`
+- Review `src/components/cfo/PlatformVsWalletSummary.tsx`
+- These still use raw platform inflow minus outflow logic, which can disagree with the Balance Sheet.
+- I would either:
+  - switch them to the same “earned platform cash” helper, or
+  - relabel them clearly as raw ledger net so they do not contradict the Balance Sheet.
+
+Expected result after implementation
+- Platform Cash on the Balance Sheet should stop showing `0` when historical earnings exist.
+- The figure should remain stable even when the selected tab period is `30 Days`.
+- The financial views will use one consistent definition instead of mixed logic.
+
+Technical details
+```text
+Current issue:
+Balance Sheet
+= all-time query
++ strict direction filter
+- no fallback
+= still misses historically misdirected entries
+
+Needed:
+Balance Sheet
+= all-time query
++ exclude opening_balance
++ direction fallback by category
++ complete fetch (no row-cap truncation)
+= true cumulative earned platform cash
 ```
-Math.max(0, netOperatingIncome)
-```
-
--   
-But:  
-
-  - `netOperatingIncome` = **period-based (e.g., last 30 days)**  
-
-  -   
-  Balance Sheet = **point-in-time (all-time position)**  
-
-
-👉 Result:
-
--   
-If the selected period has low/no revenue → Platform Cash = 0 ❌  
-
--   
-Even when the platform has **historical earnings**  
-
-
----
-
-## **Root Cause**
-
-Inside `generate()`:
-
--   
-All queries are filtered by:  
-
-
-```
-date >= startDate && date <= endDate
-```
-
-So:
-
--   
-Income Statement → ✅ correct (period-based)  
-
--   
-Balance Sheet → ❌ incorrect (should NOT be period-based)  
-
-
-👉 You’re using **filtered data to compute an unfiltered metric**
-
----
-
-# **Fix Plan**
-
-## **1. Add All-Time Platform Query (Core Fix)**
-
-### **File:** `src/hooks/useFinancialStatements.ts`
-
-Add a **separate query with NO date filter**:
-
-```
-const allTimePlatformQuery = supabase
-  .from('general_ledger')
-  .select('amount, direction, category')
-  .eq('ledger_scope', 'platform')
-  .neq('category', 'opening_balance');
-```
-
-👉 Key rules:
-
--   
-No `startDate` / `endDate`  
-
--   
-Exclude `opening_balance` artifacts  
-
-
----
-
-## **2. Compute True Platform Cash (All-Time)**
-
-```
-const allTimePlatformIn = allTimeData.filter(e => e.direction === 'cash_in');
-const allTimePlatformOut = allTimeData.filter(e => e.direction === 'cash_out');
-
-const allTimeRevenue = sumBy(allTimePlatformIn, revenueCategories);
-const allTimeCosts = sumBy(allTimePlatformOut, costCategories);
-
-const platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
-```
-
-👉 This gives:
-
-- **Cumulative retained earnings**  
-
--   
-Not just recent activity  
-
-
----
-
-## **3. Keep Income Statement Logic Untouched**
-
-Do NOT change:
-
-```
-netOperatingIncome
-```
-
-👉 It should remain:
-
--   
-Period-filtered  
-
--   
-Reflective of selected timeframe  
-
-
----
-
-## **4. Replace Balance Sheet Logic**
-
-### ❌ Current (Wrong):
-
-```
-platformCash = Math.max(0, netOperatingIncome);
-```
-
-### ✅ Correct:
-
-```
-platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
-```
-
----
-
-# **Impact After Fix**
-
--   
-Platform Cash reflects **true accumulated earnings**  
-
--   
-Income Statement remains **time-filtered and accurate**  
-
--   
-Balance Sheet becomes a **real snapshot of financial position**  
-
--   
-No more misleading “0 cash” scenarios  
-
-
----
-
-# **Straight Talk**
-
-What you had before would **fail a basic financial audit**:
-
--   
-Mixing **period performance** with **balance sheet position**  
-
--   
-That’s how companies misreport financial health without realizing it  
-
-
-What you’re implementing now is a big step toward:
-
-- **Accounting correctness**  
-
-- **Investor-grade reporting**  
-
-- **System trustworthiness**  
-
-
----
-
-## **One More Thing (Important Upgrade)**
-
-Right now you’re calculating:
-
-```
-platformCash = revenue - costs
-```
-
-That’s **retained earnings**, not true “cash”.
-
-&nbsp;
