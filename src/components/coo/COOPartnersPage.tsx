@@ -15,7 +15,7 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
-  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck
+  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -2520,7 +2520,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [managedInfo, setManagedInfo] = useState<Record<string, { isManaged: boolean; agentName: string; agentId: string } | null>>({});
+  const [managedInfo, setManagedInfo] = useState<Record<string, { isManaged: boolean; agentName: string; agentId: string; hasProxy: boolean } | null>>({});
   
   // Step 2 state
   const [selectedPayout, setSelectedPayout] = useState<NearingPayoutPortfolio | null>(null);
@@ -2716,12 +2716,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           .select('agent_id, is_managed_account, agent:agent_id(full_name)')
           .eq('beneficiary_id', p.investorId)
           .eq('is_active', true)
-          .eq('is_managed_account', true)
           .limit(1)
           .maybeSingle();
-        if (proxyData && proxyData.is_managed_account) {
+        if (proxyData) {
           const agentName = (proxyData.agent as any)?.full_name || 'Agent';
-          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: true, agentName, agentId: proxyData.agent_id } }));
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
         } else {
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
         }
@@ -2941,8 +2940,20 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   </Button>
                 </div>
               ) : (
-                /* ─── Standard Account ─── */
+                /* ─── Standard or Non-Managed Proxy Account ─── */
                 <div className="space-y-3">
+                  {/* Show proxy agent notice for non-managed assignments */}
+                  {selectedManaged?.hasProxy && !selectedManaged?.isManaged && (
+                    <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2.5">
+                      <Handshake className="h-4 w-4 text-amber-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Linked Proxy Agent</p>
+                        <p className="text-[10px] text-amber-600/80 dark:text-amber-400/70">
+                          <strong>{selectedManaged.agentName}</strong> is assigned as proxy agent for this partner
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs font-medium text-muted-foreground">Select payment method</p>
                   <div className="grid grid-cols-2 gap-3">
                     <button
