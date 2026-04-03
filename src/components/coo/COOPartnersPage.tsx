@@ -2520,27 +2520,29 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [payMode, setPayMode] = useState<Record<string, 'wallet' | 'already_paid' | 'agent_wallet' | null>>({});
   const [managedInfo, setManagedInfo] = useState<Record<string, { isManaged: boolean; agentName: string; agentId: string } | null>>({});
-  const [checkingManaged, setCheckingManaged] = useState<Record<string, boolean>>({});
+  
+  // Step 2 state
+  const [selectedPayout, setSelectedPayout] = useState<NearingPayoutPortfolio | null>(null);
+  const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options'>('list');
+  const [checkingManagedStep2, setCheckingManagedStep2] = useState(false);
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
   useEffect(() => {
-    // Only update local list when dialog opens fresh (no completed actions yet)
     if (open && Object.keys(completed).length === 0) {
       setLocalPortfolios(portfolios);
     }
   }, [open, portfolios, completed]);
 
-  // Reset completed state when dialog closes
+  // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setCompleted({});
+      setPaymentStep('list');
+      setSelectedPayout(null);
     }
   }, [open]);
-
-
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -2563,7 +2565,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Update portfolio investment amount and advance next_roi_date by 1 month
       const currentRoiDate = new Date();
       currentRoiDate.setMonth(currentRoiDate.getMonth() + 1);
       const { error: upErr } = await supabase
@@ -2572,7 +2573,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
-      // Ledger entry
       await supabase.from('general_ledger').insert({
         user_id: p.investorId,
         amount: roiAmount,
@@ -2585,7 +2585,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         linked_party: user.id,
       });
 
-      // Audit log
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'roi_compounded',
@@ -2594,7 +2593,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId, reason },
       });
 
-      // Notify partner
       await supabase.from('notifications').insert({
         user_id: p.investorId,
         title: 'Portfolio ROI Compounded',
@@ -2621,16 +2619,14 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Advance next_roi_date by 1 month
       const nextDate = new Date();
       nextDate.setMonth(nextDate.getMonth() + 1);
       await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
 
       const operationType = mode === 'agent_wallet' ? 'roi_agent_wallet_credit' : mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
-      const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Already Paid';
+      const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Cash';
       const managed = managedInfo[p.portfolioId];
 
-      // Create pending wallet operation for approval
       const txnGroupId = crypto.randomUUID();
       const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
         user_id: p.investorId,
@@ -2658,7 +2654,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       });
       if (pendErr) throw pendErr;
 
-      // Audit log
       const auditAction = mode === 'agent_wallet' ? 'roi_managed_payout_requested' : mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
       await supabase.from('audit_logs').insert({
         user_id: user.id,
@@ -2671,7 +2666,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         },
       });
 
-      // Notify partner
       await supabase.from('notifications').insert({
         user_id: p.investorId,
         title: mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
@@ -2680,7 +2674,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
       });
 
-      // Notify all CFO role users
       const { data: cfoUsers } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -2699,7 +2692,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
       toast.success(`${modeLabel}: ${formatUGX(roiAmount)} submitted for approval`, { description: `Ref: ${refId}` });
       setCompleted(prev => ({ ...prev, [p.portfolioId]: 'pending' }));
-      setPayMode(prev => ({ ...prev, [p.portfolioId]: null }));
+      setPaymentStep('list');
+      setSelectedPayout(null);
       onActionComplete?.();
     } catch (err: any) {
       toast.error('Pay request failed', { description: err.message });
@@ -2708,221 +2702,285 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
+  // Handle Pay click — transition to step 2
+  const handlePayClick = async (p: NearingPayoutPortfolio) => {
+    setSelectedPayout(p);
+    setPaymentStep('payment-options');
+    
+    // Check managed status if not already known
+    if (managedInfo[p.portfolioId] === undefined) {
+      setCheckingManagedStep2(true);
+      try {
+        const { data: proxyData } = await supabase
+          .from('proxy_agent_assignments')
+          .select('agent_id, is_managed_account, agent:agent_id(full_name)')
+          .eq('beneficiary_id', p.investorId)
+          .eq('is_active', true)
+          .eq('is_managed_account', true)
+          .limit(1)
+          .maybeSingle();
+        if (proxyData && proxyData.is_managed_account) {
+          const agentName = (proxyData.agent as any)?.full_name || 'Agent';
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: true, agentName, agentId: proxyData.agent_id } }));
+        } else {
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+        }
+      } catch {
+        setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+      } finally {
+        setCheckingManagedStep2(false);
+      }
+    }
+  };
+
+  const selectedRoiAmount = selectedPayout ? Math.round(selectedPayout.investmentAmount * selectedPayout.roiPercentage / 100) : 0;
+  const selectedManaged = selectedPayout ? managedInfo[selectedPayout.portfolioId] : null;
+  const selectedReason = selectedPayout ? (reasons[selectedPayout.portfolioId] || '') : '';
+  const selectedProcessing = selectedPayout ? processing[selectedPayout.portfolioId] : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] p-0 sm:max-w-xl">
-        <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <CalendarDays className="h-4.5 w-4.5 text-violet-600" />
-            Portfolios Nearing Payout
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            {portfolios.length} portfolio{portfolios.length !== 1 ? 's' : ''} with payouts due within 30 days
-          </DialogDescription>
-        </DialogHeader>
-        <div className="px-4 sm:px-5">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, phone, or email…"
-              className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
-                <X className="h-3 w-3 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
-          {filtered.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground text-sm">
-              <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              {search ? 'No matching portfolios found.' : 'No portfolios nearing payout.'}
+        {paymentStep === 'list' ? (
+          <>
+            <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <CalendarDays className="h-4.5 w-4.5 text-violet-600" />
+                Portfolios Nearing Payout
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {portfolios.length} portfolio{portfolios.length !== 1 ? 's' : ''} with payouts due within 30 days
+              </DialogDescription>
+            </DialogHeader>
+            <div className="px-4 sm:px-5">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search by name, phone, or email…"
+                  className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
+                />
+                {search && (
+                  <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                )}
+              </div>
             </div>
-          ) : (
-            filtered.map((p, idx) => {
-              const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
-              const isProcessing = processing[p.portfolioId];
-              const isDone = completed[p.portfolioId];
-              const refPreview = `${p.portfolioId.slice(0, 8)}`;
-              return (
-                <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5")}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
-                    </div>
-                    {isDone === 'pending' ? (
-                      <Badge className="shrink-0 text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
-                        ⏳ Pending Approval
-                      </Badge>
-                    ) : isDone === 'compounded' ? (
-                      <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
-                        ✓ Compounded
-                      </Badge>
-                    ) : (
-                      <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
-                        {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-center">
-                    <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Principal</p>
-                      <p className="text-xs font-bold tabular-nums">{formatUGX(p.investmentAmount)}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Returns Due</p>
-                      <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Contribution Date</p>
-                      <p className="text-xs font-bold">
-                        {formatDateOnlyForDisplay(p.createdAt, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-muted/50 p-2">
-                      <p className="text-[10px] text-muted-foreground">Payout Date</p>
-                      <p className="text-xs font-bold">
-                        {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
-                    <span className="font-mono">{refPreview}</span>
-                  </div>
-                  {/* Audit Reason + Action Buttons */}
-                  {!isDone && (
-                    <div className="space-y-2 pt-1">
-                      <Textarea
-                        placeholder="Include reason and phone number or A/C"
-                        className="min-h-[60px] text-xs"
-                        value={reasons[p.portfolioId] || ''}
-                        onChange={e => setReasons(prev => ({ ...prev, [p.portfolioId]: e.target.value }))}
-                      />
-                      {(reasons[p.portfolioId]?.length || 0) > 0 && (reasons[p.portfolioId]?.length || 0) < 10 && (
-                        <p className="text-[10px] text-destructive">Reason must be at least 10 characters</p>
-                      )}
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-xs gap-1.5"
-                          disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                          onClick={() => handleCompound(p, reasons[p.portfolioId])}
-                        >
-                          {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
-                          Compound
-                        </Button>
-                        {!payMode[p.portfolioId] ? (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="flex-1 text-xs gap-1.5"
-                            disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10 || checkingManaged[p.portfolioId]}
-                            onClick={async () => {
-                              // Check managed status on click
-                              if (managedInfo[p.portfolioId] === undefined) {
-                                setCheckingManaged(prev => ({ ...prev, [p.portfolioId]: true }));
-                                try {
-                                  const { data: proxyData } = await supabase
-                                    .from('proxy_agent_assignments')
-                                    .select('agent_id, is_managed_account, agent:agent_id(full_name)')
-                                    .eq('beneficiary_id', p.investorId)
-                                    .eq('is_active', true)
-                                    .eq('is_managed_account', true)
-                                    .limit(1)
-                                    .maybeSingle();
-                                  if (proxyData && proxyData.is_managed_account) {
-                                    const agentName = (proxyData.agent as any)?.full_name || 'Agent';
-                                    setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: true, agentName, agentId: proxyData.agent_id } }));
-                                    setPayMode(prev => ({ ...prev, [p.portfolioId]: 'agent_wallet' }));
-                                  } else {
-                                    setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
-                                    setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }));
-                                  }
-                                } catch {
-                                  setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
-                                  setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }));
-                                } finally {
-                                  setCheckingManaged(prev => ({ ...prev, [p.portfolioId]: false }));
-                                }
-                              } else {
-                                setPayMode(prev => ({ ...prev, [p.portfolioId]: managedInfo[p.portfolioId]?.isManaged ? 'agent_wallet' : 'wallet' }));
-                              }
-                            }}
-                          >
-                            {checkingManaged[p.portfolioId] ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
-                            Pay
-                          </Button>
-                        ) : managedInfo[p.portfolioId]?.isManaged ? (
-                          /* Managed account — single option: send to agent wallet */
-                          <div className="flex-1 flex flex-col gap-1.5">
-                            <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 border border-primary/20 px-2.5 py-1.5 text-[10px] text-primary">
-                              <ShieldCheck className="h-3 w-3 shrink-0" />
-                              <span>Managed account by <strong>{managedInfo[p.portfolioId]!.agentName}</strong></span>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="w-full text-xs gap-1.5"
-                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                              onClick={() => handlePay(p, reasons[p.portfolioId], 'agent_wallet')}
-                            >
-                              {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
-                              Send to Agent Wallet
-                            </Button>
-                          </div>
+            <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
+              {filtered.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm">
+                  <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  {search ? 'No matching portfolios found.' : 'No portfolios nearing payout.'}
+                </div>
+              ) : (
+                filtered.map((p, idx) => {
+                  const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
+                  const isProcessing = processing[p.portfolioId];
+                  const isDone = completed[p.portfolioId];
+                  const refPreview = `${p.portfolioId.slice(0, 8)}`;
+                  return (
+                    <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5")}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
+                        </div>
+                        {isDone === 'pending' ? (
+                          <Badge className="shrink-0 text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                            ⏳ Pending Approval
+                          </Badge>
+                        ) : isDone === 'compounded' ? (
+                          <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
+                            ✓ Compounded
+                          </Badge>
                         ) : (
-                          /* Non-managed — cash or wallet */
-                          <div className="flex-1 flex flex-col gap-1.5">
-                            <div className="flex gap-1.5">
-                              <Button
-                                size="sm"
-                                variant={payMode[p.portfolioId] === 'wallet' ? 'default' : 'outline'}
-                                className="flex-1 text-[10px] gap-1 px-2"
-                                disabled={!!isProcessing}
-                                onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }))}
-                              >
-                                <Wallet className="h-3 w-3" />
-                                To Wallet
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant={payMode[p.portfolioId] === 'already_paid' ? 'default' : 'outline'}
-                                className="flex-1 text-[10px] gap-1 px-2"
-                                disabled={!!isProcessing}
-                                onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'already_paid' }))}
-                              >
-                                <CheckCircle2 className="h-3 w-3" />
-                                Already Paid
-                              </Button>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="w-full text-xs gap-1.5"
-                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                              onClick={() => handlePay(p, reasons[p.portfolioId], payMode[p.portfolioId] as 'wallet' | 'already_paid')}
-                            >
-                              {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                              Confirm {payMode[p.portfolioId] === 'wallet' ? 'Pay to Wallet' : 'Already Paid'}
-                            </Button>
-                          </div>
+                          <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
+                            {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
+                          </Badge>
                         )}
                       </div>
+                      <div className="grid grid-cols-2 gap-2 text-center">
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Principal</p>
+                          <p className="text-xs font-bold tabular-nums">{formatUGX(p.investmentAmount)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Returns Due</p>
+                          <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(roiAmount)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Contribution Date</p>
+                          <p className="text-xs font-bold">
+                            {formatDateOnlyForDisplay(p.createdAt, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <p className="text-[10px] text-muted-foreground">Payout Date</p>
+                          <p className="text-xs font-bold">
+                            {new Date(p.nextPayoutDate + 'T00:00:00').toLocaleDateString('en-UG', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{p.roiPercentage}% · {p.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</span>
+                        <span className="font-mono">{refPreview}</span>
+                      </div>
+                      {/* Audit Reason + Action Buttons */}
+                      {!isDone && (
+                        <div className="space-y-2 pt-1">
+                          <Textarea
+                            placeholder="Include reason and phone number or A/C"
+                            className="min-h-[60px] text-xs"
+                            value={reasons[p.portfolioId] || ''}
+                            onChange={e => setReasons(prev => ({ ...prev, [p.portfolioId]: e.target.value }))}
+                          />
+                          {(reasons[p.portfolioId]?.length || 0) > 0 && (reasons[p.portfolioId]?.length || 0) < 10 && (
+                            <p className="text-[10px] text-destructive">Reason must be at least 10 characters</p>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 text-xs gap-1.5"
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                              onClick={() => handleCompound(p, reasons[p.portfolioId])}
+                            >
+                              {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
+                              Compound
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="flex-1 text-xs gap-1.5"
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                              onClick={() => handlePayClick(p)}
+                            >
+                              <Wallet className="h-3 w-3" />
+                              Pay
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  );
+                })
+              )}
+            </div>
+          </>
+        ) : selectedPayout && (
+          /* ═══ Step 2: Payment Options ═══ */
+          <>
+            <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <button
+                  onClick={() => { setPaymentStep('list'); setSelectedPayout(null); }}
+                  className="p-1 -ml-1 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <ArrowUpRight className="h-4 w-4 rotate-[225deg]" />
+                </button>
+                Payment Options
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Choose how to pay {selectedPayout.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
+              {/* Payout Summary Card */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm">{selectedPayout.name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedPayout.phone || selectedPayout.email || 'No contact'}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                    {selectedPayout.daysUntil === 0 ? 'Today' : selectedPayout.daysUntil === 1 ? 'Tomorrow' : `${selectedPayout.daysUntil}d away`}
+                  </Badge>
                 </div>
-              );
-            })
-          )}
-        </div>
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-lg bg-background p-2">
+                    <p className="text-[10px] text-muted-foreground">Principal</p>
+                    <p className="text-xs font-bold tabular-nums">{formatUGX(selectedPayout.investmentAmount)}</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <p className="text-[10px] text-muted-foreground">Returns Due</p>
+                    <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(selectedRoiAmount)}</p>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-background border border-border/40 p-2.5">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Audit Reason</p>
+                  <p className="text-xs leading-relaxed">{selectedReason}</p>
+                </div>
+              </div>
+
+              {/* Managed Account Status */}
+              {checkingManagedStep2 ? (
+                <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-xs">Checking account status...</span>
+                </div>
+              ) : selectedManaged?.isManaged ? (
+                /* ─── Managed Account ─── */
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5">
+                    <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-primary">Managed Account</p>
+                      <p className="text-[10px] text-primary/70">Funds will be sent to <strong>{selectedManaged.agentName}</strong>'s agent wallet</p>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full gap-2"
+                    disabled={!!selectedProcessing}
+                    onClick={() => handlePay(selectedPayout, selectedReason, 'agent_wallet')}
+                  >
+                    {selectedProcessing === 'pay' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                    Send to Agent Wallet
+                  </Button>
+                </div>
+              ) : (
+                /* ─── Standard Account ─── */
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">Select payment method</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      className={cn(
+                        "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
+                        "hover:border-primary/50 hover:bg-primary/5",
+                        "focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      )}
+                      disabled={!!selectedProcessing}
+                      onClick={() => handlePay(selectedPayout, selectedReason, 'wallet')}
+                    >
+                      {selectedProcessing === 'pay' ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      ) : (
+                        <Wallet className="h-6 w-6 text-primary" />
+                      )}
+                      <span className="text-xs font-semibold">Pay to Wallet</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight text-center">Credit partner's digital wallet</span>
+                    </button>
+                    <button
+                      className={cn(
+                        "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all",
+                        "hover:border-primary/50 hover:bg-primary/5",
+                        "focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      )}
+                      disabled={!!selectedProcessing}
+                      onClick={() => handlePay(selectedPayout, selectedReason, 'already_paid')}
+                    >
+                      <CheckCircle2 className="h-6 w-6 text-primary" />
+                      <span className="text-xs font-semibold">Cash</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight text-center">Already paid externally</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
