@@ -476,7 +476,7 @@ export function ApprovalQueue() {
                   </div>
                 ) : (
                   <div className="px-2 pb-1">
-                    <span className="text-[11px] text-muted-foreground">{items.length} pending — use TID tab to verify & approve</span>
+                    <span className="text-[11px] text-muted-foreground">{items.length} pending — tap to verify & approve</span>
                   </div>
                 )}
                 {items.map((item) => {
