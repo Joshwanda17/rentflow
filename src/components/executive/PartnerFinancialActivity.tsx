@@ -159,7 +159,7 @@ export function PartnerFinancialActivity() {
 
     (deductions || []).forEach(d => {
       result.push({
-        type: 'Clawback',
+        type: 'Retraction',
         partner_name: names[d.target_user_id] || d.target_user_id?.slice(0, 8) || '—',
         amount: d.amount || 0,
         status: 'completed',
