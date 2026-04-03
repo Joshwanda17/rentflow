@@ -174,9 +174,13 @@ export function useFinancialStatements() {
         supabase.from('wallets').select('balance'),
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
         (() => {
-          let q = supabase.from('general_ledger').select('amount, direction, ledger_scope');
-          if (startDate) q = q.lt('transaction_date', startDate.toISOString());
-          return q.eq('ledger_scope', 'platform');
+          // Fix #1: No opening balance for "All Time" — prevents double-counting
+          if (!startDate) return Promise.resolve({ data: [], error: null });
+          let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
+          q = q.lt('transaction_date', startDate.toISOString());
+          q = q.eq('ledger_scope', 'platform');
+          q = q.neq('category', 'opening_balance');
+          return q;
         })(),
       ]);
 
