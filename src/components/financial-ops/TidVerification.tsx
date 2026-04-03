@@ -58,6 +58,16 @@ export function TidVerification() {
     if (!operatorAmount) { toast.error('Enter the amount'); return; }
     if (!user) return;
 
+    // TID format validation
+    if (provider === 'mtn' && !trimmedTid.startsWith('MP')) {
+      toast.error('MTN Transaction IDs must start with "MP"');
+      return;
+    }
+    if (provider === 'airtel' && trimmedTid.startsWith('MP')) {
+      toast.error('This looks like an MTN TID. Select the correct provider.');
+      return;
+    }
+
     setResultState('searching');
     setMatches([]);
 

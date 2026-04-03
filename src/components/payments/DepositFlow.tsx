@@ -154,49 +154,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
 
       if (depositError) throw depositError;
 
-      // Pre-registered TID auto-match
-      let autoMatchApproved = false;
-      try {
-        const tidVariants = [normalizedRef, normalizedRef.replace(/^(TID|RCT)/, ''), transactionId.trim().toUpperCase() || receiptNumber.trim().toUpperCase()];
-        const { data: preMatch } = await supabase
-          .from('pre_registered_tids' as any)
-          .select('*')
-          .eq('status', 'waiting')
-          .in('transaction_id', tidVariants)
-          .limit(1);
-
-        if (preMatch && preMatch.length > 0) {
-          const match = preMatch[0] as any;
-          if (Math.abs(match.amount - parseFloat(amount)) < 1) {
-            const { data: newDeposit } = await supabase
-              .from('deposit_requests')
-              .select('id')
-              .eq('user_id', user.id)
-              .eq('transaction_id', normalizedRef)
-              .eq('status', 'pending')
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
-
-            if (newDeposit) {
-              const { error: approveErr } = await supabase.functions.invoke('approve-deposit', {
-                body: { deposit_request_id: newDeposit.id, action: 'approve' },
-              });
-              if (!approveErr) {
-                await supabase
-                  .from('pre_registered_tids' as any)
-                  .update({ status: 'matched', matched_deposit_id: newDeposit.id, matched_at: new Date().toISOString() })
-                  .eq('id', match.id);
-                autoMatchApproved = true;
-              }
-            }
-          }
-        }
-      } catch (matchErr) {
-        console.error('Pre-registered TID auto-match failed:', matchErr);
-      }
-
-      toast.success(autoMatchApproved ? 'Deposit verified automatically!' : 'Deposit submitted for verification');
+      toast.success('Deposit submitted for verification');
       setStep('success');
     } catch (error: any) {
       console.error('Deposit error:', error);
