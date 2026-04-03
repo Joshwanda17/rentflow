@@ -103,6 +103,8 @@ export default function CFODashboardPage() {
         );
       case 'angel-pool':
         return <AngelPoolManagementPanel userRole="cfo" />;
+      case 'retractions':
+        return <WalletRetractionsFeed />;
       default:
         return (
           <div className="space-y-4">
