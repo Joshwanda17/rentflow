@@ -1,57 +1,45 @@
+## Partner Financial Activity Page — Partner Ops 
+
+### What we're building
+
+A new dedicated page accessible from Partner Ops that shows **all financial activity** for partners in one advanced table. This consolidates:
+
+this must also appear in the COO dashboard sidebar menu item
+
+- **ROI Payouts** (from `pending_wallet_operations` where operation_type contains 'roi')
+- **Wallet Withdrawals** (from `pending_wallet_operations` where category is 'withdrawal')
+- **Top-ups** (from `pending_wallet_operations` where operation_type contains 'topup')
+- **Wallet Deductions/Retractions** (from `wallet_deductions`)
+- **Ledger entries** (from `general_ledger` filtered to partner-related categories)
+
+Each record shows status (pending/approved/rejected), amount, partner name, date, type, and reference.
+
+### Changes
+
+**1. New component — `src/components/executive/PartnerFinancialActivity.tsx**`
+
+- Query `pending_wallet_operations` (all partner-related ops) and `wallet_deductions` 
+- Join with `profiles` to get partner names
+- Normalize into a unified row format: `{ type, partner_name, amount, status, date, reference, description }`
+- Use `ExecutiveDataTable` with columns: Type, Partner, Amount, Status, Date, Reference, Description
+- Filters: dropdown for type (Payouts, Withdrawals, Top-ups, Retractions, All), dropdown for status (Pending, Approved, Rejected, All)
+- Status badges: color-coded (green=approved, yellow=pending, red=rejected)
+- CSV + PDF export via ExecutiveDataTable built-in
+
+**2. Update — `src/components/executive/PartnersOpsDashboard.tsx**`
+
+- Add a new button card above the tab bar (similar to the Nearing Payouts highlight card)
+- Card: icon `Receipt`, label "Financial Activity", description "View all partner payouts, withdrawals, top-ups & retractions"
+- Clicking it sets a new view state that renders `PartnerFinancialActivity` inline with a "Back to Overview" header
+- Add `'activity'` to the Tab type union for state management
+
+**3. No database changes needed**
+All data already exists in `pending_wallet_operations`, `wallet_deductions`, and `general_ledger`. Executive RLS policies were just added.
+
+### Files
 
 
-## Fix: CFO Financial Statements Empty Due to RLS
-
-### Root Cause
-The `general_ledger`, `wallets`, and `rent_requests` tables have SELECT policies that only allow the `manager` role to view all rows. The CFO role has **no access** to any of these tables, so every query returns empty arrays and all financial statements show zeros.
-
-### Fix — Database Migration
-
-Add SELECT policies for executive roles (`cfo`, `coo`, `ceo`) on the three tables used by the financial statements generator:
-
-```sql
--- general_ledger: Allow executives to view all entries
-CREATE POLICY "Executives can view all ledger entries"
-  ON public.general_ledger FOR SELECT
-  TO authenticated
-  USING (
-    public.has_role(auth.uid(), 'cfo'::app_role) OR
-    public.has_role(auth.uid(), 'coo'::app_role) OR
-    public.has_role(auth.uid(), 'ceo'::app_role)
-  );
-
--- wallets: Allow executives to view all wallets
-CREATE POLICY "Executives can view all wallets"
-  ON public.wallets FOR SELECT
-  TO authenticated
-  USING (
-    public.has_role(auth.uid(), 'cfo'::app_role) OR
-    public.has_role(auth.uid(), 'coo'::app_role) OR
-    public.has_role(auth.uid(), 'ceo'::app_role)
-  );
-
--- rent_requests: Allow executives to view all requests
-CREATE POLICY "Executives can view all rent requests"
-  ON public.rent_requests FOR SELECT
-  TO authenticated
-  USING (
-    public.has_role(auth.uid(), 'cfo'::app_role) OR
-    public.has_role(auth.uid(), 'coo'::app_role) OR
-    public.has_role(auth.uid(), 'ceo'::app_role)
-  );
-```
-
-### Why This Is Safe
-- Uses the existing `has_role()` security-definer function (no recursive RLS)
-- Only grants SELECT (read-only) — no INSERT/UPDATE/DELETE
-- Limited to three specific executive roles that need financial oversight
-- Consistent with the existing `manager` policy pattern
-
-### Files Changed
-
-| File | Change |
-|------|--------|
-| Database migration | Add 3 SELECT policies for executive roles |
-
-No code changes needed — the hook and component are correct; they just get empty data due to RLS.
-
+| File                                                    | Action                                 |
+| ------------------------------------------------------- | -------------------------------------- |
+| `src/components/executive/PartnerFinancialActivity.tsx` | New — unified financial activity table |
+| `src/components/executive/PartnersOpsDashboard.tsx`     | Add nav card + wire activity view      |
