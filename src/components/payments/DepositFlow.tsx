@@ -283,7 +283,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs">Provider</Label>
-                  <RadioGroup value={momoProvider} onValueChange={(v) => setMomoProvider(v as 'mtn' | 'airtel')} className="grid grid-cols-2 gap-2">
+                  <RadioGroup value={momoProvider} onValueChange={(v) => { setMomoProvider(v as 'mtn' | 'airtel'); validateTid(transactionId, v as 'mtn' | 'airtel'); }} className="grid grid-cols-2 gap-2">
                     <Label htmlFor="mtn" className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer ${momoProvider === 'mtn' ? 'border-yellow-500 bg-yellow-500/10' : 'border-border'}`}>
                       <RadioGroupItem value="mtn" id="mtn" className="sr-only" />
                       <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-[10px]">MTN</div>
