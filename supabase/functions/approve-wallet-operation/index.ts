@@ -364,6 +364,22 @@ Deno.serve(async (req) => {
               metadata: { operation_id: op.id, amount: op.amount },
             });
           }
+        } else if (isManaged) {
+          // Managed payout: notify both agent and partner
+          await adminClient.from("notifications").insert({
+            user_id: ledgerUserId,
+            title: "Managed Payout Received ✅",
+            message: `UGX ${op.amount.toLocaleString()} credited to your wallet on behalf of a managed partner. Ref: ${op.reference_id || 'N/A'}`,
+            type: "success",
+            metadata: { operation_id: op.id, amount: op.amount, on_behalf_of: op.user_id },
+          });
+          await adminClient.from("notifications").insert({
+            user_id: op.user_id,
+            title: "Payout Processed via Agent ✅",
+            message: `Your ROI payout of UGX ${op.amount.toLocaleString()} has been sent to your assigned agent's wallet for collection.`,
+            type: "success",
+            metadata: { operation_id: op.id, amount: op.amount, agent_id: ledgerUserId },
+          });
         } else {
           // Standard notification for non-investment operations
           const notifTitle = op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅";
