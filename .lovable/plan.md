@@ -1,54 +1,67 @@
 
 
-## Strict Deposit Verification Without TID Pre-Registration
-
-### Problem
-The current system allows Financial Ops staff to **pre-register TIDs** via the `TidVerification` component — storing them in `pre_registered_tids` before any user submits a deposit. When a user later submits a deposit with a matching TID, it **auto-approves** without manual review. This creates fraud risk from unauthorized or mismatched deposits.
+## Manual TID Verification Pop-Up for Deposit Approval
 
 ### What Changes
 
-**1. Remove TID Pre-Registration from TidVerification.tsx**
-- Remove the entire "Step 2" block (lines 109-148) that inserts into `pre_registered_tids` when no pending deposit is found
-- Remove the `not_found_preregistered` and `not_found_exists` result states and their UI sections
-- When no pending deposit matches the entered TID, show a simple "No matching deposit found" message instead
-- The component becomes a pure **search-and-approve** tool: enter TID + amount → find matching pending deposits → approve
+**1. Add a Deposit Verification Dialog to ApprovalQueue.tsx**
 
-**2. Remove Auto-Match from DepositFlow.tsx**
-- Remove the entire "Pre-registered TID auto-match" block (lines 144-184) that queries `pre_registered_tids` and triggers auto-approval
-- All deposits will always land as `status: 'pending'` — no exceptions
-- Remove the conditional success message; always show "Deposit submitted for verification"
+When a manager taps a deposit item in the queue, instead of just opening the detail sheet, a dedicated **verification pop-up** appears showing:
+- User's full name and phone
+- Full Transaction ID (not masked)
+- Amount in UGX
+- Payment provider (MTN/Airtel/Bank/Cash) with badge
+- Submission date/time
+- Any notes from the user
 
-**3. Add TID Format Validation**
-- In `DepositFlow.tsx` `validateForm()`: enforce MTN TIDs must start with `MP`, Airtel TIDs must match valid Airtel format
-- In `TidVerification.tsx`: add the same provider-aware format validation before searching
-- In `ApprovalQueue.tsx`: display the provider and validate TID format before allowing approval
+The dialog has two actions:
+- **Approve** — validates TID format first, then calls `approve-deposit` edge function
+- **Reject** — requires a 10-character minimum reason, updates status to `rejected`
 
-**4. Add Unique TID Constraint (Database Migration)**
-- Add a unique index on `deposit_requests.transaction_id` to enforce uniqueness at the DB level (the client-side duplicate check already exists but this adds a hard constraint)
+**2. TID Format Validation Gate Before Approval**
 
-**5. Audit Trail Enhancement**
-- In the `approve-deposit` edge function: ensure `processed_by` (who approved) and timestamp are always recorded (already done)
-- In `ApprovalQueue.tsx`: log verification actions with the operator's entered TID vs. the deposit's TID for audit
+Before the Approve button is enabled, the system validates:
+- MTN deposits: TID must start with `MP`
+- Airtel deposits: TID must start with `TID`
+- If format is invalid, show inline error: "Invalid TID format for [provider]. MTN TIDs must start with 'MP'." and block the approve button
+- Bank and Cash deposits skip TID format validation (different reference formats)
 
-### Files Modified
+**3. Remove "Review only" Restriction on Deposits Tab**
+
+Currently deposits show "Review only — approve via TID" and hide approve/reject buttons. This changes to:
+- Each deposit card gets **Approve / Reject** buttons (same as withdrawals)
+- Tapping either button opens the verification dialog with the selected action pre-set
+- The TID Verification tab remains as an alternative bulk search tool
+
+**4. Audit Logging on Every Verification Action**
+
+Every approve/reject from the dialog inserts an `audit_logs` entry with:
+- `action_type`: `deposit_manual_approve` or `deposit_manual_reject`
+- `metadata`: full TID, amount, provider, user name, rejection reason (if any)
+- Operator's `user_id` as the actor
+
+### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/components/financial-ops/TidVerification.tsx` | Remove pre-registration logic; keep as search-and-approve only; add TID format validation |
-| `src/components/payments/DepositFlow.tsx` | Remove `pre_registered_tids` auto-match block; add MTN/Airtel TID format validation |
-| `src/components/financial-ops/ApprovalQueue.tsx` | Add TID format badge/validation display for operators |
-| Database migration | Add unique index on `deposit_requests.transaction_id` |
+| `src/components/financial-ops/ApprovalQueue.tsx` | Add `DepositVerificationDialog` state; remove "review only" badge; add approve/reject buttons to deposit cards; wire dialog open on tap; handle approve via `approve-deposit` edge function; handle reject via direct status update; add TID format validation gate |
+| No new files | Dialog is inline within ApprovalQueue (uses existing Dialog/Sheet components) |
+| No database changes | Existing schema supports all fields needed |
+| No edge function changes | `approve-deposit` already handles approval correctly |
+
+### UI Flow (Reference Image Match)
+
+The deposit cards will display similarly to the reference screenshot:
+- **Name** (bold, left-aligned)
+- **TID** + **provider badge** (mtn/airtel) below the name
+- **Date/time** on the next line
+- **Amount in UGX** (orange/amber, right-aligned)
+
+When tapped, the verification pop-up overlays with full details and action buttons.
 
 ### What Does NOT Change
-- The `pre_registered_tids` table remains in the database (no destructive migration) but is no longer written to or read from
-- The `approve-deposit` edge function remains unchanged — it already handles manual approval correctly
-- The `ApprovalQueue` approval/reject flow remains intact
-- All existing pending deposits continue to work normally
-
-### Strict Rules Enforced
-- No TIDs stored without a user-initiated deposit
-- No auto-approval based on pre-entered TIDs
-- No matching against unlinked TIDs
-- Unique TID constraint prevents reuse
-- Every approval logged with operator identity and timestamp
+- TidVerification component remains as-is (alternative search-and-approve tool)
+- `approve-deposit` edge function unchanged
+- RequestDetailSheet unchanged (still accessible for deeper user context)
+- Wallet withdrawals and wallet ops flows unchanged
 
