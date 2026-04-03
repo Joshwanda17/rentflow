@@ -1,107 +1,54 @@
 
 
-# Service Centre Setup & Verification Flow
+## Strict Deposit Verification Without TID Pre-Registration
 
-## What We're Building
+### Problem
+The current system allows Financial Ops staff to **pre-register TIDs** via the `TidVerification` component — storing them in `pre_registered_tids` before any user submits a deposit. When a user later submits a deposit with a matching TID, it **auto-approves** without manual review. This creates fraud risk from unauthorized or mismatched deposits.
 
-A complete workflow where agents set up physical Welile Service Centres, submit proof with GPS location, get verified by Agent Ops Manager, and receive UGX 25,000 from the CFO — all tracked as a marketing expense through the platform ledger.
+### What Changes
 
-## Flow
+**1. Remove TID Pre-Registration from TidVerification.tsx**
+- Remove the entire "Step 2" block (lines 109-148) that inserts into `pre_registered_tids` when no pending deposit is found
+- Remove the `not_found_preregistered` and `not_found_exists` result states and their UI sections
+- When no pending deposit matches the entered TID, show a simple "No matching deposit found" message instead
+- The component becomes a pure **search-and-approve** tool: enter TID + amount → find matching pending deposits → approve
 
-```text
-Agent prints poster/logo → Takes photo of setup → Submits with GPS location
-    ↓
-Agent Ops Manager sees submission → Verifies GPS + agent details → Marks "Verified"
-    ↓
-CFO sees verified submissions → Approves → UGX 25,000 sent to agent wallet
-    ↓
-Platform ledger: cash_out/marketing_expense (platform) + cash_in/agent_commission (wallet)
-```
+**2. Remove Auto-Match from DepositFlow.tsx**
+- Remove the entire "Pre-registered TID auto-match" block (lines 144-184) that queries `pre_registered_tids` and triggers auto-approval
+- All deposits will always land as `status: 'pending'` — no exceptions
+- Remove the conditional success message; always show "Deposit submitted for verification"
 
-## Changes
+**3. Add TID Format Validation**
+- In `DepositFlow.tsx` `validateForm()`: enforce MTN TIDs must start with `MP`, Airtel TIDs must match valid Airtel format
+- In `TidVerification.tsx`: add the same provider-aware format validation before searching
+- In `ApprovalQueue.tsx`: display the provider and validate TID format before allowing approval
 
-### 1. New Database Table: `service_centre_setups`
+**4. Add Unique TID Constraint (Database Migration)**
+- Add a unique index on `deposit_requests.transaction_id` to enforce uniqueness at the DB level (the client-side duplicate check already exists but this adds a hard constraint)
 
-```sql
-CREATE TABLE public.service_centre_setups (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  agent_id UUID NOT NULL REFERENCES auth.users(id),
-  photo_url TEXT NOT NULL,
-  latitude NUMERIC NOT NULL,
-  longitude NUMERIC NOT NULL,
-  location_name TEXT,           -- e.g. "Kampala Road, near Shell Petrol Station"
-  agent_name TEXT NOT NULL,
-  agent_phone TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',  -- pending → verified → approved → paid
-  verified_by UUID REFERENCES auth.users(id),
-  verified_at TIMESTAMPTZ,
-  approved_by UUID REFERENCES auth.users(id),
-  approved_at TIMESTAMPTZ,
-  rejection_reason TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
+**5. Audit Trail Enhancement**
+- In the `approve-deposit` edge function: ensure `processed_by` (who approved) and timestamp are always recorded (already done)
+- In `ApprovalQueue.tsx`: log verification actions with the operator's entered TID vs. the deposit's TID for audit
 
-With RLS policies for:
-- Agents: INSERT own submissions, SELECT own submissions
-- Agent Ops Manager roles: SELECT all, UPDATE (to verify)
-- CFO/manager roles: SELECT verified, UPDATE (to approve)
+### Files Modified
 
-Storage bucket `service-centre-photos` for the setup photos.
+| File | Change |
+|------|--------|
+| `src/components/financial-ops/TidVerification.tsx` | Remove pre-registration logic; keep as search-and-approve only; add TID format validation |
+| `src/components/payments/DepositFlow.tsx` | Remove `pre_registered_tids` auto-match block; add MTN/Airtel TID format validation |
+| `src/components/financial-ops/ApprovalQueue.tsx` | Add TID format badge/validation display for operators |
+| Database migration | Add unique index on `deposit_requests.transaction_id` |
 
-### 2. Agent Commission Benefits Page — New Sections
+### What Does NOT Change
+- The `pre_registered_tids` table remains in the database (no destructive migration) but is no longer written to or read from
+- The `approve-deposit` edge function remains unchanged — it already handles manual approval correctly
+- The `ApprovalQueue` approval/reject flow remains intact
+- All existing pending deposits continue to work normally
 
-Add to `AgentCommissionBenefits.tsx` after the branding card:
-
-**Printing Instructions Card:**
-- Step-by-step guide in plain language
-- Color codes: Primary Purple `#7214c9`, White `#FFFFFF`, Black text
-- Paper size recommendation (A3 or A2 for poster, A4 for logo)
-- Where to print (any print shop, show them the downloaded image)
-- How to mount (visible wall, window, or signboard)
-
-**Submit Your Service Centre Card:**
-- Photo upload (camera capture preferred)
-- GPS capture button (reuse existing geolocation pattern)
-- Location name text input
-- Agent name + phone auto-filled from profile
-- Submit button → inserts into `service_centre_setups`
-
-**My Submissions Card:**
-- List of agent's own submissions with status badges (Pending → Verified → Approved → Paid)
-
-### 3. Agent Ops Dashboard — Service Centre Verification Queue
-
-New component `ServiceCentreVerificationQueue` added to `AgentOpsDashboard.tsx`:
-- Shows all `pending` submissions
-- Displays photo, GPS on map link, agent name, phone, submission date
-- "Verify" button → updates status to `verified`, sets `verified_by` and `verified_at`
-- "Reject" button with mandatory reason
-
-### 4. CFO Approval — Service Centre Payout
-
-Add a section to the CFO dashboard (or Financial Ops tools) showing `verified` service centre setups:
-- Shows verified submissions with verifier name
-- "Approve & Pay UGX 25,000" button
-- On approval: calls `credit_agent_event_bonus` RPC with `p_bonus_type = 'service_centre_setup'`, `p_amount = 25000`
-- This creates the double-entry: `cash_out`/`marketing_expense`/`platform` + `cash_in`/`agent_commission`/`wallet`
-- Updates status to `paid`
-
-### 5. Update `credit_agent_event_bonus` RPC
-
-No changes needed — it already accepts arbitrary bonus types and amounts. We just call it with `service_centre_setup` as the type and `25000` as the amount.
-
-### 6. Documentation Update
-
-Update both `WELILE_WORKFLOW.md` files:
-- Add Service Centre Setup bonus (UGX 25,000) to the event bonuses table
-- Document the 3-step approval pipeline (pending → verified → approved/paid)
-- Add to edge function registry if a new edge function is created
-
-## Technical Details
-
-- **Photo upload**: Uses existing `supabase.storage` pattern (see `deposit-proofs` bucket usage in `DepositFlow.tsx`)
-- **GPS capture**: Reuses the `navigator.geolocation.getCurrentPosition` pattern used across 16+ existing components
-- **Payout**: Uses existing `credit_agent_event_bonus` RPC — no new edge function needed for the payment itself; the CFO UI calls the RPC directly via the service role or an existing edge function wrapper
-- **Realtime**: Optional — can add `service_centre_setups` to realtime publication for live status updates on the agent side
+### Strict Rules Enforced
+- No TIDs stored without a user-initiated deposit
+- No auto-approval based on pre-entered TIDs
+- No matching against unlinked TIDs
+- Unique TID constraint prevents reuse
+- Every approval logged with operator identity and timestamp
 
