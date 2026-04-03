@@ -308,6 +308,7 @@ Deno.serve(async (req) => {
             description: `Auto-charge: ${charge.service_type} instalment (${charge.frequency})`,
             linked_party: "platform",
             transaction_date: now.toISOString(),
+            ledger_scope: "platform",
           });
 
           if (charge.rent_request_id) {
