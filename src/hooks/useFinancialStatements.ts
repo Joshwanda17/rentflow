@@ -164,6 +164,8 @@ export function useFinancialStatements() {
         rentRequestsRes,
         // All-time platform balance for opening balance
         prevPlatformRes,
+        // All-time platform entries for Balance Sheet (no date filter)
+        allTimePlatformRes,
       ] = await Promise.all([
         buildScopedQuery('platform', 'cash_in'),
         buildScopedQuery('platform', 'cash_out'),
@@ -182,6 +184,11 @@ export function useFinancialStatements() {
           q = q.neq('category', 'opening_balance');
           return q;
         })(),
+        // All-time platform query for Balance Sheet platformCash (unfiltered by date)
+        supabase.from('general_ledger')
+          .select('amount, direction, category')
+          .eq('ledger_scope', 'platform')
+          .neq('category', 'opening_balance'),
       ]);
 
       const platformIn = platformInRes.data || [];
@@ -193,6 +200,7 @@ export function useFinancialStatements() {
       const wallets = walletsRes.data || [];
       const rentRequests = rentRequestsRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
+      const allTimePlatform = allTimePlatformRes.data || [];
 
       // Fix #2: Exclude 'opening_balance' migration artifacts from all aggregations
       const excludeSynthetic = (rows: any[]) => rows.filter(r => r.category !== 'opening_balance');
@@ -260,9 +268,14 @@ export function useFinancialStatements() {
       // BALANCE SHEET — Platform assets vs obligations
       // User wallet balances = custodial LIABILITY (not our money)
       // ══════════════════════════════════════════════════════════════
-      // Platform Cash = Net Operating Income (revenue earned minus platform costs)
-      // NOT sumAll — that includes pass-through items like rent deployments/repayments
-      const platformCash = Math.max(0, netOperatingIncome);
+      // Platform Cash = All-time cumulative retained earnings (Balance Sheet is a point-in-time snapshot)
+      const revenueCategories = ['tenant_access_fee', 'access_fee', 'tenant_request_fee', 'request_fee', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
+      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense'];
+      const allTimePlatformIn = allTimePlatform.filter(e => e.direction === 'cash_in');
+      const allTimePlatformOut = allTimePlatform.filter(e => e.direction === 'cash_out');
+      const allTimeRevenue = sumBy(allTimePlatformIn, revenueCategories);
+      const allTimeCosts = sumBy(allTimePlatformOut, costCategories);
+      const platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
 
       const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
 
