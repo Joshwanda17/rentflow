@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Handshake, UserPlus, Loader2, XCircle, Smartphone } from 'lucide-react';
+import { Handshake, UserPlus, Loader2, XCircle, Smartphone, ShieldCheck } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 
 export function ProxyAgentManager() {
@@ -22,6 +23,7 @@ export function ProxyAgentManager() {
   const [pickedBeneficiary, setPickedBeneficiary] = useState<any>(null);
   const [beneficiaryRole, setBeneficiaryRole] = useState('landlord');
   const [reason, setReason] = useState('No smartphone access');
+  const [isManagedAccount, setIsManagedAccount] = useState(false);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['proxy-assignments'],
@@ -46,6 +48,7 @@ export function ProxyAgentManager() {
         beneficiary_role: beneficiaryRole,
         assigned_by: user!.id,
         reason,
+        is_managed_account: isManagedAccount,
       });
       if (error) throw error;
     },
@@ -55,6 +58,7 @@ export function ProxyAgentManager() {
       setShowAssign(false);
       setPickedAgent(null);
       setPickedBeneficiary(null);
+      setIsManagedAccount(false);
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -77,7 +81,7 @@ export function ProxyAgentManager() {
           <Handshake className="h-5 w-5 text-primary" />
           Proxy Agents
         </h2>
-        <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) { setPickedAgent(null); setPickedBeneficiary(null); } }}>
+        <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) { setPickedAgent(null); setPickedBeneficiary(null); setIsManagedAccount(false); } }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5"><UserPlus className="h-4 w-4" /> Link Agent</Button>
           </DialogTrigger>
@@ -110,6 +114,18 @@ export function ProxyAgentManager() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                    Managed Account
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Payouts go to agent's wallet instead of the partner's. Prevents double-credit.
+                  </p>
+                </div>
+                <Switch checked={isManagedAccount} onCheckedChange={setIsManagedAccount} />
+              </div>
               <div>
                 <Label>Reason</Label>
                 <Input value={reason} onChange={e => setReason(e.target.value)} />
@@ -141,10 +157,16 @@ export function ProxyAgentManager() {
                     <span className="text-xs text-muted-foreground">→</span>
                     <p className="text-sm">{a.beneficiary?.full_name || 'Beneficiary'}</p>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge variant="outline" className="text-[10px]">
                       {a.beneficiary_role === 'landlord' ? '🏠 Landlord' : '💼 Partner'}
                     </Badge>
+                    {a.is_managed_account && (
+                      <Badge variant="primary" className="text-[10px] gap-0.5">
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                        Managed
+                      </Badge>
+                    )}
                     <span className="text-[10px] text-muted-foreground">{a.reason}</span>
                   </div>
                 </div>

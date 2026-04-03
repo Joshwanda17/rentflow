@@ -5261,6 +5261,7 @@ export type Database = {
           source_id: string | null
           source_table: string
           status: string
+          target_wallet_user_id: string | null
           transaction_group_id: string | null
           updated_at: string
           user_id: string | null
@@ -5283,6 +5284,7 @@ export type Database = {
           source_id?: string | null
           source_table: string
           status?: string
+          target_wallet_user_id?: string | null
           transaction_group_id?: string | null
           updated_at?: string
           user_id?: string | null
@@ -5305,11 +5307,41 @@ export type Database = {
           source_id?: string | null
           source_table?: string
           status?: string
+          target_wallet_user_id?: string | null
           transaction_group_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pending_wallet_operations_target_wallet_user_id_fkey"
+            columns: ["target_wallet_user_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pending_wallet_operations_target_wallet_user_id_fkey"
+            columns: ["target_wallet_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_wallet_operations_target_wallet_user_id_fkey"
+            columns: ["target_wallet_user_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pending_wallet_operations_target_wallet_user_id_fkey"
+            columns: ["target_wallet_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       platform_expense_transfers: {
         Row: {
@@ -5969,6 +6001,7 @@ export type Database = {
           expires_at: string | null
           id: string
           is_active: boolean
+          is_managed_account: boolean
           reason: string | null
           updated_at: string
         }
@@ -5981,6 +6014,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          is_managed_account?: boolean
           reason?: string | null
           updated_at?: string
         }
@@ -5993,6 +6027,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          is_managed_account?: boolean
           reason?: string | null
           updated_at?: string
         }
