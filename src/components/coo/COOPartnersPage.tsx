@@ -2642,10 +2642,19 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         reference_id: refId,
         operation_type: operationType,
         transaction_group_id: txnGroupId,
-        description: `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
+        description: `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${mode === 'agent_wallet' ? managed?.agentName + "'s agent wallet" : p.name + "'s wallet"}. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
         linked_party: user.id,
         status: 'pending',
-        metadata: { partner_name: p.name, roi_percentage: p.roiPercentage, investment_amount: p.investmentAmount, initiated_by: user.id, reason, pay_mode: mode },
+        ...(mode === 'agent_wallet' && managed ? { target_wallet_user_id: managed.agentId } : {}),
+        metadata: {
+          partner_name: p.name,
+          roi_percentage: p.roiPercentage,
+          investment_amount: p.investmentAmount,
+          initiated_by: user.id,
+          reason,
+          pay_mode: mode,
+          ...(mode === 'agent_wallet' && managed ? { is_managed_payout: true, target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+        },
       });
       if (pendErr) throw pendErr;
 
