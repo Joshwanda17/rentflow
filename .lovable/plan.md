@@ -1,28 +1,24 @@
 
 
-## Fix TID Verification Search to Match Legacy Deposits
+## Remove One-Withdrawal-Per-Day Limit
 
 ### Problem
-Deposits submitted before the TID format enforcement stored transaction IDs without provider prefixes (e.g. `39665905645` or `TID39665905645` instead of `MP39665905645`). The TID Verify search does an exact `ilike` match, so searching `MP39665905645` fails against legacy records.
+A database trigger `trg_enforce_one_withdrawal_per_day` on `withdrawal_requests` blocks users from submitting more than one pending withdrawal per day, raising the error: *"You have already submitted a withdrawal request today."*
 
 ### Solution
-Update the search logic in `TidVerification.tsx` to perform a **two-pass search**: first try exact match, then fall back to matching just the numeric portion of the TID.
+Drop the trigger and its function via a single database migration.
 
-### Changes to `src/components/financial-ops/TidVerification.tsx`
+### Database Migration
 
-**Update `handleVerify` search logic (lines 74-84):**
+```sql
+DROP TRIGGER IF EXISTS trg_enforce_one_withdrawal_per_day ON public.withdrawal_requests;
+DROP FUNCTION IF EXISTS public.enforce_one_withdrawal_per_day();
+```
 
-1. Extract the numeric-only portion of the entered TID (strip `MP`, `TID`, or any alpha prefix)
-2. Run two queries in parallel:
-   - **Exact match**: `.ilike('transaction_id', '%{trimmedTid}%')` (handles new-format deposits)
-   - **Numeric fallback**: `.ilike('transaction_id', '%{numericPortion}%')` (handles legacy deposits without prefix)
-3. Merge and deduplicate results by deposit `id`
-4. Rest of the flow (profile enrichment, amount matching, approval) stays the same
+### Files Changed
+| File | Change |
+|------|--------|
+| New migration | Drop trigger + function |
 
-This is a ~15-line change isolated to the search block inside `handleVerify`. No other files change.
-
-### What This Fixes
-- Operator enters `MP39665905645` for MTN → matches both `MP39665905645` (new) and `39665905645` or `TID39665905645` (legacy)
-- Operator enters `TID144205097399` for Airtel → matches both new and legacy formats
-- No false positives: the amount check and manual review remain as safeguards
+No frontend changes needed — the error originates entirely from the database trigger.
 
