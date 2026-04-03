@@ -171,6 +171,15 @@ export default function COODashboardPage() {
             <PendingPortfolioTopUps />
           </div>
         );
+      case 'partner-finance':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Partner Financial Activity', Receipt)}
+            <p className="text-sm text-muted-foreground -mt-2">All partner payouts, withdrawals, top-ups & retractions in one view.</p>
+            <PartnerFinancialActivity />
+          </div>
+        );
       case 'staff-performance':
         return (
           <div className="space-y-3">
