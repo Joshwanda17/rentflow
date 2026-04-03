@@ -178,7 +178,7 @@ export function TidVerification() {
           TID Verify
         </CardTitle>
         <p className="text-[10px] sm:text-xs text-muted-foreground">
-          Enter TID + Amount. If a deposit matches → auto-approve. If not → saved for when depositor submits.
+          Enter TID + Amount → search pending deposits → approve matches.
         </p>
       </CardHeader>
       <CardContent className="space-y-3 px-3 sm:px-6 pb-4">
