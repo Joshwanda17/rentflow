@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { RequestDetailSheet } from './RequestDetailSheet';
@@ -46,6 +46,20 @@ interface QueueItem {
   };
 }
 
+// TID format validation helper
+function validateTidFormat(tid: string | null | undefined, provider: string | null | undefined): { valid: boolean; error?: string } {
+  if (!tid) return { valid: false, error: 'No Transaction ID provided' };
+  if (!provider || provider === 'bank_transfer' || provider === 'agent_cash') return { valid: true }; // Skip for bank/cash
+  const upper = tid.trim().toUpperCase();
+  if (provider === 'mtn' && !upper.startsWith('MP')) {
+    return { valid: false, error: "Invalid TID format for MTN. TID must start with 'MP' (e.g. MP39665905645)" };
+  }
+  if (provider === 'airtel' && !upper.startsWith('TID')) {
+    return { valid: false, error: "Invalid TID format for Airtel. TID must start with 'TID' (e.g. TID144205097399)" };
+  }
+  return { valid: true };
+}
+
 export function ApprovalQueue() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -58,6 +72,12 @@ export function ApprovalQueue() {
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
   const [payoutProof, setPayoutProof] = useState('');
   const [sortNewest, setSortNewest] = useState(false);
+
+  // Deposit verification dialog state
+  const [depositVerifyItem, setDepositVerifyItem] = useState<QueueItem | null>(null);
+  const [depositVerifyAction, setDepositVerifyAction] = useState<'approve' | 'reject' | null>(null);
+  const [depositRejectReason, setDepositRejectReason] = useState('');
+  const [depositProcessing, setDepositProcessing] = useState(false);
 
   const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
     queryKey: ['approval-queue-deposits'],
@@ -394,11 +414,6 @@ export function ApprovalQueue() {
                   </Button>
                 </div>
               )}
-              {activeQueue === 'deposits' && (
-                <Badge variant="outline" className="text-[10px] gap-1">
-                  <Hash className="h-3 w-3" /> Review only — approve via TID
-                </Badge>
-              )}
             </div>
           </div>
         </CardHeader>
@@ -461,7 +476,7 @@ export function ApprovalQueue() {
                   </div>
                 ) : (
                   <div className="px-2 pb-1">
-                    <span className="text-[11px] text-muted-foreground">{items.length} pending — use TID tab to verify & approve</span>
+                    <span className="text-[11px] text-muted-foreground">{items.length} pending — tap to verify & approve</span>
                   </div>
                 )}
                 {items.map((item) => {
@@ -566,13 +581,32 @@ export function ApprovalQueue() {
                       </div>
 
                       {/* Inline action buttons — large touch targets, always visible */}
-                      {activeQueue !== 'deposits' && (
+                      {isDeposit ? (
                         <div className="grid grid-cols-2 gap-0 border-t border-border/40">
                           <Button
                             variant="ghost"
-                            className={`h-12 rounded-none text-sm font-bold gap-1.5 ${
-                              isDeposit ? 'text-success hover:bg-success/10' : 'text-primary hover:bg-primary/10'
-                            }`}
+                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-success hover:bg-success/10"
+                            onClick={(e) => { e.stopPropagation(); setDepositVerifyItem(item); setDepositVerifyAction('approve'); }}
+                            disabled={processing || depositProcessing}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
+                            onClick={(e) => { e.stopPropagation(); setDepositVerifyItem(item); setDepositVerifyAction('reject'); }}
+                            disabled={processing || depositProcessing}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-0 border-t border-border/40">
+                          <Button
+                            variant="ghost"
+                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-primary hover:bg-primary/10"
                             onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
                             disabled={processing}
                           >
@@ -694,6 +728,202 @@ export function ApprovalQueue() {
               {processing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
               Confirm {bulkAction === 'approve' ? 'Approval' : 'Rejection'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deposit Verification Dialog */}
+      <Dialog open={!!depositVerifyItem} onOpenChange={(open) => { if (!open) { setDepositVerifyItem(null); setDepositVerifyAction(null); setDepositRejectReason(''); } }}>
+        <DialogContent stable className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm sm:text-base flex items-center gap-2">
+              {depositVerifyAction === 'approve' ? <ShieldCheck className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />}
+              {depositVerifyAction === 'approve' ? 'Verify & Approve Deposit' : 'Reject Deposit'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {depositVerifyAction === 'approve'
+                ? 'Cross-check this TID with the company payment SMS/logs before approving.'
+                : 'Provide a reason for rejecting this deposit request.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {depositVerifyItem && (() => {
+            const d = depositVerifyItem.rawData;
+            const provider = d.provider;
+            const tid = d.transaction_id;
+            const tidCheck = validateTidFormat(tid, provider);
+            const providerLabel = provider === 'mtn' ? '🟡 MTN MoMo' : provider === 'airtel' ? '🔴 Airtel Money' : provider === 'bank_transfer' ? '🏦 Bank Transfer' : provider === 'agent_cash' ? '💵 Agent Cash' : provider || 'Unknown';
+
+            return (
+              <div className="space-y-3">
+                {/* User info */}
+                <div className="p-3 rounded-xl bg-muted/50 border border-border/60 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold">{depositVerifyItem.userName}</p>
+                    <p className="text-lg font-black text-success tabular-nums">{formatUGX(depositVerifyItem.amount)}</p>
+                  </div>
+                  {depositVerifyItem.userPhone && <p className="text-xs text-muted-foreground">{depositVerifyItem.userPhone}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    Submitted: {new Date(depositVerifyItem.createdAt).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* TID & Provider */}
+                <div className="p-3 rounded-xl border-2 border-primary/20 bg-primary/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">Provider</span>
+                    <Badge variant="outline" className="text-xs">{providerLabel}</Badge>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-muted-foreground">Transaction ID</span>
+                    <p className="text-base font-mono font-bold tracking-wider mt-0.5 select-all">{tid || '—'}</p>
+                  </div>
+                </div>
+
+                {/* TID Format validation result */}
+                {depositVerifyAction === 'approve' && !tidCheck.valid && (
+                  <div className="p-3 rounded-xl bg-destructive/10 border-2 border-destructive/30 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-destructive">Approval Blocked</p>
+                      <p className="text-xs text-destructive/80">{tidCheck.error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {depositVerifyAction === 'approve' && tidCheck.valid && (
+                  <div className="p-3 rounded-xl bg-success/10 border-2 border-success/30 flex items-start gap-2">
+                    <ShieldCheck className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                    <p className="text-xs text-success font-medium">TID format is valid. Confirm you've verified this TID in company payment SMS/logs.</p>
+                  </div>
+                )}
+
+                {/* Notes from user */}
+                {d.notes && (
+                  <div className="p-2 rounded-lg bg-muted/30">
+                    <p className="text-[10px] font-medium text-muted-foreground mb-0.5">User Notes</p>
+                    <p className="text-xs">{d.notes}</p>
+                  </div>
+                )}
+
+                {/* Reject reason */}
+                {depositVerifyAction === 'reject' && (
+                  <Textarea
+                    placeholder="Reason for rejection (min 10 characters)…"
+                    value={depositRejectReason}
+                    onChange={e => setDepositRejectReason(e.target.value)}
+                    className="text-sm min-h-[80px]"
+                    autoFocus
+                  />
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setDepositVerifyItem(null); setDepositVerifyAction(null); setDepositRejectReason(''); }} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            {depositVerifyAction === 'approve' ? (
+              <Button
+                size="sm"
+                variant="default"
+                disabled={depositProcessing || !validateTidFormat(depositVerifyItem?.rawData?.transaction_id, depositVerifyItem?.rawData?.provider).valid}
+                onClick={async () => {
+                  if (!depositVerifyItem || !user) return;
+                  setDepositProcessing(true);
+                  try {
+                    const { error } = await supabase.functions.invoke('approve-deposit', {
+                      body: { deposit_id: depositVerifyItem.id },
+                    });
+                    if (error) {
+                      const msg = await extractFromErrorObject(error, 'Deposit approval failed');
+                      throw new Error(msg);
+                    }
+                    // Audit log
+                    await supabase.from('audit_logs').insert({
+                      user_id: user.id,
+                      action_type: 'deposit_manual_approve',
+                      record_id: depositVerifyItem.id,
+                      table_name: 'deposit_requests',
+                      metadata: {
+                        transaction_id: depositVerifyItem.rawData?.transaction_id,
+                        amount: depositVerifyItem.amount,
+                        provider: depositVerifyItem.rawData?.provider,
+                        user_name: depositVerifyItem.userName,
+                      },
+                    });
+                    toast.success(`Deposit approved — ${formatUGX(depositVerifyItem.amount)} credited to ${depositVerifyItem.userName}`);
+                    queryClient.setQueryData<QueueItem[]>(['approval-queue-deposits'], (old) =>
+                      (old || []).filter(i => i.id !== depositVerifyItem.id)
+                    );
+                    queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
+                    queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
+                    setDepositVerifyItem(null);
+                    setDepositVerifyAction(null);
+                  } catch (err: any) {
+                    toast.error(err.message || 'Approval failed');
+                  } finally {
+                    setDepositProcessing(false);
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                {depositProcessing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                <ShieldCheck className="h-4 w-4 mr-1" />
+                Confirm Approval
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={depositProcessing || depositRejectReason.length < 10}
+                onClick={async () => {
+                  if (!depositVerifyItem || !user) return;
+                  setDepositProcessing(true);
+                  try {
+                    const { error } = await supabase.from('deposit_requests').update({
+                      status: 'rejected',
+                      processed_by: user.id,
+                      rejected_at: new Date().toISOString(),
+                      rejection_reason: depositRejectReason,
+                    }).eq('id', depositVerifyItem.id);
+                    if (error) throw error;
+                    // Audit log
+                    await supabase.from('audit_logs').insert({
+                      user_id: user.id,
+                      action_type: 'deposit_manual_reject',
+                      record_id: depositVerifyItem.id,
+                      table_name: 'deposit_requests',
+                      metadata: {
+                        transaction_id: depositVerifyItem.rawData?.transaction_id,
+                        amount: depositVerifyItem.amount,
+                        provider: depositVerifyItem.rawData?.provider,
+                        user_name: depositVerifyItem.userName,
+                        rejection_reason: depositRejectReason,
+                      },
+                    });
+                    toast.success(`Deposit rejected for ${depositVerifyItem.userName}`);
+                    queryClient.setQueryData<QueueItem[]>(['approval-queue-deposits'], (old) =>
+                      (old || []).filter(i => i.id !== depositVerifyItem.id)
+                    );
+                    queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
+                    queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
+                    setDepositVerifyItem(null);
+                    setDepositVerifyAction(null);
+                    setDepositRejectReason('');
+                  } catch (err: any) {
+                    toast.error(err.message || 'Rejection failed');
+                  } finally {
+                    setDepositProcessing(false);
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                {depositProcessing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                Confirm Rejection
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
