@@ -106,42 +106,8 @@ export function TidVerification() {
         return;
       }
 
-      // Step 2: No pending deposit found — auto pre-register
-      // Check if already pre-registered
-      const { data: existing } = await supabase
-        .from('pre_registered_tids' as any)
-        .select('id')
-        .eq('transaction_id', trimmedTid)
-        .eq('status', 'waiting')
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        setResultState('not_found_exists');
-        return;
-      }
-
-      // Pre-register automatically
-      const { error: insertErr } = await supabase
-        .from('pre_registered_tids' as any)
-        .insert({
-          transaction_id: trimmedTid,
-          amount: parsedAmount,
-          provider,
-          registered_by: user.id,
-          status: 'waiting',
-        });
-
-      if (insertErr) throw insertErr;
-
-      // Audit log
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'tid_pre_registered',
-        table_name: 'pre_registered_tids',
-        metadata: { transaction_id: trimmedTid, amount: parsedAmount, provider },
-      });
-
-      setResultState('not_found_preregistered');
+      // No pending deposit found
+      setResultState('not_found');
     } catch (err: any) {
       toast.error(err.message || 'Verification failed');
       setResultState('idle');
