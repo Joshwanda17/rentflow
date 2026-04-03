@@ -139,6 +139,7 @@ export function PartnersOpsDashboard() {
         </div>
       );
       case 'topups': return <PendingPortfolioTopUps />;
+      case 'activity': return <PartnerFinancialActivity />;
       default: return null;
     }
   };
