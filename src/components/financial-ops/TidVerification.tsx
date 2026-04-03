@@ -74,15 +74,37 @@ export function TidVerification() {
     try {
       const parsedAmount = parseFloat(operatorAmount);
 
-      // Step 1: Search pending deposits with matching TID
-      const { data: deposits, error } = await supabase
-        .from('deposit_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .ilike('transaction_id', `%${trimmedTid}%`)
-        .limit(20);
+      // Extract numeric-only portion for legacy fallback matching
+      const numericPortion = trimmedTid.replace(/[^0-9]/g, '');
 
-      if (error) throw error;
+      // Step 1: Search pending deposits with matching TID (two-pass: exact + numeric fallback)
+      const [exactResult, numericResult] = await Promise.all([
+        supabase
+          .from('deposit_requests')
+          .select('*')
+          .eq('status', 'pending')
+          .ilike('transaction_id', `%${trimmedTid}%`)
+          .limit(20),
+        numericPortion && numericPortion !== trimmedTid
+          ? supabase
+              .from('deposit_requests')
+              .select('*')
+              .eq('status', 'pending')
+              .ilike('transaction_id', `%${numericPortion}%`)
+              .limit(20)
+          : Promise.resolve({ data: [] as any[], error: null }),
+      ]);
+
+      if (exactResult.error) throw exactResult.error;
+      if (numericResult.error) throw numericResult.error;
+
+      // Merge and deduplicate by id
+      const seen = new Set<string>();
+      const deposits = [...(exactResult.data || []), ...(numericResult.data || [])].filter(d => {
+        if (seen.has(d.id)) return false;
+        seen.add(d.id);
+        return true;
+      });
 
       if (deposits?.length) {
         // Found pending deposits — resolve profiles and show matches
