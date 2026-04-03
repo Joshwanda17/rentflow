@@ -2659,13 +2659,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       if (pendErr) throw pendErr;
 
       // Audit log
-      const auditAction = mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
+      const auditAction = mode === 'agent_wallet' ? 'roi_managed_payout_requested' : mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: auditAction,
         table_name: 'pending_wallet_operations',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode },
+        metadata: {
+          roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode,
+          ...(mode === 'agent_wallet' && managed ? { is_managed_payout: true, target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+        },
       });
 
       // Notify partner
