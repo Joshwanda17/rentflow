@@ -1,33 +1,28 @@
 
 
-## Mandatory TID Submission with Format Enforcement
+## Fix TID Verification Search to Match Legacy Deposits
 
-### Changes to `src/components/payments/DepositFlow.tsx`
+### Problem
+Deposits submitted before the TID format enforcement stored transaction IDs without provider prefixes (e.g. `39665905645` or `TID39665905645` instead of `MP39665905645`). The TID Verify search does an exact `ilike` match, so searching `MP39665905645` fails against legacy records.
 
-**1. Remove auto-prefix logic**
-- Line 64: Change `getReferenceId()` from `return \`TID\${transactionId.trim().toUpperCase()}\`` to `return transactionId.trim().toUpperCase()`
-- Lines 338-341: Remove the hardcoded `TID` prefix badge `<span>` from the input wrapper
-- Line 344: Change `inputMode` from `numeric` to `text` (allow alphanumeric for MP/TID prefixes)
-- Line 347: Remove `.replace(/\D/g, '')` filter so users can type `MP` or `TID`
+### Solution
+Update the search logic in `TidVerification.tsx` to perform a **two-pass search**: first try exact match, then fall back to matching just the numeric portion of the TID.
 
-**2. Add real-time inline TID validation**
-- Add `tidError` state variable
-- Add a `validateTid(value)` helper that checks on every keystroke:
-  - MTN provider → must start with `MP` → error: "MTN TIDs must start with 'MP' (e.g. MP39665905645)"
-  - Airtel provider → must start with `TID` → error: "Airtel TIDs must start with 'TID' (e.g. TID144205097399)"
-- Show red error text below the input when invalid, green checkmark icon when valid
-- Clear/re-validate when provider selection changes
+### Changes to `src/components/financial-ops/TidVerification.tsx`
 
-**3. Update placeholders**
-- Line 345: MTN placeholder → `"e.g. MP39665905645"`, Airtel → `"e.g. TID144205097399"`
+**Update `handleVerify` search logic (lines 74-84):**
 
-**4. Block submit when TID invalid**
-- Line 420: Disable submit button when `tidError` is non-empty or TID is empty (for momo channel)
-- Keep existing `validateForm()` checks as defense-in-depth; update Airtel check (line 81-84) to enforce `TID` prefix instead of just rejecting `MP`
+1. Extract the numeric-only portion of the entered TID (strip `MP`, `TID`, or any alpha prefix)
+2. Run two queries in parallel:
+   - **Exact match**: `.ilike('transaction_id', '%{trimmedTid}%')` (handles new-format deposits)
+   - **Numeric fallback**: `.ilike('transaction_id', '%{numericPortion}%')` (handles legacy deposits without prefix)
+3. Merge and deduplicate results by deposit `id`
+4. Rest of the flow (profile enrichment, amount matching, approval) stays the same
 
-**5. Mark TID as required**
-- Line 336-337: Add asterisk `*` to the label
-- Line 351-353: Add helper text: "Enter the exact TID from your payment confirmation SMS"
+This is a ~15-line change isolated to the search block inside `handleVerify`. No other files change.
 
-### No other files change
+### What This Fixes
+- Operator enters `MP39665905645` for MTN → matches both `MP39665905645` (new) and `39665905645` or `TID39665905645` (legacy)
+- Operator enters `TID144205097399` for Airtel → matches both new and legacy formats
+- No false positives: the amount check and manual review remain as safeguards
 
