@@ -125,19 +125,25 @@ Deno.serve(async (req) => {
         // Ensure transaction_group_id is always set so sync_wallet_from_ledger trigger fires
         const effectiveTxGroupId = op.transaction_group_id || crypto.randomUUID();
 
+        // Determine target wallet: if managed payout, route to agent's wallet
+        const ledgerUserId = op.target_wallet_user_id || op.user_id;
+        const isManaged = !!op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id;
+
         // Insert into general_ledger (this triggers wallet balance update via existing trigger)
         const { error: ledgerErr } = await adminClient
           .from("general_ledger")
           .insert({
-            user_id: op.user_id,
+            user_id: ledgerUserId,
             amount: op.amount,
             direction: op.direction,
             category: op.category,
-            description: op.description,
+            description: isManaged
+              ? `[Managed Payout] ${op.description || ''} — on behalf of partner ${op.user_id}`
+              : op.description,
             source_table: op.source_table,
             source_id: op.source_id,
             transaction_group_id: effectiveTxGroupId,
-            linked_party: op.linked_party,
+            linked_party: isManaged ? op.user_id : op.linked_party,
             reference_id: op.reference_id,
             account: op.account,
           });
