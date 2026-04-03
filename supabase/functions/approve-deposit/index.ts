@@ -284,8 +284,7 @@ Deno.serve(async (req) => {
                   await supabaseAdmin.rpc("credit_agent_rent_commission", {
                     p_rent_request_id: activeSub.rent_request_id,
                     p_repayment_amount: debtCleared,
-                    p_source_table: "subscription_charges",
-                    p_source_id: activeSub.id,
+                    p_tenant_id: depositRequest.user_id,
                   });
                 }
               }
