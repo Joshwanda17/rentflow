@@ -209,6 +209,10 @@ export function FinancialStatementsPanel() {
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    generate();
+  }, []);
+
   const handleGenerate = async () => {
     try {
       await generate();
