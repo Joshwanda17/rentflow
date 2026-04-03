@@ -49,6 +49,29 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const [reason, setReason] = useState('');
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tidError, setTidError] = useState('');
+
+  const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
+    const upper = value.trim().toUpperCase();
+    const prov = provider ?? momoProvider;
+    if (!upper) { setTidError(''); return; }
+    if (prov === 'mtn' && !upper.startsWith('MP')) {
+      setTidError("MTN TIDs must start with 'MP' (e.g. MP39665905645)");
+    } else if (prov === 'airtel' && !upper.startsWith('TID')) {
+      setTidError("Airtel TIDs must start with 'TID' (e.g. TID144205097399)");
+    } else {
+      setTidError('');
+    }
+  };
+
+  const isTidValid = () => {
+    if (channel !== 'momo') return true;
+    const upper = transactionId.trim().toUpperCase();
+    if (!upper) return false;
+    if (momoProvider === 'mtn') return upper.startsWith('MP');
+    if (momoProvider === 'airtel') return upper.startsWith('TID');
+    return true;
+  };
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
@@ -61,7 +84,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
 
   const getReferenceId = () => {
     if (channel === 'agent_cash') return receiptNumber.trim() ? `RCT${receiptNumber.trim().toUpperCase()}` : '';
-    return `TID${transactionId.trim().toUpperCase()}`;
+    return transactionId.trim().toUpperCase();
   };
 
   const validateForm = () => {
@@ -75,11 +98,11 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     if (channel === 'momo') {
       const rawTid = transactionId.trim().toUpperCase();
       if (momoProvider === 'mtn' && !rawTid.startsWith('MP')) {
-        toast.error('MTN Transaction IDs must start with "MP"');
+        toast.error("MTN TIDs must start with 'MP' (e.g. MP39665905645)");
         return false;
       }
-      if (momoProvider === 'airtel' && rawTid.startsWith('MP')) {
-        toast.error('This looks like an MTN TID. Please select the correct provider.');
+      if (momoProvider === 'airtel' && !rawTid.startsWith('TID')) {
+        toast.error("Airtel TIDs must start with 'TID' (e.g. TID144205097399)");
         return false;
       }
     }
@@ -260,7 +283,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs">Provider</Label>
-                  <RadioGroup value={momoProvider} onValueChange={(v) => setMomoProvider(v as 'mtn' | 'airtel')} className="grid grid-cols-2 gap-2">
+                  <RadioGroup value={momoProvider} onValueChange={(v) => { setMomoProvider(v as 'mtn' | 'airtel'); validateTid(transactionId, v as 'mtn' | 'airtel'); }} className="grid grid-cols-2 gap-2">
                     <Label htmlFor="mtn" className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer ${momoProvider === 'mtn' ? 'border-yellow-500 bg-yellow-500/10' : 'border-border'}`}>
                       <RadioGroupItem value="mtn" id="mtn" className="sr-only" />
                       <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-[10px]">MTN</div>
@@ -333,23 +356,40 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Hash className="h-3.5 w-3.5" />
-                  {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'}
+                  {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'} <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex items-center rounded-lg border border-border overflow-hidden">
-                  <span className="px-2.5 py-2 bg-muted text-muted-foreground font-mono text-xs font-semibold border-r border-border select-none">
-                    TID
-                  </span>
-                  <Input
-                    type="text"
-                    inputMode={channel === 'momo' ? 'numeric' : 'text'}
-                    placeholder={channel === 'bank' ? 'e.g. FT24123456789' : 'e.g. 123456789'}
-                    value={transactionId}
-                    onChange={(e) => setTransactionId(channel === 'momo' ? e.target.value.replace(/\D/g, '') : e.target.value)}
-                    className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
-                  />
-                </div>
+                <Input
+                  type="text"
+                  inputMode="text"
+                  placeholder={
+                    channel === 'bank'
+                      ? 'e.g. FT24123456789'
+                      : momoProvider === 'mtn'
+                        ? 'e.g. MP39665905645'
+                        : 'e.g. TID144205097399'
+                  }
+                  value={transactionId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTransactionId(val);
+                    if (channel === 'momo') validateTid(val);
+                  }}
+                  className={`font-mono text-sm ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
+                />
+                {channel === 'momo' && tidError && (
+                  <p className="text-[10px] text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {tidError}
+                  </p>
+                )}
+                {channel === 'momo' && transactionId.trim() && !tidError && (
+                  <p className="text-[10px] text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Valid TID format
+                  </p>
+                )}
                 <p className="text-[10px] text-muted-foreground">
-                  {channel === 'bank' ? 'Find this on your bank receipt or transfer confirmation' : `Find this in your SMS from ${momoProvider.toUpperCase()}`}
+                  {channel === 'bank'
+                    ? 'Find this on your bank receipt or transfer confirmation'
+                    : 'Enter the exact TID from your payment confirmation SMS'}
                 </p>
               </div>
             ) : (
@@ -417,7 +457,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               <p className="text-[10px] text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
             </div>
 
-            <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full h-11" size="lg">
+            <Button onClick={handleSubmit} disabled={isSubmitting || (channel === 'momo' && !isTidValid())} className="w-full h-11" size="lg">
               {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting...</> : 'Submit Deposit Request'}
             </Button>
           </div>
