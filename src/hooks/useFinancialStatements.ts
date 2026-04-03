@@ -174,9 +174,13 @@ export function useFinancialStatements() {
         supabase.from('wallets').select('balance'),
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
         (() => {
-          let q = supabase.from('general_ledger').select('amount, direction, ledger_scope');
-          if (startDate) q = q.lt('transaction_date', startDate.toISOString());
-          return q.eq('ledger_scope', 'platform');
+          // Fix #1: No opening balance for "All Time" — prevents double-counting
+          if (!startDate) return Promise.resolve({ data: [], error: null });
+          let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
+          q = q.lt('transaction_date', startDate.toISOString());
+          q = q.eq('ledger_scope', 'platform');
+          q = q.neq('category', 'opening_balance');
+          return q;
         })(),
       ]);
 
@@ -190,9 +194,11 @@ export function useFinancialStatements() {
       const rentRequests = rentRequestsRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
 
+      // Fix #2: Exclude 'opening_balance' migration artifacts from all aggregations
+      const excludeSynthetic = (rows: any[]) => rows.filter(r => r.category !== 'opening_balance');
       const sumBy = (rows: any[], cats: string[]) =>
-        rows.filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
-      const sumAll = (rows: any[]) => rows.reduce((s, r) => s + Number(r.amount), 0);
+        excludeSynthetic(rows).filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
+      const sumAll = (rows: any[]) => excludeSynthetic(rows).reduce((s, r) => s + Number(r.amount), 0);
       const sumWithDirectionFallback = (
         preferredRows: any[],
         fallbackRows: any[],
@@ -232,8 +238,9 @@ export function useFinancialStatements() {
       const netOperating = tenantFeesReceived + rentRepayments + depositsReceived - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
 
       // Custodial (wallet scope — user money in/out of platform custody)
-      const userDeposits = sumAll(walletIn);
-      const userWithdrawals = sumAll(walletOut);
+      // Fix #3: Only count actual user deposits/withdrawals, not internal flows
+      const userDeposits = sumBy(walletIn, ['deposit', 'wallet_deposit', 'pending_portfolio_topup']);
+      const userWithdrawals = sumBy(walletOut, ['wallet_withdrawal']);
       const userTransfers = 0; // internal wallet-to-wallet are net zero
       const netCustodial = userDeposits - userWithdrawals;
 
