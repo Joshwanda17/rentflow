@@ -238,8 +238,9 @@ export function useFinancialStatements() {
       const netOperating = tenantFeesReceived + rentRepayments + depositsReceived - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
 
       // Custodial (wallet scope — user money in/out of platform custody)
-      const userDeposits = sumAll(walletIn);
-      const userWithdrawals = sumAll(walletOut);
+      // Fix #3: Only count actual user deposits/withdrawals, not internal flows
+      const userDeposits = sumBy(walletIn, ['deposit', 'wallet_deposit', 'pending_portfolio_topup']);
+      const userWithdrawals = sumBy(walletOut, ['wallet_withdrawal']);
       const userTransfers = 0; // internal wallet-to-wallet are net zero
       const netCustodial = userDeposits - userWithdrawals;
 
