@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { Badge } from '@/components/ui/badge';
@@ -31,8 +31,8 @@ const typeBadge = (type: string) => {
     'Payout': 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
     'Withdrawal': 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
     'Top-up': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-    'Retraction': 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
-    'Ledger': 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+    'Clawback': 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
+    'Deposit': 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
   };
   return <Badge variant="outline" className={cn('text-[10px]', colors[type] || '')}>{type}</Badge>;
 };
@@ -48,6 +48,23 @@ const columns: Column<ActivityRow>[] = [
 ];
 
 export function PartnerFinancialActivity() {
+  const queryClient = useQueryClient();
+
+  // ═══ REALTIME: auto-refresh when Financial Ops / CFO approve/reject ═══
+  useEffect(() => {
+    const channel = supabase
+      .channel('partner-fin-activity-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_wallet_operations' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['partner-financial-ops'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wallet_deductions' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['partner-financial-deductions'] });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   // Fetch pending_wallet_operations
   const { data: walletOps, isLoading: loadingOps } = useQuery({
     queryKey: ['partner-financial-ops'],
@@ -59,7 +76,7 @@ export function PartnerFinancialActivity() {
         .limit(500);
       return data || [];
     },
-    staleTime: 60000,
+    staleTime: 30000,
   });
 
   // Fetch wallet_deductions
@@ -73,14 +90,21 @@ export function PartnerFinancialActivity() {
         .limit(500);
       return data || [];
     },
-    staleTime: 60000,
+    staleTime: 30000,
   });
 
-  // Collect all user IDs, then batch fetch names
+  // Collect all user IDs from both sources + metadata initiated_by
   const allUserIds = useMemo(() => {
     const ids = new Set<string>();
-    (walletOps || []).forEach(op => { if (op.target_wallet_user_id) ids.add(op.target_wallet_user_id); });
-    (deductions || []).forEach(d => { if (d.target_user_id) ids.add(d.target_user_id); });
+    (walletOps || []).forEach(op => {
+      if (op.target_wallet_user_id) ids.add(op.target_wallet_user_id);
+      const meta = (op.metadata || {}) as Record<string, any>;
+      if (meta.initiated_by) ids.add(meta.initiated_by);
+    });
+    (deductions || []).forEach(d => {
+      if (d.target_user_id) ids.add(d.target_user_id);
+      if (d.deducted_by) ids.add(d.deducted_by);
+    });
     return Array.from(ids);
   }, [walletOps, deductions]);
 
@@ -106,15 +130,20 @@ export function PartnerFinancialActivity() {
     (walletOps || []).forEach(op => {
       const opType = (op.operation_type || '').toLowerCase();
       const cat = (op.category || '').toLowerCase();
-      let type = 'Ledger';
+      let type = 'Deposit';
       if (opType.includes('roi') || opType.includes('payout')) type = 'Payout';
       else if (cat === 'withdrawal' || opType.includes('withdraw')) type = 'Withdrawal';
       else if (opType.includes('topup') || opType.includes('top_up') || cat.includes('topup')) type = 'Top-up';
 
       const meta = (op.metadata || {}) as Record<string, any>;
-      const partnerName = meta.partner_name
+
+      // Resolve partner name: metadata first, then profile lookup, then initiated_by name
+      const partnerName =
+        meta.partner_name
         || (op.target_wallet_user_id && names[op.target_wallet_user_id])
-        || op.target_wallet_user_id?.slice(0, 8)
+        || (meta.initiated_by && names[meta.initiated_by])
+        || (meta.portfolio_code ? `Portfolio ${meta.portfolio_code}` : null)
+        || op.operation_type?.replace(/_/g, ' ')
         || '—';
 
       result.push({
@@ -124,19 +153,19 @@ export function PartnerFinancialActivity() {
         status: op.status || 'pending',
         date: op.created_at,
         reference: op.id?.slice(0, 8) || '—',
-        description: (op.metadata as any)?.reason || op.operation_type || '—',
+        description: meta.reason || meta.pay_mode || op.operation_type?.replace(/_/g, ' ') || '—',
       });
     });
 
     (deductions || []).forEach(d => {
       result.push({
-        type: 'Retraction',
+        type: 'Clawback',
         partner_name: names[d.target_user_id] || d.target_user_id?.slice(0, 8) || '—',
         amount: d.amount || 0,
         status: 'completed',
         date: d.created_at,
         reference: d.id?.slice(0, 8) || '—',
-        description: d.reason || d.category || '—',
+        description: d.reason || d.category?.replace(/_/g, ' ') || '—',
       });
     });
 
@@ -152,8 +181,8 @@ export function PartnerFinancialActivity() {
         { value: 'Payout', label: 'Payouts' },
         { value: 'Withdrawal', label: 'Withdrawals' },
         { value: 'Top-up', label: 'Top-ups' },
-        { value: 'Retraction', label: 'Retractions' },
-        { value: 'Ledger', label: 'Ledger' },
+        { value: 'Clawback', label: 'Clawbacks' },
+        { value: 'Deposit', label: 'Deposits' },
       ],
     },
     {
