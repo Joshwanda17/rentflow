@@ -130,6 +130,20 @@ Deno.serve(async (req) => {
         const isManaged = !!op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id;
 
         // Insert into general_ledger (this triggers wallet balance update via existing trigger)
+        // Determine ledger_scope based on category
+        const PLATFORM_CATEGORIES = [
+          'tenant_access_fee', 'tenant_request_fee', 'platform_service_income',
+          'landlord_platform_fee', 'management_fee', 'roi_payout',
+          'supporter_platform_rewards', 'agent_commission_payout',
+          'transaction_platform_expenses', 'operational_expenses',
+        ];
+        const BRIDGE_CATEGORIES = ['supporter_facilitation_capital', 'wallet_to_investment'];
+        const scopeForCategory = PLATFORM_CATEGORIES.includes(op.category)
+          ? 'platform'
+          : BRIDGE_CATEGORIES.includes(op.category)
+            ? 'bridge'
+            : 'wallet';
+
         const { error: ledgerErr } = await adminClient
           .from("general_ledger")
           .insert({
@@ -146,6 +160,7 @@ Deno.serve(async (req) => {
             linked_party: isManaged ? op.user_id : op.linked_party,
             reference_id: op.reference_id,
             account: op.account,
+            ledger_scope: scopeForCategory,
           });
 
         if (ledgerErr) {
