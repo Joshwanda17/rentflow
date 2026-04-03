@@ -2716,12 +2716,11 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           .select('agent_id, is_managed_account, agent:agent_id(full_name)')
           .eq('beneficiary_id', p.investorId)
           .eq('is_active', true)
-          .eq('is_managed_account', true)
           .limit(1)
           .maybeSingle();
-        if (proxyData && proxyData.is_managed_account) {
+        if (proxyData) {
           const agentName = (proxyData.agent as any)?.full_name || 'Agent';
-          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: true, agentName, agentId: proxyData.agent_id } }));
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
         } else {
           setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
         }
