@@ -20,7 +20,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck,
-  TrendingUp, ArrowLeft, ChevronRight
+  TrendingUp, ArrowLeft, ChevronRight, Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
