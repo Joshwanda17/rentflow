@@ -200,6 +200,7 @@ export function useFinancialStatements() {
       const wallets = walletsRes.data || [];
       const rentRequests = rentRequestsRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
+      const allTimePlatform = allTimePlatformRes.data || [];
 
       // Fix #2: Exclude 'opening_balance' migration artifacts from all aggregations
       const excludeSynthetic = (rows: any[]) => rows.filter(r => r.category !== 'opening_balance');
