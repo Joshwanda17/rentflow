@@ -163,7 +163,31 @@ export function PartnersOpsDashboard() {
         </div>
       </div>
 
-      {/* ═══ B. WITHDRAWAL QUEUE ═══ */}
+      {/* ═══ B. FINANCIAL ACTIVITY CARD ═══ */}
+      {tab !== 'activity' ? (
+        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+          <Card
+            className="border-primary/30 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
+            onClick={() => setTab('activity')}
+          >
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Receipt className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold">Financial Activity</p>
+                <p className="text-xs text-muted-foreground">View all partner payouts, withdrawals, top-ups & retractions</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : (
+        <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => setTab('portfolios')}>
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Overview
+        </Button>
+      )}
+
+      {/* ═══ C. WITHDRAWAL QUEUE ═══ */}
       <PartnerOpsWithdrawalQueue />
 
       {/* ═══ C. DAILY BRIEF ═══ */}
