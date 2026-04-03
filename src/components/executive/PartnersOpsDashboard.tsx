@@ -24,7 +24,7 @@ import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps'
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 
-type Tab = 'portfolios' | 'capital' | 'roi' | 'topups';
+type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
