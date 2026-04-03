@@ -164,6 +164,8 @@ export function useFinancialStatements() {
         rentRequestsRes,
         // All-time platform balance for opening balance
         prevPlatformRes,
+        // All-time platform entries for Balance Sheet (no date filter)
+        allTimePlatformRes,
       ] = await Promise.all([
         buildScopedQuery('platform', 'cash_in'),
         buildScopedQuery('platform', 'cash_out'),
@@ -182,6 +184,11 @@ export function useFinancialStatements() {
           q = q.neq('category', 'opening_balance');
           return q;
         })(),
+        // All-time platform query for Balance Sheet platformCash (unfiltered by date)
+        supabase.from('general_ledger')
+          .select('amount, direction, category')
+          .eq('ledger_scope', 'platform')
+          .neq('category', 'opening_balance'),
       ]);
 
       const platformIn = platformInRes.data || [];
