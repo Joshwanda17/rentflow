@@ -193,59 +193,6 @@ export function PartnersOpsDashboard() {
       {/* ═══ C. DAILY BRIEF ═══ */}
       <PartnerOpsBrief />
 
-      {/* ═══ C. NEARING PAYOUTS HIGHLIGHT ═══ */}
-      {nearingPayouts > 0 && (
-        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="border-violet-500/40 bg-violet-500/5">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-xl bg-violet-500/10">
-                  <CalendarClock className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">Nearing Payouts</p>
-                  <p className="text-xs text-muted-foreground">{nearingPayouts} portfolio{nearingPayouts !== 1 ? 's' : ''} due within 7 days</p>
-                </div>
-                <Badge className="bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30 text-lg font-bold px-3">
-                  {nearingPayouts}
-                </Badge>
-              </div>
-              <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-                {nearingPayoutsList.map(p => {
-                  const daysLeft = Math.ceil((new Date(p.maturity_date!).getTime() - Date.now()) / 86400000);
-                  const roi = (p.investment_amount * (p.roi_percentage / 100));
-                  return (
-                    <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-violet-500/20 bg-background/50">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold truncate">{p.investor_name}</span>
-                          <span className="text-[10px] font-mono text-muted-foreground">{p.portfolio_code}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-muted-foreground">
-                            {fmt(p.investment_amount)} · {p.roi_percentage}% Returns
-                          </span>
-                          <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400">
-                            ~{fmt(roi)} due
-                          </span>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={cn(
-                        'text-[10px] shrink-0',
-                        daysLeft <= 2
-                          ? 'bg-destructive/10 text-destructive border-destructive/30'
-                          : 'bg-warning/10 text-warning border-warning/30'
-                      )}>
-                        {daysLeft === 0 ? 'Today' : `${daysLeft}d left`}
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
 
       {/* ═══ D. TAB BAR ═══ */}
       <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
