@@ -112,6 +112,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                   )}
                 </div>
               </div>
+              {onViewRegistration && (
+                <Button variant="soft" size="sm" className="mt-2 w-full gap-1.5 text-xs" onClick={onViewRegistration}>
+                  <FileSearch className="h-3.5 w-3.5" /> View Registration Info
+                </Button>
+              )}
             </CardContent>
           </Card>
 
