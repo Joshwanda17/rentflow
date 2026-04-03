@@ -1,74 +1,54 @@
 
 
-## Managed Accounts & Smart Payout Routing
+## Tenant Registration Review & Edit
 
 ### What This Solves
-Partners who can't manage their own accounts get funds routed to their assigned agent's wallet instead of their own, preventing double-credit and unauthorized withdrawals.
+After approving a rent request, Tenant Ops staff currently cannot review or correct the full registration data submitted by agents (landlord details, LC1 chairperson, utility meters, house info, location). This feature adds a comprehensive "Registered Info" view with inline editing.
 
-### Database Changes
+### Approach
+Extend the existing `TenantDetailPanel` with a new expandable section that displays all agent-submitted data from `rent_requests`, `landlords`, `lc1_chairpersons`, and `profiles`. Each field group is editable with save + audit logging.
 
-**1. Add `is_managed_account` to `proxy_agent_assignments`**
-```sql
-ALTER TABLE proxy_agent_assignments
-  ADD COLUMN is_managed_account boolean NOT NULL DEFAULT false;
-```
+### Changes
 
-**2. Add `target_wallet_user_id` to `pending_wallet_operations`**
-```sql
-ALTER TABLE pending_wallet_operations
-  ADD COLUMN target_wallet_user_id uuid REFERENCES profiles(id);
-```
-When set, the `approve-wallet-operation` edge function credits this user's wallet instead of the original `user_id`.
+**1. New component: `TenantRegistrationReview.tsx`**
 
-### Frontend Changes
+A card-based detail view that loads and displays:
+- **Tenant Profile**: full_name, phone, email, city, country, national_id, mobile_money_number, mobile_money_provider
+- **Landlord Info** (from `landlords` via `rent_requests.landlord_id`): name, phone, property_address, bank_name, account_number, mobile_money_number, caretaker_name, caretaker_phone, electricity_meter_number, water_meter_number
+- **LC1 Chairperson** (from `lc1_chairpersons` via `rent_requests.lc1_id`): name, phone, village
+- **Rent Request Details**: house_category, tenant_water_meter, tenant_electricity_meter, request_city, request_country, house_image_urls (thumbnail gallery)
 
-**1. `src/components/cfo/ProxyAgentManager.tsx`**
-- Add a "Managed Account" toggle (Switch component) in the Link Agent dialog
-- Pass `is_managed_account` in the insert mutation
-- Show a 🔒 badge on managed accounts in the assignment list
+Each section has an "Edit" pencil icon. Clicking it toggles inline edit mode with Input fields. A "Save" button validates (min 10-char audit reason required), updates the relevant table, and logs to `audit_logs`.
 
-**2. `src/components/coo/COOPartnersPage.tsx` — NearingPayoutsDialog**
+**2. Add nav card to `TenantOpsDashboard.tsx`**
+- New nav card: "Review Registration" with a `FileSearch` icon
+- New `ActiveView` value: `'registration-review'`
+- This view shows a searchable list of tenants (reusing existing `TenantOverviewList` pattern) — clicking a tenant opens their full registration review
 
-Current flow: User enters reason → clicks "Pay" → toggles wallet/already_paid → Confirm.
+**3. Integrate into `TenantDetailPanel.tsx`**
+- Add a "View Registration" button in the profile card that navigates to the registration review for that tenant
+- This provides two entry points: from the nav grid or from an individual tenant detail
 
-New flow after clicking "Pay":
-- Query `proxy_agent_assignments` for the partner (`beneficiary_id = investorId, is_active = true, is_managed_account = true`)
-- **If managed**: Show info banner `ℹ️ Managed account by {AgentName}` + single "Send to Agent Wallet" button. Creates `pending_wallet_operation` with `target_wallet_user_id = agent_id`
-- **If not managed**: Show current two options (💰 Cash / 📱 To Wallet) unchanged
+**4. Editable fields and table mapping**
 
-The check is done inline when "Pay" is clicked — a quick async lookup before showing the payment mode selector. State: `managedInfo[portfolioId]` storing `{ isManaged, agentName, agentId }`.
+| Field Group | Table | Editable Fields |
+|---|---|---|
+| Tenant Profile | `profiles` | full_name, phone, city, country, national_id, mobile_money_number, mobile_money_provider |
+| Landlord | `landlords` | name, phone, property_address, bank_name, account_number, mobile_money_number, caretaker_name, caretaker_phone, electricity_meter_number, water_meter_number |
+| LC1 Chairperson | `lc1_chairpersons` | name, phone, village |
+| Request Metadata | `rent_requests` | house_category, tenant_water_meter, tenant_electricity_meter |
 
-**3. `handlePay` update in NearingPayoutsDialog**
-- Accept new mode `'agent_wallet'` alongside existing `'wallet' | 'already_paid'`
-- When mode is `'agent_wallet'`, set `target_wallet_user_id` in the `pending_wallet_operations` insert
-- Add `is_managed_payout: true`, `target_agent_id`, `payment_method` to audit metadata
-
-### Edge Function Change
-
-**4. `supabase/functions/approve-wallet-operation/index.ts`**
-- In the approval block (line ~129), check if `op.target_wallet_user_id` is set
-- If set: insert ledger entry with `user_id: op.target_wallet_user_id` (agent gets the funds)
-- Keep `linked_party` as the original partner ID for audit traceability
-- Add metadata to notification: "Managed payout on behalf of {partner}"
-
-### Audit & Visibility
-- Every payout logs `is_managed_payout`, `target_agent_id`, `payment_method` in `audit_logs.metadata`
-- `pending_wallet_operations.status` (pending/approved/rejected) already exists — COO and Partner Ops can track progress via existing Approval Queue
-- System event logged via `log_system_event`
-
-### What Already Exists (No Changes Needed)
-- `proxy_agent_assignments` table and CRUD — already implemented
-- `pending_wallet_operations.status` tracking (pending/approved/rejected) — already there
-- Audit logging with 10-char reason — already enforced
-- CFO notification on payout requests — already implemented
-- Compound flow — unchanged
-- `approve-wallet-operation` approval/rejection pipeline — only extended, not rewritten
+**5. Audit compliance**
+- Every edit requires a 10-character reason (consistent with existing pattern)
+- Insert into `audit_logs` with `action_type: 'tenant_registration_edited'`, recording old and new values in metadata
+- Toast confirmation on save
 
 ### Files Changed
 | File | Change |
-|------|--------|
-| Migration (new) | Add `is_managed_account` + `target_wallet_user_id` columns |
-| `src/components/cfo/ProxyAgentManager.tsx` | Add managed account toggle + badge |
-| `src/components/coo/COOPartnersPage.tsx` | Add managed check on Pay click, new `agent_wallet` mode |
-| `supabase/functions/approve-wallet-operation/index.ts` | Route credit to `target_wallet_user_id` when set |
+|---|---|
+| `src/components/executive/TenantRegistrationReview.tsx` | **New** — full registration viewer/editor |
+| `src/components/executive/TenantOpsDashboard.tsx` | Add nav card + route for registration review |
+| `src/components/executive/TenantDetailPanel.tsx` | Add "View Registration" button |
+
+No database changes needed — all tables and columns already exist.
 
