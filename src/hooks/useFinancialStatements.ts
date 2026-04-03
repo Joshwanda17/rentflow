@@ -327,8 +327,10 @@ export function useFinancialStatements() {
   }, [filters]);
 
   const updatePeriod = useCallback((period: StatementPeriod) => {
-    setFilters(f => ({ ...f, period, startDate: null, endDate: null }));
-  }, []);
+    const newFilters: StatementFilters = { ...filters, period, startDate: null, endDate: null };
+    setFilters(newFilters);
+    generate(newFilters);
+  }, [filters, generate]);
 
   return { data, loading, filters, generate, updatePeriod, setFilters };
 }

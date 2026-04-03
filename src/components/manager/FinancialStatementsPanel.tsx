@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -208,6 +208,10 @@ export function FinancialStatementsPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('income');
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    generate();
+  }, []);
 
   const handleGenerate = async () => {
     try {
