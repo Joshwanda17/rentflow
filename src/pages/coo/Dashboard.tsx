@@ -15,11 +15,12 @@ import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialO
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
+import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck,
-  TrendingUp, ArrowLeft, ChevronRight
+  TrendingUp, ArrowLeft, ChevronRight, Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'reports', label: 'Reports', icon: FileText, color: 'bg-sky-500/10 text-sky-600 border-sky-500/20', description: 'Financial reports' },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', description: 'Risk & flags' },
   { id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' },
+  { id: 'partner-finance', label: 'Partner Finance', icon: Receipt, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'All activity' },
   { id: 'staff-performance', label: 'Staff', icon: UserCheck, color: 'bg-pink-500/10 text-pink-600 border-pink-500/20', description: 'Team metrics' },
 ];
 
@@ -167,6 +169,15 @@ export default function COODashboardPage() {
             {renderSectionHeader('Partner Top-ups', TrendingUp)}
             <p className="text-sm text-muted-foreground -mt-2">Pending portfolio top-up requests awaiting verification.</p>
             <PendingPortfolioTopUps />
+          </div>
+        );
+      case 'partner-finance':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Partner Financial Activity', Receipt)}
+            <p className="text-sm text-muted-foreground -mt-2">All partner payouts, withdrawals, top-ups & retractions in one view.</p>
+            <PartnerFinancialActivity />
           </div>
         );
       case 'staff-performance':
