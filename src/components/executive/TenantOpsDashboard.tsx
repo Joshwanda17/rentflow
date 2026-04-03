@@ -294,8 +294,26 @@ export function TenantOpsDashboard() {
             tenantId={selectedTenant.id}
             tenantName={selectedTenant.name}
             onBack={goBack}
+            onViewRegistration={() => setActiveView('registration-review')}
           />
         ) : null;
+      case 'registration-review':
+        return selectedTenant ? (
+          <TenantRegistrationReview
+            tenantId={selectedTenant.id}
+            tenantName={selectedTenant.name}
+            onBack={goBack}
+          />
+        ) : (
+          <TenantOverviewList
+            data={rows}
+            loading={isLoading}
+            onSelectTenant={(id, name) => {
+              setSelectedTenant({ id, name });
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        );
       default:
         return null;
     }
