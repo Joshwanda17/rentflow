@@ -1,45 +1,56 @@
 
 
-## Wallet Retraction for Partners & CFO Visibility
+## Route Wallet Payouts Through Proxy Agent
 
-### Summary
-Add a "Cash Payout Retraction" category to the existing wallet deduction tool and create a dedicated CFO feed showing all wallet deductions with partner details.
+### Problem
+When a partner has a linked proxy agent (non-managed), clicking "Pay to Wallet" still credits the **partner's** wallet. The proxy assignment is shown as a notice but ignored in the payment logic.
 
-### Changes
+### New Rule
+- **Has proxy agent (managed OR non-managed)** → "Pay to Wallet" becomes **"Credit Agent Wallet"** and routes funds to the agent's wallet
+- **Cash** → no wallet credit, proxy is irrelevant
+- **No proxy agent at all** → "Pay to Wallet" credits the partner's wallet directly (current behavior)
 
-**1. Add retraction category — `src/components/financial-ops/WalletDeductionPanel.tsx`**
-- Add `{ value: 'cash_payout_retraction', label: 'Cash Payout Retraction' }` to the `DEDUCTION_CATEGORIES` array
+### Changes — `src/components/coo/COOPartnersPage.tsx`
 
-**2. Allow category server-side — `supabase/functions/wallet-deduction/index.ts`**
-- Add `'cash_payout_retraction'` to the `validCategories` array (line 78-85)
+**1. UI: Dynamic button label and description based on proxy status**
 
-**3. New component — `src/components/cfo/WalletRetractionsFeed.tsx`**
-- Read-only feed querying `wallet_deductions` table
-- Join with `profiles` twice: once for target user (partner name/phone), once for `deducted_by` (admin name)
-- Display columns: Partner name, phone, amount, date/time, reason, performing admin, category badge
-- Entries with `cash_payout_retraction` category get a highlighted badge labeled "Retracted from Partner Wallet"
-- All other deduction categories also shown for full CFO visibility
-- Filter/tab toggle to isolate retraction-specific entries
-- Sorted by most recent first
+In the "Standard or Non-Managed Proxy" section (~line 2958–2975):
+- If `selectedManaged?.hasProxy` is true:
+  - Button label: **"Credit Agent Wallet"**
+  - Description: **"Send to {agentName}'s wallet"**
+  - Icon: `ShieldCheck` instead of `Wallet`
+  - Mode passed to `handlePay`: `'agent_wallet'` (not `'wallet'`)
+- If no proxy:
+  - Keep current: "Pay to Wallet" / "Credit partner's digital wallet" / mode `'wallet'`
 
-**4. CFO sidebar nav — `src/components/layout/executiveSidebarConfig.ts`**
-- Add under the Finance section: `{ label: 'Wallet Retractions', icon: Wallet, id: 'retractions' }`
-- Import appropriate icon (reuse `Wallet` or add `MinusCircle` from lucide)
+**2. Logic: `handlePay` already handles `agent_wallet` mode correctly**
 
-**5. CFO dashboard wiring — `src/pages/cfo/Dashboard.tsx`**
-- Import `WalletRetractionsFeed`
-- Add `case 'retractions': return <WalletRetractionsFeed />`
-- Add a compact summary of recent retractions to the default overview section
+The existing `handlePay` function (line 2614) already:
+- Sets `operationType` to `roi_agent_wallet_credit` for `agent_wallet` mode
+- Sets `target_wallet_user_id` to `managed.agentId`
+- Includes `is_managed_payout: true` metadata
+- Logs the correct audit action `roi_managed_payout_requested`
 
-### Files
+So no changes needed in `handlePay` — it already routes correctly when called with `'agent_wallet'` mode.
 
-| File | Action |
+**3. Managed account section unchanged**
+
+The fully managed account path (line 2923–2941) already shows "Send to Agent Wallet" and works correctly. No changes there.
+
+### Summary of what changes
+
+The only change is in the payment options UI section: when a proxy agent exists, the wallet button dynamically switches to route through the agent instead of the partner. Cash always bypasses the proxy. Only partners with **no** proxy assignment get direct wallet credit.
+
+### Event & Audit Trail
+All paths already log:
+- `pending_wallet_operations` with `operation_type`, `target_wallet_user_id`, and metadata
+- `audit_logs` with `pay_mode`, `is_managed_payout`, agent details
+- Ledger entries via the approval pipeline
+
+### Files Changed
+| File | Change |
 |------|--------|
-| `src/components/financial-ops/WalletDeductionPanel.tsx` | Add category to array |
-| `supabase/functions/wallet-deduction/index.ts` | Add category to valid list |
-| `src/components/cfo/WalletRetractionsFeed.tsx` | New component |
-| `src/components/layout/executiveSidebarConfig.ts` | Add nav item |
-| `src/pages/cfo/Dashboard.tsx` | Wire tab + overview widget |
+| `src/components/coo/COOPartnersPage.tsx` | Wallet button: dynamic label/mode based on proxy status |
 
-No database migrations needed.
+No database or edge function changes needed.
 
