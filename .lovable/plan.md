@@ -1,33 +1,57 @@
 
 
-## Fix: Wallet Retractions Not Appearing on CFO Dashboard
+## Fix: CFO Financial Statements Empty Due to RLS
 
 ### Root Cause
-The `wallet_deductions` table has **no foreign keys** to `profiles`. The query in `WalletRetractionsFeed.tsx` uses PostgREST foreign-key join syntax (`profiles!wallet_deductions_target_user_id_fkey(...)`) which silently fails because those constraints don't exist.
+The `general_ledger`, `wallets`, and `rent_requests` tables have SELECT policies that only allow the `manager` role to view all rows. The CFO role has **no access** to any of these tables, so every query returns empty arrays and all financial statements show zeros.
 
-### Fix
+### Fix — Database Migration
 
-**1. Add foreign keys — Database migration**
+Add SELECT policies for executive roles (`cfo`, `coo`, `ceo`) on the three tables used by the financial statements generator:
 
 ```sql
-ALTER TABLE public.wallet_deductions
-  ADD CONSTRAINT wallet_deductions_target_user_id_fkey
-    FOREIGN KEY (target_user_id) REFERENCES public.profiles(id);
+-- general_ledger: Allow executives to view all entries
+CREATE POLICY "Executives can view all ledger entries"
+  ON public.general_ledger FOR SELECT
+  TO authenticated
+  USING (
+    public.has_role(auth.uid(), 'cfo'::app_role) OR
+    public.has_role(auth.uid(), 'coo'::app_role) OR
+    public.has_role(auth.uid(), 'ceo'::app_role)
+  );
 
-ALTER TABLE public.wallet_deductions
-  ADD CONSTRAINT wallet_deductions_deducted_by_fkey
-    FOREIGN KEY (deducted_by) REFERENCES public.profiles(id);
+-- wallets: Allow executives to view all wallets
+CREATE POLICY "Executives can view all wallets"
+  ON public.wallets FOR SELECT
+  TO authenticated
+  USING (
+    public.has_role(auth.uid(), 'cfo'::app_role) OR
+    public.has_role(auth.uid(), 'coo'::app_role) OR
+    public.has_role(auth.uid(), 'ceo'::app_role)
+  );
+
+-- rent_requests: Allow executives to view all requests
+CREATE POLICY "Executives can view all rent requests"
+  ON public.rent_requests FOR SELECT
+  TO authenticated
+  USING (
+    public.has_role(auth.uid(), 'cfo'::app_role) OR
+    public.has_role(auth.uid(), 'coo'::app_role) OR
+    public.has_role(auth.uid(), 'ceo'::app_role)
+  );
 ```
 
-This allows the existing PostgREST join syntax in the component to work without any code changes.
-
-**2. No component changes needed**
-
-The query in `WalletRetractionsFeed.tsx` is already correct — it just needs the foreign keys to exist for the join syntax to resolve.
+### Why This Is Safe
+- Uses the existing `has_role()` security-definer function (no recursive RLS)
+- Only grants SELECT (read-only) — no INSERT/UPDATE/DELETE
+- Limited to three specific executive roles that need financial oversight
+- Consistent with the existing `manager` policy pattern
 
 ### Files Changed
 
 | File | Change |
 |------|--------|
-| Database migration | Add two foreign key constraints to `wallet_deductions` |
+| Database migration | Add 3 SELECT policies for executive roles |
+
+No code changes needed — the hook and component are correct; they just get empty data due to RLS.
 
