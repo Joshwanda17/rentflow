@@ -414,11 +414,6 @@ export function ApprovalQueue() {
                   </Button>
                 </div>
               )}
-              {activeQueue === 'deposits' && (
-                <Badge variant="outline" className="text-[10px] gap-1">
-                  <Hash className="h-3 w-3" /> Review only — approve via TID
-                </Badge>
-              )}
             </div>
           </div>
         </CardHeader>
