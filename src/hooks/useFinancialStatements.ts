@@ -185,10 +185,30 @@ export function useFinancialStatements() {
           return q;
         })(),
         // All-time platform query for Balance Sheet platformCash (unfiltered by date)
-        supabase.from('general_ledger')
-          .select('amount, direction, category')
-          .eq('ledger_scope', 'platform')
-          .neq('category', 'opening_balance'),
+        // Paginate to avoid the 1000-row default cap
+        (async () => {
+          const allRows: any[] = [];
+          const PAGE = 1000;
+          let offset = 0;
+          let hasMore = true;
+          while (hasMore) {
+            const { data: page, error } = await supabase
+              .from('general_ledger')
+              .select('amount, direction, category')
+              .eq('ledger_scope', 'platform')
+              .neq('category', 'opening_balance')
+              .range(offset, offset + PAGE - 1);
+            if (error) throw error;
+            if (page && page.length > 0) {
+              allRows.push(...page);
+              offset += PAGE;
+              hasMore = page.length === PAGE;
+            } else {
+              hasMore = false;
+            }
+          }
+          return { data: allRows, error: null };
+        })(),
       ]);
 
       const platformIn = platformInRes.data || [];
@@ -269,12 +289,13 @@ export function useFinancialStatements() {
       // User wallet balances = custodial LIABILITY (not our money)
       // ══════════════════════════════════════════════════════════════
       // Platform Cash = All-time cumulative retained earnings (Balance Sheet is a point-in-time snapshot)
+      // Uses the SAME direction-fallback logic as the Income Statement for consistency
       const revenueCategories = ['tenant_access_fee', 'access_fee', 'tenant_request_fee', 'request_fee', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
       const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense'];
       const allTimePlatformIn = allTimePlatform.filter(e => e.direction === 'cash_in');
       const allTimePlatformOut = allTimePlatform.filter(e => e.direction === 'cash_out');
-      const allTimeRevenue = sumBy(allTimePlatformIn, revenueCategories);
-      const allTimeCosts = sumBy(allTimePlatformOut, costCategories);
+      const allTimeRevenue = sumWithDirectionFallback(allTimePlatformIn, allTimePlatformOut, revenueCategories);
+      const allTimeCosts = sumWithDirectionFallback(allTimePlatformOut, allTimePlatformIn, costCategories);
       const platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
 
       const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
