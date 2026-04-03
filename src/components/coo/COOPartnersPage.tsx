@@ -2613,7 +2613,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
-  const handlePay = async (p: NearingPayoutPortfolio, reason: string, mode: 'wallet' | 'already_paid') => {
+  const handlePay = async (p: NearingPayoutPortfolio, reason: string, mode: 'wallet' | 'already_paid' | 'agent_wallet') => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'pay' }));
     try {
       const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
