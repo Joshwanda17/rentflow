@@ -194,9 +194,11 @@ export function useFinancialStatements() {
       const rentRequests = rentRequestsRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
 
+      // Fix #2: Exclude 'opening_balance' migration artifacts from all aggregations
+      const excludeSynthetic = (rows: any[]) => rows.filter(r => r.category !== 'opening_balance');
       const sumBy = (rows: any[], cats: string[]) =>
-        rows.filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
-      const sumAll = (rows: any[]) => rows.reduce((s, r) => s + Number(r.amount), 0);
+        excludeSynthetic(rows).filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
+      const sumAll = (rows: any[]) => excludeSynthetic(rows).reduce((s, r) => s + Number(r.amount), 0);
       const sumWithDirectionFallback = (
         preferredRows: any[],
         fallbackRows: any[],
