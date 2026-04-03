@@ -2,7 +2,7 @@ import {
   BarChart3, Shield, Banknote, ClipboardList, BookOpen, Server, Code, Lock, Wrench,
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
-  Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle
+  Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
