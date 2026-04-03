@@ -39,7 +39,7 @@ interface MatchResult {
   status: 'matched' | 'amount_mismatch';
 }
 
-type ResultState = 'idle' | 'searching' | 'found' | 'not_found_preregistered' | 'not_found_exists';
+type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
 
 export function TidVerification() {
   const { user } = useAuth();
