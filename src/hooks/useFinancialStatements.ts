@@ -193,18 +193,26 @@ export function useFinancialStatements() {
       const sumBy = (rows: any[], cats: string[]) =>
         rows.filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
       const sumAll = (rows: any[]) => rows.reduce((s, r) => s + Number(r.amount), 0);
+      const sumWithDirectionFallback = (
+        preferredRows: any[],
+        fallbackRows: any[],
+        categories: string[],
+      ) => {
+        const preferredTotal = sumBy(preferredRows, categories);
+        return preferredTotal > 0 ? preferredTotal : sumBy(fallbackRows, categories);
+      };
 
       // ══════════════════════════════════════════════════════════════
       // INCOME STATEMENT — Platform scope ONLY (earned revenue & costs)
       // User wallet deposits/withdrawals are NOT revenue or expenses.
       // ══════════════════════════════════════════════════════════════
-      const accessFees = sumBy(platformIn, ['tenant_access_fee', 'access_fee']);
-      const requestFees = sumBy(platformIn, ['tenant_request_fee', 'request_fee']);
-      const otherServiceIncome = sumBy(platformIn, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
-      const platformRewards = sumBy(platformOut, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward']);
-      const agentCommissions = sumBy(platformOut, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
-      const transactionExpenses = sumBy(platformOut, ['transaction_platform_expenses']);
-      const operatingExpenses = sumBy(platformOut, ['operational_expenses', 'platform_expense']);
+      const accessFees = sumWithDirectionFallback(platformIn, platformOut, ['tenant_access_fee', 'access_fee']);
+      const requestFees = sumWithDirectionFallback(platformIn, platformOut, ['tenant_request_fee', 'request_fee']);
+      const otherServiceIncome = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
+      const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout']);
+      const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
+      const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
+      const operatingExpenses = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
 
       const totalRevenue = accessFees + requestFees + otherServiceIncome;
       const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
@@ -215,12 +223,12 @@ export function useFinancialStatements() {
       // ══════════════════════════════════════════════════════════════
 
       // Operating (platform scope only)
-      const tenantFeesReceived = sumBy(platformIn, ['tenant_access_fee', 'tenant_request_fee', 'access_fee', 'request_fee']);
-      const rentRepayments = sumBy(platformIn, ['rent_repayment', 'loan_repayment']);
-      const depositsReceived = sumBy(platformIn, ['platform_service_income']);
-      const platformRewardsPaid = sumBy(platformOut, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward']);
-      const agentCommissionsPaid = sumBy(platformOut, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
-      const withdrawalsPaid = sumBy(platformOut, ['operational_expenses', 'platform_expense']);
+      const tenantFeesReceived = accessFees + requestFees;
+      const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
+      const depositsReceived = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
+      const platformRewardsPaid = platformRewards;
+      const agentCommissionsPaid = agentCommissions;
+      const withdrawalsPaid = operatingExpenses + transactionExpenses;
       const netOperating = tenantFeesReceived + rentRepayments + depositsReceived - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
 
       // Custodial (wallet scope — user money in/out of platform custody)
