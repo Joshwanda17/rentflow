@@ -2963,15 +2963,19 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         "focus:outline-none focus:ring-2 focus:ring-primary/30"
                       )}
                       disabled={!!selectedProcessing}
-                      onClick={() => handlePay(selectedPayout, selectedReason, 'wallet')}
+                      onClick={() => handlePay(selectedPayout, selectedReason, selectedManaged?.hasProxy ? 'agent_wallet' : 'wallet')}
                     >
                       {selectedProcessing === 'pay' ? (
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      ) : selectedManaged?.hasProxy ? (
+                        <ShieldCheck className="h-6 w-6 text-primary" />
                       ) : (
                         <Wallet className="h-6 w-6 text-primary" />
                       )}
-                      <span className="text-xs font-semibold">Pay to Wallet</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight text-center">Credit partner's digital wallet</span>
+                      <span className="text-xs font-semibold">{selectedManaged?.hasProxy ? 'Credit Agent Wallet' : 'Pay to Wallet'}</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight text-center">
+                        {selectedManaged?.hasProxy ? `Send to ${selectedManaged.agentName}'s wallet` : "Credit partner's digital wallet"}
+                      </span>
                     </button>
                     <button
                       className={cn(
