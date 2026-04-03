@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
