@@ -11,17 +11,33 @@ export function PlatformVsWalletSummary() {
       const { data: wallets } = await supabase.from('wallets').select('balance');
       const totalWallets = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
 
-      const { data: platformIn } = await supabase
-        .from('general_ledger').select('amount')
-        .eq('ledger_scope', 'platform').eq('direction', 'cash_in');
-      const platformCashIn = (platformIn || []).reduce((s, e) => s + (e.amount || 0), 0);
-
-      const { data: platformOut } = await supabase
-        .from('general_ledger').select('amount')
-        .eq('ledger_scope', 'platform').eq('direction', 'cash_out');
-      const platformCashOut = (platformOut || []).reduce((s, e) => s + (e.amount || 0), 0);
-
-      const platformNet = platformCashIn - platformCashOut;
+      // Platform cash: all-time earned revenue minus costs (paginated, direction-fallback)
+      const revenueCategories = ['tenant_access_fee', 'access_fee', 'tenant_request_fee', 'request_fee', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
+      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense'];
+      const allPlatformRows: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data: page } = await supabase
+          .from('general_ledger')
+          .select('amount, direction, category')
+          .eq('ledger_scope', 'platform')
+          .neq('category', 'opening_balance')
+          .range(offset, offset + 999);
+        if (page && page.length > 0) {
+          allPlatformRows.push(...page);
+          offset += 1000;
+          hasMore = page.length === 1000;
+        } else {
+          hasMore = false;
+        }
+      }
+      const sumByCat = (rows: any[], cats: string[]) => rows.filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
+      const pIn = allPlatformRows.filter(e => e.direction === 'cash_in');
+      const pOut = allPlatformRows.filter(e => e.direction === 'cash_out');
+      const rev = sumByCat(pIn, revenueCategories) || sumByCat(pOut, revenueCategories);
+      const costs = sumByCat(pOut, costCategories) || sumByCat(pIn, costCategories);
+      const platformNet = Math.max(0, rev - costs);
 
       const { data: allIn } = await supabase
         .from('general_ledger').select('amount')
