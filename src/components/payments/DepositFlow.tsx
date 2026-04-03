@@ -84,7 +84,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
 
   const getReferenceId = () => {
     if (channel === 'agent_cash') return receiptNumber.trim() ? `RCT${receiptNumber.trim().toUpperCase()}` : '';
-    return `TID${transactionId.trim().toUpperCase()}`;
+    return transactionId.trim().toUpperCase();
   };
 
   const validateForm = () => {
