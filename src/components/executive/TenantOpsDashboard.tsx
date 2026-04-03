@@ -181,6 +181,13 @@ export function TenantOpsDashboard() {
       icon: Users,
       color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
     },
+    {
+      id: 'registration-review' as ActiveView,
+      label: 'Review Registration',
+      description: 'View & edit tenant info',
+      icon: FileSearch,
+      color: 'bg-teal-500/10 text-teal-600 border-teal-200',
+    },
   ];
 
   const goBack = () => {
