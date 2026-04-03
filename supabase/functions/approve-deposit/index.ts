@@ -336,6 +336,7 @@ Deno.serve(async (req) => {
                 description: `Pre-paid ${daysPrepaid} days access fee (UGX ${prepaidAmount.toLocaleString()})`,
                 linked_party: activeSub.rent_request_id,
                 transaction_date: new Date().toISOString(),
+                ledger_scope: "platform",
               });
 
               availableBalance -= prepaidAmount;
