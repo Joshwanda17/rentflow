@@ -31,7 +31,7 @@ const typeBadge = (type: string) => {
     'Payout': 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
     'Withdrawal': 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
     'Top-up': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-    'Clawback': 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
+    'Retraction': 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30',
     'Deposit': 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
   };
   return <Badge variant="outline" className={cn('text-[10px]', colors[type] || '')}>{type}</Badge>;
@@ -159,7 +159,7 @@ export function PartnerFinancialActivity() {
 
     (deductions || []).forEach(d => {
       result.push({
-        type: 'Clawback',
+        type: 'Retraction',
         partner_name: names[d.target_user_id] || d.target_user_id?.slice(0, 8) || '—',
         amount: d.amount || 0,
         status: 'completed',
@@ -181,7 +181,7 @@ export function PartnerFinancialActivity() {
         { value: 'Payout', label: 'Payouts' },
         { value: 'Withdrawal', label: 'Withdrawals' },
         { value: 'Top-up', label: 'Top-ups' },
-        { value: 'Clawback', label: 'Clawbacks' },
+        { value: 'Retraction', label: 'Retractions' },
         { value: 'Deposit', label: 'Deposits' },
       ],
     },
