@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
       "penalty",
       "overpayment_reversal",
       "general_adjustment",
+      "cash_payout_retraction",
       "other",
     ];
     const safeCategory = validCategories.includes(category) ? category : "general_adjustment";

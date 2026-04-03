@@ -27,6 +27,7 @@ import { CFOReceivablesTracker } from '@/components/cfo/CFOReceivablesTracker';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManagementPanel';
+import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -102,12 +103,15 @@ export default function CFODashboardPage() {
         );
       case 'angel-pool':
         return <AngelPoolManagementPanel userRole="cfo" />;
+      case 'retractions':
+        return <WalletRetractionsFeed />;
       default:
         return (
           <div className="space-y-4">
             <PlatformVsWalletSummary />
             <ChannelBalanceTracker />
             <PendingPortfolioTopUps />
+            <WalletRetractionsFeed compact />
             <CFOReceivablesTracker />
             <FinancialOverview />
             <ListingBonusApprovalQueue filter="pending_cfo" />
