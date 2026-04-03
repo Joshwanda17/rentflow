@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { RequestDetailSheet } from './RequestDetailSheet';
@@ -46,6 +46,20 @@ interface QueueItem {
   };
 }
 
+// TID format validation helper
+function validateTidFormat(tid: string | null | undefined, provider: string | null | undefined): { valid: boolean; error?: string } {
+  if (!tid) return { valid: false, error: 'No Transaction ID provided' };
+  if (!provider || provider === 'bank_transfer' || provider === 'agent_cash') return { valid: true }; // Skip for bank/cash
+  const upper = tid.trim().toUpperCase();
+  if (provider === 'mtn' && !upper.startsWith('MP')) {
+    return { valid: false, error: "Invalid TID format for MTN. TID must start with 'MP' (e.g. MP39665905645)" };
+  }
+  if (provider === 'airtel' && !upper.startsWith('TID')) {
+    return { valid: false, error: "Invalid TID format for Airtel. TID must start with 'TID' (e.g. TID144205097399)" };
+  }
+  return { valid: true };
+}
+
 export function ApprovalQueue() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -58,6 +72,12 @@ export function ApprovalQueue() {
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
   const [payoutProof, setPayoutProof] = useState('');
   const [sortNewest, setSortNewest] = useState(false);
+
+  // Deposit verification dialog state
+  const [depositVerifyItem, setDepositVerifyItem] = useState<QueueItem | null>(null);
+  const [depositVerifyAction, setDepositVerifyAction] = useState<'approve' | 'reject' | null>(null);
+  const [depositRejectReason, setDepositRejectReason] = useState('');
+  const [depositProcessing, setDepositProcessing] = useState(false);
 
   const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
     queryKey: ['approval-queue-deposits'],
