@@ -1,45 +1,51 @@
-## Partner Financial Activity Page — Partner Ops 
-
-### What we're building
-
-A new dedicated page accessible from Partner Ops that shows **all financial activity** for partners in one advanced table. This consolidates:
-
-this must also appear in the COO dashboard sidebar menu item
-
-- **ROI Payouts** (from `pending_wallet_operations` where operation_type contains 'roi')
-- **Wallet Withdrawals** (from `pending_wallet_operations` where category is 'withdrawal')
-- **Top-ups** (from `pending_wallet_operations` where operation_type contains 'topup')
-- **Wallet Deductions/Retractions** (from `wallet_deductions`)
-- **Ledger entries** (from `general_ledger` filtered to partner-related categories)
-
-Each record shows status (pending/approved/rejected), amount, partner name, date, type, and reference.
-
-### Changes
-
-**1. New component — `src/components/executive/PartnerFinancialActivity.tsx**`
-
-- Query `pending_wallet_operations` (all partner-related ops) and `wallet_deductions` 
-- Join with `profiles` to get partner names
-- Normalize into a unified row format: `{ type, partner_name, amount, status, date, reference, description }`
-- Use `ExecutiveDataTable` with columns: Type, Partner, Amount, Status, Date, Reference, Description
-- Filters: dropdown for type (Payouts, Withdrawals, Top-ups, Retractions, All), dropdown for status (Pending, Approved, Rejected, All)
-- Status badges: color-coded (green=approved, yellow=pending, red=rejected)
-- CSV + PDF export via ExecutiveDataTable built-in
-
-**2. Update — `src/components/executive/PartnersOpsDashboard.tsx**`
-
-- Add a new button card above the tab bar (similar to the Nearing Payouts highlight card)
-- Card: icon `Receipt`, label "Financial Activity", description "View all partner payouts, withdrawals, top-ups & retractions"
-- Clicking it sets a new view state that renders `PartnerFinancialActivity` inline with a "Back to Overview" header
-- Add `'activity'` to the Tab type union for state management
-
-**3. No database changes needed**
-All data already exists in `pending_wallet_operations`, `wallet_deductions`, and `general_ledger`. Executive RLS policies were just added.
-
-### Files
 
 
-| File                                                    | Action                                 |
-| ------------------------------------------------------- | -------------------------------------- |
-| `src/components/executive/PartnerFinancialActivity.tsx` | New — unified financial activity table |
-| `src/components/executive/PartnersOpsDashboard.tsx`     | Add nav card + wire activity view      |
+# Fix: Income Statement Showing Zero Revenue
+
+## The Problem
+The Income Statement shows **zero revenue** (Access Fees, Request Fees, Other Service Income all USh 0) while correctly showing USh 67,500 in Platform Rewards costs — resulting in an incorrect Net Operating Income of -USh 67,500.
+
+## Root Cause
+The `general_ledger` table has a default `ledger_scope = 'wallet'`. The Income Statement **only queries platform-scoped entries**. Here's the mismatch:
+
+- **Platform Rewards (67,500)**: The `process-supporter-roi` edge function **correctly** sets `ledger_scope: 'platform'` → appears in Income Statement ✓
+- **Revenue entries (access fees, request fees)**: The `auto-charge-wallets` and `approve-deposit` edge functions do **NOT** set `ledger_scope` → defaults to `'wallet'` → **invisible** to Income Statement ✗
+
+Revenue is being recorded in the ledger, but the Income Statement can't see it because it's in the wrong scope.
+
+## Fix Plan
+
+### 1. Fix Edge Functions — Set `ledger_scope: 'platform'` for Revenue Entries
+Update these functions to explicitly tag revenue entries as platform-scoped:
+
+- **`auto-charge-wallets/index.ts`** — All `tenant_access_fee` ledger inserts (3 locations around lines 301, 417, and similar) need `ledger_scope: 'platform'`
+- **`approve-deposit/index.ts`** — The `tenant_access_fee` prepaid ledger insert (line 327) needs `ledger_scope: 'platform'`
+- **`approve-wallet-operation/index.ts`** — The generic ledger insert (line 133) should set `ledger_scope` based on the operation category (revenue categories → `'platform'`, wallet deposits → `'wallet'`)
+
+### 2. Backfill Existing Ledger Data via Migration
+Create a migration to reclassify existing revenue entries that were incorrectly scoped:
+
+```sql
+UPDATE general_ledger 
+SET ledger_scope = 'platform'
+WHERE ledger_scope = 'wallet'
+  AND category IN (
+    'tenant_access_fee', 'tenant_request_fee', 
+    'platform_service_income', 'landlord_platform_fee',
+    'management_fee', 'rent_repayment'
+  )
+  AND direction = 'cash_out'
+  AND source_table = 'subscription_charges';
+```
+
+Also backfill any platform cash_in entries for fees that should be platform-scoped.
+
+### 3. Verify `approve-wallet-operation` Scope Logic
+Add scope-awareness so when the CFO approves operations, the ledger entry gets the correct scope:
+- Revenue categories (`roi_payout`, `supporter_platform_rewards`, etc.) → `'platform'`
+- User wallet operations (deposits, withdrawals) → `'wallet'`
+- Capital flows → `'bridge'`
+
+## Impact
+After this fix, the Income Statement will correctly show tenant access fees, request fees, and other platform revenue — giving an accurate Net Operating Income figure.
+
