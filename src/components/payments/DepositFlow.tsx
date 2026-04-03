@@ -356,23 +356,40 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Hash className="h-3.5 w-3.5" />
-                  {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'}
+                  {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'} <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex items-center rounded-lg border border-border overflow-hidden">
-                  <span className="px-2.5 py-2 bg-muted text-muted-foreground font-mono text-xs font-semibold border-r border-border select-none">
-                    TID
-                  </span>
-                  <Input
-                    type="text"
-                    inputMode={channel === 'momo' ? 'numeric' : 'text'}
-                    placeholder={channel === 'bank' ? 'e.g. FT24123456789' : 'e.g. 123456789'}
-                    value={transactionId}
-                    onChange={(e) => setTransactionId(channel === 'momo' ? e.target.value.replace(/\D/g, '') : e.target.value)}
-                    className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
-                  />
-                </div>
+                <Input
+                  type="text"
+                  inputMode="text"
+                  placeholder={
+                    channel === 'bank'
+                      ? 'e.g. FT24123456789'
+                      : momoProvider === 'mtn'
+                        ? 'e.g. MP39665905645'
+                        : 'e.g. TID144205097399'
+                  }
+                  value={transactionId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTransactionId(val);
+                    if (channel === 'momo') validateTid(val);
+                  }}
+                  className={`font-mono text-sm ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
+                />
+                {channel === 'momo' && tidError && (
+                  <p className="text-[10px] text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> {tidError}
+                  </p>
+                )}
+                {channel === 'momo' && transactionId.trim() && !tidError && (
+                  <p className="text-[10px] text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Valid TID format
+                  </p>
+                )}
                 <p className="text-[10px] text-muted-foreground">
-                  {channel === 'bank' ? 'Find this on your bank receipt or transfer confirmation' : `Find this in your SMS from ${momoProvider.toUpperCase()}`}
+                  {channel === 'bank'
+                    ? 'Find this on your bank receipt or transfer confirmation'
+                    : 'Enter the exact TID from your payment confirmation SMS'}
                 </p>
               </div>
             ) : (
