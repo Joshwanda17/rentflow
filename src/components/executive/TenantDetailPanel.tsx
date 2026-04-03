@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, User, ArrowLeft, MapPin } from 'lucide-react';
+import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -25,9 +25,10 @@ interface TenantDetailPanelProps {
   tenantId: string;
   tenantName: string;
   onBack: () => void;
+  onViewRegistration?: () => void;
 }
 
-export function TenantDetailPanel({ tenantId, tenantName, onBack }: TenantDetailPanelProps) {
+export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistration }: TenantDetailPanelProps) {
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
@@ -111,6 +112,11 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack }: TenantDetail
                   )}
                 </div>
               </div>
+              {onViewRegistration && (
+                <Button variant="soft" size="sm" className="mt-2 w-full gap-1.5 text-xs" onClick={onViewRegistration}>
+                  <FileSearch className="h-3.5 w-3.5" /> View Registration Info
+                </Button>
+              )}
             </CardContent>
           </Card>
 

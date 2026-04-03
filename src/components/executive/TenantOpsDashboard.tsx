@@ -13,6 +13,7 @@ import { TenantRentCollector } from './TenantRentCollector';
 import { AgentTenantSearch } from './AgentTenantSearch';
 import { TenantOverviewList } from './TenantOverviewList';
 import { TenantDetailPanel } from './TenantDetailPanel';
+import { TenantRegistrationReview } from './TenantRegistrationReview';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,12 +26,12 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review';
 
 interface NavCard {
   id: ActiveView;
@@ -180,6 +181,13 @@ export function TenantOpsDashboard() {
       icon: Users,
       color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
     },
+    {
+      id: 'registration-review' as ActiveView,
+      label: 'Review Registration',
+      description: 'View & edit tenant info',
+      icon: FileSearch,
+      color: 'bg-teal-500/10 text-teal-600 border-teal-200',
+    },
   ];
 
   const goBack = () => {
@@ -286,8 +294,26 @@ export function TenantOpsDashboard() {
             tenantId={selectedTenant.id}
             tenantName={selectedTenant.name}
             onBack={goBack}
+            onViewRegistration={() => setActiveView('registration-review')}
           />
         ) : null;
+      case 'registration-review':
+        return selectedTenant ? (
+          <TenantRegistrationReview
+            tenantId={selectedTenant.id}
+            tenantName={selectedTenant.name}
+            onBack={goBack}
+          />
+        ) : (
+          <TenantOverviewList
+            data={rows}
+            loading={isLoading}
+            onSelectTenant={(id, name) => {
+              setSelectedTenant({ id, name });
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        );
       default:
         return null;
     }
