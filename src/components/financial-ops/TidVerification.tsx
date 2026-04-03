@@ -239,50 +239,28 @@ export function TidVerification() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {/* No match — pre-registered automatically */}
-          {resultState === 'not_found_preregistered' && (
+          {/* No matching pending deposit */}
+          {resultState === 'not_found' && (
             <motion.div
-              key="preregistered"
+              key="notfound"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col items-center py-5 text-center rounded-lg border border-primary/20 bg-primary/5"
+              className="flex flex-col items-center py-5 text-center rounded-lg border border-destructive/20 bg-destructive/5"
             >
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                <Clock className="h-6 w-6 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-3">
+                <XCircle className="h-6 w-6 text-destructive" />
               </div>
-              <p className="text-sm font-semibold">TID Pre-Registered ✓</p>
+              <p className="text-sm font-semibold">No Matching Deposit Found</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
-                No pending deposit matched. This TID is now saved — it will <strong>auto-approve</strong> when the depositor enters it on the app.
+                No pending deposit matches this TID. The user must first submit a deposit through the app before it can be verified here.
               </p>
               <div className="flex items-center gap-1.5 mt-2">
                 <Badge variant="outline" className="font-mono text-[10px]">{tid.trim()}</Badge>
                 <Badge variant="secondary" className="text-[10px]">{formatUGX(parseFloat(operatorAmount))}</Badge>
               </div>
               <Button variant="outline" size="sm" className="mt-3" onClick={reset}>
-                Verify Another
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Already pre-registered */}
-          {resultState === 'not_found_exists' && (
-            <motion.div
-              key="exists"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center py-5 text-center"
-            >
-              <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center mb-3">
-                <AlertTriangle className="h-6 w-6 text-warning" />
-              </div>
-              <p className="text-sm font-medium">Already Pre-Registered</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                This TID is already waiting for the depositor to submit.
-              </p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={reset}>
-                Verify Another
+                Try Another
               </Button>
             </motion.div>
           )}
