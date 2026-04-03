@@ -1,74 +1,58 @@
 
-Problem confirmed in code: the Balance Sheet fix was only partially applied.
+The screenshot is not right.
 
 What I found:
-- `src/hooks/useFinancialStatements.ts` already fetches an all-time platform ledger query.
-- But the final Balance Sheet math still does this:
-  - split all-time rows into strict `cash_in` and `cash_out`
-  - compute `allTimeRevenue = sumBy(allTimePlatformIn, revenueCategories)`
-  - compute `allTimeCosts = sumBy(allTimePlatformOut, costCategories)`
-- Earlier, the Income Statement was fixed with `sumWithDirectionFallback(...)` because historical entries are not always recorded in the expected direction.
-- The Balance Sheet does not use that fallback yet, so historical revenue can still be ignored and `platformCash` can stay `0`.
+- The “Platform Safety Net” card is driven by `src/components/manager/BufferAccountPanel.tsx`, which calls the backend RPC `get_buffer_metrics()`.
+- That RPC is defined in `supabase/migrations/20260228101719_b3748c9d-6489-43c6-9e86-40fad617d388.sql`.
+- The RPC still sums ledger rows using old direction values:
+  - `credit`
+  - `debit`
+- But the actual `general_ledger.direction` only allows:
+  - `cash_in`
+  - `cash_out`
+  as confirmed in the ledger table migration and generated types.
 
-There is also a second risk:
-- the all-time ledger query is a plain `.select(...)` with no batching
-- cumulative ledger reads can hit the default row cap and undercount older entries
+Why the UI is wrong:
+- Because the RPC checks for `credit/debit`, both `totalCashIn` and `totalCashOut` evaluate to `0`.
+- Then the panel computes:
+  - `netBuffer = 0 - 0 = 0`
+  - `coverageRatio = 1.00x`
+  - `capitalUtilization = 0%`
+  - `liquidityRatio = 0%`
+- So the screen is showing a fake “zeroed” solvency state caused by broken aggregation, not real financial data.
 
-Plan
+There are also two follow-up correctness issues:
+1. `get_buffer_metrics()` aggregates from all ledger rows without filtering to the intended reporting scope, so even after fixing directions it may still mix platform, wallet, and bridge flows.
+2. It does not exclude synthetic `opening_balance` rows, which you already identified as contaminating financial statements.
 
-1. Fix the Balance Sheet calculation path
-- In `src/hooks/useFinancialStatements.ts`, stop using strict direction-only sums for all-time platform cash.
-- Recompute all-time platform revenue/costs with the same direction-fallback logic already used for the Income Statement.
+What to change:
+1. Fix `get_buffer_metrics()` to use `cash_in` / `cash_out`
+2. Restrict the aggregation to the correct ledger scope for solvency/buffer reporting
+3. Exclude `opening_balance` rows
+4. Review `get_buffer_trend_data()` too, because it has the same outdated `credit/debit` bug and will also produce incorrect charts
+5. Keep the rent metrics, but ensure they align with the intended solvency definition
 
-2. Reuse one consistent earnings model
-- Extract shared category groups for:
-  - revenue
-  - platform rewards
-  - agent commissions
-  - transaction expenses
-  - operating expenses
-- Use the same category mapping for:
-  - period Income Statement
-  - all-time Balance Sheet platform cash
-- This removes the current mismatch where one report uses fallback logic and the other does not.
+Expected result after the fix:
+- Cash In / Cash Out should stop showing `USh 0`
+- Net Buffer should reflect real ledger-backed totals
+- Coverage Ratio, Capital Utilization, and Liquidity Buffer should move from fake placeholder values to actual solvency metrics
+- The alert banner should only appear when thresholds are truly breached
 
-3. Make the all-time query complete
-- Update the all-time platform fetch to handle cumulative history safely instead of relying on a single default-limited read.
-- This avoids false zero/low values when the ledger has grown beyond the standard query cap.
-
-4. Keep statement roles correct
-- Income Statement stays period-based.
-- Cash Flow stays period-based.
-- Balance Sheet platform cash stays all-time.
-- `opening_balance` exclusion remains in place.
-
-5. Align the rest of the CFO views
-- Review `src/components/cfo/DailyCashPositionReport.tsx`
-- Review `src/components/cfo/PlatformVsWalletSummary.tsx`
-- These still use raw platform inflow minus outflow logic, which can disagree with the Balance Sheet.
-- I would either:
-  - switch them to the same “earned platform cash” helper, or
-  - relabel them clearly as raw ledger net so they do not contradict the Balance Sheet.
-
-Expected result after implementation
-- Platform Cash on the Balance Sheet should stop showing `0` when historical earnings exist.
-- The figure should remain stable even when the selected tab period is `30 Days`.
-- The financial views will use one consistent definition instead of mixed logic.
-
-Technical details
+Technical details:
 ```text
-Current issue:
-Balance Sheet
-= all-time query
-+ strict direction filter
-- no fallback
-= still misses historically misdirected entries
+Current bug:
+get_buffer_metrics():
+SUM(CASE WHEN direction = 'credit' THEN amount ...)
+SUM(CASE WHEN direction = 'debit' THEN amount ...)
 
-Needed:
-Balance Sheet
-= all-time query
-+ exclude opening_balance
-+ direction fallback by category
-+ complete fetch (no row-cap truncation)
-= true cumulative earned platform cash
+Actual schema:
+general_ledger.direction IN ('cash_in', 'cash_out')
+
+Result:
+all buffer cash totals collapse to zero
 ```
+
+Implementation scope:
+- `supabase/migrations/...` update for `get_buffer_metrics()`
+- `supabase/migrations/...` update for `get_buffer_trend_data()`
+- No major UI redesign needed; the main issue is backend metric correctness
