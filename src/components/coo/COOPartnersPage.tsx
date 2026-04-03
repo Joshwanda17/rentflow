@@ -2973,7 +2973,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     >
                       <CheckCircle2 className="h-6 w-6 text-primary" />
                       <span className="text-xs font-semibold">Cash</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight text-center">Already paid externally</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight text-center">Already/to be paid externally</span>
                     </button>
                   </div>
                 </div>
