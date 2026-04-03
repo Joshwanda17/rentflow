@@ -52,7 +52,7 @@ export function PlatformVsWalletSummary() {
       const ledgerNetWallets = allCashIn - allCashOut;
       const variance = totalWallets - ledgerNetWallets;
 
-      return { totalWallets, platformNet, ledgerNetWallets, variance, platformCashIn, platformCashOut };
+      return { totalWallets, platformNet, ledgerNetWallets, variance };
     },
     staleTime: 300_000,
     refetchOnWindowFocus: false,
