@@ -1,54 +1,95 @@
 
+## COO Nearing Payouts: Convert Pay into a true 2-step in-dialog flow
 
-## Tenant Registration Review & Edit
+### What is wrong now
+The current implementation does not open a new payment section after clicking **Pay**. It only swaps inline buttons inside the portfolio card. That is why you still “see the same thing”.
 
-### What This Solves
-After approving a rent request, Tenant Ops staff currently cannot review or correct the full registration data submitted by agents (landlord details, LC1 chairperson, utility meters, house info, location). This feature adds a comprehensive "Registered Info" view with inline editing.
+### Target UX
+Inside the existing **Nearing Payouts** dialog:
 
-### Approach
-Extend the existing `TenantDetailPanel` with a new expandable section that displays all agent-submitted data from `rent_requests`, `landlords`, `lc1_chairpersons`, and `profiles`. Each field group is editable with save + audit logging.
+1. User sees the portfolio list as usual
+2. User enters reason
+3. User clicks **Pay**
+4. The dialog switches to a new payment section for that selected partner
+5. That section shows:
+   - Partner name
+   - ROI amount
+   - payout date / reference summary
+   - entered reason
+   - managed account status
 
-### Changes
+Then:
+- **If managed account**: show info like `Managed account by {AgentName}` and one primary action: **Send to Agent Wallet**
+- **If not managed**: show two payment choices: **Pay to Wallet** or **Cash**
+- After selection, user confirms and the existing approval/audit flow continues
 
-**1. New component: `TenantRegistrationReview.tsx`**
+### Implementation plan
 
-A card-based detail view that loads and displays:
-- **Tenant Profile**: full_name, phone, email, city, country, national_id, mobile_money_number, mobile_money_provider
-- **Landlord Info** (from `landlords` via `rent_requests.landlord_id`): name, phone, property_address, bank_name, account_number, mobile_money_number, caretaker_name, caretaker_phone, electricity_meter_number, water_meter_number
-- **LC1 Chairperson** (from `lc1_chairpersons` via `rent_requests.lc1_id`): name, phone, village
-- **Rent Request Details**: house_category, tenant_water_meter, tenant_electricity_meter, request_city, request_country, house_image_urls (thumbnail gallery)
+#### 1. Refactor `NearingPayoutsDialog` into 2 views
+In `src/components/coo/COOPartnersPage.tsx`:
+- Add dialog-level state such as:
+  - `selectedPayout`
+  - `paymentStep: 'list' | 'payment-options'`
+  - `selectedPaymentMode`
+  - `managedLookupState`
+- Keep the portfolio list as step 1
+- Replace the current inline mode buttons under each card with a single **Pay** trigger that opens step 2
 
-Each section has an "Edit" pencil icon. Clicking it toggles inline edit mode with Input fields. A "Save" button validates (min 10-char audit reason required), updates the relevant table, and logs to `audit_logs`.
+#### 2. On Pay click, open a dedicated payment section
+When the user clicks **Pay**:
+- validate reason first
+- snapshot the selected portfolio data
+- check managed-account assignment
+- switch the dialog to the payment-options section
 
-**2. Add nav card to `TenantOpsDashboard.tsx`**
-- New nav card: "Review Registration" with a `FileSearch` icon
-- New `ActiveView` value: `'registration-review'`
-- This view shows a searchable list of tenants (reusing existing `TenantOverviewList` pattern) — clicking a tenant opens their full registration review
+This section should visually feel separate from the list:
+- header with back button
+- payout summary card
+- managed-status banner
+- action buttons beneath
 
-**3. Integrate into `TenantDetailPanel.tsx`**
-- Add a "View Registration" button in the profile card that navigates to the registration review for that tenant
-- This provides two entry points: from the nav grid or from an individual tenant detail
+#### 3. Managed-account logic
+When loading the payment section:
+- query active proxy assignment for that partner
+- if `is_managed_account = true`, show:
+  - info banner
+  - assigned agent name
+  - button: **Send to Agent Wallet**
+- if not managed, show:
+  - **Pay to Wallet**
+  - **Cash**
 
-**4. Editable fields and table mapping**
+#### 4. Keep existing processing logic, but align labels to the new UX
+Reuse the current payout request pipeline:
+- wallet payout stays wallet flow
+- “already_paid” should be relabeled in UI to **Cash**
+- managed payout continues using `target_wallet_user_id`
 
-| Field Group | Table | Editable Fields |
-|---|---|---|
-| Tenant Profile | `profiles` | full_name, phone, city, country, national_id, mobile_money_number, mobile_money_provider |
-| Landlord | `landlords` | name, phone, property_address, bank_name, account_number, mobile_money_number, caretaker_name, caretaker_phone, electricity_meter_number, water_meter_number |
-| LC1 Chairperson | `lc1_chairpersons` | name, phone, village |
-| Request Metadata | `rent_requests` | house_category, tenant_water_meter, tenant_electricity_meter |
+#### 5. Improve the dialog UX
+Make the second section clear and readable:
+- top summary block
+- reason shown as read-only text
+- payment choice cards/buttons
+- back button to return to list without losing search state
+- loading state while checking managed assignment
+- disable confirm while processing
 
-**5. Audit compliance**
-- Every edit requires a 10-character reason (consistent with existing pattern)
-- Insert into `audit_logs` with `action_type: 'tenant_registration_edited'`, recording old and new values in metadata
-- Toast confirmation on save
+### What is already there
+These parts appear to already exist and should be reused:
+- managed account assignment in proxy agent manager
+- managed payout routing via `target_wallet_user_id`
+- pending approval tracking in `pending_wallet_operations`
+- audit logging / approval workflow
+- managed account lookup logic
 
-### Files Changed
-| File | Change |
-|---|---|
-| `src/components/executive/TenantRegistrationReview.tsx` | **New** — full registration viewer/editor |
-| `src/components/executive/TenantOpsDashboard.tsx` | Add nav card + route for registration review |
-| `src/components/executive/TenantDetailPanel.tsx` | Add "View Registration" button |
+### What needs to change
+The missing piece is mainly **the UI flow in `NearingPayoutsDialog`**:
+- remove inline payment-mode rendering from each portfolio card
+- move payment decision into a new dedicated dialog section after Pay is clicked
+- rename user-facing “Already Paid” option to **Cash**
 
-No database changes needed — all tables and columns already exist.
+### Files to update
+- `src/components/coo/COOPartnersPage.tsx` — main refactor for the new 2-step payout dialog
 
+### Technical note
+Current code already sets payment options inline under each portfolio card after Pay is clicked. That behavior must be replaced by a dialog-level state transition so the user clearly enters a second payment section instead of staying in the same card view.
