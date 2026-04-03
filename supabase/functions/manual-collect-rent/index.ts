@@ -263,8 +263,7 @@ Deno.serve(async (req) => {
       await supabase.rpc("credit_agent_rent_commission", {
         p_rent_request_id: rr.id,
         p_repayment_amount: totalCollected,
-        p_source_table: "manual_collect_rent",
-        p_source_id: rr.id,
+        p_tenant_id: rr.tenant_id,
       });
     }
 
