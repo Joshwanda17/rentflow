@@ -44,6 +44,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'reports', label: 'Reports', icon: FileText, color: 'bg-sky-500/10 text-sky-600 border-sky-500/20', description: 'Financial reports' },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', description: 'Risk & flags' },
   { id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' },
+  { id: 'partner-finance', label: 'Partner Finance', icon: Receipt, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'All activity' },
   { id: 'staff-performance', label: 'Staff', icon: UserCheck, color: 'bg-pink-500/10 text-pink-600 border-pink-500/20', description: 'Team metrics' },
 ];
 
