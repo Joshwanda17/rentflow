@@ -39,7 +39,7 @@ interface MatchResult {
   status: 'matched' | 'amount_mismatch';
 }
 
-type ResultState = 'idle' | 'searching' | 'found' | 'not_found_preregistered' | 'not_found_exists';
+type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
 
 export function TidVerification() {
   const { user } = useAuth();
@@ -57,6 +57,16 @@ export function TidVerification() {
     if (!trimmedTid) { toast.error('Enter a Transaction ID'); return; }
     if (!operatorAmount) { toast.error('Enter the amount'); return; }
     if (!user) return;
+
+    // TID format validation
+    if (provider === 'mtn' && !trimmedTid.startsWith('MP')) {
+      toast.error('MTN Transaction IDs must start with "MP"');
+      return;
+    }
+    if (provider === 'airtel' && trimmedTid.startsWith('MP')) {
+      toast.error('This looks like an MTN TID. Select the correct provider.');
+      return;
+    }
 
     setResultState('searching');
     setMatches([]);
@@ -106,42 +116,8 @@ export function TidVerification() {
         return;
       }
 
-      // Step 2: No pending deposit found — auto pre-register
-      // Check if already pre-registered
-      const { data: existing } = await supabase
-        .from('pre_registered_tids' as any)
-        .select('id')
-        .eq('transaction_id', trimmedTid)
-        .eq('status', 'waiting')
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        setResultState('not_found_exists');
-        return;
-      }
-
-      // Pre-register automatically
-      const { error: insertErr } = await supabase
-        .from('pre_registered_tids' as any)
-        .insert({
-          transaction_id: trimmedTid,
-          amount: parsedAmount,
-          provider,
-          registered_by: user.id,
-          status: 'waiting',
-        });
-
-      if (insertErr) throw insertErr;
-
-      // Audit log
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'tid_pre_registered',
-        table_name: 'pre_registered_tids',
-        metadata: { transaction_id: trimmedTid, amount: parsedAmount, provider },
-      });
-
-      setResultState('not_found_preregistered');
+      // No pending deposit found
+      setResultState('not_found');
     } catch (err: any) {
       toast.error(err.message || 'Verification failed');
       setResultState('idle');
@@ -212,7 +188,7 @@ export function TidVerification() {
           TID Verify
         </CardTitle>
         <p className="text-[10px] sm:text-xs text-muted-foreground">
-          Enter TID + Amount. If a deposit matches → auto-approve. If not → saved for when depositor submits.
+          Enter TID + Amount → search pending deposits → approve matches.
         </p>
       </CardHeader>
       <CardContent className="space-y-3 px-3 sm:px-6 pb-4">
@@ -273,50 +249,28 @@ export function TidVerification() {
 
         {/* Results */}
         <AnimatePresence mode="wait">
-          {/* No match — pre-registered automatically */}
-          {resultState === 'not_found_preregistered' && (
+          {/* No matching pending deposit */}
+          {resultState === 'not_found' && (
             <motion.div
-              key="preregistered"
+              key="notfound"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col items-center py-5 text-center rounded-lg border border-primary/20 bg-primary/5"
+              className="flex flex-col items-center py-5 text-center rounded-lg border border-destructive/20 bg-destructive/5"
             >
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                <Clock className="h-6 w-6 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-3">
+                <XCircle className="h-6 w-6 text-destructive" />
               </div>
-              <p className="text-sm font-semibold">TID Pre-Registered ✓</p>
+              <p className="text-sm font-semibold">No Matching Deposit Found</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
-                No pending deposit matched. This TID is now saved — it will <strong>auto-approve</strong> when the depositor enters it on the app.
+                No pending deposit matches this TID. The user must first submit a deposit through the app before it can be verified here.
               </p>
               <div className="flex items-center gap-1.5 mt-2">
                 <Badge variant="outline" className="font-mono text-[10px]">{tid.trim()}</Badge>
                 <Badge variant="secondary" className="text-[10px]">{formatUGX(parseFloat(operatorAmount))}</Badge>
               </div>
               <Button variant="outline" size="sm" className="mt-3" onClick={reset}>
-                Verify Another
-              </Button>
-            </motion.div>
-          )}
-
-          {/* Already pre-registered */}
-          {resultState === 'not_found_exists' && (
-            <motion.div
-              key="exists"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center py-5 text-center"
-            >
-              <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center mb-3">
-                <AlertTriangle className="h-6 w-6 text-warning" />
-              </div>
-              <p className="text-sm font-medium">Already Pre-Registered</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                This TID is already waiting for the depositor to submit.
-              </p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={reset}>
-                Verify Another
+                Try Another
               </Button>
             </motion.div>
           )}
