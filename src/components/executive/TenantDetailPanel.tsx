@@ -28,7 +28,7 @@ interface TenantDetailPanelProps {
   onViewRegistration?: () => void;
 }
 
-export function TenantDetailPanel({ tenantId, tenantName, onBack }: TenantDetailPanelProps) {
+export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistration }: TenantDetailPanelProps) {
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
