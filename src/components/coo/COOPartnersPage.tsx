@@ -416,22 +416,22 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
       setRows(tableRows);
 
-      // Build portfolio-level nearing payouts using next_roi_date (or derived from created_at + 1 month)
+      // Build portfolio-level nearing payouts — only portfolios with an actual next_roi_date set
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       const nearingList: NearingPayoutPortfolio[] = [];
       dedupedPortfolios.forEach(p => {
         if (p.status !== 'active') return;
+        // Only include portfolios that have a real next_roi_date stored in the DB
+        if (!p.next_roi_date) return;
         const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
 
-        // Derive next payout date — roll forward stale dates
-        const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
-
-        const roiDate = new Date(effectiveNextDate + 'T00:00:00');
+        const roiDate = dateOnlyToLocalDate(p.next_roi_date);
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        // Only upcoming payouts within 30 days (not past-due)
         if (du >= 0 && du <= 30) {
           const prof = profileMap.get(ownerId);
           const effectivePayoutDay = p.payout_day || roiDate.getDate();
@@ -447,7 +447,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             roiMode: p.roi_mode ?? 'monthly_payout',
             createdAt: p.created_at,
             daysUntil: du,
-            nextPayoutDate: effectiveNextDate,
+            nextPayoutDate: p.next_roi_date,
           });
         }
       });
