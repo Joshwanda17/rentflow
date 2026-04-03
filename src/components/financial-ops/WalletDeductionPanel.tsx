@@ -16,6 +16,7 @@ const DEDUCTION_CATEGORIES = [
   { value: 'penalty', label: 'Penalty' },
   { value: 'overpayment_reversal', label: 'Overpayment Reversal' },
   { value: 'general_adjustment', label: 'General Adjustment' },
+  { value: 'cash_payout_retraction', label: 'Cash Payout Retraction' },
   { value: 'other', label: 'Other' },
 ];
 

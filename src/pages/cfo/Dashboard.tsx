@@ -111,6 +111,7 @@ export default function CFODashboardPage() {
             <PlatformVsWalletSummary />
             <ChannelBalanceTracker />
             <PendingPortfolioTopUps />
+            <WalletRetractionsFeed compact />
             <CFOReceivablesTracker />
             <FinancialOverview />
             <ListingBonusApprovalQueue filter="pending_cfo" />
