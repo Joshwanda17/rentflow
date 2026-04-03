@@ -15,6 +15,7 @@ import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialO
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
+import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
