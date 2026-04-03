@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const AGENT_COMMISSION_RATE = 0.10; // 10% commission on repayments
+// Commission is handled entirely by the credit_agent_rent_commission RPC — no local rate needed
 
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
