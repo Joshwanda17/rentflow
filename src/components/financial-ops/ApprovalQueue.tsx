@@ -581,13 +581,32 @@ export function ApprovalQueue() {
                       </div>
 
                       {/* Inline action buttons — large touch targets, always visible */}
-                      {activeQueue !== 'deposits' && (
+                      {isDeposit ? (
                         <div className="grid grid-cols-2 gap-0 border-t border-border/40">
                           <Button
                             variant="ghost"
-                            className={`h-12 rounded-none text-sm font-bold gap-1.5 ${
-                              isDeposit ? 'text-success hover:bg-success/10' : 'text-primary hover:bg-primary/10'
-                            }`}
+                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-success hover:bg-success/10"
+                            onClick={(e) => { e.stopPropagation(); setDepositVerifyItem(item); setDepositVerifyAction('approve'); }}
+                            disabled={processing || depositProcessing}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
+                            onClick={(e) => { e.stopPropagation(); setDepositVerifyItem(item); setDepositVerifyAction('reject'); }}
+                            disabled={processing || depositProcessing}
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-0 border-t border-border/40">
+                          <Button
+                            variant="ghost"
+                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-primary hover:bg-primary/10"
                             onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
                             disabled={processing}
                           >
