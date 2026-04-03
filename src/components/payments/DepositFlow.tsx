@@ -49,6 +49,29 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const [reason, setReason] = useState('');
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tidError, setTidError] = useState('');
+
+  const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
+    const upper = value.trim().toUpperCase();
+    const prov = provider ?? momoProvider;
+    if (!upper) { setTidError(''); return; }
+    if (prov === 'mtn' && !upper.startsWith('MP')) {
+      setTidError("MTN TIDs must start with 'MP' (e.g. MP39665905645)");
+    } else if (prov === 'airtel' && !upper.startsWith('TID')) {
+      setTidError("Airtel TIDs must start with 'TID' (e.g. TID144205097399)");
+    } else {
+      setTidError('');
+    }
+  };
+
+  const isTidValid = () => {
+    if (channel !== 'momo') return true;
+    const upper = transactionId.trim().toUpperCase();
+    if (!upper) return false;
+    if (momoProvider === 'mtn') return upper.startsWith('MP');
+    if (momoProvider === 'airtel') return upper.startsWith('TID');
+    return true;
+  };
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
