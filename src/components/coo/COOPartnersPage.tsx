@@ -15,7 +15,7 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
-  Plus, FileText, Share2, ArrowRightLeft
+  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -2520,7 +2520,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [payMode, setPayMode] = useState<Record<string, 'wallet' | 'already_paid' | null>>({});
+  const [payMode, setPayMode] = useState<Record<string, 'wallet' | 'already_paid' | 'agent_wallet' | null>>({});
+  const [managedInfo, setManagedInfo] = useState<Record<string, { isManaged: boolean; agentName: string; agentId: string } | null>>({});
+  const [checkingManaged, setCheckingManaged] = useState<Record<string, boolean>>({});
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
@@ -2611,7 +2613,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
-  const handlePay = async (p: NearingPayoutPortfolio, reason: string, mode: 'wallet' | 'already_paid') => {
+  const handlePay = async (p: NearingPayoutPortfolio, reason: string, mode: 'wallet' | 'already_paid' | 'agent_wallet') => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'pay' }));
     try {
       const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
@@ -2624,8 +2626,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       nextDate.setMonth(nextDate.getMonth() + 1);
       await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
 
-      const operationType = mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
-      const modeLabel = mode === 'wallet' ? 'Pay to Wallet' : 'Already Paid';
+      const operationType = mode === 'agent_wallet' ? 'roi_agent_wallet_credit' : mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
+      const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Already Paid';
+      const managed = managedInfo[p.portfolioId];
 
       // Create pending wallet operation for approval
       const txnGroupId = crypto.randomUUID();
@@ -2639,21 +2642,33 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         reference_id: refId,
         operation_type: operationType,
         transaction_group_id: txnGroupId,
-        description: `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
+        description: `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${mode === 'agent_wallet' ? managed?.agentName + "'s agent wallet" : p.name + "'s wallet"}. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
         linked_party: user.id,
         status: 'pending',
-        metadata: { partner_name: p.name, roi_percentage: p.roiPercentage, investment_amount: p.investmentAmount, initiated_by: user.id, reason, pay_mode: mode },
+        ...(mode === 'agent_wallet' && managed ? { target_wallet_user_id: managed.agentId } : {}),
+        metadata: {
+          partner_name: p.name,
+          roi_percentage: p.roiPercentage,
+          investment_amount: p.investmentAmount,
+          initiated_by: user.id,
+          reason,
+          pay_mode: mode,
+          ...(mode === 'agent_wallet' && managed ? { is_managed_payout: true, target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+        },
       });
       if (pendErr) throw pendErr;
 
       // Audit log
-      const auditAction = mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
+      const auditAction = mode === 'agent_wallet' ? 'roi_managed_payout_requested' : mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: auditAction,
         table_name: 'pending_wallet_operations',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode },
+        metadata: {
+          roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode,
+          ...(mode === 'agent_wallet' && managed ? { is_managed_payout: true, target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+        },
       });
 
       // Notify partner
@@ -2809,13 +2824,62 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                             size="sm"
                             variant="default"
                             className="flex-1 text-xs gap-1.5"
-                            disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                            onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }))}
+                            disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10 || checkingManaged[p.portfolioId]}
+                            onClick={async () => {
+                              // Check managed status on click
+                              if (managedInfo[p.portfolioId] === undefined) {
+                                setCheckingManaged(prev => ({ ...prev, [p.portfolioId]: true }));
+                                try {
+                                  const { data: proxyData } = await supabase
+                                    .from('proxy_agent_assignments')
+                                    .select('agent_id, is_managed_account, agent:agent_id(full_name)')
+                                    .eq('beneficiary_id', p.investorId)
+                                    .eq('is_active', true)
+                                    .eq('is_managed_account', true)
+                                    .limit(1)
+                                    .maybeSingle();
+                                  if (proxyData && proxyData.is_managed_account) {
+                                    const agentName = (proxyData.agent as any)?.full_name || 'Agent';
+                                    setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: true, agentName, agentId: proxyData.agent_id } }));
+                                    setPayMode(prev => ({ ...prev, [p.portfolioId]: 'agent_wallet' }));
+                                  } else {
+                                    setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+                                    setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }));
+                                  }
+                                } catch {
+                                  setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+                                  setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }));
+                                } finally {
+                                  setCheckingManaged(prev => ({ ...prev, [p.portfolioId]: false }));
+                                }
+                              } else {
+                                setPayMode(prev => ({ ...prev, [p.portfolioId]: managedInfo[p.portfolioId]?.isManaged ? 'agent_wallet' : 'wallet' }));
+                              }
+                            }}
                           >
-                            <Wallet className="h-3 w-3" />
+                            {checkingManaged[p.portfolioId] ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
                             Pay
                           </Button>
+                        ) : managedInfo[p.portfolioId]?.isManaged ? (
+                          /* Managed account — single option: send to agent wallet */
+                          <div className="flex-1 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 border border-primary/20 px-2.5 py-1.5 text-[10px] text-primary">
+                              <ShieldCheck className="h-3 w-3 shrink-0" />
+                              <span>Managed account by <strong>{managedInfo[p.portfolioId]!.agentName}</strong></span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="w-full text-xs gap-1.5"
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                              onClick={() => handlePay(p, reasons[p.portfolioId], 'agent_wallet')}
+                            >
+                              {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+                              Send to Agent Wallet
+                            </Button>
+                          </div>
                         ) : (
+                          /* Non-managed — cash or wallet */
                           <div className="flex-1 flex flex-col gap-1.5">
                             <div className="flex gap-1.5">
                               <Button
@@ -2844,7 +2908,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                               variant="default"
                               className="w-full text-xs gap-1.5"
                               disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                              onClick={() => handlePay(p, reasons[p.portfolioId], payMode[p.portfolioId]!)}
+                              onClick={() => handlePay(p, reasons[p.portfolioId], payMode[p.portfolioId] as 'wallet' | 'already_paid')}
                             >
                               {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                               Confirm {payMode[p.portfolioId] === 'wallet' ? 'Pay to Wallet' : 'Already Paid'}
