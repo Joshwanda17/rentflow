@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const AGENT_COMMISSION_RATE = 0.10; // 10% commission on repayments
+// Commission is handled entirely by the credit_agent_rent_commission RPC — no local rate needed
 
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
@@ -327,11 +327,11 @@ Deno.serve(async (req) => {
       if (remainingBalance > 0) {
         // Auto-pay towards rent
         repaymentAmount = Math.min(amount, remainingBalance);
-        commission = Math.round(repaymentAmount * AGENT_COMMISSION_RATE); // 10% of repayment
-        landlordPayment = repaymentAmount - commission;
+        // Commission is credited by the RPC, NOT deducted from the landlord payment
+        landlordPayment = repaymentAmount;
         depositAmount = amount - repaymentAmount;
 
-        console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, Commission (10%): ${commission}, To landlord: ${landlordPayment}`);
+        console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, To landlord: ${landlordPayment}`);
 
         // FIX: Resolve landlord's USER ID via their phone number in profiles
         // landlord_id references the landlords table, not a user profile
@@ -440,8 +440,7 @@ Deno.serve(async (req) => {
         const { data: commissionResult, error: commissionError } = await adminClient.rpc('credit_agent_rent_commission', {
           p_rent_request_id: activeRentRequest.id,
           p_repayment_amount: repaymentAmount,
-          p_source_table: 'agent_deposit',
-          p_source_id: activeRentRequest.id,
+          p_tenant_id: targetUserId,
         });
 
         if (commissionError) {
@@ -452,8 +451,8 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Use actual commission from RPC result (may differ due to sub-agent split)
-        actualCommission = commissionResult?.commission || commission;
+        // Use actual commission from RPC result
+        actualCommission = commissionResult?.total_commission || 0;
 
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId && landlordPayment > 0) {
