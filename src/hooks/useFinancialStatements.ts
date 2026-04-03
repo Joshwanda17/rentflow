@@ -185,10 +185,30 @@ export function useFinancialStatements() {
           return q;
         })(),
         // All-time platform query for Balance Sheet platformCash (unfiltered by date)
-        supabase.from('general_ledger')
-          .select('amount, direction, category')
-          .eq('ledger_scope', 'platform')
-          .neq('category', 'opening_balance'),
+        // Paginate to avoid the 1000-row default cap
+        (async () => {
+          const allRows: any[] = [];
+          const PAGE = 1000;
+          let offset = 0;
+          let hasMore = true;
+          while (hasMore) {
+            const { data: page, error } = await supabase
+              .from('general_ledger')
+              .select('amount, direction, category')
+              .eq('ledger_scope', 'platform')
+              .neq('category', 'opening_balance')
+              .range(offset, offset + PAGE - 1);
+            if (error) throw error;
+            if (page && page.length > 0) {
+              allRows.push(...page);
+              offset += PAGE;
+              hasMore = page.length === PAGE;
+            } else {
+              hasMore = false;
+            }
+          }
+          return { data: allRows, error: null };
+        })(),
       ]);
 
       const platformIn = platformInRes.data || [];
