@@ -98,11 +98,11 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     if (channel === 'momo') {
       const rawTid = transactionId.trim().toUpperCase();
       if (momoProvider === 'mtn' && !rawTid.startsWith('MP')) {
-        toast.error('MTN Transaction IDs must start with "MP"');
+        toast.error("MTN TIDs must start with 'MP' (e.g. MP39665905645)");
         return false;
       }
-      if (momoProvider === 'airtel' && rawTid.startsWith('MP')) {
-        toast.error('This looks like an MTN TID. Please select the correct provider.');
+      if (momoProvider === 'airtel' && !rawTid.startsWith('TID')) {
+        toast.error("Airtel TIDs must start with 'TID' (e.g. TID144205097399)");
         return false;
       }
     }
