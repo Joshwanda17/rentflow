@@ -25,6 +25,7 @@ interface TenantDetailPanelProps {
   tenantId: string;
   tenantName: string;
   onBack: () => void;
+  onViewRegistration?: () => void;
 }
 
 export function TenantDetailPanel({ tenantId, tenantName, onBack }: TenantDetailPanelProps) {
