@@ -111,9 +111,15 @@ export function PartnerFinancialActivity() {
       else if (cat === 'withdrawal' || opType.includes('withdraw')) type = 'Withdrawal';
       else if (opType.includes('topup') || opType.includes('top_up') || cat.includes('topup')) type = 'Top-up';
 
+      const meta = (op.metadata || {}) as Record<string, any>;
+      const partnerName = meta.partner_name
+        || (op.target_wallet_user_id && names[op.target_wallet_user_id])
+        || op.target_wallet_user_id?.slice(0, 8)
+        || '—';
+
       result.push({
         type,
-        partner_name: names[op.target_wallet_user_id] || op.target_wallet_user_id?.slice(0, 8) || '—',
+        partner_name: partnerName,
         amount: op.amount || 0,
         status: op.status || 'pending',
         date: op.created_at,
