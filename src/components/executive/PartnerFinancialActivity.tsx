@@ -181,7 +181,7 @@ export function PartnerFinancialActivity() {
         { value: 'Payout', label: 'Payouts' },
         { value: 'Withdrawal', label: 'Withdrawals' },
         { value: 'Top-up', label: 'Top-ups' },
-        { value: 'Clawback', label: 'Clawbacks' },
+        { value: 'Retraction', label: 'Retractions' },
         { value: 'Deposit', label: 'Deposits' },
       ],
     },
