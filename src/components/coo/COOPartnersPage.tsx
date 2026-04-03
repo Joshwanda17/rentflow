@@ -2626,8 +2626,9 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       nextDate.setMonth(nextDate.getMonth() + 1);
       await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
 
-      const operationType = mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
-      const modeLabel = mode === 'wallet' ? 'Pay to Wallet' : 'Already Paid';
+      const operationType = mode === 'agent_wallet' ? 'roi_agent_wallet_credit' : mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
+      const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Already Paid';
+      const managed = managedInfo[p.portfolioId];
 
       // Create pending wallet operation for approval
       const txnGroupId = crypto.randomUUID();
