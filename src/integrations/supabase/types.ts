@@ -8973,24 +8973,14 @@ export type Database = {
         }
         Returns: Json
       }
-      credit_agent_rent_commission:
-        | {
-            Args: {
-              p_rent_request_id: string
-              p_repayment_amount: number
-              p_source_id?: string
-              p_source_table?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_rent_request_id: string
-              p_repayment_amount: number
-              p_tenant_id: string
-            }
-            Returns: Json
-          }
+      credit_agent_rent_commission: {
+        Args: {
+          p_rent_request_id: string
+          p_repayment_amount: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
