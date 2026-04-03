@@ -457,7 +457,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               <p className="text-[10px] text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
             </div>
 
-            <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full h-11" size="lg">
+            <Button onClick={handleSubmit} disabled={isSubmitting || (channel === 'momo' && !isTidValid())} className="w-full h-11" size="lg">
               {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting...</> : 'Submit Deposit Request'}
             </Button>
           </div>
