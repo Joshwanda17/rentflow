@@ -1,50 +1,142 @@
+# **Fix: Income Statement Not Updating on Date Selection**
+
+## **Problem**
+
+When a user selects a different period (**Today, 7 Days, 30 Days, etc.**):
+
+- The filter updates ✔
+- The Income Statement **does NOT refresh automatically** ✗
+- Users must manually click **“Regenerate Statements”**
+
+---
+
+## **Root Cause**
+
+Inside `useFinancialStatements.ts`:
+
+- `updatePeriod()` only calls:
+  ```
+  setFilters(...)
+  ```
+-   
+But it **never triggers** `generate()`  
 
 
-# Fix: Income Statement Showing Zero Revenue
+Additionally:
 
-## Summary
-The edge function fixes (setting `ledger_scope: 'platform'` on revenue inserts) were already applied in the previous attempt. However, the **data backfill migration was never executed** because the implementation was cancelled mid-way. There are still 14 `tenant_access_fee` entries and 132 `rent_repayment` entries incorrectly scoped as `'wallet'` in the database.
+-   
+There is **no** `useEffect` **watching** `filters`  
 
-## Current State
-- `auto-charge-wallets` — already has `ledger_scope: 'platform'` on fee inserts
-- `approve-deposit` — already has `ledger_scope: 'platform'` on fee insert
-- `approve-wallet-operation` — already has category-based scope resolution logic
-- **Database** — 14 `tenant_access_fee` (USh 115,088) and 132 `rent_repayment` entries still scoped as `'wallet'`
+-   
+React state updates are **asynchronous**, so even if you call `generate()` immediately, it may use stale filters  
 
-## What Needs to Be Done
 
-### 1. Backfill Migration (the missing piece)
-Run a migration to reclassify existing revenue entries. Must temporarily disable the ledger mutation trigger:
+---
 
-```sql
--- Temporarily allow updates
-ALTER TABLE public.general_ledger DISABLE TRIGGER prevent_ledger_mutation_trigger;
+## **Fix Plan**
 
--- Reclassify revenue entries
-UPDATE general_ledger 
-SET ledger_scope = 'platform'
-WHERE ledger_scope = 'wallet'
-  AND category IN (
-    'tenant_access_fee', 
-    'tenant_request_fee', 
-    'platform_service_income', 
-    'landlord_platform_fee',
-    'management_fee', 
-    'rent_repayment'
-  );
+---
 
--- Re-enable protection
-ALTER TABLE public.general_ledger ENABLE TRIGGER prevent_ledger_mutation_trigger;
+## **1. Auto-Regenerate on Period Change (Critical Fix)**
+
+### **File:** `src/hooks/useFinancialStatements.ts`
+
+### **Fix Strategy**
+
+-   
+Build the **new filters object manually**  
+
+-   
+Pass it directly into `generate(newFilters)`  
+
+-   
+Do NOT rely on state being updated instantly  
+
+
+### **Updated Logic**
+
+```
+const updatePeriod = (period: string) => {
+  const newFilters = {
+    ...filters,
+    period,
+    // include any derived date ranges here if applicable
+  };
+
+  setFilters(newFilters);
+
+  // Immediately regenerate with correct filters
+  generate(newFilters);
+};
 ```
 
-This single migration is the only remaining step. No code changes needed — all edge functions are already fixed.
+### **Why This Works**
 
-## Impact
-- 14 access fee entries (USh 115,088) and 132 rent repayment entries (USh 3,256,567) will become visible to the Income Statement
-- Revenue will display correctly, producing an accurate Net Operating Income
+-   
+Avoids React batching delay  
 
-## Technical Details
-- **Files changed**: None (edge functions already updated)
-- **Migration**: 1 new SQL migration to backfill `ledger_scope`
-- The mutation trigger must be disabled/re-enabled within the migration since the ledger is append-only by design
+-   
+Ensures `generate()` uses the **correct, updated filters**  
 
+-   
+Eliminates dependency on state timing  
+
+
+---
+
+## **2. Auto-Generate on Initial Load**
+
+### **File:** `src/components/manager/FinancialStatementsPanel.tsx`
+
+### **Fix Strategy**
+
+Trigger data generation when the component mounts.
+
+```
+useEffect(() => {
+  generate();
+}, []);
+```
+
+---
+
+## **Optional (Better Architecture – Recommended)**
+
+If you want a more **React-clean approach**, you can also do this:
+
+```
+useEffect(() => {
+  generate(filters);
+}, [filters]);
+```
+
+### **But be careful:**
+
+-   
+This can cause **double calls** if `updatePeriod` also calls `generate()`  
+
+-   
+Choose **ONE approach**, not both  
+
+
+👉 Best practice for your case right now:
+
+-   
+Stick with **manual trigger inside** `updatePeriod`  
+
+
+---
+
+## **Impact After Fix**
+
+-   
+Changing period → **instant refresh of Income Statement**  
+
+-   
+No more “Regenerate” button dependency  
+
+-   
+Data loads automatically on page open  
+
+-   
+UX becomes **smooth and predictable**
