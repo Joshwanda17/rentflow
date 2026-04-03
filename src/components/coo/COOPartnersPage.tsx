@@ -2824,13 +2824,62 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                             size="sm"
                             variant="default"
                             className="flex-1 text-xs gap-1.5"
-                            disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                            onClick={() => setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }))}
+                            disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10 || checkingManaged[p.portfolioId]}
+                            onClick={async () => {
+                              // Check managed status on click
+                              if (managedInfo[p.portfolioId] === undefined) {
+                                setCheckingManaged(prev => ({ ...prev, [p.portfolioId]: true }));
+                                try {
+                                  const { data: proxyData } = await supabase
+                                    .from('proxy_agent_assignments')
+                                    .select('agent_id, is_managed_account, agent:agent_id(full_name)')
+                                    .eq('beneficiary_id', p.investorId)
+                                    .eq('is_active', true)
+                                    .eq('is_managed_account', true)
+                                    .limit(1)
+                                    .maybeSingle();
+                                  if (proxyData && proxyData.is_managed_account) {
+                                    const agentName = (proxyData.agent as any)?.full_name || 'Agent';
+                                    setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: true, agentName, agentId: proxyData.agent_id } }));
+                                    setPayMode(prev => ({ ...prev, [p.portfolioId]: 'agent_wallet' }));
+                                  } else {
+                                    setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+                                    setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }));
+                                  }
+                                } catch {
+                                  setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+                                  setPayMode(prev => ({ ...prev, [p.portfolioId]: 'wallet' }));
+                                } finally {
+                                  setCheckingManaged(prev => ({ ...prev, [p.portfolioId]: false }));
+                                }
+                              } else {
+                                setPayMode(prev => ({ ...prev, [p.portfolioId]: managedInfo[p.portfolioId]?.isManaged ? 'agent_wallet' : 'wallet' }));
+                              }
+                            }}
                           >
-                            <Wallet className="h-3 w-3" />
+                            {checkingManaged[p.portfolioId] ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wallet className="h-3 w-3" />}
                             Pay
                           </Button>
+                        ) : managedInfo[p.portfolioId]?.isManaged ? (
+                          /* Managed account — single option: send to agent wallet */
+                          <div className="flex-1 flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 border border-primary/20 px-2.5 py-1.5 text-[10px] text-primary">
+                              <ShieldCheck className="h-3 w-3 shrink-0" />
+                              <span>Managed account by <strong>{managedInfo[p.portfolioId]!.agentName}</strong></span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="w-full text-xs gap-1.5"
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                              onClick={() => handlePay(p, reasons[p.portfolioId], 'agent_wallet')}
+                            >
+                              {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+                              Send to Agent Wallet
+                            </Button>
+                          </div>
                         ) : (
+                          /* Non-managed — cash or wallet */
                           <div className="flex-1 flex flex-col gap-1.5">
                             <div className="flex gap-1.5">
                               <Button
@@ -2859,7 +2908,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                               variant="default"
                               className="w-full text-xs gap-1.5"
                               disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
-                              onClick={() => handlePay(p, reasons[p.portfolioId], payMode[p.portfolioId]!)}
+                              onClick={() => handlePay(p, reasons[p.portfolioId], payMode[p.portfolioId] as 'wallet' | 'already_paid')}
                             >
                               {isProcessing === 'pay' ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                               Confirm {payMode[p.portfolioId] === 'wallet' ? 'Pay to Wallet' : 'Already Paid'}
