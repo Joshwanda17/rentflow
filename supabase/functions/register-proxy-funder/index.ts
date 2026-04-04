@@ -106,14 +106,15 @@ Deno.serve(async (req) => {
       console.error("Wallet insert error:", walletError);
     }
 
-    // Create proxy assignment
+    // Create proxy assignment (pending approval)
     const { error: proxyError } = await supabase.from("proxy_agent_assignments").insert({
       agent_id,
       beneficiary_id: userId,
       beneficiary_role: "supporter",
       assigned_by: agent_id,
       reason: notes || "No-smartphone funder registered by agent",
-      is_active: true,
+      is_active: false,
+      approval_status: "pending",
     });
 
     if (proxyError) {
