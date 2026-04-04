@@ -118,40 +118,8 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     return <>{children}</>;
   }
 
-  const handleInstall = useCallback(async () => {
-    if (isIOS) {
-      setShowIOSGuide(true);
-      return;
-    }
 
-    const prompt = installPrompt || (globalDeferredPrompt as BeforeInstallPromptEvent | null);
-    if (prompt) {
-      try {
-        setInstalling(true);
-        hapticTap();
-        await prompt.prompt();
-        const { outcome } = await prompt.userChoice;
-        if (outcome === 'accepted') {
-          setIsStandalone(true);
-          localStorage.setItem('welile_pwa_installed', 'true');
-          localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
-        }
-        setInstallPrompt(null);
-        clearGlobalPrompt();
-      } catch (err) {
-        console.error('[PWA Gate] Install error:', err);
-        setInstallPrompt(null);
-        clearGlobalPrompt();
-      } finally {
-        setInstalling(false);
-      }
-      return;
-    }
 
-    // No native prompt available — show browser menu guide
-    hapticTap();
-    setShowMenuGuide(true);
-  }, [installPrompt, isIOS]);
 
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center px-6">
