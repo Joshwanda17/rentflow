@@ -73,14 +73,32 @@ export function useAuthForm() {
     }
   }, [referralId, becomeRole, preSelectedRole, rawRole]);
 
-  // Redirect on auth
+  // Redirect on auth — wait briefly for roles to load before deciding
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('welile_had_session', 'true');
-      if (roles.length > 0) {
-        navigate('/dashboard');
-      }
+    if (!user) return;
+    localStorage.setItem('welile_had_session', 'true');
+
+    // If roles already loaded, navigate immediately
+    if (roles.length > 0) {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+      navigate('/dashboard', { replace: true });
+      return;
     }
+
+    // Roles not yet loaded — give them up to 3s before falling back to /select-role
+    if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    redirectTimerRef.current = setTimeout(() => {
+      if (roles.length > 0) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/select-role', { replace: true });
+      }
+    }, 3000);
+
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
   }, [user, roles, navigate]);
 
   // Auto-focus

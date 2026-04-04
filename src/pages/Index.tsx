@@ -2,7 +2,7 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Index() {
-  const { user, roles, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [searchParams] = useSearchParams();
   
   const ref = searchParams.get('ref');
@@ -19,11 +19,8 @@ export default function Index() {
 
   // Auth finished loading — use LIVE auth state
   if (user) {
-    // Already logged in — skip auth form even if referral/role params present
-    if (roles.length > 0) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    return <Navigate to="/select-role" replace />;
+    // Already logged in — always go to dashboard; dashboard handles role checks
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Not logged in — send referral/role links to auth
