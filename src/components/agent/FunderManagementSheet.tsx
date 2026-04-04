@@ -81,6 +81,30 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     if (open && user) fetchFunders();
   }, [open, user]);
 
+  // Fetch individual portfolios when a funder is selected
+  useEffect(() => {
+    if (!selectedFunder?.beneficiary?.id) {
+      setFunderPortfolios([]);
+      return;
+    }
+    const fetchPortfolios = async () => {
+      setLoadingPortfolios(true);
+      try {
+        const { data } = await supabase
+          .from('investor_portfolios')
+          .select('id, account_name, portfolio_code, investment_amount, total_roi_earned, roi_percentage, status, duration_months, maturity_date, next_roi_date, created_at')
+          .eq('investor_id', selectedFunder.beneficiary!.id)
+          .order('created_at', { ascending: false });
+        setFunderPortfolios(data || []);
+      } catch (err) {
+        console.error('Error fetching funder portfolios:', err);
+      } finally {
+        setLoadingPortfolios(false);
+      }
+    };
+    fetchPortfolios();
+  }, [selectedFunder?.beneficiary?.id]);
+
   const fetchFunders = async () => {
     if (!user) return;
     setLoading(true);
