@@ -32,12 +32,16 @@ export interface CashFlowData {
   period: string;
   operatingActivities: {
     tenantFeesReceived: number;
-    rentRepayments: number;
-    depositsReceived: number;
+    otherServiceIncome: number;
     platformRewardsPaid: number;
     agentCommissionsPaid: number;
     withdrawalsPaid: number;
     netOperating: number;
+  };
+  facilitationActivities: {
+    rentRepayments: number;
+    rentDeployments: number;
+    netFacilitation: number;
   };
   custodialActivities: {
     userDeposits: number;
