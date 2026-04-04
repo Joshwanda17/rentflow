@@ -232,8 +232,11 @@ export function useFinancialStatements() {
         fallbackRows: any[],
         categories: string[],
       ) => {
-        const preferredTotal = sumBy(preferredRows, categories);
-        return preferredTotal > 0 ? preferredTotal : sumBy(fallbackRows, categories);
+        // Per-category fallback: check each category individually
+        return categories.reduce((total, cat) => {
+          const preferred = sumBy(preferredRows, [cat]);
+          return total + (preferred > 0 ? preferred : sumBy(fallbackRows, [cat]));
+        }, 0);
       };
 
       // ══════════════════════════════════════════════════════════════
