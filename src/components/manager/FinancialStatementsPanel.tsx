@@ -78,12 +78,17 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
     <div className="space-y-1">
       <SectionHeader>Platform Operating Activities</SectionHeader>
       <LineItem label="Tenant Fees Received" value={d.operatingActivities.tenantFeesReceived} indent />
-      <LineItem label="Rent Repayments" value={d.operatingActivities.rentRepayments} indent />
-      <LineItem label="Other Platform Income" value={d.operatingActivities.depositsReceived} indent />
+      <LineItem label="Other Platform Income" value={d.operatingActivities.otherServiceIncome} indent />
       <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
       <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
       <LineItem label="Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
       <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
+
+      <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
+      <LineItem label="Rent Repayments Received" value={d.facilitationActivities.rentRepayments} indent />
+      <LineItem label="Rent Deployed to Landlords" value={d.facilitationActivities.rentDeployments} negative indent />
+      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold />
 
       <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits and withdrawals by users</p>
