@@ -76,6 +76,8 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     };
   }, []);
 
+  const [showMenuGuide, setShowMenuGuide] = useState(false);
+
   const handleInstall = useCallback(async () => {
     if (isIOS) {
       setShowIOSGuide(true);
@@ -83,36 +85,38 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     }
 
     const prompt = installPrompt || (globalDeferredPrompt as BeforeInstallPromptEvent | null);
-    if (!prompt) return;
-
-    try {
-      setInstalling(true);
-      hapticTap();
-      await prompt.prompt();
-      const { outcome } = await prompt.userChoice;
-      if (outcome === 'accepted') {
-        setIsStandalone(true);
-        localStorage.setItem('welile_pwa_installed', 'true');
-        localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+    if (prompt) {
+      try {
+        setInstalling(true);
+        hapticTap();
+        await prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        if (outcome === 'accepted') {
+          setIsStandalone(true);
+          localStorage.setItem('welile_pwa_installed', 'true');
+          localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+        }
+        setInstallPrompt(null);
+        clearGlobalPrompt();
+      } catch (err) {
+        console.error('[PWA Gate] Install error:', err);
+        setInstallPrompt(null);
+        clearGlobalPrompt();
+      } finally {
+        setInstalling(false);
       }
-      setInstallPrompt(null);
-      clearGlobalPrompt();
-    } catch (err) {
-      console.error('[PWA Gate] Install error:', err);
-      setInstallPrompt(null);
-      clearGlobalPrompt();
-    } finally {
-      setInstalling(false);
+      return;
     }
+
+    // No native prompt — show browser menu guide
+    hapticTap();
+    setShowMenuGuide(true);
   }, [installPrompt, isIOS]);
 
   // Pass through when installed or skipped
   if (isStandalone || skipped) {
     return <>{children}</>;
   }
-
-  const hasNativePrompt = !!installPrompt || !!globalDeferredPrompt;
-  const [showMenuGuide, setShowMenuGuide] = useState(false);
 
   const handleInstall = useCallback(async () => {
     if (isIOS) {
