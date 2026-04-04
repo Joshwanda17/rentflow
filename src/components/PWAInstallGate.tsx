@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Download, Share, Smartphone } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Download, Share, Smartphone, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
-import { globalDeferredPrompt, clearGlobalPrompt } from '@/hooks/usePWAInstall';
 import welileLogo from '@/assets/welile-logo.png';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -11,35 +10,49 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+// ─── Global prompt capture (runs once at module load) ───
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
+const promptListeners = new Set<() => void>();
+
+function notifyPromptListeners() {
+  promptListeners.forEach(fn => fn());
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault();
+    deferredPrompt = e as BeforeInstallPromptEvent;
+    console.log('[PWA] beforeinstallprompt captured globally');
+    notifyPromptListeners();
+  });
+}
+
 /**
  * Full-screen gate that blocks the app until the user installs it as a PWA.
- * Renders nothing (passes through children) when:
- *  - Already running in standalone/PWA mode
- *  - Running inside an iframe (Lovable preview)
- *  - Running on a preview host
+ * Passes through children when already standalone, in iframe, or on preview host.
  */
 export default function PWAInstallGate({ children }: { children: React.ReactNode }) {
-  const [isStandalone, setIsStandalone] = useState(true); // default true to avoid flash
+  const [isStandalone, setIsStandalone] = useState(true); // true to avoid flash
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(
-    globalDeferredPrompt as BeforeInstallPromptEvent | null
-  );
+  const [showMenuGuide, setShowMenuGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
-  // Session-only skip — resets on app reload so gate shows again next visit
-  const [skipped, setSkipped] = useState(() => {
-    return sessionStorage.getItem('welile_pwa_gate_skipped') === 'true';
-  });
+  const [installResult, setInstallResult] = useState<'accepted' | 'dismissed' | null>(null);
+  const [promptReady, setPromptReady] = useState(!!deferredPrompt);
+  const [skipped, setSkipped] = useState(() =>
+    sessionStorage.getItem('welile_pwa_gate_skipped') === 'true'
+  );
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    // Skip gate in iframes / preview
+    // Skip in iframes / preview
     const inIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
     const isPreview = window.location.hostname.includes('id-preview--')
       || window.location.hostname.includes('lovableproject.com')
       || window.location.hostname === 'localhost';
 
     if (inIframe || isPreview) {
-      setIsStandalone(true); // pass through
+      setIsStandalone(true);
       return;
     }
 
@@ -53,91 +66,93 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
     setIsIOS(iOS || isIPadOS);
 
-    // Listen for install prompt
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
+    // Listen for prompt availability
+    const onPromptReady = () => setPromptReady(true);
+    promptListeners.add(onPromptReady);
+    if (deferredPrompt) setPromptReady(true);
 
-    if (globalDeferredPrompt) {
-      setInstallPrompt(globalDeferredPrompt as BeforeInstallPromptEvent);
-    }
-
-    const installedHandler = () => {
+    // Listen for app installed
+    const onInstalled = () => {
       setIsStandalone(true);
-      setInstallPrompt(null);
+      setInstallResult('accepted');
     };
-    window.addEventListener('appinstalled', installedHandler);
+    window.addEventListener('appinstalled', onInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-      window.removeEventListener('appinstalled', installedHandler);
+      promptListeners.delete(onPromptReady);
+      window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
 
-  const [showMenuGuide, setShowMenuGuide] = useState(false);
-
   const handleInstall = useCallback(async () => {
+    hapticTap();
+
+    // iOS — show manual guide immediately
     if (isIOS) {
-      hapticTap();
       setShowIOSGuide(true);
+      setShowMenuGuide(false);
       return;
     }
 
     setInstalling(true);
-    hapticTap();
+    setInstallResult(null);
+    setShowMenuGuide(false);
 
-    // Try to get the prompt — check local state, global, then retry with delay
-    let prompt = installPrompt || (globalDeferredPrompt as BeforeInstallPromptEvent | null);
+    // Try to get the deferred prompt
+    let prompt = deferredPrompt;
 
+    // If not available yet, wait briefly (some browsers fire it late)
     if (!prompt) {
-      // Wait briefly for the browser to fire beforeinstallprompt
-      await new Promise(r => setTimeout(r, 800));
-      prompt = globalDeferredPrompt as BeforeInstallPromptEvent | null;
-    }
-
-    if (!prompt) {
-      // Second retry
-      await new Promise(r => setTimeout(r, 1200));
-      prompt = globalDeferredPrompt as BeforeInstallPromptEvent | null;
+      await new Promise(r => setTimeout(r, 600));
+      prompt = deferredPrompt;
     }
 
     if (prompt) {
       try {
         await prompt.prompt();
         const { outcome } = await prompt.userChoice;
+        console.log('[PWA Gate] User choice:', outcome);
+
         if (outcome === 'accepted') {
           setIsStandalone(true);
+          setInstallResult('accepted');
           localStorage.setItem('welile_pwa_installed', 'true');
           localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+        } else {
+          setInstallResult('dismissed');
+          // Show manual guide after dismissal
+          setShowMenuGuide(true);
         }
-        setInstallPrompt(null);
-        clearGlobalPrompt();
+
+        // Prompt is consumed — clear it
+        deferredPrompt = null;
+        setPromptReady(false);
       } catch (err) {
-        console.error('[PWA Gate] Install error:', err);
-        setInstallPrompt(null);
-        clearGlobalPrompt();
-        // Prompt was consumed or errored — show manual guide
+        console.error('[PWA Gate] prompt() error:', err);
+        deferredPrompt = null;
+        setPromptReady(false);
+        // Prompt was already consumed — show manual guide
         setShowMenuGuide(true);
-      } finally {
-        setInstalling(false);
       }
-      return;
+    } else {
+      // No native prompt available — show manual browser install guide
+      console.log('[PWA Gate] No deferred prompt — showing manual guide');
+      setShowMenuGuide(true);
     }
 
-    // No native prompt available after retries — show browser menu guide
     setInstalling(false);
-    setShowMenuGuide(true);
-  }, [installPrompt, isIOS]);
+  }, [isIOS]);
 
   // Pass through when installed or skipped
   if (isStandalone || skipped) {
     return <>{children}</>;
   }
 
-
-
+  const buttonLabel = installing
+    ? 'Installing…'
+    : installResult === 'dismissed'
+      ? 'Try Again'
+      : 'Install App';
 
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center px-6">
@@ -149,7 +164,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
       >
         {/* Logo */}
         <img src={welileLogo} alt="Welile" className="h-16 w-auto mb-4" />
-        
+
         {/* Icon */}
         <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-6">
           <Smartphone className="h-10 w-10 text-primary" />
@@ -163,29 +178,40 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           For the best experience, install Welile on your device. It's fast, works offline, and feels like a native app.
         </p>
 
-        {/* Install Button — always visible */}
+        {/* Install Button */}
         <button
+          ref={buttonRef}
           onClick={handleInstall}
           disabled={installing}
           className={cn(
-            "w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-bold text-base transition-all touch-manipulation",
+            "w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-bold text-base transition-all touch-manipulation select-none",
             "bg-primary text-primary-foreground shadow-lg",
             "hover:shadow-xl hover:brightness-110 active:scale-[0.97]",
             installing && "opacity-70 cursor-wait"
           )}
+          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
         >
           {isIOS ? (
-            <>
-              <Share className="h-5 w-5" />
-              {installing ? 'Installing…' : 'Install App'}
-            </>
+            <Share className="h-5 w-5" />
           ) : (
-            <>
-              <Download className="h-5 w-5" />
-              {installing ? 'Installing…' : 'Install App'}
-            </>
+            <Download className="h-5 w-5" />
           )}
+          {buttonLabel}
         </button>
+
+        {/* Status feedback */}
+        <AnimatePresence>
+          {installResult === 'dismissed' && !showMenuGuide && (
+            <motion.p
+              className="mt-3 text-xs text-muted-foreground text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              You dismissed the install prompt. Tap "Try Again" or use the browser menu.
+            </motion.p>
+          )}
+        </AnimatePresence>
 
         {/* iOS Guide */}
         <AnimatePresence>
@@ -217,7 +243,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           )}
         </AnimatePresence>
 
-        {/* Android/Desktop browser menu guide — when no native prompt */}
+        {/* Android/Desktop manual guide */}
         <AnimatePresence>
           {showMenuGuide && !isIOS && (
             <motion.div
@@ -227,7 +253,10 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
               exit={{ opacity: 0, height: 0 }}
             >
               <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                <p className="font-semibold text-foreground text-sm">Install from your browser:</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertCircle className="h-4 w-4 text-warning" />
+                  <p className="font-semibold text-foreground text-sm">Install from your browser:</p>
+                </div>
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">1</span>
@@ -249,7 +278,11 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
 
         {/* Skip link */}
         <button
-          onClick={() => { hapticTap(); sessionStorage.setItem('welile_pwa_gate_skipped', 'true'); setSkipped(true); }}
+          onClick={() => {
+            hapticTap();
+            sessionStorage.setItem('welile_pwa_gate_skipped', 'true');
+            setSkipped(true);
+          }}
           className="mt-6 text-xs text-muted-foreground/60 underline underline-offset-2 hover:text-muted-foreground transition-colors"
         >
           Continue in browser
