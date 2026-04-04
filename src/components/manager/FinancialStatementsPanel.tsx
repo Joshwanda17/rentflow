@@ -78,12 +78,17 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
     <div className="space-y-1">
       <SectionHeader>Platform Operating Activities</SectionHeader>
       <LineItem label="Tenant Fees Received" value={d.operatingActivities.tenantFeesReceived} indent />
-      <LineItem label="Rent Repayments" value={d.operatingActivities.rentRepayments} indent />
-      <LineItem label="Other Platform Income" value={d.operatingActivities.depositsReceived} indent />
+      <LineItem label="Other Platform Income" value={d.operatingActivities.otherServiceIncome} indent />
       <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
       <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
       <LineItem label="Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
       <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
+
+      <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
+      <LineItem label="Rent Repayments Received" value={d.facilitationActivities.rentRepayments} indent />
+      <LineItem label="Rent Deployed to Landlords" value={d.facilitationActivities.rentDeployments} negative indent />
+      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold />
 
       <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits and withdrawals by users</p>
@@ -264,12 +269,16 @@ export function FinancialStatementsPanel() {
       rows.push(['', '', '']);
       rows.push(['OPERATING ACTIVITIES', '', '']);
       rows.push(['Tenant Fees Received', '', d.operatingActivities.tenantFeesReceived]);
-      rows.push(['Rent Repayments', '', d.operatingActivities.rentRepayments]);
-      rows.push(['Deposits Received', '', d.operatingActivities.depositsReceived]);
+      rows.push(['Other Platform Income', '', d.operatingActivities.otherServiceIncome]);
       rows.push(['Platform Rewards Paid', '', -d.operatingActivities.platformRewardsPaid]);
       rows.push(['Agent Commissions Paid', '', -d.operatingActivities.agentCommissionsPaid]);
       rows.push(['Withdrawals Paid', '', -d.operatingActivities.withdrawalsPaid]);
       rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
+      rows.push(['', '', '']);
+      rows.push(['RENT FACILITATION (PASS-THROUGH)', '', '']);
+      rows.push(['Rent Repayments Received', '', d.facilitationActivities.rentRepayments]);
+      rows.push(['Rent Deployed to Landlords', '', -d.facilitationActivities.rentDeployments]);
+      rows.push(['Net Facilitation', '', d.facilitationActivities.netFacilitation]);
       rows.push(['', '', '']);
       rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
       rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
@@ -408,12 +417,16 @@ export function FinancialStatementsPanel() {
         const d = data.cashFlow;
         addSection('Platform Operating Activities');
         addRow('Tenant Fees Received', d.operatingActivities.tenantFeesReceived, false, false, true);
-        addRow('Rent Repayments', d.operatingActivities.rentRepayments, false, false, true);
-        addRow('Other Platform Income', d.operatingActivities.depositsReceived, false, false, true);
+        addRow('Other Platform Income', d.operatingActivities.otherServiceIncome, false, false, true);
         addRow('Platform Rewards Paid', d.operatingActivities.platformRewardsPaid, false, true, true);
         addRow('Agent Commissions Paid', d.operatingActivities.agentCommissionsPaid, false, true, true);
         addRow('Operating Expenses Paid', d.operatingActivities.withdrawalsPaid, false, true, true);
         addRow('Net Platform Operating Cash', d.operatingActivities.netOperating, true);
+        y += 3;
+        addSection('Rent Facilitation (Pass-Through)');
+        addRow('Rent Repayments Received', d.facilitationActivities.rentRepayments, false, false, true);
+        addRow('Rent Deployed to Landlords', d.facilitationActivities.rentDeployments, false, true, true);
+        addRow('Net Facilitation', d.facilitationActivities.netFacilitation, true);
         y += 3;
         addSection('User Custody Flows (Not Revenue)');
         addRow('User Deposits Received', d.custodialActivities.userDeposits, false, false, true);

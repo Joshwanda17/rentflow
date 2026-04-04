@@ -32,12 +32,16 @@ export interface CashFlowData {
   period: string;
   operatingActivities: {
     tenantFeesReceived: number;
-    rentRepayments: number;
-    depositsReceived: number;
+    otherServiceIncome: number;
     platformRewardsPaid: number;
     agentCommissionsPaid: number;
     withdrawalsPaid: number;
     netOperating: number;
+  };
+  facilitationActivities: {
+    rentRepayments: number;
+    rentDeployments: number;
+    netFacilitation: number;
   };
   custodialActivities: {
     userDeposits: number;
@@ -232,8 +236,11 @@ export function useFinancialStatements() {
         fallbackRows: any[],
         categories: string[],
       ) => {
-        const preferredTotal = sumBy(preferredRows, categories);
-        return preferredTotal > 0 ? preferredTotal : sumBy(fallbackRows, categories);
+        // Per-category fallback: check each category individually
+        return categories.reduce((total, cat) => {
+          const preferred = sumBy(preferredRows, [cat]);
+          return total + (preferred > 0 ? preferred : sumBy(fallbackRows, [cat]));
+        }, 0);
       };
 
       // ══════════════════════════════════════════════════════════════
@@ -256,14 +263,17 @@ export function useFinancialStatements() {
       // CASH FLOW — Separated into platform ops, custodial, & financing
       // ══════════════════════════════════════════════════════════════
 
-      // Operating (platform scope only)
+      // Operating (platform scope only — excludes pass-through facilitation flows)
       const tenantFeesReceived = accessFees + requestFees;
-      const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
-      const depositsReceived = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
       const platformRewardsPaid = platformRewards;
       const agentCommissionsPaid = agentCommissions;
       const withdrawalsPaid = operatingExpenses + transactionExpenses;
-      const netOperating = tenantFeesReceived + rentRepayments + depositsReceived - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
+      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
+
+      // Facilitation Activities (capital pass-through: tenant repayments ↔ landlord deployments)
+      const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
+      const rentDeployments = sumBy(platformOut, ['pool_rent_deployment', 'rent_facilitation_payout']);
+      const netFacilitation = rentRepayments - rentDeployments;
 
       // Custodial (wallet scope — user money in/out of platform custody)
       // Fix #3: Only count actual user deposits/withdrawals, not internal flows
@@ -277,8 +287,8 @@ export function useFinancialStatements() {
       const supporterCapitalWithdrawals = sumBy(bridgeOut, ['supporter_withdrawal', 'investment_withdrawal']);
       const netFinancing = supporterCapitalInflows - supporterCapitalWithdrawals;
 
-      // Platform cash movement only (excludes custodial)
-      const netCashMovement = netOperating + netFinancing;
+      // Platform cash movement — operating only (facilitation & financing shown separately)
+      const netCashMovement = netOperating;
       const openingBalance = prevPlatform.reduce(
         (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
       );
@@ -339,7 +349,8 @@ export function useFinancialStatements() {
         },
         cashFlow: {
           period: formatPeriodLabel(activeFilters),
-          operatingActivities: { tenantFeesReceived, rentRepayments, depositsReceived, platformRewardsPaid, agentCommissionsPaid, withdrawalsPaid, netOperating },
+          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, withdrawalsPaid, netOperating },
+          facilitationActivities: { rentRepayments, rentDeployments, netFacilitation },
           custodialActivities: { userDeposits, userWithdrawals, userTransfers, netCustodial },
           financingActivities: { supporterCapitalInflows, supporterCapitalWithdrawals, netFinancing },
           netCashMovement,
