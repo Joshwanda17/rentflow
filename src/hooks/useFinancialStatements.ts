@@ -283,8 +283,8 @@ export function useFinancialStatements() {
       const supporterCapitalWithdrawals = sumBy(bridgeOut, ['supporter_withdrawal', 'investment_withdrawal']);
       const netFinancing = supporterCapitalInflows - supporterCapitalWithdrawals;
 
-      // Platform cash movement only (excludes custodial)
-      const netCashMovement = netOperating + netFinancing;
+      // Platform cash movement — operating only (facilitation & financing shown separately)
+      const netCashMovement = netOperating;
       const openingBalance = prevPlatform.reduce(
         (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
       );
