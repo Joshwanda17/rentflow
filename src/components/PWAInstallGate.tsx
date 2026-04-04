@@ -26,7 +26,10 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     globalDeferredPrompt as BeforeInstallPromptEvent | null
   );
   const [installing, setInstalling] = useState(false);
-  const [skipped, setSkipped] = useState(false);
+  // Session-only skip — resets on app reload so gate shows again next visit
+  const [skipped, setSkipped] = useState(() => {
+    return sessionStorage.getItem('welile_pwa_gate_skipped') === 'true';
+  });
 
   useEffect(() => {
     // Skip gate in iframes / preview
