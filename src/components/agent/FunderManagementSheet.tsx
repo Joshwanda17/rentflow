@@ -544,6 +544,21 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
           fetchFunders();
         }}
       />
+
+      {/* Withdrawal on behalf of funder */}
+      {selectedFunder?.beneficiary && (
+        <AgentProxyWithdrawalDialog
+          open={withdrawDialogOpen}
+          onOpenChange={setWithdrawDialogOpen}
+          funderId={selectedFunder.beneficiary.id}
+          funderName={selectedFunder.beneficiary.full_name}
+          funderPhone={selectedFunder.beneficiary.phone}
+          walletBalance={funderStats[selectedFunder.beneficiary.id]?.walletBalance || 0}
+          onSuccess={() => {
+            fetchFunders();
+          }}
+        />
+      )}
     </>
   );
 }
