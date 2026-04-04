@@ -26,7 +26,10 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     globalDeferredPrompt as BeforeInstallPromptEvent | null
   );
   const [installing, setInstalling] = useState(false);
-  const [skipped, setSkipped] = useState(false);
+  // Session-only skip — resets on app reload so gate shows again next visit
+  const [skipped, setSkipped] = useState(() => {
+    return sessionStorage.getItem('welile_pwa_gate_skipped') === 'true';
+  });
 
   useEffect(() => {
     // Skip gate in iframes / preview
@@ -201,7 +204,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
 
         {/* Skip link — small and de-emphasized */}
         <button
-          onClick={() => { hapticTap(); setSkipped(true); }}
+          onClick={() => { hapticTap(); sessionStorage.setItem('welile_pwa_gate_skipped', 'true'); setSkipped(true); }}
           className="mt-6 text-xs text-muted-foreground/60 underline underline-offset-2 hover:text-muted-foreground transition-colors"
         >
           Continue in browser
