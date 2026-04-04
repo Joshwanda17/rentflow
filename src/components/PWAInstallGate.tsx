@@ -80,15 +80,31 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
 
   const handleInstall = useCallback(async () => {
     if (isIOS) {
+      hapticTap();
       setShowIOSGuide(true);
       return;
     }
 
-    const prompt = installPrompt || (globalDeferredPrompt as BeforeInstallPromptEvent | null);
+    setInstalling(true);
+    hapticTap();
+
+    // Try to get the prompt — check local state, global, then retry with delay
+    let prompt = installPrompt || (globalDeferredPrompt as BeforeInstallPromptEvent | null);
+
+    if (!prompt) {
+      // Wait briefly for the browser to fire beforeinstallprompt
+      await new Promise(r => setTimeout(r, 800));
+      prompt = globalDeferredPrompt as BeforeInstallPromptEvent | null;
+    }
+
+    if (!prompt) {
+      // Second retry
+      await new Promise(r => setTimeout(r, 1200));
+      prompt = globalDeferredPrompt as BeforeInstallPromptEvent | null;
+    }
+
     if (prompt) {
       try {
-        setInstalling(true);
-        hapticTap();
         await prompt.prompt();
         const { outcome } = await prompt.userChoice;
         if (outcome === 'accepted') {
@@ -102,14 +118,16 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
         console.error('[PWA Gate] Install error:', err);
         setInstallPrompt(null);
         clearGlobalPrompt();
+        // Prompt was consumed or errored — show manual guide
+        setShowMenuGuide(true);
       } finally {
         setInstalling(false);
       }
       return;
     }
 
-    // No native prompt — show browser menu guide
-    hapticTap();
+    // No native prompt available after retries — show browser menu guide
+    setInstalling(false);
     setShowMenuGuide(true);
   }, [installPrompt, isIOS]);
 
