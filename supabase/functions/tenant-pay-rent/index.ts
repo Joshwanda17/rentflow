@@ -156,6 +156,7 @@ Deno.serve(async (req) => {
         p_rent_request_id: rentRequest.id,
         p_repayment_amount: payAmount,
         p_tenant_id: tenantId,
+        p_event_reference_id: `tenant-pay-${txnGroupId}`,
       }
     );
     if (commissionErr) {

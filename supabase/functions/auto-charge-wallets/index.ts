@@ -247,6 +247,7 @@ Deno.serve(async (req) => {
             await supabase.rpc("credit_agent_rent_commission", {
               p_rent_request_id: charge.rent_request_id, p_repayment_amount: agentAmountCharged,
               p_tenant_id: charge.tenant_id,
+              p_event_reference_id: `auto-charge-nophone-${charge.id}-${today}`,
             });
           }
 
@@ -318,6 +319,7 @@ Deno.serve(async (req) => {
             await supabase.rpc("credit_agent_rent_commission", {
               p_rent_request_id: charge.rent_request_id, p_repayment_amount: chargeAmount,
               p_tenant_id: charge.tenant_id,
+              p_event_reference_id: `auto-charge-wallet-${charge.id}-${today}`,
             });
           }
 
@@ -522,6 +524,7 @@ Deno.serve(async (req) => {
           await supabase.rpc("credit_agent_rent_commission", {
             p_rent_request_id: charge.rent_request_id, p_repayment_amount: totalCollected,
             p_tenant_id: charge.tenant_id,
+            p_event_reference_id: `auto-charge-split-${charge.id}-${today}`,
           });
         }
 
@@ -730,6 +733,7 @@ async function chargeAgent(
     await supabase.rpc("credit_agent_rent_commission", {
       p_rent_request_id: charge.rent_request_id, p_repayment_amount: shortfall,
       p_tenant_id: charge.tenant_id,
+      p_event_reference_id: `auto-charge-grace-${charge.id}-${today}`,
     });
   }
 

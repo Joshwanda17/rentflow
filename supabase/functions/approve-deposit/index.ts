@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
                     p_rent_request_id: rentRequestId,
                     p_repayment_amount: repaymentApplied,
                     p_tenant_id: depositRequest.user_id,
+                    p_event_reference_id: `approve-deposit-rent-${txGroupId}`,
                   });
                 }
               }
@@ -285,6 +286,7 @@ Deno.serve(async (req) => {
                     p_rent_request_id: activeSub.rent_request_id,
                     p_repayment_amount: debtCleared,
                     p_tenant_id: depositRequest.user_id,
+                    p_event_reference_id: `approve-deposit-debt-${subTxGroupId}`,
                   });
                 }
               }
@@ -352,6 +354,7 @@ Deno.serve(async (req) => {
                     p_rent_request_id: activeSub.rent_request_id,
                     p_repayment_amount: prepaidAmount,
                     p_tenant_id: depositRequest.user_id,
+                    p_event_reference_id: `approve-deposit-prepay-${subTxGroupId}`,
                   });
                 }
               }

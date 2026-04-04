@@ -437,10 +437,12 @@ Deno.serve(async (req) => {
         }
 
         // Credit agent commission via the single-writer RPC (handles ledger, wallet trigger, sub-agent splits, idempotency)
+        const commissionEventRef = `agent-deposit-${activeRentRequest.id}-${Date.now()}`;
         const { data: commissionResult, error: commissionError } = await adminClient.rpc('credit_agent_rent_commission', {
           p_rent_request_id: activeRentRequest.id,
           p_repayment_amount: repaymentAmount,
           p_tenant_id: targetUserId,
+          p_event_reference_id: commissionEventRef,
         });
 
         if (commissionError) {
@@ -451,8 +453,8 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Use actual commission from RPC result
-        actualCommission = commissionResult?.total_commission || 0;
+        // Use actual credited commission from RPC result
+        actualCommission = commissionResult?.credited_commission || 0;
 
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId && landlordPayment > 0) {
