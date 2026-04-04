@@ -19,8 +19,9 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { format } from 'date-fns';
 import {
   Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle, Banknote,
-  Home, TrendingUp, Calendar, CircleDot,
+  Home, TrendingUp, Calendar, CircleDot, ArrowDownToLine,
 } from 'lucide-react';
+import { AgentProxyWithdrawalDialog } from './AgentProxyWithdrawalDialog';
 
 interface LinkedFunder {
   id: string;
