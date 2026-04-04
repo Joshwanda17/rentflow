@@ -154,6 +154,7 @@ export function AgentOpsDashboard() {
       case 'tasks': return <AgentTaskManager />;
       case 'escalations': return <AgentEscalationQueue />;
       case 'service-centres': return <ServiceCentreVerificationQueue />;
+      case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
