@@ -14,8 +14,18 @@ export default function PWAInstallPrompt() {
     if (isInstalled) { setVisible(false); return; }
     if (!canShow) { setVisible(false); return; }
 
+    // Show after a short delay, and re-show on every mount (page navigation)
     const timer = setTimeout(() => setVisible(true), 3000);
     return () => clearTimeout(timer);
+  }, [isInstalled, canShow]);
+
+  // Re-show the prompt periodically if dismissed but not installed
+  useEffect(() => {
+    if (isInstalled || !canShow) return;
+    const interval = setInterval(() => {
+      if (!isInstalled) setVisible(true);
+    }, 60000); // re-show every 60s if dismissed
+    return () => clearInterval(interval);
   }, [isInstalled, canShow]);
 
   const handleInstall = async () => {
