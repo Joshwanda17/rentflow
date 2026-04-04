@@ -380,6 +380,7 @@ function DeferredProviders({ children }: { children: ReactNode }) {
 }
 
 const App = () => (
+  <HelmetProvider>
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
