@@ -28,6 +28,7 @@ interface LinkedFunder {
   beneficiary_role: string;
   reason: string;
   created_at: string;
+  approval_status: string;
   beneficiary: {
     id: string;
     full_name: string;
@@ -111,10 +112,10 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     try {
       const { data, error } = await supabase
         .from('proxy_agent_assignments')
-        .select('id, beneficiary_id, beneficiary_role, reason, created_at, beneficiary:beneficiary_id(id, full_name, phone)')
+        .select('id, beneficiary_id, beneficiary_role, reason, created_at, approval_status, beneficiary:beneficiary_id(id, full_name, phone)')
         .eq('agent_id', user.id)
-        .eq('is_active', true)
         .eq('beneficiary_role', 'supporter')
+        .in('approval_status', ['pending', 'approved'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -253,7 +254,11 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-sm truncate">{f.beneficiary?.full_name || 'Funder'}</p>
-                              <Badge variant="outline" className="text-[10px] shrink-0">💼 Funder</Badge>
+                              {f.approval_status === 'pending' ? (
+                                <Badge className="text-[10px] shrink-0 bg-warning/15 text-warning border-0">⏳ Pending</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] shrink-0">💼 Funder</Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 mt-0.5">
                               <Phone className="h-3 w-3 text-muted-foreground" />
