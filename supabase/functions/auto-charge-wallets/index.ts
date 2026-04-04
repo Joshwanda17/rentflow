@@ -524,6 +524,7 @@ Deno.serve(async (req) => {
           await supabase.rpc("credit_agent_rent_commission", {
             p_rent_request_id: charge.rent_request_id, p_repayment_amount: totalCollected,
             p_tenant_id: charge.tenant_id,
+            p_event_reference_id: `auto-charge-split-${charge.id}-${today}`,
           });
         }
 
