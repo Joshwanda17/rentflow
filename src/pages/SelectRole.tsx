@@ -230,8 +230,8 @@ export default function SelectRole() {
           }
         }
 
-        // Referral bonus is handled by the DB trigger (credit_referral_bonus)
-        // which fires on profile insert. No need to credit here.
+        // Sub-agent registration bonus (UGX 10,000) is awarded automatically
+        // by the trg_award_subagent_commission trigger on agent_subagents insert.
 
         // Notification removed - table dropped
         
