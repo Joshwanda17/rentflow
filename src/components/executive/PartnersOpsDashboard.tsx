@@ -23,6 +23,7 @@ import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
+import { PendingFunderApprovals } from './PendingFunderApprovals';
 
 type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity';
 
