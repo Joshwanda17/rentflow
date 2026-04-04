@@ -33,6 +33,7 @@ const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default:
 const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
 const FloatingToolbar = lazy(() => import("@/components/FloatingToolbar"));
 const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
+const PWAInstallGate = lazy(() => import("@/components/PWAInstallGate"));
 
 // Index is the entry router — must be eager for instant redirect
 import Index from "./pages/Index";
@@ -392,7 +393,11 @@ const App = () => (
                   <LanguageProvider>
                     <CurrencyProvider>
                       <DeferredProviders>
-                        <AppRoutes />
+                        <Suspense fallback={null}>
+                          <PWAInstallGate>
+                            <AppRoutes />
+                          </PWAInstallGate>
+                        </Suspense>
                       </DeferredProviders>
                       <Suspense fallback={null}>
                         <DeferredExtras />
