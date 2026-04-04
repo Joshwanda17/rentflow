@@ -188,10 +188,13 @@ export function PartnersOpsDashboard() {
         </Button>
       )}
 
-      {/* ═══ C. WITHDRAWAL QUEUE ═══ */}
+      {/* ═══ C. PENDING FUNDER APPROVALS ═══ */}
+      <PendingFunderApprovals />
+
+      {/* ═══ D. WITHDRAWAL QUEUE ═══ */}
       <PartnerOpsWithdrawalQueue />
 
-      {/* ═══ C. DAILY BRIEF ═══ */}
+      {/* ═══ E. DAILY BRIEF ═══ */}
       <PartnerOpsBrief />
 
 
