@@ -6035,6 +6035,9 @@ export type Database = {
       proxy_agent_assignments: {
         Row: {
           agent_id: string
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           assigned_by: string
           beneficiary_id: string
           beneficiary_role: string
@@ -6044,10 +6047,14 @@ export type Database = {
           is_active: boolean
           is_managed_account: boolean
           reason: string | null
+          rejection_reason: string | null
           updated_at: string
         }
         Insert: {
           agent_id: string
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           assigned_by: string
           beneficiary_id: string
           beneficiary_role: string
@@ -6057,10 +6064,14 @@ export type Database = {
           is_active?: boolean
           is_managed_account?: boolean
           reason?: string | null
+          rejection_reason?: string | null
           updated_at?: string
         }
         Update: {
           agent_id?: string
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           assigned_by?: string
           beneficiary_id?: string
           beneficiary_role?: string
@@ -6070,6 +6081,7 @@ export type Database = {
           is_active?: boolean
           is_managed_account?: boolean
           reason?: string | null
+          rejection_reason?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6097,6 +6109,34 @@ export type Database = {
           {
             foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
             columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
+            columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
