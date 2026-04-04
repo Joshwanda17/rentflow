@@ -353,6 +353,77 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   </Button>
                 </div>
 
+                {/* Individual Portfolio Details */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-primary" />
+                    Portfolio Accounts ({funderPortfolios.length})
+                  </h4>
+                  {loadingPortfolios ? (
+                    <div className="space-y-2">
+                      {[1, 2].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+                    </div>
+                  ) : funderPortfolios.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <CircleDot className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
+                        <p className="text-xs text-muted-foreground">No portfolios yet</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Invest on their behalf to create one</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    funderPortfolios.map(p => {
+                      const statusColor = p.status === 'active' ? 'bg-success/15 text-success' :
+                        p.status === 'matured' ? 'bg-primary/15 text-primary' :
+                        p.status === 'pending_approval' ? 'bg-warning/15 text-warning' :
+                        'bg-muted text-muted-foreground';
+                      return (
+                        <Card key={p.id} className="border border-border/60">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold truncate">
+                                  {p.account_name || p.portfolio_code}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground font-mono">{p.portfolio_code}</p>
+                              </div>
+                              <Badge className={`text-[10px] shrink-0 border-0 ${statusColor}`}>
+                                {p.status.replace(/_/g, ' ')}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                              <div className="rounded-lg bg-muted/40 p-2">
+                                <p className="text-[10px] text-muted-foreground">Invested</p>
+                                <p className="text-xs font-bold">{formatUGX(p.investment_amount)}</p>
+                              </div>
+                              <div className="rounded-lg bg-muted/40 p-2">
+                                <p className="text-[10px] text-muted-foreground">ROI Earned</p>
+                                <p className="text-xs font-bold text-success">{formatUGX(p.total_roi_earned)}</p>
+                              </div>
+                              <div className="rounded-lg bg-muted/40 p-2">
+                                <p className="text-[10px] text-muted-foreground">Rate</p>
+                                <p className="text-xs font-bold">{p.roi_percentage}%</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {p.duration_months}mo term
+                              </span>
+                              {p.maturity_date && (
+                                <span>Matures: {format(new Date(p.maturity_date), 'dd MMM yyyy')}</span>
+                              )}
+                              {p.next_roi_date && !p.maturity_date && (
+                                <span>Next ROI: {format(new Date(p.next_roi_date), 'dd MMM')}</span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+
                 <Card>
                   <CardContent className="p-3">
                     <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5">
