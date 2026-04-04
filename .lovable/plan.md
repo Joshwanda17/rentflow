@@ -1,91 +1,57 @@
 
 
-## Cash Flow & Balance Sheet Verification — Issues Found
+## Add Verification Step to Sub-Agent Registration Commission
 
-### Data Used (30-day window, platform scope)
+### Current Flow (Problem)
+1. Sub-agent registers → row inserted into `agent_subagents`
+2. `trg_award_subagent_commission` trigger fires **immediately** on INSERT
+3. Parent agent receives UGX 10,000 **without any verification**
 
-| Category | Direction | Amount |
-|---|---|---|
-| tenant_access_fee | cash_out | 90,668 |
-| rent_repayment | cash_in | 1,540,226 |
-| rent_repayment | cash_out | 333,333 |
-| pool_rent_deployment | cash_out | 3,060,000 |
-| supporter_platform_rewards | cash_in | 67,500 |
-| supporter_platform_rewards | cash_out | 67,500 |
-| agent_commission_payout | cash_in | 8,187 |
+### New Flow (Target)
+1. Sub-agent registers → row inserted into `agent_subagents` with `status = 'pending'`
+2. Agent Ops reviews the registration in a new **Sub-Agent Verification Queue**
+3. On verification → status updated to `verified` → trigger fires → UGX 10,000 credited
+4. On rejection → status updated to `rejected`, relationship preserved for audit trail
 
-Bridge scope: supporter_facilitation_capital cash_in = 61,066,541
+### Implementation
 
----
+**Step 1: Database Migration**
+- Add `status` column to `agent_subagents` (default `'pending'`, values: `pending`, `verified`, `rejected`)
+- Add `verified_by` (UUID, nullable) and `verified_at` (timestamptz, nullable) columns
+- Add `rejection_reason` (TEXT, nullable) column
+- Drop the existing INSERT trigger (`trg_award_subagent_commission`)
+- Create a new UPDATE trigger that fires when `status` changes to `'verified'`, calling the same `award_subagent_registration_bonus()` function
+- Backfill existing rows to `status = 'verified'` so historical data is consistent
 
-### Issue 1: Cash Flow — pool_rent_deployment (3M) is invisible
+**Step 2: Update Trigger Function**
+- Modify `award_subagent_registration_bonus()` to be an UPDATE trigger instead of INSERT
+- Add a guard: only fire when `NEW.status = 'verified' AND (OLD.status IS DISTINCT FROM 'verified')`
 
-`pool_rent_deployment` (USh 3,060,000 outflow) is in platform scope but is NOT listed in any Cash Flow category group — operating, custodial, or financing. It simply vanishes. This massively overstates the platform's cash position.
+**Step 3: Add Sub-Agent Verification Queue to Agent Ops Dashboard**
+- Create `SubAgentVerificationQueue.tsx` in `src/components/executive/`
+- Follow the exact same pattern as `ServiceCentreVerificationQueue.tsx`:
+  - Tabs: "Pending" (with red pulse badge) and "Verified" (history)
+  - Each pending card shows: sub-agent name, phone, parent agent name, registration date, source
+  - Verify button → updates status to `verified`, sets `verified_by` and `verified_at`
+  - Reject button → requires 10-char reason, updates status to `rejected`
+- Add to `AgentOpsDashboard.tsx` nav grid as "Sub-Agents" with a `UsersRound` icon
 
-**Fix**: Add a dedicated "Rent Facilitation" section to Cash Flow, or include `pool_rent_deployment` and `rent_repayment` together as a "Facilitation Activities" group, keeping them separate from operating income.
+**Step 4: Update Agent-Facing UI**
+- Update `SubAgentsList.tsx` to show status badges (pending/verified/rejected) on each sub-agent
+- Update `CollapsibleSubAgents.tsx` counts to distinguish pending-verification from active
 
-### Issue 2: Cash Flow — rent_repayment inflates operating activities
+**Step 5: Update Sub-Agent Invite Lists**
+- In `SubAgentInvitesList.tsx`, ensure pending invites still show correctly alongside the new verification status
 
-`rent_repayment` (USh 1,540,226) is included in operating activities as if it were operating income. Rent repayments are capital pass-through flows (tenant → supporter), not platform revenue. This inflates net operating cash by ~1.5M.
+### Files to Change
+- **New migration SQL** — add columns, swap trigger from INSERT to UPDATE, backfill
+- `src/components/executive/SubAgentVerificationQueue.tsx` — new component
+- `src/components/executive/AgentOpsDashboard.tsx` — add nav item + render case
+- `src/components/agent/SubAgentsList.tsx` — add status badges
+- `src/components/agent/CollapsibleSubAgents.tsx` — update counts if needed
 
-**Fix**: Move `rent_repayment` out of operating activities into the new "Facilitation Activities" section alongside `pool_rent_deployment`.
-
-### Issue 3: Cash Flow — closing balance mixes platform ops with supporter capital
-
-Line 281: `netCashMovement = netOperating + netFinancing`. The financing section includes bridge-scope supporter capital (61M). Adding this to platform operating cash produces a meaningless closing balance (~63M) that doesn't represent any real account.
-
-**Fix**: Separate the closing balance into "Platform Operating Cash" (from operating only) and show financing/facilitation as separate informational sections that don't roll into the platform cash position.
-
-### Issue 4: Balance Sheet — `sumWithDirectionFallback` is all-or-nothing
-
-The fallback function checks if the total across ALL categories in the preferred direction is > 0. If yes, it uses preferred for everything — even categories that only have data in the other direction.
-
-Example with all-time data:
-- Costs preferred direction (cash_out): supporter_platform_rewards = 67,500
-- Since 67,500 > 0, the function returns 67,500 for ALL cost categories
-- But agent_commission_payout only has cash_in entries (19,775) — these are silently dropped
-- Result: platformCash is overstated by 19,775
-
-**Fix**: Change `sumWithDirectionFallback` to work per-category instead of all-or-nothing across the whole array.
-
-### Issue 5: Cash Flow — depositsReceived duplicates otherServiceIncome
-
-Line 262 uses identical categories to line 245 (`platform_service_income`, `landlord_platform_fee`, `management_fee`). Currently 0 so no visible impact, but would double-count if these categories get used.
-
-**Fix**: Remove `depositsReceived` or give it distinct categories.
-
----
-
-### Implementation Plan
-
-**Step 1: Fix `sumWithDirectionFallback` (per-category fallback)**
-In `src/hooks/useFinancialStatements.ts`, change the function to iterate each category individually:
-```
-sum = categories.reduce((total, cat) => {
-  const preferred = sumBy(preferredRows, [cat]);
-  return total + (preferred > 0 ? preferred : sumBy(fallbackRows, [cat]));
-}, 0);
-```
-
-**Step 2: Restructure Cash Flow sections**
-- Remove `rent_repayment` from operating activities
-- Remove `depositsReceived` (duplicate)
-- Add a new "Facilitation Activities" section with:
-  - `rent_repayment` (inflow from tenants)
-  - `pool_rent_deployment` (outflow to landlords)
-  - Net facilitation = repayments − deployments
-- Update `netCashMovement` to be operating-only for "Platform Cash Movement"
-- Show facilitation and financing as separate line items below
-
-**Step 3: Update Cash Flow UI component**
-- Add the "Facilitation Activities" section to the Cash Flow view
-- Separate "Platform Operating Cash" closing balance from total movement across all scopes
-
-**Step 4: Update TypeScript interfaces**
-- Add `facilitationActivities` to `CashFlowData` interface
-- Update the UI component rendering the Cash Flow tab
-
-### Files to change
-- `src/hooks/useFinancialStatements.ts` — core logic fixes
-- Cash Flow UI component (need to identify which component renders the Cash Flow tab)
+### What Stays the Same
+- `credit_agent_event_bonus` RPC — unchanged, still called by the trigger
+- `activate-supporter` and `SelectRole.tsx` — still insert into `agent_subagents` (new rows default to `pending`)
+- `user-snapshot` edge function — still queries `agent_subagents` (no schema change needed beyond the new columns)
 
