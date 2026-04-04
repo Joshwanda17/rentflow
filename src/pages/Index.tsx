@@ -2,7 +2,7 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Index() {
-  const { user, roles, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [searchParams] = useSearchParams();
   
   const ref = searchParams.get('ref');
