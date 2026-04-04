@@ -28,6 +28,7 @@ interface LinkedFunder {
   beneficiary_role: string;
   reason: string;
   created_at: string;
+  approval_status: string;
   beneficiary: {
     id: string;
     full_name: string;
