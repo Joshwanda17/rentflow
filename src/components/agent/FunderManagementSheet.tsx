@@ -70,6 +70,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   const [sendingSMS, setSendingSMS] = useState<string | null>(null);
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   const [depositPhone, setDepositPhone] = useState('');
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
 
   // Register dialog state
   const [registerOpen, setRegisterOpen] = useState(false);
