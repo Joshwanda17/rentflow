@@ -5,13 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, TrendingUp, Loader2, ChevronRight, BarChart3 } from 'lucide-react';
+import { Users, TrendingUp, Loader2, ChevronRight, BarChart3, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface SubAgent {
   id: string;
   sub_agent_id: string;
   created_at: string;
+  status?: string;
   profile?: {
     full_name: string;
     phone: string;
@@ -168,9 +169,26 @@ export function SubAgentsList() {
               </div>
               <div>
                 <p className="font-medium text-sm">{subAgent.profile?.full_name || 'Unknown'}</p>
-                <p className="text-xs text-muted-foreground">
-                  {subAgent.tenants_count} tenant{subAgent.tenants_count !== 1 ? 's' : ''}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs text-muted-foreground">
+                    {subAgent.tenants_count} tenant{subAgent.tenants_count !== 1 ? 's' : ''}
+                  </p>
+                  {subAgent.status === 'pending' && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20">
+                      <Clock className="h-2.5 w-2.5" />Pending
+                    </span>
+                  )}
+                  {subAgent.status === 'verified' && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
+                      <CheckCircle className="h-2.5 w-2.5" />Verified
+                    </span>
+                  )}
+                  {subAgent.status === 'rejected' && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                      <XCircle className="h-2.5 w-2.5" />Rejected
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="text-right">

@@ -14,23 +14,25 @@ import { AgentAlertFeed } from './AgentAlertFeed';
 import { AgentTaskManager } from './AgentTaskManager';
 import { AgentEscalationQueue } from './AgentEscalationQueue';
 import { ServiceCentreVerificationQueue } from './ServiceCentreVerificationQueue';
+import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
-  ChevronLeft, Briefcase, TrendingUp
+  ChevronLeft, Briefcase, TrendingUp, UsersRound
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'pipeline', icon: Briefcase, label: 'Pipeline', color: 'bg-primary', priority: true },
   { key: 'service-centres', icon: Building2, label: 'Service Centres', color: 'bg-orange-500', priority: true },
+  { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
   { key: 'directory', icon: Search, label: 'Agents', color: 'bg-blue-500', priority: true },
   { key: 'tasks', icon: ClipboardList, label: 'Tasks', color: 'bg-emerald-500', priority: true },
   { key: 'escalations', icon: AlertTriangle, label: 'Escalations', color: 'bg-red-500' },
@@ -152,6 +154,7 @@ export function AgentOpsDashboard() {
       case 'tasks': return <AgentTaskManager />;
       case 'escalations': return <AgentEscalationQueue />;
       case 'service-centres': return <ServiceCentreVerificationQueue />;
+      case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
