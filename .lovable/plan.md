@@ -1,88 +1,69 @@
 
-Issue confirmed.
 
-What is actually happening:
-- The tenant repayment is being recorded, so the 40k is correctly reducing the tenant’s rent balance.
-- The missing commission is now a backend logic bug, not an edge-function wiring bug.
-- Do I know what the issue is? Yes.
+# Fix: Sub-Agent Registration Awards UGX 500 Instead of UGX 10,000
 
-Root cause I found:
-1. The current `credit_agent_rent_commission` function uses the wrong idempotency key.
-   - It checks only:
-     - `rent_request_id`
-     - `agent_id`
-     - `commission_role`
-     - `event_type = 'repayment'`
-   - That means once a commission has ever been credited for that rent request/role, later repayments on the same rent request are treated like duplicates and no new commission rows are inserted.
-   - So a second or later collection like this 40k can reduce the loan but award zero new commission.
+## Root Cause
 
-2. The RPC response is misleading.
-   - It always returns `total_commission = 10% of repayment`,
-   - but that value is calculated before knowing whether anything was actually inserted.
-   - So the backend can say “4,000 commission” while the wallet gets nothing.
+There are **two competing systems** awarding bonuses on user registration:
 
-3. The commission function needs a clean rewrite anyway.
-   - One surviving function version in migrations still writes to old/non-current ledger fields (`type`, `source`) instead of the current ledger schema (`direction`, `category`, `source_table`, `source_id`).
-   - Even if the latest function is active now, the safest fix is to replace the function from scratch in one fresh migration.
+### Old system (active, broken)
+1. **`credit_referral_bonus` trigger** on `profiles` table — fires on every new profile with a `referrer_id`. Awards a flat **UGX 500** "referral bonus" to the referrer by:
+   - Inserting into `referrals` table with `bonus_amount = 500`
+   - Inserting into `agent_earnings` with amount 500
 
-What I will change:
-1. Replace `credit_agent_rent_commission` with one clean, final version
-   - Keep a single function signature.
-   - Use the current ledger schema only.
-   - Keep 10% total commission logic.
-   - Preserve the existing split model unless you want it changed separately.
+2. **`credit_signup_referral_bonus` trigger** on `referrals` table — fires when `credited` becomes true. **Directly updates `wallets.balance`** (violating single-writer ledger rule) and inserts a `cash_in` ledger entry for 500.
 
-2. Fix idempotency to be per repayment event, not per rent request
-   - Add an event reference input, using a deterministic payment-level key.
-   - Store that event reference in `commission_accrual_ledger.source_id`.
-   - This allows multiple repayments on the same rent request to each earn commission once.
+### New system (correct, but competing)
+3. **`credit_agent_event_bonus` RPC** called from `activate-supporter` edge function — awards **UGX 10,000** for `subagent_registration` via proper double-entry ledger entries.
 
-3. Update all repayment callers to pass a unique payment event reference
-   - `supabase/functions/agent-deposit/index.ts`
-   - `supabase/functions/approve-deposit/index.ts`
-   - `supabase/functions/auto-charge-wallets/index.ts`
-   - `supabase/functions/manual-collect-rent/index.ts`
-   - `supabase/functions/retry-no-smartphone-charges/index.ts`
-   - `supabase/functions/tenant-pay-rent/index.ts`
-   - Where a transaction group already exists, reuse it.
-   - Where one flow can create multiple repayment stages, pass distinct stage-specific references.
+The old triggers fire automatically on profile creation, awarding UGX 500 regardless of whether the new user is a sub-agent or a regular referral. The new RPC may also fire, but the agent sees the 500 first and the systems are redundant.
 
-4. Return the real credited amount from the commission RPC
-   - Add fields like:
-     - `credited_commission`
-     - `total_commission`
-     - `status`
-   - `credited_commission` will reflect what was actually inserted into ledger/accrual rows.
-   - `agent-deposit` will use `credited_commission`, not the theoretical total.
+### Additional violation
+`credit_signup_referral_bonus` runs `UPDATE wallets SET balance = balance + 500` directly — this bypasses the `sync_wallet_from_ledger` trigger, breaking the single-writer principle.
 
-5. Keep the ledger single-writer behavior intact
-   - Commission credits will continue to come from ledger inserts with `transaction_group_id`.
-   - Platform-side entries remain `marketing_expense` in platform scope.
-   - Agent-side entries remain `agent_commission` in wallet scope.
+## Fix Plan
 
-Files involved:
-- New migration in `supabase/migrations/`
-- `supabase/functions/agent-deposit/index.ts`
-- `supabase/functions/approve-deposit/index.ts`
-- `supabase/functions/auto-charge-wallets/index.ts`
-- `supabase/functions/manual-collect-rent/index.ts`
-- `supabase/functions/retry-no-smartphone-charges/index.ts`
-- `supabase/functions/tenant-pay-rent/index.ts`
+### 1. Replace both old triggers with ledger-compliant versions
 
-Expected result after the fix:
-- A 40k repayment event can award commission even if the same rent request had earlier repayments.
-- The agent wallet will increase exactly once per repayment event.
-- The response shown to the app will match the actual credited amount.
-- Repeated partial repayments on one rent request will no longer silently skip commission.
+**Migration** that:
 
-Technical note:
+- **Replaces `credit_referral_bonus`** (on `profiles`): Keep the referral record creation in the `referrals` table but remove the `agent_earnings` insert (legacy table) and remove the hardcoded 500 amount. Instead, set `bonus_amount` to differentiate:
+  - Regular user referral: UGX 500
+  - Sub-agent registration: UGX 0 (handled by the RPC in `activate-supporter`)
+
+- **Replaces `credit_signup_referral_bonus`** (on `referrals`): Remove the direct `UPDATE wallets` statement. Instead, insert proper double-entry ledger records (`cash_out` platform marketing_expense + `cash_in` referral_bonus to wallet scope) with a deterministic `transaction_group_id` like `referral-bonus-{referral_id}`. The `sync_wallet_from_ledger` trigger will handle the wallet balance.
+
+### 2. Keep `activate-supporter` sub-agent bonus as-is
+
+The `credit_agent_event_bonus` RPC call in `activate-supporter` already correctly awards UGX 10,000 for `subagent_registration` via proper ledger entries. No changes needed there.
+
+### 3. Add idempotency guard to prevent double-awarding
+
+The rewritten `credit_signup_referral_bonus` trigger should check for existing ledger entries with the same `transaction_group_id` before inserting, preventing duplicates if the trigger fires multiple times.
+
+## Files
+
+- **1 new migration file** — replaces both trigger functions
+
+## Expected Result
+
+- Regular user referrals: agent gets UGX 500 via proper ledger flow
+- Sub-agent registrations: agent gets UGX 10,000 via `credit_agent_event_bonus` RPC (no competing 500 bonus)
+- No more direct wallet mutations — all balance changes flow through the ledger
+
 ```text
-Current bug:
-idempotency key = rent_request_id + agent_id + commission_role + repayment
+Before (broken):
+  New sub-agent signs up
+  → profiles trigger fires: 500 UGX referral bonus (old system)
+  → referrals trigger fires: direct wallet UPDATE +500 (bypasses ledger)
+  → activate-supporter calls RPC: 10,000 UGX (new system, may also fire)
+  → Agent sees 500, confused
 
-Needed:
-idempotency key = payment_event_reference + agent_id + commission_role + repayment
-
-Effect:
-multiple repayments on one rent request currently collapse into one commission award
+After (fixed):
+  New sub-agent signs up
+  → profiles trigger fires: creates referral record with bonus_amount = 0 (sub-agent handled elsewhere)
+  → referrals trigger fires: skips because bonus_amount = 0
+  → activate-supporter calls RPC: 10,000 UGX via proper ledger
+  → Agent sees 10,000
 ```
+
