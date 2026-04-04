@@ -42,6 +42,20 @@ interface FunderStats {
   walletBalance: number;
 }
 
+interface FunderPortfolio {
+  id: string;
+  account_name: string | null;
+  portfolio_code: string;
+  investment_amount: number;
+  total_roi_earned: number;
+  roi_percentage: number;
+  status: string;
+  duration_months: number;
+  maturity_date: string | null;
+  next_roi_date: string | null;
+  created_at: string;
+}
+
 export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -49,6 +63,8 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   const [loading, setLoading] = useState(true);
   const [selectedFunder, setSelectedFunder] = useState<LinkedFunder | null>(null);
   const [funderStats, setFunderStats] = useState<Record<string, FunderStats>>({});
+  const [funderPortfolios, setFunderPortfolios] = useState<FunderPortfolio[]>([]);
+  const [loadingPortfolios, setLoadingPortfolios] = useState(false);
   const [sendingSMS, setSendingSMS] = useState<string | null>(null);
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   const [depositPhone, setDepositPhone] = useState('');
