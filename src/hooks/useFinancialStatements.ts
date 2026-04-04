@@ -259,14 +259,17 @@ export function useFinancialStatements() {
       // CASH FLOW — Separated into platform ops, custodial, & financing
       // ══════════════════════════════════════════════════════════════
 
-      // Operating (platform scope only)
+      // Operating (platform scope only — excludes pass-through facilitation flows)
       const tenantFeesReceived = accessFees + requestFees;
-      const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
-      const depositsReceived = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
       const platformRewardsPaid = platformRewards;
       const agentCommissionsPaid = agentCommissions;
       const withdrawalsPaid = operatingExpenses + transactionExpenses;
-      const netOperating = tenantFeesReceived + rentRepayments + depositsReceived - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
+      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
+
+      // Facilitation Activities (capital pass-through: tenant repayments ↔ landlord deployments)
+      const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
+      const rentDeployments = sumBy(platformOut, ['pool_rent_deployment', 'rent_facilitation_payout']);
+      const netFacilitation = rentRepayments - rentDeployments;
 
       // Custodial (wallet scope — user money in/out of platform custody)
       // Fix #3: Only count actual user deposits/withdrawals, not internal flows
