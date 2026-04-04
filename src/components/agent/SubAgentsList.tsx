@@ -12,6 +12,7 @@ interface SubAgent {
   id: string;
   sub_agent_id: string;
   created_at: string;
+  status?: string;
   profile?: {
     full_name: string;
     phone: string;
