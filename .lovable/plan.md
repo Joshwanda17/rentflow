@@ -1,69 +1,97 @@
 
+Investigation result
 
-# Fix: Sub-Agent Registration Awards UGX 500 Instead of UGX 10,000
+I found the parent-agent reward is not guaranteed because the app has two different sub-agent registration paths, and only one of them credits the UGX 10,000 commission.
 
-## Root Cause
+What is happening now
 
-There are **two competing systems** awarding bonuses on user registration:
+1. Invite activation path does credit the parent agent
+- In `supabase/functions/activate-supporter/index.ts`, when `isSubAgent && parentAgentId`, it:
+  - inserts into `agent_subagents`
+  - then calls `credit_agent_event_bonus(..., 'subagent_registration', ...)`
+- This is the only path that currently awards the UGX 10,000 bonus.
 
-### Old system (active, broken)
-1. **`credit_referral_bonus` trigger** on `profiles` table — fires on every new profile with a `referrer_id`. Awards a flat **UGX 500** "referral bonus" to the referrer by:
-   - Inserting into `referrals` table with `bonus_amount = 500`
-   - Inserting into `agent_earnings` with amount 500
+2. Link / self-signup path does not credit the parent agent
+- In `src/pages/SelectRole.tsx`, when a user becomes an agent through a parent-agent link, it:
+  - inserts into `agent_subagents`
+  - does not call `credit_agent_event_bonus`
+  - assumes “the DB trigger handles it”
 
-2. **`credit_signup_referral_bonus` trigger** on `referrals` table — fires when `credited` becomes true. **Directly updates `wallets.balance`** (violating single-writer ledger rule) and inserts a `cash_in` ledger entry for 500.
+3. That fallback trigger path is broken against the live schema
+- The latest referral migration (`supabase/migrations/20260404043643_069a0426-adac-4f35-84c0-d0d3eb102d78.sql`) still uses old column names that do not match the current generated types:
+  - uses `profiles.role` / `NEW.role`
+  - uses `referred_user_id` instead of live `referred_id`
+  - uses `scope` / `wallet_id` instead of live `ledger_scope` / `user_id`
+- So the code path that `SelectRole` relies on is not the right place for the sub-agent reward and is also schema-incompatible.
 
-### New system (correct, but competing)
-3. **`credit_agent_event_bonus` RPC** called from `activate-supporter` edge function — awards **UGX 10,000** for `subagent_registration` via proper double-entry ledger entries.
+4. There is also legacy trigger drift
+- Older migration creates `on_profile_referral` on `profiles`
+- Newer migration creates `trg_credit_referral_bonus`
+- Since the newer migration does not remove the old legacy trigger, the system likely still has overlapping referral behavior.
 
-The old triggers fire automatically on profile creation, awarding UGX 500 regardless of whether the new user is a sub-agent or a regular referral. The new RPC may also fire, but the agent sees the 500 first and the systems are redundant.
+Root cause
 
-### Additional violation
-`credit_signup_referral_bonus` runs `UPDATE wallets SET balance = balance + 500` directly — this bypasses the `sync_wallet_from_ledger` trigger, breaking the single-writer principle.
+The parent agent is not rewarded reliably because:
+- invite flow uses the correct UGX 10,000 event-bonus RPC
+- link/self-signup flow only creates the `agent_subagents` relationship and never triggers the same reward path
+- the fallback referral-trigger logic is both the wrong mechanism for sub-agent commission and mismatched to the current database schema
 
-## Fix Plan
+Recommended implementation plan
 
-### 1. Replace both old triggers with ledger-compliant versions
+1. Make `agent_subagents` the single source of truth for sub-agent commission
+- Add one backend-owned trigger/function on `agent_subagents` insert
+- When a new parent/sub-agent relationship is created, award exactly one `subagent_registration` bonus to `parent_agent_id`
+- Use deterministic idempotency based on the sub-agent relationship so both invite and link flows behave the same
 
-**Migration** that:
+2. Remove duplicate app-level bonus awarding
+- Remove the direct `credit_agent_event_bonus` call from `activate-supporter`
+- Let both invite flow and link flow rely on the same backend trigger after the `agent_subagents` row is inserted
+- This avoids “works in one screen, fails in another” behavior
 
-- **Replaces `credit_referral_bonus`** (on `profiles`): Keep the referral record creation in the `referrals` table but remove the `agent_earnings` insert (legacy table) and remove the hardcoded 500 amount. Instead, set `bonus_amount` to differentiate:
-  - Regular user referral: UGX 500
-  - Sub-agent registration: UGX 0 (handled by the RPC in `activate-supporter`)
+3. Repair the regular referral trigger stack separately
+- Rewrite the referral trigger functions to use the live schema:
+  - roles from `user_roles`
+  - `referred_id` in `referrals`
+  - `ledger_scope` and `user_id` in `general_ledger`
+- Keep regular referral rewards at UGX 500
+- Explicitly exclude sub-agent registration from that smaller referral path
 
-- **Replaces `credit_signup_referral_bonus`** (on `referrals`): Remove the direct `UPDATE wallets` statement. Instead, insert proper double-entry ledger records (`cash_out` platform marketing_expense + `cash_in` referral_bonus to wallet scope) with a deterministic `transaction_group_id` like `referral-bonus-{referral_id}`. The `sync_wallet_from_ledger` trigger will handle the wallet balance.
+4. Remove legacy trigger overlap
+- Drop the old `on_profile_referral` trigger and keep only one canonical referral trigger path
+- This reduces silent double-fires and conflicting logic
 
-### 2. Keep `activate-supporter` sub-agent bonus as-is
+5. Backfill missing sub-agent commissions
+- Add a one-time backend-safe backfill for existing `agent_subagents` rows that do not yet have a matching `subagent_registration` earning
+- Use idempotency so already-paid parent agents are skipped
 
-The `credit_agent_event_bonus` RPC call in `activate-supporter` already correctly awards UGX 10,000 for `subagent_registration` via proper ledger entries. No changes needed there.
+Files likely to change
 
-### 3. Add idempotency guard to prevent double-awarding
+- `supabase/migrations/...`  
+  - add canonical `agent_subagents` bonus trigger/function
+  - fix referral trigger functions to match live schema
+  - drop legacy trigger(s)
+  - optional backfill statements
+- `supabase/functions/activate-supporter/index.ts`
+  - remove direct bonus RPC once DB trigger owns the reward path
+- `src/pages/SelectRole.tsx`
+  - update comments / UX copy so it no longer claims the old referral trigger is responsible
 
-The rewritten `credit_signup_referral_bonus` trigger should check for existing ledger entries with the same `transaction_group_id` before inserting, preventing duplicates if the trigger fires multiple times.
-
-## Files
-
-- **1 new migration file** — replaces both trigger functions
-
-## Expected Result
-
-- Regular user referrals: agent gets UGX 500 via proper ledger flow
-- Sub-agent registrations: agent gets UGX 10,000 via `credit_agent_event_bonus` RPC (no competing 500 bonus)
-- No more direct wallet mutations — all balance changes flow through the ledger
+Expected result
 
 ```text
-Before (broken):
-  New sub-agent signs up
-  → profiles trigger fires: 500 UGX referral bonus (old system)
-  → referrals trigger fires: direct wallet UPDATE +500 (bypasses ledger)
-  → activate-supporter calls RPC: 10,000 UGX (new system, may also fire)
-  → Agent sees 500, confused
-
-After (fixed):
-  New sub-agent signs up
-  → profiles trigger fires: creates referral record with bonus_amount = 0 (sub-agent handled elsewhere)
-  → referrals trigger fires: skips because bonus_amount = 0
-  → activate-supporter calls RPC: 10,000 UGX via proper ledger
-  → Agent sees 10,000
+Any sub-agent registration
+→ row inserted into agent_subagents
+→ one backend-owned, idempotent UGX 10,000 commission to parent agent
+→ works for both:
+   - invite activation
+   - referral-link/self-signup
+→ regular referrals remain UGX 500 and do not interfere
 ```
 
+Verification after implementation
+
+- Test invite-based sub-agent activation end to end
+- Test link-based sub-agent signup end to end
+- Retry the same flow twice to confirm no duplicate UGX 10,000 award
+- Confirm parent agent wallet/earnings reflect exactly one `subagent_registration` commission
+- Confirm ordinary referrals still receive UGX 500 only
