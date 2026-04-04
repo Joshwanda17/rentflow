@@ -321,7 +321,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   />
                 )}
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"
                     className="h-auto py-3 flex-col gap-1.5 text-xs"
@@ -347,6 +347,15 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   >
                     <Banknote className="h-5 w-5 text-success" />
                     Deposit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-3 flex-col gap-1.5 text-xs"
+                    onClick={() => setWithdrawDialogOpen(true)}
+                    disabled={selectedFunder.approval_status !== 'approved'}
+                  >
+                    <ArrowDownToLine className="h-5 w-5 text-destructive" />
+                    Withdraw
                   </Button>
                   <Button
                     variant="outline"
