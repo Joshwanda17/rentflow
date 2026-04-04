@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Download, Share, Smartphone, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, type TouchEvent } from 'react';
+import { Download, Share, Smartphone, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -10,7 +10,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-// ─── Global prompt capture (runs once at module load) ───
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 const promptListeners = new Set<() => void>();
 
@@ -22,18 +21,14 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (e: Event) => {
     e.preventDefault();
     deferredPrompt = e as BeforeInstallPromptEvent;
-    console.log('[PWA] beforeinstallprompt captured globally');
     notifyPromptListeners();
   });
 }
 
-/**
- * Full-screen gate that blocks the app until the user installs it as a PWA.
- * Passes through children when already standalone, in iframe, or on preview host.
- */
 export default function PWAInstallGate({ children }: { children: React.ReactNode }) {
-  const [isStandalone, setIsStandalone] = useState(true); // true to avoid flash
+  const [isStandalone, setIsStandalone] = useState(true);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [showMenuGuide, setShowMenuGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -42,11 +37,17 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const [skipped, setSkipped] = useState(() =>
     sessionStorage.getItem('welile_pwa_gate_skipped') === 'true'
   );
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const tapLockRef = useRef(0);
 
   useEffect(() => {
-    // Skip in iframes / preview
-    const inIframe = (() => { try { return window.self !== window.top; } catch { return true; } })();
+    const inIframe = (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
+      }
+    })();
+
     const isPreview = window.location.hostname.includes('id-preview--')
       || window.location.hostname.includes('lovableproject.com')
       || window.location.hostname === 'localhost';
@@ -57,25 +58,24 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     }
 
     const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as any).standalone === true;
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
 
-    // iOS detection
     const ua = navigator.userAgent;
-    const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as Window & { MSStream?: unknown }).MSStream;
     const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
     setIsIOS(iOS || isIPadOS);
+    setIsAndroid(/Android/i.test(ua));
 
-    // Listen for prompt availability
     const onPromptReady = () => setPromptReady(true);
     promptListeners.add(onPromptReady);
     if (deferredPrompt) setPromptReady(true);
 
-    // Listen for app installed
     const onInstalled = () => {
       setIsStandalone(true);
       setInstallResult('accepted');
     };
+
     window.addEventListener('appinstalled', onInstalled);
 
     return () => {
@@ -87,7 +87,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
   const handleInstall = useCallback(() => {
     hapticTap();
 
-    // iOS — show manual guide immediately
     if (isIOS) {
       setShowIOSGuide(true);
       setShowMenuGuide(false);
@@ -95,15 +94,22 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     }
 
     setInstallResult(null);
+    setShowIOSGuide(false);
     setShowMenuGuide(false);
 
     const prompt = deferredPrompt;
 
-    if (prompt) {
-      // Fire the native install dialog instantly — no awaits before this
-      setInstalling(true);
-      prompt.prompt().then(() => prompt.userChoice).then(({ outcome }) => {
-        console.log('[PWA Gate] User choice:', outcome);
+    if (!prompt) {
+      setShowMenuGuide(true);
+      return;
+    }
+
+    setInstalling(true);
+
+    prompt
+      .prompt()
+      .then(() => prompt.userChoice)
+      .then(({ outcome }) => {
         if (outcome === 'accepted') {
           setIsStandalone(true);
           setInstallResult('accepted');
@@ -113,24 +119,34 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           setInstallResult('dismissed');
           setShowMenuGuide(true);
         }
+
         deferredPrompt = null;
         setPromptReady(false);
         setInstalling(false);
-      }).catch((err) => {
-        console.error('[PWA Gate] prompt() error:', err);
+      })
+      .catch(() => {
         deferredPrompt = null;
         setPromptReady(false);
         setShowMenuGuide(true);
         setInstalling(false);
       });
-    } else {
-      // No native prompt — show manual browser install guide instantly
-      console.log('[PWA Gate] No deferred prompt — showing manual guide');
-      setShowMenuGuide(true);
-    }
   }, [isIOS]);
 
-  // Pass through when installed or skipped
+  const handleButtonClick = useCallback(() => {
+    const now = Date.now();
+    if (now - tapLockRef.current < 500) return;
+    tapLockRef.current = now;
+    handleInstall();
+  }, [handleInstall]);
+
+  const handleButtonTouchEnd = useCallback((event: TouchEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const now = Date.now();
+    if (now - tapLockRef.current < 500) return;
+    tapLockRef.current = now;
+    handleInstall();
+  }, [handleInstall]);
+
   if (isStandalone || skipped) {
     return <>{children}</>;
   }
@@ -149,15 +165,12 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        {/* Logo */}
         <img src={welileLogo} alt="Welile" className="h-16 w-auto mb-4" />
 
-        {/* Icon */}
         <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-6">
           <Smartphone className="h-10 w-10 text-primary" />
         </div>
 
-        {/* Title */}
         <h1 className="text-2xl font-bold text-foreground text-center mb-2">
           Install Welile App
         </h1>
@@ -165,28 +178,29 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           For the best experience, install Welile on your device. It's fast, works offline, and feels like a native app.
         </p>
 
-        {/* Install Button */}
         <button
-          ref={buttonRef}
-          onClick={handleInstall}
+          type="button"
+          onClick={handleButtonClick}
+          onTouchEnd={handleButtonTouchEnd}
           disabled={installing}
           className={cn(
-            "w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-bold text-base transition-all touch-manipulation select-none",
-            "bg-primary text-primary-foreground shadow-lg",
-            "hover:shadow-xl hover:brightness-110 active:scale-[0.97]",
-            installing && "opacity-70 cursor-wait"
+            'w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-bold text-base transition-all touch-manipulation select-none',
+            'bg-primary text-primary-foreground shadow-lg',
+            'hover:shadow-xl hover:brightness-110 active:scale-[0.97]',
+            installing && 'opacity-70 cursor-wait'
           )}
           style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
         >
-          {isIOS ? (
-            <Share className="h-5 w-5" />
-          ) : (
-            <Download className="h-5 w-5" />
-          )}
+          {isIOS ? <Share className="h-5 w-5" /> : <Download className="h-5 w-5" />}
           {buttonLabel}
         </button>
 
-        {/* Status feedback */}
+        {!promptReady && !isIOS && !showMenuGuide && (
+          <p className="mt-3 text-xs text-muted-foreground text-center">
+            If your phone does not open the install popup, tap again to see manual install steps.
+          </p>
+        )}
+
         <AnimatePresence>
           {installResult === 'dismissed' && !showMenuGuide && (
             <motion.p
@@ -195,12 +209,11 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              You dismissed the install prompt. Tap "Try Again" or use the browser menu.
+              You dismissed the install prompt. Tap “Try Again” or use the browser menu.
             </motion.p>
           )}
         </AnimatePresence>
 
-        {/* iOS Guide */}
         <AnimatePresence>
           {showIOSGuide && (
             <motion.div
@@ -211,6 +224,9 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
             >
               <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
                 <p className="font-semibold text-foreground text-sm">Install on iPhone/iPad:</p>
+                <p className="text-xs text-muted-foreground">
+                  If you opened Welile inside Facebook, Instagram, TikTok, WhatsApp, or another app, first use that app’s menu and choose <strong>Open in Safari</strong>.
+                </p>
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">1</span>
@@ -218,11 +234,11 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                    <span>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
+                    <span>Scroll down and tap <strong>Add to Home Screen</strong></span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">3</span>
-                    <span>Tap <strong>"Add"</strong> to install</span>
+                    <span>Tap <strong>Add</strong> to install</span>
                   </div>
                 </div>
               </div>
@@ -230,7 +246,6 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           )}
         </AnimatePresence>
 
-        {/* Android/Desktop manual guide */}
         <AnimatePresence>
           {showMenuGuide && !isIOS && (
             <motion.div
@@ -244,18 +259,25 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
                   <AlertCircle className="h-4 w-4 text-warning" />
                   <p className="font-semibold text-foreground text-sm">Install from your browser:</p>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  If this phone is inside Facebook, Instagram, TikTok, WhatsApp, or another app, first tap that app’s menu and choose <strong>Open in browser</strong>{isAndroid ? ', then continue in Chrome' : ''}.
+                </p>
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">1</span>
-                    <span>Tap the <strong>⋮</strong> menu (top-right corner)</span>
+                    <span>{isAndroid ? 'Open this page in Chrome' : 'Open this page in your browser'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                    <span>Tap <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong></span>
+                    <span>Tap the <strong>⋮</strong> menu or browser share menu</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">3</span>
-                    <span>Tap <strong>"Install"</strong> to confirm</span>
+                    <span>Tap <strong>Install app</strong> or <strong>Add to Home Screen</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">4</span>
+                    <span>Tap <strong>Install</strong> to confirm</span>
                   </div>
                 </div>
               </div>
@@ -263,8 +285,8 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           )}
         </AnimatePresence>
 
-        {/* Skip link */}
         <button
+          type="button"
           onClick={() => {
             hapticTap();
             sessionStorage.setItem('welile_pwa_gate_skipped', 'true');
