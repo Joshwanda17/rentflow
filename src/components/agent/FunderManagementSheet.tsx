@@ -16,8 +16,10 @@ import { AgentDepositDialog } from './AgentDepositDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import { format } from 'date-fns';
 import {
   Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle, Banknote,
+  Home, TrendingUp, Calendar, CircleDot,
 } from 'lucide-react';
 
 interface LinkedFunder {
