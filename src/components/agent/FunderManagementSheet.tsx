@@ -16,8 +16,10 @@ import { AgentDepositDialog } from './AgentDepositDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import { format } from 'date-fns';
 import {
   Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle, Banknote,
+  Home, TrendingUp, Calendar, CircleDot,
 } from 'lucide-react';
 
 interface LinkedFunder {
@@ -40,6 +42,20 @@ interface FunderStats {
   walletBalance: number;
 }
 
+interface FunderPortfolio {
+  id: string;
+  account_name: string | null;
+  portfolio_code: string;
+  investment_amount: number;
+  total_roi_earned: number;
+  roi_percentage: number;
+  status: string;
+  duration_months: number;
+  maturity_date: string | null;
+  next_roi_date: string | null;
+  created_at: string;
+}
+
 export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -47,6 +63,8 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   const [loading, setLoading] = useState(true);
   const [selectedFunder, setSelectedFunder] = useState<LinkedFunder | null>(null);
   const [funderStats, setFunderStats] = useState<Record<string, FunderStats>>({});
+  const [funderPortfolios, setFunderPortfolios] = useState<FunderPortfolio[]>([]);
+  const [loadingPortfolios, setLoadingPortfolios] = useState(false);
   const [sendingSMS, setSendingSMS] = useState<string | null>(null);
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   const [depositPhone, setDepositPhone] = useState('');
@@ -62,6 +80,30 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   useEffect(() => {
     if (open && user) fetchFunders();
   }, [open, user]);
+
+  // Fetch individual portfolios when a funder is selected
+  useEffect(() => {
+    if (!selectedFunder?.beneficiary?.id) {
+      setFunderPortfolios([]);
+      return;
+    }
+    const fetchPortfolios = async () => {
+      setLoadingPortfolios(true);
+      try {
+        const { data } = await supabase
+          .from('investor_portfolios')
+          .select('id, account_name, portfolio_code, investment_amount, total_roi_earned, roi_percentage, status, duration_months, maturity_date, next_roi_date, created_at')
+          .eq('investor_id', selectedFunder.beneficiary!.id)
+          .order('created_at', { ascending: false });
+        setFunderPortfolios(data || []);
+      } catch (err) {
+        console.error('Error fetching funder portfolios:', err);
+      } finally {
+        setLoadingPortfolios(false);
+      }
+    };
+    fetchPortfolios();
+  }, [selectedFunder?.beneficiary?.id]);
 
   const fetchFunders = async () => {
     if (!user) return;
@@ -309,6 +351,77 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                     <Phone className="h-5 w-5 text-warning" />
                     Call
                   </Button>
+                </div>
+
+                {/* Individual Portfolio Details */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                    <Home className="h-3.5 w-3.5 text-primary" />
+                    Portfolio Accounts ({funderPortfolios.length})
+                  </h4>
+                  {loadingPortfolios ? (
+                    <div className="space-y-2">
+                      {[1, 2].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+                    </div>
+                  ) : funderPortfolios.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <CircleDot className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
+                        <p className="text-xs text-muted-foreground">No portfolios yet</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Invest on their behalf to create one</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    funderPortfolios.map(p => {
+                      const statusColor = p.status === 'active' ? 'bg-success/15 text-success' :
+                        p.status === 'matured' ? 'bg-primary/15 text-primary' :
+                        p.status === 'pending_approval' ? 'bg-warning/15 text-warning' :
+                        'bg-muted text-muted-foreground';
+                      return (
+                        <Card key={p.id} className="border border-border/60">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold truncate">
+                                  {p.account_name || p.portfolio_code}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground font-mono">{p.portfolio_code}</p>
+                              </div>
+                              <Badge className={`text-[10px] shrink-0 border-0 ${statusColor}`}>
+                                {p.status.replace(/_/g, ' ')}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                              <div className="rounded-lg bg-muted/40 p-2">
+                                <p className="text-[10px] text-muted-foreground">Invested</p>
+                                <p className="text-xs font-bold">{formatUGX(p.investment_amount)}</p>
+                              </div>
+                              <div className="rounded-lg bg-muted/40 p-2">
+                                <p className="text-[10px] text-muted-foreground">ROI Earned</p>
+                                <p className="text-xs font-bold text-success">{formatUGX(p.total_roi_earned)}</p>
+                              </div>
+                              <div className="rounded-lg bg-muted/40 p-2">
+                                <p className="text-[10px] text-muted-foreground">Rate</p>
+                                <p className="text-xs font-bold">{p.roi_percentage}%</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {p.duration_months}mo term
+                              </span>
+                              {p.maturity_date && (
+                                <span>Matures: {format(new Date(p.maturity_date), 'dd MMM yyyy')}</span>
+                              )}
+                              {p.next_roi_date && !p.maturity_date && (
+                                <span>Next ROI: {format(new Date(p.next_roi_date), 'dd MMM')}</span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
                 </div>
 
                 <Card>
