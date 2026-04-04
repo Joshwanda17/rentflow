@@ -111,7 +111,43 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     return <>{children}</>;
   }
 
-  const canInstall = isIOS || !!installPrompt || !!globalDeferredPrompt;
+  const hasNativePrompt = !!installPrompt || !!globalDeferredPrompt;
+  const [showMenuGuide, setShowMenuGuide] = useState(false);
+
+  const handleInstall = useCallback(async () => {
+    if (isIOS) {
+      setShowIOSGuide(true);
+      return;
+    }
+
+    const prompt = installPrompt || (globalDeferredPrompt as BeforeInstallPromptEvent | null);
+    if (prompt) {
+      try {
+        setInstalling(true);
+        hapticTap();
+        await prompt.prompt();
+        const { outcome } = await prompt.userChoice;
+        if (outcome === 'accepted') {
+          setIsStandalone(true);
+          localStorage.setItem('welile_pwa_installed', 'true');
+          localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
+        }
+        setInstallPrompt(null);
+        clearGlobalPrompt();
+      } catch (err) {
+        console.error('[PWA Gate] Install error:', err);
+        setInstallPrompt(null);
+        clearGlobalPrompt();
+      } finally {
+        setInstalling(false);
+      }
+      return;
+    }
+
+    // No native prompt available — show browser menu guide
+    hapticTap();
+    setShowMenuGuide(true);
+  }, [installPrompt, isIOS]);
 
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center px-6">
@@ -137,31 +173,29 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           For the best experience, install Welile on your device. It's fast, works offline, and feels like a native app.
         </p>
 
-        {/* Install Button */}
-        {canInstall && (
-          <button
-            onClick={handleInstall}
-            disabled={installing}
-            className={cn(
-              "w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-bold text-base transition-all touch-manipulation",
-              "bg-primary text-primary-foreground shadow-lg",
-              "hover:shadow-xl hover:brightness-110 active:scale-[0.97]",
-              installing && "opacity-70 cursor-wait"
-            )}
-          >
-            {isIOS ? (
-              <>
-                <Share className="h-5 w-5" />
-                {installing ? 'Installing…' : 'Install App'}
-              </>
-            ) : (
-              <>
-                <Download className="h-5 w-5" />
-                {installing ? 'Installing…' : 'Install App'}
-              </>
-            )}
-          </button>
-        )}
+        {/* Install Button — always visible */}
+        <button
+          onClick={handleInstall}
+          disabled={installing}
+          className={cn(
+            "w-full flex items-center justify-center gap-3 h-14 rounded-2xl font-bold text-base transition-all touch-manipulation",
+            "bg-primary text-primary-foreground shadow-lg",
+            "hover:shadow-xl hover:brightness-110 active:scale-[0.97]",
+            installing && "opacity-70 cursor-wait"
+          )}
+        >
+          {isIOS ? (
+            <>
+              <Share className="h-5 w-5" />
+              {installing ? 'Installing…' : 'Install App'}
+            </>
+          ) : (
+            <>
+              <Download className="h-5 w-5" />
+              {installing ? 'Installing…' : 'Install App'}
+            </>
+          )}
+        </button>
 
         {/* iOS Guide */}
         <AnimatePresence>
@@ -193,16 +227,37 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           )}
         </AnimatePresence>
 
-        {/* Browser fallback — no install prompt available */}
-        {!canInstall && !isIOS && (
-          <div className="w-full bg-card border border-border rounded-2xl p-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Open this page in <strong>Chrome</strong> or <strong>Edge</strong> on your phone to install.
-            </p>
-          </div>
-        )}
+        {/* Android/Desktop browser menu guide — when no native prompt */}
+        <AnimatePresence>
+          {showMenuGuide && !isIOS && (
+            <motion.div
+              className="mt-6 w-full"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <p className="font-semibold text-foreground text-sm">Install from your browser:</p>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                    <span>Tap the <strong>⋮</strong> menu (top-right corner)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                    <span>Tap <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-primary/10 text-primary rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                    <span>Tap <strong>"Install"</strong> to confirm</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Skip link — small and de-emphasized */}
+        {/* Skip link */}
         <button
           onClick={() => { hapticTap(); sessionStorage.setItem('welile_pwa_gate_skipped', 'true'); setSkipped(true); }}
           className="mt-6 text-xs text-muted-foreground/60 underline underline-offset-2 hover:text-muted-foreground transition-colors"
