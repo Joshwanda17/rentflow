@@ -58,7 +58,8 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     }
 
     const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+      || localStorage.getItem('welile_pwa_installed') === 'true';
     setIsStandalone(standalone);
 
     const ua = navigator.userAgent;
