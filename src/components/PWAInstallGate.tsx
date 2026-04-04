@@ -84,7 +84,7 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
     };
   }, []);
 
-  const handleInstall = useCallback(async () => {
+  const handleInstall = useCallback(() => {
     hapticTap();
 
     // iOS — show manual guide immediately
@@ -94,25 +94,16 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
       return;
     }
 
-    setInstalling(true);
     setInstallResult(null);
     setShowMenuGuide(false);
 
-    // Try to get the deferred prompt
-    let prompt = deferredPrompt;
-
-    // If not available yet, wait briefly (some browsers fire it late)
-    if (!prompt) {
-      await new Promise(r => setTimeout(r, 600));
-      prompt = deferredPrompt;
-    }
+    const prompt = deferredPrompt;
 
     if (prompt) {
-      try {
-        await prompt.prompt();
-        const { outcome } = await prompt.userChoice;
+      // Fire the native install dialog instantly — no awaits before this
+      setInstalling(true);
+      prompt.prompt().then(() => prompt.userChoice).then(({ outcome }) => {
         console.log('[PWA Gate] User choice:', outcome);
-
         if (outcome === 'accepted') {
           setIsStandalone(true);
           setInstallResult('accepted');
@@ -120,27 +111,23 @@ export default function PWAInstallGate({ children }: { children: React.ReactNode
           localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
         } else {
           setInstallResult('dismissed');
-          // Show manual guide after dismissal
           setShowMenuGuide(true);
         }
-
-        // Prompt is consumed — clear it
         deferredPrompt = null;
         setPromptReady(false);
-      } catch (err) {
+        setInstalling(false);
+      }).catch((err) => {
         console.error('[PWA Gate] prompt() error:', err);
         deferredPrompt = null;
         setPromptReady(false);
-        // Prompt was already consumed — show manual guide
         setShowMenuGuide(true);
-      }
+        setInstalling(false);
+      });
     } else {
-      // No native prompt available — show manual browser install guide
+      // No native prompt — show manual browser install guide instantly
       console.log('[PWA Gate] No deferred prompt — showing manual guide');
       setShowMenuGuide(true);
     }
-
-    setInstalling(false);
   }, [isIOS]);
 
   // Pass through when installed or skipped
