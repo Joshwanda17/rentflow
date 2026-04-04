@@ -254,7 +254,11 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-semibold text-sm truncate">{f.beneficiary?.full_name || 'Funder'}</p>
-                              <Badge variant="outline" className="text-[10px] shrink-0">💼 Funder</Badge>
+                              {f.approval_status === 'pending' ? (
+                                <Badge className="text-[10px] shrink-0 bg-warning/15 text-warning border-0">⏳ Pending</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] shrink-0">💼 Funder</Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 mt-0.5">
                               <Phone className="h-3 w-3 text-muted-foreground" />
