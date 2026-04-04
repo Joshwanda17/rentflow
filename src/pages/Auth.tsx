@@ -2,22 +2,19 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, Sparkles, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, ArrowRight } from 'lucide-react';
 import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
-import { AuthTabToggle } from '@/components/auth/AuthTabToggle';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
 import { useAuthForm } from '@/hooks/useAuthForm';
 import { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-// supabase client available via hooks
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -54,7 +51,6 @@ export default function Auth() {
     isDuplicate, isCheckingDuplicate, duplicateMessage,
     otpSent, otpVerified, otpLoading, otpError,
     sendOtp, verifyOtp, resetOtp: resetOtpState,
-    // SMS reset
     resetStep, setResetStep,
     resetPhone, setResetPhone,
     resetOtpCode, setResetOtpCode,
@@ -69,7 +65,6 @@ export default function Auth() {
   const { user, loading: authLoading, signIn: authSignIn } = useAuth();
   const [emailLoginLoading, setEmailLoginLoading] = useState(false);
 
-  // Inline role selection for signup without role param
   const hasValidRole = !!preSelectedRole && VALID_SIGNUP_ROLES.includes(preSelectedRole as any);
   const needsRoleSelection = isSignUp && !hasValidRole;
 
@@ -86,19 +81,13 @@ export default function Auth() {
     landlord: '🏢 Landlord',
   };
 
-  // ========== Feature 4: Auto-login for returning users ==========
   useEffect(() => {
     if (!authLoading && user) {
       navigate('/dashboard', { replace: true });
     }
   }, [authLoading, user, navigate]);
 
-  // ========== Feature 3: Returning user welcome ==========
-  const lastUserName = localStorage.getItem('welile_last_user_name');
-  const lastLoginMethod = localStorage.getItem('welile_last_login_method');
-  const hadSession = localStorage.getItem('welile_had_session') === 'true';
-
-  // ========== Feature 1: Phone OTP Login ==========
+  // Login mode: 'password' (phone+pw), 'email', 'otp'
   const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('password');
   const [emailLoginAddress, setEmailLoginAddress] = useState('');
   const [otpLoginPhone, setOtpLoginPhone] = useState('');
@@ -108,19 +97,17 @@ export default function Auth() {
   const [otpLoginCountryCode, setOtpLoginCountryCode] = useState('256');
   const loginOtp = useOtpVerification();
 
-  // ========== Feature 2: WhatsApp deeplink auto-fill ==========
+  // WhatsApp deeplink
   const deepLinkPhone = searchParams.get('phone');
   const deepLinkToken = searchParams.get('token');
   const deepLinkAgent = searchParams.get('agent');
 
   useEffect(() => {
     if (deepLinkPhone && deepLinkToken) {
-      // Auto-fill OTP login mode
       setLoginMode('otp');
       setOtpLoginPhone(deepLinkPhone);
       setOtpLoginCode(deepLinkToken);
       setOtpLoginStep('code');
-      // Auto-submit after a brief delay so user sees what's happening
       const timer = setTimeout(() => {
         handleOtpLogin(deepLinkPhone, deepLinkToken);
       }, 800);
@@ -174,15 +161,10 @@ export default function Auth() {
       }
 
       if (data.verify_url) {
-        // Store login context
-        if (data.user_name) {
-          localStorage.setItem('welile_last_user_name', data.user_name);
-        }
+        if (data.user_name) localStorage.setItem('welile_last_user_name', data.user_name);
         localStorage.setItem('welile_last_login_method', 'otp');
         localStorage.setItem('welile_had_session', 'true');
-
         toast({ title: `Welcome back${data.user_name ? ', ' + data.user_name : ''}! 🎉`, description: 'Logging you in...' });
-        // Redirect to the magic link verify URL
         window.location.href = data.verify_url;
       }
     } catch {
@@ -192,10 +174,8 @@ export default function Auth() {
     }
   };
 
-  // Save user context on password login for returning user greeting
   const wrappedHandleSubmit = async (e: React.FormEvent) => {
     await handleSubmit(e);
-    // If login succeeds, save context for next visit
     if (!isSignUp && !isForgotPassword && !isForgotPhone) {
       localStorage.setItem('welile_last_login_method', 'password');
     }
@@ -206,326 +186,231 @@ export default function Auth() {
     await handleGoogleSignIn();
   };
 
-  // Show loading if checking existing session
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Checking your session...</p>
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Just a moment...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <>
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md relative z-10 animate-fade-in">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-8 transition-colors text-sm"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
+  // Returning user info
+  const lastUserName = localStorage.getItem('welile_last_user_name');
+  const lastLoginMethod = localStorage.getItem('welile_last_login_method');
+  const hadSession = localStorage.getItem('welile_had_session') === 'true';
 
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center mb-3">
-              <WelileLogo linkToHome={false} />
+  const isLoginView = !isSignUp && !isForgotPassword && !isForgotPhone;
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-sm relative z-10">
+
+        {/* Logo — compact */}
+        <div className="text-center mb-5">
+          <div className="flex items-center justify-center mb-1">
+            <WelileLogo linkToHome={false} />
+          </div>
+          {isLoginView && (
+            <p className="text-sm text-muted-foreground mt-2 animate-in fade-in duration-300">
+              {hadSession && lastUserName ? `Welcome back, ${lastUserName}` : 'Sign in to continue'}
+            </p>
+          )}
+          {isSignUp && (
+            <p className="text-sm text-muted-foreground mt-2 animate-in fade-in duration-300">Create your account</p>
+          )}
+        </div>
+
+        {/* WhatsApp deeplink banner */}
+        {deepLinkAgent && (
+          <div className="mb-4 p-3 rounded-xl bg-accent/50 border border-accent flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            <MessageCircle className="h-5 w-5 text-primary shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Sent by Agent {deepLinkAgent}</p>
+              <p className="text-xs text-muted-foreground">Verifying automatically...</p>
             </div>
           </div>
+        )}
 
-          {/* Feature 3: Welcome back banner for returning users */}
-          {hadSession && lastUserName && !isSignUp && !isForgotPassword && !isForgotPhone && (
-            <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-primary shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Welcome back, {lastUserName}!</p>
-                <p className="text-xs text-muted-foreground">
-                  {lastLoginMethod === 'google' ? 'Tap "Continue with Google" to sign in' :
-                   lastLoginMethod === 'otp' ? 'Use SMS code for quick login' :
-                   lastLoginMethod === 'email' ? 'Sign in with your email and password' :
-                   'Enter your password to continue'}
-                </p>
-              </div>
-            </div>
-          )}
+        <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
 
-          {/* Feature 2: WhatsApp deeplink banner */}
-          {deepLinkAgent && (
-            <div className="mb-4 p-3 rounded-xl bg-accent/50 border border-accent flex items-center gap-3">
-              <MessageCircle className="h-5 w-5 text-primary shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Sent by Agent {deepLinkAgent}</p>
-                <p className="text-xs text-muted-foreground">Verifying your login code automatically...</p>
-              </div>
-            </div>
-          )}
+        {/* Role badge for signup */}
+        {isSignUp && hasValidRole && (
+          <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between animate-in fade-in duration-200">
+            <span className="text-sm font-medium text-foreground">
+              Joining as <span className="font-bold">{roleLabelMap[preSelectedRole!] || preSelectedRole}</span>
+            </span>
+            <button type="button" onClick={() => navigate('/welcome')} className="text-xs text-primary hover:underline">
+              Change
+            </button>
+          </div>
+        )}
 
-          <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
-
-          {/* Role badge for signup */}
-          {isSignUp && hasValidRole && (
-            <div className="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">
-                  Signing up as: <span className="font-bold">{roleLabelMap[preSelectedRole!] || preSelectedRole}</span>
-                </span>
-              </div>
+        {/* Inline role selector for signup without role */}
+        {needsRoleSelection && (
+          <div className="space-y-2 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <p className="text-sm font-medium text-foreground mb-3">What do you need?</p>
+            {ROLE_OPTIONS.map((opt) => (
               <button
+                key={opt.role}
                 type="button"
-                onClick={() => navigate('/welcome')}
-                className="text-xs text-primary hover:underline"
+                onClick={() => handleSelectRole(opt.role)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-150",
+                  "bg-card border border-border/50 shadow-sm",
+                  "hover:shadow-md hover:scale-[1.01] active:scale-[0.98]",
+                  "touch-manipulation"
+                )}
               >
-                Change
+                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0 bg-gradient-to-br", opt.gradient)}>
+                  <span>{opt.emoji}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground text-sm">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
               </button>
-            </div>
-          )}
+            ))}
+          </div>
+        )}
 
-          {/* Inline role selector when no role in URL */}
-          {needsRoleSelection && (
-            <Card className="border-border/40 shadow-sm mb-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">What do you need?</CardTitle>
-                <CardDescription>Select your role to get started</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {ROLE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.role}
-                    type="button"
-                    onClick={() => handleSelectRole(opt.role)}
-                    className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-150",
-                      "bg-card border border-border/50 shadow-sm",
-                      "hover:shadow-md hover:scale-[1.01] active:scale-[0.98]",
-                      "touch-manipulation"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0",
-                      "bg-gradient-to-br", opt.gradient
-                    )}>
-                      <span>{opt.emoji}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground text-sm">{opt.label}</p>
-                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+        {!needsRoleSelection && (
+          <div className="animate-in fade-in slide-in-from-bottom-3 duration-400">
 
-          {!needsRoleSelection && (
-          <Card className="border-border/40 shadow-sm overflow-hidden">
-            {/* Prominent social sign-in for login view */}
-            {!isForgotPassword && !isForgotPhone && !isSignUp && loginMode === 'password' && (
-              <div className="p-4 border-b border-border/30 space-y-3">
-                <GoogleSignInButton
-                  onClick={wrappedHandleGoogleSignIn}
-                  disabled={isGoogleLoading || isAppleLoading || isLoading}
-                  isLoading={isGoogleLoading}
-                  variant="prominent"
-                />
-                <AppleSignInButton
-                  onClick={handleAppleSignIn}
-                  disabled={isGoogleLoading || isAppleLoading || isLoading}
-                  isLoading={isAppleLoading}
-                />
-                <p className="text-center text-xs text-muted-foreground">Fastest way to sign in</p>
-              </div>
-            )}
-
-            {/* Tab toggle - hidden during signup pause */}
-            {!isForgotPassword && !isForgotPhone && !SIGNUP_PAUSED && (
-              <AuthTabToggle isSignUp={isSignUp} onToggle={setIsSignUp} />
-            )}
-
-            {/* ========== Feature 1: Login Mode Toggle (Password vs OTP) ========== */}
-            {!isSignUp && !isForgotPassword && !isForgotPhone && (
-              <div className="flex border-b border-border/30">
-                <button
-                  type="button"
-                  onClick={() => setLoginMode('password')}
-                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
-                    loginMode === 'password'
-                      ? 'text-primary border-b-2 border-primary bg-primary/5'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  style={{ minHeight: '48px' }}
-                >
-                  <Phone className="h-4 w-4" />
-                  Phone
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLoginMode('email')}
-                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
-                    loginMode === 'email'
-                      ? 'text-primary border-b-2 border-primary bg-primary/5'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  style={{ minHeight: '48px' }}
-                >
-                  <Mail className="h-4 w-4" />
-                  Email
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLoginMode('otp')}
-                  className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all touch-manipulation flex items-center justify-center gap-1.5 ${
-                    loginMode === 'otp'
-                      ? 'text-primary border-b-2 border-primary bg-primary/5'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  style={{ minHeight: '48px' }}
-                >
-                  <Smartphone className="h-4 w-4" />
-                  SMS
-                </button>
-              </div>
-            )}
-
-            <CardHeader className={!isForgotPassword && !isForgotPhone ? 'pt-4 pb-2' : ''}>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : loginMode === 'otp' ? 'Login with SMS Code' : loginMode === 'email' ? 'Sign in with Email' : 'Sign in with Phone'}
-              </CardTitle>
-              <CardDescription className="text-sm">
-                {isForgotPassword
-                  ? resetStep === 'phone' ? 'Enter your phone number to receive a reset code via SMS, or your email for a reset link'
-                    : resetStep === 'otp' ? 'Enter the 6-digit code sent to your phone'
-                    : 'Set your new password'
-                  : isForgotPhone
-                    ? 'Enter the email you used with Google sign-in'
-                    : isSignUp
-                      ? 'Join Welile to get started'
-                      : loginMode === 'otp'
-                        ? 'No password needed — we\'ll send you a code'
-                        : loginMode === 'email'
-                          ? 'Use your email address and password'
-                          : 'Enter your phone number and password'}
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="pt-2">
-              {/* ========== OTP Login Mode ========== */}
-              {!isSignUp && !isForgotPassword && !isForgotPhone && loginMode === 'otp' ? (
-                <div className="space-y-4">
-                  {otpLoginStep === 'phone' ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="otpLoginPhone" className="text-sm font-medium">Phone Number</Label>
-                        <div className="relative flex">
-                          <CountryCodeSelect value={otpLoginCountryCode} onChange={setOtpLoginCountryCode} />
-                          <div className="relative flex-1">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input
-                              id="otpLoginPhone"
-                              type="tel"
-                              inputMode="tel"
-                              autoComplete="tel"
-                              value={otpLoginPhone}
-                              onChange={(e) => setOtpLoginPhone(e.target.value)}
-                              placeholder="700123456"
-                              className="pl-11 h-14 text-base rounded-xl rounded-l-none"
-                              style={{ fontSize: '16px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={handleSendOtpForLogin}
-                        disabled={otpLoginLoading || otpLoginPhone.replace(/\D/g, '').length < 7}
-                        className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium"
-                        style={{ fontSize: '16px' }}
-                      >
-                        {otpLoginLoading ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <>
-                            <Smartphone className="h-5 w-5" />
-                            Send SMS Code
-                          </>
-                        )}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="otpLoginCode" className="text-sm font-medium">Enter 6-digit code</Label>
-                        <Input
-                          id="otpLoginCode"
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={6}
-                          value={otpLoginCode}
-                          onChange={(e) => setOtpLoginCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder="000000"
-                          className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl font-mono"
-                          style={{ fontSize: '24px' }}
-                          autoFocus
-                        />
-                        <p className="text-xs text-muted-foreground text-center">
-                          Sent to +{otpLoginCountryCode} {otpLoginPhone}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={() => handleOtpLogin()}
-                        disabled={otpLoginLoading || otpLoginCode.length !== 6}
-                        className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium"
-                        style={{ fontSize: '16px' }}
-                      >
-                        {otpLoginLoading ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <>
-                            <LogIn className="h-5 w-5" />
-                            Verify & Log In
-                          </>
-                        )}
-                      </Button>
-                      <div className="flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); }}
-                          className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1"
-                        >
-                          <ArrowLeft className="h-3 w-3" />
-                          Change number
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSendOtpForLogin}
-                          disabled={otpLoginLoading}
-                          className="text-sm text-primary hover:underline"
-                        >
-                          Resend code
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Social buttons in OTP mode too */}
-                  <div className="relative flex items-center py-2">
-                    <div className="flex-1 border-t border-border/50" />
-                    <span className="px-3 text-xs text-muted-foreground">or</span>
-                    <div className="flex-1 border-t border-border/50" />
-                  </div>
+            {/* ===== SIGN IN VIEW ===== */}
+            {isLoginView && loginMode === 'password' && (
+              <div className="space-y-3">
+                {/* Social sign-in — front and center */}
+                <div className="space-y-2.5">
                   <GoogleSignInButton
                     onClick={wrappedHandleGoogleSignIn}
                     disabled={isGoogleLoading || isAppleLoading || isLoading}
                     isLoading={isGoogleLoading}
-                    variant="standard"
+                    variant="prominent"
+                  />
+                  <AppleSignInButton
+                    onClick={handleAppleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isAppleLoading}
                   />
                 </div>
-              ) : !isSignUp && !isForgotPassword && !isForgotPhone && loginMode === 'email' ? (
-                /* ========== Email + Password Login Mode ========== */
+
+                {/* Divider */}
+                <div className="relative flex items-center py-1">
+                  <div className="flex-1 border-t border-border/40" />
+                  <span className="px-3 text-xs text-muted-foreground">or use phone</span>
+                  <div className="flex-1 border-t border-border/40" />
+                </div>
+
+                {/* Phone + Password — compact */}
+                <form onSubmit={wrappedHandleSubmit} className="space-y-3">
+                  <div className="relative flex">
+                    <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        ref={phoneInputRef}
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={phone}
+                        onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
+                        placeholder="700 123 456"
+                        className={cn("pl-10 h-12 text-base rounded-xl rounded-l-none", loginError && 'border-destructive')}
+                        style={{ fontSize: '16px' }}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      ref={passwordInputRef}
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      className="pl-10 h-12 text-base rounded-xl"
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+
+                  {loginError && (
+                    <p className="text-xs text-destructive px-1">{loginError.message}</p>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <Checkbox
+                        checked={rememberMe}
+                        onCheckedChange={(checked) => {
+                          setRememberMe(!!checked);
+                          localStorage.setItem('welile_remember_me', String(!!checked));
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-xs text-muted-foreground">Remember me</span>
+                    </label>
+                    <button type="button" onClick={() => setIsForgotPassword(true)} className="text-xs text-primary hover:underline">
+                      Forgot password?
+                    </button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98] transition-transform"
+                    disabled={isLoading}
+                    style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Sign In'}
+                  </Button>
+                </form>
+
+                {failedAttempts >= 2 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2 text-primary text-xs"
+                    onClick={() => {
+                      const message = encodeURIComponent(`Hello Welile Support,\n\nI'm having trouble logging in.\n\nPhone: ${phone}\n\nPlease help.`);
+                      window.open(`https://wa.me/256783673998?text=${message}`, '_blank');
+                    }}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Need help? Contact Support
+                  </Button>
+                )}
+
+                {/* Alternative login methods — subtle links */}
+                <div className="flex items-center justify-center gap-4 pt-1">
+                  <button type="button" onClick={() => setLoginMode('email')} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                    Use email instead
+                  </button>
+                  <span className="text-border">•</span>
+                  <button type="button" onClick={() => setLoginMode('otp')} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                    SMS code login
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ===== EMAIL LOGIN ===== */}
+            {isLoginView && loginMode === 'email' && (
+              <div className="space-y-3 animate-in fade-in duration-200">
                 <form onSubmit={async (e) => {
                   e.preventDefault();
                   if (!emailLoginAddress.trim() || !password.trim()) return;
@@ -536,7 +421,7 @@ export default function Auth() {
                     if (error) {
                       let msg = error.message;
                       if (msg.includes('Invalid login credentials')) {
-                        msg = 'Incorrect email or password. If you signed in with Google, use the Google button below.';
+                        msg = 'Incorrect email or password. Try Google sign-in if you used it before.';
                       }
                       setLoginError({ message: msg, triedFormats: [] });
                       toast({ title: 'Sign In Failed', description: msg, variant: 'destructive' });
@@ -548,417 +433,338 @@ export default function Auth() {
                     clearTimeout(safetyTimer);
                     setEmailLoginLoading(false);
                   }
-                }} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="emailLogin" className="text-sm font-medium">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        id="emailLogin"
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        value={emailLoginAddress}
-                        onChange={(e) => { setEmailLoginAddress(e.target.value); setLoginError(null); }}
-                        placeholder="you@example.com"
-                        className={`pl-11 h-14 text-base rounded-xl ${loginError ? 'border-destructive focus:ring-destructive' : ''}`}
-                        style={{ fontSize: '16px' }}
-                        required
-                        autoFocus
-                      />
-                    </div>
+                }} className="space-y-3">
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={emailLoginAddress}
+                      onChange={(e) => { setEmailLoginAddress(e.target.value); setLoginError(null); }}
+                      placeholder="you@example.com"
+                      className={cn("pl-10 h-12 text-base rounded-xl", loginError && 'border-destructive')}
+                      style={{ fontSize: '16px' }}
+                      required
+                      autoFocus
+                    />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="emailPassword" className="text-sm font-medium">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        id="emailPassword"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="pl-11 h-14 text-base rounded-xl"
-                        style={{ fontSize: '16px' }}
-                        required
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Checkbox
-                        id="showEmailPassword"
-                        checked={showPassword}
-                        onCheckedChange={(checked) => setShowPassword(!!checked)}
-                        className="h-4 w-4"
-                      />
-                      <Label htmlFor="showEmailPassword" className="text-xs text-muted-foreground cursor-pointer select-none">
-                        Show password
-                      </Label>
-                    </div>
-                  </div>
-
-                  {loginError && (
-                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
-                      <p className="text-sm text-destructive">{loginError.message}</p>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between py-1">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="rememberEmail"
-                        checked={rememberMe}
-                        onCheckedChange={(checked) => {
-                          setRememberMe(!!checked);
-                          localStorage.setItem('welile_remember_me', String(!!checked));
-                        }}
-                        className="h-5 w-5"
-                      />
-                      <Label htmlFor="rememberEmail" className="text-sm cursor-pointer">Remember me</Label>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsForgotPassword(true)}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      Forgot password?
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      className="pl-10 h-12 text-base rounded-xl"
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
+                      {showPassword ? 'Hide' : 'Show'}
                     </button>
                   </div>
+
+                  {loginError && <p className="text-xs text-destructive px-1">{loginError.message}</p>}
 
                   <Button
                     type="submit"
-                    className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium"
+                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
                     disabled={emailLoginLoading || !emailLoginAddress.trim() || !password.trim()}
                     style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                   >
-                    {emailLoginLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <>
-                        <LogIn className="h-5 w-5" />
-                        Sign In
-                      </>
-                    )}
+                    {emailLoginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Sign In'}
                   </Button>
-
-                  {/* Social divider */}
-                  <div className="relative flex items-center py-2">
-                    <div className="flex-1 border-t border-border/50" />
-                    <span className="px-3 text-xs text-muted-foreground">or</span>
-                    <div className="flex-1 border-t border-border/50" />
-                  </div>
-                  <GoogleSignInButton
-                    onClick={wrappedHandleGoogleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || emailLoginLoading}
-                    isLoading={isGoogleLoading}
-                    variant="standard"
-                  />
                 </form>
-              ) : (
-                /* ========== Original Password Login / Signup / Forgot flows ========== */
-                <form onSubmit={wrappedHandleSubmit} className="space-y-4">
-                  {/* Full Name (signup only) */}
-                  {isSignUp && !isForgotPassword && (
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+
+                <GoogleSignInButton
+                  onClick={wrappedHandleGoogleSignIn}
+                  disabled={isGoogleLoading || isAppleLoading || emailLoginLoading}
+                  isLoading={isGoogleLoading}
+                  variant="standard"
+                />
+
+                <button type="button" onClick={() => setLoginMode('password')} className="w-full text-xs text-muted-foreground hover:text-primary text-center pt-1">
+                  ← Back to phone login
+                </button>
+              </div>
+            )}
+
+            {/* ===== OTP LOGIN ===== */}
+            {isLoginView && loginMode === 'otp' && (
+              <div className="space-y-3 animate-in fade-in duration-200">
+                {otpLoginStep === 'phone' ? (
+                  <>
+                    <div className="relative flex">
+                      <CountryCodeSelect value={otpLoginCountryCode} onChange={setOtpLoginCountryCode} />
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                          id="fullName"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Your full name"
-                          className="pl-11 h-14 text-base rounded-xl"
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          value={otpLoginPhone}
+                          onChange={(e) => setOtpLoginPhone(e.target.value)}
+                          placeholder="700 123 456"
+                          className="pl-10 h-12 text-base rounded-xl rounded-l-none"
                           style={{ fontSize: '16px' }}
-                          required
+                          autoFocus
                         />
                       </div>
                     </div>
-                  )}
-
-                  {/* Phone Number */}
-                  {!isForgotPassword && !isForgotPhone && (
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
-                      <div className="relative flex">
-                        <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
-                        <div className="relative flex-1">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                          <Input
-                            ref={phoneInputRef}
-                            id="phone"
-                            type="tel"
-                            inputMode="tel"
-                            autoComplete="tel"
-                            value={phone}
-                            onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
-                            placeholder="700123456"
-                            className={`pl-11 h-14 text-base rounded-xl rounded-l-none ${loginError || (isSignUp && isDuplicate) ? 'border-destructive focus:ring-destructive' : ''}`}
-                            style={{ fontSize: '16px' }}
-                            required
-                          />
-                        </div>
-                      </div>
-                      {isSignUp && isDuplicate && (
-                        <p className="text-xs text-destructive flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {duplicateMessage}
-                        </p>
-                      )}
-                      {isSignUp && isCheckingDuplicate && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Checking...
-                        </p>
-                      )}
-                      {!isSignUp && loginError && (
-                        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
-                          <p className="text-sm text-destructive">{loginError.message}</p>
-                        </div>
-                      )}
-                      {!isSignUp && failedAttempts >= 2 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="w-full gap-2 text-primary"
-                          onClick={() => {
-                            const message = encodeURIComponent(
-                              `Hello Welile Support,\n\nI'm having trouble logging into my account.\n\nPhone: ${phone}\n\nPlease help me access my account.`
-                            );
-                            window.open(`https://wa.me/256783673998?text=${message}`, '_blank');
-                          }}
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                          Need help? Contact Support
-                        </Button>
-                      )}
+                    <Button
+                      type="button"
+                      onClick={handleSendOtpForLogin}
+                      disabled={otpLoginLoading || otpLoginPhone.replace(/\D/g, '').length < 7}
+                      className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                      style={{ fontSize: '16px' }}
+                    >
+                      {otpLoginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Send SMS Code'}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={otpLoginCode}
+                      onChange={(e) => setOtpLoginCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl font-mono"
+                      style={{ fontSize: '24px' }}
+                      autoFocus
+                    />
+                    <p className="text-xs text-muted-foreground text-center">Code sent to +{otpLoginCountryCode} {otpLoginPhone}</p>
+                    <Button
+                      type="button"
+                      onClick={() => handleOtpLogin()}
+                      disabled={otpLoginLoading || otpLoginCode.length !== 6}
+                      className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                      style={{ fontSize: '16px' }}
+                    >
+                      {otpLoginLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Verify & Log In'}
+                    </Button>
+                    <div className="flex items-center justify-between">
+                      <button type="button" onClick={() => { setOtpLoginStep('phone'); setOtpLoginCode(''); }} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+                        <ArrowLeft className="h-3 w-3" /> Change number
+                      </button>
+                      <button type="button" onClick={handleSendOtpForLogin} disabled={otpLoginLoading} className="text-xs text-primary hover:underline">
+                        Resend code
+                      </button>
                     </div>
-                  )}
+                  </>
+                )}
 
-                  {/* Forgot Password - SMS/Email dual flow */}
-                  {isForgotPassword && resetStep === 'phone' && (
+                <GoogleSignInButton
+                  onClick={wrappedHandleGoogleSignIn}
+                  disabled={isGoogleLoading || isAppleLoading || isLoading}
+                  isLoading={isGoogleLoading}
+                  variant="standard"
+                />
+
+                <button type="button" onClick={() => setLoginMode('password')} className="w-full text-xs text-muted-foreground hover:text-primary text-center pt-1">
+                  ← Back to phone login
+                </button>
+              </div>
+            )}
+
+            {/* ===== FORGOT PASSWORD ===== */}
+            {isForgotPassword && (
+              <div className="space-y-3 animate-in fade-in duration-200">
+                <p className="text-sm font-medium text-foreground">Reset Password</p>
+                <p className="text-xs text-muted-foreground">
+                  {resetStep === 'phone' ? 'Enter your phone or email' : resetStep === 'otp' ? 'Enter the 6-digit code' : 'Set your new password'}
+                </p>
+
+                <form onSubmit={wrappedHandleSubmit} className="space-y-3">
+                  {resetStep === 'phone' && (
                     <>
-                      <div className="space-y-2">
-                        <Label htmlFor="resetPhone" className="text-sm font-medium">Phone Number</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                          <Input
-                            id="resetPhone"
-                            type="tel"
-                            inputMode="tel"
-                            value={resetPhone}
-                            onChange={(e) => setResetPhone(e.target.value)}
-                            placeholder="0700123456"
-                            className="pl-11 h-14 text-base rounded-xl"
-                            style={{ fontSize: '16px' }}
-                          />
-                        </div>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="tel" inputMode="tel" value={resetPhone} onChange={(e) => setResetPhone(e.target.value)} placeholder="0700123456" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} />
                       </div>
-                      <div className="relative flex items-center py-1">
-                        <div className="flex-1 border-t border-border/50" />
+                      <div className="relative flex items-center">
+                        <div className="flex-1 border-t border-border/40" />
                         <span className="px-3 text-xs text-muted-foreground">or</span>
-                        <div className="flex-1 border-t border-border/50" />
+                        <div className="flex-1 border-t border-border/40" />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="resetEmail" className="text-sm font-medium">Email (for Google/email accounts)</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                          <Input
-                            id="resetEmail"
-                            type="email"
-                            inputMode="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@example.com"
-                            className="pl-11 h-14 text-base rounded-xl"
-                            style={{ fontSize: '16px' }}
-                          />
-                        </div>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} />
                       </div>
                     </>
                   )}
 
-                  {/* OTP step */}
-                  {isForgotPassword && resetStep === 'otp' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="resetOtp" className="text-sm font-medium">Reset Code</Label>
+                  {resetStep === 'otp' && (
+                    <Input type="text" inputMode="numeric" maxLength={6} value={resetOtpCode} onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl font-mono" style={{ fontSize: '24px' }} required />
+                  )}
+
+                  {resetStep === 'new-password' && (
+                    <>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type={showPassword ? "text" : "password"} value={resetNewPassword} onChange={(e) => setResetNewPassword(e.target.value)} placeholder="New password" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
+                      </div>
+                      <PasswordStrengthIndicator password={resetNewPassword} />
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type={showPassword ? "text" : "password"} value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} placeholder="Confirm password" className={cn("pl-10 h-12 text-base rounded-xl", resetConfirmPassword && resetNewPassword !== resetConfirmPassword && 'border-destructive')} style={{ fontSize: '16px' }} required />
+                      </div>
+                      {resetConfirmPassword && resetNewPassword !== resetConfirmPassword && (
+                        <p className="text-xs text-destructive">Passwords don't match</p>
+                      )}
+                    </>
+                  )}
+
+                  <Button type="submit" className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]" disabled={isLoading} style={{ fontSize: '16px' }}>
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : resetStep === 'phone' ? (email ? 'Send Reset Link' : 'Send Reset Code') : resetStep === 'otp' ? 'Verify Code' : 'Reset Password'}
+                  </Button>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (resetStep !== 'phone') {
+                      setResetStep(resetStep === 'new-password' ? 'otp' : 'phone');
+                    } else {
+                      setIsForgotPassword(false);
+                      setResetStep('phone');
+                      setResetPhone('');
+                      setResetOtpCode('');
+                      setResetNewPassword('');
+                      setResetConfirmPassword('');
+                    }
+                  }}
+                  className="w-full text-xs text-muted-foreground hover:text-primary text-center flex items-center justify-center gap-1"
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  {resetStep !== 'phone' ? 'Back' : 'Back to sign in'}
+                </button>
+              </div>
+            )}
+
+            {/* ===== FORGOT PHONE (email login) ===== */}
+            {isForgotPhone && (
+              <div className="space-y-3 animate-in fade-in duration-200">
+                <p className="text-sm font-medium text-foreground">Sign In with Email</p>
+                <form onSubmit={wrappedHandleSubmit} className="space-y-3">
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
+                  </div>
+                  <Button type="submit" className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]" disabled={isLoading} style={{ fontSize: '16px' }}>
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Sign In'}
+                  </Button>
+                </form>
+                <button type="button" onClick={() => { setIsForgotPhone(false); setEmail(''); }} className="w-full text-xs text-muted-foreground hover:text-primary text-center flex items-center justify-center gap-1">
+                  <ArrowLeft className="h-3 w-3" /> Back to sign in
+                </button>
+              </div>
+            )}
+
+            {/* ===== SIGN UP ===== */}
+            {isSignUp && !needsRoleSelection && (
+              <div className="space-y-3 animate-in fade-in duration-200">
+                {/* Social signup */}
+                <div className="space-y-2.5">
+                  <GoogleSignInButton
+                    onClick={wrappedHandleGoogleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isGoogleLoading}
+                    variant="prominent"
+                  />
+                  <AppleSignInButton
+                    onClick={handleAppleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isAppleLoading}
+                  />
+                </div>
+
+                <div className="relative flex items-center py-1">
+                  <div className="flex-1 border-t border-border/40" />
+                  <span className="px-3 text-xs text-muted-foreground">or sign up with phone</span>
+                  <div className="flex-1 border-t border-border/40" />
+                </div>
+
+                <form onSubmit={wrappedHandleSubmit} className="space-y-3">
+                  {/* Full Name */}
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
+                  </div>
+
+                  {/* Phone */}
+                  <div className="relative flex">
+                    <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="resetOtp"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={resetOtpCode}
-                        onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="Enter 6-digit code"
-                        className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl font-mono"
-                        style={{ fontSize: '24px' }}
+                        ref={phoneInputRef}
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={phone}
+                        onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
+                        placeholder="700 123 456"
+                        className={cn("pl-10 h-12 text-base rounded-xl rounded-l-none", isDuplicate && 'border-destructive')}
+                        style={{ fontSize: '16px' }}
                         required
                       />
                     </div>
+                  </div>
+                  {isDuplicate && (
+                    <p className="text-xs text-destructive flex items-center gap-1 px-1"><AlertCircle className="h-3 w-3" />{duplicateMessage}</p>
                   )}
-
-                  {/* New password step */}
-                  {isForgotPassword && resetStep === 'new-password' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="newPassword" className="text-sm font-medium">New Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                          <Input
-                            id="newPassword"
-                            type={showPassword ? "text" : "password"}
-                            value={resetNewPassword}
-                            onChange={(e) => setResetNewPassword(e.target.value)}
-                            placeholder="Enter new password"
-                            className="pl-11 h-14 text-base rounded-xl"
-                            style={{ fontSize: '16px' }}
-                            required
-                          />
-                        </div>
-                        <PasswordStrengthIndicator password={resetNewPassword} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="confirmNewPassword" className="text-sm font-medium">Confirm Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                          <Input
-                            id="confirmNewPassword"
-                            type={showPassword ? "text" : "password"}
-                            value={resetConfirmPassword}
-                            onChange={(e) => setResetConfirmPassword(e.target.value)}
-                            placeholder="Confirm new password"
-                            className={`pl-11 h-14 text-base rounded-xl ${resetConfirmPassword && resetNewPassword !== resetConfirmPassword ? 'border-destructive' : resetConfirmPassword && resetNewPassword === resetConfirmPassword ? 'border-emerald-500' : ''}`}
-                            style={{ fontSize: '16px' }}
-                            required
-                          />
-                        </div>
-                        {resetConfirmPassword && resetNewPassword !== resetConfirmPassword && (
-                          <p className="text-xs text-destructive">Passwords don't match</p>
-                        )}
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Checkbox
-                            id="showResetPassword"
-                            checked={showPassword}
-                            onCheckedChange={(checked) => setShowPassword(!!checked)}
-                            className="h-4 w-4"
-                          />
-                          <Label htmlFor="showResetPassword" className="text-xs text-muted-foreground cursor-pointer select-none">
-                            Show password
-                          </Label>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Email for forgot phone flow */}
-                  {isForgotPhone && (
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          type="email"
-                          inputMode="email"
-                          autoComplete="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          className="pl-11 h-14 text-base rounded-xl"
-                          style={{ fontSize: '16px' }}
-                          required
-                        />
-                      </div>
-                    </div>
+                  {isCheckingDuplicate && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 px-1"><Loader2 className="h-3 w-3 animate-spin" />Checking...</p>
                   )}
 
                   {/* Password */}
-                  {!isForgotPassword && (
-                    <div className="space-y-2">
-                      <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input
-                          ref={passwordInputRef}
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          autoComplete={isSignUp ? "new-password" : "current-password"}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="pl-11 h-14 text-base rounded-xl"
-                          style={{ fontSize: '16px' }}
-                          required
-                        />
-                      </div>
-                      {isSignUp && <PasswordStrengthIndicator password={password} />}
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Checkbox
-                          id="showPassword"
-                          checked={showPassword}
-                          onCheckedChange={(checked) => setShowPassword(!!checked)}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="showPassword" className="text-xs text-muted-foreground cursor-pointer select-none">
-                          Show password
-                        </Label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Confirm Password (signup) */}
-                  {isSignUp && !isForgotPassword && !isForgotPhone && (
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input
-                          id="confirmPassword"
-                          type={showConfirmPassword ? "text" : "password"}
-                          autoComplete="new-password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className={`pl-11 h-14 text-base rounded-xl ${confirmPassword && password !== confirmPassword ? 'border-destructive' : confirmPassword && password === confirmPassword ? 'border-emerald-500' : ''}`}
-                          style={{ fontSize: '16px' }}
-                          required
-                        />
-                      </div>
-                      {confirmPassword && password !== confirmPassword && (
-                        <p className="text-xs text-destructive">Passwords don't match</p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Back button for forgot flows */}
-                  {(isForgotPassword || isForgotPhone) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isForgotPassword && resetStep !== 'phone') {
-                          setResetStep(resetStep === 'new-password' ? 'otp' : 'phone');
-                        } else {
-                          setIsForgotPassword(false);
-                          setIsForgotPhone(false);
-                          setEmail('');
-                          setResetStep('phone');
-                          setResetPhone('');
-                          setResetOtpCode('');
-                          setResetNewPassword('');
-                          setResetConfirmPassword('');
-                        }
-                      }}
-                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors touch-manipulation"
-                    >
-                      <ArrowLeft className="h-3 w-3" />
-                      {isForgotPassword && resetStep !== 'phone' ? 'Back' : 'Back to sign in'}
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      className="pl-10 h-12 text-base rounded-xl"
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
+                      {showPassword ? 'Hide' : 'Show'}
                     </button>
+                  </div>
+                  <PasswordStrengthIndicator password={password} />
+
+                  {/* Confirm Password */}
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm password"
+                      className={cn("pl-10 h-12 text-base rounded-xl", confirmPassword && password !== confirmPassword && 'border-destructive', confirmPassword && password === confirmPassword && 'border-emerald-500')}
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                  </div>
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-xs text-destructive px-1">Passwords don't match</p>
                   )}
 
-                  {/* OTP Verification - MANDATORY for signup */}
-                  {isSignUp && !isForgotPassword && !isForgotPhone && phone.replace(/\D/g, '').length >= 9 && (
+                  {/* OTP Verification */}
+                  {phone.replace(/\D/g, '').length >= 9 && (
                     <OtpVerificationStep
                       phone={phone}
                       otpSent={otpSent}
@@ -983,96 +789,44 @@ export default function Auth() {
                     />
                   )}
 
-                  {/* Remember me & Forgot password */}
-                  {!isSignUp && !isForgotPassword && !isForgotPhone && (
-                    <div className="flex items-center justify-between py-1">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="remember"
-                          checked={rememberMe}
-                          onCheckedChange={(checked) => {
-                            setRememberMe(!!checked);
-                            localStorage.setItem('welile_remember_me', String(!!checked));
-                          }}
-                          className="h-5 w-5"
-                        />
-                        <Label htmlFor="remember" className="text-sm cursor-pointer">
-                          Remember me
-                        </Label>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsForgotPassword(true)}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                  )}
-
                   <Button
                     type="submit"
-                    className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium"
-                    disabled={isLoading || (isSignUp && (isDuplicate || isCheckingDuplicate || !otpVerified))}
+                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                    disabled={isLoading || isDuplicate || isCheckingDuplicate || !otpVerified}
                     style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                   >
-                    {isLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <>
-                        {isForgotPassword ? <Mail className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-                        {isForgotPassword 
-                          ? resetStep === 'phone' ? (email ? 'Send Reset Link' : 'Send Reset Code')
-                            : resetStep === 'otp' ? 'Verify Code'
-                            : 'Reset Password'
-                          : isForgotPhone ? 'Sign In' : isSignUp ? 'Create Account' : 'Sign In'}
-                      </>
-                    )}
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
                   </Button>
                 </form>
-              )}
+              </div>
+            )}
 
-              {/* Social buttons for signup */}
-              {isSignUp && (
-                <div className="space-y-3">
-                  <GoogleSignInButton
-                    onClick={wrappedHandleGoogleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isGoogleLoading}
-                    variant="standard"
-                  />
-                  <AppleSignInButton
-                    onClick={handleAppleSignIn}
-                    disabled={isGoogleLoading || isAppleLoading || isLoading}
-                    isLoading={isAppleLoading}
-                  />
-                </div>
-              )}
-
-              {/* Forgot phone link */}
-              {!isSignUp && !isForgotPassword && !isForgotPhone && loginMode === 'password' && (
-                <div className="text-center mt-4">
+            {/* Sign in / Sign up toggle */}
+            {!isForgotPassword && !isForgotPhone && !SIGNUP_PAUSED && (
+              <div className="text-center mt-5">
+                <p className="text-sm text-muted-foreground">
+                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+                  {' '}
                   <button
                     type="button"
-                    onClick={() => setIsForgotPhone(true)}
-                    className="text-xs text-muted-foreground hover:text-primary"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-primary font-semibold hover:underline"
                   >
-                    Can't access with phone? Try email
+                    {isSignUp ? 'Sign In' : 'Sign Up'}
                   </button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          )}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
-          <p className="text-center text-xs text-muted-foreground mt-6">
-            By continuing, you agree to our{' '}
-            <Link to="/terms" className="text-primary hover:underline">Terms</Link>
-            {' '}and{' '}
-            <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
-          </p>
-        </div>
+        <p className="text-center text-[10px] text-muted-foreground/60 mt-6">
+          By continuing, you agree to our{' '}
+          <Link to="/terms" className="hover:underline">Terms</Link>
+          {' & '}
+          <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
+        </p>
       </div>
-    </>
+    </div>
   );
 }
