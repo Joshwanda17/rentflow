@@ -19,8 +19,9 @@ import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { format } from 'date-fns';
 import {
   Users, MessageSquare, Loader2, Phone, Send, Eye, HandCoins, Wallet, UserPlus, AlertCircle, Banknote,
-  Home, TrendingUp, Calendar, CircleDot,
+  Home, TrendingUp, Calendar, CircleDot, ArrowDownToLine,
 } from 'lucide-react';
+import { AgentProxyWithdrawalDialog } from './AgentProxyWithdrawalDialog';
 
 interface LinkedFunder {
   id: string;
@@ -69,6 +70,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
   const [sendingSMS, setSendingSMS] = useState<string | null>(null);
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
   const [depositPhone, setDepositPhone] = useState('');
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
 
   // Register dialog state
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -319,7 +321,7 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   />
                 )}
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"
                     className="h-auto py-3 flex-col gap-1.5 text-xs"
@@ -345,6 +347,15 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
                   >
                     <Banknote className="h-5 w-5 text-success" />
                     Deposit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-auto py-3 flex-col gap-1.5 text-xs"
+                    onClick={() => setWithdrawDialogOpen(true)}
+                    disabled={selectedFunder.approval_status !== 'approved'}
+                  >
+                    <ArrowDownToLine className="h-5 w-5 text-destructive" />
+                    Withdraw
                   </Button>
                   <Button
                     variant="outline"
@@ -533,6 +544,21 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
           fetchFunders();
         }}
       />
+
+      {/* Withdrawal on behalf of funder */}
+      {selectedFunder?.beneficiary && (
+        <AgentProxyWithdrawalDialog
+          open={withdrawDialogOpen}
+          onOpenChange={setWithdrawDialogOpen}
+          funderId={selectedFunder.beneficiary.id}
+          funderName={selectedFunder.beneficiary.full_name}
+          funderPhone={selectedFunder.beneficiary.phone}
+          walletBalance={funderStats[selectedFunder.beneficiary.id]?.walletBalance || 0}
+          onSuccess={() => {
+            fetchFunders();
+          }}
+        />
+      )}
     </>
   );
 }
