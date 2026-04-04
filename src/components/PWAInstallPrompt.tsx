@@ -30,7 +30,7 @@ export default function PWAInstallPrompt() {
 
   const handleInstall = async () => {
     if (isIOS) {
-      toast('Tap the Share button ⎋ then "Add to Home Screen"', { duration: 5000 });
+      toast('Tap the Share button, then Add to Home Screen', { duration: 5000 });
       setVisible(false);
       return;
     }
@@ -41,10 +41,12 @@ export default function PWAInstallPrompt() {
       const accepted = await promptInstall();
       if (accepted) {
         toast.success('App installed!');
+        setVisible(false);
+        return;
       }
+
+      toast('Open in your browser and use Install app / Add to Home Screen', { duration: 5000 });
       setVisible(false);
-    } catch {
-      // noop
     } finally {
       setIsInstalling(false);
     }

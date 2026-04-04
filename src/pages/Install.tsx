@@ -36,6 +36,11 @@ export default function Install() {
   }, [isInstalled, user, loading, navigate]);
 
   const handleInstallClick = async () => {
+    if (isIOS) {
+      toast('Use Safari → Share → Add to Home Screen');
+      return;
+    }
+
     if (isInstallable) {
       const installed = await promptInstall();
       if (installed) {
@@ -46,8 +51,11 @@ export default function Install() {
           toast.success('App installed! Redirecting to login...');
           navigate('/auth', { replace: true });
         }
+        return;
       }
     }
+
+    toast('Open this page in your browser menu and tap Install app / Add to Home Screen');
   };
 
   const handleShare = async () => {

@@ -64,25 +64,15 @@ export function usePWAInstall() {
   }, []);
 
   const promptInstall = useCallback(async (): Promise<boolean> => {
-    let prompt = globalDeferredPrompt;
-
-    // Retry once after 800ms
-    if (!prompt) {
-      console.log('[PWA] No prompt yet, retrying in 800ms...');
-      await new Promise(r => setTimeout(r, 800));
-      prompt = globalDeferredPrompt;
-    }
+    const prompt = globalDeferredPrompt;
 
     if (!prompt) {
-      console.log('[PWA] No deferred prompt available');
       return false;
     }
 
     try {
-      console.log('[PWA] Calling prompt()...');
       await prompt.prompt();
       const { outcome } = await prompt.userChoice;
-      console.log('[PWA] User choice:', outcome);
 
       globalDeferredPrompt = null;
       setHasPrompt(false);
@@ -93,9 +83,12 @@ export function usePWAInstall() {
         localStorage.setItem('welile_pwa_installed', 'true');
         return true;
       }
+
       return false;
-    } catch (error) {
-      console.error('[PWA] prompt() error:', error);
+    } catch {
+      globalDeferredPrompt = null;
+      setHasPrompt(false);
+      notifyListeners(false);
       return false;
     }
   }, []);
