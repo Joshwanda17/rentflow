@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
                     p_rent_request_id: rentRequestId,
                     p_repayment_amount: repaymentApplied,
                     p_tenant_id: depositRequest.user_id,
+                    p_event_reference_id: `approve-deposit-rent-${txGroupId}`,
                   });
                 }
               }
