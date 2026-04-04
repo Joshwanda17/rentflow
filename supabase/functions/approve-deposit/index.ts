@@ -327,7 +327,7 @@ Deno.serve(async (req) => {
               await supabaseAdmin.from("general_ledger").insert({
                 user_id: depositRequest.user_id,
                 amount: prepaidAmount,
-                direction: "cash_out",
+                direction: "cash_in",
                 category: "tenant_access_fee",
                 source_table: "subscription_charges",
                 source_id: activeSub.id,
