@@ -112,10 +112,10 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     try {
       const { data, error } = await supabase
         .from('proxy_agent_assignments')
-        .select('id, beneficiary_id, beneficiary_role, reason, created_at, beneficiary:beneficiary_id(id, full_name, phone)')
+        .select('id, beneficiary_id, beneficiary_role, reason, created_at, approval_status, beneficiary:beneficiary_id(id, full_name, phone)')
         .eq('agent_id', user.id)
-        .eq('is_active', true)
         .eq('beneficiary_role', 'supporter')
+        .in('approval_status', ['pending', 'approved'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
