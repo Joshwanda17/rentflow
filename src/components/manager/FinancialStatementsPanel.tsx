@@ -269,12 +269,16 @@ export function FinancialStatementsPanel() {
       rows.push(['', '', '']);
       rows.push(['OPERATING ACTIVITIES', '', '']);
       rows.push(['Tenant Fees Received', '', d.operatingActivities.tenantFeesReceived]);
-      rows.push(['Rent Repayments', '', d.operatingActivities.rentRepayments]);
-      rows.push(['Deposits Received', '', d.operatingActivities.depositsReceived]);
+      rows.push(['Other Platform Income', '', d.operatingActivities.otherServiceIncome]);
       rows.push(['Platform Rewards Paid', '', -d.operatingActivities.platformRewardsPaid]);
       rows.push(['Agent Commissions Paid', '', -d.operatingActivities.agentCommissionsPaid]);
       rows.push(['Withdrawals Paid', '', -d.operatingActivities.withdrawalsPaid]);
       rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
+      rows.push(['', '', '']);
+      rows.push(['RENT FACILITATION (PASS-THROUGH)', '', '']);
+      rows.push(['Rent Repayments Received', '', d.facilitationActivities.rentRepayments]);
+      rows.push(['Rent Deployed to Landlords', '', -d.facilitationActivities.rentDeployments]);
+      rows.push(['Net Facilitation', '', d.facilitationActivities.netFacilitation]);
       rows.push(['', '', '']);
       rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
       rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
