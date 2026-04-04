@@ -1631,24 +1631,65 @@ export type Database = {
           created_at: string
           id: string
           parent_agent_id: string
+          rejection_reason: string | null
           source: string
+          status: string
           sub_agent_id: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           parent_agent_id: string
+          rejection_reason?: string | null
           source?: string
+          status?: string
           sub_agent_id: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           parent_agent_id?: string
+          rejection_reason?: string | null
           source?: string
+          status?: string
           sub_agent_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       agent_tasks: {
         Row: {
