@@ -411,5 +411,6 @@ const App = () => (
       </QueryClientProvider>
     </ThemeProvider>
   </ChunkErrorBoundary>
+  </HelmetProvider>
 );
 export default App;
