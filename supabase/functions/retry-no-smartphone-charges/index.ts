@@ -177,6 +177,7 @@ Deno.serve(async (req) => {
               p_rent_request_id: charge.rent_request_id,
               p_repayment_amount: chargeAmount,
               p_tenant_id: charge.tenant_id,
+              p_event_reference_id: `retry-nophone-${charge.id}-${today}`,
             });
           }
 

@@ -453,8 +453,8 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Use actual commission from RPC result
-        actualCommission = commissionResult?.total_commission || 0;
+        // Use actual credited commission from RPC result
+        actualCommission = commissionResult?.credited_commission || 0;
 
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId && landlordPayment > 0) {

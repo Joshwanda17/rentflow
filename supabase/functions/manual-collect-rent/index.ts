@@ -264,6 +264,7 @@ Deno.serve(async (req) => {
         p_rent_request_id: rr.id,
         p_repayment_amount: totalCollected,
         p_tenant_id: rr.tenant_id,
+        p_event_reference_id: `manual-collect-${txGroupId}`,
       });
     }
 
