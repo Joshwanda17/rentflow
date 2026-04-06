@@ -1,52 +1,103 @@
+Outstanding Balance Tenant Registration
 
+What Changes
 
-# Add "Angel Shares" Tab to My Support Accounts Sheet
+Add a third option to the existing AgentRentRequestDialog income-type selection step: "Outstanding Balance". When selected, the form collects only the outstanding amount owed, sets all fees to zero, and creates a rent request tagged as registration_type = 'outstanding_balance'.
 
-## What Changes
+Database Migration
 
-The existing **"My Support Accounts"** bottom sheet (`InvestmentBreakdownSheet.tsx`) will be upgraded with two tabs:
-- **Support Accounts** — the current content (no changes)
-- **Angel Shares** — a new investor-grade shareholding overview
+Add two columns to rent_requests:
 
-## Angel Shares Tab Content
+ALTER TABLE [public.rent](http://public.rent)_requests
 
-### Hero Card (dark gradient)
-- Total shares held (large number)
-- Total capital invested in UGX
-- Pool ownership % (shares / 25,000 x 100)
-- Company ownership % (shares / 25,000 x 8)
-- "Verified Shareholder" badge
+  ADD COLUMN registration_type TEXT NOT NULL DEFAULT 'normal',
 
-### Valuation Projections
-Three cards showing estimated value of holdings at $1B, $3B, $5B company valuations using existing constants (`VALUATIONS`, `UGX_PER_USD`).
+  ADD COLUMN initial_outstanding_balance NUMERIC DEFAULT 0;
 
-### Investment History
-Chronological list of individual angel pool investment records — date, amount, shares acquired, reference ID, and status badge. Sorted newest first.
+No new tables needed. The existing rent_requests table already has access_fee, request_fee, total_repayment, daily_repayment — all will be set to zero-fee values for outstanding balance registrations.
 
-## Technical Plan
+UI Changes (AgentRentRequestDialog.tsx)
 
-### 1. Create `src/hooks/useMyAngelShares.ts`
-- Query `angel_pool_investments` filtered by current user ID
-- Separate confirmed vs pending investments
-- Aggregate totals: shares, amount, pool %, company %
-- Return individual records for history list
+Step 1 — Income Type Selection
 
-### 2. Create `src/components/supporter/AngelSharesTab.tsx`
-- Self-contained component consuming the hook
-- Renders hero card, valuation grid, and history list
-- Shows empty state if user has no angel shares
+Add a third card below the existing two options:
 
-### 3. Modify `src/components/supporter/InvestmentBreakdownSheet.tsx`
-- Add `Tabs` component (using existing `underline` variant) below the sheet header
-- Two tabs: "Support Accounts" and "Angel Shares"
-- Current sheet body becomes the "Support Accounts" tab content
-- "Angel Shares" tab renders the new `AngelSharesTab` component
-- Summary stats row stays tab-specific (each tab shows its own summary)
+Icon: AlertTriangle (amber themed)
 
-### Files
-| Action | File |
-|--------|------|
-| Create | `src/hooks/useMyAngelShares.ts` |
-| Create | `src/components/supporter/AngelSharesTab.tsx` |
-| Modify | `src/components/supporter/InvestmentBreakdownSheet.tsx` |
+Title: "Outstanding Balance"
 
+Subtitle: "Register tenant with existing arrears — no fees applied"
+
+When selected, sets incomeType = 'outstanding' and proceeds to the details step.
+
+Step 2 — Details Form (when outstanding mode)
+
+Outstanding Balance (UGX) — required numeric input (minimum UGX 2,000)
+
+Warning banner: amber background — "This tenant is being registered with an outstanding balance. No access or platform fees will be applied."
+
+All standard fields remain (tenant name/phone, landlord, LC1, house category, GPS, photos)
+
+Fee summary section shows: Rent = outstanding amount, Access Fee = 0, Platform Fee = 0, Total Repayment = outstanding amount
+
+Duration auto-set to 30 days (configurable by agent)
+
+Step 3 — Confirmation
+
+Submit button text changes to: "Register Tenant (No Fees)"
+
+Fee breakdown clearly shows zero fees with a "No Fees" badge
+
+Fee Calculation Logic
+
+When incomeType === 'outstanding':
+
+{
+
+  rentAmount: outstandingBalance,
+
+  durationDays: 30,
+
+  accessFee: 0,
+
+  requestFee: 0,
+
+  totalRepayment: outstandingBalance,
+
+  dailyRepayment: Math.ceil(outstandingBalance / 30),
+
+}
+
+Submission Logic
+
+On submit, the existing insert to rent_requests gains two extra fields:
+
+registration_type: 'outstanding_balance',
+
+initial_outstanding_balance: outstandingBalance,
+
+With access_fee: 0 and request_fee: 0 already set by the fee calculation.
+
+Files
+
+Action
+
+File
+
+Migrate
+
+rent_requests — add registration_type, initial_outstanding_balance
+
+Modify
+
+src/components/agent/AgentRentRequestDialog.tsx — add outstanding balance option, form fields, and zero-fee logic
+
+What This Does NOT Change
+
+No changes to the register-tenant edge function (it only handles user creation)
+
+No changes to repayment/collection logic — repayments reduce amount_repaid against total_repayment as normal
+
+No commission changes needed — commission is calculated on repayment events, not registration
+
+Reporting/analytics updates deferred to a follow-up task
