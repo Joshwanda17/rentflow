@@ -28,7 +28,7 @@ import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
@@ -480,7 +480,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </DialogContent>
       </Dialog>
 
-      <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
+      
     </div>
   );
 }

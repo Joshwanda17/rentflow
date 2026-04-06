@@ -8,7 +8,7 @@ import {
   Activity, Handshake, Loader2, SmartphoneNfc, UserCheck, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
@@ -408,7 +408,7 @@ export default function COODashboard() {
         <COOPartnerWithdrawalApprovals />
       </div>
 
-      {role && <MobileBottomNav currentRole={role} />}
+      
     </div>
   );
 }

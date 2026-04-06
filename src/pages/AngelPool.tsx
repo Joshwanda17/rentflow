@@ -11,7 +11,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useCurrency } from '@/hooks/useCurrency';
 import { hapticTap } from '@/lib/haptics';
 import DashboardHeader from '@/components/DashboardHeader';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
@@ -261,7 +261,7 @@ export default function AngelPool() {
       {showWallet && <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />}
       
       {/* ═══ BOTTOM NAV — Same as funder ═══ */}
-      <MobileBottomNav currentRole={currentRole || 'supporter'} />
+      
     </div>
   );
 }

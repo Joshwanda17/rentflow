@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
@@ -433,7 +433,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <AvailableHousesSheet open={housesOpen} onOpenChange={setHousesOpen} />
 
       {/* Fixed footer navigation */}
-      <MobileBottomNav currentRole={currentRole} />
+      
     </div>
   );
 }

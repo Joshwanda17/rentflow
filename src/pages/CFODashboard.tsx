@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
@@ -202,7 +202,7 @@ export default function CFODashboard() {
         </Tabs>
       </div>
 
-      <MobileBottomNav currentRole="manager" />
+      
     </div>
   );
 }

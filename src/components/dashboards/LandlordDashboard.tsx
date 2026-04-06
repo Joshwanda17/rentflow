@@ -14,7 +14,7 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
@@ -236,7 +236,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       <AvailableHousesSheet open={showListedHouses} onOpenChange={setShowListedHouses} />
 
       {/* Fixed footer navigation */}
-      <MobileBottomNav currentRole={currentRole} />
+      
     </div>
   );
 }
