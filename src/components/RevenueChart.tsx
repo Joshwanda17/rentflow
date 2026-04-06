@@ -66,11 +66,7 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
               }}
               labelStyle={{ color: 'hsl(210, 40%, 98%)' }}
               formatter={(value: number) => [
-                new Intl.NumberFormat('en-UG', {
-                  style: 'currency',
-                  currency: 'UGX',
-                  minimumFractionDigits: 0,
-                }).format(value),
+                formatDynamic(value),
                 'Revenue'
               ]}
             />
