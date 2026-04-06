@@ -350,7 +350,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                     <div className="text-left min-w-0">
                                       <p className="text-[10px] font-bold text-foreground">Growth Projection</p>
                                       <p className="text-[8px] text-muted-foreground truncate">
-                                        {formatAmount(entry.amount)} → {formatAmount(finalValue)} · +{growthPct.toFixed(0)}%
+                                        <CompactAmount value={entry.amount} /> → <CompactAmount value={finalValue} /> · +{growthPct.toFixed(0)}%
                                       </p>
                                     </div>
                                   </div>
