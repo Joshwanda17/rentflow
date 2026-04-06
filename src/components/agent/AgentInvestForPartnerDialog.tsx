@@ -12,6 +12,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Loader2, HandCoins, Search, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateUserInviteDialog } from './CreateUserInviteDialog';
+import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
 
 interface AgentInvestForPartnerDialogProps {
   open: boolean;
@@ -52,6 +53,12 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [agentBalance, setAgentBalance] = useState(0);
   const [success, setSuccess] = useState<SuccessData | null>(null);
   const [showRegister, setShowRegister] = useState(false);
+
+  // Inline quick-capture state
+  const [showQuickCapture, setShowQuickCapture] = useState(false);
+  const [quickName, setQuickName] = useState('');
+  const [quickPhone, setQuickPhone] = useState('');
+  const [quickRegistering, setQuickRegistering] = useState(false);
 
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
@@ -97,6 +104,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setSearchQuery('');
       setShowConfirm(false);
       setPartners([]);
+      setShowQuickCapture(false);
+      setQuickName('');
+      setQuickPhone('');
     }
   }, [open]);
 
@@ -143,6 +153,56 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     setShowConfirm(true);
   };
 
+  // Inline quick-capture registration
+  const handleQuickRegister = async () => {
+    if (quickName.trim().length < 2) {
+      toast.error('Full name is required (min 2 characters)');
+      return;
+    }
+    const phoneValidation = isValidPhoneNumberGlobal(quickPhone);
+    if (!phoneValidation.valid) {
+      toast.error(phoneValidation.reason || 'Invalid phone number');
+      return;
+    }
+
+    setQuickRegistering(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('register-proxy-funder', {
+        body: {
+          full_name: quickName.trim(),
+          phone: quickPhone.trim(),
+          agent_id: user.id,
+          notes: 'Quick registration during field investment',
+        },
+      });
+
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Registration failed');
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+
+      // Auto-select the newly created partner
+      const newPartner: PartnerOption = {
+        id: data.funder_id,
+        full_name: data.full_name,
+        phone: data.phone,
+      };
+      setSelectedPartnerId(newPartner.id);
+      setSelectedPartner(newPartner);
+      setShowQuickCapture(false);
+      setSearchQuery('');
+      toast.success(`${newPartner.full_name} registered & selected!`);
+    } catch (err: any) {
+      toast.error(err.message || 'Registration failed');
+    } finally {
+      setQuickRegistering(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setShowConfirm(false);
     setSubmitting(true);
@@ -173,7 +233,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         portfolio_code: data.portfolio_code || null,
       });
       setAgentBalance(data.new_balance);
-      toast.success('Investment completed successfully!');
+      toast.success('Investment completed — portfolio is active!');
       onSuccess?.();
     } catch (err: any) {
       toast.error(err.message || 'Investment failed');
@@ -187,7 +247,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       ? `${getPublicOrigin()}/join?t=${s.activation_token}`
       : null;
 
-    let msg = `🎉 Your Welile Investment is Ready!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
+    let msg = `🎉 Your Welile Investment is Active!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n✅ Your portfolio is now active!\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
 
     if (s.portfolio_code) {
       msg += `\n📋 Portfolio: ${s.portfolio_code}`;
@@ -248,7 +308,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             <div className="mx-auto w-14 h-14 rounded-full bg-success/20 flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
-            <h3 className="font-bold text-lg">Investment Successful!</h3>
+            <h3 className="font-bold text-lg">Portfolio Activated!</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Invested on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
               {success.portfolio_code && (
@@ -258,7 +318,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               <p>First payout: <strong className="text-foreground">{success.first_payout_date}</strong></p>
               <p>Your new balance: <strong className="text-foreground">{formatUGX(success.new_balance)}</strong></p>
               <p className="font-mono text-xs">Ref: {success.reference_id}</p>
-              <p className="text-xs text-amber-600">💡 Partner credit &amp; your commission are pending manager approval</p>
+              <p className="text-xs text-success">✅ Portfolio is active — partner can see their funds now</p>
+              <p className="text-xs text-muted-foreground">💡 Your 2% commission is pending approval</p>
             </div>
 
             {/* Share Section */}
@@ -364,20 +425,80 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             ) : (
               <div className="max-h-40 overflow-y-auto space-y-1 border rounded-lg p-1">
                 {partners.length === 0 ? (
-                  <div className="text-center py-4 space-y-2">
+                  <div className="text-center py-4 space-y-3">
                     <p className="text-xs text-muted-foreground">
                       No partners match your search
                     </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => setShowRegister(true)}
-                    >
-                      <UserPlus className="h-3.5 w-3.5" />
-                      Register Tenant Supporter Investment
-                    </Button>
+
+                    {/* Inline Quick-Capture Form */}
+                    {!showQuickCapture ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => {
+                          setShowQuickCapture(true);
+                          setQuickName(searchQuery.trim());
+                          setQuickPhone('');
+                        }}
+                      >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        Register New Partner
+                      </Button>
+                    ) : (
+                      <div className="text-left space-y-3 p-3 rounded-lg border bg-muted/30">
+                        <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                          <UserPlus className="h-3.5 w-3.5 text-primary" />
+                          Quick Registration
+                        </p>
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Full Name"
+                            value={quickName}
+                            onChange={(e) => setQuickName(e.target.value)}
+                            className="text-sm"
+                          />
+                          <Input
+                            placeholder="Phone (e.g. 0771234567)"
+                            value={quickPhone}
+                            onChange={(e) => setQuickPhone(e.target.value)}
+                            className="text-sm"
+                            type="tel"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowQuickCapture(false)}
+                            disabled={quickRegistering}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="flex-1 gap-1.5"
+                            onClick={handleQuickRegister}
+                            disabled={quickRegistering || quickName.trim().length < 2 || !quickPhone.trim()}
+                          >
+                            {quickRegistering ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Registering...
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="h-3.5 w-3.5" />
+                                Register & Select
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   partners.map(p => (
@@ -506,6 +627,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                     <span className="font-bold text-foreground">{formatUGX(agentBalance - parsedAmount + Math.round(parsedAmount * 0.02))}</span>
                   </div>
                 </div>
+                <div className="flex gap-2 p-2 rounded-lg bg-success/10 border border-success/20">
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">Portfolio will be <strong className="text-success">activated instantly</strong> — partner can see their funds immediately.</p>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -513,7 +638,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleSubmit} className="gap-2">
               <HandCoins className="h-4 w-4" />
-              Confirm & Invest
+              Confirm & Activate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -527,11 +652,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         lockRole
         onSuccess={() => {
           setShowRegister(false);
-          // New partner will appear when agent searches for them
         }}
       />
     </>
   );
 }
-
-// Dead code removed: getOrdinal was unused
