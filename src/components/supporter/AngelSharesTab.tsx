@@ -9,7 +9,7 @@ import { TOTAL_SHARES, PRICE_PER_SHARE } from '@/components/angel-pool/constants
 
 export function AngelSharesTab() {
   const { totalShares, totalInvested, poolOwnershipPct, companyOwnershipPct, records, valuations, hasShares, isLoading } = useMyAngelShares();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, formatAmountCompact } = useCurrency();
 
   if (isLoading) {
     return (
