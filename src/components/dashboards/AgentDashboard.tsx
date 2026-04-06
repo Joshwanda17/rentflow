@@ -19,6 +19,7 @@ import {
   Banknote,
   FileText,
   Users,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
