@@ -26,7 +26,6 @@ export function WalletDisclaimer({ variant = 'light' }: WalletDisclaimerProps) {
         }`}
       >
         <Info className="h-3 w-3" />
-        <span className="underline underline-offset-2">Licensed & Regulated</span>
       </button>
       <AnimatePresence>
         {show && (
