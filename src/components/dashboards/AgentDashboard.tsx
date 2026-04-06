@@ -262,7 +262,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet — Most Prominent */}
         <div
           onClick={handleViewWallet}
-          className="relative w-full rounded-2xl bg-gradient-to-br from-[hsl(265,85%,58%)] to-[hsl(265,75%,70%)] p-6 cursor-pointer touch-manipulation active:opacity-90 overflow-hidden"
+          className="relative w-full rounded-2xl bg-gradient-to-br from-[hsl(265,85%,58%)] to-[hsl(265,75%,70%)] p-8 py-10 cursor-pointer touch-manipulation active:opacity-90 overflow-hidden"
         >
           {/* Decorative sparkle */}
           <div className="absolute top-4 right-4 opacity-30">
