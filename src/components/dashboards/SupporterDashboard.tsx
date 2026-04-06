@@ -545,7 +545,7 @@ export default function SupporterDashboard({
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       
-      <MobileBottomNav currentRole={currentRole} />
+      
     </div>
   );
 }

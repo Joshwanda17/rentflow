@@ -433,7 +433,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <AvailableHousesSheet open={housesOpen} onOpenChange={setHousesOpen} />
 
       {/* Fixed footer navigation */}
-      <MobileBottomNav currentRole={currentRole} />
+      
     </div>
   );
 }

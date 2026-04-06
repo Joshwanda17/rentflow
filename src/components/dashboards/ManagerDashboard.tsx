@@ -1226,7 +1226,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         }}
       />
 
-      {/* MobileManagerMenu moved into MobileBottomNav footer */}
+      
     </div>
   );
 }

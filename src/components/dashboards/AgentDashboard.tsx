@@ -480,7 +480,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </DialogContent>
       </Dialog>
 
-      <MobileBottomNav currentRole={currentRole} onOpenMenu={handleOpenMenu} />
+      
     </div>
   );
 }

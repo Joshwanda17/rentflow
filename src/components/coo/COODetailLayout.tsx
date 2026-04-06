@@ -41,7 +41,7 @@ export default function COODetailLayout({ title, subtitle, status = 'green', chi
       <div className="p-4 space-y-4">
         {children}
       </div>
-      {role && <MobileBottomNav currentRole={role} />}
+      
     </div>
   );
 }

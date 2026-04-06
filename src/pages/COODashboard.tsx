@@ -408,7 +408,7 @@ export default function COODashboard() {
         <COOPartnerWithdrawalApprovals />
       </div>
 
-      {role && <MobileBottomNav currentRole={role} />}
+      
     </div>
   );
 }

@@ -261,7 +261,7 @@ export default function AngelPool() {
       {showWallet && <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />}
       
       {/* ═══ BOTTOM NAV — Same as funder ═══ */}
-      <MobileBottomNav currentRole={currentRole || 'supporter'} />
+      
     </div>
   );
 }

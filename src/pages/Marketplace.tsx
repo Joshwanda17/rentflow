@@ -197,10 +197,6 @@ export default function Marketplace() {
         </div>
       )}
 
-      {/* Mobile Bottom Navigation */}
-      {user && role && (
-        <MobileBottomNav currentRole={role} />
-      )}
     </div>
   );
 }

@@ -202,7 +202,7 @@ export default function CFODashboard() {
         </Tabs>
       </div>
 
-      <MobileBottomNav currentRole="manager" />
+      
     </div>
   );
 }
