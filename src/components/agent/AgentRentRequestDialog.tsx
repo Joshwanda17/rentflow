@@ -542,7 +542,74 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
-              {/* ===== 1. RENT DETAILS — PRIMARY SECTION (Purple Hero) ===== */}
+              {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
+              {incomeType === 'outstanding' ? (
+                <div className="space-y-3 p-4 rounded-2xl bg-warning/10 border-2 border-warning/40">
+                  <h4 className="text-base font-extrabold text-warning flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-warning/20">
+                      <AlertTriangle className="h-5 w-5 text-warning" />
+                    </div>
+                    Outstanding Balance
+                  </h4>
+                  
+                  {/* Warning banner */}
+                  <div className="p-3 rounded-xl bg-warning/20 border border-warning/30">
+                    <p className="text-xs font-medium text-warning">
+                      ⚠️ This tenant is being registered with an outstanding balance. No access or platform fees will be applied.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-warning/80">Outstanding Balance (UGX) *</Label>
+                      <Input
+                        value={outstandingBalance}
+                        onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="200,000"
+                        className="h-12 text-lg font-bold border-2 border-warning/30 focus:border-warning rounded-xl"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-warning/80">Duration *</Label>
+                      <p className="text-[10px] text-muted-foreground">Repayment period</p>
+                      <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
+                        <SelectTrigger className="h-12 text-base font-semibold border-2 border-warning/30 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 Days</SelectItem>
+                          <SelectItem value="60">60 Days</SelectItem>
+                          <SelectItem value="90">90 Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Fee summary */}
+                  {fees && (
+                    <div className="space-y-2">
+                      <div className="p-4 rounded-2xl bg-warning/20 border-2 border-warning/40 text-center">
+                        <p className="text-xs text-warning/70 font-medium mb-1">Total Repayment</p>
+                        <p className="text-3xl font-black text-warning font-mono">{formatUGX(fees.totalRepayment)}</p>
+                        <p className="text-xs text-warning/70 mt-1">{formatUGX(fees.dailyRepayment)}/day for {fees.durationDays} days</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2 rounded-lg bg-background/60">
+                          <p className="text-[10px] text-muted-foreground">Access Fee</p>
+                          <p className="text-sm font-bold text-success">UGX 0</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-background/60">
+                          <p className="text-[10px] text-muted-foreground">Platform Fee</p>
+                          <p className="text-sm font-bold text-success">UGX 0</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-warning/20">
+                          <p className="text-[10px] text-muted-foreground">Status</p>
+                          <p className="text-sm font-bold text-warning">No Fees</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
               <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
                 <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-primary/20">
@@ -617,6 +684,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                   </div>
                 )}
               </div>
+              )}
 
               <Separator />
 
