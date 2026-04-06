@@ -76,6 +76,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
+  const [outstandingBalance, setOutstandingBalance] = useState('');
   const [duration, setDuration] = useState<'30' | '60' | '90'>('30');
   const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
   
