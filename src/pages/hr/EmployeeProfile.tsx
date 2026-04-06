@@ -122,7 +122,7 @@ export default function HREmployeeProfile() {
       const { data } = await supabase
         .from('audit_logs')
         .select('*')
-        .or(`record_id.eq.${userId},user_id.eq.${userId}`)
+        .eq('record_id', userId!)
         .order('created_at', { ascending: false })
         .limit(50);
       return data || [];
