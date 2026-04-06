@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,21 +9,13 @@ import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Loader2, HandCoins, Search, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { CreateUserInviteDialog } from './CreateUserInviteDialog';
+import { Loader2, HandCoins, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info, User, Phone } from 'lucide-react';
 import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
 
 interface AgentInvestForPartnerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-}
-
-interface PartnerOption {
-  id: string;
-  full_name: string;
-  phone: string;
 }
 
 interface SuccessData {
@@ -39,74 +31,29 @@ interface SuccessData {
 }
 
 export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: AgentInvestForPartnerDialogProps) {
-  const [partners, setPartners] = useState<PartnerOption[]>([]);
-  const [loadingPartners, setLoadingPartners] = useState(false);
-  const [selectedPartnerId, setSelectedPartnerId] = useState('');
-  const [selectedPartner, setSelectedPartner] = useState<PartnerOption | null>(null);
+  const [partnerName, setPartnerName] = useState('');
+  const [partnerPhone, setPartnerPhone] = useState('');
   const [amount, setAmount] = useState('');
-  
+
   const [submitting, setSubmitting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [summaryId, setSummaryId] = useState<string | null>(null);
   const [totalRentRequested, setTotalRentRequested] = useState(0);
   const [agentBalance, setAgentBalance] = useState(0);
   const [success, setSuccess] = useState<SuccessData | null>(null);
-  const [showRegister, setShowRegister] = useState(false);
-
-  // Inline quick-capture state
-  const [showQuickCapture, setShowQuickCapture] = useState(false);
-  const [quickName, setQuickName] = useState('');
-  const [quickPhone, setQuickPhone] = useState('');
-  const [quickRegistering, setQuickRegistering] = useState(false);
 
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
-
-  // Debounced search for partners using server-side function
-  useEffect(() => {
-    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
-      setPartners([]);
-      return;
-    }
-
-    setLoadingPartners(true);
-    const timeout = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .rpc('search_supporters', {
-            search_term: searchQuery.trim(),
-            result_limit: 20,
-          });
-
-        if (error) throw error;
-        setPartners(data?.map((p: any) => ({ id: p.id, full_name: p.full_name, phone: p.phone })) || []);
-      } catch {
-        toast.error('Failed to search partners');
-        setPartners([]);
-      } finally {
-        setLoadingPartners(false);
-      }
-    }, 400);
-
-    return () => clearTimeout(timeout);
-  }, [searchQuery]);
 
   useEffect(() => {
     if (open) {
       fetchOpportunitySummary();
       fetchAgentBalance();
-      setSelectedPartnerId('');
-      setSelectedPartner(null);
+      setPartnerName('');
+      setPartnerPhone('');
       setAmount('');
-      
       setSuccess(null);
-      setSearchQuery('');
       setShowConfirm(false);
-      setPartners([]);
-      setShowQuickCapture(false);
-      setQuickName('');
-      setQuickPhone('');
     }
   }, [open]);
 
@@ -135,81 +82,91 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     }
   };
 
-  const selectedPartnerName = selectedPartner?.full_name || '';
-
-  const handleConfirmOpen = () => {
-    if (!selectedPartnerId || parsedAmount < 50000) {
-      toast.error('Please fill all fields correctly');
-      return;
+  const validateForm = () => {
+    if (partnerName.trim().length < 2) {
+      toast.error('Partner name is required (min 2 characters)');
+      return false;
+    }
+    const phoneValidation = isValidPhoneNumberGlobal(partnerPhone);
+    if (!phoneValidation.valid) {
+      toast.error(phoneValidation.reason || 'Invalid phone number');
+      return false;
+    }
+    if (parsedAmount < 50000) {
+      toast.error('Minimum investment is UGX 50,000');
+      return false;
     }
     if (parsedAmount > agentBalance) {
       toast.error('Amount exceeds your wallet balance');
-      return;
+      return false;
     }
     if (totalRentRequested > 0 && parsedAmount > totalRentRequested) {
       toast.error('Amount exceeds current rent demand');
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const handleConfirmOpen = () => {
+    if (!validateForm()) return;
     setShowConfirm(true);
   };
 
-  // Inline quick-capture registration
-  const handleQuickRegister = async () => {
-    if (quickName.trim().length < 2) {
-      toast.error('Full name is required (min 2 characters)');
-      return;
-    }
-    const phoneValidation = isValidPhoneNumberGlobal(quickPhone);
-    if (!phoneValidation.valid) {
-      toast.error(phoneValidation.reason || 'Invalid phone number');
-      return;
-    }
-
-    setQuickRegistering(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data, error } = await supabase.functions.invoke('register-proxy-funder', {
-        body: {
-          full_name: quickName.trim(),
-          phone: quickPhone.trim(),
-          agent_id: user.id,
-          notes: 'Quick registration during field investment',
-        },
-      });
-
-      if (error) {
-        const msg = await extractFromErrorObject(error, 'Registration failed');
-        throw new Error(msg);
-      }
-      if (data?.error) throw new Error(data.error);
-
-      // Auto-select the newly created partner
-      const newPartner: PartnerOption = {
-        id: data.funder_id,
-        full_name: data.full_name,
-        phone: data.phone,
-      };
-      setSelectedPartnerId(newPartner.id);
-      setSelectedPartner(newPartner);
-      setShowQuickCapture(false);
-      setSearchQuery('');
-      toast.success(`${newPartner.full_name} registered & selected!`);
-    } catch (err: any) {
-      toast.error(err.message || 'Registration failed');
-    } finally {
-      setQuickRegistering(false);
-    }
-  };
-
+  // Lookup partner by phone, register if not found, then invest
   const handleSubmit = async () => {
     setShowConfirm(false);
     setSubmitting(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Step 1: Try to find existing supporter by phone
+      let partnerId: string | null = null;
+
+      const phoneDigits = partnerPhone.replace(/[^0-9]/g, '');
+      const local9 = phoneDigits.slice(-9);
+      const phoneFormats = [local9, `0${local9}`, `256${local9}`, `+256${local9}`];
+
+      const { data: existingPartners } = await supabase
+        .rpc('search_supporters', {
+          search_term: local9,
+          result_limit: 5,
+        });
+
+      if (existingPartners && existingPartners.length > 0) {
+        // Match by phone suffix
+        const match = existingPartners.find((p: any) => {
+          const pDigits = (p.phone || '').replace(/[^0-9]/g, '');
+          return pDigits.slice(-9) === local9;
+        });
+        if (match) partnerId = match.id;
+      }
+
+      // Step 2: If not found, register new partner
+      if (!partnerId) {
+        const { data: regData, error: regError } = await supabase.functions.invoke('register-proxy-funder', {
+          body: {
+            full_name: partnerName.trim(),
+            phone: partnerPhone.trim(),
+            agent_id: user.id,
+            notes: 'Auto-registered during field investment',
+          },
+        });
+
+        if (regError) {
+          const msg = await extractFromErrorObject(regError, 'Registration failed');
+          throw new Error(msg);
+        }
+        if (regData?.error) throw new Error(regData.error);
+
+        partnerId = regData.funder_id;
+        toast.success(`${partnerName.trim()} registered as new partner`);
+      }
+
+      // Step 3: Invest for the partner
       const { data, error } = await supabase.functions.invoke('agent-invest-for-partner', {
         body: {
-          partner_id: selectedPartnerId,
+          partner_id: partnerId,
           amount: parsedAmount,
           summary_id: summaryId,
         },
@@ -295,6 +252,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     }
   }, [success, buildShareMessage]);
 
+  // ── Success Screen ──
   if (success) {
     const hasToken = !!success.activation_token;
     const activationLink = hasToken
@@ -354,7 +312,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 </Button>
               </div>
 
-              {/* Non-smartphone note */}
               {hasToken && (
                 <div className="flex gap-2 p-3 rounded-lg bg-muted/50 border text-left">
                   <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -372,288 +329,182 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     );
   }
 
+  // ── Main Form ──
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <HandCoins className="h-5 w-5 text-primary" />
-            Invest for Partner
-          </DialogTitle>
-          <DialogDescription>
-            Fund the rent pool on behalf of a partner using your wallet balance.
-          </DialogDescription>
-        </DialogHeader>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-primary" />
+              Invest for Partner
+            </DialogTitle>
+            <DialogDescription>
+              Enter partner details and investment amount. If the partner is new, they'll be registered automatically.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 pt-2">
-          {/* Agent Balance */}
-          <div className="p-3 rounded-lg bg-muted/50 border flex items-center gap-3">
-            <Wallet className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Your Balance</p>
-              <p className="font-bold text-foreground">{formatUGX(agentBalance)}</p>
-            </div>
-          </div>
-
-          {/* Partner Selection */}
-          <div className="space-y-2">
-            <Label>Select Partner</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            {loadingPartners ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <div className="space-y-4 pt-2">
+            {/* Agent Balance */}
+            <div className="p-3 rounded-lg bg-muted/50 border flex items-center gap-3">
+              <Wallet className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">Your Balance</p>
+                <p className="font-bold text-foreground">{formatUGX(agentBalance)}</p>
               </div>
-            ) : searchQuery.trim().length < 2 ? (
-              <div className="text-center py-4">
+            </div>
+
+            {/* Partner Name */}
+            <div className="space-y-2">
+              <Label htmlFor="partner-name">Partner Full Name</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="partner-name"
+                  placeholder="e.g. John Mukasa"
+                  value={partnerName}
+                  onChange={(e) => setPartnerName(e.target.value)}
+                  className="pl-9"
+                  maxLength={100}
+                />
+              </div>
+            </div>
+
+            {/* Partner Phone */}
+            <div className="space-y-2">
+              <Label htmlFor="partner-phone">Partner Phone Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="partner-phone"
+                  placeholder="e.g. 0771234567"
+                  value={partnerPhone}
+                  onChange={(e) => setPartnerPhone(e.target.value)}
+                  className="pl-9"
+                  type="tel"
+                />
+              </div>
+            </div>
+
+            {/* Investment Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="invest-amount">Investment Amount (UGX)</Label>
+              <Input
+                id="invest-amount"
+                type="number"
+                placeholder="Min 50,000"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min={50000}
+              />
+              {parsedAmount > agentBalance && (
+                <p className="text-xs text-destructive">Exceeds your wallet balance</p>
+              )}
+              {totalRentRequested > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {selectedPartner ? (
-                    <span>Selected: <strong className="text-foreground">{selectedPartner.full_name}</strong></span>
-                  ) : (
-                    'Type at least 2 characters to search'
-                  )}
+                  Rent demand available: {formatUGX(totalRentRequested)}
+                </p>
+              )}
+            </div>
+
+            {/* Payout Cycle Info */}
+            <div className="p-3 rounded-lg bg-muted/50 border border-border/60">
+              <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date</p>
+            </div>
+
+            {/* Reward Preview */}
+            {parsedAmount >= 50000 && (
+              <div className="p-3 rounded-lg bg-success/10 border border-success/20 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium text-success">
+                  <TrendingUp className="h-4 w-4" />
+                  15% Monthly Reward Preview
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Monthly: <strong className="text-foreground">{formatUGX(monthlyReward)}</strong> ×12 months = <strong className="text-foreground">{formatUGX(monthlyReward * 12)}</strong>
                 </p>
               </div>
-            ) : (
-              <div className="max-h-40 overflow-y-auto space-y-1 border rounded-lg p-1">
-                {partners.length === 0 ? (
-                  <div className="text-center py-4 space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      No partners match your search
-                    </p>
-
-                    {/* Inline Quick-Capture Form */}
-                    {!showQuickCapture ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => {
-                          setShowQuickCapture(true);
-                          setQuickName(searchQuery.trim());
-                          setQuickPhone('');
-                        }}
-                      >
-                        <UserPlus className="h-3.5 w-3.5" />
-                        Register New Partner
-                      </Button>
-                    ) : (
-                      <div className="text-left space-y-3 p-3 rounded-lg border bg-muted/30">
-                        <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                          <UserPlus className="h-3.5 w-3.5 text-primary" />
-                          Quick Registration
-                        </p>
-                        <div className="space-y-2">
-                          <Input
-                            placeholder="Full Name"
-                            value={quickName}
-                            onChange={(e) => setQuickName(e.target.value)}
-                            className="text-sm"
-                          />
-                          <Input
-                            placeholder="Phone (e.g. 0771234567)"
-                            value={quickPhone}
-                            onChange={(e) => setQuickPhone(e.target.value)}
-                            className="text-sm"
-                            type="tel"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowQuickCapture(false)}
-                            disabled={quickRegistering}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="flex-1 gap-1.5"
-                            onClick={handleQuickRegister}
-                            disabled={quickRegistering || quickName.trim().length < 2 || !quickPhone.trim()}
-                          >
-                            {quickRegistering ? (
-                              <>
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                Registering...
-                              </>
-                            ) : (
-                              <>
-                                <UserPlus className="h-3.5 w-3.5" />
-                                Register & Select
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  partners.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        setSelectedPartnerId(p.id);
-                        setSelectedPartner(p);
-                      }}
-                      className={cn(
-                        "w-full text-left p-2.5 rounded-lg transition-colors text-sm",
-                        selectedPartnerId === p.id
-                          ? "bg-primary/10 border border-primary/30"
-                          : "hover:bg-muted/50"
-                      )}
-                    >
-                      <p className="font-medium truncate">{p.full_name}</p>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <span>{p.phone}</span>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
             )}
+
+            <Button
+              onClick={handleConfirmOpen}
+              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 50000 || parsedAmount > agentBalance}
+              className="w-full"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <HandCoins className="h-4 w-4 mr-2" />
+                  Invest {parsedAmount >= 50000 ? formatUGX(parsedAmount) : ''} for Partner
+                </>
+              )}
+            </Button>
           </div>
+        </DialogContent>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label>Investment Amount (UGX)</Label>
-            <Input
-              type="number"
-              placeholder="Min 50,000"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              min={50000}
-            />
-            {parsedAmount > agentBalance && (
-              <p className="text-xs text-destructive">Exceeds your wallet balance</p>
-            )}
-            {totalRentRequested > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Rent demand available: {formatUGX(totalRentRequested)}
-              </p>
-            )}
-          </div>
-
-          {/* Payout Cycle Info */}
-          <div className="p-3 rounded-lg bg-muted/50 border border-border/60">
-            <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date</p>
-          </div>
-
-          {/* Reward Preview */}
-          {parsedAmount >= 50000 && (
-            <div className="p-3 rounded-lg bg-success/10 border border-success/20 space-y-1">
-              <div className="flex items-center gap-2 text-sm font-medium text-success">
-                <TrendingUp className="h-4 w-4" />
-                15% Monthly Reward Preview
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Monthly: <strong className="text-foreground">{formatUGX(monthlyReward)}</strong> ×12 months = <strong className="text-foreground">{formatUGX(monthlyReward * 12)}</strong>
-              </p>
-            </div>
-          )}
-
-          <Button
-            onClick={handleConfirmOpen}
-            disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || parsedAmount > agentBalance}
-            className="w-full"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <HandCoins className="h-4 w-4 mr-2" />
-                Invest {parsedAmount >= 50000 ? formatUGX(parsedAmount) : ''} for Partner
-              </>
-            )}
-          </Button>
-        </div>
-      </DialogContent>
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <AlertDialogContent className="max-w-sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <HandCoins className="h-5 w-5 text-primary" />
-              Confirm Investment
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 pt-2">
-                <p className="text-sm text-muted-foreground">Please review the details before proceeding:</p>
-                <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Partner</span>
-                    <span className="font-medium text-foreground">{selectedPartnerName}</span>
+        {/* Confirmation Dialog */}
+        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+          <AlertDialogContent className="max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <HandCoins className="h-5 w-5 text-primary" />
+                Confirm Investment
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 pt-2">
+                  <p className="text-sm text-muted-foreground">Please review the details before proceeding:</p>
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Partner</span>
+                      <span className="font-medium text-foreground">{partnerName.trim()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Phone</span>
+                      <span className="font-medium text-foreground">{partnerPhone.trim()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="font-bold text-foreground">{formatUGX(parsedAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Commission (2%)</span>
+                      <span className="font-medium text-success">{formatUGX(Math.round(parsedAmount * 0.02))}</span>
+                    </div>
+                    <hr className="border-border" />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Monthly reward (15%)</span>
+                      <span className="font-medium text-success">{formatUGX(monthlyReward)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payout cycle</span>
+                      <span className="font-medium text-foreground">Every 30 days</span>
+                    </div>
+                    <hr className="border-border" />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Your balance after</span>
+                      <span className="font-bold text-foreground">{formatUGX(agentBalance - parsedAmount)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount</span>
-                    <span className="font-bold text-foreground">{formatUGX(parsedAmount)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Commission (2%)</span>
-                    <span className="font-medium text-success">{formatUGX(Math.round(parsedAmount * 0.02))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Net deduction</span>
-                    <span className="font-medium text-foreground">{formatUGX(parsedAmount - Math.round(parsedAmount * 0.02))}</span>
-                  </div>
-                  <hr className="border-border" />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Monthly reward (15%)</span>
-                    <span className="font-medium text-success">{formatUGX(monthlyReward)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Payout cycle</span>
-                    <span className="font-medium text-foreground">Every 30 days</span>
-                  </div>
-                  <hr className="border-border" />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Your balance after</span>
-                    <span className="font-bold text-foreground">{formatUGX(agentBalance - parsedAmount + Math.round(parsedAmount * 0.02))}</span>
+                  <div className="flex gap-2 p-2 rounded-lg bg-success/10 border border-success/20">
+                    <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">Portfolio will be <strong className="text-success">activated instantly</strong> — partner can see their funds immediately.</p>
                   </div>
                 </div>
-                <div className="flex gap-2 p-2 rounded-lg bg-success/10 border border-success/20">
-                  <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground">Portfolio will be <strong className="text-success">activated instantly</strong> — partner can see their funds immediately.</p>
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSubmit} className="gap-2">
-              <HandCoins className="h-4 w-4" />
-              Confirm & Activate
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Dialog>
-
-      <CreateUserInviteDialog
-        open={showRegister}
-        onOpenChange={setShowRegister}
-        defaultRole="supporter"
-        lockRole
-        onSuccess={() => {
-          setShowRegister(false);
-        }}
-      />
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSubmit} className="gap-2">
+                <HandCoins className="h-4 w-4" />
+                Confirm & Activate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </Dialog>
     </>
   );
 }
