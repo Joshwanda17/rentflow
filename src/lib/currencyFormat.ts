@@ -124,3 +124,26 @@ export function getDynamicCurrencySymbol(): string {
 export function getDynamicCurrencyCode(): string {
   return getSelectedCode();
 }
+
+const currencyNames: Record<string, string> = {
+  UGX: 'Uganda Shillings', KES: 'Kenyan Shillings', TZS: 'Tanzanian Shillings', RWF: 'Rwandan Francs',
+  ETB: 'Ethiopian Birr', NGN: 'Nigerian Naira', GHS: 'Ghanaian Cedis', ZAR: 'South African Rand',
+  EGP: 'Egyptian Pounds', MAD: 'Moroccan Dirhams', XOF: 'West African CFA Francs', XAF: 'Central African CFA Francs',
+  USD: 'US Dollars', CAD: 'Canadian Dollars', MXN: 'Mexican Pesos', BRL: 'Brazilian Reais',
+  ARS: 'Argentine Pesos', COP: 'Colombian Pesos', EUR: 'Euros', GBP: 'British Pounds',
+  CHF: 'Swiss Francs', SEK: 'Swedish Kronor', NOK: 'Norwegian Kroner', PLN: 'Polish Zloty',
+  TRY: 'Turkish Lira', RUB: 'Russian Rubles', UAH: 'Ukrainian Hryvnia', CNY: 'Chinese Yuan',
+  JPY: 'Japanese Yen', INR: 'Indian Rupees', PKR: 'Pakistani Rupees', BDT: 'Bangladeshi Taka',
+  IDR: 'Indonesian Rupiah', MYR: 'Malaysian Ringgit', PHP: 'Philippine Pesos', THB: 'Thai Baht',
+  VND: 'Vietnamese Dong', KRW: 'South Korean Won', SGD: 'Singapore Dollars', HKD: 'Hong Kong Dollars',
+  TWD: 'New Taiwan Dollars', AED: 'UAE Dirhams', SAR: 'Saudi Riyals', ILS: 'Israeli Shekels',
+  QAR: 'Qatari Riyals', KWD: 'Kuwaiti Dinars', AUD: 'Australian Dollars', NZD: 'New Zealand Dollars',
+};
+
+/**
+ * Returns the full name of the currently selected currency.
+ */
+export function getDynamicCurrencyName(): string {
+  const code = getSelectedCode();
+  return currencyNames[code] || code;
+}

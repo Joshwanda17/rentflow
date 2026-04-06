@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
+import { getDynamicCurrencyName } from '@/lib/currencyFormat';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
@@ -157,7 +158,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     className="text-[clamp(2rem,9vw,3rem)] font-black text-white tracking-tight block leading-none"
                   />
                   <p className="text-[11px] text-white/50 mt-2 uppercase tracking-widest font-medium">
-                    Uganda Shillings
+                    {getDynamicCurrencyName()}
                   </p>
                   <WalletDisclaimer variant="dark" />
                 </div>
