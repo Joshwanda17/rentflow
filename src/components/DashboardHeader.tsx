@@ -101,7 +101,7 @@ const DashboardHeader = memo(function DashboardHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-primary shadow-sm">
+      <header className="sticky top-0 z-50 bg-primary">
         <div className="px-3 py-2.5">
           <div className="flex items-center justify-between">
             {/* Left: Logo + tappable role picker */}
