@@ -116,7 +116,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
               onClick={handleStaffNav}
               className="flex flex-col items-center justify-center gap-0.5 py-1.5 min-h-[44px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground"
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-xl transition-colors">
+              <div className="flex items-center justify-center w-7 h-7 rounded-xl transition-colors">
                 <ShieldCheck className="h-4.5 w-4.5" />
               </div>
               <span className="text-[10px] font-semibold tracking-wide">Staff</span>
