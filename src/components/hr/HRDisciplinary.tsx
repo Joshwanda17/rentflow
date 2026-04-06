@@ -389,8 +389,11 @@ export default function HRDisciplinary() {
                   value={form.description}
                   onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                   placeholder="Describe the incident and action taken..."
-                  className="min-h-[100px]"
+                  className={cn("min-h-[100px]", form.description.trim().length > 0 && form.description.trim().length < 10 && "border-destructive")}
                 />
+                {form.description.trim().length > 0 && form.description.trim().length < 10 && (
+                  <p className="text-xs text-destructive">{form.description.trim().length}/10 characters — need at least 10</p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2">
