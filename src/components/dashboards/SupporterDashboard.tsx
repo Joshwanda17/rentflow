@@ -358,41 +358,21 @@ export default function SupporterDashboard({
         <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-5 max-w-lg mx-auto pb-8">
           
           {/* ═══ INLINE GREETING BAR ═══ */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
-                <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5">
-                  <span className="break-words">{profile?.full_name?.split(' ')[0] || 'Supporter'}</span>
-                  {profile?.verified ? (
-                    <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
-                  ) : (
-                    <BadgeCheck className="h-4 w-4 text-muted-foreground/30 shrink-0" />
-                  )}
-                </h1>
-              </div>
-              {effectiveHasAccepted ? (
-                <AgreementAcceptedBadge 
-                  acceptedAt={acceptance?.accepted_at}
-                  showCelebration={justAccepted}
-                  variant="compact"
-                />
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAgreementModal(true)}
-                  className="text-[10px] border-2 border-warning/50 text-warning hover:bg-warning/10 gap-1 rounded-xl h-8 px-2 font-bold min-h-[36px]"
-                >
-                  <FileText className="h-3 w-3" />
-                  Terms
-                </Button>
-              )}
+          <div className="flex flex-col items-center gap-2 py-2">
+            <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+            </button>
+            <div className="flex flex-col items-center gap-0.5">
+              <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5">
+                <span className="break-words">{profile?.full_name?.split(' ')[0] || 'Supporter'}</span>
+                {profile?.verified ? (
+                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                ) : (
+                  <BadgeCheck className="h-4 w-4 text-muted-foreground/30 shrink-0" />
+                )}
+              </h1>
+              <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
             </div>
-            {/* AI ID on its own row */}
             <AiIdButton variant="compact" />
           </div>
 
