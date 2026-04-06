@@ -128,6 +128,19 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       ],
     },
   ],
+  hr: [
+    {
+      title: 'Human Resources',
+      items: [
+        { label: 'Overview', icon: LayoutDashboard, id: 'overview' },
+        { label: 'Employee Directory', icon: Users, id: 'employees' },
+        { label: 'Leave Management', icon: ClipboardList, id: 'leave' },
+        { label: 'Payroll', icon: Banknote, id: 'payroll' },
+        { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary' },
+        { label: 'Audit Trail', icon: FileText, id: 'audit' },
+      ],
+    },
+  ],
   super_admin: [
     {
       title: 'Administration',
