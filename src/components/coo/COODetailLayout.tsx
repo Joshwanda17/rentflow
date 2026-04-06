@@ -1,7 +1,7 @@
 import { ArrowLeft, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { useAuth } from '@/hooks/useAuth';
 
 type HealthStatus = 'green' | 'yellow' | 'red';
