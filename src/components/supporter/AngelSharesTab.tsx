@@ -47,7 +47,7 @@ export function AngelSharesTab() {
               <Shield className="h-4 w-4" />
               <span className="text-xs font-bold uppercase tracking-wider opacity-90">Angel Shareholding</span>
             </div>
-            <Badge className="bg-white/20 text-white border-white/30 text-[9px] font-bold backdrop-blur-sm">
+            <Badge className="bg-white/20 text-white border-white/30 text-[7px] sm:text-[9px] font-bold backdrop-blur-sm px-1.5 sm:px-2.5 py-0.5">
               ✓ Verified Shareholder
             </Badge>
           </div>
