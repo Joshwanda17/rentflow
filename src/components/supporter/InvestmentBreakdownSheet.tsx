@@ -302,7 +302,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               {isCompounding ? 'Month 1' : 'Monthly'}
                             </p>
                             <p className="text-base font-bold text-success font-mono tabular-nums tracking-tight flex items-center gap-0.5 justify-end">
-                              <TrendingUp className="h-3 w-3" />{formatAmount(monthlyReturn)}
+                              <TrendingUp className="h-3 w-3" /><CompactAmount value={monthlyReturn} />
                             </p>
                           </div>
                         </div>
