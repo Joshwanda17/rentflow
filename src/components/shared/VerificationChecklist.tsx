@@ -19,7 +19,7 @@ const roleIcons: Record<string, string> = {
 
 const tierLabels = [
   { min: 0, label: 'Ordinary User', color: 'text-muted-foreground', bg: 'bg-muted' },
-  { min: 1, label: 'Rising Star', color: 'text-warning', bg: 'bg-warning/10' },
+  { min: 1, label: 'Rising Star', color: 'text-[#9234EA]', bg: 'bg-[#9234EA]/10' },
   { min: 2, label: 'Trusted Member', color: 'text-primary', bg: 'bg-primary/10' },
   { min: 3, label: 'Power User', color: 'text-success', bg: 'bg-success/10' },
   { min: 4, label: 'Welile Champion', color: 'text-primary', bg: 'bg-gradient-to-r from-primary/15 to-success/15' },
