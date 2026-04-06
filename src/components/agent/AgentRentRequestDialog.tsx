@@ -271,7 +271,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
         .insert({
           name: landlordName.trim(),
           phone: landlordPhone.trim(),
-          property_address: propertyAddress.trim(),
+          property_address: isOutstanding ? (lc1Village.trim() || 'N/A') : propertyAddress.trim(),
           registered_by: user?.id,
         })
         .select('id')
@@ -279,18 +279,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
       if (landlordError) throw landlordError;
 
-      // Create LC1 record
-      const { data: lc1, error: lc1Error } = await supabase
-        .from('lc1_chairpersons')
-        .insert({
-          name: lc1Name.trim(),
-          phone: lc1Phone.trim(),
-          village: lc1Village.trim(),
-        })
-        .select('id')
-        .single();
+      // Create LC1 record (use placeholder values for outstanding if not provided)
+      let lc1Id: string | null = null;
+      if (!isOutstanding || (lc1Name.trim() && lc1Phone.trim())) {
+        const { data: lc1, error: lc1Error } = await supabase
+          .from('lc1_chairpersons')
+          .insert({
+            name: lc1Name.trim() || 'N/A',
+            phone: lc1Phone.trim() || 'N/A',
+            village: lc1Village.trim() || 'N/A',
+          })
+          .select('id')
+          .single();
 
-      if (lc1Error) throw lc1Error;
+        if (lc1Error) throw lc1Error;
+        lc1Id = lc1.id;
+      }
 
       // Register tenant via edge function (handles both existing and new users)
       const { data: tenantResult, error: tenantRegError } = await supabase.functions.invoke('register-tenant', {
