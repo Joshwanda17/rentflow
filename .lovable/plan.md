@@ -1,38 +1,29 @@
-# Redesign MoMo Deposit Flow — Tab-Based Provider Selection
+
+
+# Redesign Wallet Sheet to Match Reference
 
 ## What Changes
 
-When a funder selects "Mobile Money" to deposit, instead of seeing two separate large cards (MTN and Airtel) that expand awkwardly, they'll see a clean tab-based interface with:
+The `FullScreenWalletSheet` will be redesigned to match the clean, card-based layout from the reference image:
 
-- Two toggle buttons (MTN / Airtel) at the top
-- Merchant ID displayed prominently with a copy icon
-- Payment steps shown in a vertical timeline style (always visible, compact)
-- Amount input with quick-amount buttons
-- A "Pay Now" button that only appears after selecting a provider and entering an amount, which dials the correct USSD code with the amount embedded
-
-## Dynamic USSD Dialing
-
-- **MTN**: `tel:*165*3*{amount}%23` — amount is appended into the dial string
-- **Airtel**: `tel:*185*9%23` — no amount appended (as per user's instruction)
+1. **Header**: Simplified top bar with avatar, app name ("Welile"), and notification bell
+2. **Balance Card**: Purple gradient card showing "AVAILABLE BALANCE", large balance amount, and "Uganda Shillings" subtitle — replaces the current wide gradient header
+3. **Deposit & Withdraw**: Two separate white cards stacked vertically, each with a centered icon and label (replacing the side-by-side grid)
+4. **Wallet Statement Section**: "Wallet Statement" heading with "Updated just now" subtitle, containing an "ALL-TIME NET" summary card with the net amount and a trend icon
+5. **Monthly Summary Card**: "SUMMARY FOR [Month Year]" with a progress bar showing spent vs goal, and a calendar icon
+6. **Recent Transactions**: "Recent Transactions" heading with "View All →" link, followed by transaction rows showing icon, name, date/time, amount, and category label
 
 ## Technical Changes
 
-### File: `src/components/payments/DepositFlow.tsx`
+### File: `src/components/wallet/FullScreenWalletSheet.tsx`
 
-Replace the MoMo instructions block (lines 273-304) with a new layout:
-
-1. **Tab buttons** — Two styled toggle buttons for MTN and Airtel (replacing the RadioGroup). Selected tab gets a colored border/background matching the provider brand.
-2. **Merchant ID block** — Show the merchant code prominently with a copy icon button next to it. On tap, copies to clipboard with toast confirmation.
-3. **Timeline steps** — Replace the collapsible/numbered list with a vertical timeline using a left border line and circular step indicators. Steps are always visible (no collapsible), kept compact with `text-xs`.
-4. **Pay Now button** — Move/add a "Pay Now" button that appears only when `amount` is filled. The button constructs the USSD dial string dynamically:
-  - MTN: `tel:*165*3*${amount}%23`
-  - Airtel: `tel:*185*9%23`
-  - Shows a toast reminder with the merchant ID after tapping
-
-### File: `src/components/payments/PaymentPartnerCard.tsx`
-
-No changes needed — this component may still be used elsewhere, but the deposit flow will no longer use it for the MoMo channel.
+- **Header area** (lines 116-204): Replace the gradient header with a simple white top bar (avatar + "Welile" + bell icon + close button). Below it, render a standalone purple gradient rounded card for the balance display.
+- **Scrollable content** (lines 206-300): Replace the "Pay for Anything" collapsible section and the 2-column Deposit/Withdraw grid with two stacked full-width cards — one for Deposit (purple plus icon) and one for Withdraw (gray icon).
+- **Wallet Statement** (around line 299): Keep `WalletLedgerStatement` but wrap it with a new header style matching the reference ("Wallet Statement / Updated just now"). Add an all-time net summary card above it.
+- **Monthly summary**: Add a new card showing current month, spent amount, goal amount, and a progress bar.
+- **Transactions** (lines 302-370): Restyle transaction rows to show a colored category icon, name + date on the left, and amount + category tag on the right, matching the reference layout.
 
 ## Files Changed
 
-- `src/components/payments/DepositFlow.tsx` — redesign MoMo section (lines 273-304 and the Pay Now button logic around line 460)
+- `src/components/wallet/FullScreenWalletSheet.tsx` — full redesign of layout and styling
+
