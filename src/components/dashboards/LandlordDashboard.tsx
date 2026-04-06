@@ -69,7 +69,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
@@ -78,7 +78,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         menuItems={menuItems}
       />
 
-      <div>
+      <div className="flex-1 overflow-y-auto pb-16 md:pb-4">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
 
           {/* Profile + Wallet Hero Card */}

@@ -216,7 +216,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const quickActions = [] as any[];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       <OfflineBanner />
       
       <DashboardHeader
