@@ -404,7 +404,7 @@ const App = () => (
                         <FloatingToolbar />
                         <PWAInstallPrompt />
                         <Toaster />
-                        <Sonner />
+                        
                       </Suspense>
                     </CurrencyProvider>
                   </LanguageProvider>
