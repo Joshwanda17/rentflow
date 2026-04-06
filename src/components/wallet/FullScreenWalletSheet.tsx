@@ -141,17 +141,6 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     </Badge>
                   )}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-9 w-9 text-muted-foreground hover:bg-muted rounded-full"
-                  onClick={() => {
-                    hapticTap();
-                    onOpenChange(false);
-                  }}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
               </div>
             </div>
           </div>
