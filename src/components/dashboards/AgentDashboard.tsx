@@ -303,7 +303,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <div className="grid grid-cols-3 gap-2">
           {[
             { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
-            { icon: FileText, label: 'Add Tenant', onClick: () => setRentRequestOpen(true), color: 'text-success', bg: 'bg-success/15 border-success/40 hover:bg-success/20 ring-1 ring-success/30' },
+            { icon: FileText, label: 'Add Tenant', onClick: () => setRentRequestOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15 ring-1 ring-[#7C3BED]/30' },
             { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
             { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-chart-4', bg: 'bg-chart-4/10 border-chart-4/30 hover:bg-chart-4/15' },
             { icon: TrendingUp, label: 'Credit', onClick: () => setCreditOpen(prev => !prev), color: 'text-warning', bg: 'bg-warning/10 border-warning/30 hover:bg-warning/15' },
