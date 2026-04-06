@@ -183,7 +183,7 @@ export const roleDashboardRoutes: Partial<Record<AppRole, string>> = {
 
 /** Roles that get redirected away from /dashboard to their isolated environment */
 export const ISOLATED_ROLES: AppRole[] = [
-  'cto', 'cfo', 'coo', 'cmo', 'crm', 'ceo', 'operations',
+  'cto', 'cfo', 'coo', 'cmo', 'crm', 'ceo', 'hr', 'operations',
   'manager', 'super_admin', 'employee',
 ];
 
