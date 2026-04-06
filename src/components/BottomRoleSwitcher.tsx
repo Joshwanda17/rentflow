@@ -91,7 +91,7 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                 )}
               >
                 <div className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-xl transition-colors relative",
+                  "flex items-center justify-center w-7 h-7 rounded-xl transition-colors relative",
                   isActive && "bg-primary/10"
                 )}>
                   <Icon className={cn("h-4.5 w-4.5", isActive && "text-primary")} />
