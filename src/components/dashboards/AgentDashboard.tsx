@@ -306,7 +306,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             { icon: FileText, label: 'Add Tenant', onClick: () => setRentRequestOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15 ring-1 ring-[#7C3BED]/30' },
             { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
             { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15' },
-            { icon: TrendingUp, label: 'Credit', onClick: () => setCreditOpen(prev => !prev), color: 'text-warning', bg: 'bg-warning/10 border-warning/30 hover:bg-warning/15' },
+            { icon: TrendingUp, label: 'Credit', onClick: () => setCreditOpen(prev => !prev), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15' },
             { icon: Menu, label: 'Agent Hub', onClick: handleOpenMenu, color: 'text-foreground/70', bg: 'bg-card border-border/40 hover:bg-muted/40' },
           ].map((action, i) => (
             <button
