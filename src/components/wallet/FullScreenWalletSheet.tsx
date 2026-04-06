@@ -127,7 +127,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 />
                 <span className="text-lg font-bold text-foreground tracking-tight">Welile</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-3">
                 <Button 
                   variant="ghost" 
                   size="icon" 
