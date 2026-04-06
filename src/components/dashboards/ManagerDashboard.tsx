@@ -1165,15 +1165,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       {/* Floating Deposits Widget - mobile only */}
       {isMobile && <FloatingDepositsWidget />}
       
-      {/* Mobile Bottom Nav - hidden on desktop */}
-      {isMobile && (
-        <MobileBottomNav 
-          currentRole={currentRole} 
-          onManagerHubChange={(hub) => { hapticTap(); setActiveHub(hub); }}
-          activeManagerHub={activeHub}
-          onScrollToProductivity={scrollToProductivity}
-        />
-      )}
       
       {/* Floating Action Button - mobile only */}
       {isMobile && (
