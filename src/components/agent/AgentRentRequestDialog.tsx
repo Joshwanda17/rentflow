@@ -661,7 +661,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                         value={outstandingBalance}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Enter amount"
-                        className="h-12 text-lg font-bold border-2 border-warning/30 focus:border-warning rounded-xl"
+                        className="h-12 text-lg font-bold border-2 rounded-xl focus:ring-0" style={{ borderColor: 'rgba(124, 59, 237, 0.4)' }} onFocus={(e) => e.currentTarget.style.borderColor = '#7C3BED'} onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(124, 59, 237, 0.4)'}
                         required
                       />
                       {amount > 0 && (
