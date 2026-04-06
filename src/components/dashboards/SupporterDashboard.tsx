@@ -354,8 +354,8 @@ export default function SupporterDashboard({
         headerActions={<NotificationBell userId={user.id} />}
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto pb-28 md:pb-4 overscroll-contain">
-        <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-5 max-w-lg mx-auto pb-8">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-20 md:pb-4 overscroll-contain">
+        <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-5 max-w-lg mx-auto">
           
           {/* ═══ INLINE GREETING BAR ═══ */}
           <div className="flex flex-col items-center gap-2 py-2">
