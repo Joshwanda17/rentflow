@@ -8,7 +8,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 
-const INTERNAL_ROLES = ['manager', 'super_admin', 'employee', 'operations', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr'] as const;
+import type { AppRole } from '@/hooks/auth/types';
+
+const INTERNAL_ROLES: AppRole[] = ['manager', 'super_admin', 'employee', 'operations', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr'];
 
 interface HROverviewProps {
   onNavigate?: (section: string) => void;

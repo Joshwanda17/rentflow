@@ -9,7 +9,9 @@ import { Search, User, Phone, Mail, ChevronRight, Filter } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
 
-const INTERNAL_ROLES = ['manager', 'super_admin', 'employee', 'operations', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr'] as const;
+import type { AppRole } from '@/hooks/auth/types';
+
+const INTERNAL_ROLES: AppRole[] = ['manager', 'super_admin', 'employee', 'operations', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr'];
 
 const roleColors: Record<string, string> = {
   manager: 'bg-primary/15 text-primary border-primary/20',
