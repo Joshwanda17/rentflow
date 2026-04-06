@@ -376,8 +376,6 @@ export default function SupporterDashboard({
             <AiIdButton variant="compact" />
           </div>
 
-          <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
-
           <MerchantCodePills />
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
@@ -388,6 +386,8 @@ export default function SupporterDashboard({
             portfolioHealth={portfolioHealth}
             totalReturn={totalRoiEarned}
           />
+
+          <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
 
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
