@@ -6502,6 +6502,7 @@ export type Database = {
           house_category: string | null
           house_image_urls: string[] | null
           id: string
+          initial_outstanding_balance: number | null
           landlord_id: string
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
@@ -6513,6 +6514,7 @@ export type Database = {
           number_of_payments: number | null
           payout_method: string | null
           payout_transaction_reference: string | null
+          registration_type: string
           rejected_reason: string | null
           rent_amount: number
           request_city: string | null
@@ -6561,6 +6563,7 @@ export type Database = {
           house_category?: string | null
           house_image_urls?: string[] | null
           id?: string
+          initial_outstanding_balance?: number | null
           landlord_id: string
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
@@ -6572,6 +6575,7 @@ export type Database = {
           number_of_payments?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
+          registration_type?: string
           rejected_reason?: string | null
           rent_amount: number
           request_city?: string | null
@@ -6620,6 +6624,7 @@ export type Database = {
           house_category?: string | null
           house_image_urls?: string[] | null
           id?: string
+          initial_outstanding_balance?: number | null
           landlord_id?: string
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
@@ -6631,6 +6636,7 @@ export type Database = {
           number_of_payments?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
+          registration_type?: string
           rejected_reason?: string | null
           rent_amount?: number
           request_city?: string | null
