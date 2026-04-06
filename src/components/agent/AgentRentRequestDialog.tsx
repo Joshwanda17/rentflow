@@ -509,6 +509,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     </div>
                   </div>
                 </button>
+
+                <button
+                  onClick={() => {
+                    setIncomeType('outstanding');
+                    setDuration('30');
+                    setStep('details');
+                  }}
+                  className="p-4 rounded-xl border-2 border-muted hover:border-warning hover:bg-warning/5 transition-all text-left group active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-warning/10 group-hover:bg-warning/20">
+                      <AlertTriangle className="h-5 w-5 text-warning" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Outstanding Balance</p>
+                      <p className="text-xs text-muted-foreground">Register tenant with existing arrears — no fees applied</p>
+                    </div>
+                  </div>
+                </button>
               </div>
             </motion.div>
           ) : step === 'details' ? (
