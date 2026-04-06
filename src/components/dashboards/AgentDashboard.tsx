@@ -19,6 +19,7 @@ import {
   Banknote,
   FileText,
   Users,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -259,33 +260,33 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Wallet — Most Prominent */}
-        <button
+        <div
           onClick={handleViewWallet}
-          className="group w-full rounded-2xl border-2 border-primary/30 bg-primary/5 p-5 touch-manipulation active:opacity-90"
+          className="relative w-full rounded-2xl bg-gradient-to-br from-[hsl(265,85%,58%)] to-[hsl(265,75%,70%)] p-6 cursor-pointer touch-manipulation active:opacity-90 overflow-hidden"
         >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-primary/15 shrink-0">
-              <Wallet className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Wallet Balance</p>
-              <p className="font-bold text-2xl text-foreground truncate mt-0.5">{formatUGX(wallet?.balance ?? 0)}</p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {profile?.phone && (
-                <>
-                  {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
-                    <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[hsl(48,100%,50%)] text-[7px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
-                  )}
-                  {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
-                    <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-[hsl(0,85%,50%)] text-[7px] font-black text-white leading-none">A</span>
-                  )}
-                </>
-              )}
-              <span className="text-lg text-muted-foreground">›</span>
-            </div>
+          {/* Decorative sparkle */}
+          <div className="absolute top-4 right-4 opacity-30">
+            <Sparkles className="h-8 w-8 text-white" />
           </div>
-        </button>
+
+          <p className="text-sm font-medium text-white/80">Wallet Balance</p>
+          <p className="font-bold text-3xl text-white mt-1 truncate">{formatUGX(wallet?.balance ?? 0)}</p>
+
+          <div className="flex gap-3 mt-5">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleViewWallet(); }}
+              className="flex-1 py-2.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-semibold hover:bg-white/30 transition-colors"
+            >
+              Withdraw
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleViewWallet(); }}
+              className="flex-1 py-2.5 rounded-full bg-white text-[hsl(265,85%,58%)] text-sm font-semibold hover:bg-white/90 transition-colors"
+            >
+              Send
+            </button>
+          </div>
+        </div>
 
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
