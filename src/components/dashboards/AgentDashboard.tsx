@@ -107,7 +107,7 @@ interface AgentDashboardProps {
 export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
-  const { refreshEarnings } = useAgentEarnings();
+  const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
   const { isOnline } = useOffline();
   
