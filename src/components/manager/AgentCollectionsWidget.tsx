@@ -11,8 +11,7 @@ import { buildReceiptText, shareViaWhatsApp } from '@/lib/shareReceipt';
 import { generateAgentReportPdf, buildAgentReportWhatsAppText } from '@/lib/agentReportPdf';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 
-const formatUGX = (value: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
+import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
 interface MerchantPayment {
   id: string;

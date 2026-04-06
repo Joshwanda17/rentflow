@@ -31,8 +31,7 @@ export function DepositRentAuditWidget() {
   const [period, setPeriod] = useState('today');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(v);
+  const { formatAmount: formatCurrency } = useCurrency();
 
   useEffect(() => {
     fetchAuditData();

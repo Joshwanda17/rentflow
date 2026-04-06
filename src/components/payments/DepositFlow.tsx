@@ -73,8 +73,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     return true;
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const getProviderLabel = () => {
     if (channel === 'momo') return momoProvider === 'mtn' ? 'MTN MoMo' : 'Airtel Money';

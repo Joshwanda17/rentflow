@@ -6,13 +6,9 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } from './constants';
 
-const formatUGX = (n: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+import { formatDynamic as formatUGX, formatDynamicCompact } from '@/lib/currencyFormat';
 
-const formatCompact = (n: number) => {
-  if (n >= 1_000_000_000) return `USh ${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `USh ${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `USh ${(n / 1_000).toFixed(0)}K`;
+const formatCompact = formatDynamicCompact;
   return `USh ${n}`;
 };
 

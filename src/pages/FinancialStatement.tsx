@@ -174,8 +174,7 @@ export default function FinancialStatement() {
     if (user) fetchAllTransactions();
   }, [user, fetchAllTransactions]);
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(amount);
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const totalCredits = entries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0);
   const totalDebits = entries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0);

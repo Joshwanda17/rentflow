@@ -44,8 +44,7 @@ export function BillPaymentDialog({ open, onOpenChange }: BillPaymentDialogProps
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const selectedCategory = BILL_CATEGORIES.find(c => c.value === category);
 

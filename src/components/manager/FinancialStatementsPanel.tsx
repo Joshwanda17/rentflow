@@ -10,8 +10,7 @@ import { exportToCSV } from '@/lib/exportUtils';
 import { useFinancialStatements, type StatementPeriod, type FinancialStatementsData } from '@/hooks/useFinancialStatements';
 import { Progress } from '@/components/ui/progress';
 
-const formatUGX = (v: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
 const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'today', label: 'Today' },
