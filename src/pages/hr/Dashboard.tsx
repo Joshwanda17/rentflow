@@ -7,6 +7,7 @@ import HRLeaveManagement from '@/components/hr/HRLeaveManagement';
 import HRPayroll from '@/components/hr/HRPayroll';
 import HRDisciplinary from '@/components/hr/HRDisciplinary';
 import HRAudit from '@/components/hr/HRAudit';
+import HRDepartments from '@/components/hr/HRDepartments';
 
 export default function HRDashboard() {
   const [activeSection, setActiveSection] = useState('overview');
@@ -20,6 +21,7 @@ export default function HRDashboard() {
       case 'payroll': return <HRPayroll />;
       case 'disciplinary': return <HRDisciplinary />;
       case 'audit': return <HRAudit />;
+      case 'departments': return <HRDepartments />;
       default: return <HROverview onNavigate={setActiveSection} />;
     }
   };
