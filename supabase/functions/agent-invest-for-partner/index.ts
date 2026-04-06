@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
     const agentName = agentProfileRes.data?.full_name || "Agent";
 
-    // --- Record agent cash_out in general_ledger (audit only, no txGroupId = no trigger) ---
+    // --- Record agent cash_out in general_ledger ---
     const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
       user_id: agent.id,
       amount,
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- Create investor_portfolio ---
+    // --- Create investor_portfolio (ACTIVE immediately) ---
     let portfolioCode = `WIP${yy}${mm}${dd}${seq()}`;
     try {
       const { data: codeData } = await adminClient.rpc('generate_portfolio_code');
@@ -188,10 +188,10 @@ Deno.serve(async (req) => {
         roi_percentage: 15,
         roi_mode: "monthly_payout",
         portfolio_pin: portfolioPin,
-        payout_day: null, // null = strict 30-day cycle (default); COO can override
+        payout_day: null,
         maturity_date: maturityDate.toISOString().split("T")[0],
         next_roi_date: firstPayoutDate,
-        status: "pending_approval", // Portfolio stays inactive until COO/admin approves
+        status: "active", // Instant activation for field investments
       })
       .select("id")
       .single();
@@ -199,41 +199,55 @@ Deno.serve(async (req) => {
     if (portfolioErr) {
       console.error("[agent-invest-for-partner] Portfolio creation failed:", portfolioErr.message);
       await rollbackAgentWallet();
-      // Clean up ledger entry
       await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
       return errorResponse("Failed to create portfolio, wallet restored. Please retry.", 500);
     }
 
-    // --- Queue partner wallet credit in pending_wallet_operations (requires manager approval) ---
+    // --- Direct ledger entries for instant activation (net-zero pattern) ---
     const monthlyReward = Math.round(amount * 0.15);
-    const { error: pendingErr } = await adminClient.from("pending_wallet_operations").insert({
+    const cashInTxGroupId = crypto.randomUUID();
+    const cashOutTxGroupId = crypto.randomUUID();
+
+    // Step 1: Credit partner wallet (cash_in — supporter_facilitation_capital)
+    const { error: partnerCashInErr } = await adminClient.from("general_ledger").insert({
       user_id: partner_id,
       amount,
       direction: "cash_in",
       category: "supporter_facilitation_capital",
       source_table: "investor_portfolios",
       source_id: portfolio.id,
-      transaction_group_id: txGroupId,
+      transaction_group_id: cashInTxGroupId,
       description: `Agent ${agentName} invested UGX ${amount.toLocaleString()} on behalf of ${partnerName} into Rent Management Pool`,
       reference_id: referenceId,
       linked_party: agentName,
-      metadata: {
-        proxy_agent_id: agent.id,
-        proxy_agent_name: agentName,
-        portfolio_id: portfolio.id,
-        portfolio_code: portfolioCode,
-        monthly_reward: monthlyReward,
-        first_payout_date: firstPayoutDate,
-      },
     });
 
-    if (pendingErr) {
-      console.error("[agent-invest-for-partner] pending_wallet_operations insert failed:", pendingErr.message);
-      // Rollback: restore wallet, delete portfolio, delete ledger
+    if (partnerCashInErr) {
+      console.error("[agent-invest-for-partner] Partner cash_in ledger failed:", partnerCashInErr.message);
       await rollbackAgentWallet();
       await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
       await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
-      return errorResponse("Failed to queue partner credit, all changes rolled back. Please retry.", 500);
+      return errorResponse("Failed to credit partner, all changes rolled back. Please retry.", 500);
+    }
+
+    // Step 2: Debit partner wallet into portfolio (cash_out — wallet_to_investment)
+    const { error: partnerCashOutErr } = await adminClient.from("general_ledger").insert({
+      user_id: partner_id,
+      amount,
+      direction: "cash_out",
+      category: "wallet_to_investment",
+      source_table: "investor_portfolios",
+      source_id: portfolio.id,
+      transaction_group_id: cashOutTxGroupId,
+      description: `Investment of UGX ${amount.toLocaleString()} moved to portfolio ${portfolioCode}`,
+      reference_id: referenceId,
+      linked_party: "Rent Management Pool",
+    });
+
+    if (partnerCashOutErr) {
+      console.error("[agent-invest-for-partner] Partner cash_out ledger failed:", partnerCashOutErr.message);
+      // Non-fatal: the cash_in already happened, wallet sync trigger will balance it.
+      // Log but don't rollback — manual reconciliation preferred over partial state.
     }
 
     // --- Agent 2% commission — queue for approval ---
@@ -268,8 +282,8 @@ Deno.serve(async (req) => {
       // Notify partner
       adminClient.from("notifications").insert({
         user_id: partner_id,
-        title: "🎉 Thank You — A Contribution Was Made for You!",
-        message: `Your agent ${agentName} facilitated UGX ${amount.toLocaleString()} on your behalf. This is pending approval by management.\n\n⏳ Once approved, your investment will begin working for at least 30 days before your first reward.\n\n💰 You'll earn 15% (UGX ${monthlyReward.toLocaleString()}) monthly for 12 months.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
+        title: "🎉 Your Investment is Active!",
+        message: `Your agent ${agentName} facilitated UGX ${amount.toLocaleString()} on your behalf into the Rent Management Pool.\n\n✅ Your portfolio is now active!\n\n💰 You'll earn 15% (UGX ${monthlyReward.toLocaleString()}) monthly for 12 months.\n📅 First Payout: ${firstPayoutDate}\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
         type: "success",
         metadata: {
           amount,
@@ -286,8 +300,8 @@ Deno.serve(async (req) => {
       // Notify agent
       adminClient.from("notifications").insert({
         user_id: agent.id,
-        title: "✅ Partner Investment Completed",
-        message: `You invested UGX ${amount.toLocaleString()} from your wallet on behalf of ${partnerName}. Both the partner credit and your 2% commission (UGX ${commission.toLocaleString()}) are pending COO/admin approval.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
+        title: "✅ Partner Portfolio Activated",
+        message: `You invested UGX ${amount.toLocaleString()} from your wallet on behalf of ${partnerName}. The portfolio is now active!\n\nYour 2% commission (UGX ${commission.toLocaleString()}) is pending approval.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
         type: "info",
         metadata: {
           amount,
@@ -302,16 +316,14 @@ Deno.serve(async (req) => {
       }),
     ]);
 
-    console.log(`[agent-invest-for-partner] Agent ${agent.id} invested ${amount} for partner ${partner_id}. Portfolio: ${portfolioCode}. Ref: ${referenceId}. TxGroup: ${txGroupId}`);
-
+    console.log(`[agent-invest-for-partner] Agent ${agent.id} invested ${amount} for partner ${partner_id}. Portfolio: ${portfolioCode} (ACTIVE). Ref: ${referenceId}. TxGroup: ${txGroupId}`);
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "📊 Agent Investment", body: "Activity: investment for partner", url: "/manager" }),
+      body: JSON.stringify({ title: "📊 Agent Investment Activated", body: `${agentName} activated portfolio for ${partnerName}`, url: "/manager" }),
     }).catch(() => {});
-
 
     return new Response(
       JSON.stringify({
