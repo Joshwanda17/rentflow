@@ -19,7 +19,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { 
   User, 
-  
   MapPin,
   Navigation,
   Building2,
@@ -33,7 +32,8 @@ import {
   Share2,
   Copy,
   MessageCircle,
-  Home
+  Home,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
