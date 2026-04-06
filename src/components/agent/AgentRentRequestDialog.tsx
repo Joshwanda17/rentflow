@@ -946,14 +946,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 </Button>
                 <Button 
                   onClick={handleSubmit} 
-                  className="flex-1" 
-                  disabled={loading || !amount || amount < 50000}
+                  className={`flex-1 ${incomeType === 'outstanding' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' : ''}`}
+                  disabled={loading || !amount || (incomeType === 'outstanding' ? amount < 2000 : amount < 50000)}
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Submitting...
                     </>
+                  ) : incomeType === 'outstanding' ? (
+                    'Register Tenant (No Fees)'
                   ) : (
                     'Submit Request'
                   )}
