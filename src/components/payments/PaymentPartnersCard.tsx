@@ -163,7 +163,7 @@ export default function PaymentPartnersCard({ dashboardType, onPaymentSubmitted 
               className={cn(
                 'w-full h-11 font-semibold',
                 isMtn
-                  ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]/90 text-destructive-foreground'
+                  ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]/90'
                   : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
               )}
               onClick={handlePayNow}
