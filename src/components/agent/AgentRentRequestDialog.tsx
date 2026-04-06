@@ -189,11 +189,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     onOpenChange(newOpen);
   };
 
-  const amount = parseInt(rentAmount.replace(/,/g, '')) || 0;
+  const amount = incomeType === 'outstanding' 
+    ? (parseInt(outstandingBalance.replace(/,/g, '')) || 0)
+    : (parseInt(rentAmount.replace(/,/g, '')) || 0);
   
   // Calculate fees based on income type
   const calculateFees = () => {
     if (!amount || !incomeType) return null;
+    
+    if (incomeType === 'outstanding') {
+      const days = parseInt(duration);
+      return {
+        rentAmount: amount,
+        durationDays: days,
+        accessFee: 0,
+        requestFee: 0,
+        totalRepayment: amount,
+        dailyRepayment: Math.ceil(amount / days),
+      };
+    }
     
     if (incomeType === 'daily') {
       return calculateRentRepayment(amount, parseInt(duration) as 30 | 60 | 90);
