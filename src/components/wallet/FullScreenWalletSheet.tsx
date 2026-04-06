@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { 
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
-  Bell, History, TrendingUp, TrendingDown, ArrowDownToLine,
-  X, ShoppingCart, UtensilsCrossed, Fuel, Car, Hotel,
-  Stethoscope, Wrench, Coffee, Scissors, BookOpen, Zap, Droplets,
+  Bell, TrendingUp, ArrowDownToLine,
+  X, Calendar, ChevronRight,
   ChevronDown
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
@@ -32,6 +31,7 @@ import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
 import { AgentRentRequestsWalletSection } from './AgentRentRequestsWalletSection';
+import { format } from 'date-fns';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -55,7 +55,6 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
-  const [payAnythingOpen, setPayAnythingOpen] = useState(false);
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
@@ -105,275 +104,274 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     { sent: 0, received: 0 }
   );
 
+  const netAmount = recentStats.received - recentStats.sent;
+  const currentMonth = format(new Date(), 'MMMM yyyy');
+  const spentGoal = 500000; // Example goal
+  const spentPercent = spentGoal > 0 ? Math.min((recentStats.sent / spentGoal) * 100, 100) : 0;
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent 
           side="bottom" 
-          className="h-[100dvh] p-0 rounded-none border-0"
+          className="h-[100dvh] p-0 rounded-none border-0 flex flex-col"
         >
-          {/* Full-screen wallet header */}
-          <div className="bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground safe-area-top">
-            <SheetHeader className="p-4 pb-0">
-              <div className="flex items-center justify-between">
-                <SheetTitle className="text-primary-foreground flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-primary-foreground/15 backdrop-blur-sm">
-                    <Wallet className="h-5 w-5" />
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span>Rent Money</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {profile?.phone ? (
-                        <>
-                          {(() => {
-                            const phone = profile.phone;
-                            const isMTN = /^(\+?256)?0?(77|78|76)/.test(phone);
-                            const isAirtel = /^(\+?256)?0?(75|70|74)/.test(phone);
-                            return (
-                              <>
-                                {isMTN && (
-                                  <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[8px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
-                                )}
-                                {isAirtel && (
-                                  <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[8px] font-black text-white leading-none">A</span>
-                                )}
-                              </>
-                            );
-                          })()}
-                          <span className="text-[11px] font-medium opacity-80">{profile.phone}</span>
-                        </>
-                      ) : (
-                        <span className="text-[11px] font-medium opacity-60 italic">No number linked</span>
-                      )}
-                    </div>
-                  </div>
-                </SheetTitle>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="relative h-10 w-10 text-primary-foreground hover:bg-primary-foreground/15 rounded-xl"
-                    onClick={() => setPendingOpen(true)}
-                  >
-                    <Bell className="h-5 w-5" />
-                    {pendingCount > 0 && (
-                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-warning text-warning-foreground animate-pulse">
-                        {pendingCount}
-                      </Badge>
-                    )}
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-10 w-10 text-primary-foreground hover:bg-primary-foreground/15 rounded-xl"
-                    onClick={() => {
-                      hapticTap();
-                      onOpenChange(false);
-                    }}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
+          {/* Clean white top bar */}
+          <div className="safe-area-top bg-background border-b border-border/40">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                <UserAvatar 
+                  avatarUrl={profile?.avatar_url} 
+                  fullName={profile?.full_name} 
+                  size="sm" 
+                />
+                <span className="text-lg font-bold text-foreground tracking-tight">Welile</span>
               </div>
-            </SheetHeader>
-
-            {/* Balance section — BIG & BOLD */}
-            <div className="p-5 pt-6 pb-8 text-center">
-              <p className="text-sm opacity-70 font-medium mb-1">{profile?.full_name || 'My Balance'}</p>
-              <AnimatedBalance 
-                value={wallet?.balance || 0} 
-                className="text-[clamp(2.2rem,10vw,3.5rem)] font-black tracking-tight block leading-none"
-              />
-              <p className="text-xs opacity-60 mt-2 uppercase tracking-widest font-semibold">Uganda Shillings</p>
-              
-              {/* Mini stats */}
-              {transactions.length > 0 && (
-                <div className="flex gap-3 mt-5 justify-center">
-                  <div className="flex items-center gap-1.5 bg-primary-foreground/10 rounded-full px-3 py-1.5">
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-300" />
-                    <span className="text-xs font-bold">{formatCurrency(recentStats.received)}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-primary-foreground/10 rounded-full px-3 py-1.5">
-                    <TrendingDown className="h-3.5 w-3.5 text-red-300" />
-                    <span className="text-xs font-bold">{formatCurrency(recentStats.sent)}</span>
-                  </div>
-                </div>
-              )}
-              <WalletDisclaimer variant="dark" />
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="relative h-9 w-9 text-foreground hover:bg-muted rounded-full"
+                  onClick={() => setPendingOpen(true)}
+                >
+                  <Bell className="h-5 w-5" />
+                  {pendingCount > 0 && (
+                    <Badge className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
+                      {pendingCount}
+                    </Badge>
+                  )}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-9 w-9 text-muted-foreground hover:bg-muted rounded-full"
+                  onClick={() => {
+                    hapticTap();
+                    onOpenChange(false);
+                  }}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Scrollable content */}
           <div 
-            className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 bg-background"
-            style={{ 
-              height: 'calc(100dvh - 280px)',
-              WebkitOverflowScrolling: 'touch'
-            }}
+            className="flex-1 overflow-y-auto overscroll-contain bg-muted/30"
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {/* === PAY FOR ANYTHING — Collapsible category grid === */}
-            <div>
-              <button
-                onClick={() => { hapticTap(); setPayAnythingOpen(!payAnythingOpen); }}
-                className="flex items-center justify-between w-full mb-3 group"
-              >
-                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Pay for Anything</h3>
-                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${payAnythingOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {payAnythingOpen && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                  {/* Send & Request buttons */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      onClick={() => { hapticTap(); setSendOpen(true); }} 
-                      className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all shadow-sm"
-                    >
-                      <Send className="h-4 w-4" />
-                      <span className="text-[10px] font-semibold">Send</span>
-                    </Button>
-                    <Button 
-                      onClick={() => { hapticTap(); setRequestOpen(true); }} 
-                      variant="secondary"
-                      className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all"
-                    >
-                      <HandCoins className="h-4 w-4" />
-                      <span className="text-[10px] font-semibold">Request</span>
-                    </Button>
-                  </div>
-                  {/* Category grid */}
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { icon: UtensilsCrossed, label: 'Food', color: 'bg-orange-500/15 text-orange-600', action: () => setFoodMarketOpen(true) },
-                      { icon: ShoppingCart, label: 'Groceries', color: 'bg-green-500/15 text-green-600', action: () => setFoodMarketOpen(true) },
-                      { icon: Fuel, label: 'Fuel', color: 'bg-amber-500/15 text-amber-700', action: () => setBillsOpen(true) },
-                      { icon: Car, label: 'Transport', color: 'bg-blue-500/15 text-blue-600', action: () => setSendOpen(true) },
-                      { icon: Hotel, label: 'Hotel', color: 'bg-purple-500/15 text-purple-600', action: () => setSendOpen(true) },
-                      { icon: Stethoscope, label: 'Clinic', color: 'bg-red-500/15 text-red-600', action: () => setSendOpen(true) },
-                      { icon: Wrench, label: 'Mechanic', color: 'bg-slate-500/15 text-slate-600', action: () => setSendOpen(true) },
-                      { icon: Coffee, label: 'Restaurant', color: 'bg-rose-500/15 text-rose-600', action: () => setSendOpen(true) },
-                      { icon: Zap, label: 'Electricity', color: 'bg-yellow-500/15 text-yellow-700', action: () => setBillsOpen(true) },
-                      { icon: Droplets, label: 'Water', color: 'bg-cyan-500/15 text-cyan-600', action: () => setBillsOpen(true) },
-                      { icon: Scissors, label: 'Salon', color: 'bg-pink-500/15 text-pink-600', action: () => setSendOpen(true) },
-                      { icon: BookOpen, label: 'School', color: 'bg-indigo-500/15 text-indigo-600', action: () => setSendOpen(true) },
-                    ].map((cat) => (
-                      <button
-                        key={cat.label}
-                        onClick={() => { hapticTap(); cat.action(); }}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-border/50 bg-card hover:shadow-md active:scale-95 transition-all min-h-[72px]"
-                      >
-                        <div className={`p-2.5 rounded-full ${cat.color}`}>
-                          <cat.icon className="h-5 w-5" />
-                        </div>
-                        <span className="text-[10px] font-semibold text-foreground leading-tight">{cat.label}</span>
-                      </button>
-                    ))}
-                  </div>
+            <div className="p-4 space-y-4">
+              {/* Purple gradient balance card */}
+              <Card className="overflow-hidden border-0 shadow-lg">
+                <div className="bg-gradient-to-br from-[hsl(270,80%,55%)] via-[hsl(265,75%,50%)] to-[hsl(280,70%,40%)] p-6 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
+                    Available Balance
+                  </p>
+                  <AnimatedBalance 
+                    value={wallet?.balance || 0} 
+                    className="text-[clamp(2rem,9vw,3rem)] font-black text-white tracking-tight block leading-none"
+                  />
+                  <p className="text-[11px] text-white/50 mt-2 uppercase tracking-widest font-medium">
+                    Uganda Shillings
+                  </p>
+                  <WalletDisclaimer variant="dark" />
                 </div>
-              )}
-            </div>
+              </Card>
 
-            {/* Visible wallet actions — Deposit & Withdraw only */}
-            <div>
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">Wallet</h3>
-              <div className="grid grid-cols-2 gap-2">
+              {/* Deposit card */}
+              <Card 
+                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
+                onClick={() => { hapticTap(); setDepositOpen(true); }}
+              >
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-[hsl(270,80%,55%)]/10 flex items-center justify-center shrink-0">
+                    <Plus className="h-6 w-6 text-[hsl(270,80%,55%)]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-foreground">Deposit</p>
+                    <p className="text-xs text-muted-foreground">Add funds to your wallet</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
+                </CardContent>
+              </Card>
+
+              {/* Withdraw card */}
+              <Card 
+                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
+                onClick={() => { hapticTap(); setWithdrawOpen(true); }}
+              >
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center shrink-0">
+                    <ArrowDownToLine className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-foreground">Withdraw</p>
+                    <p className="text-xs text-muted-foreground">Cash out to mobile money</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
+                </CardContent>
+              </Card>
+
+              {/* Quick actions row */}
+              <div className="grid grid-cols-2 gap-3">
                 <Button 
-                  onClick={() => { hapticTap(); setDepositOpen(true); }} 
-                  variant="outline" 
-                  className="flex-col gap-2 h-auto py-4 rounded-2xl active:scale-95 transition-all border-purple-500/50 hover:bg-purple-500/10"
+                  onClick={() => { hapticTap(); setSendOpen(true); }} 
+                  variant="outline"
+                  className="h-auto py-3 rounded-2xl border-border/50 flex items-center gap-2"
                 >
-                  <Plus className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-bold text-purple-600">Deposit</span>
+                  <Send className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">Send</span>
                 </Button>
                 <Button 
-                  onClick={() => { hapticTap(); setWithdrawOpen(true); }} 
-                  variant="outline" 
-                  className="flex-col gap-1.5 h-auto py-3 rounded-2xl active:scale-95 transition-all border-warning/50 text-warning hover:bg-warning/10"
+                  onClick={() => { hapticTap(); setRequestOpen(true); }} 
+                  variant="outline"
+                  className="h-auto py-3 rounded-2xl border-border/50 flex items-center gap-2"
                 >
-                  <ArrowDownToLine className="h-4 w-4" />
-                  <span className="text-[10px] font-semibold">Withdraw</span>
+                  <HandCoins className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">Request</span>
                 </Button>
               </div>
-            </div>
 
-            {/* Ledger-based wallet statement */}
-            <WalletLedgerStatement />
-
-            {/* Recent transactions */}
-            <Card className="border-border/50 rounded-2xl">
-              <CardContent className="p-4">
+              {/* Wallet Statement section */}
+              <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Recent Transactions</h3>
+                  <div>
+                    <h3 className="text-base font-bold text-foreground">Wallet Statement</h3>
+                    <p className="text-xs text-muted-foreground">Updated just now</p>
+                  </div>
+                </div>
+
+                {/* All-time net card */}
+                <Card className="border-border/50 shadow-sm mb-4">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">All-Time Net</p>
+                      <p className={`text-xl font-black tabular-nums ${netAmount >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {netAmount >= 0 ? '+' : ''}{formatCurrency(netAmount)}
+                      </p>
+                    </div>
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${netAmount >= 0 ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                      <TrendingUp className={`h-5 w-5 ${netAmount >= 0 ? 'text-success' : 'text-destructive'}`} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Monthly summary card */}
+                <Card className="border-border/50 shadow-sm mb-4">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Summary for {currentMonth}
+                      </p>
+                    </div>
+                    <div className="flex items-end justify-between mb-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Spent</p>
+                        <p className="text-lg font-bold text-foreground tabular-nums">{formatCurrency(recentStats.sent)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Goal</p>
+                        <p className="text-sm font-semibold text-muted-foreground tabular-nums">{formatCurrency(spentGoal)}</p>
+                      </div>
+                    </div>
+                    <Progress 
+                      value={spentPercent} 
+                      size="sm" 
+                      variant={spentPercent > 80 ? 'destructive' : spentPercent > 50 ? 'warning' : 'default'} 
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Ledger statement */}
+                <WalletLedgerStatement />
+              </div>
+
+              {/* Recent Transactions */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-bold text-foreground">Recent Transactions</h3>
                   <Button 
-                    variant="ghost" 
+                    variant="link" 
                     size="sm" 
                     onClick={() => {
                       hapticTap();
                       onOpenChange(false);
                       navigate('/transactions');
                     }}
-                    className="gap-1 h-8 px-3 text-xs"
+                    className="gap-1 h-auto p-0 text-xs text-primary font-semibold"
                   >
                     View All
-                    <History className="h-3.5 w-3.5" />
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 
                 {transactions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">No transactions yet</p>
-                  </div>
+                  <Card className="border-border/50">
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      <Wallet className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No transactions yet</p>
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <div className="space-y-2">
-                    {transactions.slice(0, 5).map((tx) => {
-                      const isSent = tx.sender_id === user?.id;
-                      return (
-                        <button 
-                          key={tx.id} 
-                          onClick={() => {
-                            hapticTap();
-                            setSelectedTransaction(tx);
-                            setReceiptOpen(true);
-                          }}
-                          className="flex items-center justify-between p-3 rounded-xl w-full hover:bg-muted/50 active:scale-[0.98] transition-all"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-full ${isSent ? 'bg-destructive/10' : 'bg-success/10'}`}>
-                              {isSent ? (
-                                <ArrowUpRight className="h-4 w-4 text-destructive" />
-                              ) : (
-                                <ArrowDownLeft className="h-4 w-4 text-success" />
-                              )}
+                  <Card className="border-border/50 shadow-sm overflow-hidden">
+                    <div className="divide-y divide-border/50">
+                      {transactions.slice(0, 5).map((tx) => {
+                        const isSent = tx.sender_id === user?.id;
+                        return (
+                          <button 
+                            key={tx.id} 
+                            onClick={() => {
+                              hapticTap();
+                              setSelectedTransaction(tx);
+                              setReceiptOpen(true);
+                            }}
+                            className="flex items-center justify-between p-4 w-full hover:bg-muted/30 active:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${isSent ? 'bg-destructive/10' : 'bg-success/10'}`}>
+                                {isSent ? (
+                                  <ArrowUpRight className="h-4 w-4 text-destructive" />
+                                ) : (
+                                  <ArrowDownLeft className="h-4 w-4 text-success" />
+                                )}
+                              </div>
+                              <div className="text-left">
+                                <p className="text-sm font-semibold text-foreground">
+                                  {isSent ? tx.recipient_name : tx.sender_name}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {format(new Date(tx.created_at), 'MMM d, yyyy • h:mm a')}
+                                </p>
+                              </div>
                             </div>
-                            <div className="text-left">
-                              <p className="text-sm font-semibold">
-                                {isSent ? tx.recipient_name : tx.sender_name}
+                            <div className="text-right">
+                              <p className={`text-sm font-bold tabular-nums ${isSent ? 'text-destructive' : 'text-success'}`}>
+                                {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(tx.created_at).toLocaleDateString()}
-                              </p>
+                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-medium">
+                                {isSent ? 'Sent' : 'Received'}
+                              </Badge>
                             </div>
-                          </div>
-                          <p className={`text-base font-bold tabular-nums ${isSent ? 'text-destructive' : 'text-success'}`}>
-                            {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Agent Rent Requests — verify inline */}
-            <AgentRentRequestsWalletSection />
+              {/* Agent Rent Requests — verify inline */}
+              <AgentRentRequestsWalletSection />
 
-            {/* User's Pending Requests */}
-            <UserDepositRequests />
-            <UserWithdrawalRequests />
+              {/* User's Pending Requests */}
+              <UserDepositRequests />
+              <UserWithdrawalRequests />
 
-            {/* Bottom padding for safe area */}
-            <div className="h-8 safe-area-bottom" />
+              {/* Bottom padding for safe area */}
+              <div className="h-8 safe-area-bottom" />
+            </div>
           </div>
         </SheetContent>
       </Sheet>
