@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
@@ -72,13 +73,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     }
   }, [open, fetchAllPendingCounts, refreshWallet, refreshTransactions]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const handlePendingClose = (isOpen: boolean) => {
     setPendingOpen(isOpen);
