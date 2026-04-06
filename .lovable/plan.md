@@ -1,36 +1,38 @@
+# Redesign MoMo Deposit Flow — Tab-Based Provider Selection
 
+## What Changes
 
-# Fix Disciplinary "Issue Action" Button and Record Display
+When a funder selects "Mobile Money" to deposit, instead of seeing two separate large cards (MTN and Airtel) that expand awkwardly, they'll see a clean tab-based interface with:
 
-## Problem
-The "Issue Action" button in the disciplinary form does not save records. The database table is empty, confirming inserts never succeed. RLS policies and foreign keys are correctly configured, so the issue is in the frontend code.
+- Two toggle buttons (MTN / Airtel) at the top
+- Merchant ID displayed prominently with a copy icon
+- Payment steps shown in a vertical timeline style (always visible, compact)
+- Amount input with quick-amount buttons
+- A "Pay Now" button that only appears after selecting a provider and entering an amount, which dials the correct USSD code with the amount embedded
 
-## Root Cause Analysis
-After investigation, the RLS policies, table schema, foreign keys, and user roles all check out. The most likely cause is that the Supabase client insert silently returns an error that gets swallowed, or the button click event is not properly reaching the mutation. The `as any` type cast on `action_type` may also mask a type issue.
+## Dynamic USSD Dialing
 
-## Plan
+- **MTN**: `tel:*165*3*{amount}%23` — amount is appended into the dial string
+- **Airtel**: `tel:*185*9%23` — no amount appended (as per user's instruction)
 
-### 1. Add robust error logging to the save mutation
-**File: `src/components/hr/HRDisciplinary.tsx`**
-- Add `console.error` logging in the `mutationFn` to capture the exact Supabase error
-- Log the full payload before insert for debugging
-- Ensure the error object's `message`, `details`, `hint`, and `code` fields are all captured in the toast
+## Technical Changes
 
-### 2. Fix potential `action_type` enum casting issue
-**File: `src/components/hr/HRDisciplinary.tsx`**
-- Remove the `as any` cast on `action_type` — instead, properly type the payload to match the `Database["public"]["Enums"]["disciplinary_action_type"]` type
-- This ensures the value sent to Supabase exactly matches what the database enum expects
+### File: `src/components/payments/DepositFlow.tsx`
 
-### 3. Add a `type="button"` to the Issue Action button
-**File: `src/components/hr/HRDisciplinary.tsx`**
-- Add explicit `type="button"` to prevent any implicit form submission behavior that could interfere with the `onClick` handler
-- This is a common issue when buttons are inside Dialog components
+Replace the MoMo instructions block (lines 273-304) with a new layout:
 
-### 4. Ensure records display immediately after insert
-**File: `src/components/hr/HRDisciplinary.tsx`**
-- After `invalidateQueries`, also call `refetchQueries` to force an immediate re-fetch
-- Add a loading state on the table while refetching so the user sees feedback
+1. **Tab buttons** — Two styled toggle buttons for MTN and Airtel (replacing the RadioGroup). Selected tab gets a colored border/background matching the provider brand.
+2. **Merchant ID block** — Show the merchant code prominently with a copy icon button next to it. On tap, copies to clipboard with toast confirmation.
+3. **Timeline steps** — Replace the collapsible/numbered list with a vertical timeline using a left border line and circular step indicators. Steps are always visible (no collapsible), kept compact with `text-xs`.
+4. **Pay Now button** — Move/add a "Pay Now" button that appears only when `amount` is filled. The button constructs the USSD dial string dynamically:
+  - MTN: `tel:*165*3*${amount}%23`
+  - Airtel: `tel:*185*9%23`
+  - Shows a toast reminder with the merchant ID after tapping
 
-### Files Changed
-- `src/components/hr/HRDisciplinary.tsx` — fix mutation, button type, error logging, and refetch behavior
+### File: `src/components/payments/PaymentPartnerCard.tsx`
 
+No changes needed — this component may still be used elsewhere, but the deposit flow will no longer use it for the MoMo channel.
+
+## Files Changed
+
+- `src/components/payments/DepositFlow.tsx` — redesign MoMo section (lines 273-304 and the Pay Now button logic around line 460)
