@@ -165,17 +165,17 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 <div>
                   <CircleDollarSign className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
                   <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Capital</p>
-                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(totalInvested)}</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate"><CompactAmount value={totalInvested} /></p>
                 </div>
                 <div>
                   <ArrowUpRight className="h-3.5 w-3.5 text-success mx-auto mb-1 opacity-60" />
                   <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Earned</p>
-                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-success mt-0.5 truncate">{formatAmount(totalEarned)}</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-success mt-0.5 truncate"><CompactAmount value={totalEarned} /></p>
                 </div>
                 <div>
                   <Target className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
                   <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Monthly</p>
-                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(expectedMonthly)}</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate"><CompactAmount value={expectedMonthly} /></p>
                 </div>
               </div>
             </div>
