@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,8 +32,7 @@ export function DepositRentAuditWidget() {
   const [period, setPeriod] = useState('today');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const formatCurrency = (v: number) =>
-    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(v);
+  const { formatAmount: formatCurrency } = useCurrency();
 
   useEffect(() => {
     fetchAuditData();

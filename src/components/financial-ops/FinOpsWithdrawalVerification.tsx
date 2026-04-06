@@ -38,8 +38,8 @@ interface WithdrawalRequest {
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
 
-const formatCurrency = (v: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(v);
+import { formatDynamic } from '@/lib/currencyFormat';
+const formatCurrency = formatDynamic;
 
 export function FinOpsWithdrawalVerification() {
   const { user } = useAuth();

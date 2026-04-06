@@ -1,6 +1,7 @@
 import { Transaction } from '@/types/financial';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
+import { formatDynamic, formatDynamicCompact } from '@/lib/currencyFormat';
 
 interface RevenueChartProps {
   transactions: Transaction[];
@@ -55,7 +56,7 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
             <YAxis 
               stroke="hsl(215, 20%, 55%)"
               fontSize={12}
-              tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+              tickFormatter={(value) => formatDynamicCompact(value)}
             />
             <Tooltip 
               contentStyle={{
@@ -65,11 +66,7 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
               }}
               labelStyle={{ color: 'hsl(210, 40%, 98%)' }}
               formatter={(value: number) => [
-                new Intl.NumberFormat('en-UG', {
-                  style: 'currency',
-                  currency: 'UGX',
-                  minimumFractionDigits: 0,
-                }).format(value),
+                formatDynamic(value),
                 'Revenue'
               ]}
             />

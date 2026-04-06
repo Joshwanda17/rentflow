@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -73,8 +74,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     return true;
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const getProviderLabel = () => {
     if (channel === 'momo') return momoProvider === 'mtn' ? 'MTN MoMo' : 'Airtel Money';

@@ -1,7 +1,6 @@
 // jsPDF loaded dynamically to reduce initial bundle size
 
-const formatUGX = (value: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
+import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
 interface PaymentRow {
   tenant_name?: string;

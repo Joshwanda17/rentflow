@@ -54,8 +54,8 @@ const PAYOUT_OPTIONS: { value: PayoutMode; label: string; sublabel: string; icon
   { value: 'cash', label: 'Cash', sublabel: 'Agent', icon: '💵', accent: 'from-emerald-400/20 to-emerald-500/5 border-emerald-400/40', ring: 'ring-emerald-400' },
 ];
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
+import { formatDynamic } from '@/lib/currencyFormat';
+const formatCurrency = formatDynamic;
 
 export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuccess }: WithdrawRequestDialogProps) {
   const { user } = useAuth();

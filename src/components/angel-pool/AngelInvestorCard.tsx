@@ -8,8 +8,7 @@ import { MOCK_TOTAL_RAISED } from './mockData';
 import { toPng } from 'html-to-image';
 import { useToast } from '@/hooks/use-toast';
 
-const formatUGX = (n: number) =>
-  new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
 
 export function AngelInvestorCard() {
   const [name, setName] = useState('');

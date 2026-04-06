@@ -2,6 +2,7 @@ import { Transaction, CASH_IN_CATEGORIES, CASH_OUT_CATEGORIES } from '@/types/fi
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -13,14 +14,7 @@ const getCategoryLabel = (category: string, direction: string) => {
 };
 
 export function TransactionList({ transactions }: TransactionListProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const { formatAmount: formatCurrency } = useCurrency();
 
   if (transactions.length === 0) {
     return (

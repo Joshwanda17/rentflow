@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useCurrency } from '@/hooks/useCurrency';
 import {
   Dialog,
   DialogContent,
@@ -62,8 +63,7 @@ export function FoodMarketDialog({ open, onOpenChange }: FoodMarketDialogProps) 
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
+  const { formatAmount: formatCurrency } = useCurrency();
 
   const total = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantity, 0), [cart]);
 
