@@ -1,45 +1,41 @@
 
 
-# Compact Money Values in My Support Accounts
+# Redesign Agent Wallet Card to Purple Gradient Style
 
 ## What Changes
 
-All money values in the **Support Accounts** tab (summary row + each account card) will display in compact format (e.g., **1.508M** instead of **1,508,000**). Tapping any value toggles it to show the full amount, and tapping again returns to compact.
+The agent's wallet card on the dashboard will be restyled to match the uploaded reference image — a bold purple gradient card with rounded corners, the balance prominently displayed, and "Withdraw" / "Send" action buttons at the bottom.
 
-## How It Works
+## Design
 
-### New reusable component: `CompactAmount`
+Based on the reference image:
+- Purple gradient background (`from-[#7C3BED]` to a lighter purple)
+- White text throughout
+- "Wallet Balance" label at top-left
+- Large bold "UGX {amount}" below
+- A decorative icon/sparkle element top-right
+- Two pill-shaped action buttons at the bottom: **Withdraw** and **Send**
 
-A small inline component that wraps any currency value:
+## Technical Details
 
-```
-src/components/ui/CompactAmount.tsx
-```
+**File: `src/components/dashboards/AgentDashboard.tsx`** (lines ~261-288)
 
-- Renders `formatAmountCompact(value)` by default
-- On click/tap, toggles to `formatAmount(value)` (full figure)
-- Tap again returns to compact
-- Subtle underline-dotted style to hint it's tappable
-- Uses `useCurrency` hook internally
+Replace the current wallet `<button>` block with a styled purple gradient card:
 
-### Where values get updated
+- Background: `bg-gradient-to-br from-[#7C3BED] to-[#9B6EF3]` with rounded-2xl
+- White text for label and balance
+- Two bottom buttons: "Withdraw" (opens withdraw flow) and "Send" (opens wallet sheet or send flow)
+- Remove the current border/primary-tint styling and carrier badges
+- Keep the `onClick` on the main card area to open `FullScreenWalletSheet`
+- Add `e.stopPropagation()` on the two action buttons so they trigger their own flows
 
-**File: `src/components/supporter/InvestmentBreakdownSheet.tsx`**
-
-Replace `formatAmount(...)` calls with `<CompactAmount value={...} />` in:
-
-1. **Summary row** (lines ~167, 172, 177) — Capital, Earned, Monthly
-2. **Account cards — Capital** (line ~297)
-3. **Account cards — Monthly return** (line ~303 area)
-4. **Account cards — Total earned** (within the accordion details)
-5. **Any other money display** inside the Support Accounts tab
-
-The Angel Shares tab and other components remain unchanged.
+### Button Actions
+- **Withdraw**: Opens the existing `FullScreenWalletSheet` (or a withdraw-specific flow if one exists)
+- **Send**: Opens the `FullScreenWalletSheet` for sending money
 
 ### Files
 
 | Action | File |
 |--------|------|
-| Create | `src/components/ui/CompactAmount.tsx` |
-| Modify | `src/components/supporter/InvestmentBreakdownSheet.tsx` — swap `formatAmount()` calls to `<CompactAmount>` |
+| Modify | `src/components/dashboards/AgentDashboard.tsx` — restyle wallet card to purple gradient with Withdraw/Send buttons |
 
