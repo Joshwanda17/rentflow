@@ -612,6 +612,24 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "💰 Agent Deposit", body: "Activity: deposit", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to agent & tenant (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({
+        userIds: [agentId],
+        payload: { title: "✅ Deposit Recorded", body: `UGX ${amount.toLocaleString()} deposit processed successfully`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({
+        userIds: [targetUserId],
+        payload: { title: "💰 Deposit Received", body: `UGX ${amount.toLocaleString()} deposited to your account`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
 
     return new Response(
       JSON.stringify({

@@ -241,6 +241,16 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "📊 Portfolio Top-Up", body: "Activity: portfolio top-up", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to partner (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        userIds: [user.id],
+        payload: { title: "✅ Portfolio Top-Up Confirmed", body: `UGX ${topupAmount.toLocaleString()} portfolio top-up submitted`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
 
     return new Response(JSON.stringify({
       success: true,

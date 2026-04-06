@@ -179,6 +179,16 @@ Deno.serve(async (req) => {
       },
     });
 
+    // Push notification to target user (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({
+        userIds: [target_user_id],
+        payload: { title: "💸 Wallet Deduction", body: `UGX ${amount.toLocaleString()} deducted from your wallet`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
     return new Response(
       JSON.stringify({
         success: true,

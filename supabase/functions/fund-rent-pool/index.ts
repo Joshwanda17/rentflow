@@ -222,6 +222,16 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "🏦 Rent Pool Funded", body: "Activity: rent pool funded", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to supporter (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({
+        userIds: [user.id],
+        payload: { title: "✅ Rent Pool Funded", body: `UGX ${amount.toLocaleString()} successfully funded to rent pool`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
 
     return new Response(
       JSON.stringify({
