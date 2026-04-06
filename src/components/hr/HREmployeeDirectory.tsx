@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Search, User, ArrowUpDown, Users } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
-import HREmployeeDetailDrawer from './HREmployeeDetailDrawer';
+
 
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -52,7 +53,7 @@ export default function HREmployeeDirectory() {
   const [deptFilter, setDeptFilter] = useState('all');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortAsc, setSortAsc] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
+  const navigate = useNavigate();
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['hr-employees-full'],
@@ -249,7 +250,7 @@ export default function HREmployeeDirectory() {
                     "cursor-pointer transition-colors",
                     !emp.enabled && "opacity-50"
                   )}
-                  onClick={() => setSelectedEmployee(emp)}
+                  onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2.5">
@@ -294,12 +295,6 @@ export default function HREmployeeDirectory() {
           </Table>
         </div>
       )}
-
-      <HREmployeeDetailDrawer
-        employee={selectedEmployee}
-        open={!!selectedEmployee}
-        onOpenChange={(open) => { if (!open) setSelectedEmployee(null); }}
-      />
     </div>
   );
 }
