@@ -14,7 +14,8 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Mail, Phone, Building2, Briefcase, IdCard, Shield, Plus, Clock, FileText, Wallet, CalendarDays, User } from 'lucide-react';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { ArrowLeft, Mail, Phone, Building2, Briefcase, IdCard, Shield, Plus, Clock, FileText, Wallet, CalendarDays, User, Activity, Upload, Download, AlertTriangle, CheckCircle2, XCircle, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -37,6 +38,19 @@ const roleColors: Record<string, string> = {
 
 interface RoleRecord { id: string; role: string; enabled: boolean; }
 
+// Detail row component
+function DetailRow({ label, value, icon: Icon }: { label: string; value: string; icon?: any }) {
+  return (
+    <div className="flex items-start gap-3 py-2.5 border-b border-border/30 last:border-0">
+      {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />}
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium text-foreground mt-0.5 truncate">{value || '—'}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function HREmployeeProfile() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
@@ -49,7 +63,6 @@ export default function HREmployeeProfile() {
   const [toggleTarget, setToggleTarget] = useState<RoleRecord | null>(null);
   const [toggleReason, setToggleReason] = useState('');
 
-  // Fetch employee data
   const { data: employee, isLoading } = useQuery({
     queryKey: ['hr-employee-profile', userId],
     enabled: !!userId,
@@ -59,72 +72,50 @@ export default function HREmployeeProfile() {
         supabase.from('profiles').select('*').eq('id', userId!).maybeSingle(),
         supabase.from('staff_profiles').select('*').eq('user_id', userId!).maybeSingle(),
       ]);
-
       const roles = (roleData || []).map((r: any) => r.role);
       const roleRecords = (roleData || []).map((r: any) => ({ id: r.id, role: r.role, enabled: r.enabled }));
-      const enabled = roleRecords.every(r => r.enabled);
-
+      const enabled = roleRecords.length > 0 ? roleRecords.some(r => r.enabled) : true;
       return { user_id: userId!, roles, roleRecords, enabled, profile, staffProfile };
     },
   });
 
-  // Role history
   const { data: roleHistory = [] } = useQuery({
     queryKey: ['hr-role-history', userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .eq('record_id', userId!)
+      const { data } = await supabase.from('audit_logs').select('*').eq('record_id', userId!)
         .in('action_type', ['hr_role_assigned', 'hr_role_toggled', 'hr_role_removed', 'role_assigned', 'role_toggled'])
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false }).limit(50);
       return data || [];
     },
   });
 
-  // Leave requests
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ['hr-employee-leaves', userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('leave_requests')
-        .select('*')
-        .eq('employee_id', userId!)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      const { data } = await supabase.from('leave_requests').select('*').eq('employee_id', userId!)
+        .order('created_at', { ascending: false }).limit(30);
       return data || [];
     },
   });
 
-  // Earnings summary
   const { data: earnings = [] } = useQuery({
     queryKey: ['hr-employee-earnings', userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('agent_earnings')
-        .select('*')
-        .eq('agent_id', userId!)
-        .order('created_at', { ascending: false })
-        .limit(30);
+      const { data } = await supabase.from('agent_earnings').select('*').eq('agent_id', userId!)
+        .order('created_at', { ascending: false }).limit(50);
       return data || [];
     },
   });
 
-  // Audit trail for this user
   const { data: auditLogs = [] } = useQuery({
     queryKey: ['hr-employee-audit', userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .eq('record_id', userId!)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const { data } = await supabase.from('audit_logs').select('*').eq('record_id', userId!)
+        .order('created_at', { ascending: false }).limit(50);
       return data || [];
     },
   });
@@ -133,8 +124,8 @@ export default function HREmployeeProfile() {
     mutationFn: async () => {
       if (!userId || !user) throw new Error('No user selected');
       if (auditReason.length < 10) throw new Error('Audit reason must be at least 10 characters');
-      const { error: roleError } = await supabase.from('user_roles').insert({ user_id: userId, role: newRole as any });
-      if (roleError) throw roleError;
+      const { error } = await supabase.from('user_roles').insert({ user_id: userId, role: newRole as any });
+      if (error) throw error;
       await supabase.from('audit_logs').insert({
         user_id: user.id, action_type: 'hr_role_assigned', record_id: userId, table_name: 'user_roles',
         metadata: { role: newRole, reason: auditReason, assigned_by: user.id },
@@ -142,8 +133,7 @@ export default function HREmployeeProfile() {
     },
     onSuccess: () => {
       toast.success(`Role "${newRole}" assigned`);
-      setAddRoleDialog(false);
-      setAuditReason('');
+      setAddRoleDialog(false); setAuditReason('');
       queryClient.invalidateQueries({ queryKey: ['hr-employee-profile', userId] });
       queryClient.invalidateQueries({ queryKey: ['hr-role-history', userId] });
     },
@@ -163,8 +153,7 @@ export default function HREmployeeProfile() {
     },
     onSuccess: () => {
       toast.success('Role status updated');
-      setToggleTarget(null);
-      setToggleReason('');
+      setToggleTarget(null); setToggleReason('');
       queryClient.invalidateQueries({ queryKey: ['hr-employee-profile', userId] });
       queryClient.invalidateQueries({ queryKey: ['hr-role-history', userId] });
     },
@@ -174,101 +163,210 @@ export default function HREmployeeProfile() {
   const totalEarnings = earnings.reduce((sum, e) => sum + (e.amount || 0), 0);
   const existingRoles = employee?.roleRecords.map(r => r.role) || [];
   const availableRoles = ALL_ROLES.filter(r => !existingRoles.includes(r));
+  const approvedLeaves = leaveRequests.filter((l: any) => l.status === 'approved').length;
+  const pendingLeaves = leaveRequests.filter((l: any) => l.status === 'pending').length;
 
   return (
     <ExecutiveDashboardLayout role="hr" activeTab="employees" onTabChange={() => {}}>
-      {/* Back button + Header */}
-      <div className="space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/hr/dashboard')} className="gap-1.5 text-muted-foreground">
+      <div className="space-y-5">
+        {/* Back */}
+        <Button variant="ghost" size="sm" onClick={() => navigate('/hr/dashboard')} className="gap-1.5 text-muted-foreground -ml-2">
           <ArrowLeft className="h-4 w-4" /> Back to Directory
         </Button>
 
         {isLoading ? (
           <div className="space-y-4">
-            <div className="h-32 rounded-xl bg-muted/30 animate-pulse" />
+            <div className="h-36 rounded-xl bg-muted/30 animate-pulse" />
+            <div className="h-10 rounded-lg bg-muted/30 animate-pulse w-1/2" />
             <div className="h-64 rounded-xl bg-muted/30 animate-pulse" />
           </div>
         ) : !employee ? (
-          <div className="text-center py-16">
-            <User className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Employee not found</p>
+          <div className="text-center py-20">
+            <User className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">Employee not found</p>
           </div>
         ) : (
           <>
-            {/* Profile Header Card */}
-            <Card className="border-border/40">
-              <CardContent className="p-5">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <UserAvatar avatarUrl={employee.profile?.avatar_url} fullName={employee.profile?.full_name} size="lg" />
-                  <div className="flex-1 min-w-0">
-                    <h1 className="text-xl font-bold text-foreground">{employee.profile?.full_name || 'Unknown'}</h1>
-                    <p className="text-sm text-muted-foreground">{employee.staffProfile?.position || 'No position'} · {employee.staffProfile?.department || 'No department'}</p>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {employee.roleRecords.map(rr => (
-                        <Badge key={rr.id} variant="outline" className={cn("text-[10px] capitalize", roleColors[rr.role] || '')}>
-                          {rr.role.replace('_', ' ')} {!rr.enabled && '(disabled)'}
-                        </Badge>
-                      ))}
+            {/* Profile Header */}
+            <Card className="border-border/40 overflow-hidden">
+              <div className="h-16 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
+              <CardContent className="px-5 pb-5 -mt-8">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="shrink-0">
+                    <div className="rounded-full border-4 border-background">
+                      <UserAvatar avatarUrl={employee.profile?.avatar_url} fullName={employee.profile?.full_name} size="lg" />
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                    {employee.profile?.email && (
-                      <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{employee.profile.email}</span>
-                    )}
-                    {employee.profile?.phone && (
-                      <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{employee.profile.phone}</span>
-                    )}
-                    {employee.staffProfile?.employee_id && (
-                      <span className="flex items-center gap-1.5"><IdCard className="h-3.5 w-3.5" />ID: {employee.staffProfile.employee_id}</span>
-                    )}
+                  <div className="flex-1 min-w-0 pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                      <div>
+                        <h1 className="text-xl font-bold text-foreground">{employee.profile?.full_name || 'Unknown'}</h1>
+                        <p className="text-sm text-muted-foreground mt-0.5">{employee.staffProfile?.position || 'No position'} · {employee.staffProfile?.department || 'No department'}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {employee.roleRecords.map(rr => (
+                            <Badge key={rr.id} variant="outline" className={cn("text-[10px] capitalize", roleColors[rr.role] || '')}>
+                              {rr.role.replace('_', ' ')} {!rr.enabled && '(off)'}
+                            </Badge>
+                          ))}
+                          <Badge variant={employee.enabled ? 'default' : 'destructive'} className="text-[10px]">
+                            {employee.enabled ? 'Active' : 'Disabled'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setAddRoleDialog(true)} disabled={availableRoles.length === 0}>
+                          <Plus className="h-3 w-3" /> Add Role
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Quick Insight Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Card className="border-border/40">
+                <CardContent className="p-3.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Total Earnings</p>
+                  <p className="text-lg font-bold mt-0.5">USh {totalEarnings.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border/40">
+                <CardContent className="p-3.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Active Roles</p>
+                  <p className="text-lg font-bold mt-0.5">{employee.roleRecords.filter(r => r.enabled).length} / {employee.roleRecords.length}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border/40">
+                <CardContent className="p-3.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Leaves Taken</p>
+                  <p className="text-lg font-bold mt-0.5">{approvedLeaves}</p>
+                  {pendingLeaves > 0 && <p className="text-[10px] text-warning">{pendingLeaves} pending</p>}
+                </CardContent>
+              </Card>
+              <Card className="border-border/40">
+                <CardContent className="p-3.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Audit Events</p>
+                  <p className="text-lg font-bold mt-0.5">{auditLogs.length}</p>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full justify-start overflow-x-auto">
-                <TabsTrigger value="overview" className="gap-1.5"><User className="h-3.5 w-3.5" /> Overview</TabsTrigger>
-                <TabsTrigger value="roles" className="gap-1.5"><Shield className="h-3.5 w-3.5" /> Roles</TabsTrigger>
-                <TabsTrigger value="payroll" className="gap-1.5"><Wallet className="h-3.5 w-3.5" /> Payroll</TabsTrigger>
-                <TabsTrigger value="leaves" className="gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> Leaves</TabsTrigger>
-                <TabsTrigger value="audit" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Audit Trail</TabsTrigger>
-              </TabsList>
+              <div className="overflow-x-auto">
+                <TabsList className="inline-flex w-auto min-w-full sm:min-w-0">
+                  <TabsTrigger value="overview" className="gap-1 text-xs"><User className="h-3 w-3" /> Overview</TabsTrigger>
+                  <TabsTrigger value="personal" className="gap-1 text-xs"><IdCard className="h-3 w-3" /> Personal</TabsTrigger>
+                  <TabsTrigger value="employment" className="gap-1 text-xs"><Briefcase className="h-3 w-3" /> Employment</TabsTrigger>
+                  <TabsTrigger value="roles" className="gap-1 text-xs"><Shield className="h-3 w-3" /> Roles</TabsTrigger>
+                  <TabsTrigger value="payroll" className="gap-1 text-xs"><Wallet className="h-3 w-3" /> Payroll</TabsTrigger>
+                  <TabsTrigger value="leaves" className="gap-1 text-xs"><CalendarDays className="h-3 w-3" /> Leaves</TabsTrigger>
+                  <TabsTrigger value="audit" className="gap-1 text-xs"><Activity className="h-3 w-3" /> Activity</TabsTrigger>
+                </TabsList>
+              </div>
 
-              {/* Overview Tab */}
+              {/* Overview */}
               <TabsContent value="overview" className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Earnings</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">USh {totalEarnings.toLocaleString()}</p></CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card className="border-border/40">
+                    <CardHeader className="pb-2"><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contact Information</CardTitle></CardHeader>
+                    <CardContent className="space-y-0">
+                      <DetailRow label="Email" value={employee.profile?.email || ''} icon={Mail} />
+                      <DetailRow label="Phone" value={employee.profile?.phone || ''} icon={Phone} />
+                      <DetailRow label="Employee ID" value={employee.staffProfile?.employee_id || ''} icon={IdCard} />
+                    </CardContent>
                   </Card>
-                  <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Active Roles</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">{employee.roleRecords.filter(r => r.enabled).length}</p></CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Leave Requests</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">{leaveRequests.length}</p></CardContent>
+                  <Card className="border-border/40">
+                    <CardHeader className="pb-2"><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Work Information</CardTitle></CardHeader>
+                    <CardContent className="space-y-0">
+                      <DetailRow label="Department" value={employee.staffProfile?.department || ''} icon={Building2} />
+                      <DetailRow label="Position" value={employee.staffProfile?.position || ''} icon={Briefcase} />
+                      <DetailRow label="Verified" value={employee.profile?.verified ? 'Yes' : 'No'} icon={CheckCircle2} />
+                    </CardContent>
                   </Card>
                 </div>
 
-                <Card>
-                  <CardHeader><CardTitle className="text-sm">Basic Details</CardTitle></CardHeader>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div><span className="text-muted-foreground">Full Name:</span> <span className="font-medium ml-1">{employee.profile?.full_name || '—'}</span></div>
-                    <div><span className="text-muted-foreground">Email:</span> <span className="font-medium ml-1">{employee.profile?.email || '—'}</span></div>
-                    <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{employee.profile?.phone || '—'}</span></div>
-                    <div><span className="text-muted-foreground">Employee ID:</span> <span className="font-medium ml-1">{employee.staffProfile?.employee_id || '—'}</span></div>
-                    <div><span className="text-muted-foreground">Department:</span> <span className="font-medium ml-1">{employee.staffProfile?.department || '—'}</span></div>
-                    <div><span className="text-muted-foreground">Position:</span> <span className="font-medium ml-1">{employee.staffProfile?.position || '—'}</span></div>
-                    <div><span className="text-muted-foreground">Verified:</span> <span className="font-medium ml-1">{employee.profile?.verified ? 'Yes' : 'No'}</span></div>
-                    <div><span className="text-muted-foreground">Status:</span> <Badge variant={employee.enabled ? 'default' : 'destructive'} className="ml-1 text-[10px] h-5">{employee.enabled ? 'Active' : 'Disabled'}</Badge></div>
+                {/* Recent activity */}
+                <Card className="border-border/40">
+                  <CardHeader className="pb-2"><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recent Activity</CardTitle></CardHeader>
+                  <CardContent>
+                    {auditLogs.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-4 text-center">No recent activity</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {auditLogs.slice(0, 5).map((log: any) => (
+                          <div key={log.id} className="flex items-start gap-2.5 text-xs">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium capitalize">{log.action_type.replace(/_/g, ' ')}</span>
+                              {log.metadata?.reason && <span className="text-muted-foreground ml-1">— {log.metadata.reason}</span>}
+                            </div>
+                            <span className="text-muted-foreground shrink-0">{format(new Date(log.created_at), 'dd MMM HH:mm')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              {/* Roles Tab */}
+              {/* Personal */}
+              <TabsContent value="personal" className="space-y-4 mt-4">
+                <Card className="border-border/40">
+                  <CardHeader><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Personal Details</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-0">
+                      <DetailRow label="Full Name" value={employee.profile?.full_name || ''} icon={User} />
+                      <DetailRow label="Email" value={employee.profile?.email || ''} icon={Mail} />
+                      <DetailRow label="Phone" value={employee.profile?.phone || ''} icon={Phone} />
+                      <DetailRow label="Verified" value={employee.profile?.verified ? 'Yes' : 'No'} icon={CheckCircle2} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Employment */}
+              <TabsContent value="employment" className="space-y-4 mt-4">
+                <Card className="border-border/40">
+                  <CardHeader><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employment Details</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-0">
+                      <DetailRow label="Employee ID" value={employee.staffProfile?.employee_id || ''} icon={IdCard} />
+                      <DetailRow label="Department" value={employee.staffProfile?.department || ''} icon={Building2} />
+                      <DetailRow label="Position" value={employee.staffProfile?.position || ''} icon={Briefcase} />
+                      <DetailRow label="Status" value={employee.enabled ? 'Active' : 'Disabled'} icon={employee.enabled ? CheckCircle2 : XCircle} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Role history in employment context */}
+                <Card className="border-border/40">
+                  <CardHeader><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Role History</CardTitle></CardHeader>
+                  <CardContent>
+                    {roleHistory.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-4 text-center">No role changes recorded</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {roleHistory.map((log: any) => (
+                          <div key={log.id} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/20 text-xs">
+                            <Clock className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="flex-1">
+                              <span className="font-medium capitalize">{log.action_type.replace(/_/g, ' ')}</span>
+                              {log.metadata?.role && <span className="text-muted-foreground ml-1">({log.metadata.role})</span>}
+                              {log.metadata?.reason && <p className="text-muted-foreground italic mt-0.5">"{log.metadata.reason}"</p>}
+                            </div>
+                            <span className="text-muted-foreground shrink-0">{format(new Date(log.created_at), 'dd MMM yyyy')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Roles */}
               <TabsContent value="roles" className="space-y-4 mt-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Assigned Roles</h3>
@@ -278,116 +376,173 @@ export default function HREmployeeProfile() {
                     </Button>
                   )}
                 </div>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {employee.roleRecords.map(rr => (
                     <Card key={rr.id} className="border-border/40">
                       <CardContent className="p-3 flex items-center justify-between">
-                        <Badge variant="outline" className={cn("capitalize text-xs", roleColors[rr.role] || '')}>
-                          {rr.role.replace('_', ' ')}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Badge variant="outline" className={cn("capitalize text-xs", roleColors[rr.role] || '')}>
+                            {rr.role.replace('_', ' ')}
+                          </Badge>
+                        </div>
                         <div className="flex items-center gap-3">
-                          <span className={cn("text-xs", rr.enabled ? "text-success" : "text-destructive")}>{rr.enabled ? 'Active' : 'Disabled'}</span>
-                          <Switch checked={rr.enabled} onCheckedChange={() => setToggleTarget(rr)} />
+                          <span className={cn("text-[10px] font-medium", rr.enabled ? "text-success" : "text-destructive")}>
+                            {rr.enabled ? 'Active' : 'Disabled'}
+                          </span>
+                          <Switch checked={rr.enabled} onCheckedChange={() => setToggleTarget(rr)} className="scale-90" />
                         </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
-
-                {/* Role History */}
-                <div>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Role Change History</h3>
-                  {roleHistory.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No role changes recorded</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {roleHistory.map((log: any) => (
-                        <Card key={log.id} className="border-border/30">
-                          <CardContent className="p-3 text-xs space-y-0.5">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium capitalize">{log.action_type.replace(/_/g, ' ')}</span>
-                              <span className="text-muted-foreground">{format(new Date(log.created_at), 'dd MMM yyyy HH:mm')}</span>
-                            </div>
-                            {log.metadata?.role && <span className="text-muted-foreground">Role: {log.metadata.role}</span>}
-                            {log.metadata?.reason && <p className="text-muted-foreground italic">"{log.metadata.reason}"</p>}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </TabsContent>
 
-              {/* Payroll Tab */}
+              {/* Payroll */}
               <TabsContent value="payroll" className="space-y-4 mt-4">
-                <Card>
-                  <CardHeader><CardTitle className="text-sm">Earnings History</CardTitle></CardHeader>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Card className="border-border/40">
+                    <CardContent className="p-3.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Total Earned</p>
+                      <p className="text-lg font-bold mt-0.5">USh {totalEarnings.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-border/40">
+                    <CardContent className="p-3.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Transactions</p>
+                      <p className="text-lg font-bold mt-0.5">{earnings.length}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-border/40">
+                    <CardContent className="p-3.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Avg Per Entry</p>
+                      <p className="text-lg font-bold mt-0.5">USh {earnings.length > 0 ? Math.round(totalEarnings / earnings.length).toLocaleString() : '0'}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="border-border/40">
+                  <CardHeader><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Earnings History</CardTitle></CardHeader>
                   <CardContent>
                     {earnings.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-4 text-center">No earnings records found</p>
+                      <p className="text-xs text-muted-foreground py-6 text-center">No earnings records</p>
                     ) : (
-                      <div className="space-y-2">
-                        {earnings.map((e: any) => (
-                          <div key={e.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 text-sm">
-                            <div>
-                              <p className="font-medium capitalize">{e.earning_type.replace(/_/g, ' ')}</p>
-                              {e.description && <p className="text-xs text-muted-foreground">{e.description}</p>}
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold">USh {e.amount.toLocaleString()}</p>
-                              <p className="text-[10px] text-muted-foreground">{format(new Date(e.created_at), 'dd MMM yyyy')}</p>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="rounded-lg border border-border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableHead className="text-xs">Type</TableHead>
+                              <TableHead className="text-xs">Description</TableHead>
+                              <TableHead className="text-xs text-right">Amount</TableHead>
+                              <TableHead className="text-xs text-right">Date</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {earnings.map((e: any) => (
+                              <TableRow key={e.id}>
+                                <TableCell className="text-xs font-medium capitalize">{e.earning_type.replace(/_/g, ' ')}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{e.description || '—'}</TableCell>
+                                <TableCell className="text-xs font-semibold text-right">USh {e.amount.toLocaleString()}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground text-right">{format(new Date(e.created_at), 'dd MMM yyyy')}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              {/* Leaves Tab */}
+              {/* Leaves */}
               <TabsContent value="leaves" className="space-y-4 mt-4">
-                <Card>
-                  <CardHeader><CardTitle className="text-sm">Leave Requests</CardTitle></CardHeader>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Card className="border-border/40">
+                    <CardContent className="p-3.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Total Requests</p>
+                      <p className="text-lg font-bold mt-0.5">{leaveRequests.length}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-border/40">
+                    <CardContent className="p-3.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Approved</p>
+                      <p className="text-lg font-bold text-success mt-0.5">{approvedLeaves}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-border/40">
+                    <CardContent className="p-3.5">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Pending</p>
+                      <p className="text-lg font-bold text-warning mt-0.5">{pendingLeaves}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="border-border/40">
+                  <CardHeader><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Leave History</CardTitle></CardHeader>
                   <CardContent>
                     {leaveRequests.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-4 text-center">No leave requests found</p>
+                      <p className="text-xs text-muted-foreground py-6 text-center">No leave requests</p>
                     ) : (
-                      <div className="space-y-2">
-                        {leaveRequests.map((l: any) => (
-                          <div key={l.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 text-sm">
-                            <div>
-                              <p className="font-medium capitalize">{l.leave_type?.replace(/_/g, ' ') || 'Leave'}</p>
-                              <p className="text-xs text-muted-foreground">{l.start_date} → {l.end_date}</p>
-                            </div>
-                            <Badge variant={l.status === 'approved' ? 'default' : l.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px]">
-                              {l.status}
-                            </Badge>
-                          </div>
-                        ))}
+                      <div className="rounded-lg border border-border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableHead className="text-xs">Type</TableHead>
+                              <TableHead className="text-xs">Period</TableHead>
+                              <TableHead className="text-xs">Status</TableHead>
+                              <TableHead className="text-xs text-right">Requested</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {leaveRequests.map((l: any) => (
+                              <TableRow key={l.id}>
+                                <TableCell className="text-xs font-medium capitalize">{l.leave_type?.replace(/_/g, ' ') || 'Leave'}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{l.start_date} → {l.end_date}</TableCell>
+                                <TableCell>
+                                  <Badge variant={l.status === 'approved' ? 'default' : l.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px]">
+                                    {l.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground text-right">{format(new Date(l.created_at), 'dd MMM yyyy')}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              {/* Audit Trail Tab */}
+              {/* Activity / Audit */}
               <TabsContent value="audit" className="space-y-4 mt-4">
-                <Card>
-                  <CardHeader><CardTitle className="text-sm">Audit Trail</CardTitle></CardHeader>
+                <Card className="border-border/40">
+                  <CardHeader><CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity Log</CardTitle></CardHeader>
                   <CardContent>
                     {auditLogs.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-4 text-center">No audit logs found</p>
+                      <p className="text-xs text-muted-foreground py-6 text-center">No activity recorded</p>
                     ) : (
-                      <div className="space-y-1.5 max-h-[500px] overflow-y-auto">
-                        {auditLogs.map((log: any) => (
-                          <div key={log.id} className="p-2.5 rounded-lg bg-muted/20 text-xs space-y-0.5">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium capitalize">{log.action_type.replace(/_/g, ' ')}</span>
-                              <span className="text-muted-foreground">{format(new Date(log.created_at), 'dd MMM yyyy HH:mm')}</span>
+                      <div className="space-y-0 max-h-[600px] overflow-y-auto">
+                        {auditLogs.map((log: any, i: number) => (
+                          <div key={log.id} className="flex items-start gap-3 py-3 border-b border-border/30 last:border-0">
+                            <div className="flex flex-col items-center gap-1 pt-0.5">
+                              <div className={cn("w-2 h-2 rounded-full shrink-0",
+                                log.action_type.includes('assigned') ? 'bg-success' :
+                                log.action_type.includes('toggled') ? 'bg-warning' :
+                                log.action_type.includes('removed') || log.action_type.includes('deleted') ? 'bg-destructive' :
+                                'bg-primary'
+                              )} />
+                              {i < auditLogs.length - 1 && <div className="w-px flex-1 bg-border/40 min-h-[20px]" />}
                             </div>
-                            {log.table_name && <span className="text-muted-foreground">Table: {log.table_name}</span>}
-                            {log.metadata?.reason && <p className="text-muted-foreground italic">"{log.metadata.reason}"</p>}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-medium capitalize">{log.action_type.replace(/_/g, ' ')}</span>
+                                <span className="text-[10px] text-muted-foreground shrink-0">{format(new Date(log.created_at), 'dd MMM yyyy HH:mm')}</span>
+                              </div>
+                              {log.table_name && <p className="text-[10px] text-muted-foreground mt-0.5">Table: {log.table_name}</p>}
+                              {log.metadata?.role && <p className="text-[10px] text-muted-foreground">Role: {log.metadata.role}</p>}
+                              {log.metadata?.reason && <p className="text-[10px] text-muted-foreground italic mt-0.5">"{log.metadata.reason}"</p>}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -405,7 +560,7 @@ export default function HREmployeeProfile() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign New Role</DialogTitle>
-            <DialogDescription>Add a role to {employee?.profile?.full_name || 'this user'}</DialogDescription>
+            <DialogDescription>Add a role to {employee?.profile?.full_name || 'this user'}. This action is audited.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -413,15 +568,14 @@ export default function HREmployeeProfile() {
               <Select value={newRole} onValueChange={setNewRole}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {availableRoles.map(r => (
-                    <SelectItem key={r} value={r} className="capitalize">{r.replace('_', ' ')}</SelectItem>
-                  ))}
+                  {availableRoles.map(r => <SelectItem key={r} value={r} className="capitalize">{r.replace('_', ' ')}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Audit Reason (min 10 chars)</Label>
+              <Label>Audit Reason <span className="text-muted-foreground">(min 10 chars)</span></Label>
               <Input value={auditReason} onChange={e => setAuditReason(e.target.value)} placeholder="Reason for assigning this role..." />
+              <p className="text-[10px] text-muted-foreground mt-1">{auditReason.length}/10 characters</p>
             </div>
           </div>
           <DialogFooter>
@@ -437,21 +591,18 @@ export default function HREmployeeProfile() {
       <Dialog open={!!toggleTarget} onOpenChange={() => setToggleTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{toggleTarget?.enabled ? 'Disable' : 'Enable'} Role: {toggleTarget?.role}</DialogTitle>
+            <DialogTitle>{toggleTarget?.enabled ? 'Disable' : 'Enable'} Role: <span className="capitalize">{toggleTarget?.role?.replace('_', ' ')}</span></DialogTitle>
             <DialogDescription>This action will be logged in the audit trail.</DialogDescription>
           </DialogHeader>
           <div>
-            <Label>Audit Reason (min 10 chars)</Label>
+            <Label>Audit Reason <span className="text-muted-foreground">(min 10 chars)</span></Label>
             <Input value={toggleReason} onChange={e => setToggleReason(e.target.value)} placeholder="Reason for this change..." />
+            <p className="text-[10px] text-muted-foreground mt-1">{toggleReason.length}/10 characters</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setToggleTarget(null); setToggleReason(''); }}>Cancel</Button>
-            <Button
-              variant={toggleTarget?.enabled ? 'destructive' : 'default'}
-              onClick={() => toggleRoleMutation.mutate()}
-              disabled={toggleReason.length < 10 || toggleRoleMutation.isPending}
-            >
-              {toggleRoleMutation.isPending ? 'Updating...' : toggleTarget?.enabled ? 'Disable' : 'Enable'}
+            <Button variant={toggleTarget?.enabled ? 'destructive' : 'default'} onClick={() => toggleRoleMutation.mutate()} disabled={toggleReason.length < 10 || toggleRoleMutation.isPending}>
+              {toggleRoleMutation.isPending ? 'Updating...' : toggleTarget?.enabled ? 'Disable Role' : 'Enable Role'}
             </Button>
           </DialogFooter>
         </DialogContent>
