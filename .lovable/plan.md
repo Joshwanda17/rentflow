@@ -1,59 +1,45 @@
 
 
-# Restructure Outstanding Balance Form — Two-Section Layout
+# Compact Money Values in My Support Accounts
 
 ## What Changes
 
-When `incomeType === 'outstanding'`, replace the current form layout (which shows all the same fields as daily/weekly modes) with a **simplified two-section form** matching the user's spec:
+All money values in the **Support Accounts** tab (summary row + each account card) will display in compact format (e.g., **1.508M** instead of **1,508,000**). Tapping any value toggles it to show the full amount, and tapping again returns to compact.
 
-**Section 1 — 🏠 Landlord Registration**
-- Landlord Name* (full name)
-- Landlord Phone* (example placeholder: 0700 123 456)
-- Village/Cell Location (📍 Village/Cell)
-- LC1 Chairperson subsection:
-  - LC1 Name
-  - LC1 Phone
-- "Create Landlord" action button (optional UX — or just inline, see below)
+## How It Works
 
-**Section 2 — 👤 Tenant Registration**
-- Tenant Name (full name)
-- Tenant Phone (Primary) (example: 0700 123 456)
-- Outstanding Balance (UGX) — direct amount entry
-- "Register Tenant" submit button
+### New reusable component: `CompactAmount`
 
-**Removed from outstanding mode**: House category selector, GPS capture, house photos, no-smartphone toggle, duration selector, fee summary cards.
+A small inline component that wraps any currency value:
 
-## Technical Details
+```
+src/components/ui/CompactAmount.tsx
+```
 
-### File: `src/components/agent/AgentRentRequestDialog.tsx`
+- Renders `formatAmountCompact(value)` by default
+- On click/tap, toggles to `formatAmount(value)` (full figure)
+- Tap again returns to compact
+- Subtle underline-dotted style to hint it's tappable
+- Uses `useCurrency` hook internally
 
-**Step selection** — no changes (outstanding card already works).
+### Where values get updated
 
-**Details step** (`step === 'details'` when `incomeType === 'outstanding'`) — replace the entire rendered block with:
+**File: `src/components/supporter/InvestmentBreakdownSheet.tsx`**
 
-1. **Warning banner** at top (keep existing amber banner about no fees)
+Replace `formatAmount(...)` calls with `<CompactAmount value={...} />` in:
 
-2. **Landlord section** — card with `Building2` icon header "Landlord Registration":
-   - `landlordName` + `landlordPhone` (2-col grid)
-   - `lc1Village` → relabeled as "Village/Cell Location"
-   - LC1 subsection: `lc1Name` + `lc1Phone` (2-col grid)
+1. **Summary row** (lines ~167, 172, 177) — Capital, Earned, Monthly
+2. **Account cards — Capital** (line ~297)
+3. **Account cards — Monthly return** (line ~303 area)
+4. **Account cards — Total earned** (within the accordion details)
+5. **Any other money display** inside the Support Accounts tab
 
-3. **Tenant section** — card with `User` icon header "Tenant Registration":
-   - `tenantName` + `tenantPhone` (2-col grid)
-   - `outstandingBalance` — full-width input
+The Angel Shares tab and other components remain unchanged.
 
-4. **Submit button**: "Register Tenant" (amber themed)
+### Files
 
-**Validation** (`handleSubmit`) — when outstanding mode, skip `houseCategory` check. Set `houseCategory` to a default value (e.g., `'single-room'`) or make it nullable in the insert.
-
-**Fee calculation** — keep existing zero-fee logic; hardcode `durationDays: 30`.
-
-**Submission** — same landlord → LC1 → tenant → rent_request flow, but `house_category` set to `'outstanding'` or omitted if nullable. No GPS or photo upload in this mode.
-
-### Summary of changes
-| What | Detail |
-|------|--------|
-| Modify | Outstanding balance details step — completely new section layout |
-| Modify | Validation in `handleSubmit` — skip house category for outstanding mode |
-| No new files | All changes in `AgentRentRequestDialog.tsx` |
+| Action | File |
+|--------|------|
+| Create | `src/components/ui/CompactAmount.tsx` |
+| Modify | `src/components/supporter/InvestmentBreakdownSheet.tsx` — swap `formatAmount()` calls to `<CompactAmount>` |
 
