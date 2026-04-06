@@ -260,34 +260,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <AiIdButton variant="compact" />
         </div>
 
-        {/* Wallet — Most Prominent */}
-        <div
-          onClick={handleViewWallet}
-          className="relative w-full rounded-2xl bg-gradient-to-br from-[hsl(265,85%,58%)] to-[hsl(265,75%,70%)] p-8 py-10 cursor-pointer touch-manipulation active:opacity-90 overflow-hidden"
-        >
-          {/* Decorative sparkle */}
-          <div className="absolute top-4 right-4 opacity-30">
-            <Sparkles className="h-8 w-8 text-white" />
-          </div>
-
-          <p className="text-sm font-medium text-white/80">Wallet Balance</p>
-          <p className="font-bold text-3xl text-white mt-1 truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-
-          <div className="flex gap-3 mt-5">
-            <button
-              onClick={(e) => { e.stopPropagation(); handleViewWallet(); }}
-              className="flex-1 py-2.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-semibold hover:bg-white/30 transition-colors"
-            >
-              Withdraw
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleViewWallet(); }}
-              className="flex-1 py-2.5 rounded-full bg-white text-[hsl(265,85%,58%)] text-sm font-semibold hover:bg-white/90 transition-colors"
-            >
-              Send
-            </button>
-          </div>
-        </div>
+        {/* Wallet Hero Card */}
+        <AgentWalletHeroCard
+          walletBalance={wallet?.balance ?? 0}
+          tenantsCount={tenantsCount}
+          totalEarnings={totalEarnings}
+          territory={profile?.territory}
+        />
 
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
