@@ -27,6 +27,7 @@ import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { TenantWalletHeroCard } from '@/components/tenant/TenantWalletHeroCard';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { SubscriptionStatusCard } from '@/components/tenant/SubscriptionStatusCard';
@@ -233,60 +234,42 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {/* Terms Acceptance Notice */}
           <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
 
-          {/* Profile + Wallet Hero Card */}
+          {/* Profile Row */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-border/60 bg-card overflow-hidden"
+            className="flex items-center gap-3"
           >
-            {/* Profile row */}
-            <div className="flex items-center gap-3 p-4 pb-3">
-              <button onClick={() => navigate('/settings')} className="shrink-0">
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-              </button>
-              <div className="flex-1 min-w-0">
+            <button onClick={() => navigate('/settings')} className="shrink-0">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+            </button>
+            <div className="flex-1 min-w-0">
               <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
               <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5 flex-wrap">
                 <span className="break-words">{profile?.full_name || 'Welcome'}</span>
-                  {profile?.verified ? (
-                    <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
-                  ) : (
-                    <BadgeCheck className="h-4 w-4 text-muted-foreground/30 shrink-0" />
-                  )}
-              </h1>
-                <p className="text-xs text-muted-foreground">Welile Tenant</p>
-              </div>
-              <AiIdButton variant="compact" />
-            </div>
-
-            {/* Wallet strip */}
-            <button
-              onClick={handleViewWallet}
-              className="group w-full flex items-center gap-3 px-4 py-3.5 bg-success/5 border-t border-border/40 hover:bg-success/10 transition-all touch-manipulation"
-            >
-              <div className="p-2 rounded-lg bg-success/15 group-hover:bg-success/25 transition-colors shrink-0">
-                <Wallet className="h-4 w-4 text-success" />
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="font-bold text-lg text-foreground truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-                <p className="text-[10px] text-muted-foreground">Tap to open wallet</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {profile?.phone && (
-                  <>
-                    {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
-                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[6px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
-                    )}
-                    {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
-                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[6px] font-black text-white leading-none">A</span>
-                    )}
-                  </>
+                {profile?.verified ? (
+                  <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
+                ) : (
+                  <BadgeCheck className="h-4 w-4 text-muted-foreground/30 shrink-0" />
                 )}
-                <span className="text-muted-foreground group-hover:text-foreground transition-colors">›</span>
-              </div>
-            </button>
-            <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
+              </h1>
+            </div>
+            <AiIdButton variant="compact" />
           </motion.div>
+
+          {/* Wallet Hero Card */}
+          <TenantWalletHeroCard
+            walletBalance={wallet?.balance ?? 0}
+            rentDue={rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0}
+            dueDate={(() => {
+              const active = rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
+              if (!active) return undefined;
+              const d = new Date(active.created_at);
+              d.setDate(d.getDate() + active.duration_days);
+              return d;
+            })()}
+          />
+          <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
 
           {/* Verification Checklist */}
           <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
