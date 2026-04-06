@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { AgentWalletHeroCard } from '@/components/agent/AgentWalletHeroCard';
 
 import { Button } from '@/components/ui/button';
 import { 
