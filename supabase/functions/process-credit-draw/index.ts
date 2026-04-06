@@ -133,6 +133,16 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "📋 Credit Draw", body: "Activity: credit draw", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to user (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        userIds: [user.id],
+        payload: { title: "✅ Credit Draw Processed", body: `UGX ${amount.toLocaleString()} credit draw approved`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
 
     return new Response(JSON.stringify({
       success: true,

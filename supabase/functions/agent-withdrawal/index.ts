@@ -210,6 +210,16 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "💸 Agent Withdrawal", body: "Activity: withdrawal", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to agent (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({
+        userIds: [agentId],
+        payload: { title: "✅ Withdrawal Processed", body: `UGX ${amount.toLocaleString()} withdrawal completed`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
 
     return new Response(
       JSON.stringify({

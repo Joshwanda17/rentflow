@@ -506,6 +506,20 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "💰 Deposit Processed", body: "Activity: deposit", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to each approved user (fire-and-forget)
+    for (const r of results) {
+      if (r.status === "approved") {
+        fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+          body: JSON.stringify({
+            userIds: [r.user_id],
+            payload: { title: "✅ Deposit Approved", body: `Your deposit of UGX ${r.amount.toLocaleString()} has been approved`, url: "/dashboard", type: "success" },
+          }),
+        }).catch(() => {});
+      }
+    }
+
 
     return new Response(
       JSON.stringify({

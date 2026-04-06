@@ -222,6 +222,24 @@ serve(async (req) => {
       body: JSON.stringify({ title: "💳 Wallet Transfer", body: "Activity: wallet transfer", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to sender & recipient (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({
+        userIds: [senderId],
+        payload: { title: "✅ Transfer Sent", body: `UGX ${amount.toLocaleString()} sent successfully`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      body: JSON.stringify({
+        userIds: [resolvedRecipientId],
+        payload: { title: "💰 Transfer Received", body: `UGX ${amount.toLocaleString()} received in your wallet`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
 
     return new Response(
       JSON.stringify({ success: true, message: 'Transfer completed successfully' }),

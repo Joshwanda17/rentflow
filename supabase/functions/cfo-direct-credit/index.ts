@@ -173,6 +173,16 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "💳 CFO Direct Credit", body: "Activity: direct credit", url: "/manager" }),
     }).catch(() => {});
 
+    // Push notification to target user (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        userIds: [target_user_id],
+        payload: { title: op === "credit" ? "💰 Wallet Credited" : "💸 Wallet Debited", body: `UGX ${amount.toLocaleString()} ${verb} your wallet`, url: "/dashboard", type: "success" },
+      }),
+    }).catch(() => {});
+
 
     return new Response(JSON.stringify({
       success: true,
