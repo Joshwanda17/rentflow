@@ -295,7 +295,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         <div className="px-4 pb-3 flex items-end justify-between">
                           <div>
                             <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
-                            <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight">{formatAmount(entry.amount)}</p>
+                            <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight"><CompactAmount value={entry.amount} /></p>
                           </div>
                           <div className="text-right">
                             <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">
