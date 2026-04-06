@@ -39,6 +39,17 @@ export function PartnersOpsDashboard() {
   const [maturityAccount, setMaturityAccount] = useState<any>(null);
   const autoRenewedRef = useRef(false);
 
+  // ═══ REALTIME: auto-refresh on portfolio changes ═══
+  useEffect(() => {
+    const channel = supabase
+      .channel('partner-ops-portfolios')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'investor_portfolios' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['exec-partner-portfolios'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   const { data: portfolios, isLoading, refetch } = useQuery({
     queryKey: ['exec-partner-portfolios'],
     queryFn: async () => {
@@ -60,7 +71,7 @@ export function PartnersOpsDashboard() {
         agent_name: nameMap.get(p.agent_id) || '—',
       }));
     },
-    staleTime: 600000,
+    staleTime: 30000,
   });
 
   const rows = portfolios || [];

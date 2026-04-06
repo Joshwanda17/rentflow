@@ -325,6 +325,19 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "📊 Agent Investment Activated", body: `${agentName} activated portfolio for ${partnerName}`, url: "/manager" }),
     }).catch(() => {});
 
+    // Notify COO / Partner Ops users (fire-and-forget)
+    adminClient.from("user_roles").select("user_id").eq("role", "coo").then(({ data: coos }) => {
+      if (coos && coos.length > 0) {
+        const notifications = coos.map((c: { user_id: string }) => ({
+          user_id: c.user_id,
+          title: "📊 New Partner Investment",
+          message: `${agentName} activated a UGX ${amount.toLocaleString()} portfolio for ${partnerName}. Code: ${portfolioCode}`,
+          type: "info",
+        }));
+        adminClient.from("notifications").insert(notifications).then(() => {});
+      }
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
