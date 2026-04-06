@@ -240,17 +240,24 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       return;
     }
 
-    if (!landlordName.trim() || !landlordPhone.trim() || !propertyAddress.trim()) {
-      toast.error('Please fill in all landlord details');
+    const isOutstanding = incomeType === 'outstanding';
+
+    if (!landlordName.trim() || !landlordPhone.trim()) {
+      toast.error('Please provide landlord name and phone');
       return;
     }
 
-    if (!lc1Name.trim() || !lc1Phone.trim() || !lc1Village.trim()) {
+    if (!isOutstanding && !propertyAddress.trim()) {
+      toast.error('Please fill in property address');
+      return;
+    }
+
+    if (!isOutstanding && (!lc1Name.trim() || !lc1Phone.trim() || !lc1Village.trim())) {
       toast.error('Please fill in all LC1 details');
       return;
     }
 
-    if (!houseCategory) {
+    if (!isOutstanding && !houseCategory) {
       toast.error('Please select a house category');
       return;
     }
@@ -264,7 +271,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
         .insert({
           name: landlordName.trim(),
           phone: landlordPhone.trim(),
-          property_address: propertyAddress.trim(),
+          property_address: isOutstanding ? (lc1Village.trim() || 'N/A') : propertyAddress.trim(),
           registered_by: user?.id,
         })
         .select('id')
@@ -272,18 +279,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
       if (landlordError) throw landlordError;
 
-      // Create LC1 record
-      const { data: lc1, error: lc1Error } = await supabase
-        .from('lc1_chairpersons')
-        .insert({
-          name: lc1Name.trim(),
-          phone: lc1Phone.trim(),
-          village: lc1Village.trim(),
-        })
-        .select('id')
-        .single();
+      // Create LC1 record (use placeholder values for outstanding if not provided)
+      let lc1Id: string | null = null;
+      if (!isOutstanding || (lc1Name.trim() && lc1Phone.trim())) {
+        const { data: lc1, error: lc1Error } = await supabase
+          .from('lc1_chairpersons')
+          .insert({
+            name: lc1Name.trim() || 'N/A',
+            phone: lc1Phone.trim() || 'N/A',
+            village: lc1Village.trim() || 'N/A',
+          })
+          .select('id')
+          .single();
 
-      if (lc1Error) throw lc1Error;
+        if (lc1Error) throw lc1Error;
+        lc1Id = lc1.id;
+      }
 
       // Register tenant via edge function (handles both existing and new users)
       const { data: tenantResult, error: tenantRegError } = await supabase.functions.invoke('register-tenant', {
@@ -318,15 +329,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
       const tenantId = tenantResult.user_id;
 
-      // Create rent request with agent_id
-      const isOutstanding = incomeType === 'outstanding';
       const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
           tenant_id: tenantId,
           agent_id: user.id,
           landlord_id: landlord.id,
-          lc1_id: lc1.id,
+          lc1_id: lc1Id,
           rent_amount: fees.rentAmount,
           duration_days: fees.durationDays,
           access_fee: fees.accessFee,
@@ -334,10 +343,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           total_repayment: fees.totalRepayment,
           daily_repayment: fees.dailyRepayment,
           status: 'pending',
-          house_category: houseCategory,
-          tenant_no_smartphone: noSmartphone,
-          request_latitude: gpsLocation?.lat ?? null,
-          request_longitude: gpsLocation?.lng ?? null,
+          house_category: isOutstanding ? 'single-room' : houseCategory,
+          tenant_no_smartphone: isOutstanding ? false : noSmartphone,
+          request_latitude: isOutstanding ? null : (gpsLocation?.lat ?? null),
+          request_longitude: isOutstanding ? null : (gpsLocation?.lng ?? null),
           ...(isOutstanding ? {
             registration_type: 'outstanding_balance',
             initial_outstanding_balance: fees.rentAmount,
@@ -544,14 +553,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
             >
               {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
               {incomeType === 'outstanding' ? (
-                <div className="space-y-3 p-4 rounded-2xl bg-warning/10 border-2 border-warning/40">
-                  <h4 className="text-base font-extrabold text-warning flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-warning/20">
-                      <AlertTriangle className="h-5 w-5 text-warning" />
-                    </div>
-                    Outstanding Balance
-                  </h4>
-                  
+                <>
                   {/* Warning banner */}
                   <div className="p-3 rounded-xl bg-warning/20 border border-warning/30">
                     <p className="text-xs font-medium text-warning">
@@ -559,56 +561,143 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-warning/80">Outstanding Balance (UGX) *</Label>
-                      <Input
-                        value={outstandingBalance}
-                        onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="200,000"
-                        className="h-12 text-lg font-bold border-2 border-warning/30 focus:border-warning rounded-xl"
-                        required
-                      />
+                  {/* 🏠 Landlord Registration Section */}
+                  <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border border-border">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      🏠 Landlord Registration
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Landlord Name *</Label>
+                        <Input
+                          value={landlordName}
+                          onChange={(e) => setLandlordName(e.target.value)}
+                          placeholder="Full name"
+                          className="h-10"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Landlord Phone *</Label>
+                        <Input
+                          value={landlordPhone}
+                          onChange={(e) => setLandlordPhone(e.target.value)}
+                          placeholder="0700 123 456"
+                          className="h-10"
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-warning/80">Duration *</Label>
-                      <p className="text-[10px] text-muted-foreground">Repayment period</p>
-                      <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
-                        <SelectTrigger className="h-12 text-base font-semibold border-2 border-warning/30 rounded-xl"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="30">30 Days</SelectItem>
-                          <SelectItem value="60">60 Days</SelectItem>
-                          <SelectItem value="90">90 Days</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-xs flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> Village/Cell Location
+                      </Label>
+                      <Input
+                        value={lc1Village}
+                        onChange={(e) => setLc1Village(e.target.value)}
+                        placeholder="📍 Village/Cell"
+                        className="h-10"
+                      />
+                    </div>
+
+                    {/* LC1 Chairperson subsection */}
+                    <div className="space-y-2 pt-1">
+                      <p className="text-xs text-muted-foreground font-medium">LC1 Chairperson</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">LC1 Name</Label>
+                          <Input
+                            value={lc1Name}
+                            onChange={(e) => setLc1Name(e.target.value)}
+                            placeholder="LC1 name"
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">LC1 Phone</Label>
+                          <Input
+                            value={lc1Phone}
+                            onChange={(e) => setLc1Phone(e.target.value)}
+                            placeholder="Phone"
+                            className="h-10"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Fee summary */}
-                  {fees && (
-                    <div className="space-y-2">
-                      <div className="p-4 rounded-2xl bg-warning/20 border-2 border-warning/40 text-center">
-                        <p className="text-xs text-warning/70 font-medium mb-1">Total Repayment</p>
-                        <p className="text-3xl font-black text-warning font-mono">{formatUGX(fees.totalRepayment)}</p>
-                        <p className="text-xs text-warning/70 mt-1">{formatUGX(fees.dailyRepayment)}/day for {fees.durationDays} days</p>
+                  {/* 👤 Tenant Registration Section */}
+                  <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border border-border">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary" />
+                      👤 Tenant Registration
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tenant Name *</Label>
+                        <Input
+                          value={tenantName}
+                          onChange={(e) => setTenantName(e.target.value)}
+                          placeholder="Full name"
+                          className="h-10"
+                          required
+                        />
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="p-2 rounded-lg bg-background/60">
-                          <p className="text-[10px] text-muted-foreground">Access Fee</p>
-                          <p className="text-sm font-bold text-success">UGX 0</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-background/60">
-                          <p className="text-[10px] text-muted-foreground">Platform Fee</p>
-                          <p className="text-sm font-bold text-success">UGX 0</p>
-                        </div>
-                        <div className="p-2 rounded-lg bg-warning/20">
-                          <p className="text-[10px] text-muted-foreground">Status</p>
-                          <p className="text-sm font-bold text-warning">No Fees</p>
-                        </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tenant Phone (Primary) *</Label>
+                        <Input
+                          value={tenantPhone}
+                          onChange={(e) => setTenantPhone(e.target.value)}
+                          placeholder="0700 123 456"
+                          className="h-10"
+                          required
+                        />
                       </div>
                     </div>
-                  )}
-                </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Outstanding Balance (UGX) *</Label>
+                      <Input
+                        value={outstandingBalance}
+                        onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="Enter amount"
+                        className="h-12 text-lg font-bold border-2 border-warning/30 focus:border-warning rounded-xl"
+                        required
+                      />
+                      {amount > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / 30))}/day</span> for 30 days
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Submit button for outstanding mode */}
+                  <div className="flex gap-3 pt-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setStep('type')}
+                      className="flex-1"
+                    >
+                      Back
+                    </Button>
+                    <Button 
+                      onClick={handleSubmit} 
+                      className="flex-1 bg-warning hover:bg-warning/90 text-warning-foreground"
+                      disabled={loading || amount < 2000}
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        'Register Tenant'
+                      )}
+                    </Button>
+                  </div>
+                </>
               ) : (
               <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
                 <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
@@ -686,6 +775,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
               </div>
               )}
 
+              {incomeType !== 'outstanding' && (
+              <>
               <Separator />
 
               {/* ===== 2. TENANT DETAILS ===== */}
@@ -946,21 +1037,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 </Button>
                 <Button 
                   onClick={handleSubmit} 
-                  className={`flex-1 ${incomeType === 'outstanding' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' : ''}`}
-                  disabled={loading || !amount || (incomeType === 'outstanding' ? amount < 2000 : amount < 50000)}
+                  className="flex-1"
+                  disabled={loading || !amount || amount < 50000}
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Submitting...
                     </>
-                  ) : incomeType === 'outstanding' ? (
-                    'Register Tenant (No Fees)'
                   ) : (
                     'Submit Request'
                   )}
                 </Button>
               </div>
+              </>
+              )}
             </motion.div>
           ) : null}
         </AnimatePresence>
