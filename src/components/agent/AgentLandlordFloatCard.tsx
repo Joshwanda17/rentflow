@@ -47,15 +47,15 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
   const hasFloat = !!floatData;
 
   return (
-    <div className="rounded-2xl border-2 border-chart-4/30 bg-chart-4/5 overflow-hidden">
+    <div className="rounded-2xl border-2 border-[#9234EA]/30 bg-[#9234EA]/5 overflow-hidden">
       {/* Main Pay Button */}
       <button
         onClick={onPayLandlord}
-        className="w-full p-4 hover:bg-chart-4/5 touch-manipulation active:opacity-80 text-left"
+        className="w-full p-4 hover:bg-[#9234EA]/5 touch-manipulation active:opacity-80 text-left"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-chart-4/15 shrink-0">
-            <Landmark className="h-5 w-5 text-chart-4" />
+          <div className="p-2.5 rounded-xl bg-[#9234EA]/15 shrink-0">
+            <Landmark className="h-5 w-5 text-[#9234EA]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -78,31 +78,31 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
             </p>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-xs text-chart-4 font-semibold">Pay</span>
-            <ArrowRight className="h-4 w-4 text-chart-4" />
+            <span className="text-xs text-[#9234EA] font-semibold">Pay</span>
+            <ArrowRight className="h-4 w-4 text-[#9234EA]" />
           </div>
         </div>
       </button>
 
       {/* Quick Action Strip */}
-      <div className="border-t border-chart-4/20 grid grid-cols-3 divide-x divide-chart-4/20">
+      <div className="border-t border-[#9234EA]/20 grid grid-cols-3 divide-x divide-[#9234EA]/20">
         <button
           onClick={onOpenRecovery}
-          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-chart-4 hover:bg-chart-4/5 transition-colors touch-manipulation"
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
         >
           <TrendingUp className="h-3 w-3" />
           Recovery
         </button>
         <button
           onClick={onOpenStatusTracker}
-          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-chart-4 hover:bg-chart-4/5 transition-colors touch-manipulation"
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
         >
           <ShieldCheck className="h-3 w-3" />
           Status
         </button>
         <button
           onClick={onOpenHistory}
-          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-chart-4 hover:bg-chart-4/5 transition-colors touch-manipulation"
+          className="flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-[#9234EA] hover:bg-[#9234EA]/5 transition-colors touch-manipulation"
         >
           <History className="h-3 w-3" />
           History
