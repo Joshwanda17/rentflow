@@ -9,6 +9,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { supabase } from '@/integrations/supabase/client';
 import { PiggyBank, TrendingUp, Repeat, ArrowUpRight, CalendarCheck, CircleDollarSign, Target, Plus, FileText, Share2, CreditCard, RefreshCw, LogOut, ToggleLeft, ToggleRight, Pencil, Check, X, Gem } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { CompactAmount } from '@/components/ui/CompactAmount';
 import { AngelSharesTab } from './AngelSharesTab';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -164,17 +165,17 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 <div>
                   <CircleDollarSign className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
                   <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Capital</p>
-                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(totalInvested)}</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate"><CompactAmount value={totalInvested} /></p>
                 </div>
                 <div>
                   <ArrowUpRight className="h-3.5 w-3.5 text-success mx-auto mb-1 opacity-60" />
                   <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Earned</p>
-                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-success mt-0.5 truncate">{formatAmount(totalEarned)}</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-success mt-0.5 truncate"><CompactAmount value={totalEarned} /></p>
                 </div>
                 <div>
                   <Target className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
                   <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Monthly</p>
-                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(expectedMonthly)}</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate"><CompactAmount value={expectedMonthly} /></p>
                 </div>
               </div>
             </div>
@@ -294,14 +295,14 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         <div className="px-4 pb-3 flex items-end justify-between">
                           <div>
                             <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
-                            <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight">{formatAmount(entry.amount)}</p>
+                            <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight"><CompactAmount value={entry.amount} /></p>
                           </div>
                           <div className="text-right">
                             <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">
                               {isCompounding ? 'Month 1' : 'Monthly'}
                             </p>
                             <p className="text-base font-bold text-success font-mono tabular-nums tracking-tight flex items-center gap-0.5 justify-end">
-                              <TrendingUp className="h-3 w-3" />{formatAmount(monthlyReturn)}
+                              <TrendingUp className="h-3 w-3" /><CompactAmount value={monthlyReturn} />
                             </p>
                           </div>
                         </div>
@@ -349,7 +350,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                     <div className="text-left min-w-0">
                                       <p className="text-[10px] font-bold text-foreground">Growth Projection</p>
                                       <p className="text-[8px] text-muted-foreground truncate">
-                                        {formatAmount(entry.amount)} → {formatAmount(finalValue)} · +{growthPct.toFixed(0)}%
+                                        <CompactAmount value={entry.amount} /> → <CompactAmount value={finalValue} /> · +{growthPct.toFixed(0)}%
                                       </p>
                                     </div>
                                   </div>
@@ -359,11 +360,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                     <div className="grid grid-cols-2 gap-1.5 mb-2">
                                       <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
                                         <p className="text-[7px] text-muted-foreground uppercase">Earnings</p>
-                                        <p className="text-xs font-bold text-success font-mono tabular-nums truncate">{formatAmount(finalValue - entry.amount)}</p>
-                                      </div>
-                                      <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
-                                        <p className="text-[7px] text-muted-foreground uppercase">Final Value</p>
-                                        <p className="text-xs font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(finalValue)}</p>
+                                         <p className="text-xs font-bold text-success font-mono tabular-nums truncate"><CompactAmount value={finalValue - entry.amount} /></p>
+                                       </div>
+                                       <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
+                                         <p className="text-[7px] text-muted-foreground uppercase">Final Value</p>
+                                         <p className="text-xs font-bold text-foreground font-mono tabular-nums truncate"><CompactAmount value={finalValue} /></p>
                                       </div>
                                     </div>
                                     {projectionRows.map((row) => {
@@ -382,15 +383,15 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                           <div className="grid grid-cols-3 gap-1">
                                             <div>
                                               <p className="text-[6px] text-muted-foreground uppercase">Open</p>
-                                              <p className="text-[11px] font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(row.opening)}</p>
+                                              <p className="text-[11px] font-bold text-foreground font-mono tabular-nums truncate"><CompactAmount value={row.opening} /></p>
                                             </div>
                                             <div>
                                               <p className="text-[6px] text-muted-foreground uppercase">Reward</p>
-                                              <p className={`text-[11px] font-bold font-mono tabular-nums truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
+                                              <p className={`text-[11px] font-bold font-mono tabular-nums truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+<CompactAmount value={row.earned} /></p>
                                             </div>
                                             <div className="text-right">
                                               <p className="text-[6px] text-muted-foreground uppercase">Close</p>
-                                              <p className="text-[11px] font-extrabold text-foreground font-mono tabular-nums truncate">{formatAmount(row.closing)}</p>
+                                              <p className="text-[11px] font-extrabold text-foreground font-mono tabular-nums truncate"><CompactAmount value={row.closing} /></p>
                                             </div>
                                           </div>
                                         </div>
