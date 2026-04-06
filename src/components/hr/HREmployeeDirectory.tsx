@@ -53,7 +53,7 @@ export default function HREmployeeDirectory() {
   const [deptFilter, setDeptFilter] = useState('all');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortAsc, setSortAsc] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeRecord | null>(null);
+  const navigate = useNavigate();
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['hr-employees-full'],
