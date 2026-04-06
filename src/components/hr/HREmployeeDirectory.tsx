@@ -250,7 +250,7 @@ export default function HREmployeeDirectory() {
                     "cursor-pointer transition-colors",
                     !emp.enabled && "opacity-50"
                   )}
-                  onClick={() => setSelectedEmployee(emp)}
+                  onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2.5">
