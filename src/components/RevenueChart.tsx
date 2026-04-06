@@ -1,6 +1,7 @@
 import { Transaction } from '@/types/financial';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
+import { formatDynamic, formatDynamicCompact } from '@/lib/currencyFormat';
 
 interface RevenueChartProps {
   transactions: Transaction[];
