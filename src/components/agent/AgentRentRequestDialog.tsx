@@ -162,6 +162,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setTenantName('');
     setTenantPhone('');
     setRentAmount('');
+    setOutstandingBalance('');
     setDuration('30');
     setRepaymentPeriod('7');
     setLandlordName('');
