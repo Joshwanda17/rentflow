@@ -9,7 +9,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Search, User, ArrowUpDown, Users } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
-import HREmployeeDetailDrawer from './HREmployeeDetailDrawer';
+
 
 import type { AppRole } from '@/hooks/auth/types';
 
