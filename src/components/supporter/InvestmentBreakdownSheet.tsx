@@ -7,7 +7,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useWallet } from '@/hooks/useWallet';
 import { supabase } from '@/integrations/supabase/client';
-import { PiggyBank, TrendingUp, Repeat, ArrowUpRight, CalendarCheck, CircleDollarSign, Target, Plus, FileText, Share2, CreditCard, RefreshCw, LogOut, ToggleLeft, ToggleRight, Pencil, Check, X } from 'lucide-react';
+import { PiggyBank, TrendingUp, Repeat, ArrowUpRight, CalendarCheck, CircleDollarSign, Target, Plus, FileText, Share2, CreditCard, RefreshCw, LogOut, ToggleLeft, ToggleRight, Pencil, Check, X, Gem } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AngelSharesTab } from './AngelSharesTab';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, formatDistanceToNow, differenceInDays, isPast, addDays } from 'date-fns';
@@ -143,384 +145,404 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           </SheetTitle>
         </SheetHeader>
 
-        {/* Summary */}
-        <div className="mx-5 my-3 rounded-xl border border-border/40 p-3">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <CircleDollarSign className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
-              <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Capital</p>
-              <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(totalInvested)}</p>
-            </div>
-            <div>
-              <ArrowUpRight className="h-3.5 w-3.5 text-success mx-auto mb-1 opacity-60" />
-              <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Earned</p>
-              <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-success mt-0.5 truncate">{formatAmount(totalEarned)}</p>
-            </div>
-            <div>
-              <Target className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
-              <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Monthly</p>
-              <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(expectedMonthly)}</p>
-            </div>
-          </div>
-        </div>
+        <Tabs defaultValue="accounts" className="flex-1 flex flex-col min-h-0">
+          <TabsList variant="underline" className="px-5 pt-1 shrink-0">
+            <TabsTrigger variant="underline" value="accounts" className="gap-1.5 text-xs">
+              <PiggyBank className="h-3.5 w-3.5" />
+              Support Accounts
+            </TabsTrigger>
+            <TabsTrigger variant="underline" value="angel-shares" className="gap-1.5 text-xs">
+              <Gem className="h-3.5 w-3.5" />
+              Angel Shares
+            </TabsTrigger>
+          </TabsList>
 
-        <ScrollArea className="h-[calc(90vh-180px)] px-5 pb-8">
-          {loading ? (
-            <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-36 w-full rounded-xl" />)}</div>
-          ) : entries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <PiggyBank className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">No accounts yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Support a tenant to get started</p>
+          <TabsContent value="accounts" className="mt-0 flex-1 min-h-0">
+            {/* Summary */}
+            <div className="mx-5 my-3 rounded-xl border border-border/40 p-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <CircleDollarSign className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Capital</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(totalInvested)}</p>
+                </div>
+                <div>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-success mx-auto mb-1 opacity-60" />
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Earned</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-success mt-0.5 truncate">{formatAmount(totalEarned)}</p>
+                </div>
+                <div>
+                  <Target className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Monthly</p>
+                  <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate">{formatAmount(expectedMonthly)}</p>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {entries.map((entry, idx) => {
-                const monthlyReturn = entry.amount * (entry.roi_percentage / 100);
-                const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
-                const color = colors[idx % colors.length];
-                const sc = statusConfig(entry.status);
 
-                const now = new Date();
-                const investedDate = new Date(entry.invested_at);
-                let nextPayout: Date;
-                if (entry.payout_day) {
-                  nextPayout = new Date(now.getFullYear(), now.getMonth(), entry.payout_day);
-                  if (nextPayout <= now) nextPayout = new Date(now.getFullYear(), now.getMonth() + 1, entry.payout_day);
-                } else {
-                  const THIRTY = 30 * 24 * 60 * 60 * 1000;
-                  const cycles = Math.floor((now.getTime() - investedDate.getTime()) / THIRTY);
-                  nextPayout = new Date(investedDate.getTime() + (cycles + 1) * THIRTY);
-                }
-                const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
-                const daysToNext = differenceInDays(nextPayout, now);
+            <ScrollArea className="h-[calc(90vh-240px)] px-5 pb-8">
+              {loading ? (
+                <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-36 w-full rounded-xl" />)}</div>
+              ) : entries.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <PiggyBank className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">No accounts yet</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Support a tenant to get started</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {entries.map((entry, idx) => {
+                    const monthlyReturn = entry.amount * (entry.roi_percentage / 100);
+                    const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
+                    const color = colors[idx % colors.length];
+                    const sc = statusConfig(entry.status);
 
-                const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
-                if (isCompounding) {
-                  let bal = entry.amount;
-                  for (let m = 1; m <= entry.duration_months; m++) {
-                    const earned = bal * (entry.roi_percentage / 100);
-                    const payoutDate = entry.payout_day
-                      ? new Date(investedDate.getFullYear(), investedDate.getMonth() + m, entry.payout_day)
-                      : addDays(investedDate, m * 30);
-                    projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
-                    bal += earned;
-                  }
-                }
-                const finalValue = projectionRows.length > 0 ? projectionRows[projectionRows.length - 1].closing : 0;
-                const growthPct = entry.amount > 0 ? ((finalValue - entry.amount) / entry.amount * 100) : 0;
+                    const now = new Date();
+                    const investedDate = new Date(entry.invested_at);
+                    let nextPayout: Date;
+                    if (entry.payout_day) {
+                      nextPayout = new Date(now.getFullYear(), now.getMonth(), entry.payout_day);
+                      if (nextPayout <= now) nextPayout = new Date(now.getFullYear(), now.getMonth() + 1, entry.payout_day);
+                    } else {
+                      const THIRTY = 30 * 24 * 60 * 60 * 1000;
+                      const cycles = Math.floor((now.getTime() - investedDate.getTime()) / THIRTY);
+                      nextPayout = new Date(investedDate.getTime() + (cycles + 1) * THIRTY);
+                    }
+                    const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
+                    const daysToNext = differenceInDays(nextPayout, now);
 
-                return (
-                  <div
-                    key={entry.id}
-                    className="rounded-xl border border-border/40 bg-card overflow-hidden border-l-[3px] animate-fade-in"
-                    style={{ borderLeftColor: color, animationDelay: `${idx * 60}ms` }}
-                  >
-                    {/* Header */}
-                    <div className="flex items-center gap-3 p-4 pb-3">
+                    const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
+                    if (isCompounding) {
+                      let bal = entry.amount;
+                      for (let m = 1; m <= entry.duration_months; m++) {
+                        const earned = bal * (entry.roi_percentage / 100);
+                        const payoutDate = entry.payout_day
+                          ? new Date(investedDate.getFullYear(), investedDate.getMonth() + m, entry.payout_day)
+                          : addDays(investedDate, m * 30);
+                        projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
+                        bal += earned;
+                      }
+                    }
+                    const finalValue = projectionRows.length > 0 ? projectionRows[projectionRows.length - 1].closing : 0;
+                    const growthPct = entry.amount > 0 ? ((finalValue - entry.amount) / entry.amount * 100) : 0;
+
+                    return (
                       <div
-                        className="h-10 w-10 rounded-xl flex items-center justify-center text-white text-xs font-extrabold shrink-0"
-                        style={{ backgroundColor: color }}
+                        key={entry.id}
+                        className="rounded-xl border border-border/40 bg-card overflow-hidden border-l-[3px] animate-fade-in"
+                        style={{ borderLeftColor: color, animationDelay: `${idx * 60}ms` }}
                       >
-                        {String(idx + 1).padStart(2, '0')}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {/* Account Name */}
-                        {entry.account_name && renamingId !== entry.id && (
-                          <p className="text-sm font-bold text-foreground truncate leading-tight">{entry.account_name}</p>
-                        )}
-                        {renamingId === entry.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <Input
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              placeholder="e.g. Rent Fund Alpha"
-                              className="h-7 text-xs bg-muted/50 rounded-lg"
-                              autoFocus
-                              onKeyDown={(e) => { if (e.key === 'Enter') handleRename(entry.id); if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); } }}
-                            />
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-success" onClick={() => handleRename(entry.id)}>
-                              <Check className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => { setRenamingId(null); setRenameValue(''); }}>
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-[10px] text-muted-foreground font-mono truncate">{entry.code}</p>
-                            <span className={`inline-flex items-center gap-1 text-[9px] font-medium ${sc.cls} px-1.5 py-0.5 rounded-full`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />{sc.label}
-                            </span>
-                          </div>
-                        )}
-                        {!entry.account_name && renamingId !== entry.id && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(''); }}
-                            className="flex items-center gap-1 mt-1.5 px-2 py-1 rounded-lg bg-primary/8 hover:bg-primary/12 text-primary text-[10px] font-semibold transition-colors"
+                        {/* Header */}
+                        <div className="flex items-center gap-3 p-4 pb-3">
+                          <div
+                            className="h-10 w-10 rounded-xl flex items-center justify-center text-white text-xs font-extrabold shrink-0"
+                            style={{ backgroundColor: color }}
                           >
-                            <Pencil className="h-3 w-3" />
-                            Name this account
-                          </button>
-                        )}
-                        {entry.account_name && renamingId !== entry.id && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(entry.account_name || ''); }}
-                            className="flex items-center gap-1 text-muted-foreground/60 hover:text-primary text-[9px] transition-colors mt-0.5"
-                          >
-                            <Pencil className="h-2.5 w-2.5" />
-                            Rename
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground shrink-0">{formatDistanceToNow(investedDate, { addSuffix: true })}</p>
-                    </div>
-
-                    {/* Balance row */}
-                    <div className="px-4 pb-3 flex items-end justify-between">
-                      <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
-                        <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight">{formatAmount(entry.amount)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">
-                          {isCompounding ? 'Month 1' : 'Monthly'}
-                        </p>
-                        <p className="text-base font-bold text-success font-mono tabular-nums tracking-tight flex items-center gap-0.5 justify-end">
-                          <TrendingUp className="h-3 w-3" />{formatAmount(monthlyReturn)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Tags — compact horizontal strip */}
-                    <div className="px-4 pb-3 flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/8 text-[9px] font-semibold text-primary">
-                        {entry.roi_percentage}% ROI
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
-                        {isCompounding ? 'Compound' : 'Simple'}
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
-                        {entry.duration_months}mo
-                      </span>
-                    </div>
-
-                    {/* Next Payout — clean bar */}
-                    <div className="mx-4 mb-3 rounded-lg bg-muted/40 border border-border/30 p-3 flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <CalendarCheck className="h-3.5 w-3.5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Next Payout</p>
-                        <p className="text-xs font-bold text-foreground">{format(nextPayout, 'dd MMM yyyy')}</p>
-                      </div>
-                      {daysToNext >= 0 ? (
-                        <div className="text-right shrink-0">
-                          <p className="text-lg font-black text-primary leading-none font-mono tabular-nums">{daysToNext}</p>
-                          <p className="text-[7px] text-muted-foreground font-medium uppercase">days</p>
-                        </div>
-                      ) : (
-                        <span className="text-[9px] font-semibold text-warning bg-warning/10 px-2 py-0.5 rounded-full shrink-0">Overdue</span>
-                      )}
-                    </div>
-
-                    {/* Compound Projection */}
-                    {isCompounding && projectionRows.length > 0 && (
-                      <div className="mx-4 mb-3">
-                        <Accordion type="single" collapsible>
-                          <AccordionItem value="proj" className="border rounded-lg overflow-hidden border-border/30 bg-muted/20">
-                            <AccordionTrigger className="px-3 py-2.5 hover:no-underline">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <Repeat className="h-3.5 w-3.5 text-success shrink-0" />
-                                <div className="text-left min-w-0">
-                                  <p className="text-[10px] font-bold text-foreground">Growth Projection</p>
-                                  <p className="text-[8px] text-muted-foreground truncate">
-                                    {formatAmount(entry.amount)} → {formatAmount(finalValue)} · +{growthPct.toFixed(0)}%
-                                  </p>
-                                </div>
+                            {String(idx + 1).padStart(2, '0')}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {entry.account_name && renamingId !== entry.id && (
+                              <p className="text-sm font-bold text-foreground truncate leading-tight">{entry.account_name}</p>
+                            )}
+                            {renamingId === entry.id ? (
+                              <div className="flex items-center gap-1.5">
+                                <Input
+                                  value={renameValue}
+                                  onChange={(e) => setRenameValue(e.target.value)}
+                                  placeholder="e.g. Rent Fund Alpha"
+                                  className="h-7 text-xs bg-muted/50 rounded-lg"
+                                  autoFocus
+                                  onKeyDown={(e) => { if (e.key === 'Enter') handleRename(entry.id); if (e.key === 'Escape') { setRenamingId(null); setRenameValue(''); } }}
+                                />
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-success" onClick={() => handleRename(entry.id)}>
+                                  <Check className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => { setRenamingId(null); setRenameValue(''); }}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
                               </div>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                              <div className="px-3 pb-3 space-y-1.5">
-                                <div className="grid grid-cols-2 gap-1.5 mb-2">
-                                  <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
-                                    <p className="text-[7px] text-muted-foreground uppercase">Earnings</p>
-                                    <p className="text-xs font-bold text-success font-mono tabular-nums truncate">{formatAmount(finalValue - entry.amount)}</p>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[10px] text-muted-foreground font-mono truncate">{entry.code}</p>
+                                <span className={`inline-flex items-center gap-1 text-[9px] font-medium ${sc.cls} px-1.5 py-0.5 rounded-full`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />{sc.label}
+                                </span>
+                              </div>
+                            )}
+                            {!entry.account_name && renamingId !== entry.id && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(''); }}
+                                className="flex items-center gap-1 mt-1.5 px-2 py-1 rounded-lg bg-primary/8 hover:bg-primary/12 text-primary text-[10px] font-semibold transition-colors"
+                              >
+                                <Pencil className="h-3 w-3" />
+                                Name this account
+                              </button>
+                            )}
+                            {entry.account_name && renamingId !== entry.id && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setRenamingId(entry.id); setRenameValue(entry.account_name || ''); }}
+                                className="flex items-center gap-1 text-muted-foreground/60 hover:text-primary text-[9px] transition-colors mt-0.5"
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                                Rename
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground shrink-0">{formatDistanceToNow(investedDate, { addSuffix: true })}</p>
+                        </div>
+
+                        {/* Balance row */}
+                        <div className="px-4 pb-3 flex items-end justify-between">
+                          <div>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
+                            <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight">{formatAmount(entry.amount)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">
+                              {isCompounding ? 'Month 1' : 'Monthly'}
+                            </p>
+                            <p className="text-base font-bold text-success font-mono tabular-nums tracking-tight flex items-center gap-0.5 justify-end">
+                              <TrendingUp className="h-3 w-3" />{formatAmount(monthlyReturn)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Tags */}
+                        <div className="px-4 pb-3 flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/8 text-[9px] font-semibold text-primary">
+                            {entry.roi_percentage}% ROI
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+                            {isCompounding ? 'Compound' : 'Simple'}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+                            {entry.duration_months}mo
+                          </span>
+                        </div>
+
+                        {/* Next Payout */}
+                        <div className="mx-4 mb-3 rounded-lg bg-muted/40 border border-border/30 p-3 flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <CalendarCheck className="h-3.5 w-3.5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Next Payout</p>
+                            <p className="text-xs font-bold text-foreground">{format(nextPayout, 'dd MMM yyyy')}</p>
+                          </div>
+                          {daysToNext >= 0 ? (
+                            <div className="text-right shrink-0">
+                              <p className="text-lg font-black text-primary leading-none font-mono tabular-nums">{daysToNext}</p>
+                              <p className="text-[7px] text-muted-foreground font-medium uppercase">days</p>
+                            </div>
+                          ) : (
+                            <span className="text-[9px] font-semibold text-warning bg-warning/10 px-2 py-0.5 rounded-full shrink-0">Overdue</span>
+                          )}
+                        </div>
+
+                        {/* Compound Projection */}
+                        {isCompounding && projectionRows.length > 0 && (
+                          <div className="mx-4 mb-3">
+                            <Accordion type="single" collapsible>
+                              <AccordionItem value="proj" className="border rounded-lg overflow-hidden border-border/30 bg-muted/20">
+                                <AccordionTrigger className="px-3 py-2.5 hover:no-underline">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <Repeat className="h-3.5 w-3.5 text-success shrink-0" />
+                                    <div className="text-left min-w-0">
+                                      <p className="text-[10px] font-bold text-foreground">Growth Projection</p>
+                                      <p className="text-[8px] text-muted-foreground truncate">
+                                        {formatAmount(entry.amount)} → {formatAmount(finalValue)} · +{growthPct.toFixed(0)}%
+                                      </p>
+                                    </div>
                                   </div>
-                                  <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
-                                    <p className="text-[7px] text-muted-foreground uppercase">Final Value</p>
-                                    <p className="text-xs font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(finalValue)}</p>
-                                  </div>
-                                </div>
-                                {projectionRows.map((row) => {
-                                  const isLast = row.month === projectionRows.length;
-                                  const past = isPast(row.date);
-                                  return (
-                                    <div key={row.month}
-                                      className={`rounded-lg border p-2 ${isLast ? 'bg-success/5 border-success/15' : 'bg-card border-border/30'}`}>
-                                      <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className={`text-[9px] font-bold ${isLast ? 'text-success' : 'text-muted-foreground'}`}>M{row.month}</span>
-                                          {past && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">PAID</span>}
-                                        </div>
-                                        <span className="text-[9px] text-muted-foreground font-mono">{format(row.date, 'dd MMM yy')}</span>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  <div className="px-3 pb-3 space-y-1.5">
+                                    <div className="grid grid-cols-2 gap-1.5 mb-2">
+                                      <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
+                                        <p className="text-[7px] text-muted-foreground uppercase">Earnings</p>
+                                        <p className="text-xs font-bold text-success font-mono tabular-nums truncate">{formatAmount(finalValue - entry.amount)}</p>
                                       </div>
-                                      <div className="grid grid-cols-3 gap-1">
-                                        <div>
-                                          <p className="text-[6px] text-muted-foreground uppercase">Open</p>
-                                          <p className="text-[11px] font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(row.opening)}</p>
-                                        </div>
-                                        <div>
-                                          <p className="text-[6px] text-muted-foreground uppercase">Reward</p>
-                                          <p className={`text-[11px] font-bold font-mono tabular-nums truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
-                                        </div>
-                                        <div className="text-right">
-                                          <p className="text-[6px] text-muted-foreground uppercase">Close</p>
-                                          <p className="text-[11px] font-extrabold text-foreground font-mono tabular-nums truncate">{formatAmount(row.closing)}</p>
-                                        </div>
+                                      <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
+                                        <p className="text-[7px] text-muted-foreground uppercase">Final Value</p>
+                                        <p className="text-xs font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(finalValue)}</p>
                                       </div>
                                     </div>
-                                  );
+                                    {projectionRows.map((row) => {
+                                      const isLast = row.month === projectionRows.length;
+                                      const past = isPast(row.date);
+                                      return (
+                                        <div key={row.month}
+                                          className={`rounded-lg border p-2 ${isLast ? 'bg-success/5 border-success/15' : 'bg-card border-border/30'}`}>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className={`text-[9px] font-bold ${isLast ? 'text-success' : 'text-muted-foreground'}`}>M{row.month}</span>
+                                              {past && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary">PAID</span>}
+                                            </div>
+                                            <span className="text-[9px] text-muted-foreground font-mono">{format(row.date, 'dd MMM yy')}</span>
+                                          </div>
+                                          <div className="grid grid-cols-3 gap-1">
+                                            <div>
+                                              <p className="text-[6px] text-muted-foreground uppercase">Open</p>
+                                              <p className="text-[11px] font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(row.opening)}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-[6px] text-muted-foreground uppercase">Reward</p>
+                                              <p className={`text-[11px] font-bold font-mono tabular-nums truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                              <p className="text-[6px] text-muted-foreground uppercase">Close</p>
+                                              <p className="text-[11px] font-extrabold text-foreground font-mono tabular-nums truncate">{formatAmount(row.closing)}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        {entry.status !== 'cancelled' && (
+                          <div className="px-4 pb-3 space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                size="sm"
+                                className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold"
+                                onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Top Up
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-border/60"
+                                onClick={() => setPayoutTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
+                                Payout Method
+                              </Button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-border/60"
+                                disabled={actionLoading === `renew-${entry.id}`}
+                                onClick={() => {
+                                  if (confirm(`Renew "${entry.account_name || entry.code}" for another 12 months?`)) {
+                                    handleAccountAction('renew', entry.id, entry.account_name || entry.code);
+                                  }
+                                }}
+                              >
+                                <RefreshCw className={`h-3.5 w-3.5 ${actionLoading === `renew-${entry.id}` ? 'animate-spin' : ''}`} />
+                                {actionLoading === `renew-${entry.id}` ? 'Renewing…' : 'Renew'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-amber-500/30 text-amber-600 hover:bg-amber-500/5"
+                                disabled={entry.amount <= 0}
+                                onClick={() => setWithdrawDialog({ id: entry.id, name: entry.account_name || entry.code, maxAmount: entry.amount })}
+                              >
+                                <LogOut className="h-3.5 w-3.5" />
+                                Withdraw
+                              </Button>
+                            </div>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={`w-full gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold ${
+                                isCompounding
+                                  ? 'border-amber-500/30 text-amber-600 hover:bg-amber-500/5'
+                                  : 'border-success/30 text-success hover:bg-success/5'
+                              }`}
+                              disabled={actionLoading === `toggle_roi_mode-${entry.id}`}
+                              onClick={() => {
+                                const newMode = isCompounding ? 'Simple' : 'Compounding';
+                                if (confirm(`Switch to ${newMode} mode?`)) {
+                                  handleAccountAction('toggle_roi_mode', entry.id, entry.account_name || entry.code);
+                                }
+                              }}
+                            >
+                              {isCompounding ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
+                              {actionLoading === `toggle_roi_mode-${entry.id}` ? 'Switching…' : isCompounding ? 'Switch to Simple' : 'Switch to Compound'}
+                            </Button>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1 text-[11px] h-9 rounded-lg text-muted-foreground hover:text-foreground"
+                                onClick={() => downloadPortfolioPdf({
+                                  portfolioCode: entry.code, accountName: entry.account_name,
+                                  investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
+                                  roiMode: entry.roi_mode, totalRoiEarned: entry.total_earned,
+                                  status: entry.status, createdAt: entry.invested_at,
+                                  durationMonths: entry.duration_months, payoutDay: entry.payout_day,
+                                  nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
                                 })}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
-                      </div>
-                    )}
+                              >
+                                <FileText className="h-3.5 w-3.5" /> PDF
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1 text-[11px] h-9 rounded-lg text-success hover:text-success hover:bg-success/5"
+                                onClick={() => sharePortfolioViaWhatsApp({
+                                  portfolioCode: entry.code, accountName: entry.account_name,
+                                  investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
+                                  roiMode: entry.roi_mode, totalRoiEarned: entry.total_earned,
+                                  status: entry.status, createdAt: entry.invested_at,
+                                  durationMonths: entry.duration_months, payoutDay: entry.payout_day,
+                                  nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
+                                })}
+                              >
+                                <Share2 className="h-3.5 w-3.5" /> WhatsApp
+                              </Button>
+                            </div>
+                          </div>
+                        )}
 
-                    {/* Action Buttons — grouped cleanly */}
-                    {entry.status !== 'cancelled' && (
-                      <div className="px-4 pb-3 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            size="sm"
-                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold"
-                            onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Top Up
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-border/60"
-                            onClick={() => setPayoutTarget({ id: entry.id, name: entry.account_name || entry.code })}
-                          >
-                            <CreditCard className="h-3.5 w-3.5" />
-                            Payout Method
-                          </Button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-border/60"
-                            disabled={actionLoading === `renew-${entry.id}`}
-                            onClick={() => {
-                              if (confirm(`Renew "${entry.account_name || entry.code}" for another 12 months?`)) {
-                                handleAccountAction('renew', entry.id, entry.account_name || entry.code);
-                              }
-                            }}
-                          >
-                            <RefreshCw className={`h-3.5 w-3.5 ${actionLoading === `renew-${entry.id}` ? 'animate-spin' : ''}`} />
-                            {actionLoading === `renew-${entry.id}` ? 'Renewing…' : 'Renew'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold border-amber-500/30 text-amber-600 hover:bg-amber-500/5"
-                            disabled={entry.amount <= 0}
-                            onClick={() => setWithdrawDialog({ id: entry.id, name: entry.account_name || entry.code, maxAmount: entry.amount })}
-                          >
-                            <LogOut className="h-3.5 w-3.5" />
-                            Withdraw
-                          </Button>
-                        </div>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`w-full gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold ${
-                            isCompounding
-                              ? 'border-amber-500/30 text-amber-600 hover:bg-amber-500/5'
-                              : 'border-success/30 text-success hover:bg-success/5'
-                          }`}
-                          disabled={actionLoading === `toggle_roi_mode-${entry.id}`}
-                          onClick={() => {
-                            const newMode = isCompounding ? 'Simple' : 'Compounding';
-                            if (confirm(`Switch to ${newMode} mode?`)) {
-                              handleAccountAction('toggle_roi_mode', entry.id, entry.account_name || entry.code);
-                            }
-                          }}
-                        >
-                          {isCompounding ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
-                          {actionLoading === `toggle_roi_mode-${entry.id}` ? 'Switching…' : isCompounding ? 'Switch to Simple' : 'Switch to Compound'}
-                        </Button>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="gap-1 text-[11px] h-9 rounded-lg text-muted-foreground hover:text-foreground"
-                            onClick={() => downloadPortfolioPdf({
-                              portfolioCode: entry.code, accountName: entry.account_name,
-                              investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
-                              roiMode: entry.roi_mode, totalRoiEarned: entry.total_earned,
-                              status: entry.status, createdAt: entry.invested_at,
-                              durationMonths: entry.duration_months, payoutDay: entry.payout_day,
-                              nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
-                            })}
-                          >
-                            <FileText className="h-3.5 w-3.5" /> PDF
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="gap-1 text-[11px] h-9 rounded-lg text-success hover:text-success hover:bg-success/5"
-                            onClick={() => sharePortfolioViaWhatsApp({
-                              portfolioCode: entry.code, accountName: entry.account_name,
-                              investmentAmount: entry.amount, roiPercentage: entry.roi_percentage,
-                              roiMode: entry.roi_mode, totalRoiEarned: entry.total_earned,
-                              status: entry.status, createdAt: entry.invested_at,
-                              durationMonths: entry.duration_months, payoutDay: entry.payout_day,
-                              nextRoiDate: entry.next_roi_date, maturityDate: entry.maturity_date,
-                            })}
-                          >
-                            <Share2 className="h-3.5 w-3.5" /> WhatsApp
-                          </Button>
+                        {/* Timeline */}
+                        <div className="bg-muted/20 border-t border-border/30 px-4 py-3 space-y-1.5">
+                          {[
+                            { dot: 'bg-primary', label: 'Started', value: format(investedDate, 'dd MMM yyyy') },
+                            { dot: 'bg-muted-foreground/40', label: 'Cycle', value: entry.payout_day ? `${entry.payout_day}${['st','nd','rd'][entry.payout_day-1] || 'th'} monthly` : 'Every 30 days' },
+                            { dot: 'bg-success', label: 'Earned', value: formatAmount(entry.total_earned), extra: 'text-success font-extrabold' },
+                          ].map((t, i) => (
+                            <div key={i} className="flex items-center gap-2.5">
+                              <div className={`h-1.5 w-1.5 rounded-full ${t.dot} shrink-0`} />
+                              <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{t.label}</span>
+                              <span className={`text-[10px] font-semibold text-foreground truncate font-mono tabular-nums ${t.extra || ''}`}>{t.value}</span>
+                            </div>
+                          ))}
+                          {maturity && (
+                            <div className="flex items-center gap-2.5">
+                              <div className={`h-1.5 w-1.5 rounded-full ${isPast(maturity) ? 'bg-warning' : 'bg-muted-foreground/40'} shrink-0`} />
+                              <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{isPast(maturity) ? 'Matured' : 'Matures'}</span>
+                              <span className="text-[10px] font-semibold text-foreground font-mono tabular-nums">{format(maturity, 'dd MMM yyyy')}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
 
-                    {/* Timeline */}
-                    <div className="bg-muted/20 border-t border-border/30 px-4 py-3 space-y-1.5">
-                      {[
-                        { dot: 'bg-primary', label: 'Started', value: format(investedDate, 'dd MMM yyyy') },
-                        { dot: 'bg-muted-foreground/40', label: 'Cycle', value: entry.payout_day ? `${entry.payout_day}${['st','nd','rd'][entry.payout_day-1] || 'th'} monthly` : 'Every 30 days' },
-                        { dot: 'bg-success', label: 'Earned', value: formatAmount(entry.total_earned), extra: 'text-success font-extrabold' },
-                      ].map((t, i) => (
-                        <div key={i} className="flex items-center gap-2.5">
-                          <div className={`h-1.5 w-1.5 rounded-full ${t.dot} shrink-0`} />
-                          <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{t.label}</span>
-                          <span className={`text-[10px] font-semibold text-foreground truncate font-mono tabular-nums ${t.extra || ''}`}>{t.value}</span>
-                        </div>
-                      ))}
-                      {maturity && (
-                        <div className="flex items-center gap-2.5">
-                          <div className={`h-1.5 w-1.5 rounded-full ${isPast(maturity) ? 'bg-warning' : 'bg-muted-foreground/40'} shrink-0`} />
-                          <span className="text-[9px] text-muted-foreground font-medium w-12 shrink-0">{isPast(maturity) ? 'Matured' : 'Matures'}</span>
-                          <span className="text-[10px] font-semibold text-foreground font-mono tabular-nums">{format(maturity, 'dd MMM yyyy')}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
+          <TabsContent value="angel-shares" className="mt-0 flex-1 min-h-0">
+            <ScrollArea className="h-[calc(90vh-180px)] px-5 pb-8">
+              <AngelSharesTab />
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
 
       {topUpTarget && (
