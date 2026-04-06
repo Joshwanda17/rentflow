@@ -36,7 +36,7 @@ import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import DashboardHeader from '@/components/DashboardHeader';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { useProfile } from '@/hooks/useProfile';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
