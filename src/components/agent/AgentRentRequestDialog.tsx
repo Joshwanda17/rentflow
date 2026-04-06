@@ -562,7 +562,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                   </div>
 
                   {/* 🏠 Landlord Registration Section */}
-                  <div className="space-y-3 p-4 rounded-2xl border" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
+                  <div className="space-y-3 p-4 rounded-2xl border border-primary" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-primary" />
                       🏠 Landlord Registration
