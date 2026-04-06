@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useCurrency } from '@/hooks/useCurrency';
 import {
   Dialog,
   DialogContent,
