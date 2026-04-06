@@ -2,6 +2,7 @@ import { Transaction, CASH_IN_CATEGORIES, CASH_OUT_CATEGORIES } from '@/types/fi
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface TransactionListProps {
   transactions: Transaction[];
