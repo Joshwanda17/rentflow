@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt } from 'lucide-react';
+import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -269,39 +269,101 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               ← Change deposit method ({getProviderLabel()})
             </button>
 
-            {/* ─── MoMo Instructions ─── */}
+            {/* ─── MoMo Instructions (Tab-Based) ─── */}
             {channel === 'momo' && (
-              <>
-                <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-                  <h4 className="font-medium text-xs mb-1.5">How to deposit:</h4>
-                  <ol className="text-xs text-muted-foreground space-y-0.5 list-decimal list-inside">
-                    <li>Dial *165# (MTN) or *185# (Airtel)</li>
-                    <li>Select "Pay Bill" or "Merchant Payment"</li>
-                    <li>Enter the merchant code below</li>
-                    <li>Enter amount and confirm</li>
-                  </ol>
+              <div className="space-y-3">
+                {/* Provider Tabs */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setMomoProvider('mtn'); validateTid(transactionId, 'mtn'); }}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 transition-all font-semibold text-sm ${momoProvider === 'mtn' ? 'border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/10 shadow-sm' : 'border-border hover:border-[hsl(var(--warning))]/50'}`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[hsl(var(--warning))] flex items-center justify-center text-[hsl(var(--warning-foreground))] font-bold text-[9px]">MTN</div>
+                    MTN MoMo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMomoProvider('airtel'); validateTid(transactionId, 'airtel'); }}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 transition-all font-semibold text-sm ${momoProvider === 'airtel' ? 'border-destructive bg-destructive/10 shadow-sm' : 'border-border hover:border-destructive/50'}`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center text-destructive-foreground font-bold text-[9px]">AIR</div>
+                    Airtel Money
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Provider</Label>
-                  <RadioGroup value={momoProvider} onValueChange={(v) => { setMomoProvider(v as 'mtn' | 'airtel'); validateTid(transactionId, v as 'mtn' | 'airtel'); }} className="grid grid-cols-2 gap-2">
-                    <Label htmlFor="mtn" className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer ${momoProvider === 'mtn' ? 'border-yellow-500 bg-yellow-500/10' : 'border-border'}`}>
-                      <RadioGroupItem value="mtn" id="mtn" className="sr-only" />
-                      <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-[10px]">MTN</div>
-                      <span className="text-sm font-medium">MTN</span>
-                    </Label>
-                    <Label htmlFor="airtel" className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer ${momoProvider === 'airtel' ? 'border-red-500 bg-red-500/10' : 'border-border'}`}>
-                      <RadioGroupItem value="airtel" id="airtel" className="sr-only" />
-                      <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-[10px]">AIR</div>
-                      <span className="text-sm font-medium">Airtel</span>
-                    </Label>
-                  </RadioGroup>
+
+                {/* Merchant ID — prominent with copy */}
+                <div className="p-3 bg-muted/60 rounded-xl text-center space-y-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Merchant ID</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-2xl font-mono font-bold tracking-widest">{MERCHANT_CODES[momoProvider]}</p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(MERCHANT_CODES[momoProvider]);
+                          toast.success(`Copied ${MERCHANT_CODES[momoProvider]}`);
+                        } catch { toast.error('Failed to copy'); }
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <Copy className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-primary font-medium">{MERCHANT_NAME}</p>
                 </div>
-                <div className="p-3 bg-muted rounded-lg text-center">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Merchant Code</p>
-                  <p className="text-xl font-mono font-bold tracking-wider">{MERCHANT_CODES[momoProvider]}</p>
-                  <p className="text-[10px] text-primary font-medium mt-0.5">{MERCHANT_NAME}</p>
+
+                {/* Timeline Steps */}
+                <div className="pl-3">
+                  {(momoProvider === 'mtn' ? [
+                    'Dial *165*3#',
+                    'Choose "Pay with MoMo"',
+                    `Enter Merchant ID: ${MERCHANT_CODES.mtn}`,
+                    'Enter amount & confirm with PIN',
+                  ] : [
+                    'Dial *185*9#',
+                    'Select "Pay Merchant"',
+                    `Enter Merchant ID: ${MERCHANT_CODES.airtel}`,
+                    'Enter amount & confirm with PIN',
+                  ]).map((s, i, arr) => (
+                    <div key={i} className="flex gap-3 items-start">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]' : 'bg-destructive text-destructive-foreground'}`}>
+                          {i + 1}
+                        </div>
+                        {i < arr.length - 1 && <div className="w-px h-4 bg-border" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground pt-0.5 pb-2">{s}</p>
+                    </div>
+                  ))}
                 </div>
-              </>
+
+                {/* Pay Now USSD Button */}
+                {amount && parseFloat(amount) > 0 && (
+                  <Button
+                    type="button"
+                    className={`w-full h-11 font-semibold ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}`}
+                    onClick={() => {
+                      const dialString = momoProvider === 'mtn'
+                        ? `tel:*165*3*${amount}%23`
+                        : `tel:*185*9%23`;
+                      window.location.href = dialString;
+                      setTimeout(() => {
+                        toast.info(`Merchant ID: ${MERCHANT_CODES[momoProvider]}`, {
+                          duration: 10000,
+                          action: {
+                            label: 'Copy',
+                            onClick: () => navigator.clipboard.writeText(MERCHANT_CODES[momoProvider]),
+                          },
+                        });
+                      }, 500);
+                    }}
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    Pay Now via {momoProvider === 'mtn' ? 'MTN' : 'Airtel'}
+                  </Button>
+                )}
+              </div>
             )}
 
             {/* ─── Bank Instructions ─── */}
