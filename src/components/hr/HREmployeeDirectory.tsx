@@ -295,12 +295,6 @@ export default function HREmployeeDirectory() {
           </Table>
         </div>
       )}
-
-      <HREmployeeDetailDrawer
-        employee={selectedEmployee}
-        open={!!selectedEmployee}
-        onOpenChange={(open) => { if (!open) setSelectedEmployee(null); }}
-      />
     </div>
   );
 }
