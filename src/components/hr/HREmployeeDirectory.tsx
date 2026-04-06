@@ -46,7 +46,7 @@ export default function HREmployeeDirectory() {
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('user_id, role, enabled')
-        .in('role', INTERNAL_ROLES as unknown as string[]);
+        .in('role', INTERNAL_ROLES as any);
 
       if (!roleData || roleData.length === 0) return [];
 

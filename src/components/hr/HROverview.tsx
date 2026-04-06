@@ -23,7 +23,7 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
       const { count } = await supabase
         .from('user_roles')
         .select('*', { count: 'exact', head: true })
-        .in('role', INTERNAL_ROLES as unknown as string[])
+        .in('role', INTERNAL_ROLES as any)
         .eq('enabled', true);
       return count || 0;
     },
@@ -78,7 +78,7 @@ export default function HROverview({ onNavigate }: HROverviewProps) {
       const { data } = await supabase
         .from('user_roles')
         .select('role')
-        .in('role', INTERNAL_ROLES as unknown as string[])
+        .in('role', INTERNAL_ROLES as any)
         .eq('enabled', true);
       if (!data) return [];
       const counts: Record<string, number> = {};
