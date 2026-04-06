@@ -1,31 +1,52 @@
-### Fix: "Something went wrong" crash on `/find-a-house` and `/house/:id`
 
-#### **Root Cause**
 
-The error `TypeError: Cannot read properties of undefined (reading 'add')` originates from `HelmetDispatcher.init` in **react-helmet-async**.
+# Add "Angel Shares" Tab to My Support Accounts Sheet
 
-Both `FindAHouse.tsx` and `HouseDetail.tsx` use the `<Helmet>` component, but the application is missing a `<HelmetProvider>` at the root level. Since `<Helmet>` depends on this provider, it attempts to call `.add()` on an undefined context, causing the app to crash and fall into `ChunkErrorBoundary`, which displays the generic *"Something went wrong"* message.
+## What Changes
 
----
+The existing **"My Support Accounts"** bottom sheet (`InvestmentBreakdownSheet.tsx`) will be upgraded with two tabs:
+- **Support Accounts** — the current content (no changes)
+- **Angel Shares** — a new investor-grade shareholding overview
 
-#### **Fix**
+## Angel Shares Tab Content
 
-Wrap the application’s root component with `<HelmetProvider>` in `src/App.tsx`.
+### Hero Card (dark gradient)
+- Total shares held (large number)
+- Total capital invested in UGX
+- Pool ownership % (shares / 25,000 x 100)
+- Company ownership % (shares / 25,000 x 8)
+- "Verified Shareholder" badge
 
-This is a minimal, one-line structural fix.
+### Valuation Projections
+Three cards showing estimated value of holdings at $1B, $3B, $5B company valuations using existing constants (`VALUATIONS`, `UGX_PER_USD`).
 
----
+### Investment History
+Chronological list of individual angel pool investment records — date, amount, shares acquired, reference ID, and status badge. Sorted newest first.
 
-#### **Files to Update**
+## Technical Plan
 
-- `src/App.tsx`
-  - Import `HelmetProvider` from `react-helmet-async`
-  - Wrap the top-level component tree with it
+### 1. Create `src/hooks/useMyAngelShares.ts`
+- Query `angel_pool_investments` filtered by current user ID
+- Separate confirmed vs pending investments
+- Aggregate totals: shares, amount, pool %, company %
+- Return individual records for history list
 
----
+### 2. Create `src/components/supporter/AngelSharesTab.tsx`
+- Self-contained component consuming the hook
+- Renders hero card, valuation grid, and history list
+- Shows empty state if user has no angel shares
 
-#### **Impact**
+### 3. Modify `src/components/supporter/InvestmentBreakdownSheet.tsx`
+- Add `Tabs` component (using existing `underline` variant) below the sheet header
+- Two tabs: "Support Accounts" and "Angel Shares"
+- Current sheet body becomes the "Support Accounts" tab content
+- "Angel Shares" tab renders the new `AngelSharesTab` component
+- Summary stats row stays tab-specific (each tab shows its own summary)
 
-- Resolves the crash on `/find-a-house` (public listings page)
-- Resolves the crash on `/house/:id` (house details page)
-- No side effects on other pages, as only these routes use `<Helmet>`
+### Files
+| Action | File |
+|--------|------|
+| Create | `src/hooks/useMyAngelShares.ts` |
+| Create | `src/components/supporter/AngelSharesTab.tsx` |
+| Modify | `src/components/supporter/InvestmentBreakdownSheet.tsx` |
+
