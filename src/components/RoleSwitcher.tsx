@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin' | 'hr';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
@@ -49,11 +49,12 @@ const roleConfig: Record<AppRole, { label: string; shortLabel: string; icon: Rea
   employee: { label: 'Employee', shortLabel: 'Staff', icon: <Users className="h-3.5 w-3.5" />, emoji: '🧑‍💼' },
   operations: { label: 'Operations', shortLabel: 'Ops', icon: <Shield className="h-3.5 w-3.5" />, emoji: '🔧' },
   super_admin: { label: 'Super Admin', shortLabel: 'S.Admin', icon: <Shield className="h-3.5 w-3.5" />, emoji: '🔑' },
+  hr: { label: 'HR', shortLabel: 'HR', icon: <Users className="h-3.5 w-3.5" />, emoji: '👤' },
 };
 
-const ALL_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter', 'manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin'];
+const ALL_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter', 'manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin', 'hr'];
 
-const RESTRICTED_ROLES: AppRole[] = ['manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin'];
+const RESTRICTED_ROLES: AppRole[] = ['manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin', 'hr'];
 
 const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
 

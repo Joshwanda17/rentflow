@@ -3041,6 +3041,105 @@ export type Database = {
         }
         Relationships: []
       }
+      disciplinary_records: {
+        Row: {
+          action_type: Database["public"]["Enums"]["disciplinary_action_type"]
+          created_at: string
+          description: string
+          effective_date: string
+          employee_id: string
+          expiry_date: string | null
+          id: string
+          issued_by: string
+          resolution_note: string | null
+          severity: string
+          status: string
+        }
+        Insert: {
+          action_type: Database["public"]["Enums"]["disciplinary_action_type"]
+          created_at?: string
+          description: string
+          effective_date?: string
+          employee_id: string
+          expiry_date?: string | null
+          id?: string
+          issued_by: string
+          resolution_note?: string | null
+          severity?: string
+          status?: string
+        }
+        Update: {
+          action_type?: Database["public"]["Enums"]["disciplinary_action_type"]
+          created_at?: string
+          description?: string
+          effective_date?: string
+          employee_id?: string
+          expiry_date?: string | null
+          id?: string
+          issued_by?: string
+          resolution_note?: string | null
+          severity?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disciplinary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       earning_baselines: {
         Row: {
           avg_daily_earnings: number | null
@@ -4250,6 +4349,173 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_balances: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          leave_type: Database["public"]["Enums"]["leave_type"]
+          remaining_days: number
+          total_days: number
+          updated_at: string
+          used_days: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          leave_type: Database["public"]["Enums"]["leave_type"]
+          remaining_days?: number
+          total_days?: number
+          updated_at?: string
+          used_days?: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          leave_type?: Database["public"]["Enums"]["leave_type"]
+          remaining_days?: number
+          total_days?: number
+          updated_at?: string
+          used_days?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      leave_requests: {
+        Row: {
+          created_at: string
+          days_count: number
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: Database["public"]["Enums"]["leave_type"]
+          reason: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          days_count: number
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type: Database["public"]["Enums"]["leave_type"]
+          reason: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          days_count?: number
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: Database["public"]["Enums"]["leave_type"]
+          reason?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       ledger_account_groups: {
         Row: {
           description: string
@@ -5142,42 +5408,94 @@ export type Database = {
       }
       payroll_batches: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           batch_month: string
           created_at: string
           created_by: string
+          employee_count: number | null
           id: string
+          notes: string | null
+          period_end: string | null
+          period_start: string | null
+          prepared_by: string | null
           processed_at: string | null
           processed_count: number
           status: string
+          submitted_at: string | null
           total_amount: number
           total_employees: number
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           batch_month: string
           created_at?: string
           created_by: string
+          employee_count?: number | null
           id?: string
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          prepared_by?: string | null
           processed_at?: string | null
           processed_count?: number
           status?: string
+          submitted_at?: string | null
           total_amount?: number
           total_employees?: number
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           batch_month?: string
           created_at?: string
           created_by?: string
+          employee_count?: number | null
           id?: string
+          notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          prepared_by?: string | null
           processed_at?: string | null
           processed_count?: number
           status?: string
+          submitted_at?: string | null
           total_amount?: number
           total_employees?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payroll_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "payroll_batches_created_by_fkey"
             columns: ["created_by"]
@@ -5206,14 +5524,44 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "payroll_batches_prepared_by_fkey"
+            columns: ["prepared_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_prepared_by_fkey"
+            columns: ["prepared_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_prepared_by_fkey"
+            columns: ["prepared_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_prepared_by_fkey"
+            columns: ["prepared_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       payroll_items: {
         Row: {
           amount: number
           batch_id: string
+          bonuses: Json
           category: string
           created_at: string
+          deductions: Json
           description: string | null
           employee_id: string
           id: string
@@ -5224,8 +5572,10 @@ export type Database = {
         Insert: {
           amount: number
           batch_id: string
+          bonuses?: Json
           category?: string
           created_at?: string
+          deductions?: Json
           description?: string | null
           employee_id: string
           id?: string
@@ -5236,8 +5586,10 @@ export type Database = {
         Update: {
           amount?: number
           batch_id?: string
+          bonuses?: Json
           category?: string
           created_at?: string
+          deductions?: Json
           description?: string | null
           employee_id?: string
           id?: string
@@ -9536,6 +9888,7 @@ export type Database = {
         | "employee"
         | "operations"
         | "super_admin"
+        | "hr"
       automation_action_type:
         | "send_notification"
         | "send_push"
@@ -9547,6 +9900,12 @@ export type Database = {
         | "apply_late_fee"
         | "restrict_access"
       collection_payment_method: "mobile_money" | "cash" | "in_app_wallet"
+      disciplinary_action_type:
+        | "verbal_warning"
+        | "written_warning"
+        | "suspension"
+        | "termination"
+        | "probation"
       expense_category:
         | "operations"
         | "marketing"
@@ -9556,6 +9915,7 @@ export type Database = {
         | "employee_advances"
         | "general"
       flag_severity: "low" | "medium" | "high" | "critical"
+      leave_type: "annual" | "sick" | "personal" | "maternity" | "paternity"
       system_event_type:
         | "payment_missed"
         | "payment_made"
@@ -9743,6 +10103,7 @@ export const Constants = {
         "employee",
         "operations",
         "super_admin",
+        "hr",
       ],
       automation_action_type: [
         "send_notification",
@@ -9756,6 +10117,13 @@ export const Constants = {
         "restrict_access",
       ],
       collection_payment_method: ["mobile_money", "cash", "in_app_wallet"],
+      disciplinary_action_type: [
+        "verbal_warning",
+        "written_warning",
+        "suspension",
+        "termination",
+        "probation",
+      ],
       expense_category: [
         "operations",
         "marketing",
@@ -9766,6 +10134,7 @@ export const Constants = {
         "general",
       ],
       flag_severity: ["low", "medium", "high", "critical"],
+      leave_type: ["annual", "sick", "personal", "maternity", "paternity"],
       system_event_type: [
         "payment_missed",
         "payment_made",

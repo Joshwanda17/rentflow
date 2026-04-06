@@ -164,6 +164,7 @@ export default function Settings() {
     employee: { label: 'Employee', icon: <Users className="h-4 w-4" />, color: 'bg-muted text-muted-foreground border-border' },
     operations: { label: 'Operations', icon: <Shield className="h-4 w-4" />, color: 'bg-accent/20 text-accent border-accent/30' },
     super_admin: { label: 'Super Admin', icon: <Shield className="h-4 w-4" />, color: 'bg-destructive/20 text-destructive border-destructive/30' },
+    hr: { label: 'HR', icon: <Users className="h-4 w-4" />, color: 'bg-primary/20 text-primary border-primary/30' },
   };
 
   const hasLegalContent = roles.includes('tenant') || roles.includes('agent') || roles.includes('supporter');

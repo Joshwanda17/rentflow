@@ -128,6 +128,19 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       ],
     },
   ],
+  hr: [
+    {
+      title: 'Human Resources',
+      items: [
+        { label: 'Overview', icon: LayoutDashboard, id: 'overview' },
+        { label: 'Employee Directory', icon: Users, id: 'employees' },
+        { label: 'Leave Management', icon: ClipboardList, id: 'leave' },
+        { label: 'Payroll', icon: Banknote, id: 'payroll' },
+        { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary' },
+        { label: 'Audit Trail', icon: FileText, id: 'audit' },
+      ],
+    },
+  ],
   super_admin: [
     {
       title: 'Administration',
@@ -161,6 +174,7 @@ export const roleDashboardRoutes: Partial<Record<AppRole, string>> = {
   cmo: '/cmo/dashboard',
   crm: '/crm/dashboard',
   ceo: '/ceo/dashboard',
+  hr: '/hr/dashboard',
   operations: '/operations',
   manager: '/admin/dashboard',
   super_admin: '/admin/dashboard',
@@ -169,7 +183,7 @@ export const roleDashboardRoutes: Partial<Record<AppRole, string>> = {
 
 /** Roles that get redirected away from /dashboard to their isolated environment */
 export const ISOLATED_ROLES: AppRole[] = [
-  'cto', 'cfo', 'coo', 'cmo', 'crm', 'ceo', 'operations',
+  'cto', 'cfo', 'coo', 'cmo', 'crm', 'ceo', 'hr', 'operations',
   'manager', 'super_admin', 'employee',
 ];
 
@@ -187,6 +201,7 @@ export const roleLabels: Record<AppRole, string> = {
   cmo: 'CMO',
   crm: 'CRM',
   employee: 'Employee',
+  hr: 'HR',
   operations: 'Operations',
   super_admin: 'Super Admin',
 };
