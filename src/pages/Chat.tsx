@@ -12,7 +12,7 @@ import BroadcastMessageDialog from '@/components/chat/BroadcastMessageDialog';
 import { WhatsAppRequestsSheet } from '@/components/chat/WhatsAppRequestsSheet';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MessageCircle, Megaphone, Home } from 'lucide-react';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { getLastSyncTime } from '@/lib/offlineStorage';
 
 export default function ChatPage() {
