@@ -82,92 +82,13 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       <div className="flex-1 overflow-y-auto pb-16 md:pb-4">
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
 
-          {/* Profile + Wallet Hero Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-border/60 bg-card overflow-hidden"
-          >
-            {/* Profile row */}
-            <div className="flex items-center gap-3 p-4 pb-3">
-              <button onClick={() => navigate('/settings')} className="shrink-0">
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-              </button>
-              <div className="flex-1 min-w-0">
-              <p className="text-[11px] text-muted-foreground font-medium">Welcome back</p>
-              <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5 flex-wrap">
-                <span className="break-words">{profile?.full_name || 'Property Owner'}</span>
-                  {profile?.verified && (
-                    <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
-                  )}
-                  <WelileHomesLandlordBadge userId={user.id} variant="compact" />
-              </h1>
-                <p className="text-xs text-muted-foreground">Property Owner</p>
-              </div>
-              <AiIdButton variant="compact" />
-            </div>
-
-            {/* Wallet strip */}
-            <button
-              onClick={handleViewWallet}
-              className="group w-full flex items-center gap-3 px-4 py-3.5 bg-success/5 border-t border-border/40 hover:bg-success/10 transition-all touch-manipulation"
-            >
-              <div className="p-2 rounded-lg bg-success/15 group-hover:bg-success/25 transition-colors shrink-0">
-                <Wallet className="h-4 w-4 text-success" />
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="font-bold text-lg text-foreground truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-                <p className="text-[10px] text-muted-foreground">Tap to open wallet</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {profile?.phone && (
-                  <>
-                    {/^(\+?256)?0?(77|78|76)/.test(profile.phone) && (
-                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(48,100%,50%)] text-[6px] font-black text-[hsl(220,20%,20%)] leading-none">M</span>
-                    )}
-                    {/^(\+?256)?0?(75|70|74)/.test(profile.phone) && (
-                      <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-[hsl(0,85%,50%)] text-[6px] font-black text-white leading-none">A</span>
-                    )}
-                  </>
-                )}
-                <span className="text-muted-foreground group-hover:text-foreground transition-colors">›</span>
-              </div>
-            </button>
-          </motion.div>
-
-          {/* Property Stats Row */}
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => { hapticTap(); setShowProperties(true); }}
-              className="rounded-xl bg-card border border-border/50 p-3 text-center hover:bg-muted/40 transition-colors active:scale-95 touch-manipulation"
-            >
-              <Home className="h-4 w-4 text-primary mx-auto mb-1" />
-              {statsLoading ? (
-                <Skeleton className="h-6 w-8 mx-auto mb-0.5" />
-              ) : (
-                <p className="text-xl font-bold leading-tight">{landlordStats.totalProperties}</p>
-              )}
-              <p className="text-[10px] font-medium text-muted-foreground">Properties</p>
-            </button>
-            <div className="rounded-xl bg-card border border-border/50 p-3 text-center">
-              <DoorOpen className="h-4 w-4 text-warning mx-auto mb-1" />
-              {statsLoading ? (
-                <Skeleton className="h-6 w-8 mx-auto mb-0.5" />
-              ) : (
-                <p className="text-xl font-bold leading-tight">{landlordStats.emptyHouses}</p>
-              )}
-              <p className="text-[10px] font-medium text-muted-foreground">Empty</p>
-            </div>
-            <div className="rounded-xl bg-card border border-border/50 p-3 text-center">
-              <Banknote className="h-4 w-4 text-success mx-auto mb-1" />
-              {statsLoading ? (
-                <Skeleton className="h-6 w-6 mx-auto mb-0.5" />
-              ) : (
-                <p className="text-sm font-bold leading-tight">{formatUGX(landlordStats.totalRentReceivable)}</p>
-              )}
-              <p className="text-[10px] font-medium text-muted-foreground">Rent/Month</p>
-            </div>
-          </div>
+          {/* Portfolio Hero Card */}
+          <LandlordWalletHeroCard
+            walletBalance={wallet?.balance ?? 0}
+            totalProperties={landlordStats.totalProperties}
+            emptyHouses={landlordStats.emptyHouses}
+            totalRentReceivable={landlordStats.totalRentReceivable}
+          />
 
           {/* Verification Checklist */}
           <VerificationChecklist userId={user.id} highlightRole="landlord" compact />
