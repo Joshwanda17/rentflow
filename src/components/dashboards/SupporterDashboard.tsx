@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
