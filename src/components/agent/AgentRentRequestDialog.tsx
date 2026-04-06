@@ -628,7 +628,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                   </div>
 
                   {/* 👤 Tenant Registration Section */}
-                  <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border-border border-4">
+                  <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border-4 border-primary">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <User className="h-4 w-4 text-primary" />
                       👤 Tenant Registration
