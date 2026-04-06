@@ -19,7 +19,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { 
   User, 
-  
   MapPin,
   Navigation,
   Building2,
@@ -33,7 +32,8 @@ import {
   Share2,
   Copy,
   MessageCircle,
-  Home
+  Home,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
@@ -45,7 +45,7 @@ interface AgentRentRequestDialogProps {
   onSuccess?: () => void;
 }
 
-type IncomeType = 'daily' | 'weekly-monthly';
+type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
 type RepaymentPeriod = '7' | '14' | '21' | '30' | '120';
 
 const HOUSE_CATEGORIES = [
@@ -76,6 +76,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
+  const [outstandingBalance, setOutstandingBalance] = useState('');
   const [duration, setDuration] = useState<'30' | '60' | '90'>('30');
   const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
   
@@ -161,6 +162,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setTenantName('');
     setTenantPhone('');
     setRentAmount('');
+    setOutstandingBalance('');
     setDuration('30');
     setRepaymentPeriod('7');
     setLandlordName('');
@@ -187,11 +189,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     onOpenChange(newOpen);
   };
 
-  const amount = parseInt(rentAmount.replace(/,/g, '')) || 0;
+  const amount = incomeType === 'outstanding' 
+    ? (parseInt(outstandingBalance.replace(/,/g, '')) || 0)
+    : (parseInt(rentAmount.replace(/,/g, '')) || 0);
   
   // Calculate fees based on income type
   const calculateFees = () => {
     if (!amount || !incomeType) return null;
+    
+    if (incomeType === 'outstanding') {
+      const days = parseInt(duration);
+      return {
+        rentAmount: amount,
+        durationDays: days,
+        accessFee: 0,
+        requestFee: 0,
+        totalRepayment: amount,
+        dailyRepayment: Math.ceil(amount / days),
+      };
+    }
     
     if (incomeType === 'daily') {
       return calculateRentRepayment(amount, parseInt(duration) as 30 | 60 | 90);
@@ -303,6 +319,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       const tenantId = tenantResult.user_id;
 
       // Create rent request with agent_id
+      const isOutstanding = incomeType === 'outstanding';
       const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
@@ -321,7 +338,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           tenant_no_smartphone: noSmartphone,
           request_latitude: gpsLocation?.lat ?? null,
           request_longitude: gpsLocation?.lng ?? null,
-        })
+          ...(isOutstanding ? {
+            registration_type: 'outstanding_balance',
+            initial_outstanding_balance: fees.rentAmount,
+          } : {}),
+        } as any)
         .select('id')
         .single();
 
@@ -493,6 +514,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     </div>
                   </div>
                 </button>
+
+                <button
+                  onClick={() => {
+                    setIncomeType('outstanding');
+                    setDuration('30');
+                    setStep('details');
+                  }}
+                  className="p-4 rounded-xl border-2 border-muted hover:border-warning hover:bg-warning/5 transition-all text-left group active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-lg bg-warning/10 group-hover:bg-warning/20">
+                      <AlertTriangle className="h-5 w-5 text-warning" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Outstanding Balance</p>
+                      <p className="text-xs text-muted-foreground">Register tenant with existing arrears — no fees applied</p>
+                    </div>
+                  </div>
+                </button>
               </div>
             </motion.div>
           ) : step === 'details' ? (
@@ -502,7 +542,74 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
-              {/* ===== 1. RENT DETAILS — PRIMARY SECTION (Purple Hero) ===== */}
+              {/* ===== 1. RENT DETAILS — PRIMARY SECTION ===== */}
+              {incomeType === 'outstanding' ? (
+                <div className="space-y-3 p-4 rounded-2xl bg-warning/10 border-2 border-warning/40">
+                  <h4 className="text-base font-extrabold text-warning flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-warning/20">
+                      <AlertTriangle className="h-5 w-5 text-warning" />
+                    </div>
+                    Outstanding Balance
+                  </h4>
+                  
+                  {/* Warning banner */}
+                  <div className="p-3 rounded-xl bg-warning/20 border border-warning/30">
+                    <p className="text-xs font-medium text-warning">
+                      ⚠️ This tenant is being registered with an outstanding balance. No access or platform fees will be applied.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-warning/80">Outstanding Balance (UGX) *</Label>
+                      <Input
+                        value={outstandingBalance}
+                        onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="200,000"
+                        className="h-12 text-lg font-bold border-2 border-warning/30 focus:border-warning rounded-xl"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-warning/80">Duration *</Label>
+                      <p className="text-[10px] text-muted-foreground">Repayment period</p>
+                      <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
+                        <SelectTrigger className="h-12 text-base font-semibold border-2 border-warning/30 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 Days</SelectItem>
+                          <SelectItem value="60">60 Days</SelectItem>
+                          <SelectItem value="90">90 Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Fee summary */}
+                  {fees && (
+                    <div className="space-y-2">
+                      <div className="p-4 rounded-2xl bg-warning/20 border-2 border-warning/40 text-center">
+                        <p className="text-xs text-warning/70 font-medium mb-1">Total Repayment</p>
+                        <p className="text-3xl font-black text-warning font-mono">{formatUGX(fees.totalRepayment)}</p>
+                        <p className="text-xs text-warning/70 mt-1">{formatUGX(fees.dailyRepayment)}/day for {fees.durationDays} days</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2 rounded-lg bg-background/60">
+                          <p className="text-[10px] text-muted-foreground">Access Fee</p>
+                          <p className="text-sm font-bold text-success">UGX 0</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-background/60">
+                          <p className="text-[10px] text-muted-foreground">Platform Fee</p>
+                          <p className="text-sm font-bold text-success">UGX 0</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-warning/20">
+                          <p className="text-[10px] text-muted-foreground">Status</p>
+                          <p className="text-sm font-bold text-warning">No Fees</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
               <div className="space-y-3 p-4 rounded-2xl bg-primary/10 border-2 border-primary/40">
                 <h4 className="text-base font-extrabold text-primary flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-primary/20">
@@ -577,6 +684,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                   </div>
                 )}
               </div>
+              )}
 
               <Separator />
 
@@ -838,14 +946,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 </Button>
                 <Button 
                   onClick={handleSubmit} 
-                  className="flex-1" 
-                  disabled={loading || !amount || amount < 50000}
+                  className={`flex-1 ${incomeType === 'outstanding' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' : ''}`}
+                  disabled={loading || !amount || (incomeType === 'outstanding' ? amount < 2000 : amount < 50000)}
                 >
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Submitting...
                     </>
+                  ) : incomeType === 'outstanding' ? (
+                    'Register Tenant (No Fees)'
                   ) : (
                     'Submit Request'
                   )}
