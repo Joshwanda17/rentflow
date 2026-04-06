@@ -1,15 +1,14 @@
 
 
-# Show Compact Capital Value in Angel Shares Tab
+# Remove Excessive Bottom Whitespace
 
-## Change
+## Problem
+The supporter dashboard has `pb-28` (112px) on the scroll container and an additional `pb-8` (32px) on the inner main element, creating too much whitespace below the content above the fixed bottom navigation bar.
 
-On line 68 of `AngelSharesTab.tsx`, switch `formatAmount(totalInvested)` to `formatAmountCompact(totalInvested)` so it displays as e.g. **1.388M** instead of the full number.
+## Fix
 
-Also need to destructure `formatAmountCompact` from `useCurrency()` on line 11.
+**File: `src/components/dashboards/SupporterDashboard.tsx`** (line ~357-358)
 
-### File: `src/components/supporter/AngelSharesTab.tsx`
-
-- **Line 11**: Add `formatAmountCompact` to the destructured hook: `const { formatAmount, formatAmountCompact } = useCurrency();`
-- **Line 68**: Change `{formatAmount(totalInvested)}` → `{formatAmountCompact(totalInvested)}`
+- Reduce `pb-28` on the outer scroll div to `pb-20` — just enough to clear the fixed bottom nav (~52px + safe area)
+- Remove the redundant `pb-8` from the inner `<main>` element
 
