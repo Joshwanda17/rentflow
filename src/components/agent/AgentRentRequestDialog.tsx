@@ -240,17 +240,24 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       return;
     }
 
-    if (!landlordName.trim() || !landlordPhone.trim() || !propertyAddress.trim()) {
-      toast.error('Please fill in all landlord details');
+    const isOutstanding = incomeType === 'outstanding';
+
+    if (!landlordName.trim() || !landlordPhone.trim()) {
+      toast.error('Please provide landlord name and phone');
       return;
     }
 
-    if (!lc1Name.trim() || !lc1Phone.trim() || !lc1Village.trim()) {
+    if (!isOutstanding && !propertyAddress.trim()) {
+      toast.error('Please fill in property address');
+      return;
+    }
+
+    if (!isOutstanding && (!lc1Name.trim() || !lc1Phone.trim() || !lc1Village.trim())) {
       toast.error('Please fill in all LC1 details');
       return;
     }
 
-    if (!houseCategory) {
+    if (!isOutstanding && !houseCategory) {
       toast.error('Please select a house category');
       return;
     }
