@@ -684,7 +684,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     </Button>
                     <Button 
                       onClick={handleSubmit} 
-                      className="flex-1 bg-warning hover:bg-warning/90 text-warning-foreground"
+                      className="flex-1 text-white hover:opacity-90" style={{ backgroundColor: '#7C3BED' }}
                       disabled={loading || amount < 2000}
                     >
                       {loading ? (
