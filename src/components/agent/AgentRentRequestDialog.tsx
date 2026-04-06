@@ -645,7 +645,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Tenant Phone (Primary) *</Label>
+                        <Label className="text-xs">Tenant Phone *</Label>
                         <Input
                           value={tenantPhone}
                           onChange={(e) => setTenantPhone(e.target.value)}
