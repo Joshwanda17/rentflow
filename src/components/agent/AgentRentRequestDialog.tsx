@@ -555,8 +555,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
               {incomeType === 'outstanding' ? (
                 <>
                   {/* Warning banner */}
-                  <div className="p-3 rounded-xl bg-warning/20 border border-warning/30">
-                    <p className="text-xs font-medium text-warning">
+                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'rgba(124, 59, 237, 0.12)', borderColor: 'rgba(124, 59, 237, 0.3)' }}>
+                    <p className="text-xs font-medium" style={{ color: '#7C3BED' }}>
                       ⚠️ This tenant is being registered with an outstanding balance. No access or platform fees will be applied.
                     </p>
                   </div>
