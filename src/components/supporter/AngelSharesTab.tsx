@@ -65,7 +65,7 @@ export function AngelSharesTab() {
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
               <p className="text-[8px] uppercase tracking-wider opacity-70 font-medium">Capital</p>
-              <p className="text-sm font-extrabold mt-0.5 truncate font-mono tabular-nums">{formatAmount(totalInvested)}</p>
+              <p className="text-[10px] sm:text-sm font-extrabold mt-0.5 font-mono tabular-nums">{formatAmount(totalInvested)}</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
               <p className="text-[8px] uppercase tracking-wider opacity-70 font-medium">Pool %</p>
