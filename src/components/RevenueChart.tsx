@@ -56,7 +56,7 @@ export function RevenueChart({ transactions }: RevenueChartProps) {
             <YAxis 
               stroke="hsl(215, 20%, 55%)"
               fontSize={12}
-              tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+              tickFormatter={(value) => formatDynamicCompact(value)}
             />
             <Tooltip 
               contentStyle={{
