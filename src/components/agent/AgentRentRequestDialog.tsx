@@ -45,7 +45,7 @@ interface AgentRentRequestDialogProps {
   onSuccess?: () => void;
 }
 
-type IncomeType = 'daily' | 'weekly-monthly';
+type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
 type RepaymentPeriod = '7' | '14' | '21' | '30' | '120';
 
 const HOUSE_CATEGORIES = [
