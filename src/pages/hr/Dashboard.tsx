@@ -24,9 +24,9 @@ export default function HRDashboard() {
 
   return (
     <ExecutiveDashboardLayout
-      dashboardRole="hr"
-      activeSection={activeSection}
-      onSectionChange={setActiveSection}
+      role="hr"
+      activeTab={activeSection}
+      onTabChange={setActiveSection}
     >
       {renderContent()}
     </ExecutiveDashboardLayout>

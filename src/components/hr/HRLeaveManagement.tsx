@@ -43,11 +43,7 @@ export default function HRLeaveManagement() {
       if (status === 'approved') {
         const request = requests.find((r: any) => r.id === id);
         if (request) {
-          await supabase.rpc('log_system_event' as any, {
-            p_event_type: 'hr_leave_approved',
-            p_payload: JSON.stringify({ leave_request_id: id, employee_id: (request as any).employee_id }),
-            p_triggered_by: user?.id,
-          }).catch(() => {});
+          // Event already emitted by DB trigger
         }
       }
     },
