@@ -9,8 +9,6 @@ import { TOTAL_SHARES, PRICE_PER_SHARE, POOL_PERCENT, VALUATIONS, UGX_PER_USD } 
 import { formatDynamic as formatUGX, formatDynamicCompact } from '@/lib/currencyFormat';
 
 const formatCompact = formatDynamicCompact;
-  return `USh ${n}`;
-};
 
 export function AngelCalculator() {
   const [amount, setAmount] = useState(1_000_000);
