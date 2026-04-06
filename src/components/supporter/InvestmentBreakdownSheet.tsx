@@ -360,11 +360,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                     <div className="grid grid-cols-2 gap-1.5 mb-2">
                                       <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
                                         <p className="text-[7px] text-muted-foreground uppercase">Earnings</p>
-                                        <p className="text-xs font-bold text-success font-mono tabular-nums truncate">{formatAmount(finalValue - entry.amount)}</p>
-                                      </div>
-                                      <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
-                                        <p className="text-[7px] text-muted-foreground uppercase">Final Value</p>
-                                        <p className="text-xs font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(finalValue)}</p>
+                                         <p className="text-xs font-bold text-success font-mono tabular-nums truncate"><CompactAmount value={finalValue - entry.amount} /></p>
+                                       </div>
+                                       <div className="rounded-lg bg-card border border-border/30 p-2 text-center">
+                                         <p className="text-[7px] text-muted-foreground uppercase">Final Value</p>
+                                         <p className="text-xs font-bold text-foreground font-mono tabular-nums truncate"><CompactAmount value={finalValue} /></p>
                                       </div>
                                     </div>
                                     {projectionRows.map((row) => {
