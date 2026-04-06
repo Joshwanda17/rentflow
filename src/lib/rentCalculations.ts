@@ -130,14 +130,13 @@ export function calculateSupporterReward(rentAmount: number): number {
  */
 export const AGENT_APPROVAL_BONUS = 5000;
 
+import { formatDynamic } from '@/lib/currencyFormat';
+
 /**
- * Format currency in UGX
+ * Format currency in the user's selected currency (dynamic).
+ * Kept as `formatUGX` for backward compatibility — all existing call sites
+ * will now automatically use the selected currency.
  */
 export function formatUGX(amount: number): string {
-  return new Intl.NumberFormat('en-UG', {
-    style: 'currency',
-    currency: 'UGX',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
+  return formatDynamic(amount);
 }

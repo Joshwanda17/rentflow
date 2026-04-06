@@ -204,9 +204,10 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
 
 export const SUPPORTED_CURRENCIES = ['UGX', 'USD', 'EUR', 'GBP'];
 
-export function formatCurrency(amount: number, currency: string = 'UGX'): string {
-  const symbol = CURRENCY_SYMBOLS[currency] || currency;
-  return `${symbol} ${amount.toLocaleString()}`;
+import { formatDynamic } from '@/lib/currencyFormat';
+
+export function formatCurrency(amount: number, _currency: string = 'UGX'): string {
+  return formatDynamic(amount);
 }
 
 export function calculateFee(amount: number, method: PaymentMethod): number {
