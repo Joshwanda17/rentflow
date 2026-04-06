@@ -142,27 +142,39 @@ export default function HRDisciplinary() {
       if (!form.employee_id) throw new Error('Select an employee');
       if (form.description.trim().length < 10) throw new Error('Description must be at least 10 characters');
 
-      const payload = {
-        employee_id: form.employee_id,
-        action_type: form.action_type as any,
-        severity: form.severity,
-        description: form.description.trim(),
-      };
+      const actionType = form.action_type as Database["public"]["Enums"]["disciplinary_action_type"];
 
       if (editingRecordId) {
         const { error } = await supabase
           .from('disciplinary_records')
-          .update(payload)
+          .update({
+            employee_id: form.employee_id,
+            action_type: actionType,
+            severity: form.severity,
+            description: form.description.trim(),
+          })
           .eq('id', editingRecordId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Disciplinary update error:', error.message, error.details, error.hint, error.code);
+          throw new Error(error.message);
+        }
       } else {
-        const { error } = await supabase.from('disciplinary_records').insert({
-          ...payload,
+        const insertPayload = {
+          employee_id: form.employee_id,
+          action_type: actionType,
+          severity: form.severity,
+          description: form.description.trim(),
           issued_by: user.id,
-        });
+        };
+        console.log('Inserting disciplinary record:', insertPayload);
+        const { data, error } = await supabase.from('disciplinary_records').insert(insertPayload).select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Disciplinary insert error:', error.message, error.details, error.hint, error.code);
+          throw new Error(error.message);
+        }
+        console.log('Insert success:', data);
       }
     },
     onSuccess: () => {
@@ -170,8 +182,12 @@ export default function HRDisciplinary() {
       setFormOpen(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['hr-disciplinary'] });
+      queryClient.refetchQueries({ queryKey: ['hr-disciplinary'] });
     },
-    onError: (err: any) => toast.error(err.message || 'Unable to save disciplinary record'),
+    onError: (err: any) => {
+      console.error('Save mutation error:', err);
+      toast.error(err.message || 'Unable to save disciplinary record');
+    },
   });
 
   const resolveMutation = useMutation({
