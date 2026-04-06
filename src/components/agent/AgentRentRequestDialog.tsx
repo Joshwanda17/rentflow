@@ -526,6 +526,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     <Label className="text-xs font-semibold text-primary/80">
                       {incomeType === 'daily' ? 'Duration' : 'Repayment Period'} *
                     </Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      {incomeType === 'daily'
+                        ? 'Choose how many days the tenant will take to repay.'
+                        : 'Select the repayment cycle length for this tenant.'}
+                    </p>
                     {incomeType === 'daily' ? (
                       <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
                         <SelectTrigger className="h-12 text-base font-semibold border-2 border-primary/30 rounded-xl"><SelectValue /></SelectTrigger>
