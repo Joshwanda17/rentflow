@@ -201,6 +201,7 @@ export const roleLabels: Record<AppRole, string> = {
   cmo: 'CMO',
   crm: 'CRM',
   employee: 'Employee',
+  hr: 'HR',
   operations: 'Operations',
   super_admin: 'Super Admin',
 };

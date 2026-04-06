@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import type { AppRole } from '@/hooks/auth/types';
-const STAFF_ROLES: AppRole[] = ['super_admin', 'manager', 'employee', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'operations'];
+const STAFF_ROLES: AppRole[] = ['super_admin', 'manager', 'employee', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr', 'operations'];
 
 export default function StaffPortal() {
   const navigate = useNavigate();
