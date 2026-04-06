@@ -1,20 +1,22 @@
 
-# Remove Whitespace Below Bottom Navigation Bar on Mobile
+
+# Fix Agent Dashboard Header White Gap
 
 ## Problem
-The bottom role switcher navigation bar has whitespace visible beneath it on mobile. This is caused by the content area's bottom padding (`pb-20` = 80px) being larger than needed for the nav bar (~50px), and potentially the page body extending below the fixed nav.
+A thin white strip appears below the purple header bar on the Agent Dashboard.
 
-## Changes
+## Root Cause
+The `DashboardHeader` component's `<header>` element uses `sticky top-0` positioning but lacks a bottom border override. The default `shadow-sm` may also cause a subtle visual gap between the header and the scrollable content area.
 
-### 1. Reduce Content Bottom Padding Across Dashboards
-The `pb-20` (80px) padding reserved for the bottom nav is excessive — the nav is only ~50px. Reduce to `pb-16` (64px) in all four public dashboard scroll containers:
+## Fix
 
-- `src/components/dashboards/SupporterDashboard.tsx` — change `pb-20` → `pb-16`
-- `src/components/dashboards/TenantDashboard.tsx` — same change
-- `src/components/dashboards/AgentDashboard.tsx` — same change  
-- `src/components/dashboards/LandlordDashboard.tsx` — same change
+### `src/components/DashboardHeader.tsx`
+- Remove `shadow-sm` from the header and replace with a tighter shadow or no shadow to eliminate the visible gap
+- Ensure no extra spacing is produced between the header and the content
 
-### 2. Tighten the Bottom Nav Itself
-In `src/components/BottomRoleSwitcher.tsx`, ensure the nav doesn't produce extra whitespace below itself by adding a minimal safe-area fallback and removing any excess padding that might render as visible whitespace on devices without a notch.
+### `src/components/dashboards/AgentDashboard.tsx`
+- Remove any top margin/padding on the scroll container (`flex-1 overflow-y-auto`) that could create a gap below the header
+- Ensure the `OfflineBanner` (rendered before the header) doesn't introduce whitespace when not visible
 
-This is a targeted CSS adjustment across 5 files with no logic changes.
+The fix is 2 files, CSS-only adjustments — no logic changes.
+
