@@ -134,6 +134,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Overview', icon: LayoutDashboard, id: 'overview' },
         { label: 'Employee Directory', icon: Users, id: 'employees' },
+        { label: 'User Management', icon: UserCog, id: 'user-management' },
         { label: 'Leave Management', icon: ClipboardList, id: 'leave' },
         { label: 'Payroll', icon: Banknote, id: 'payroll' },
         { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary' },
