@@ -269,7 +269,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               return d;
             })()}
           />
-          <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
+          
 
           {/* Verification Checklist */}
           <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
