@@ -19,8 +19,6 @@ export function AgentActionInsights({ agentId, hideDailyRent }: Props) {
         {/* Daily Rent Expected */}
         {!hideDailyRent && <DailyRentExpectedCard userId={agentId} />}
 
-        {/* Earnings Forecast */}
-        <EarningsForecastCard agentId={agentId} />
 
         {/* Collection Streak */}
         <CollectionStreakCard agentId={agentId} />
