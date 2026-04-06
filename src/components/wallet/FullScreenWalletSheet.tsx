@@ -158,7 +158,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     className="text-[clamp(2rem,9vw,3rem)] font-black text-white tracking-tight block leading-none"
                   />
                   <p className="text-[11px] text-white/50 mt-2 uppercase tracking-widest font-medium">
-                    Uganda Shillings
+                    {getDynamicCurrencyName()}
                   </p>
                   <WalletDisclaimer variant="dark" />
                 </div>
