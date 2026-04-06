@@ -8,7 +8,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import WelileLogo from '@/components/WelileLogo';
 import { useAuth } from '@/hooks/useAuth';
 import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { CartDrawer } from '@/components/marketplace/CartDrawer';
 import { useCart } from '@/hooks/useCart';
 import { SearchSuggestions } from '@/components/marketplace/SearchSuggestions';
