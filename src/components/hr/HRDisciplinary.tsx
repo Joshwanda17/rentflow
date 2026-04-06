@@ -403,7 +403,7 @@ export default function HRDisciplinary() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+                <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? 'Saving...' : editingRecordId ? 'Update Record' : 'Issue Action'}
                 </Button>
               </div>
