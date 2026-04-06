@@ -1,49 +1,63 @@
 
 
-# Fix HR Overview Scrolling + Professional Employee Directory Table
+# Make Currency Dynamic Across the App
 
-## Changes
+## What This Does
+When you switch currency (e.g. UGX to USD), all amounts everywhere in the app will update to show the selected currency with live exchange rates. Currently only a few places respond to the currency switcher — this fix covers the remaining ~290 files.
 
-### 1. Make HR Overview Scrollable
-**File: `src/components/layout/ExecutiveDashboardLayout.tsx`**
-- The `<main>` content area (line 166) needs `overflow-y-auto` added to allow scrolling within the executive dashboard layout. Currently it's `overflow-x-hidden` only.
+## How It Works
 
-### 2. Redesign Employee Directory as a Professional Table
-**File: `src/components/hr/HREmployeeDirectory.tsx`** (full rewrite)
+### Phase 1: Create standalone currency formatter (biggest impact)
 
-Replace the card-based list with a proper `<Table>` component:
-- Columns: Avatar + Name, Email, Phone, Department, Position, Roles (badges), Status (active/disabled)
-- Advanced filters bar: search input, role dropdown, status dropdown (All/Active/Disabled), department dropdown
-- Sortable columns (click header to sort by name, department, status)
-- Row count summary in header
-- Clickable rows that open a detail/action panel
+**New file: `src/lib/currencyFormat.ts`**
+- A non-React utility that reads the selected currency from `localStorage` (`welile-currency` key) and cached live rates (`welile-live-rates` key)
+- Provides `formatDynamic(amountInUGX)` and `formatDynamicCompact(amountInUGX)` functions
+- Falls back to UGX if no preference is set
 
-### 3. Employee Detail Drawer on Row Click
-**File: `src/components/hr/HREmployeeDetailDrawer.tsx`** (new file)
+**Update `formatUGX` in `src/lib/rentCalculations.ts`**
+- Redirect to `formatDynamic()` — this single change fixes ~272 files instantly since they all import `formatUGX` from here
 
-When HR clicks an employee row, a slide-over `Dialog` or `Sheet` opens showing:
-- **Profile section**: avatar, name, email, phone, employee ID, department, position
-- **Roles section**: list of assigned roles with enable/disable toggles (reusing the same audited pattern from `HRUserManagement`)
-- **Actions**: "Add Role" button, role toggle with mandatory audit reason (min 10 chars)
-- **Role change history**: queried from `audit_logs` for that user
-- All mutations log to `audit_logs` with action types `hr_role_assigned`, `hr_role_toggled`
+### Phase 2: Fix inline hardcoded formatters (~17 files)
 
-### 4. Wire It Together
-**File: `src/pages/hr/Dashboard.tsx`** - no changes needed, already renders `HREmployeeDirectory`
+Replace local `formatCurrency` / `formatUGX` definitions that use `new Intl.NumberFormat('en-UG', { currency: 'UGX' })` with the `useCurrency().formatAmount` hook in these components:
 
-## Technical Details
+- `TransactionList.tsx`, `IncomeStatementView.tsx`, `RevenueChart.tsx`
+- `WithdrawRequestDialog.tsx`, `FoodMarketDialog.tsx`, `BillPaymentDialog.tsx`, `DepositFlow.tsx`
+- `COOWithdrawalApprovals.tsx`, `COOPartnerWithdrawalApprovals.tsx`
+- `CFOWithdrawalApprovals.tsx`, `CFOPartnerPayoutProcessing.tsx`
+- `FinOpsWithdrawalVerification.tsx`, `PartnerOpsWithdrawalQueue.tsx`
+- `DepositRentAuditWidget.tsx`, `AgentCollectionsWidget.tsx`, `FinancialStatementsPanel.tsx`
+- `AngelCalculator.tsx`, `AngelInvestorCard.tsx`
+- `FinancialStatement.tsx` page
+- Non-component file: `agentReportPdf.ts` (use `formatDynamic`)
 
-- Reuse existing `Table, TableHeader, TableBody, TableRow, TableHead, TableCell` from `@/components/ui/table`
-- Reuse existing mutation/audit patterns from `HRUserManagement.tsx`
-- Add `Sheet` component (from shadcn/ui) for the detail drawer if not present; otherwise use `Dialog`
-- Keep all audit logging with 10-char minimum reason requirement
-- Filter state managed via `useState` hooks
-- Data query stays the same (user_roles + profiles + staff_profiles join)
+### Phase 3: Fix `paymentMethods.ts` and hardcoded string prefixes
 
-## Files Modified
-| File | Action |
-|---|---|
-| `src/components/layout/ExecutiveDashboardLayout.tsx` | Add `overflow-y-auto` to main |
-| `src/components/hr/HREmployeeDirectory.tsx` | Rewrite as table with filters + row click |
-| `src/components/hr/HREmployeeDetailDrawer.tsx` | New — detail drawer with role management + audit |
+- Update `formatCurrency` in `src/lib/paymentMethods.ts` to use `formatDynamic`
+- Search and replace hardcoded `"UGX "`, `"USh "` string literals across components
+
+### Phase 4: Update chart tooltip formatters
+
+- `RevenueChart.tsx` tooltip and Y-axis use hardcoded UGX — update to use dynamic formatter
+
+## Technical Detail
+
+The standalone utility mirrors the hook's logic but reads directly from localStorage:
+
+```typescript
+// src/lib/currencyFormat.ts
+const STORAGE_KEY = 'welile-currency';
+const RATES_KEY = 'welile-live-rates';
+
+export function formatDynamic(amountInUGX: number): string {
+  const code = localStorage.getItem(STORAGE_KEY) || 'UGX';
+  const cached = localStorage.getItem(RATES_KEY);
+  const rates = cached ? JSON.parse(cached) : fallbackRates;
+  const rate = rates[code] || 1;
+  const converted = amountInUGX * rate;
+  // Format using Intl.NumberFormat with the selected currency code/locale
+}
+```
+
+This approach avoids needing to refactor 272 files from `formatUGX(x)` to a hook call — they keep the same function signature but now output in the user's selected currency.
 
