@@ -105,7 +105,7 @@ export function AngelSharesTab() {
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <Clock className="h-3.5 w-3.5 text-primary" />
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Investment History</p>
+            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Share History</p>
           </div>
           <div className="flex items-center gap-1.5">
             {confirmedCount > 0 && (
