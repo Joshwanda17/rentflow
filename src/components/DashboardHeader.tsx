@@ -125,7 +125,7 @@ const DashboardHeader = memo(function DashboardHeader({
                     <PopoverContent 
                       align="start" 
                       sideOffset={8}
-                      className="w-48 p-1.5 rounded-2xl shadow-2xl border bg-background/98 backdrop-blur-xl"
+                      className="w-48 p-1.5 rounded-2xl shadow-2xl border bg-primary-foreground backdrop-blur-xl"
                     >
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 pt-1 pb-1.5">
                         Switch Role
