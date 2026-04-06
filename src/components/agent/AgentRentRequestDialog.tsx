@@ -530,7 +530,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     setDuration('30');
                     setStep('details');
                   }}
-                  className="p-4 rounded-xl border-2 border-muted hover:border-warning hover:bg-warning/5 transition-all text-left group active:scale-[0.98]"
+                  className="p-4 rounded-xl border-2 border-[#7C3BED]/30 hover:border-[#7C3BED] hover:bg-[#7C3BED]/5 transition-all text-left group active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-lg bg-warning/10 group-hover:bg-warning/20">
