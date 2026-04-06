@@ -319,6 +319,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       const tenantId = tenantResult.user_id;
 
       // Create rent request with agent_id
+      const isOutstanding = incomeType === 'outstanding';
       const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
@@ -337,7 +338,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           tenant_no_smartphone: noSmartphone,
           request_latitude: gpsLocation?.lat ?? null,
           request_longitude: gpsLocation?.lng ?? null,
-        })
+          ...(isOutstanding ? {
+            registration_type: 'outstanding_balance',
+            initial_outstanding_balance: fees.rentAmount,
+          } : {}),
+        } as any)
         .select('id')
         .single();
 
