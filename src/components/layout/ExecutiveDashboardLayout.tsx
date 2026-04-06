@@ -119,7 +119,7 @@ export default function ExecutiveDashboardLayout({
 
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Top Bar */}
       <header className="sticky top-0 z-40 h-14 bg-primary text-primary-foreground border-b border-border flex items-center px-4 gap-3">
         {/* Mobile hamburger */}
