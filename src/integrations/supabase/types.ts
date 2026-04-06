@@ -9888,6 +9888,7 @@ export type Database = {
         | "employee"
         | "operations"
         | "super_admin"
+        | "hr"
       automation_action_type:
         | "send_notification"
         | "send_push"
@@ -10102,6 +10103,7 @@ export const Constants = {
         "employee",
         "operations",
         "super_admin",
+        "hr",
       ],
       automation_action_type: [
         "send_notification",
