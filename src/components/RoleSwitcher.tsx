@@ -54,7 +54,7 @@ const roleConfig: Record<AppRole, { label: string; shortLabel: string; icon: Rea
 
 const ALL_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter', 'manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin', 'hr'];
 
-const RESTRICTED_ROLES: AppRole[] = ['manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin'];
+const RESTRICTED_ROLES: AppRole[] = ['manager', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'employee', 'operations', 'super_admin', 'hr'];
 
 const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
 
