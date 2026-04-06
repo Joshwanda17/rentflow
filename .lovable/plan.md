@@ -1,29 +1,57 @@
 
 
-# Redesign Wallet Sheet to Match Reference
+# Push Notifications on Successful Transactions
 
-## What Changes
+## Overview
+Add user-facing push notifications to all major financial transaction edge functions. Currently, these functions only notify managers. After this change, the transacting user(s) will also receive a push notification confirming their transaction succeeded.
 
-The `FullScreenWalletSheet` will be redesigned to match the clean, card-based layout from the reference image:
+## Edge Functions to Update
 
-1. **Header**: Simplified top bar with avatar, app name ("Welile"), and notification bell
-2. **Balance Card**: Purple gradient card showing "AVAILABLE BALANCE", large balance amount, and "Uganda Shillings" subtitle — replaces the current wide gradient header
-3. **Deposit & Withdraw**: Two separate white cards stacked vertically, each with a centered icon and label (replacing the side-by-side grid)
-4. **Wallet Statement Section**: "Wallet Statement" heading with "Updated just now" subtitle, containing an "ALL-TIME NET" summary card with the net amount and a trend icon
-5. **Monthly Summary Card**: "SUMMARY FOR [Month Year]" with a progress bar showing spent vs goal, and a calendar icon
-6. **Recent Transactions**: "Recent Transactions" heading with "View All →" link, followed by transaction rows showing icon, name, date/time, amount, and category label
+Each function below will get a fire-and-forget `send-push-notification` call to the relevant user(s) right after the existing `notify-managers` call:
 
-## Technical Changes
+| # | Edge Function | Who Gets Notified | Message Example |
+|---|---|---|---|
+| 1 | `wallet-transfer` | Sender + Recipient | "Transfer of UGX X sent/received" |
+| 2 | `agent-deposit` | Depositing agent + tenant | "Deposit of UGX X recorded" |
+| 3 | `agent-withdrawal` | Agent | "Withdrawal of UGX X processed" |
+| 4 | `tenant-pay-rent` | Tenant | "Rent payment of UGX X confirmed" |
+| 5 | `approve-deposit` | Each deposit's user | "Your deposit of UGX X has been approved" |
+| 6 | `cfo-direct-credit` | Target user | "Your wallet has been credited UGX X" |
+| 7 | `fund-rent-pool` | Funding user | "Rent pool funded with UGX X" |
+| 8 | `portfolio-topup` | Partner | "Portfolio top-up of UGX X confirmed" |
+| 9 | `manager-portfolio-topup` | Partner | "Portfolio credited UGX X" |
+| 10 | `coo-wallet-to-portfolio` | Partner | "UGX X moved to portfolio" |
+| 11 | `process-credit-draw` | User | "Credit draw of UGX X processed" |
+| 12 | `disburse-rent-to-landlord` | Landlord | "Rent of UGX X disbursed to your wallet" |
+| 13 | `wallet-deduction` | Target user | "UGX X deducted from your wallet" |
 
-### File: `src/components/wallet/FullScreenWalletSheet.tsx`
+## Implementation Pattern
 
-- **Header area** (lines 116-204): Replace the gradient header with a simple white top bar (avatar + "Welile" + bell icon + close button). Below it, render a standalone purple gradient rounded card for the balance display.
-- **Scrollable content** (lines 206-300): Replace the "Pay for Anything" collapsible section and the 2-column Deposit/Withdraw grid with two stacked full-width cards — one for Deposit (purple plus icon) and one for Withdraw (gray icon).
-- **Wallet Statement** (around line 299): Keep `WalletLedgerStatement` but wrap it with a new header style matching the reference ("Wallet Statement / Updated just now"). Add an all-time net summary card above it.
-- **Monthly summary**: Add a new card showing current month, spent amount, goal amount, and a progress bar.
-- **Transactions** (lines 302-370): Restyle transaction rows to show a colored category icon, name + date on the left, and amount + category tag on the right, matching the reference layout.
+Each function already has `supabaseUrl` and `supabaseServiceKey` available. The addition follows the same fire-and-forget pattern used for manager notifications:
 
-## Files Changed
+```typescript
+// Push notification to user (fire-and-forget)
+fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${supabaseServiceKey}`,
+  },
+  body: JSON.stringify({
+    userIds: [userId],
+    payload: {
+      title: "✅ Transaction Successful",
+      body: `UGX ${amount.toLocaleString()} has been ...`,
+      url: "/dashboard",
+      type: "success",
+    },
+  }),
+}).catch(() => {});
+```
 
-- `src/components/wallet/FullScreenWalletSheet.tsx` — full redesign of layout and styling
+## What Won't Change
+- The existing `notify-managers` calls remain untouched
+- No database migrations needed
+- No frontend changes needed — the existing service worker and push subscription system already handles incoming notifications
+- All new calls are fire-and-forget so they won't slow down the transaction response
 
