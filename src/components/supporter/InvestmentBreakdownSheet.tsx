@@ -383,15 +383,15 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                           <div className="grid grid-cols-3 gap-1">
                                             <div>
                                               <p className="text-[6px] text-muted-foreground uppercase">Open</p>
-                                              <p className="text-[11px] font-bold text-foreground font-mono tabular-nums truncate">{formatAmount(row.opening)}</p>
+                                              <p className="text-[11px] font-bold text-foreground font-mono tabular-nums truncate"><CompactAmount value={row.opening} /></p>
                                             </div>
                                             <div>
                                               <p className="text-[6px] text-muted-foreground uppercase">Reward</p>
-                                              <p className={`text-[11px] font-bold font-mono tabular-nums truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
+                                              <p className={`text-[11px] font-bold font-mono tabular-nums truncate ${isLast ? 'text-success' : 'text-success/80'}`}>+<CompactAmount value={row.earned} /></p>
                                             </div>
                                             <div className="text-right">
                                               <p className="text-[6px] text-muted-foreground uppercase">Close</p>
-                                              <p className="text-[11px] font-extrabold text-foreground font-mono tabular-nums truncate">{formatAmount(row.closing)}</p>
+                                              <p className="text-[11px] font-extrabold text-foreground font-mono tabular-nums truncate"><CompactAmount value={row.closing} /></p>
                                             </div>
                                           </div>
                                         </div>
