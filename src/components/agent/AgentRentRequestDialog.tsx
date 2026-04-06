@@ -528,7 +528,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     </Label>
                     <p className="text-[10px] text-muted-foreground">
                       {incomeType === 'daily'
-                        ? 'Choose how many days the tenant will take to repay.'
+                        ? 'tenant will take to repay.'
                         : 'Select the repayment cycle length for this tenant.'}
                     </p>
                     {incomeType === 'daily' ? (
