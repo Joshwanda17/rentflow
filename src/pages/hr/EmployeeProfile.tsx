@@ -92,7 +92,7 @@ export default function HREmployeeProfile() {
       const { data } = await supabase
         .from('leave_requests')
         .select('*')
-        .eq('user_id', userId!)
+        .eq('employee_id', userId!)
         .order('created_at', { ascending: false })
         .limit(20);
       return data || [];
