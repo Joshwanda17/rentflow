@@ -119,9 +119,9 @@ export default function ExecutiveDashboardLayout({
 
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Top Bar */}
-      <header className="sticky top-0 z-40 h-14 bg-primary text-primary-foreground border-b border-border flex items-center px-4 gap-3">
+      <header className="shrink-0 z-40 h-14 bg-primary text-primary-foreground border-b border-border flex items-center px-4 gap-3">
         {/* Mobile hamburger */}
         <button
           className="lg:hidden p-1.5 rounded-lg hover:bg-white/10 transition-colors"
@@ -156,9 +156,9 @@ export default function ExecutiveDashboardLayout({
         </button>
       </header>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col w-60 min-h-0 border-r border-border bg-card/50 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-border bg-card/50 overflow-y-auto">
           <SidebarContent />
         </aside>
 
