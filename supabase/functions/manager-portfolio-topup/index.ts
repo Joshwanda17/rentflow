@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const VALID_METHODS = ["cash", "mobile_money", "bank"] as const;
+const VALID_METHODS = ["cash", "mobile_money", "bank", "wallet"] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonRes(body: Record<string, unknown>, status: number) {
@@ -65,10 +65,10 @@ Deno.serve(async (req) => {
 
     // Validate payment method
     if (!payment_method || !VALID_METHODS.includes(payment_method)) {
-      return jsonRes({ error: "Invalid payment method. Use: cash, mobile_money, or bank" }, 400);
+      return jsonRes({ error: "Invalid payment method. Use: cash, mobile_money, bank, or wallet" }, 400);
     }
 
-    // Validate transaction reference for non-cash methods
+    // Validate transaction reference for non-cash/non-wallet methods
     const safeRef = typeof transaction_reference === "string" ? transaction_reference.trim().slice(0, 50) : "";
     if (payment_method === "mobile_money" && safeRef.length < 8) {
       return jsonRes({ error: "Mobile Money TID must be at least 8 characters" }, 400);
@@ -97,68 +97,188 @@ Deno.serve(async (req) => {
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
     const now = new Date().toISOString();
 
-    const methodLabel = payment_method === "mobile_money" ? "Mobile Money" : payment_method === "bank" ? "Bank Transfer" : "Cash";
+    const methodLabel = payment_method === "wallet" ? "Wallet" : payment_method === "mobile_money" ? "Mobile Money" : payment_method === "bank" ? "Bank Transfer" : "Cash";
     const refLabel = safeRef ? ` (${payment_method === "mobile_money" ? "TID" : "Ref"}: ${safeRef})` : "";
 
-    // 1. Record pending operation
-    const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
-      user_id: partnerId,
-      amount: topupAmount,
-      direction: "cash_in",
-      category: "pending_portfolio_topup",
-      source_table: "investor_portfolios",
-      source_id: portfolio_id,
-      transaction_group_id: txGroupId,
-      description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
-      linked_party: "platform",
-      status: "pending",
-      operation_type: "portfolio_topup",
-      reference_id: safeRef || null,
-      account: payment_method,
-      metadata: {
-        payment_method,
-        transaction_reference: safeRef || null,
-        initiated_by: user.id,
-        portfolio_code: portfolio.portfolio_code,
-      },
-    });
+    // ── WALLET PAYMENT: Check balance & deduct via ledger ──
+    if (payment_method === "wallet") {
+      // 1. Check partner wallet balance
+      const { data: wallet, error: wErr } = await supabase
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", partnerId)
+        .single();
 
-    if (pendingErr) {
-      console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
-      return jsonRes({ error: "Failed to record pending top-up" }, 500);
-    }
+      if (wErr || !wallet) return jsonRes({ error: "Partner wallet not found" }, 404);
 
-    // 2. Ledger entries
-    await supabase.from("general_ledger").insert([
-      {
+      if (Number(wallet.balance) < topupAmount) {
+        return jsonRes({ error: `Insufficient wallet balance. Available: UGX ${Number(wallet.balance).toLocaleString()}` }, 400);
+      }
+
+      // 2. Record pending operation
+      const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
         user_id: partnerId,
         amount: topupAmount,
-        direction: "debit",
+        direction: "cash_in",
+        category: "pending_portfolio_topup",
+        source_table: "investor_portfolios",
+        source_id: portfolio_id,
+        transaction_group_id: txGroupId,
+        description: `Wallet top-up for ${accountLabel} — initiated by executive`,
+        linked_party: "platform",
+        status: "pending",
+        operation_type: "portfolio_topup",
+        reference_id: null,
+        account: "wallet",
+        metadata: {
+          payment_method: "wallet",
+          initiated_by: user.id,
+          portfolio_code: portfolio.portfolio_code,
+          source: "executive_wallet_deduction",
+        },
+      });
+
+      if (pendingErr) {
+        console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
+        return jsonRes({ error: "Failed to record pending top-up" }, 500);
+      }
+
+      // 3. Ledger entries — wallet debit (deducts from partner wallet) + platform credit
+      const { error: ledgerErr } = await supabase.from("general_ledger").insert([
+        {
+          user_id: partnerId,
+          amount: topupAmount,
+          direction: "cash_out",
+          category: "pending_portfolio_topup",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          transaction_group_id: txGroupId,
+          description: `Wallet deduction for portfolio top-up: ${accountLabel}`,
+          currency: 'UGX',
+          ledger_scope: "wallet",
+          transaction_date: now,
+        },
+        {
+          user_id: partnerId,
+          amount: topupAmount,
+          direction: "credit",
+          category: "pending_portfolio_topup",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          transaction_group_id: txGroupId,
+          description: `Pending capital via Wallet for ${accountLabel}`,
+          currency: 'UGX',
+          ledger_scope: "platform",
+          transaction_date: now,
+        },
+      ]);
+
+      if (ledgerErr) {
+        console.error("[manager-portfolio-topup] wallet ledger error:", ledgerErr);
+        return jsonRes({ error: "Failed to record ledger entry" }, 500);
+      }
+
+      // 4. Post-ledger verification: ensure wallet didn't go negative
+      const { data: postWallet } = await supabase
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", partnerId)
+        .single();
+
+      if (postWallet && Number(postWallet.balance) < 0) {
+        // Race condition: rollback
+        await supabase.from("general_ledger").insert([{
+          user_id: partnerId,
+          amount: topupAmount,
+          direction: "cash_in",
+          category: "portfolio_topup_reversal",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          transaction_group_id: crypto.randomUUID(),
+          description: `Reversal: insufficient balance for ${accountLabel} wallet top-up`,
+          currency: 'UGX',
+          ledger_scope: "wallet",
+          transaction_date: now,
+        }]);
+
+        await supabase.from("pending_wallet_operations")
+          .update({ status: "cancelled" })
+          .eq("transaction_group_id", txGroupId);
+
+        return jsonRes({ error: "Insufficient wallet balance after deduction" }, 400);
+      }
+
+      // 5. Record wallet transaction for partner's activity feed
+      await supabase.from("wallet_transactions").insert({
+        sender_id: partnerId,
+        recipient_id: partnerId,
+        amount: topupAmount,
+        description: `Portfolio top-up to ${accountLabel} (from wallet)`,
+      });
+
+    } else {
+      // ── NON-WALLET PAYMENT (cash, mobile_money, bank) ──
+
+      // 1. Record pending operation
+      const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
+        user_id: partnerId,
+        amount: topupAmount,
+        direction: "cash_in",
         category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
         description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
-      currency: 'UGX',
-        ledger_scope: "wallet",
-        transaction_date: now,
-      },
-      {
-        user_id: partnerId,
-        amount: topupAmount,
-        direction: "credit",
-        category: "pending_portfolio_topup",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `Pending capital via ${methodLabel} for ${accountLabel}`,
-      currency: 'UGX',
-        ledger_scope: "platform",
-        transaction_date: now,
-      },
-    ]);
+        linked_party: "platform",
+        status: "pending",
+        operation_type: "portfolio_topup",
+        reference_id: safeRef || null,
+        account: payment_method,
+        metadata: {
+          payment_method,
+          transaction_reference: safeRef || null,
+          initiated_by: user.id,
+          portfolio_code: portfolio.portfolio_code,
+        },
+      });
 
-    // 3. Audit trail
+      if (pendingErr) {
+        console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
+        return jsonRes({ error: "Failed to record pending top-up" }, 500);
+      }
+
+      // 2. Ledger entries
+      await supabase.from("general_ledger").insert([
+        {
+          user_id: partnerId,
+          amount: topupAmount,
+          direction: "debit",
+          category: "pending_portfolio_topup",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          transaction_group_id: txGroupId,
+          description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
+          currency: 'UGX',
+          ledger_scope: "wallet",
+          transaction_date: now,
+        },
+        {
+          user_id: partnerId,
+          amount: topupAmount,
+          direction: "credit",
+          category: "pending_portfolio_topup",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          transaction_group_id: txGroupId,
+          description: `Pending capital via ${methodLabel} for ${accountLabel}`,
+          currency: 'UGX',
+          ledger_scope: "platform",
+          transaction_date: now,
+        },
+      ]);
+    }
+
+    // ── SHARED: Audit trail ──
     await supabase.from("audit_logs").insert({
       user_id: user.id,
       action_type: "manager_portfolio_topup_pending",
@@ -172,19 +292,24 @@ Deno.serve(async (req) => {
         transaction_reference: safeRef || null,
         notes: safeNotes,
         status: "pending_verification",
+        wallet_deduction: payment_method === "wallet",
       },
     });
 
-    // 4. Notify partner
+    // ── SHARED: Notify partner ──
+    const partnerMsg = payment_method === "wallet"
+      ? `UGX ${topupAmount.toLocaleString()} deducted from your wallet for portfolio "${accountLabel}". Awaiting verification.`
+      : `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for "${accountLabel}".${refLabel} Awaiting verification.`;
+
     await supabase.from("notifications").insert({
       user_id: partnerId,
-      title: "⏳ Portfolio Top-Up Pending",
-      message: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for "${accountLabel}".${refLabel} Awaiting verification.`,
+      title: payment_method === "wallet" ? "💳 Wallet → Portfolio Top-Up" : "⏳ Portfolio Top-Up Pending",
+      message: partnerMsg,
       type: "info",
       metadata: { portfolio_id, amount: topupAmount, payment_method, status: "pending", initiated_by: user.id },
     });
 
-    // 5. Notify CFO + COO executives
+    // ── SHARED: Notify CFO + COO executives ──
     try {
       const { data: execs } = await supabase
         .from("user_roles")
@@ -215,7 +340,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "📊 Manager Portfolio Top-Up", body: `UGX ${topupAmount.toLocaleString()} top-up for ${accountLabel} (${portfolio.portfolio_code})`, url: "/manager" }),
+      body: JSON.stringify({ title: "📊 Manager Portfolio Top-Up", body: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up for ${accountLabel} (${portfolio.portfolio_code})`, url: "/manager" }),
     }).catch(() => {});
 
     // Push notification to partner (fire-and-forget)
@@ -224,7 +349,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [partnerId],
-        payload: { title: "💰 Portfolio Credited", body: `UGX ${topupAmount.toLocaleString()} top-up submitted for ${accountLabel}`, url: "/dashboard", type: "success" },
+        payload: { title: "💰 Portfolio Credited", body: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for ${accountLabel}`, url: "/dashboard", type: "success" },
       }),
     }).catch(() => {});
 

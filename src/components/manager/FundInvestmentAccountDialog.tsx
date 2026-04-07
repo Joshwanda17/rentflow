@@ -206,6 +206,11 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
                 className="h-9"
                 autoFocus
               />
+              {walletInsufficient && (
+                <p className="text-[10px] text-destructive font-medium">
+                  Insufficient wallet balance ({formatUGX(partnerWalletBalance || 0)} available)
+                </p>
+              )}
             </div>
 
             {/* Conditional reference field */}
