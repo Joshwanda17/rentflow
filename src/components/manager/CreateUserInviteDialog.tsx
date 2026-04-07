@@ -113,6 +113,8 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
         throw new Error(errorMsg);
       }
 
+      const wasAutoActivated = response.data.autoActivated === true;
+
       setCreatedInvite({
         token: response.data.invite.activation_token,
         fullName: response.data.invite.full_name,
@@ -121,8 +123,12 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
       });
 
       toast({
-        title: `✅ ${roleConfig[selectedRole].label} Invite Created!`,
-        description: 'Share the activation link with the user.',
+        title: wasAutoActivated 
+          ? `✅ ${roleConfig[selectedRole].label} Account Created!`
+          : `✅ ${roleConfig[selectedRole].label} Invite Created!`,
+        description: wasAutoActivated
+          ? 'User has been added to the system and can sign in immediately.'
+          : 'Share the activation link with the user.',
       });
     } catch (error: any) {
       toast({
