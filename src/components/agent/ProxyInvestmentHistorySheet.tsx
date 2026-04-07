@@ -61,7 +61,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalCommission = transactions
-    .filter(t => t.category === 'proxy_investment_commission')
+    .filter(t => t.category === 'proxy_investment_commission' || t.category === 'angel_pool_commission')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const investmentCount = transactions.filter(t => t.category === 'agent_proxy_investment').length;
