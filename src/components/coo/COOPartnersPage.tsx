@@ -2557,6 +2557,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     // Apply range filter
     if (rangeFilter === 'overdue') {
       list = list.filter(p => p.daysUntil < 0);
+    } else if (rangeFilter === 'today') {
+      list = list.filter(p => p.daysUntil === 0);
     } else if (rangeFilter === '7') {
       list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 7);
     } else if (rangeFilter === '14') {
