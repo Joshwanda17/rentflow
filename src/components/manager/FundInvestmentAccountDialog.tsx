@@ -162,7 +162,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
             {/* Payment method selector */}
             <div className="space-y-1.5">
               <Label className="text-xs">Payment Method</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {PAYMENT_OPTIONS.map(opt => {
                   const Icon = opt.icon;
                   const selected = paymentMethod === opt.value;
@@ -172,18 +172,26 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
                       type="button"
                       onClick={() => { setPaymentMethod(opt.value); setTransactionReference(''); }}
                       className={cn(
-                        "flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-all text-center",
+                        "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all text-center",
                         selected
                           ? "border-primary bg-primary/10 shadow-sm"
                           : "border-border bg-background hover:border-muted-foreground/30"
                       )}
                     >
-                      <Icon className={cn("h-5 w-5", selected ? "text-primary" : "text-muted-foreground")} />
-                      <span className={cn("text-xs font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
+                      <Icon className={cn("h-4 w-4", selected ? "text-primary" : "text-muted-foreground")} />
+                      <span className={cn("text-[10px] font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
                     </button>
                   );
                 })}
               </div>
+              {paymentMethod === 'wallet' && (
+                <div className="mt-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Partner Wallet Balance</span>
+                  <span className="text-sm font-bold text-foreground">
+                    {loadingBalance ? '...' : partnerWalletBalance !== null ? formatUGX(partnerWalletBalance) : '—'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Amount */}
