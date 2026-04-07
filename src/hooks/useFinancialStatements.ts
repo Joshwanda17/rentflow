@@ -365,7 +365,7 @@ export function useFinancialStatements() {
         },
         cashFlow: {
           period: formatPeriodLabel(activeFilters),
-          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, withdrawalsPaid, netOperating },
+          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, payrollPaid, agentRequisitionsPaid, financialAgentExpensesPaid, withdrawalsPaid, netOperating },
           facilitationActivities: { rentRepayments, rentDeployments, netFacilitation },
           custodialActivities: { userDeposits, userWithdrawals, userTransfers, netCustodial },
           financingActivities: { supporterCapitalInflows, supporterCapitalWithdrawals, netFinancing },

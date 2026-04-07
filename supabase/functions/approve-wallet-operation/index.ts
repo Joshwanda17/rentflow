@@ -136,6 +136,8 @@ Deno.serve(async (req) => {
           'landlord_platform_fee', 'management_fee', 'roi_payout',
           'supporter_platform_rewards', 'agent_commission_payout',
           'transaction_platform_expenses', 'operational_expenses',
+          'agent_requisition', 'salary_payment', 'employee_advance',
+          'platform_expense_disbursement',
         ];
         const BRIDGE_CATEGORIES = ['supporter_facilitation_capital', 'wallet_to_investment'];
         const scopeForCategory = PLATFORM_CATEGORIES.includes(op.category)

@@ -282,7 +282,10 @@ export function FinancialStatementsPanel() {
       rows.push(['Other Platform Income', '', d.operatingActivities.otherServiceIncome]);
       rows.push(['Platform Rewards Paid', '', -d.operatingActivities.platformRewardsPaid]);
       rows.push(['Agent Commissions Paid', '', -d.operatingActivities.agentCommissionsPaid]);
-      rows.push(['Withdrawals Paid', '', -d.operatingActivities.withdrawalsPaid]);
+      rows.push(['Payroll Paid', '', -d.operatingActivities.payrollPaid]);
+      rows.push(['Agent Requisitions Paid', '', -d.operatingActivities.agentRequisitionsPaid]);
+      rows.push(['Financial Agent Expenses Paid', '', -d.operatingActivities.financialAgentExpensesPaid]);
+      rows.push(['General Operating Expenses Paid', '', -d.operatingActivities.withdrawalsPaid]);
       rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
       rows.push(['', '', '']);
       rows.push(['RENT FACILITATION (PASS-THROUGH)', '', '']);
