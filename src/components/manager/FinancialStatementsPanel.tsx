@@ -50,6 +50,7 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent />
       <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent />
       <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent />
+      <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent />
       <LineItem label="Total Revenue" value={d.revenue.total} bold />
 
       <SectionHeader>Service Delivery Costs</SectionHeader>
