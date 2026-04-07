@@ -401,7 +401,7 @@ Just click the link and enter your password to get started!`;
           <SheetHeader className="pb-4 flex-shrink-0">
             <SheetTitle className="flex items-center gap-2 text-lg">
               <UserPlus className="h-5 w-5 text-primary" />
-              {createdInvite ? 'Share Activation Link' : 'Create User Account'}
+              {createdInvite ? (createdInvite.autoActivated ? 'Account Created' : 'Share Activation Link') : 'Create User Account'}
             </SheetTitle>
             <SheetDescription>
               {createdInvite 
