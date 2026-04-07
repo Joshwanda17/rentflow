@@ -1,48 +1,65 @@
-## Plan: Credit Partner Investment to Proxy Agent on Approval
 
-### Problem
 
-When Partner Ops approves a proxy partner, the partner disappears into an "Awaiting returns" state. The approval means the partner's investment amount should be immediately available to the proxy agent for delivery.
+## Plan: Agent-Facilitated AngelPool Investment Module
 
-### Changes
+### Overview
+Build a complete agent-facilitated AngelPool investment flow: agent selects investor, verifies wallet balance, transfers funds to AngelPool, allocates shares, and earns 1% commission.
 
-**1. `src/components/executive/PendingFunderApprovals.tsx` — Credit wallet on approval**
+### 1. Database Migration
+Add three nullable columns to `angel_pool_investments`:
+- `agent_id` (UUID, references auth.users)
+- `payment_method` (TEXT — cash/momo/bank)
+- `investment_reference` (TEXT — external payment reference)
 
-- After approving the assignment, query `investor_portfolios` for the beneficiary's total active investment amount
-- Create a `general_ledger` entry: `cash_in`, category `roi_payout`, with `linked_party` set to the partner's ID, credited to the agent's wallet
-- Update the agent's wallet balance accordingly
-- Show the credited amount in the success toast
+### 2. Edge Function: `agent-angel-pool-invest/index.ts`
+Modeled on existing `angel-pool-invest` but with agent-facilitated logic:
+- Accepts: `investor_id`, `amount`, `payment_method`, `investment_reference`
+- Validates caller is an agent (query `user_roles`)
+- Validates investor exists and has sufficient wallet balance
+- Calculates shares (`amount / 20,000`), pool %, company %
+- Inserts `cash_out` ledger entry on **investor's** wallet (category: `angel_pool_investment`)
+- Inserts `angel_pool_investments` record with `agent_id` set
+- Inserts `cash_in` ledger entry on **agent's** wallet (category: `angel_pool_commission`, 1%)
+- Inserts matching `cash_out` platform debit (category: `marketing_expense`)
+- Logs system event via `logSystemEvent`
+- Returns share details, reference ID, commission amount
 
-**2. `src/components/agent/ProxyPartnerFunds.tsx` — Remove "Awaiting returns" badge**
+### 3. New UI: `AgentAngelPoolInvestDialog.tsx`
+Multi-step dialog following `AgentInvestForPartnerDialog` patterns:
+- **Step 1**: Search investor by phone/name (reuse existing user search)
+- **Step 2**: Show investor wallet balance, enter amount, select payment method (cash/momo/bank), optional reference
+- **Step 3**: Preview — shares to allocate, pool %, company %, 1% commission breakdown
+- **Step 4**: Confirmation dialog then success state with reference ID and WhatsApp share
 
-- Replace the "Awaiting returns" badge (line 312) with "Ready for delivery" or simply show the zero balance without a misleading label
-- **the partnes with awaiting returns are those who are ready to withdraw for their returns**
-- Partners with zero balance but approved status will show USh 0 until the approval ledger entry lands
+### 4. Agent Menu Integration (`AgentMenuDrawer.tsx`)
+- Add `onAngelPoolInvest` prop
+- Add menu item: icon `PiggyBank`, label "Angel Pool Investment", description "Invest in equity pool", badge "Angel", accent emerald
 
-**3. Database migration — Wallet update function**
+### 5. Commission History (`ProxyInvestmentHistorySheet.tsx`)
+- Add `angel_pool_commission` to the `.in('category', [...])` filter
+- Display with appropriate label "Angel Pool Commission"
 
-- Create or reuse an RPC function (`credit_proxy_approval`) that atomically:
-  1. Inserts the ledger entry
-  2. Updates the agent's wallet balance
-- This prevents race conditions and ensures the wallet stays in sync
+### 6. Agent Dashboard Page
+- Wire the new `onAngelPoolInvest` callback to open `AgentAngelPoolInvestDialog`
+- Import and render the dialog component
 
-### Flow After Fix
+### Files to Create/Modify
 
+| File | Action |
+|------|--------|
+| DB migration | Add `agent_id`, `payment_method`, `investment_reference` columns |
+| `supabase/functions/agent-angel-pool-invest/index.ts` | Create |
+| `src/components/agent/AgentAngelPoolInvestDialog.tsx` | Create |
+| `src/components/agent/AgentMenuDrawer.tsx` | Add menu item + prop |
+| `src/components/agent/ProxyInvestmentHistorySheet.tsx` | Add commission category |
+| Agent dashboard page (parent) | Wire dialog state |
+
+### Commission Flow
 ```text
-Partner Ops approves → 
-  1. Assignment marked approved/active
-  2. Partner's investment_amount queried from investor_portfolios
-  3. Ledger entry created (cash_in / roi_payout) on agent's wallet
-  4. Agent's wallet balance updated
-  → Partner appears in Proxy Partners tab with available balance
-  → Agent can withdraw and deliver to partner
+Agent invests 1,000,000 for investor
+  → Investor wallet: -1,000,000 (cash_out, angel_pool_investment)
+  → Angel Pool: +50 shares allocated
+  → Agent wallet: +10,000 (cash_in, angel_pool_commission)
+  → Platform ledger: -10,000 (cash_out, marketing_expense)
 ```
 
-### Technical Details
-
-- **the partnes with awaiting returns are those who are ready to withdraw for their returns**
-
-- Category: `roi_payout` with `ledger_scope: 'wallet'` to match existing proxy partner fund logic
-- The `linked_party` field ties the ledger entry to the specific partner
-- Source table: `investor_portfolios`, source ID: the portfolio ID
-- If a partner has multiple active portfolios, sum all `investment_amount` values
