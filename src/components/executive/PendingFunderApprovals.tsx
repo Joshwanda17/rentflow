@@ -134,6 +134,7 @@ export function PendingFunderApprovals() {
     },
     onError: (err: any) => {
       toast({ title: 'Approval failed', description: err.message, variant: 'destructive' });
+      queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
     },
   });
 
