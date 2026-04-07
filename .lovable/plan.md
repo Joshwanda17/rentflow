@@ -1,77 +1,44 @@
+# Fix: Advance Repayment on Wallet Deposit (Real-Time Recovery)
 
+## Problem
 
-# Set Up Daily Advance Repayment Cron Job (7:00 AM EAT)
+The daily cron at 7:00 AM EAT always finds an empty wallet because deposits are consumed by other operations (tenant rent, commissions) within minutes. The advance balance compounds daily with zero recovery.
 
-## Overview
-Schedule the existing `process-agent-advance-deductions` edge function to run daily at 7:00 AM EAT (4:00 AM UTC), while fixing a critical bug in the function that prevents wallet balances from actually updating.
+## Solution
 
-## Critical Bug Fix
-
-The current edge function has two issues that must be fixed before scheduling it:
-
-1. **Missing `transaction_group_id`**: Ledger inserts lack this field, so the `sync_wallet_from_ledger` trigger silently skips them — wallet balances never change.
-2. **Reads balance from ledger entries instead of `wallets` table**: It queries `general_ledger` filtering by `category = 'wallet'`, which is unreliable. It should read directly from `wallets.balance`.
+Add real-time advance repayment logic to the `approve-wallet-operation` Edge Function, which already handles automatic rent repayment on deposit. When a deposit lands, after rent repayment, check for active/overdue advances and deduct from remaining balance.
 
 ## Changes
 
-### 1. Fix the edge function
-**File: `supabase/functions/process-agent-advance-deductions/index.ts`**
+### 1. Update `approve-wallet-operation` Edge Function
 
-- Read wallet balance from `wallets` table (consistent with all other financial flows)
-- Add `transaction_group_id` to the ledger insert so the `sync_wallet_from_ledger` trigger fires and actually deducts from the wallet
-- Use `direction: 'cash_out'` (not `'debit'`) to match the trigger's expected values
-- Add idempotency check: skip if a ledger entry for this advance already exists for today
-- Add `overdue` status to the query (process both `active` and `overdue` advances)
+**File: `supabase/functions/approve-wallet-operation/index.ts**`
 
-### 2. Enable pg_cron and pg_net extensions
-**Migration** — enable the required extensions for scheduling:
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
-```
+After the existing automatic rent repayment block, add advance repayment logic:
 
-### 3. Schedule the cron job
-**SQL insert** (not migration — contains project-specific secrets):
-```sql
-SELECT cron.schedule(
-  'daily-advance-deductions',
-  '0 4 * * *',   -- 4:00 AM UTC = 7:00 AM EAT
-  $$
-  SELECT net.http_post(
-    url := 'https://wirntoujqoyjobfhyelc.supabase.co/functions/v1/process-agent-advance-deductions',
-    headers := '{"Content-Type":"application/json","Authorization":"Bearer <anon_key>"}'::jsonb,
-    body := '{"source":"cron"}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
+- Query `agent_advances` for the depositing user where status is `active` or `overdue`
+- If advances exist and wallet has remaining balance post-rent-repayment:
+  - Calculate deduction amount (min of wallet remainder and outstanding balance)
+  - Insert `cash_out` ledger entry with `category: 'advance_repayment'`, `transaction_group_id`, and `source_table: 'agent_advances'`
+  - Update `agent_advances.outstanding_balance` (subtract deducted amount)
+  - If fully repaid, set status to `completed`
+  - Record in `agent_advance_ledger` for audit trail
 
-### 4. Add config entry
-**File: `supabase/config.toml`** — add function entry if not present (verify_jwt = false).
+### 2. Keep the Daily Cron (Catch-Up)
 
-## Technical Details
+The existing `process-agent-advance-deductions` cron remains as a safety net for:
 
-**Corrected ledger insert pattern:**
-```typescript
-const txnGroupId = crypto.randomUUID();
-await supabase.from('general_ledger').insert({
-  user_id: advance.agent_id,
-  amount: amountDeducted,
-  direction: 'cash_out',
-  category: 'advance_repayment',
-  source_table: 'agent_advances',
-  source_id: advance.id,
-  transaction_group_id: txnGroupId,
-  description: `Advance daily deduction - Interest: ${interestAccrued}`,
-  transaction_date: today,
-});
-```
+- Interest accrual (daily compounding must still happen)
+- Catch-up deductions if real-time was missed
+- No code changes needed — it already works correctly
 
-**Idempotency:** Before processing each advance, check if `agent_advance_ledger` already has an entry for `(advance_id, today)` — skip if found.
+### Technical Details
 
-**Files modified:**
-- `supabase/functions/process-agent-advance-deductions/index.ts` — fix ledger writes
-- `supabase/config.toml` — ensure function config entry exists
-- 1 migration — enable pg_cron + pg_net
-- 1 SQL insert — schedule the cron job
+- Follows Single-Writer principle: all deductions go through `general_ledger` with `transaction_group_id`
+- Idempotency: use the deposit's ledger `source_id` as part of the advance repayment `transaction_group_id` to prevent double-deduction
+- Priority order on deposit: (1) Rent repayment first, (2) Advance repayment second, (3) Remainder stays in wallet
+- The `sync_wallet_from_ledger` trigger handles actual wallet balance update
 
+### Files Modified
+
+- `supabase/functions/approve-wallet-operation/index.ts` — add advance repayment block after rent repayment
