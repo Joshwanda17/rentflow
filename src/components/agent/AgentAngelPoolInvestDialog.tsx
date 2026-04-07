@@ -271,7 +271,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             {/* Register New Investor button */}
             <button
               onClick={() => setShowRegister(true)}
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-primary/40 hover:bg-primary/5 transition-colors text-primary text-sm font-medium"
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-[#7718D1]/40 hover:bg-[#7718D1]/5 transition-colors text-[#7718D1] text-sm font-medium"
             >
               <UserPlus className="h-4 w-4" />
               Register New Investor
