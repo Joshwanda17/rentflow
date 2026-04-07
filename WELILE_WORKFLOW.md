@@ -758,6 +758,7 @@ Both entries share the same transaction_group_id for auditability.
 | Action | Reward |
 |--------|--------|
 | Proxy investment facilitation | 2% commission |
+| Angel Pool investment facilitation | 1% commission (platform-funded, `angel_pool_commission` category) |
 | Landlord management fee (non-smartphone landlords) | 2% |
 
 ## 4.14 Performance Tiering
