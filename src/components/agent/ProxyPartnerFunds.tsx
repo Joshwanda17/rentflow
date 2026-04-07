@@ -80,6 +80,7 @@ export function ProxyPartnerFunds() {
 
         // Filter out rejected partners
         const rejectedIds = new Set((rejectedRes.data || []).map((r: any) => r.beneficiary_id));
+        setRejectedPartnerIds(rejectedIds);
         const partnerIds = allPartnerIds.filter(id => !rejectedIds.has(id));
 
         const profileMap: Record<string, { full_name: string; phone: string }> = {};
