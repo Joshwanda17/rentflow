@@ -87,11 +87,20 @@ Deno.serve(async (req) => {
         deduction_status: deductionStatus,
       });
 
-      // Update advance status
+      // Update advance status + proportional access fee collection
       const newStatus = closingBalance <= 0 ? 'completed' : (isOverdue ? 'overdue' : 'active');
+      const advAccessFee = Number(advance.access_fee || 0);
+      const totalPayable = Number(advance.principal) + advAccessFee;
+      const totalDeducted = totalPayable - Math.max(0, closingBalance);
+      const feeCollectionRatio = totalPayable > 0 ? Math.min(1, totalDeducted / totalPayable) : 0;
+      const newFeeCollected = Math.round(advAccessFee * feeCollectionRatio);
+      const feeStatus = newFeeCollected >= advAccessFee ? 'settled' : newFeeCollected > 0 ? 'partial' : 'unpaid';
+
       await supabase.from('agent_advances').update({
         outstanding_balance: Math.max(0, closingBalance),
         status: newStatus,
+        access_fee_collected: newFeeCollected,
+        access_fee_status: feeStatus,
       }).eq('id', advance.id);
 
       // Deduct from wallet via ledger (with transaction_group_id for sync trigger)

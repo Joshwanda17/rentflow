@@ -94,12 +94,18 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
         });
         if (topupError) throw topupError;
 
+        const newAccessFee = Number(existingAdvance.access_fee || 0) + accessFee;
+        const newAccessFeeCollected = Number(existingAdvance.access_fee_collected || 0);
+        const newFeeStatus = newAccessFeeCollected >= newAccessFee ? 'settled' : newAccessFeeCollected > 0 ? 'partial' : 'unpaid';
+
         const { error: updateError } = await supabase
           .from('agent_advances')
           .update({
             principal: Number(existingAdvance.principal) + parsedAmount,
             outstanding_balance: Number(existingAdvance.outstanding_balance) + parsedAmount,
             registration_fee: Number(existingAdvance.registration_fee || 0) + regFee,
+            access_fee: newAccessFee,
+            access_fee_status: newFeeStatus,
           })
           .eq('id', existingAdvance.id);
         if (updateError) throw updateError;
