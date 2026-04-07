@@ -113,6 +113,9 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           daily_rate: 0.33,
           cycle_days: cycleDays,
           registration_fee: regFee,
+          access_fee: accessFee,
+          access_fee_collected: 0,
+          access_fee_status: 'unpaid',
           issued_by: user.id,
           expires_at: new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString(),
         });
