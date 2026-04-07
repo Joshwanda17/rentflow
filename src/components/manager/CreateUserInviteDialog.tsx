@@ -432,7 +432,7 @@ Just click the link and enter your password to get started!`;
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            {createdInvite ? 'Share Activation Link' : 'Create User Account'}
+            {createdInvite ? (createdInvite.autoActivated ? 'Account Created' : 'Share Activation Link') : 'Create User Account'}
           </DialogTitle>
           <DialogDescription>
             {createdInvite 
