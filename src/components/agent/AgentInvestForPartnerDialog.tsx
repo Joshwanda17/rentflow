@@ -140,6 +140,14 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       toast.error('Amount exceeds current rent demand');
       return false;
     }
+    if (investmentReference.trim().length < 3) {
+      toast.error('Investment reference is required (min 3 characters)');
+      return false;
+    }
+    if (!receiptFile) {
+      toast.error('Receipt upload is mandatory');
+      return false;
+    }
     return true;
   };
 
