@@ -2006,11 +2006,14 @@ export type Database = {
       }
       angel_pool_investments: {
         Row: {
+          agent_id: string | null
           amount: number
           company_ownership_percent: number
           created_at: string
           id: string
+          investment_reference: string | null
           investor_id: string
+          payment_method: string | null
           pool_ownership_percent: number
           reference_id: string | null
           shares: number
@@ -2018,11 +2021,14 @@ export type Database = {
           transaction_group_id: string | null
         }
         Insert: {
+          agent_id?: string | null
           amount: number
           company_ownership_percent: number
           created_at?: string
           id?: string
+          investment_reference?: string | null
           investor_id: string
+          payment_method?: string | null
           pool_ownership_percent: number
           reference_id?: string | null
           shares: number
@@ -2030,11 +2036,14 @@ export type Database = {
           transaction_group_id?: string | null
         }
         Update: {
+          agent_id?: string | null
           amount?: number
           company_ownership_percent?: number
           created_at?: string
           id?: string
+          investment_reference?: string | null
           investor_id?: string
+          payment_method?: string | null
           pool_ownership_percent?: number
           reference_id?: string | null
           shares?: number
