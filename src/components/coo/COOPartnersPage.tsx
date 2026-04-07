@@ -2524,6 +2524,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   onActionComplete?: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [rangeFilter, setRangeFilter] = useState<string>('7');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
