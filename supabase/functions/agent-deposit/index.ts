@@ -477,7 +477,7 @@ Deno.serve(async (req) => {
 
     // Add remaining amount to user's wallet
     if (depositAmount > 0) {
-      await creditWalletDirect(adminClient, targetUserId!, depositAmount);
+      await ensureWalletExists(adminClient, targetUserId!);
 
       const { error: tenantLedgerError } = await adminClient
         .from('general_ledger')
