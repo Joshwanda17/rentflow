@@ -54,7 +54,7 @@ export function PendingFunderApprovals() {
       const assignment = pending?.find(p => p.id === assignmentId);
       if (!assignment) throw new Error('Assignment not found');
 
-      // 1. Approve the assignment
+      // 1. Approve the assignment (no wallet credit — ROI returns come via nearing payouts)
       const { error } = await supabase
         .from('proxy_agent_assignments')
         .update({
@@ -66,45 +66,7 @@ export function PendingFunderApprovals() {
         .eq('id', assignmentId);
       if (error) throw error;
 
-      // 2. Check if partner has active portfolios and credit agent wallet
-      const { data: portfolios } = await supabase
-        .from('investor_portfolios')
-        .select('id, investment_amount, portfolio_code')
-        .eq('investor_id', assignment.beneficiary_id)
-        .eq('status', 'active');
-
-      let totalCredited = 0;
-      if (portfolios && portfolios.length > 0) {
-        for (const portfolio of portfolios) {
-          const amt = Number(portfolio.investment_amount) || 0;
-          if (amt <= 0) continue;
-
-          const txGroupId = `proxy-approval-${assignmentId}-${portfolio.id}`;
-          const description = `[Managed Payout] [Agent Wallet] Proxy approval credit of USh ${amt.toLocaleString()} to ${assignment.agent?.full_name}'s agent wallet on behalf of ${assignment.beneficiary?.full_name}. Portfolio: ${portfolio.portfolio_code}. — on behalf of partner ${assignment.beneficiary_id}`;
-
-          // Use security definer function to bypass ledger RLS
-          const { data: credited, error: creditError } = await supabase.rpc('credit_proxy_approval', {
-            p_agent_id: assignment.agent_id,
-            p_beneficiary_id: assignment.beneficiary_id,
-            p_amount: amt,
-            p_description: description,
-            p_transaction_group_id: txGroupId,
-            p_source_id: portfolio.id,
-            p_portfolio_code: portfolio.portfolio_code,
-          });
-
-          if (creditError) {
-            console.error('Failed to credit proxy approval:', creditError);
-            continue;
-          }
-
-          if (credited) {
-            totalCredited += amt;
-          }
-        }
-      }
-
-      // 3. Audit log
+      // 2. Audit log
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
         action_type: 'approve_proxy_funder',
@@ -113,12 +75,10 @@ export function PendingFunderApprovals() {
         metadata: {
           beneficiary_name: assignment.beneficiary?.full_name,
           agent_name: assignment.agent?.full_name,
-          portfolios_credited: portfolios?.length || 0,
-          total_credited: totalCredited,
         },
       });
 
-      return { totalCredited, beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name };
+      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name };
     },
     onSuccess: (data) => {
       if (data.totalCredited > 0) {
