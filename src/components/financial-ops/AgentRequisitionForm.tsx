@@ -165,7 +165,7 @@ export function AgentRequisitionForm() {
 
         {/* Submit */}
         <Button
-          className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl py-6 text-base font-semibold shadow-lg"
+          className="w-full gap-2 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 text-white rounded-full py-6 text-base font-semibold shadow-lg hover:opacity-90"
           onClick={() => submitMutation.mutate()}
           disabled={submitMutation.isPending || !amount || !purpose || description.trim().length < 10}
         >
