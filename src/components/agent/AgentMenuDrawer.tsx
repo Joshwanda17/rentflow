@@ -70,6 +70,8 @@ interface AgentMenuDrawerProps {
   onOpenPartnerDashboard?: () => void;
   onInviteFunder?: () => void;
   onInviteAngelInvestor?: () => void;
+  onOpenRequisition?: () => void;
+  isFinancialAgent?: boolean;
 }
 
 interface MenuItem {
@@ -115,6 +117,8 @@ export function AgentMenuDrawer({
   onOpenPartnerDashboard,
   onInviteFunder,
   onInviteAngelInvestor,
+  onOpenRequisition,
+  isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('actions');
@@ -204,6 +208,7 @@ export function AgentMenuDrawer({
       items: [
         { icon: Store, label: 'Shop', description: 'Buy & sell', path: '/shop', accent: 'orange-500' },
         { icon: Receipt, label: 'Receipts', description: 'Scan to earn', path: '/my-receipts', accent: 'teal-500' },
+        ...(isFinancialAgent ? [{ icon: FileText, label: 'Fund Requisition', description: 'Submit financial requests', onClick: onOpenRequisition, accent: 'primary', badge: 'FA' }] : []),
         { icon: Banknote, label: 'My Loans', description: 'View & manage', path: '/my-loans', accent: 'green-500' },
         { icon: History, label: 'Transactions', description: 'Payment history', path: '/transactions', accent: 'blue-500' },
         { icon: FileText, label: 'Statement', description: 'Financial statement', path: '/financial-statement', accent: 'indigo-500' },

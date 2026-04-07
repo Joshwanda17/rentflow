@@ -85,6 +85,8 @@ import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
+import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
+import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
@@ -161,7 +163,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [recoveryLedgerOpen, setRecoveryLedgerOpen] = useState(false);
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
   const [floatHistoryOpen, setFloatHistoryOpen] = useState(false);
+  const [requisitionOpen, setRequisitionOpen] = useState(false);
 
+  const { isFinancialAgent } = useIsFinancialAgent();
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
     queryKey: ['is-cashout-agent', user.id],
@@ -371,6 +375,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
+        onOpenRequisition={() => { setMenuOpen(false); setRequisitionOpen(true); }}
+        isFinancialAgent={isFinancialAgent}
         onInviteFunder={() => {
           setMenuOpen(false);
           const funderLink = `${getPublicOrigin()}/auth?ref=${user.id}&role=funder`;
@@ -446,6 +452,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
       <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
+      <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
 
       {/* Cash Payouts Dialog - only rendered for cashout agents */}
       <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
