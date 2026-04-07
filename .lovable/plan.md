@@ -1,43 +1,41 @@
 
 
-## Fix: Double-Credit Impact on Onesmus's Deposit
+## Fix: Double-Deduction Bug in Agent-Deposit Function
 
-### What Happened
+### Root Cause
 
-This is the same deposit double-credit bug we just fixed. When Onesmus's 60k deposit was approved, the old `approve-deposit` function:
+The `agent-deposit` edge function has the **same class of bug** as the `approve-deposit` function we already fixed. It manually deducts the agent's wallet balance **and** inserts a `cash_out` ledger entry. Since the `sync_wallet_from_ledger` trigger now fires on ALL ledger inserts, the wallet gets deducted twice:
 
-1. **Manually credited** 60k to the wallet
-2. **Trigger chain** (`trg_deposit_to_ledger` → `sync_wallet_from_ledger`) credited another 60k
-3. Wallet showed 120k instead of 60k
-4. The auto-rent-deduction logic then saw 120k available and deducted 120k toward rent
+1. **Manual deduction** (line 403-410): `balance = balance - amount`
+2. **Trigger deduction** (line 420-431): ledger `cash_out` insert → trigger fires → deducts again
 
-Result: 120k was applied to rent repayment when only 60k was actually deposited. The rent request's `amount_repaid` is now inflated by 60k.
+This is why 50k became 100k and 10k became 20k for Onesmus. The 30k payment likely hit a race condition or was the first to process before the wallet state diverged.
 
-### Status of the Root Cause Fix
+Additionally, `creditWalletDirect()` (line 16-40) manually credits wallets before ledger entries are inserted, causing potential double-credits on the receiving side (landlord, tenant).
 
-The `approve-deposit` edge function has already been patched — the manual wallet credit was removed. **No new deposits will be double-credited.** However, the function needs to be redeployed if it hasn't been already.
+### Fix (2 parts)
 
-### Data Correction Needed
+**Part 1 — Code fix in `agent-deposit/index.ts`:**
 
-We need to reverse the excess 60k that was incorrectly applied:
+Remove all manual wallet balance manipulation. Let the `sync_wallet_from_ledger` trigger handle balance changes exclusively:
 
-1. **Identify the affected records** — Query Onesmus's ledger entries and the specific deposit request to confirm the exact amounts
-2. **Reverse the excess rent repayment** — Reduce `rent_requests.amount_repaid` by 60k (the overpayment)
-3. **Insert a corrective ledger entry** — A `cash_in` entry of 60k (category: `balance_correction`) to restore the wallet to the correct post-deposit state
-4. **Audit log** the correction with full metadata
+- **Lines 403-418**: Remove manual `wallet.update({ balance: newAgentBalance })` block. Keep only the ledger insert (lines 420-431) which triggers the automatic deduction.
+- **Lines 516-531**: Same removal for the `repaymentAmount === 0` branch.
+- **`creditWalletDirect()` function**: Replace with a simple "ensure wallet exists" upsert (like the fix in `approve-deposit`). The subsequent ledger `cash_in` inserts will handle the actual credit via trigger.
 
-### Changes
+**Part 2 — Data correction for Onesmus:**
 
-**Database migration (data correction):**
-- Query to identify Onesmus's affected deposit and the double-credited amount
-- Corrective `UPDATE` on `rent_requests.amount_repaid` (-60k)
-- Corrective `INSERT` into `general_ledger` (+60k cash_in, category `balance_correction`)
-- Insert audit trail entry
+The excess deductions are:
+- 50k overpaid (should have been 50k, was 100k)
+- 10k overpaid (should have been 10k, was 20k)
+- **Total excess: 60k** deducted from Onesmus's agent wallet
 
-**Edge function redeployment:**
-- Confirm `approve-deposit` is deployed with the fix (no manual wallet credit)
+Correction via database migration:
+- Insert a `cash_in` ledger entry of 60k for Onesmus (category: `balance_correction`, description: "Reversal of double-deduction from agent-deposit bug")
+- The `sync_wallet_from_ledger` trigger will automatically restore 60k to his wallet
+- Insert audit log entry documenting the correction
 
-### Before Proceeding
-
-I need to query the database to identify Onesmus's exact user ID, the affected deposit request, and confirm the amounts before writing the correction. Shall I proceed?
+### Risk Assessment
+- Low risk: same pattern as the already-proven `approve-deposit` fix
+- The trigger chain is the single-writer for wallet balances — all other manual writes must be removed
 
