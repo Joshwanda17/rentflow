@@ -81,14 +81,7 @@ export function PendingFunderApprovals() {
       return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name };
     },
     onSuccess: (data) => {
-      if (data.totalCredited > 0) {
-        toast({
-          title: '✅ Funder approved & wallet credited',
-          description: `USh ${data.totalCredited.toLocaleString()} credited to ${data.agentName}'s wallet for ${data.beneficiaryName}`,
-        });
-      } else {
-        toast({ title: '✅ Funder approved', description: 'The proxy funder is now active. No portfolios to credit yet.' });
-      }
+      toast({ title: '✅ Funder approved', description: `${data.beneficiaryName} is now linked to ${data.agentName}. ROI returns will appear via nearing payouts.` });
       queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
     },
     onError: (err: any) => {
