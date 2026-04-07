@@ -345,7 +345,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                 ) : (
                   <UserPlus className="h-4 w-4 mr-2" />
                 )}
-                Register & Select
+                Register
               </Button>
             </div>
           </div>
