@@ -1,86 +1,56 @@
 
 
-# Rent Collection Visibility & Agent Performance Ranking
+# Refactor Proxy Agent Manager: Table Layout + KPIs + Actions
 
-## Overview
-Build two new UI components that give the CFO real-time visibility into all rent collections and rank agents/managers by collection performance. No new database tables needed — all data already exists in `subscription_charge_logs`, `general_ledger`, `rent_requests`, and `audit_logs`.
+## What Changes
 
-## Data Sources (Already Exist)
-
-| Data Point | Source |
-|---|---|
-| Daily auto-charges (tenant + agent fallback) | `subscription_charge_logs` |
-| Manual collections | `general_ledger` where `category = 'rent_repayment'` |
-| Agent-tenant-property mapping | `rent_requests` (has `agent_id`, `tenant_id`, `landlord_id`) |
-| Who collected manually | `audit_logs` where `action_type = 'manual_rent_collection'` |
-| Agent names, manager hierarchy | `profiles`, `user_roles` |
+Convert the card-based proxy agent list into a proper table with KPI summary cards at the top and edit/delete actions per row.
 
 ## Changes
 
-### 1. New Component: CFO Rent Collections Feed
-**File**: `src/components/cfo/RentCollectionsFeed.tsx`
+### File: `src/components/cfo/ProxyAgentManager.tsx`
 
-A real-time feed of all rent collections visible to the CFO:
-- Queries `subscription_charge_logs` joined with `subscription_charges` (for `agent_id`, `tenant_id`, `rent_request_id`) and `rent_requests` (for `landlord_id`)
-- Also queries `general_ledger` entries with `category = 'rent_repayment'` for manual collections
-- Displays: Agent name, Tenant name, Amount, Property/Landlord, Date/Time, Collection method (auto/manual), Status (success/partial/failed)
-- Filterable by: date range, agent, status
-- Summary cards: Total collected today, Total collected this month, Auto vs Manual ratio
+**1. Add KPI Summary Cards (top of page)**
+Computed from the `assignments` array:
+- **Total Assignments** — `assignments.length`
+- **Unique Agents** — count of distinct `agent_id`
+- **Partners Assigned** — count of distinct `beneficiary_id`
+- **Managed Accounts** — count where `is_managed_account === true`
 
-### 2. New Component: Agent Performance Rankings
-**File**: `src/components/cfo/AgentPerformanceRankings.tsx`
+Render as a 4-column grid of small summary cards above the table.
 
-Rankings based on aggregated collection data:
-- **Agent Ranking**: Total collected, collection count, collection rate (amount_repaid / total_repayment across their rent_requests), average timeliness
-- **Manager Ranking**: Aggregated performance of agents under them (via `rent_requests.agent_id` → agent's manager from reporting structure)
-- Period selector: This week, This month, All time
-- Visual: Ranked list with position medals (🥇🥈🥉), progress bars for collection rate, trend arrows
-- Each agent shows: rank, total collected, # of active tenants, collection efficiency %
+**2. Replace card list with a Table**
+Use the existing `Table` components from `@/components/ui/table`. Columns:
+- **#** (index)
+- **Agent** (name + phone)
+- **Partner/Beneficiary** (name + phone)
+- **Role** (Landlord / Partner badge)
+- **Managed** (Yes/No badge)
+- **Reason** (text)
+- **Date Assigned** (`created_at` formatted)
+- **Actions** (Edit + Delete buttons)
 
-### 3. Add to CFO Dashboard Sidebar
-**File**: `src/components/layout/executiveSidebarConfig.ts`
+**3. Add Edit functionality**
+- New state: `editingAssignment` (holds the assignment being edited)
+- Reuse the existing Dialog but in "edit mode" — pre-fill fields with current values
+- On save: `supabase.from('proxy_agent_assignments').update(...)` for `beneficiary_role`, `reason`, `is_managed_account`
+- Agent and beneficiary are read-only in edit mode (can't swap people, only update metadata)
 
-Add two items under the Finance section:
-- `{ label: 'Rent Collections', icon: Receipt, id: 'rent-collections' }`
-- `{ label: 'Agent Rankings', icon: TrendingUp, id: 'agent-rankings' }`
+**4. Delete action**
+- Already exists as `deactivateMutation` — wire it to a Trash icon button in the Actions column
+- Add a confirmation step (simple `window.confirm` or inline)
 
-### 4. Wire Up in CFO Dashboards
-**File**: `src/pages/cfo/Dashboard.tsx`
+**5. Imports to add**
+- `Table, TableBody, TableCell, TableHead, TableHeader, TableRow` from `@/components/ui/table`
+- `Pencil, Trash2` from `lucide-react`
+- `format` from `date-fns`
 
-Add cases:
-- `'rent-collections'` → `<RentCollectionsFeed />`
-- `'agent-rankings'` → `<AgentPerformanceRankings />`
+| Change | Detail |
+|--------|--------|
+| KPI cards | 4 summary metrics at top |
+| Table layout | Replace card list with proper table |
+| Edit action | Dialog with pre-filled fields, updates metadata |
+| Delete action | Existing deactivate with confirmation |
 
-Also add `<AgentPerformanceRankings compact />` to the default overview tab.
-
-**File**: `src/pages/CFODashboard.tsx`
-
-Add corresponding tabs to the legacy dashboard.
-
-### 5. Agent Self-View (Optional — Agent Ops Dashboard)
-**File**: `src/components/agent/MyCollectionPerformance.tsx`
-
-A compact card for the agent dashboard showing:
-- Their rank among peers
-- Total collections this month
-- Collection rate %
-- Comparison to average
-
-This component would be added to the agent's existing dashboard view.
-
-## No Database Migration Needed
-All required data already exists in `subscription_charge_logs`, `general_ledger`, `rent_requests`, and `profiles`. Rankings are computed client-side from aggregated queries.
-
-## Query Strategy
-- Collections feed: Query `subscription_charge_logs` (last 30 days, limit 200) joined to `subscription_charges` for agent/tenant IDs, then resolve names from `profiles`
-- Rankings: Query `rent_requests` grouped by `agent_id`, sum `amount_repaid` vs `total_repayment` for collection rate, count active tenants
-- Performance is bounded by existing Supabase query limits (paginated if needed)
-
-| Change | File |
-|---|---|
-| Rent collections feed | `RentCollectionsFeed.tsx` (new) |
-| Agent/Manager rankings | `AgentPerformanceRankings.tsx` (new) |
-| Agent self-view card | `MyCollectionPerformance.tsx` (new) |
-| CFO sidebar items | `executiveSidebarConfig.ts` |
-| CFO dashboard wiring | `cfo/Dashboard.tsx`, `CFODashboard.tsx` |
+**Single file change:** `src/components/cfo/ProxyAgentManager.tsx`
 
