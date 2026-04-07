@@ -2519,7 +2519,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
-  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending'>>({});
+  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [managedInfo, setManagedInfo] = useState<Record<string, { isManaged: boolean; agentName: string; agentId: string; hasProxy: boolean } | null>>({});
   
