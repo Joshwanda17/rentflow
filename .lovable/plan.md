@@ -1,49 +1,46 @@
 
 
-## Fix: Proxy Partner Tab — Show Only Approved Partners with Actual Returns
+## Plan: Add "Register New Investor" to Select Investor Dialog
 
-### Problem
-Two issues in the agent's Proxy Partners tab:
-1. **Old/non-proxy data showing**: Partners like WINNIE & RICHARD and MUSEMA KIZITO appear because they have `roi_payout` ledger entries with `linked_party` set — but they were never approved through Partner Ops.
-2. **Principal shown instead of returns**: The "Received" column sums ALL `roi_payout` ledger entries (including old managed payouts, backfill principal credits, and corrections), producing inflated/incorrect amounts.
+**Problem**: When an agent searches for an investor in the Angel Pool investment dialog and doesn't find them, there's no way to register a new one inline. The agent has to leave the flow, go to "My Funders", register there, and come back.
 
-### Root Cause
-Line 155 in `ProxyPartnerFunds.tsx`:
-```typescript
-const visiblePartnerIds = [...new Set([...approvedPartnerIds, ...Object.keys(grouped)])];
+**Solution**: Add a "Register New Investor" inline form to the `AgentAngelPoolInvestDialog` search step, reusing the existing `register-proxy-funder` edge function.
+
+---
+
+### Changes to `src/components/agent/AgentAngelPoolInvestDialog.tsx`
+
+1. **Add a `register` sub-step** within the search step:
+   - New state: `showRegister` boolean, `regName`, `regPhone`, `regNotes`, `registering`
+   - Import `usePhoneDuplicateCheck` for duplicate phone validation
+
+2. **Show "Register New Investor" button** when search returns no results (after the "No results found" message), or as a persistent link below search results
+
+3. **Inline registration form** (toggled by `showRegister`):
+   - Full Name (required)
+   - Phone Number (required, with duplicate check)
+   - Notes (optional)
+   - Info banner about USSD/SMS access
+   - Calls `register-proxy-funder` edge function with agent's user ID
+   - On success: auto-selects the newly created investor and moves to the amount step
+
+4. **Reset** registration state in the existing `reset()` function
+
+### UI Flow
+```text
+[Search box] [🔍]
+
+  No results found
+  ──────────────
+  👤 Register New Investor
+  ┌─────────────────────────┐
+  │ Full Name *             │
+  │ Phone Number *          │
+  │ Notes (optional)        │
+  │ [Register & Select]     │
+  └─────────────────────────┘
 ```
-This includes ANY partner with a `roi_payout` ledger entry linked to the agent — not just those approved via Partner Ops.
 
-Additionally, the "Received" amount reads from messy ledger data (principal credits, corrections, old managed payouts) instead of calculating actual earned returns.
-
-### Solution
-Rewrite `ProxyPartnerFunds.tsx` to:
-
-**1. Only show approved proxy partners**
-- Remove `Object.keys(grouped)` from the visible list — use only `approvedPartnerIds` from `proxy_agent_assignments` where `approval_status = 'approved'`
-
-**2. Calculate returns from portfolios, not ledger**
-- For each approved partner, query their `investor_portfolios` (active)
-- Calculate accrued ROI using the same time-based formula as `PendingFunderApprovals.tsx`:
-  ```
-  monthlyROI = investment_amount × roi_percentage / 100 / 12
-  monthsElapsed = (min(now, maturity) - created_at) / 30 days
-  returns = monthlyROI × monthsElapsed
-  ```
-- This gives the actual returns due, not principal
-
-**3. Track withdrawals from withdrawal_requests**
-- Query `withdrawal_requests` with `linked_party` matching the partner and completed status
-- Available = calculated returns - completed withdrawals
-
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/components/agent/ProxyPartnerFunds.tsx` | Rewrite data loading: only approved partners, calculate ROI from portfolios, track withdrawals separately |
-
-### Result
-- Only 16 approved proxy partners will show (no WINNIE & RICHARD, no MUSEMA KIZITO)
-- "Received" shows actual calculated returns (e.g., NFITUMUKIZA BOSCO: ~951K, not 49M)
-- "Available" = returns - delivered withdrawals
-- No dependency on polluted ledger entries
+### No database changes needed
+The `register-proxy-funder` edge function already exists and handles profile creation + proxy assignment.
 
