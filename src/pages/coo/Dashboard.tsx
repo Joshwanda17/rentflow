@@ -118,7 +118,7 @@ export default function COODashboardPage() {
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Agent Activity', Activity)}
-            <CashoutAgentActivity />
+            <COOAgentTracker />
           </div>
         );
       case 'analytics':

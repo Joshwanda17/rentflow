@@ -42,7 +42,7 @@ export function COOAgentTracker() {
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .eq('role', 'agent');
+        .eq('role', 'agent') as any;
       return (data || []) as { id: string; full_name: string; phone: string }[];
     },
   });
