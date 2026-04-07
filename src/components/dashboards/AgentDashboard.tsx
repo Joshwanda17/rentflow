@@ -66,6 +66,7 @@ import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
+import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
 import { ProxyInvestmentHistorySheet } from '@/components/agent/ProxyInvestmentHistorySheet';
 import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
 import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
