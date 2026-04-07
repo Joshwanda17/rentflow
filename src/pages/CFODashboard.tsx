@@ -31,6 +31,8 @@ import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 import { ServiceCentrePayoutApproval } from '@/components/cfo/ServiceCentrePayoutApproval';
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
+import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
+import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -73,6 +75,8 @@ export default function CFODashboard() {
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'payouts', label: 'Payouts', icon: Banknote },
     { id: 'requisitions', label: 'Requisitions', icon: FileText },
+    { id: 'collections', label: 'Collections', icon: Receipt },
+    { id: 'rankings', label: 'Rankings', icon: TrendingUp },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
     { id: 'ledger', label: 'Ledger', icon: ClipboardList },
   ];
@@ -201,6 +205,16 @@ export default function CFODashboard() {
           {/* Requisitions Tab */}
           <TabsContent value="requisitions" className="space-y-6">
             <CFOAgentRequisitions />
+          </TabsContent>
+
+          {/* Collections Tab */}
+          <TabsContent value="collections" className="space-y-6">
+            <RentCollectionsFeed />
+          </TabsContent>
+
+          {/* Rankings Tab */}
+          <TabsContent value="rankings" className="space-y-6">
+            <AgentPerformanceRankings />
           </TabsContent>
 
           {/* Reconciliation Tab */}
