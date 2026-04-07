@@ -121,6 +121,7 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
         fullName: response.data.invite.full_name,
         password: formData.password,
         role: selectedRole,
+        autoActivated: wasAutoActivated,
       });
 
       toast({
