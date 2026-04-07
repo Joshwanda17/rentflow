@@ -1,0 +1,213 @@
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
+import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
+import { differenceInDays } from 'date-fns';
+
+const RATE_OPTIONS = [
+  { label: '33%', value: '0.33' },
+  { label: '28%', value: '0.28' },
+  { label: '25%', value: '0.25' },
+  { label: '20%', value: '0.20' },
+  { label: '15%', value: '0.15' },
+];
+
+function calculateAccessFee(amount: number, monthlyRate: number, durationDays: number): number {
+  return Math.round(amount * (Math.pow(1 + monthlyRate, durationDays / 30) - 1));
+}
+
+export function CFOAdvancesManager() {
+  const navigate = useNavigate();
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all');
+  const [issueOpen, setIssueOpen] = useState(false);
+
+  // Calculator state
+  const [calcAmount, setCalcAmount] = useState('');
+  const [calcDays, setCalcDays] = useState('30');
+  const [calcRate, setCalcRate] = useState('0.33');
+
+  const { data: advances = [], isLoading, refetch } = useQuery({
+    queryKey: ['cfo-advances'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_advances')
+        .select('*, profiles!agent_advances_agent_id_fkey(full_name, phone)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    if (filter === 'all') return advances;
+    return advances.filter((a: any) => a.status === filter);
+  }, [advances, filter]);
+
+  const totalIssued = advances.reduce((s: number, a: any) => s + Number(a.principal), 0);
+  const totalOutstanding = advances.filter((a: any) => a.status !== 'completed').reduce((s: number, a: any) => s + Number(a.outstanding_balance), 0);
+  const totalAccruedInterest = advances.reduce((s: number, a: any) => s + Math.max(0, Number(a.outstanding_balance) - Number(a.principal)), 0);
+  const overdueExposure = advances.filter((a: any) => a.status === 'overdue').reduce((s: number, a: any) => s + Number(a.outstanding_balance), 0);
+
+  const calcFee = calcAmount ? calculateAccessFee(Number(calcAmount), Number(calcRate), Number(calcDays)) : 0;
+  const calcTotal = Number(calcAmount || 0) + calcFee;
+
+  const summaryCards = [
+    { label: 'Total Issued', value: formatUGX(totalIssued), icon: DollarSign, cls: 'text-primary' },
+    { label: 'Outstanding', value: formatUGX(totalOutstanding), icon: TrendingUp, cls: 'text-amber-600' },
+    { label: 'Accrued Interest', value: formatUGX(totalAccruedInterest), icon: Percent, cls: 'text-purple-600' },
+    { label: 'Overdue Exposure', value: formatUGX(overdueExposure), icon: AlertTriangle, cls: 'text-destructive' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold">💰 Advance Management</h1>
+          <p className="text-sm text-muted-foreground">Manage advances for agents and staff with variable access fee rates.</p>
+        </div>
+        <Button onClick={() => setIssueOpen(true)} size="sm" className="gap-1">
+          <Plus className="h-4 w-4" /> Issue Advance
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {summaryCards.map((card) => (
+          <Card key={card.label} className="border-border/50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <card.icon className={`h-4 w-4 ${card.cls}`} />
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{card.label}</span>
+              </div>
+              <p className="text-lg font-black tracking-tight">{card.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Access Fee Calculator */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Calculator className="h-4 w-4" /> Access Fee Calculator
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+            <div>
+              <Label className="text-xs">Amount (UGX)</Label>
+              <Input type="number" placeholder="e.g. 500000" value={calcAmount} onChange={(e) => setCalcAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Duration (days)</Label>
+              <Input type="number" placeholder="30" value={calcDays} onChange={(e) => setCalcDays(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Monthly Rate</Label>
+              <Select value={calcRate} onValueChange={setCalcRate}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {RATE_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Access Fee</Label>
+              <p className="text-lg font-bold text-amber-600">{formatUGX(calcFee)}</p>
+            </div>
+            <div>
+              <Label className="text-xs">Total Payable</Label>
+              <p className="text-lg font-bold">{formatUGX(calcTotal)}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Formula: accessFee = amount × ((1 + monthlyRate)^(days / 30) − 1)
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Filters */}
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
+        <TabsList>
+          <TabsTrigger value="all">All ({advances.length})</TabsTrigger>
+          <TabsTrigger value="active">Active ({advances.filter((a: any) => a.status === 'active').length})</TabsTrigger>
+          <TabsTrigger value="completed">Completed ({advances.filter((a: any) => a.status === 'completed').length})</TabsTrigger>
+          <TabsTrigger value="overdue">Overdue ({advances.filter((a: any) => a.status === 'overdue').length})</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="text-center py-12 text-muted-foreground">Loading advances...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">No advances found</div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Recipient</TableHead>
+                <TableHead>Principal</TableHead>
+                <TableHead className="hidden sm:table-cell">Interest</TableHead>
+                <TableHead>Outstanding</TableHead>
+                <TableHead className="hidden md:table-cell">Daily Rate</TableHead>
+                <TableHead className="hidden lg:table-cell">Issued</TableHead>
+                <TableHead>Days Left</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Risk</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((adv: any) => {
+                const risk = getRiskLevel(adv);
+                const daysLeft = Math.max(0, differenceInDays(new Date(adv.expires_at), new Date()));
+                const interest = Math.max(0, Number(adv.outstanding_balance) - Number(adv.principal));
+
+                return (
+                  <TableRow
+                    key={adv.id}
+                    onClick={() => navigate(`/agent-advances/${adv.id}`)}
+                    className="cursor-pointer"
+                  >
+                    <TableCell className="font-medium">{adv.profiles?.full_name || 'Unknown'}</TableCell>
+                    <TableCell>{formatUGX(adv.principal)}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-amber-600">{formatUGX(interest)}</TableCell>
+                    <TableCell className="font-semibold">{formatUGX(adv.outstanding_balance)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatUGX(adv.daily_rate)}/d</TableCell>
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">
+                      {new Date(adv.issued_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{daysLeft}d</TableCell>
+                    <TableCell>
+                      <Badge variant={adv.status === 'active' ? 'default' : adv.status === 'completed' ? 'secondary' : 'destructive'}>
+                        {adv.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className={`h-3 w-3 rounded-full ${risk === 'green' ? 'bg-green-500' : risk === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <IssueAdvanceSheet open={issueOpen} onOpenChange={setIssueOpen} onSuccess={refetch} />
+    </div>
+  );
+}

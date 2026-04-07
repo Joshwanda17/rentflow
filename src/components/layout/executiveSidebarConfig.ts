@@ -64,6 +64,12 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
     ],
   },
+  {
+    title: 'Advances',
+    items: [
+      { label: 'Manage Advances', icon: Banknote, id: 'advances' },
+    ],
+  },
   ],
   coo: [
     {
