@@ -120,6 +120,9 @@ export type Database = {
       }
       agent_advances: {
         Row: {
+          access_fee: number | null
+          access_fee_collected: number | null
+          access_fee_status: string | null
           agent_id: string
           created_at: string
           cycle_days: number
@@ -135,6 +138,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_fee?: number | null
+          access_fee_collected?: number | null
+          access_fee_status?: string | null
           agent_id: string
           created_at?: string
           cycle_days?: number
@@ -150,6 +156,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_fee?: number | null
+          access_fee_collected?: number | null
+          access_fee_status?: string | null
           agent_id?: string
           created_at?: string
           cycle_days?: number
