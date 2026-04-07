@@ -4,7 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, UserPlus, AlertTriangle, CalendarClock, DollarSign, CheckCircle2 } from 'lucide-react';
 import { format, subHours } from 'date-fns';
 
-export function PartnerOpsBrief() {
+interface PartnerOpsBriefProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export function PartnerOpsBrief({ onNavigate }: PartnerOpsBriefProps) {
   const { data } = useQuery({
     queryKey: ['partner-ops-brief'],
     queryFn: async () => {
@@ -42,11 +46,11 @@ export function PartnerOpsBrief() {
   if (!data) return null;
 
   const items = [
-    { icon: UserPlus, label: 'New Portfolios (24h)', value: data.newPortfolios, color: 'text-blue-500' },
-    { icon: AlertTriangle, label: 'Pending Approval', value: data.pendingApprovals, color: (data.pendingApprovals as number) > 0 ? 'text-amber-500' : 'text-muted-foreground' },
-    { icon: CalendarClock, label: 'Maturing in 7 days', value: data.maturingSoon, color: data.maturingSoon > 0 ? 'text-orange-500' : 'text-muted-foreground' },
-    { icon: DollarSign, label: 'ROI Paid (24h)', value: data.roiPaid24h > 0 ? `${(data.roiPaid24h / 1e3).toFixed(0)}K` : '0', color: 'text-green-500' },
-    { icon: CheckCircle2, label: 'Open Escalations', value: data.openEscalations, color: data.openEscalations > 0 ? 'text-red-500' : 'text-green-500' },
+    { icon: UserPlus, label: 'New Portfolios (24h)', value: data.newPortfolios, color: 'text-blue-500', tab: 'portfolios' },
+    { icon: AlertTriangle, label: 'Pending Approval', value: data.pendingApprovals, color: (data.pendingApprovals as number) > 0 ? 'text-amber-500' : 'text-muted-foreground', tab: 'portfolios' },
+    { icon: CalendarClock, label: 'Maturing in 7 days', value: data.maturingSoon, color: data.maturingSoon > 0 ? 'text-orange-500' : 'text-muted-foreground', tab: 'portfolios' },
+    { icon: DollarSign, label: 'ROI Paid (24h)', value: data.roiPaid24h > 0 ? `${(data.roiPaid24h / 1e3).toFixed(0)}K` : '0', color: 'text-green-500', tab: 'roi' },
+    { icon: CheckCircle2, label: 'Open Escalations', value: data.openEscalations, color: data.openEscalations > 0 ? 'text-red-500' : 'text-green-500', tab: 'activity' },
   ];
 
   return (
