@@ -419,7 +419,12 @@ export function FinancialStatementsPanel() {
         addRow('Transaction Expenses', d.serviceDeliveryCosts.transactionExpenses, false, true, true);
         addRow('Total Service Costs', d.serviceDeliveryCosts.total, true, true);
         y += 3;
-        addRow('Operating Expenses', d.operatingExpenses, false, true);
+        addSection('Operating Expenses');
+        addRow('Payroll & Staff Costs', d.operatingExpenses.payrollExpenses, false, true, true);
+        addRow('Agent Requisitions', d.operatingExpenses.agentRequisitions, false, true, true);
+        addRow('Financial Agent Expenses', d.operatingExpenses.financialAgentExpenses, false, true, true);
+        addRow('General Operating', d.operatingExpenses.generalOperating, false, true, true);
+        addRow('Total Operating Expenses', d.operatingExpenses.total, true, true);
         y += 3;
         pdf.setFontSize(11);
         pdf.setFont('helvetica', 'bold');
