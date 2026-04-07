@@ -84,7 +84,7 @@ function FloatTransfersTab() {
       await supabase.from('general_ledger').insert([
         {
           user_id: selectedAgent,
-          entry_type: 'credit',
+          direction: 'cash_in',
           amount: Number(amount),
           category: 'agent_float_transfer',
           description: `Float funded via ${bankName}. Ref: ${bankRef.trim()}`,
@@ -93,7 +93,7 @@ function FloatTransfersTab() {
         },
         {
           user_id: user!.id,
-          entry_type: 'debit',
+          direction: 'cash_out',
           amount: Number(amount),
           category: 'agent_float_transfer',
           description: `Float sent to agent via ${bankName}. Ref: ${bankRef.trim()}`,

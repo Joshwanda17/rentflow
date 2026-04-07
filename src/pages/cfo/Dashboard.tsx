@@ -124,6 +124,8 @@ export default function CFODashboardPage() {
         return <RentCollectionsFeed />;
       case 'agent-rankings':
         return <AgentPerformanceRankings />;
+      case 'float-management':
+        return <AgentFloatManagement />;
       default:
         return (
           <div className="space-y-4">
