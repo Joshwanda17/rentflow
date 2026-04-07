@@ -1,60 +1,66 @@
 
 
-## Plan: Enforce UGX as Default Currency at Database and Application Levels
+# Direct Agent Wallet Credit for Proxy Payouts
 
-### What This Does
-Adds an explicit `currency` column (defaulting to `'UGX'`) to the `wallets` and `general_ledger` tables, and ensures the frontend defaults to UGX on first load. This locks the system to UGX as the base currency while leaving a clean path for future multi-currency support.
+## Problem
+When COO/Partner Ops clicks "Credit Agent Wallet" from the Nearing Payouts section, the money goes into a `pending_wallet_operations` queue awaiting CFO approval. The agent never sees the money until CFO acts. The user wants the credit to land in the agent's wallet **immediately**.
 
----
-
-### Step 1: Database Migration -- Add `currency` Column
-
-A single migration adding:
-
-```sql
-ALTER TABLE wallets ADD COLUMN currency TEXT NOT NULL DEFAULT 'UGX';
-ALTER TABLE general_ledger ADD COLUMN currency TEXT NOT NULL DEFAULT 'UGX';
+## Current Flow
+```text
+COO clicks "Credit Agent Wallet"
+  → pending_wallet_operations (status: pending)
+    → CFO approves
+      → general_ledger insert
+        → sync_wallet_from_ledger trigger
+          → agent wallet updated
 ```
 
-All existing rows will automatically receive `'UGX'`. No data loss or disruption -- this is a non-breaking additive change.
+## New Flow
+```text
+COO clicks "Credit Agent Wallet"
+  → general_ledger insert (direct, cash_in to agent)
+    → sync_wallet_from_ledger trigger fires
+      → agent wallet balance increases immediately
+  → audit_logs + notifications
+  → next_roi_date advanced
 
-### Step 2: Fix Inconsistent `formatUGX` Implementations
+Agent withdraws to pay partner → normal withdrawal pipeline applies
+```
 
-Two files have hardcoded `formatUGX` that bypass the dynamic currency system:
+## Changes
 
-- **`src/lib/creditFeeCalculations.ts`** -- change to use `formatDynamic` (like `rentCalculations.ts` already does)
-- **`src/lib/agentAdvanceCalculations.ts`** -- same fix
+### 1. `src/components/coo/COOPartnersPage.tsx` — `handlePay` function (mode `agent_wallet`)
 
-This ensures every `formatUGX()` call in the app goes through the dynamic currency formatter with UGX as base.
+When `mode === 'agent_wallet'`, instead of inserting into `pending_wallet_operations`, the function will:
 
-### Step 3: Ensure UGX Default in Currency Provider
+- Insert directly into `general_ledger` with:
+  - `user_id`: agent's ID (from `managedInfo`)
+  - `direction`: `cash_in`
+  - `category`: `roi_payout`
+  - `transaction_group_id`: new UUID (required for `sync_wallet_from_ledger` trigger)
+  - `ledger_scope`: `platform`
+  - `linked_party`: partner's investor ID
+  - `description`: `[Agent Wallet] ROI payout of X to agent_name on behalf of partner_name`
+- Still advance `next_roi_date` on the portfolio
+- Still insert audit log (`roi_managed_payout_direct`)
+- Still notify the partner and CFO users (as informational, not approval-required)
+- Mark as completed immediately (no "pending" state)
 
-In **`src/hooks/useCurrency.tsx`**, verify that the initial state defaults to `'UGX'` when no user preference is stored (it already uses UGX as rate=1 base, but we'll confirm the default selection is explicit).
+The `wallet` and `already_paid` modes remain unchanged — they still go through the pending pipeline.
 
-### Step 4: Edge Functions -- Include `currency: 'UGX'` in Ledger Inserts
+### 2. Same fix in the Partner Detail payment options (lines ~2940-3004)
 
-Update all edge functions that insert into `general_ledger` to explicitly pass `currency: 'UGX'`:
+The same "Credit Agent Wallet" button exists in the partner detail view's payment options step. Apply the identical direct-credit logic there.
 
-- `process-agent-advance-deductions/index.ts`
-- `process-investment-interest/index.ts`
-- `seed-test-funds/index.ts`
-- Any other edge functions inserting into `general_ledger` or `wallets`
+### No Edge Function or Database Changes Needed
 
-This is defensive -- the DB default handles it, but explicit is better than implicit per your strict rule.
+The `general_ledger` insert with a `transaction_group_id` already triggers `sync_wallet_from_ledger` which updates the agent's wallet balance. This is the same mechanism used by other direct-credit flows in the system.
 
-### Step 5: Frontend Ledger Inserts
+## Summary
 
-Search for all client-side `general_ledger` inserts and add `currency: 'UGX'` to each insert payload. Same defensive principle.
+| Change | File |
+|--------|------|
+| Direct ledger credit for `agent_wallet` mode | `COOPartnersPage.tsx` (2 locations: NearingPayoutsDialog + partner detail) |
 
----
-
-### Summary of Changes
-
-| Area | Change |
-|------|--------|
-| Database | Add `currency TEXT NOT NULL DEFAULT 'UGX'` to `wallets` and `general_ledger` |
-| `creditFeeCalculations.ts` | Use `formatDynamic` instead of hardcoded UGX string |
-| `agentAdvanceCalculations.ts` | Use `formatDynamic` instead of hardcoded UGX string |
-| Edge functions (3+) | Add explicit `currency: 'UGX'` to all ledger inserts |
-| Client-side inserts | Add explicit `currency: 'UGX'` to all ledger inserts |
+One file change, two locations within it. The agent sees money immediately; the existing withdrawal pipeline governs how the agent sends it to the partner.
 
