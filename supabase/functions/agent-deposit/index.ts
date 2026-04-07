@@ -13,32 +13,13 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function creditWalletDirect(adminClient: ReturnType<typeof createClient>, userId: string, amount: number) {
-  if (amount <= 0) return;
-
-  const { data: wallet, error: walletError } = await adminClient
+async function ensureWalletExists(adminClient: ReturnType<typeof createClient>, userId: string) {
+  // Only ensures a wallet row exists — balance is managed exclusively by sync_wallet_from_ledger trigger
+  const { error } = await adminClient
     .from('wallets')
-    .select('balance')
-    .eq('user_id', userId)
-    .maybeSingle();
+    .upsert({ user_id: userId, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
 
-  if (walletError) throw walletError;
-
-  if (wallet) {
-    const { error: updateError } = await adminClient
-      .from('wallets')
-      .update({ balance: toNumber(wallet.balance) + amount, updated_at: new Date().toISOString() })
-      .eq('user_id', userId);
-
-    if (updateError) throw updateError;
-    return;
-  }
-
-  const { error: insertError } = await adminClient
-    .from('wallets')
-    .insert({ user_id: userId, balance: amount });
-
-  if (insertError) throw insertError;
+  if (error) throw error;
 }
 
 async function applyRepaymentForRepayingRequest(
