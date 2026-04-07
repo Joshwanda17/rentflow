@@ -128,6 +128,7 @@ export default function CFODashboardPage() {
           <div className="space-y-4">
             <PlatformVsWalletSummary />
             <ChannelBalanceTracker />
+            <AgentPerformanceRankings compact />
             <PendingPortfolioTopUps />
             <WalletRetractionsFeed compact />
             <CFOReceivablesTracker />
