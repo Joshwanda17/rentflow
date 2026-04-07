@@ -116,6 +116,11 @@ export default function CFODashboard() {
             <FinancialOverview />
           </TabsContent>
 
+          {/* ROI Requests Tab */}
+          <TabsContent value="roi" className="space-y-6">
+            <CFOROIRequests />
+          </TabsContent>
+
           {/* Cash Position Tab */}
           <TabsContent value="cash" className="space-y-6">
             <DailyCashPositionReport />
