@@ -118,7 +118,6 @@ export function AgentProxyWithdrawalDialog({
 
       toast.success('Withdrawal request submitted', {
         description: `${formatUGX(amount)} withdrawal for ${funderName} is pending approval`,
-          currency: 'UGX',
       });
       onOpenChange(false);
       onSuccess?.();
