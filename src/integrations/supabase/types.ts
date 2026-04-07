@@ -3637,6 +3637,7 @@ export type Database = {
           amount: number
           category: string
           created_at: string
+          currency: string
           description: string | null
           direction: string
           id: string
@@ -3655,6 +3656,7 @@ export type Database = {
           amount: number
           category: string
           created_at?: string
+          currency?: string
           description?: string | null
           direction: string
           id?: string
@@ -3673,6 +3675,7 @@ export type Database = {
           amount?: number
           category?: string
           created_at?: string
+          currency?: string
           description?: string | null
           direction?: string
           id?: string
@@ -9134,6 +9137,7 @@ export type Database = {
         Row: {
           balance: number
           created_at: string
+          currency: string
           id: string
           locked_balance: number
           updated_at: string
@@ -9142,6 +9146,7 @@ export type Database = {
         Insert: {
           balance?: number
           created_at?: string
+          currency?: string
           id?: string
           locked_balance?: number
           updated_at?: string
@@ -9150,6 +9155,7 @@ export type Database = {
         Update: {
           balance?: number
           created_at?: string
+          currency?: string
           id?: string
           locked_balance?: number
           updated_at?: string
