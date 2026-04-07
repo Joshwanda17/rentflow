@@ -228,6 +228,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           partner_id: partnerId,
           amount: parsedAmount,
           summary_id: summaryId,
+          investment_reference: investmentReference.trim(),
+          receipt_file_url: receiptUrl,
         },
       });
 
