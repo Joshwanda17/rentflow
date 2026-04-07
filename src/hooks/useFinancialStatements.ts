@@ -190,6 +190,7 @@ export function useFinancialStatements() {
         buildScopedQuery('bridge', 'cash_out'),
         supabase.from('wallets').select('balance'),
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
+        supabase.from('agent_advances').select('access_fee, access_fee_collected, access_fee_status, status').in('status', ['active', 'overdue']),
         (() => {
           // Fix #1: No opening balance for "All Time" — prevents double-counting
           if (!startDate) return Promise.resolve({ data: [], error: null });
