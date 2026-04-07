@@ -219,6 +219,11 @@ export default function CFODashboard() {
             <AgentPerformanceRankings />
           </TabsContent>
 
+          {/* Investments Tab */}
+          <TabsContent value="investments" className="space-y-6">
+            <CFOPartnerInvestments />
+          </TabsContent>
+
           {/* Reconciliation Tab */}
           <TabsContent value="reconciliation" className="space-y-6">
             <CFOReconciliationPanel />
