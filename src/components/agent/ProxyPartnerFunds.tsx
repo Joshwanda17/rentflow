@@ -33,7 +33,7 @@ export function ProxyPartnerFunds() {
   const [prefillReason, setPrefillReason] = useState('');
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
-  const [rejectedPartnerIds, setRejectedPartnerIds] = useState<Set<string>>(new Set());
+  
 
   useEffect(() => {
     if (!user?.id) return;
@@ -60,8 +60,10 @@ export function ProxyPartnerFunds() {
       const allPartnerIds = [...new Set((entries || []).map(e => e.linked_party).filter(Boolean))];
 
       if (allPartnerIds.length > 0) {
-        // Fetch profiles, pending withdrawals, and rejected assignments in parallel
-        const [profileRes, withdrawalRes, rejectedRes] = await Promise.all([
+        // Fetch profiles and pending withdrawals in parallel
+        // Note: Do NOT filter out rejected assignments here — partners with existing funds
+        // must always be visible so the agent can deliver/withdraw those funds
+        const [profileRes, withdrawalRes] = await Promise.all([
           supabase
             .from('profiles')
             .select('id, full_name, phone')
@@ -71,17 +73,9 @@ export function ProxyPartnerFunds() {
             .select('linked_party, status, reason')
             .eq('user_id', user.id)
             .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
-          supabase
-            .from('proxy_agent_assignments')
-            .select('beneficiary_id')
-            .eq('agent_id', user.id)
-            .eq('approval_status', 'rejected')
         ]);
 
-        // Filter out rejected partners
-        const rejectedIds = new Set((rejectedRes.data || []).map((r: any) => r.beneficiary_id));
-        setRejectedPartnerIds(rejectedIds);
-        const partnerIds = allPartnerIds.filter(id => !rejectedIds.has(id));
+        const partnerIds = allPartnerIds;
 
         const profileMap: Record<string, { full_name: string; phone: string }> = {};
         (profileRes.data || []).forEach(p => {
@@ -127,7 +121,7 @@ export function ProxyPartnerFunds() {
 
     ledgerEntries.forEach(entry => {
       const pid = entry.linked_party;
-      if (!pid || rejectedPartnerIds.has(pid)) return;
+      if (!pid) return;
       if (!grouped[pid]) grouped[pid] = { received: 0, withdrawn: 0 };
 
       const amt = Number(entry.amount) || 0;
@@ -147,7 +141,7 @@ export function ProxyPartnerFunds() {
       totalWithdrawn: totals.withdrawn,
       available: totals.received - totals.withdrawn,
     })).sort((a, b) => b.available - a.available);
-  }, [ledgerEntries, profiles, rejectedPartnerIds]);
+  }, [ledgerEntries, profiles]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
