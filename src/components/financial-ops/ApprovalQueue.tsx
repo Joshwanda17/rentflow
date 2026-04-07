@@ -9,16 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInHours } from 'date-fns';
-import { Search, CheckCircle2, XCircle, Clock, ArrowDownToLine, ArrowUpFromLine, Wallet, Loader2, Hash, Banknote, ArrowUpDown, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Search, CheckCircle2, XCircle, Clock, Banknote, Wallet, Loader2, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
-type QueueType = 'deposits' | 'wallet_withdrawals' | 'wallet_ops';
+type QueueType = 'wallet_withdrawals' | 'wallet_ops';
 
 interface QueueItem {
   id: string;
@@ -46,24 +46,10 @@ interface QueueItem {
   };
 }
 
-// TID format validation helper
-function validateTidFormat(tid: string | null | undefined, provider: string | null | undefined): { valid: boolean; error?: string } {
-  if (!tid) return { valid: false, error: 'No Transaction ID provided' };
-  if (!provider || provider === 'bank_transfer' || provider === 'agent_cash') return { valid: true }; // Skip for bank/cash
-  const upper = tid.trim().toUpperCase();
-  if (provider === 'mtn' && !upper.startsWith('MP')) {
-    return { valid: false, error: "Invalid TID format for MTN. TID must start with 'MP' (e.g. MP39665905645)" };
-  }
-  if (provider === 'airtel' && !upper.startsWith('TID')) {
-    return { valid: false, error: "Invalid TID format for Airtel. TID must start with 'TID' (e.g. TID144205097399)" };
-  }
-  return { valid: true };
-}
-
 export function ApprovalQueue() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [activeQueue, setActiveQueue] = useState<QueueType>('deposits');
+  const [activeQueue, setActiveQueue] = useState<QueueType>('wallet_withdrawals');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<'approve' | 'reject' | null>(null);
@@ -72,55 +58,6 @@ export function ApprovalQueue() {
   const [inspectItem, setInspectItem] = useState<QueueItem | null>(null);
   const [payoutProof, setPayoutProof] = useState('');
   const [sortNewest, setSortNewest] = useState(false);
-
-  // Deposit verification dialog state
-  const [depositVerifyItem, setDepositVerifyItem] = useState<QueueItem | null>(null);
-  const [depositVerifyAction, setDepositVerifyAction] = useState<'approve' | 'reject' | null>(null);
-  const [depositRejectReason, setDepositRejectReason] = useState('');
-  const [depositProcessing, setDepositProcessing] = useState(false);
-
-  const { data: deposits = [], isLoading: loadingDeposits } = useQuery({
-    queryKey: ['approval-queue-deposits'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('deposit_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
-        .limit(200);
-      if (!data?.length) return [];
-
-      const userIds = [...new Set(data.map(d => d.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds);
-      const pm = new Map(profiles?.map(p => [p.id, p]) || []);
-
-      return data.map(d => {
-        const profile = pm.get(d.user_id);
-        const ageH = differenceInHours(new Date(), new Date(d.created_at));
-        return {
-          id: d.id,
-          type: 'deposits' as QueueType,
-          userId: d.user_id,
-          userName: profile?.full_name || 'Unknown',
-          userPhone: profile?.phone || '',
-          amount: d.amount,
-          description: `${d.provider === 'mtn' ? '🟡 MTN' : d.provider === 'airtel' ? '🔴 Airtel' : d.provider === 'bank_transfer' ? '🏦 Bank' : d.provider === 'agent_cash' ? '💵 Cash' : d.provider || 'MoMo'}${d.transaction_id ? ` · TID: ••••${d.transaction_id.slice(-4)}` : ''}`,
-          category: 'deposit',
-          createdAt: d.created_at,
-          ageHours: ageH,
-          urgency: ageH < 1 ? 'green' as const : ageH < 4 ? 'amber' as const : 'red' as const,
-          rawData: d,
-        };
-      });
-    },
-    staleTime: 15000,
-  });
-
-
-
 
   // Wallet withdrawal requests (from withdrawal_requests table)
   const { data: walletWithdrawals = [], isLoading: loadingWalletWithdrawals } = useQuery({
@@ -221,8 +158,8 @@ export function ApprovalQueue() {
     staleTime: 15000,
   });
 
-  const queues: Record<QueueType, QueueItem[]> = { deposits, wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
-  const isLoading = activeQueue === 'deposits' ? loadingDeposits : activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
+  const queues: Record<QueueType, QueueItem[]> = { wallet_withdrawals: walletWithdrawals, wallet_ops: walletOps };
+  const isLoading = activeQueue === 'wallet_withdrawals' ? loadingWalletWithdrawals : loadingWalletOps;
 
   const items = useMemo(() => {
     let list = queues[activeQueue];
@@ -235,12 +172,11 @@ export function ApprovalQueue() {
         i.id.startsWith(q)
       );
     }
-    // Sort by date: default oldest first, toggle for newest first
     if (sortNewest) {
       list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
     return list;
-  }, [activeQueue, search, sortNewest, deposits, walletWithdrawals, walletOps]);
+  }, [activeQueue, search, sortNewest, walletWithdrawals, walletOps]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -258,7 +194,6 @@ export function ApprovalQueue() {
     }
   };
 
-  // Determine required proof label for wallet withdrawals
   const getProofLabel = () => {
     if (activeQueue !== 'wallet_withdrawals' || selected.size !== 1) return null;
     const item = items.find(i => selected.has(i.id));
@@ -270,8 +205,6 @@ export function ApprovalQueue() {
   };
 
   const proofConfig = getProofLabel();
-
-  // For bulk wallet_withdrawals approval, all must have proof
   const walletWithdrawalApproveBlocked = activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && !payoutProof.trim();
 
   const handleBulkAction = useCallback(async () => {
@@ -281,7 +214,6 @@ export function ApprovalQueue() {
       return;
     }
 
-    // Wallet cashout approval requires proof of payout
     if (activeQueue === 'wallet_withdrawals' && bulkAction === 'approve' && !payoutProof.trim()) {
       toast.error('Proof of payout is required to approve a cash-out');
       return;
@@ -291,16 +223,7 @@ export function ApprovalQueue() {
     try {
       const ids = Array.from(selected);
 
-      if (activeQueue === 'deposits') {
-        const status = bulkAction === 'approve' ? 'approved' : 'rejected';
-        const updateFields: any = {
-          status,
-          processed_by: user.id,
-          ...(bulkAction === 'approve' ? { approved_at: new Date().toISOString() } : { rejected_at: new Date().toISOString(), rejection_reason: reason }),
-        };
-        const { error } = await supabase.from('deposit_requests').update(updateFields).in('id', ids);
-        if (error) throw error;
-      } else if (activeQueue === 'wallet_ops') {
+      if (activeQueue === 'wallet_ops') {
         const response = await supabase.functions.invoke('approve-wallet-operation', {
           body: { ids, action: bulkAction, reason: bulkAction === 'reject' ? reason : undefined },
         });
@@ -310,13 +233,11 @@ export function ApprovalQueue() {
         }
       } else if (activeQueue === 'wallet_withdrawals') {
         if (bulkAction === 'reject') {
-          // Use edge function for proper rejection with notification & audit
           const { data: rejectData, error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
             body: { withdrawal_ids: ids, reason, withdrawal_type: 'wallet' },
           });
           if (rejectErr) throw rejectErr;
 
-          // Only remove rows that were actually rejected
           const rejectedIds = (rejectData?.results || [])
             .filter((r: any) => r.status === 'rejected')
             .map((r: any) => r.id);
@@ -324,7 +245,6 @@ export function ApprovalQueue() {
           if (failedCount > 0) {
             toast.warning(`${failedCount} item(s) could not be rejected`);
           }
-          // Override ids for cache update below
           ids.length = 0;
           ids.push(...rejectedIds);
         } else {
@@ -344,7 +264,6 @@ export function ApprovalQueue() {
             .in('id', ids);
           if (error) throw error;
 
-          // Generate payout codes for cash withdrawals
           const cashItems = items.filter(i => selected.has(i.id) && i.payoutDetails?.method === 'cash');
           if (cashItems.length > 0) {
             for (const ci of cashItems) {
@@ -365,7 +284,6 @@ export function ApprovalQueue() {
         }
       }
 
-      // Log audit
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: `bulk_${bulkAction}_${activeQueue}`,
@@ -393,9 +311,8 @@ export function ApprovalQueue() {
   }, [bulkAction, selected, activeQueue, user, reason, payoutProof, queryClient, items]);
 
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
-  const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
+  const queueIcon: Record<QueueType, typeof Banknote> = { wallet_withdrawals: Banknote, wallet_ops: Wallet };
 
-  // Portfolio top-ups should display as deposits
   const getItemDisplayLabel = (item: QueueItem) => {
     if (item.rawData?.operation_type === 'portfolio_topup') return '💰 Portfolio Deposit';
     return item.description;
@@ -410,7 +327,7 @@ export function ApprovalQueue() {
               <Clock className="h-4 w-4 text-primary" /> Approval Queue
             </CardTitle>
             <div className="flex items-center gap-2">
-              {selected.size > 0 && activeQueue !== 'deposits' && (
+              {selected.size > 0 && (
                 <div className="flex gap-1.5">
                   <Button size="sm" variant="default" className="h-7 text-[11px] sm:text-xs px-2 sm:px-3" onClick={() => setBulkAction('approve')}>
                     <CheckCircle2 className="h-3 w-3 mr-0.5" /> Approve ({selected.size})
@@ -427,10 +344,6 @@ export function ApprovalQueue() {
           <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
             <Tabs value={activeQueue} onValueChange={(v) => { setActiveQueue(v as QueueType); setSelected(new Set()); }}>
               <TabsList className="h-8 w-max sm:w-auto">
-                <TabsTrigger value="deposits" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
-                  <ArrowDownToLine className="h-3 w-3" /> Deposits
-                  {deposits.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{deposits.length}</Badge>}
-                </TabsTrigger>
                 <TabsTrigger value="wallet_withdrawals" className="text-[10px] sm:text-xs gap-1 h-7 px-2 sm:px-3">
                   <Banknote className="h-3 w-3" /> Cash Out
                   {walletWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{walletWithdrawals.length}</Badge>}
@@ -447,7 +360,7 @@ export function ApprovalQueue() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search name, phone, TID…"
+                placeholder="Search name, phone…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9 h-8 text-xs"
@@ -473,21 +386,14 @@ export function ApprovalQueue() {
               </div>
             ) : (
               <div className="space-y-2">
-                {activeQueue !== 'deposits' ? (
-                  <div className="flex items-center gap-2 px-2 pb-1">
-                    <Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} />
-                    <span className="text-[11px] text-muted-foreground">
-                      {selected.size > 0 ? `${selected.size} selected` : `${items.length} pending`}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="px-2 pb-1">
-                    <span className="text-[11px] text-muted-foreground">{items.length} pending — tap to verify & approve</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 px-2 pb-1">
+                  <Checkbox checked={selected.size === items.length && items.length > 0} onCheckedChange={toggleAll} />
+                  <span className="text-[11px] text-muted-foreground">
+                    {selected.size > 0 ? `${selected.size} selected` : `${items.length} pending`}
+                  </span>
+                </div>
                 {items.map((item) => {
                   const Icon = queueIcon[item.type];
-                  const isDeposit = item.type === 'deposits';
                   const isCashOut = item.type === 'wallet_withdrawals';
                   const ageMinutes = Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 60000);
                   const ageLabel = ageMinutes < 60 ? `${ageMinutes}m` : ageMinutes < 1440 ? `${Math.floor(ageMinutes / 60)}h` : `${Math.floor(ageMinutes / 1440)}d`;
@@ -496,33 +402,28 @@ export function ApprovalQueue() {
                     <div
                       key={item.id}
                       className={`rounded-xl border-2 overflow-hidden transition-colors ${
-                        isDeposit
-                          ? 'border-success/40 bg-gradient-to-r from-success/5 to-card'
-                          : isCashOut
+                        isCashOut
                           ? 'border-orange-500/40 bg-gradient-to-r from-orange-500/5 to-card'
                           : `border-l-4 ${urgencyBg[item.urgency]} border-t border-r border-b border-border/60 bg-card`
                       }`}
                     >
-                      {/* Type header strip */}
                       <div className={`px-3 py-1.5 flex items-center justify-between ${
-                        isDeposit ? 'bg-success/10' : isCashOut ? 'bg-orange-500/10' : 'bg-muted/30'
+                        isCashOut ? 'bg-orange-500/10' : 'bg-muted/30'
                       }`} onClick={() => setInspectItem(item)}>
                         <div className="flex items-center gap-2">
-                          {activeQueue !== 'deposits' && (
-                            <Checkbox
-                              checked={selected.has(item.id)}
-                              onCheckedChange={() => toggleSelect(item.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="shrink-0"
-                            />
-                          )}
-                          <div className={`p-1 rounded-lg ${isDeposit ? 'bg-success/20' : isCashOut ? 'bg-orange-500/20' : 'bg-muted'}`}>
-                            <Icon className={`h-3.5 w-3.5 ${isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-amber-600'}`} />
+                          <Checkbox
+                            checked={selected.has(item.id)}
+                            onCheckedChange={() => toggleSelect(item.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="shrink-0"
+                          />
+                          <div className={`p-1 rounded-lg ${isCashOut ? 'bg-orange-500/20' : 'bg-muted'}`}>
+                            <Icon className={`h-3.5 w-3.5 ${isCashOut ? 'text-orange-600' : 'text-amber-600'}`} />
                           </div>
                           <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                            isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-muted-foreground'
+                            isCashOut ? 'text-orange-600' : 'text-muted-foreground'
                           }`}>
-                            {isDeposit ? 'Deposit' : isCashOut ? 'Cash Out' : 'Wallet Op'}
+                            {isCashOut ? 'Cash Out' : 'Wallet Op'}
                           </span>
                         </div>
                         <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
@@ -530,7 +431,6 @@ export function ApprovalQueue() {
                         </Badge>
                       </div>
 
-                      {/* Main content */}
                       <div className="p-3 space-y-2" onClick={() => setInspectItem(item)}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
@@ -541,20 +441,16 @@ export function ApprovalQueue() {
                             )}
                           </div>
                           <div className={`text-right shrink-0 px-3 py-2 rounded-xl ${
-                            isDeposit ? 'bg-success/10' : isCashOut ? 'bg-orange-500/10' : 'bg-muted/50'
+                            isCashOut ? 'bg-orange-500/10' : 'bg-muted/50'
                           }`}>
                             <p className={`text-lg font-black tabular-nums ${
-                              isDeposit ? 'text-success' : isCashOut ? 'text-orange-600' : 'text-foreground'
+                              isCashOut ? 'text-orange-600' : 'text-foreground'
                             }`}>
                               {formatUGX(item.amount)}
                             </p>
-                            {isDeposit && item.rawData?.transaction_id && (
-                              <p className="text-[9px] font-mono text-muted-foreground">TID: ••••{item.rawData.transaction_id.slice(-2)}</p>
-                            )}
                           </div>
                         </div>
 
-                        {/* Payout details for wallet withdrawals — prominent */}
                         {item.payoutDetails && isCashOut && (
                           <div className="p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 space-y-1">
                             {item.payoutDetails.method === 'mobile_money' && (
@@ -586,50 +482,26 @@ export function ApprovalQueue() {
                         )}
                       </div>
 
-                      {/* Inline action buttons — large touch targets, always visible */}
-                      {isDeposit ? (
-                        <div className="grid grid-cols-2 gap-0 border-t border-border/40">
-                          <Button
-                            variant="ghost"
-                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-success hover:bg-success/10"
-                            onClick={(e) => { e.stopPropagation(); setDepositVerifyItem(item); setDepositVerifyAction('approve'); }}
-                            disabled={processing || depositProcessing}
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                            Approve
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
-                            onClick={(e) => { e.stopPropagation(); setDepositVerifyItem(item); setDepositVerifyAction('reject'); }}
-                            disabled={processing || depositProcessing}
-                          >
-                            <XCircle className="h-4 w-4" />
-                            Reject
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-0 border-t border-border/40">
-                          <Button
-                            variant="ghost"
-                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-primary hover:bg-primary/10"
-                            onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
-                            disabled={processing}
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                            Approve
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
-                            onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('reject'); }}
-                            disabled={processing}
-                          >
-                            <XCircle className="h-4 w-4" />
-                            Reject
-                          </Button>
-                        </div>
-                      )}
+                      <div className="grid grid-cols-2 gap-0 border-t border-border/40">
+                        <Button
+                          variant="ghost"
+                          className="h-12 rounded-none text-sm font-bold gap-1.5 text-primary hover:bg-primary/10"
+                          onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('approve'); }}
+                          disabled={processing}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-12 rounded-none text-sm font-bold gap-1.5 text-destructive hover:bg-destructive/10 border-l border-border/40"
+                          onClick={(e) => { e.stopPropagation(); setSelected(new Set([item.id])); setBulkAction('reject'); }}
+                          disabled={processing}
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Reject
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -661,7 +533,6 @@ export function ApprovalQueue() {
             )}
             {bulkAction === 'approve' && activeQueue === 'wallet_withdrawals' && (
               <div className="space-y-3">
-                {/* Payout details summary */}
                 {items.filter(i => selected.has(i.id)).map(item => (
                   <div key={item.id} className="p-3 rounded-lg border-2 border-primary/20 bg-primary/5 space-y-1">
                     <p className="text-sm font-bold">{item.userName} — {formatUGX(item.amount)}</p>
@@ -738,208 +609,12 @@ export function ApprovalQueue() {
         </DialogContent>
       </Dialog>
 
-      {/* Deposit Verification Dialog */}
-      <Dialog open={!!depositVerifyItem} onOpenChange={(open) => { if (!open) { setDepositVerifyItem(null); setDepositVerifyAction(null); setDepositRejectReason(''); } }}>
-        <DialogContent stable className="max-w-[calc(100vw-2rem)] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm sm:text-base flex items-center gap-2">
-              {depositVerifyAction === 'approve' ? <ShieldCheck className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />}
-              {depositVerifyAction === 'approve' ? 'Verify & Approve Deposit' : 'Reject Deposit'}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              {depositVerifyAction === 'approve'
-                ? 'Cross-check this TID with the company payment SMS/logs before approving.'
-                : 'Provide a reason for rejecting this deposit request.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          {depositVerifyItem && (() => {
-            const d = depositVerifyItem.rawData;
-            const provider = d.provider;
-            const tid = d.transaction_id;
-            const tidCheck = validateTidFormat(tid, provider);
-            const providerLabel = provider === 'mtn' ? '🟡 MTN MoMo' : provider === 'airtel' ? '🔴 Airtel Money' : provider === 'bank_transfer' ? '🏦 Bank Transfer' : provider === 'agent_cash' ? '💵 Agent Cash' : provider || 'Unknown';
-
-            return (
-              <div className="space-y-3">
-                {/* User info */}
-                <div className="p-3 rounded-xl bg-muted/50 border border-border/60 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold">{depositVerifyItem.userName}</p>
-                    <p className="text-lg font-black text-success tabular-nums">{formatUGX(depositVerifyItem.amount)}</p>
-                  </div>
-                  {depositVerifyItem.userPhone && <p className="text-xs text-muted-foreground">{depositVerifyItem.userPhone}</p>}
-                  <p className="text-xs text-muted-foreground">
-                    Submitted: {new Date(depositVerifyItem.createdAt).toLocaleString()}
-                  </p>
-                </div>
-
-                {/* TID & Provider */}
-                <div className="p-3 rounded-xl border-2 border-primary/20 bg-primary/5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">Provider</span>
-                    <Badge variant="outline" className="text-xs">{providerLabel}</Badge>
-                  </div>
-                  <div>
-                    <span className="text-xs font-medium text-muted-foreground">Transaction ID</span>
-                    <p className="text-base font-mono font-bold tracking-wider mt-0.5 select-all">{tid || '—'}</p>
-                  </div>
-                </div>
-
-                {/* TID Format validation result */}
-                {depositVerifyAction === 'approve' && !tidCheck.valid && (
-                  <div className="p-3 rounded-xl bg-destructive/10 border-2 border-destructive/30 flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-destructive">Approval Blocked</p>
-                      <p className="text-xs text-destructive/80">{tidCheck.error}</p>
-                    </div>
-                  </div>
-                )}
-
-                {depositVerifyAction === 'approve' && tidCheck.valid && (
-                  <div className="p-3 rounded-xl bg-success/10 border-2 border-success/30 flex items-start gap-2">
-                    <ShieldCheck className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                    <p className="text-xs text-success font-medium">TID format is valid. Confirm you've verified this TID in company payment SMS/logs.</p>
-                  </div>
-                )}
-
-                {/* Notes from user */}
-                {d.notes && (
-                  <div className="p-2 rounded-lg bg-muted/30">
-                    <p className="text-[10px] font-medium text-muted-foreground mb-0.5">User Notes</p>
-                    <p className="text-xs">{d.notes}</p>
-                  </div>
-                )}
-
-                {/* Reject reason */}
-                {depositVerifyAction === 'reject' && (
-                  <Textarea
-                    placeholder="Reason for rejection (min 10 characters)…"
-                    value={depositRejectReason}
-                    onChange={e => setDepositRejectReason(e.target.value)}
-                    className="text-sm min-h-[80px]"
-                    autoFocus
-                  />
-                )}
-              </div>
-            );
-          })()}
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setDepositVerifyItem(null); setDepositVerifyAction(null); setDepositRejectReason(''); }} className="w-full sm:w-auto">
-              Cancel
-            </Button>
-            {depositVerifyAction === 'approve' ? (
-              <Button
-                size="sm"
-                variant="default"
-                disabled={depositProcessing || !validateTidFormat(depositVerifyItem?.rawData?.transaction_id, depositVerifyItem?.rawData?.provider).valid}
-                onClick={async () => {
-                  if (!depositVerifyItem || !user) return;
-                  setDepositProcessing(true);
-                  try {
-                    const { error } = await supabase.functions.invoke('approve-deposit', {
-                      body: { deposit_id: depositVerifyItem.id },
-                    });
-                    if (error) {
-                      const msg = await extractFromErrorObject(error, 'Deposit approval failed');
-                      throw new Error(msg);
-                    }
-                    // Audit log
-                    await supabase.from('audit_logs').insert({
-                      user_id: user.id,
-                      action_type: 'deposit_manual_approve',
-                      record_id: depositVerifyItem.id,
-                      table_name: 'deposit_requests',
-                      metadata: {
-                        transaction_id: depositVerifyItem.rawData?.transaction_id,
-                        amount: depositVerifyItem.amount,
-                        provider: depositVerifyItem.rawData?.provider,
-                        user_name: depositVerifyItem.userName,
-                      },
-                    });
-                    toast.success(`Deposit approved — ${formatUGX(depositVerifyItem.amount)} credited to ${depositVerifyItem.userName}`);
-                    queryClient.setQueryData<QueueItem[]>(['approval-queue-deposits'], (old) =>
-                      (old || []).filter(i => i.id !== depositVerifyItem.id)
-                    );
-                    queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
-                    queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
-                    setDepositVerifyItem(null);
-                    setDepositVerifyAction(null);
-                  } catch (err: any) {
-                    toast.error(err.message || 'Approval failed');
-                  } finally {
-                    setDepositProcessing(false);
-                  }
-                }}
-                className="w-full sm:w-auto"
-              >
-                {depositProcessing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-                <ShieldCheck className="h-4 w-4 mr-1" />
-                Confirm Approval
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={depositProcessing || depositRejectReason.length < 10}
-                onClick={async () => {
-                  if (!depositVerifyItem || !user) return;
-                  setDepositProcessing(true);
-                  try {
-                    const { error } = await supabase.from('deposit_requests').update({
-                      status: 'rejected',
-                      processed_by: user.id,
-                      rejected_at: new Date().toISOString(),
-                      rejection_reason: depositRejectReason,
-                    }).eq('id', depositVerifyItem.id);
-                    if (error) throw error;
-                    // Audit log
-                    await supabase.from('audit_logs').insert({
-                      user_id: user.id,
-                      action_type: 'deposit_manual_reject',
-                      record_id: depositVerifyItem.id,
-                      table_name: 'deposit_requests',
-                      metadata: {
-                        transaction_id: depositVerifyItem.rawData?.transaction_id,
-                        amount: depositVerifyItem.amount,
-                        provider: depositVerifyItem.rawData?.provider,
-                        user_name: depositVerifyItem.userName,
-                        rejection_reason: depositRejectReason,
-                      },
-                    });
-                    toast.success(`Deposit rejected for ${depositVerifyItem.userName}`);
-                    queryClient.setQueryData<QueueItem[]>(['approval-queue-deposits'], (old) =>
-                      (old || []).filter(i => i.id !== depositVerifyItem.id)
-                    );
-                    queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
-                    queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
-                    setDepositVerifyItem(null);
-                    setDepositVerifyAction(null);
-                    setDepositRejectReason('');
-                  } catch (err: any) {
-                    toast.error(err.message || 'Rejection failed');
-                  } finally {
-                    setDepositProcessing(false);
-                  }
-                }}
-                className="w-full sm:w-auto"
-              >
-                {depositProcessing && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-                Confirm Rejection
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Detail Drill-Down Sheet */}
       <RequestDetailSheet
         open={!!inspectItem}
         onOpenChange={(open) => !open && setInspectItem(null)}
         userId={inspectItem?.userId || null}
-        requestType={inspectItem?.type || 'deposits'}
+        requestType={inspectItem?.type || 'wallet_withdrawals'}
         requestData={inspectItem?.rawData}
       />
     </>
