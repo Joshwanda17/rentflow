@@ -68,8 +68,8 @@ export function ProxyPartnerFunds() {
       }
 
       // Step 2: Fetch profiles, portfolios, completed withdrawals, and active withdrawal requests
-      const portfolioQuery = supabase
-        .from('investor_portfolios')
+      const portfolioQuery: any = supabase
+        .from('investor_portfolios' as any)
         .select('id, user_id, investment_amount, roi_percentage, status, created_at, maturity_date')
         .in('user_id', approvedIds);
 
