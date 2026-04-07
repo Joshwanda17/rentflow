@@ -1,31 +1,34 @@
 
 
-# Real-Time Portfolio Visibility in Partner Ops Dashboard
+# Remove Full-Screen Install Gate, Use Browser-Native Prompt Instead
 
 ## Problem
-When an agent submits a field investment, the portfolio is created in the database but the Partner Ops dashboard caches data for 10 minutes (`staleTime: 600000`). Executives must manually refresh to see new investments.
-
-## Solution
-Add a real-time subscription to the Partner Ops dashboard so new/updated portfolios appear instantly without manual refresh.
+The current `PWAInstallGate` shows a full-screen blocking overlay asking users to install the app. If the app is already installed, it should not appear at all. Instead of a custom full-screen gate, the browser's native install prompt should handle installation.
 
 ## Changes
 
-### 1. Enable realtime on `investor_portfolios` (Migration)
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.investor_portfolios;
-```
+### 1. Remove `PWAInstallGate` from the app tree
+**File: `src/App.tsx`**
+- Remove the `PWAInstallGate` wrapper around `<AppRoutes />`
+- Remove the lazy import for `PWAInstallGate`
+- The existing `PWAInstallPrompt` (non-blocking floating banner at the bottom) already handles prompting users to install — it will continue to work as-is
 
-### 2. Add realtime listener in `PartnersOpsDashboard.tsx`
-Subscribe to `postgres_changes` on `investor_portfolios`. On any INSERT or UPDATE event, invalidate the `exec-partner-portfolios` query cache so the dashboard re-fetches automatically.
+### 2. Auto-trigger the native browser install prompt
+**File: `src/components/PWAInstallPrompt.tsx`**
+- On first visit (if the app is not installed and the `beforeinstallprompt` event fires), automatically call `prompt()` after a short delay to show the browser's native install dialog
+- If the user dismisses it, fall back to the existing floating banner behavior
+- On iOS, show the existing toast guidance ("Tap Share → Add to Home Screen")
 
-### 3. Reduce stale time
-Lower `staleTime` from 600,000ms (10 min) to 30,000ms (30s) as a fallback for cases where realtime misses an event.
+### 3. Installed-app detection remains intact
+The existing standalone detection (`display-mode: standalone`, `navigator.standalone`, `welile_pwa_installed` localStorage flag) already gates the prompt correctly in `usePWAInstall.tsx` — no changes needed there.
 
-### 4. Send push notification to Partner Ops users (Edge Function)
-Add a fire-and-forget notification in `agent-invest-for-partner` targeting users with the `coo` role (who access Partner Ops), so they get an immediate alert about the new investment — similar to the existing `notify-managers` call.
+## Technical Details
 
 **Files modified:**
-- `src/components/executive/PartnersOpsDashboard.tsx` — realtime subscription + reduced stale time
-- `supabase/functions/agent-invest-for-partner/index.ts` — COO/Partner Ops notification
-- Migration: enable realtime on `investor_portfolios`
+- `src/App.tsx` — remove `PWAInstallGate` import and wrapper
+- `src/components/PWAInstallPrompt.tsx` — auto-trigger native prompt on first visit
+
+**Files unchanged:**
+- `src/components/PWAInstallGate.tsx` — kept but no longer imported (can be deleted later)
+- `src/hooks/usePWAInstall.tsx` — standalone detection already correct
 
