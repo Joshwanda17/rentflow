@@ -77,11 +77,12 @@ export function ProxyPartnerFunds() {
       if (!pid) return;
       if (!grouped[pid]) grouped[pid] = { received: 0, withdrawn: 0 };
 
-      if (entry.category === 'roi_payout' && entry.cash_in > 0) {
-        grouped[pid].received += Number(entry.cash_in);
+      const amt = Number(entry.amount) || 0;
+      if (entry.category === 'roi_payout' && entry.direction === 'cash_in') {
+        grouped[pid].received += amt;
       }
-      if ((entry.category === 'proxy_partner_withdrawal' || entry.cash_out > 0) && entry.cash_out > 0) {
-        grouped[pid].withdrawn += Number(entry.cash_out);
+      if (entry.category === 'proxy_partner_withdrawal' && entry.direction === 'cash_out') {
+        grouped[pid].withdrawn += amt;
       }
     });
 
