@@ -49,10 +49,17 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
     const partnerId = account.investor_id || account.agent_id;
     if (!partnerId) return;
     setLoadingBalance(true);
-    supabase.from('wallets').select('balance').eq('user_id', partnerId).maybeSingle()
-      .then(({ data }) => { setPartnerWalletBalance(data ? Number(data.balance) : 0); })
-      .catch(() => setPartnerWalletBalance(0))
-      .finally(() => setLoadingBalance(false));
+    const fetchBalance = async () => {
+      try {
+        const { data } = await supabase.from('wallets').select('balance').eq('user_id', partnerId).maybeSingle();
+        setPartnerWalletBalance(data ? Number(data.balance) : 0);
+      } catch {
+        setPartnerWalletBalance(0);
+      } finally {
+        setLoadingBalance(false);
+      }
+    };
+    fetchBalance();
   }, [open, account]);
 
   const handleOpenChange = (isOpen: boolean) => {
