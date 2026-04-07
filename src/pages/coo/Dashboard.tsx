@@ -13,7 +13,7 @@ import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePa
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
-import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
+import { COOAgentTracker } from '@/components/coo/COOAgentTracker';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
 import { useIsMobile } from '@/hooks/use-mobile';
