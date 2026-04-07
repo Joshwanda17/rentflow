@@ -431,25 +431,23 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const roiDate = dateOnlyToLocalDate(p.next_roi_date);
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        // Only upcoming payouts within 30 days (not past-due)
-        if (du >= 0 && du <= 30) {
-          const prof = profileMap.get(ownerId);
-          const effectivePayoutDay = p.payout_day || roiDate.getDate();
-          nearingList.push({
-            portfolioId: p.id,
-            investorId: ownerId,
-            name: prof?.full_name || ownerId.slice(0, 8),
-            phone: prof?.phone || '',
-            email: prof?.email || '',
-            investmentAmount: p.investment_amount || 0,
-            roiPercentage: p.roi_percentage ?? 15,
-            payoutDay: effectivePayoutDay,
-            roiMode: p.roi_mode ?? 'monthly_payout',
-            createdAt: p.created_at,
-            daysUntil: du,
-            nextPayoutDate: p.next_roi_date,
-          });
-        }
+        // Include all active portfolios with a next_roi_date (past-due + upcoming)
+        const prof = profileMap.get(ownerId);
+        const effectivePayoutDay = p.payout_day || roiDate.getDate();
+        nearingList.push({
+          portfolioId: p.id,
+          investorId: ownerId,
+          name: prof?.full_name || ownerId.slice(0, 8),
+          phone: prof?.phone || '',
+          email: prof?.email || '',
+          investmentAmount: p.investment_amount || 0,
+          roiPercentage: p.roi_percentage ?? 15,
+          payoutDay: effectivePayoutDay,
+          roiMode: p.roi_mode ?? 'monthly_payout',
+          createdAt: p.created_at,
+          daysUntil: du,
+          nextPayoutDate: p.next_roi_date,
+        });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
       setAllPortfoliosForPayout(nearingList);
@@ -2463,48 +2461,56 @@ function MiniKPI({ icon, label, value, variant }: {
 
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
-  const totalAmount = portfolios.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
+  const overdueCount = portfolios.filter(p => p.daysUntil < 0).length;
+  const upcomingCount = portfolios.filter(p => p.daysUntil >= 0 && p.daysUntil <= 7).length;
+  const totalAmount = portfolios.filter(p => p.daysUntil <= 7).reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
   const hasPayouts = portfolios.length > 0;
   return (
     <button onClick={onClick} className={cn(
       'rounded-2xl border p-4 space-y-2.5 text-left w-full transition-all hover:shadow-lg active:scale-[0.98]',
-      hasPayouts
+      overdueCount > 0
         ? 'border-destructive/40 bg-destructive/5 ring-2 ring-destructive/25 shadow-sm'
+        : hasPayouts
+        ? 'border-amber-500/40 bg-amber-500/5 ring-2 ring-amber-500/20 shadow-sm'
         : 'border-violet-500/20 bg-violet-500/5'
     )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className={cn(
             'p-2 rounded-xl',
-            hasPayouts ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-violet-500/10 text-violet-600'
+            overdueCount > 0 ? 'bg-destructive/10 text-destructive animate-pulse' : hasPayouts ? 'bg-amber-500/10 text-amber-600' : 'bg-violet-500/10 text-violet-600'
           )}>
             <CalendarDays className="h-5 w-5" />
           </div>
           <div>
             <span className={cn(
               'text-xs font-bold uppercase tracking-wider',
-              hasPayouts ? 'text-destructive' : 'text-muted-foreground'
+              overdueCount > 0 ? 'text-destructive' : hasPayouts ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
             )}>
               Nearing Payouts
             </span>
             <p className={cn(
               'text-[11px] leading-snug mt-0.5',
-              hasPayouts ? 'text-destructive/80 font-medium' : 'text-muted-foreground'
+              overdueCount > 0 ? 'text-destructive/80 font-medium' : hasPayouts ? 'text-amber-600/80 font-medium' : 'text-muted-foreground'
             )}>
-              {hasPayouts ? `~${formatUGX(totalAmount)} due within 30 days` : 'No payouts due soon'}
+              {overdueCount > 0
+                ? `${overdueCount} overdue · ${upcomingCount} upcoming`
+                : hasPayouts
+                ? `~${formatUGX(totalAmount)} due within 7 days`
+                : 'No payouts due soon'}
             </p>
           </div>
         </div>
         <div className={cn(
           'text-2xl font-black tabular-nums px-3 py-1 rounded-xl',
-          hasPayouts ? 'bg-destructive/10 text-destructive' : 'text-foreground'
+          overdueCount > 0 ? 'bg-destructive/10 text-destructive' : hasPayouts ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'text-foreground'
         )}>
           {portfolios.length}
         </div>
       </div>
       {hasPayouts && (
-        <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-destructive/20">
-          <span className="text-[10px] font-semibold text-destructive uppercase tracking-wide">
+        <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-border/40">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
             Tap to review & take action →
           </span>
         </div>
@@ -2518,6 +2524,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   onActionComplete?: () => void;
 }) {
   const [search, setSearch] = useState('');
+  const [rangeFilter, setRangeFilter] = useState<string>('7');
   const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
   const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -2546,14 +2553,28 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   }, [open]);
 
   const filtered = useMemo(() => {
+    let list = localPortfolios;
+    // Apply range filter
+    if (rangeFilter === 'overdue') {
+      list = list.filter(p => p.daysUntil < 0);
+    } else if (rangeFilter === '7') {
+      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 7);
+    } else if (rangeFilter === '14') {
+      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 14);
+    } else if (rangeFilter === '30') {
+      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 30);
+    }
+    // Apply search filter
     const q = search.trim().toLowerCase();
-    if (!q) return localPortfolios;
-    return localPortfolios.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.phone.toLowerCase().includes(q) ||
-      p.email.toLowerCase().includes(q)
-    );
-  }, [localPortfolios, search]);
+    if (q) {
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.phone.toLowerCase().includes(q) ||
+        p.email.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [localPortfolios, search, rangeFilter]);
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
@@ -2755,24 +2776,38 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                 Portfolios Nearing Payout
               </DialogTitle>
               <DialogDescription className="text-xs">
-                {portfolios.length} portfolio{portfolios.length !== 1 ? 's' : ''} with payouts due within 30 days
+                {filtered.length} of {localPortfolios.length} portfolio{localPortfolios.length !== 1 ? 's' : ''} · {localPortfolios.filter(p => p.daysUntil < 0).length} overdue
               </DialogDescription>
             </DialogHeader>
-            <div className="px-4 sm:px-5">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by name, phone, or email…"
-                  className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
-                />
-                {search && (
-                  <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
-                    <X className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                )}
+            <div className="px-4 sm:px-5 space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by name, phone, or email…"
+                    className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
+                  />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+                <Select value={rangeFilter} onValueChange={setRangeFilter}>
+                  <SelectTrigger className="w-[120px] h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="7">7 days</SelectItem>
+                    <SelectItem value="14">14 days</SelectItem>
+                    <SelectItem value="30">30 days</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
@@ -2802,9 +2837,17 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                           <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
                             ✓ Compounded
                           </Badge>
+                        ) : p.daysUntil < 0 ? (
+                          <Badge variant="destructive" className="shrink-0 text-[10px]">
+                            {Math.abs(p.daysUntil)}d overdue
+                          </Badge>
+                        ) : p.daysUntil === 0 ? (
+                          <Badge className="shrink-0 text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                            Due Today
+                          </Badge>
                         ) : (
-                          <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
-                            {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
+                          <Badge variant={p.daysUntil <= 2 ? 'warning' : 'secondary'} className="shrink-0 text-[10px]">
+                            {p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
                           </Badge>
                         )}
                       </div>
