@@ -3169,6 +3169,7 @@ Ownership calculation:
 | `credit_agent_event_bonus()` | Event bonus with double-entry |
 | `auto_route_rent_funds()` | Fund routing fallback |
 | `detect_velocity_abuse(window_min, threshold)` | Server-side velocity abuse detection |
+| `credit_proxy_approval()` | Idempotent proxy partner ROI credit (MD5-based deterministic UUID) |
 
 ---
 
