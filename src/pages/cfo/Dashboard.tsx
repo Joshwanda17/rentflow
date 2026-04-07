@@ -119,6 +119,10 @@ export default function CFODashboardPage() {
         return <ManagerApprovalAudit />;
       case 'agent-requisitions':
         return <CFOAgentRequisitions />;
+      case 'rent-collections':
+        return <RentCollectionsFeed />;
+      case 'agent-rankings':
+        return <AgentPerformanceRankings />;
       default:
         return (
           <div className="space-y-4">
