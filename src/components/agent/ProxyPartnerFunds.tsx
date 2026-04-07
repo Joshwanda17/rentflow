@@ -199,6 +199,7 @@ export function ProxyPartnerFunds() {
       <WithdrawRequestDialog
         open={withdrawOpen}
         onOpenChange={setWithdrawOpen}
+        walletBalance={prefillAmount}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
       />
