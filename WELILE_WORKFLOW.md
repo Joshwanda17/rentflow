@@ -1456,10 +1456,10 @@ Features:
 ## 9.1 Route: `/cfo/dashboard`
 
 ### UI Design: CFO Dashboard
-- **Layout**: Tabbed interface with 10 tabs (icons + labels)
+- **Layout**: Tabbed interface with 20+ tabs (icons + labels)
 - **Tab Strip**: Wrap-style tabs with icon + text, primary color when active
 - **Mobile**: Tab labels truncated to 4 chars
-- **Tabs**: Overview, Cash Position, Channels, P&L, Disbursements, Statements, Solvency, Payouts, Reconcile, Ledger
+- **Tabs**: Overview, Cash Position, Channels, P&L, Disbursements, Statements, Solvency, Payouts, Reconcile, Ledger, ROI Requests, Rent Collections, Agent Rankings, Retractions, Advances, Approval Audit, Agent Requisitions, Float Management, Listing Bonus
 
 ## 9.2 Tabs & Components
 
@@ -1475,6 +1475,15 @@ Features:
 | `payouts` | (See below) | Multi-section payout authorization |
 | `reconciliation` | `CFOReconciliationPanel` | Reconciliation tools |
 | `ledger` | `GeneralLedger` | Full ledger browser |
+| `roi-requests` | `CFOROIRequests` | Partner ROI payout authorization (CFO inbound credit authority) |
+| `rent-collections` | `RentCollectionsFeed` | Real-time agent collection tracking |
+| `agent-rankings` | `AgentPerformanceRankings` | Weighted KPI rankings (Earnings 30%, Collections 25%, Referrals 25%, Visits 20%) |
+| `retractions` | `WalletRetractionsFeed` | Wallet retraction monitoring |
+| `advances` | `CFOAdvancesManager` | Agent cash advances with compounding interest |
+| `approval-audit` | `ManagerApprovalAudit` | Cross-department approval audit trail |
+| `agent-requisitions` | `CFOAgentRequisitions` | Financial agent requisition approval queue |
+| `float-management` | `AgentFloatManagement` | 3-tab float management: Transfers, Balances, Reconciliation |
+| `listing-bonus` | `ListingBonusApprovalQueue` | Listing bonus payout approval |
 
 ### CFO-Specific Components
 
