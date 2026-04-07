@@ -317,7 +317,7 @@ export function useFinancialStatements() {
       // Platform Cash = All-time cumulative retained earnings (Balance Sheet is a point-in-time snapshot)
       // Uses the SAME direction-fallback logic as the Income Statement for consistency
       const revenueCategories = ['tenant_access_fee', 'access_fee', 'access_fee_collected', 'tenant_request_fee', 'request_fee', 'registration_fee_collected', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
-      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense'];
+      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense', 'salary_payment', 'employee_advance', 'agent_requisition', 'platform_expense_disbursement'];
       const allTimePlatformIn = allTimePlatform.filter(e => e.direction === 'cash_in');
       const allTimePlatformOut = allTimePlatform.filter(e => e.direction === 'cash_out');
       const allTimeRevenue = sumWithDirectionFallback(allTimePlatformIn, allTimePlatformOut, revenueCategories);
