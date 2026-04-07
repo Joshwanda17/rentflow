@@ -41,6 +41,9 @@ export interface CashFlowData {
     otherServiceIncome: number;
     platformRewardsPaid: number;
     agentCommissionsPaid: number;
+    payrollPaid: number;
+    agentRequisitionsPaid: number;
+    financialAgentExpensesPaid: number;
     withdrawalsPaid: number;
     netOperating: number;
   };
