@@ -1,65 +1,34 @@
 
 
-## Plan: Agent-Facilitated AngelPool Investment Module
+## Fix: Show Only Partner Returns, Not Full Principal
 
-### Overview
-Build a complete agent-facilitated AngelPool investment flow: agent selects investor, verifies wallet balance, transfers funds to AngelPool, allocates shares, and earns 1% commission.
+### Problem
+When Partner Ops approves a proxy partner, the system credits the partner's **full investment principal** (`investment_amount`) to the agent's wallet as `roi_payout`. This is wrong — the agent should only receive the partner's **earned returns** (`total_roi_earned`) for delivery, not the principal itself.
 
-### 1. Database Migration
-Add three nullable columns to `angel_pool_investments`:
-- `agent_id` (UUID, references auth.users)
-- `payment_method` (TEXT — cash/momo/bank)
-- `investment_reference` (TEXT — external payment reference)
-
-### 2. Edge Function: `agent-angel-pool-invest/index.ts`
-Modeled on existing `angel-pool-invest` but with agent-facilitated logic:
-- Accepts: `investor_id`, `amount`, `payment_method`, `investment_reference`
-- Validates caller is an agent (query `user_roles`)
-- Validates investor exists and has sufficient wallet balance
-- Calculates shares (`amount / 20,000`), pool %, company %
-- Inserts `cash_out` ledger entry on **investor's** wallet (category: `angel_pool_investment`)
-- Inserts `angel_pool_investments` record with `agent_id` set
-- Inserts `cash_in` ledger entry on **agent's** wallet (category: `angel_pool_commission`, 1%)
-- Inserts matching `cash_out` platform debit (category: `marketing_expense`)
-- Logs system event via `logSystemEvent`
-- Returns share details, reference ID, commission amount
-
-### 3. New UI: `AgentAngelPoolInvestDialog.tsx`
-Multi-step dialog following `AgentInvestForPartnerDialog` patterns:
-- **Step 1**: Search investor by phone/name (reuse existing user search)
-- **Step 2**: Show investor wallet balance, enter amount, select payment method (cash/momo/bank), optional reference
-- **Step 3**: Preview — shares to allocate, pool %, company %, 1% commission breakdown
-- **Step 4**: Confirmation dialog then success state with reference ID and WhatsApp share
-
-### 4. Agent Menu Integration (`AgentMenuDrawer.tsx`)
-- Add `onAngelPoolInvest` prop
-- Add menu item: icon `PiggyBank`, label "Angel Pool Investment", description "Invest in equity pool", badge "Angel", accent emerald
-
-### 5. Commission History (`ProxyInvestmentHistorySheet.tsx`)
-- Add `angel_pool_commission` to the `.in('category', [...])` filter
-- Display with appropriate label "Angel Pool Commission"
-
-### 6. Agent Dashboard Page
-- Wire the new `onAngelPoolInvest` callback to open `AgentAngelPoolInvestDialog`
-- Import and render the dialog component
-
-### Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| DB migration | Add `agent_id`, `payment_method`, `investment_reference` columns |
-| `supabase/functions/agent-angel-pool-invest/index.ts` | Create |
-| `src/components/agent/AgentAngelPoolInvestDialog.tsx` | Create |
-| `src/components/agent/AgentMenuDrawer.tsx` | Add menu item + prop |
-| `src/components/agent/ProxyInvestmentHistorySheet.tsx` | Add commission category |
-| Agent dashboard page (parent) | Wire dialog state |
-
-### Commission Flow
-```text
-Agent invests 1,000,000 for investor
-  → Investor wallet: -1,000,000 (cash_out, angel_pool_investment)
-  → Angel Pool: +50 shares allocated
-  → Agent wallet: +10,000 (cash_in, angel_pool_commission)
-  → Platform ledger: -10,000 (cash_out, marketing_expense)
+### Root Cause
+In `PendingFunderApprovals.tsx` line 76:
+```typescript
+const totalInvestment = (portfolios || []).reduce((sum, p) => sum + (p.investment_amount || 0), 0);
 ```
+This queries `investment_amount` instead of `total_roi_earned`.
+
+### Changes
+
+**1. `src/components/executive/PendingFunderApprovals.tsx`**
+- Change the portfolio query to select `total_roi_earned` instead of `investment_amount`
+- Sum `total_roi_earned` to get the actual returns due to the partner
+- Update toast/audit to say "returns" not "investment"
+
+**2. Database: Fix existing incorrect ledger entries**
+- Create a migration to reverse the incorrect principal credits that were already inserted
+- Query all `roi_payout` entries with `description LIKE '%Proxy partner investment credit%'` 
+- For each, look up the actual `total_roi_earned` from the partner's portfolios
+- Insert correcting `cash_out` entries for the difference (principal - actual ROI)
+- Then insert correct `cash_in` entries for just the ROI amount
+
+**3. `src/components/agent/ProxyPartnerFunds.tsx`** — No code change needed
+The display logic already reads from the ledger correctly. Once ledger entries reflect returns instead of principal, the "Available" column will show the correct amounts.
+
+### Summary
+One-line fix in the approval flow + a data correction migration to fix the 14 partners that were already credited with principal instead of returns.
 
