@@ -32,6 +32,8 @@ import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
+import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
+import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
