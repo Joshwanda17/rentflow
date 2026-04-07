@@ -43,7 +43,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
         .from('general_ledger')
         .select('id, amount, direction, category, description, reference_id, linked_party, transaction_date')
         .eq('user_id', user.id)
-        .in('category', ['agent_proxy_investment', 'proxy_investment_commission'])
+        .in('category', ['agent_proxy_investment', 'proxy_investment_commission', 'angel_pool_commission'])
         .order('transaction_date', { ascending: false })
         .limit(50);
 
