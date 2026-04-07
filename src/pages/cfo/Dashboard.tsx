@@ -37,6 +37,8 @@ export default function CFODashboardPage() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'roi-requests':
+        return <CFOROIRequests />;
       case 'rent-payouts':
         return (
           <div className="space-y-4">

@@ -39,6 +39,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       title: 'Finance',
       items: [
         { label: 'Overview', icon: BarChart3, id: 'overview' },
+        { label: 'ROI Requests', icon: TrendingUp, id: 'roi-requests' },
         { label: 'Rent Payouts', icon: Banknote, id: 'rent-payouts' },
         { label: 'Financial Statements', icon: BookOpen, id: 'statements' },
         { label: 'Solvency & Buffer', icon: Shield, id: 'solvency' },
