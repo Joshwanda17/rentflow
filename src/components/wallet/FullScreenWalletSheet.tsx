@@ -288,8 +288,23 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   </CardContent>
                 </Card>
 
-                {/* Ledger statement */}
-                <WalletLedgerStatement />
+                {/* Ledger statement with optional proxy tab */}
+                {hasProxyPartners ? (
+                  <Tabs defaultValue="statement">
+                    <TabsList variant="pills" className="w-full">
+                      <TabsTrigger value="statement" variant="pills">Wallet Statement</TabsTrigger>
+                      <TabsTrigger value="proxy" variant="pills">Proxy Partners</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="statement">
+                      <WalletLedgerStatement />
+                    </TabsContent>
+                    <TabsContent value="proxy">
+                      <ProxyPartnerFunds />
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <WalletLedgerStatement />
+                )}
               </div>
 
               {/* Recent Transactions */}
