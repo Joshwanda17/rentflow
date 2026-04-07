@@ -54,6 +54,18 @@ export function PendingFunderApprovals() {
       const assignment = pending?.find(p => p.id === assignmentId);
       if (!assignment) throw new Error('Assignment not found');
 
+      const { data: latestAssignment, error: latestAssignmentError } = await supabase
+        .from('proxy_agent_assignments')
+        .select('id, approval_status, beneficiary_id, agent_id')
+        .eq('id', assignmentId)
+        .maybeSingle();
+
+      if (latestAssignmentError) throw latestAssignmentError;
+      if (!latestAssignment) throw new Error('Assignment not found');
+      if (latestAssignment.approval_status === 'approved') {
+        throw new Error('This partner has already been approved and credited.');
+      }
+
       // 1. Approve the assignment
       const { error } = await supabase
         .from('proxy_agent_assignments')
@@ -63,7 +75,8 @@ export function PendingFunderApprovals() {
           approved_by: user?.id,
           approved_at: new Date().toISOString(),
         })
-        .eq('id', assignmentId);
+        .eq('id', assignmentId)
+        .eq('approval_status', 'pending');
       if (error) throw error;
 
       // 2. Query beneficiary's portfolios and calculate accrued ROI
