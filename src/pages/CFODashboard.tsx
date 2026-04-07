@@ -68,19 +68,19 @@ export default function CFODashboard() {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
+    { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
+    { id: 'requisitions', label: 'Financial Agents', icon: FileText },
+    { id: 'statements', label: 'Statements', icon: BookOpen },
+    { id: 'solvency', label: 'Solvency', icon: Shield },
+    { id: 'reconciliation', label: 'Reconcile', icon: Scale },
+    { id: 'ledger', label: 'Ledger', icon: ClipboardList },
+    { id: 'investments', label: 'Investments', icon: HandCoins },
+    { id: 'collections', label: 'Collections', icon: Receipt },
+    { id: 'rankings', label: 'Rankings', icon: TrendingUp },
     { id: 'cash', label: 'Cash Position', icon: Wallet },
     { id: 'channels', label: 'Channels', icon: Receipt },
     { id: 'revenue', label: 'P&L', icon: DollarSign },
     { id: 'disbursements', label: 'Disbursements', icon: Receipt },
-    { id: 'statements', label: 'Statements', icon: BookOpen },
-    { id: 'solvency', label: 'Solvency', icon: Shield },
-    { id: 'payouts', label: 'Payouts', icon: Banknote },
-    { id: 'requisitions', label: 'Requisitions', icon: FileText },
-    { id: 'collections', label: 'Collections', icon: Receipt },
-    { id: 'rankings', label: 'Rankings', icon: TrendingUp },
-    { id: 'investments', label: 'Investments', icon: HandCoins },
-    { id: 'reconciliation', label: 'Reconcile', icon: Scale },
-    { id: 'ledger', label: 'Ledger', icon: ClipboardList },
   ];
 
   return (
