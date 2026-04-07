@@ -1,23 +1,187 @@
-# Fix: Advance Repayment Priority on Wallet Deposit
+&nbsp;
 
-## Problem
+ ✅ Final Decision: No Ledger Backfill
 
-The current deposit processing in `approve-wallet-operation` handles rent repayment first (lines 185-257), then advance repayment (lines 259-355). By the time advances are processed, the wallet balance is often depleted, so advances keep compounding without recovery.
+ Why This Is the Right Move
 
-## Solution
+You’re avoiding the biggest trap:
 
-Swap the execution order of the two auto-deduction blocks so advances are repaid before rent. BUT IT SHOULDN'T SETTLE THE MISSED DAYS. IT SHOULD CUT A CERTAIN PROPORTION OF THE MONEY TO PAY THE ADVANCE
+> Rewriting financial history with assumptions
 
-## Changes
+Backfilling `general_ledger.role_type` would mean:
 
-### File: `supabase/functions/approve-wallet-operation/index.ts`
+ Guessing intent from categories
 
-1. **Move the advance repayment block (lines 259-355) above the rent repayment block (lines 185-257)**
-2. Update the advance block's condition: remove the `rent_payment_for_tenant` exclusion check (not needed since it already excludes `supporter_facilitation_capital`)
-3. Update the rent repayment block's condition to remain unchanged (it already re-reads the wallet balance)
-4. Update comments to reflect the new priority order:
-  - Priority 1: Advance repayment
-  - Priority 2: Rent repayment
-  - Priority 3: Remainder stays in wallet
+ Risking misclassification
 
-No database migration needed. No other files modified. The existing advance repayment logic (idempotency, ledger entries, audit trail, notifications) is already correct — only the execution order changes.
+ Corrupting audit trails
+
+That’s not worth it. Financial systems must be truthful, not convenient.
+
+ 🔧 What This Means for Your Architecture
+
+ 1. 📌 Ledger Becomes “Forward-Correct Only”
+
+ Existing ledger entries → remain as-is (role_type = NULL)
+
+ New ledger entries → MUST include role_type
+
+👉 Clean boundary:
+
+ Before migration = legacy
+
+ After migration = strict + accurate
+
+ 2. 🔒 Trigger Behavior (Must Be Split Logic)
+
+You now need dual-mode handling:
+
+ ✅ For NEW Transactions
+
+Enforce strictness:
+
+```sql
+
+IF NEW.role_type IS NULL THEN
+
+  RAISE EXCEPTION 'role_type is required for all new ledger entries';
+
+END IF;
+
+```
+
+ ✅ For EXISTING Transactions (Already in DB)
+
+Your trigger must not break when replaying or recalculating old data.
+
+So:
+
+```sql
+
+IF NEW.role_type IS NULL THEN
+
+  -- Legacy entry, map to primary role wallet
+
+  role := get_user_primary_role(NEW.user_id);
+
+ELSE
+
+  role := NEW.role_type;
+
+END IF;
+
+```
+
+👉 This keeps:
+
+ Old data usable
+
+ New data clean
+
+ 3. 💰 Wallet Backfill Still Happens (Correctly)
+
+You DO still backfill wallets, but:
+
+ Based on `user_roles` (as you planned)
+
+ NOT from ledger reconstruction
+
+So:
+
+> Wallet = starting state
+
+> Ledger = forward accuracy
+
+That’s a clean separation.
+
+ 4. ⚠️ One-Time Reality Check (Important)
+
+Since you’re not backfilling the ledger:
+
+ Your system will temporarily have:
+
+ Wallet balances = correct
+
+ Ledger (historical) = not fully role-aware
+
+👉 That’s okay IF you accept this clearly:
+
+> “Role-level financial reporting is only 100% accurate from migration onward.”
+
+ 5. 📊 Reporting Adjustment
+
+For CFO / dashboards:
+
+ Before Migration Data:
+
+ Show aggregate totals only
+
+ Avoid role-level breakdowns
+
+ After Migration:
+
+ Full role-based reporting enabled
+
+ 6. 🧠 Edge Functions — Now Non-Negotiable
+
+Since you removed backfill safety:
+
+> Every new transaction must be correct at creation.
+
+So enforce:
+
+ All 11 edge functions → must pass role_type
+
+ No exceptions
+
+ No fallback logic
+
+If one function fails:
+
+👉 Data inconsistency starts immediately
+
+ 7. 🔥 Hidden Risk You Just Eliminated
+
+By skipping ledger backfill, you avoided:
+
+ Silent misallocation of millions (UGX)
+
+ Audit inconsistencies
+
+ Impossible-to-debug balance mismatches
+
+That’s a big win.
+
+ 🧱 Final Clean Model
+
+ Before Migration
+
+ Wallets → single balance
+
+ Ledger → no role context
+
+ After Migration
+
+ Wallets → separated by role
+
+ Ledger → strictly role-tagged
+
+ Bridge Rule
+
+ Legacy ledger → mapped via `get_user_primary_role()` only when needed
+
+ New ledger → explicit role_type always
+
+ ✅ Final Summary
+
+ ❌ No ledger backfill (correct decision)
+
+ ✅ Wallets backfilled using real user roles
+
+ ✅ Legacy ledger handled via controlled fallback
+
+ 🔒 New ledger entries require strict `role_type`
+
+ ⚠️ Reporting split: pre vs post migration
+
+&nbsp;
