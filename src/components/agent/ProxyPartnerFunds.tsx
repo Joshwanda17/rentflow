@@ -143,6 +143,10 @@ export function ProxyPartnerFunds() {
       if (entry.category === 'roi_payout' && entry.direction === 'cash_in') {
         grouped[pid].received += amt;
       }
+      // Reversal/correction entries reduce the received total
+      if (entry.category === 'roi_payout' && entry.direction === 'cash_out') {
+        grouped[pid].received -= amt;
+      }
       if (entry.category === 'proxy_partner_withdrawal' && entry.direction === 'cash_out') {
         grouped[pid].withdrawn += amt;
       }
