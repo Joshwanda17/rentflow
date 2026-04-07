@@ -73,6 +73,8 @@ export function AgentRequisitionForm() {
         amount: parsedAmount,
         category: 'agent_requisition',
         operation_type: 'agent_requisition',
+        direction: 'cash_in',
+        source_table: 'pending_wallet_operations',
         status: 'pending',
         description: `Fund requisition: ${PURPOSE_OPTIONS.find(p => p.value === purpose)?.label || purpose}`,
         metadata: { purpose, description: description.trim() },

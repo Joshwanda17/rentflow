@@ -100,6 +100,11 @@ export function FinancialOpsCommandCenter() {
             <WalletDeductionPanel />
           </div>
         )}
+        {activeTool === 'requisitions' && (
+          <div className="max-w-2xl w-full">
+            <AgentRequisitionForm />
+          </div>
+        )}
       </div>
     );
   }
