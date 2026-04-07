@@ -41,6 +41,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Overview', icon: BarChart3, id: 'overview' },
         { label: 'ROI Requests', icon: TrendingUp, id: 'roi-requests' },
         { label: 'Rent Payouts', icon: Banknote, id: 'rent-payouts' },
+        { label: 'Financial Agents', icon: DollarSign, id: 'financial-agents' },
         { label: 'Financial Statements', icon: BookOpen, id: 'statements' },
         { label: 'Solvency & Buffer', icon: Shield, id: 'solvency' },
         { label: 'Reconciliation', icon: Scale, id: 'reconciliation' },
@@ -57,25 +58,24 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
     {
       title: 'Disbursements',
       items: [
-        { label: 'Financial Agents', icon: DollarSign, id: 'financial-agents' },
         { label: 'Cash-Out Agents', icon: Banknote, id: 'cashout-agents' },
         { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
-      { label: 'Agent Requisitions', icon: FileText, id: 'agent-requisitions' },
-      { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
-      { label: 'Delivery Pipeline', icon: Truck, id: 'delivery-pipeline' },
-      { label: 'Cash Reconciliation', icon: Scale, id: 'cash-reconciliation' },
-      { label: 'Landlord Payouts', icon: Home, id: 'landlord-payouts' },
-      { label: 'Advanced Ledgers', icon: BookOpen, id: 'advanced-ledgers' },
-      { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
-    ],
-  },
-  {
-    title: 'Advances',
-    items: [
-      { label: 'Manage Advances', icon: Banknote, id: 'advances' },
-    ],
-  },
+        { label: 'Agent Requisitions', icon: FileText, id: 'agent-requisitions' },
+        { label: 'Payroll & Advances', icon: Users, id: 'payroll' },
+        { label: 'Delivery Pipeline', icon: Truck, id: 'delivery-pipeline' },
+        { label: 'Cash Reconciliation', icon: Scale, id: 'cash-reconciliation' },
+        { label: 'Landlord Payouts', icon: Home, id: 'landlord-payouts' },
+        { label: 'Advanced Ledgers', icon: BookOpen, id: 'advanced-ledgers' },
+        { label: 'Angel Pool', icon: Layers, id: 'angel-pool' },
+      ],
+    },
+    {
+      title: 'Advances',
+      items: [
+        { label: 'Manage Advances', icon: Banknote, id: 'advances' },
+      ],
+    },
   ],
   coo: [
     {
