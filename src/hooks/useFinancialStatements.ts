@@ -16,6 +16,7 @@ export interface IncomeStatementData {
     accessFees: number;
     requestFees: number;
     otherServiceIncome: number;
+    advanceAccessFeesCollected: number;
     total: number;
   };
   serviceDeliveryCosts: {
