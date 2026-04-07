@@ -316,6 +316,61 @@ Deno.serve(async (req) => {
 
     console.log(`Created ${role} invite for ${email} by ${creatorRole} ${user.id}${parentAgentId ? ' (sub-agent)' : ''}`);
 
+    // AUTO-ACTIVATE: When a manager creates an invite, immediately create the auth user
+    // so they appear in the system right away (no activation link needed)
+    let autoActivated = false;
+    if (creatorRole === 'manager') {
+      try {
+        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: fullName,
+            phone,
+            role,
+            referrer_id: user.id,
+          },
+        });
+
+        if (authError) {
+          console.error("Auto-activate auth error:", authError);
+        } else if (authData?.user) {
+          // Add user role
+          await adminClient
+            .from("user_roles")
+            .upsert({ user_id: authData.user.id, role }, { onConflict: 'user_id,role' });
+
+          // If landlord, create landlord record
+          if (role === 'landlord') {
+            await adminClient
+              .from("landlords")
+              .insert({
+                name: fullName,
+                phone,
+                property_address: propertyAddress || 'Address not provided',
+                latitude: latitude || null,
+                longitude: longitude || null,
+                location_captured_at: latitude ? new Date().toISOString() : null,
+                location_captured_by: user.id,
+                registered_by: user.id,
+              });
+          }
+
+          // Mark invite as activated
+          await adminClient
+            .from("supporter_invites")
+            .update({ status: "activated", activated_at: new Date().toISOString() })
+            .eq("id", invite.id);
+
+          autoActivated = true;
+          console.log(`Auto-activated ${role} account for ${email} (manager fast-track)`);
+        }
+      } catch (activateErr: any) {
+        console.error("Auto-activate error:", activateErr?.message);
+        // Fall through — invite still exists, user can activate manually
+      }
+    }
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
@@ -327,6 +382,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
+      autoActivated,
       invite: {
         id: invite.id,
         activation_token: invite.activation_token,
