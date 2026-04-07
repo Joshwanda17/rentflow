@@ -88,7 +88,7 @@ export function CFOAdvancesManager() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {summaryCards.map((card) => (
           <Card key={card.label} className="border-border/50">
             <CardContent className="p-4">
