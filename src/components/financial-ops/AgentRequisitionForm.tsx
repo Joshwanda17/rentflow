@@ -2,15 +2,13 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { FileText, Send, Loader2, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Send, Loader2, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 const PURPOSE_OPTIONS = [
@@ -23,17 +21,10 @@ const PURPOSE_OPTIONS = [
   { value: 'general', label: 'General' },
 ];
 
-const statusBadge = (status: string) => {
-  switch (status) {
-    case 'pending':
-      return <Badge variant="outline" className="gap-1 text-yellow-600 border-yellow-300"><Clock className="h-3 w-3" />Pending</Badge>;
-    case 'approved':
-      return <Badge variant="outline" className="gap-1 text-green-600 border-green-300"><CheckCircle className="h-3 w-3" />Approved</Badge>;
-    case 'rejected':
-      return <Badge variant="outline" className="gap-1 text-destructive border-destructive/30"><XCircle className="h-3 w-3" />Rejected</Badge>;
-    default:
-      return <Badge variant="outline">{status}</Badge>;
-  }
+const statusConfig: Record<string, { label: string; className: string }> = {
+  pending: { label: 'PENDING', className: 'bg-orange-500 text-white border-0' },
+  approved: { label: 'APPROVED', className: 'bg-green-500 text-white border-0' },
+  rejected: { label: 'DECLINED', className: 'bg-destructive text-white border-0' },
 };
 
 export function AgentRequisitionForm() {
@@ -42,6 +33,7 @@ export function AgentRequisitionForm() {
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('');
   const [description, setDescription] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const { data: history = [], isLoading: historyLoading } = useQuery({
     queryKey: ['agent-requisitions', user?.id],
@@ -81,7 +73,6 @@ export function AgentRequisitionForm() {
       });
       if (error) throw error;
 
-      // Log audit
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'requisition_submitted',
@@ -89,7 +80,6 @@ export function AgentRequisitionForm() {
         metadata: { amount: parsedAmount, purpose, description: description.trim() },
       });
 
-      // Notify managers (CFO)
       await supabase.from('notifications').insert({
         user_id: user.id,
         title: 'New Fund Requisition',
@@ -108,93 +98,138 @@ export function AgentRequisitionForm() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const visibleHistory = showAll ? history : history.slice(0, 3);
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-primary" />
-            Submit Fund Requisition
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <div className="space-y-5">
+      {/* Form Card */}
+      <div className="rounded-2xl bg-muted/50 p-4 space-y-4">
+        <div className="flex items-center gap-2.5 mb-1">
+          <div className="rounded-full bg-primary/15 p-2">
+            <FileText className="h-4 w-4 text-primary" />
+          </div>
           <div>
-            <Label>Amount (UGX)</Label>
+            <p className="text-sm font-semibold text-foreground">Submit Fund Requisition</p>
+            <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">
+              Funds will be disbursed to your wallet
+            </p>
+          </div>
+        </div>
+
+        {/* Amount */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Amount</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">UGX</span>
             <Input
               type="number"
-              placeholder="Enter amount"
+              placeholder="0.00"
               value={amount}
               onChange={e => setAmount(e.target.value)}
               min="1"
+              className="pl-12 bg-muted border-0 rounded-xl h-12 text-base font-semibold"
             />
           </div>
-          <div>
-            <Label>Purpose</Label>
-            <Select value={purpose} onValueChange={setPurpose}>
-              <SelectTrigger><SelectValue placeholder="Select purpose" /></SelectTrigger>
-              <SelectContent>
-                {PURPOSE_OPTIONS.map(p => (
-                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Description (min 10 characters)</Label>
-            <Textarea
-              placeholder="Describe what the funds will be used for..."
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground mt-1">{description.trim().length}/10 minimum</p>
-          </div>
-          <Button
-            className="w-full gap-2"
-            onClick={() => submitMutation.mutate()}
-            disabled={submitMutation.isPending || !amount || !purpose || description.trim().length < 10}
-          >
-            {submitMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Submit Requisition
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Purpose */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Purpose</label>
+          <Select value={purpose} onValueChange={setPurpose}>
+            <SelectTrigger className="bg-muted border-0 rounded-xl h-12">
+              <SelectValue placeholder="Select requisition purpose" />
+            </SelectTrigger>
+            <SelectContent>
+              {PURPOSE_OPTIONS.map(p => (
+                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Description */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Description</label>
+          <Textarea
+            placeholder="Provide details regarding this fund request..."
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            maxLength={250}
+            rows={3}
+            className="bg-muted border-0 rounded-xl text-sm"
+          />
+          <p className="text-[10px] text-muted-foreground text-right">{description.trim().length} / 250</p>
+        </div>
+
+        {/* Submit */}
+        <Button
+          className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl py-6 text-base font-semibold shadow-lg"
+          onClick={() => submitMutation.mutate()}
+          disabled={submitMutation.isPending || !amount || !purpose || description.trim().length < 10}
+        >
+          {submitMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>Submit Requisition <ArrowRight className="h-4 w-4" /></>
+          )}
+        </Button>
+      </div>
 
       {/* History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">My Requisitions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {historyLoading ? (
-            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-          ) : history.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No requisitions yet</p>
-          ) : (
-            <div className="space-y-3">
-              {history.map((req: any) => {
-                const meta = typeof req.metadata === 'object' ? req.metadata : {};
-                return (
-                  <div key={req.id} className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">USh {Number(req.amount).toLocaleString()}</span>
-                        {statusBadge(req.status)}
-                      </div>
-                      <p className="text-xs text-muted-foreground capitalize">{meta.purpose || 'N/A'}</p>
-                      <p className="text-xs text-muted-foreground truncate">{meta.description || req.description}</p>
-                      <p className="text-[10px] text-muted-foreground">{format(new Date(req.created_at), 'MMM d, yyyy HH:mm')}</p>
-                      {req.status === 'rejected' && req.rejection_reason && (
-                        <p className="text-xs text-destructive mt-1">Reason: {req.rejection_reason}</p>
-                      )}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-foreground">My Requisitions</h3>
+          {history.length > 3 && (
+            <button
+              onClick={() => setShowAll(v => !v)}
+              className="text-xs font-semibold text-primary"
+            >
+              {showAll ? 'SHOW LESS' : 'VIEW ALL'}
+            </button>
+          )}
+        </div>
+
+        {historyLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : history.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No requisitions yet</p>
+        ) : (
+          <div className="space-y-2.5">
+            {visibleHistory.map((req: any) => {
+              const meta = typeof req.metadata === 'object' ? req.metadata : {};
+              const status = statusConfig[req.status] || { label: req.status, className: 'bg-muted text-muted-foreground border-0' };
+              return (
+                <div key={req.id} className="flex items-center gap-3 rounded-2xl bg-muted/40 p-3.5">
+                  <div className="rounded-full bg-primary/15 p-2.5 shrink-0">
+                    <FileText className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground capitalize truncate">
+                      {meta.purpose || 'Requisition'}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <Badge className={`text-[9px] px-1.5 py-0 h-4 font-bold ${status.className}`}>
+                        {status.label}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground">
+                        {format(new Date(req.created_at), 'MMM d, HH:mm')}
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-foreground">
+                      {Number(req.amount).toLocaleString()}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground font-medium">UGX</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
