@@ -237,6 +237,7 @@ export function useFinancialStatements() {
       const bridgeOut = bridgeOutRes.data || [];
       const wallets = walletsRes.data || [];
       const rentRequests = rentRequestsRes.data || [];
+      const activeAdvances = advancesRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
       const allTimePlatform = allTimePlatformRes.data || [];
 
