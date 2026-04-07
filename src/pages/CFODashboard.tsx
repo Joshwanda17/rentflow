@@ -75,6 +75,8 @@ export default function CFODashboard() {
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'payouts', label: 'Payouts', icon: Banknote },
     { id: 'requisitions', label: 'Requisitions', icon: FileText },
+    { id: 'collections', label: 'Collections', icon: Receipt },
+    { id: 'rankings', label: 'Rankings', icon: TrendingUp },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
     { id: 'ledger', label: 'Ledger', icon: ClipboardList },
   ];
