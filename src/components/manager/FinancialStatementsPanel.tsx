@@ -262,6 +262,7 @@ export function FinancialStatementsPanel() {
       rows.push(['Access Fees', '', d.revenue.accessFees]);
       rows.push(['Request Fees', '', d.revenue.requestFees]);
       rows.push(['Other Service Income', '', d.revenue.otherServiceIncome]);
+      rows.push(['Advance Access Fees Collected', '', d.revenue.advanceAccessFeesCollected]);
       rows.push(['Total Revenue', '', d.revenue.total]);
       rows.push(['', '', '']);
       rows.push(['SERVICE DELIVERY COSTS', '', '']);
