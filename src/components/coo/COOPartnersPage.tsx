@@ -2804,6 +2804,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
                     <SelectItem value="7">7 days</SelectItem>
                     <SelectItem value="14">14 days</SelectItem>
                     <SelectItem value="30">30 days</SelectItem>
