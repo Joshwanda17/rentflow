@@ -153,36 +153,31 @@ Deno.serve(async (req) => {
     let shortfall = chargeAmount;
     const txGroupId = crypto.randomUUID();
 
-    // Deduct from tenant wallet
+    // Deduct from tenant wallet (ledger-based)
     if (tenantBalance > 0) {
       tenantDeducted = Math.min(tenantBalance, shortfall);
-      const newBalance = tenantBalance - tenantDeducted;
 
-      const { error: deductErr } = await supabase
-        .from("wallets")
-        .update({ balance: newBalance, updated_at: new Date().toISOString() })
-        .eq("user_id", rr.tenant_id)
-        .eq("balance", tenantBalance); // optimistic lock
-
-      if (deductErr) {
-        return new Response(JSON.stringify({ error: "Failed to deduct from tenant wallet. Try again." }), {
-          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Record ledger entry
-      await supabase.from("pending_wallet_operations").insert({
+      const { error: tenantLedgerErr } = await supabase.from("general_ledger").insert({
         user_id: rr.tenant_id,
         amount: tenantDeducted,
         direction: "cash_out",
         category: "rent_repayment",
+        scope: "wallet",
+        role_type: "tenant",
         source_table: "rent_requests",
         source_id: rr.id,
         transaction_group_id: txGroupId,
         description: `Manual collection: ${trimmedReason}`,
-        linked_party: "platform",
-        status: "approved",
+        linked_entity_id: rr.id,
+        linked_entity_type: "rent_request",
       });
+
+      if (tenantLedgerErr) {
+        console.error("[manual-collect-rent] Tenant ledger insert failed:", tenantLedgerErr);
+        return new Response(JSON.stringify({ error: "Failed to deduct from tenant wallet. Try again." }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       shortfall -= tenantDeducted;
 
@@ -196,7 +191,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Try agent wallet for remaining shortfall
+    // Try agent wallet for remaining shortfall (ledger-based)
     if (shortfall > 0 && rr.agent_id) {
       const { data: agentWallet } = await supabase
         .from("wallets")
@@ -208,28 +203,23 @@ Deno.serve(async (req) => {
 
       if (agentBalance > 0) {
         agentDeducted = Math.min(agentBalance, shortfall);
-        const newAgentBalance = agentBalance - agentDeducted;
 
-        const { error: agentErr } = await supabase
-          .from("wallets")
-          .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
-          .eq("user_id", rr.agent_id)
-          .eq("balance", agentBalance); // optimistic lock
+        const { error: agentLedgerErr } = await supabase.from("general_ledger").insert({
+          user_id: rr.agent_id,
+          amount: agentDeducted,
+          direction: "cash_out",
+          category: "rent_repayment",
+          scope: "wallet",
+          role_type: "agent",
+          source_table: "rent_requests",
+          source_id: rr.id,
+          transaction_group_id: txGroupId,
+          description: `Manual collection (agent share for ${tenantName}): ${trimmedReason}`,
+          linked_entity_id: rr.id,
+          linked_entity_type: "rent_request",
+        });
 
-        if (!agentErr) {
-          await supabase.from("pending_wallet_operations").insert({
-            user_id: rr.agent_id,
-            amount: agentDeducted,
-            direction: "cash_out",
-            category: "rent_repayment",
-            source_table: "rent_requests",
-            source_id: rr.id,
-            transaction_group_id: txGroupId,
-            description: `Manual collection (agent share): ${trimmedReason}`,
-            linked_party: rr.tenant_id,
-            status: "approved",
-          });
-
+        if (!agentLedgerErr) {
           shortfall -= agentDeducted;
 
           // Notify agent
@@ -240,6 +230,8 @@ Deno.serve(async (req) => {
             type: "warning",
             metadata: { rent_request_id, tenant_name: tenantName, amount: agentDeducted, source: "manual_collection" },
           });
+        } else {
+          console.error("[manual-collect-rent] Agent ledger insert failed:", agentLedgerErr);
         }
       }
     }
