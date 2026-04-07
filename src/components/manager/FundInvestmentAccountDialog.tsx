@@ -73,11 +73,13 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   };
 
   const isRefValid = () => {
-    if (paymentMethod === 'cash') return true;
+    if (paymentMethod === 'cash' || paymentMethod === 'wallet') return true;
     if (paymentMethod === 'mobile_money') return transactionReference.trim().length >= 8;
     if (paymentMethod === 'bank') return transactionReference.trim().length >= 6;
     return false;
   };
+
+  const walletInsufficient = paymentMethod === 'wallet' && partnerWalletBalance !== null && (parseFloat(amount) || 0) > partnerWalletBalance;
 
   const handleSubmit = async () => {
     if (!account || !amount) return;
