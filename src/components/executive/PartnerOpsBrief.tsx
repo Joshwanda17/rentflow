@@ -64,11 +64,15 @@ export function PartnerOpsBrief({ onNavigate }: PartnerOpsBriefProps) {
       <CardContent>
         <div className="grid grid-cols-5 gap-2">
           {items.map(item => (
-            <div key={item.label} className="text-center">
+            <button
+              key={item.label}
+              onClick={() => onNavigate?.(item.tab)}
+              className="text-center rounded-lg p-2 transition-colors hover:bg-accent/60 active:scale-95 cursor-pointer"
+            >
               <item.icon className={`h-4 w-4 mx-auto mb-0.5 ${item.color}`} />
               <p className="text-lg font-bold">{item.value}</p>
               <p className="text-[9px] text-muted-foreground leading-tight">{item.label}</p>
-            </div>
+            </button>
           ))}
         </div>
       </CardContent>
