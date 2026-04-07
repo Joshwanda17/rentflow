@@ -290,6 +290,100 @@ export function CFOReceivablesTracker() {
           </div>
         )
       )}
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* ADVANCE ACCESS FEE RECEIVABLES SECTION */}
+      {/* ════════════════════════════════════════════════════════ */}
+      <div className="pt-3 border-t border-border/50">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+            <Receipt className="h-3.5 w-3.5 text-blue-600" />
+            Advance Access Fee Receivables
+          </h3>
+          <span className="text-[10px] text-muted-foreground">{advanceReceivables.length} active</span>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          {[
+            { label: 'Total Fees', value: formatUGX(totalAdvanceFees) },
+            { label: 'Collected', value: formatUGX(totalAdvanceCollected), accent: 'text-emerald-600' },
+            { label: 'Outstanding', value: formatUGX(totalAdvanceOutstanding), accent: 'text-amber-600' },
+          ].map(k => (
+            <div key={k.label} className="rounded-lg bg-muted/40 px-2 py-1.5 text-center">
+              <p className="text-[8px] uppercase tracking-wider text-muted-foreground">{k.label}</p>
+              <p className={`text-[11px] font-bold font-mono truncate ${k.accent || ''}`}>{k.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Collection progress */}
+        <div className="space-y-1 mb-3">
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>Collection Rate</span>
+            <span className="font-mono">{advanceCollectionRate.toFixed(1)}%</span>
+          </div>
+          <Progress value={advanceCollectionRate} className="h-2" />
+        </div>
+
+        {/* Expandable list */}
+        <button
+          onClick={() => setAdvanceExpanded(!advanceExpanded)}
+          className="w-full flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1"
+        >
+          {advanceExpanded ? 'Hide' : 'Show'} advance fee details
+          {advanceExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+
+        {advanceExpanded && (
+          advanceReceivables.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">
+              <Receipt className="h-5 w-5 mx-auto mb-1 opacity-30" />
+              <p className="text-xs">No advance fee receivables</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-card divide-y divide-border max-h-60 overflow-y-auto mt-2">
+              {advanceReceivables.map((adv: any) => {
+                const fee = Number(adv.access_fee || 0);
+                const collected = Number(adv.access_fee_collected || 0);
+                const outstanding = fee - collected;
+                const pct = fee > 0 ? Math.round((collected / fee) * 100) : 0;
+                const feeStatus = adv.access_fee_status || 'unpaid';
+
+                return (
+                  <div key={adv.id} className="px-3 py-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium truncate">{adv.profiles?.full_name || 'Unknown'}</span>
+                      <Badge variant="outline" className={
+                        feeStatus === 'settled' ? 'border-emerald-500/30 text-emerald-600 text-[9px]' :
+                        feeStatus === 'partial' ? 'border-amber-500/30 text-amber-600 text-[9px]' :
+                        'border-destructive/30 text-destructive text-[9px]'
+                      }>
+                        {feeStatus}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-muted rounded-full h-1">
+                        <div
+                          className={`h-1 rounded-full transition-all ${
+                            pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-destructive'
+                          }`}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">{pct}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span className="font-mono">Fee: {formatUGX(fee)}</span>
+                      <span className="font-mono text-emerald-600">Paid: {formatUGX(collected)}</span>
+                      <span className="font-mono text-amber-600">Owed: {formatUGX(outstanding)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }
