@@ -108,14 +108,14 @@ export function PendingFunderApprovals() {
         metadata: {
           beneficiary_name: assignment.beneficiary?.full_name,
           agent_name: assignment.agent?.full_name,
-          credited_amount: totalInvestment,
+          credited_returns: totalReturns,
         },
       });
 
-      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name, amount: totalInvestment };
+      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name, amount: totalReturns };
     },
     onSuccess: (data) => {
-      const amountStr = data.amount > 0 ? ` USh ${data.amount.toLocaleString()} credited to ${data.agentName}'s wallet.` : '';
+      const amountStr = data.amount > 0 ? ` USh ${data.amount.toLocaleString()} returns credited to ${data.agentName}'s wallet.` : '';
       toast({ title: '✅ Funder approved', description: `${data.beneficiaryName} approved.${amountStr}` });
       queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
     },
