@@ -24,8 +24,8 @@ export function PartnerOpsBrief({ onNavigate }: PartnerOpsBriefProps) {
         supabase.from('investor_portfolios').select('*', { count: 'exact', head: true }).gte('created_at', since),
         supabase.from('investor_portfolios').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
         supabase.from('investor_portfolios').select('id').eq('status', 'active')
-          .gte('maturity_date', format(new Date(), 'yyyy-MM-dd'))
-          .lte('maturity_date', format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd')),
+          .gte('next_roi_date', format(new Date(), 'yyyy-MM-dd'))
+          .lte('next_roi_date', format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd')),
         supabase.from('supporter_roi_payments').select('roi_amount').gte('due_date', since).eq('status', 'paid'),
         supabase.from('partner_escalations').select('*', { count: 'exact', head: true }).eq('status', 'open'),
       ]);
