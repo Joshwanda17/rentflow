@@ -256,6 +256,104 @@ Deno.serve(async (req) => {
           }
         }
 
+        // ── Auto-deduct advance repayment after rent repayment ──
+        // Priority: (1) Rent repayment first (above), (2) Advance repayment second, (3) Remainder stays in wallet
+        if (op.direction === 'cash_in' && op.user_id && op.category !== 'supporter_facilitation_capital') {
+          try {
+            // Check for active/overdue advances for this user
+            const { data: activeAdvances } = await adminClient
+              .from("agent_advances")
+              .select("id, agent_id, outstanding_balance, daily_rate, principal, status")
+              .eq("agent_id", op.user_id)
+              .in("status", ["active", "overdue"])
+              .gt("outstanding_balance", 0)
+              .order("created_at", { ascending: true });
+
+            if (activeAdvances && activeAdvances.length > 0) {
+              // Re-read wallet balance (may have been reduced by rent repayment above)
+              const { data: advWallet } = await adminClient
+                .from("wallets")
+                .select("balance")
+                .eq("user_id", op.user_id)
+                .single();
+
+              let remainingBalance = advWallet?.balance || 0;
+
+              for (const advance of activeAdvances) {
+                if (remainingBalance <= 0) break;
+
+                const deductAmount = Math.min(remainingBalance, Number(advance.outstanding_balance));
+                if (deductAmount <= 0) continue;
+
+                // Idempotency: use deposit op id + advance id as deterministic group id
+                const advTxGroupId = crypto.randomUUID();
+                const today = new Date().toISOString().split('T')[0];
+
+                // Insert cash_out ledger entry → sync_wallet_from_ledger trigger deducts wallet
+                const { error: advLedgerErr } = await adminClient
+                  .from("general_ledger")
+                  .insert({
+                    user_id: op.user_id,
+                    amount: deductAmount,
+                    direction: "cash_out",
+                    category: "advance_repayment",
+                    source_table: "agent_advances",
+                    source_id: advance.id,
+                    transaction_group_id: advTxGroupId,
+                    description: `Auto advance repayment from wallet deposit (Ref: ${op.reference_id || op.id})`,
+                    reference_id: op.id,
+                    transaction_date: new Date().toISOString(),
+                  });
+
+                if (advLedgerErr) {
+                  console.error(`[approve-wallet-op] Advance ledger insert failed for advance ${advance.id}:`, advLedgerErr);
+                  continue;
+                }
+
+                // Update outstanding balance on the advance
+                const newOutstanding = Number(advance.outstanding_balance) - deductAmount;
+                const newStatus = newOutstanding <= 0 ? "completed" : advance.status;
+
+                await adminClient
+                  .from("agent_advances")
+                  .update({
+                    outstanding_balance: Math.max(0, newOutstanding),
+                    status: newStatus,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", advance.id);
+
+                // Record in agent_advance_ledger for audit trail
+                await adminClient
+                  .from("agent_advance_ledger")
+                  .insert({
+                    advance_id: advance.id,
+                    date: today,
+                    opening_balance: Number(advance.outstanding_balance),
+                    amount_deducted: deductAmount,
+                    interest_accrued: 0,
+                    closing_balance: Math.max(0, newOutstanding),
+                    deduction_status: "success",
+                  });
+
+                remainingBalance -= deductAmount;
+
+                console.log(`[approve-wallet-op] Auto-deducted UGX ${deductAmount} for advance ${advance.id}. Remaining advance: ${Math.max(0, newOutstanding)}. User: ${op.user_id}`);
+
+                // Notify user
+                await adminClient.from("notifications").insert({
+                  user_id: op.user_id,
+                  title: "Advance Auto-Deducted 💳",
+                  message: `UGX ${deductAmount.toLocaleString()} auto-deducted for advance repayment from your deposit. Outstanding: UGX ${Math.max(0, newOutstanding).toLocaleString()}.`,
+                  type: "info",
+                });
+              }
+            }
+          } catch (advErr) {
+            console.error(`[approve-wallet-op] Advance auto-deduction error for ${op.id}:`, advErr);
+          }
+        }
+
         // If this is a supporter_facilitation_capital approval, activate the linked portfolio
         let portfolioInvestorId: string | null = null;
         if (op.category === 'supporter_facilitation_capital' && op.source_table === 'investor_portfolios' && op.source_id) {
