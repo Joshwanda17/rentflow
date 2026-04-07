@@ -340,7 +340,11 @@ export function useFinancialStatements() {
         .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
         .reduce((s, r) => s + Number(r.rent_amount || 0), 0);
 
-      const totalAssets = platformCash + userFundsHeld + outstandingRent;
+      // Advance Access Fee Receivables: uncollected access fees on active/overdue advances
+      const advanceAccessFeeReceivables = activeAdvances.reduce((s: number, a: any) =>
+        s + (Number(a.access_fee || 0) - Number(a.access_fee_collected || 0)), 0);
+
+      const totalAssets = platformCash + userFundsHeld + outstandingRent + advanceAccessFeeReceivables;
 
       // Obligations
       const userWalletCustody = userFundsHeld; // We owe this back to users
