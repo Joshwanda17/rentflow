@@ -1,34 +1,41 @@
 
 
-# Remove Full-Screen Install Gate, Use Browser-Native Prompt Instead
+# Add "Advances" Section to CFO Dashboard
 
-## Problem
-The current `PWAInstallGate` shows a full-screen blocking overlay asking users to install the app. If the app is already installed, it should not appear at all. Instead of a custom full-screen gate, the browser's native install prompt should handle installation.
+## Overview
+Add a new sidebar section labeled "Advances" to the CFO dashboard menu, linking to an inline tab that manages advances for both agents and staff. The page will use the existing `agent_advances` table and calculation logic, with support for variable access fee rates (33%, 28%, or lower).
 
 ## Changes
 
-### 1. Remove `PWAInstallGate` from the app tree
-**File: `src/App.tsx`**
-- Remove the `PWAInstallGate` wrapper around `<AppRoutes />`
-- Remove the lazy import for `PWAInstallGate`
-- The existing `PWAInstallPrompt` (non-blocking floating banner at the bottom) already handles prompting users to install — it will continue to work as-is
+### 1. Add "Advances" menu section to sidebar config
+**File: `src/components/layout/executiveSidebarConfig.ts`**
+- Add a new section after "Disbursements" in the `cfo` config:
+  ```
+  { title: 'Advances', items: [
+    { label: 'Manage Advances', icon: Banknote, id: 'advances' }
+  ]}
+  ```
 
-### 2. Auto-trigger the native browser install prompt
-**File: `src/components/PWAInstallPrompt.tsx`**
-- On first visit (if the app is not installed and the `beforeinstallprompt` event fires), automatically call `prompt()` after a short delay to show the browser's native install dialog
-- If the user dismisses it, fall back to the existing floating banner behavior
-- On iOS, show the existing toast guidance ("Tap Share → Add to Home Screen")
+### 2. Create `CFOAdvancesManager` component
+**File: `src/components/cfo/CFOAdvancesManager.tsx`**
+- A dedicated component embedded in the CFO dashboard (not a separate route)
+- Features:
+  - **Summary cards**: Total issued, total outstanding, overdue exposure, accrued interest
+  - **Filter tabs**: All / Active / Completed / Overdue
+  - **Advances table**: Lists all agent and staff advances with name, principal, outstanding balance, status, risk indicator, cycle days
+  - **Issue Advance sheet**: Reuse existing `IssueAdvanceSheet` for creating new advances, with a **recipient type selector** (Agent / Staff)
+  - **Access fee calculator**: Inline calculator using the formula `accessFee = amount × ((1 + monthlyRate)^(days/30) − 1)` with a dropdown to select rate (33%, 28%, or custom lower)
+  - **Click-through**: Row click navigates to `/agent-advances/:id` for detail view
+- Queries `agent_advances` joined with `profiles` for display
 
-### 3. Installed-app detection remains intact
-The existing standalone detection (`display-mode: standalone`, `navigator.standalone`, `welile_pwa_installed` localStorage flag) already gates the prompt correctly in `usePWAInstall.tsx` — no changes needed there.
+### 3. Wire up in CFO Dashboard
+**File: `src/pages/cfo/Dashboard.tsx`**
+- Add `case 'advances': return <CFOAdvancesManager />;` to the `renderContent` switch
+- Import the new component
 
-## Technical Details
-
-**Files modified:**
-- `src/App.tsx` — remove `PWAInstallGate` import and wrapper
-- `src/components/PWAInstallPrompt.tsx` — auto-trigger native prompt on first visit
-
-**Files unchanged:**
-- `src/components/PWAInstallGate.tsx` — kept but no longer imported (can be deleted later)
-- `src/hooks/usePWAInstall.tsx` — standalone detection already correct
+### Technical Details
+- Reuses existing `agent_advances` table — no DB migration needed
+- Reuses `agentAdvanceCalculations.ts` for formatting and compound math
+- Reuses `rentCalculations.ts` `calculateAccessFee` for variable-rate fee computation
+- Staff advances use the same table (agent_id field can reference any user)
 
