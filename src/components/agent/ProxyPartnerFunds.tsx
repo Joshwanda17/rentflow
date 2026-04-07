@@ -73,11 +73,10 @@ export function ProxyPartnerFunds() {
           .from('profiles')
           .select('id, full_name, phone')
           .in('id', approvedIds),
-        supabase
+        (supabase
           .from('investor_portfolios')
           .select('id, user_id, investment_amount, roi_percentage, status, created_at, maturity_date')
-          .in('user_id', approvedIds)
-          .eq('status', 'active' as any),
+          .in('user_id', approvedIds) as any).then((res: any) => res),
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
