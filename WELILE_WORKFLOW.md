@@ -569,6 +569,81 @@ If rejected: Portfolio cancelled, agent refunded
 Notifications: 'Investment Activated' to supporter, 'Partner Investment Approved' to agent
 ```
 
+## 4.8 Agent-Facilitated Angel Pool Investment
+
+**Edge Function:** `agent-angel-pool-invest`  
+**UI Component:** `AgentAngelPoolInvestDialog.tsx`  
+**Branding:** Purple `#7718D1` (hover: `#6514B5`), responsive dialog `w-[95vw]`
+
+```
+Agent collects funds from investor (Cash, MoMo, Bank)
+    ↓
+Agent deposits into investor's wallet
+    ↓
+Agent opens Angel Pool Invest dialog:
+  - Search existing investor by phone
+  - OR register new investor inline (register-proxy-funder, phone duplicate check)
+    ↓
+Selects share count (UGX 20,000/share)
+    ↓
+agent-angel-pool-invest Edge Function:
+  1. Validates investor wallet balance
+  2. Checks remaining pool capacity (max 25,000 total shares)
+  3. Records shares in angel_pool_investments (with agent_id, payment_method, investment_reference)
+  4. Creates cash_out ledger entry for investor
+  5. Credits agent 1% commission (platform-funded):
+     - Platform debit: cash_out / marketing_expense / platform scope
+     - Agent credit: cash_in / angel_pool_commission / wallet scope
+     - Shared transaction_group_id for auditability
+    ↓
+Ownership calculation:
+  - Pool % = (shares / 25,000) * 100
+  - Company % = (shares / 25,000) * 8
+```
+
+**Flow Pattern:** Collect → Wallet → Pool (wallet acts as mandatory control layer)
+
+## 4.9 Proxy Partner Payout Management
+
+**UI Component:** `ProxyPartnerFunds.tsx` (in wallet Proxy Partners tab)
+
+```
+Proxy agent assigned to partner (proxy_agent_assignments, status: 'approved', is_active: true)
+    ↓
+Agent sees "Proxy Partners" tab in wallet
+    ↓
+Only partners with ROI balance > 0 shown as actionable
+    ↓
+Partner Ops approves ROI payout:
+  - ROI-Only Policy: ONLY accrued returns credited, principal stays in portfolio
+  - ROI = (investment_amount * roi_percentage / 100 / 12) * months_elapsed
+  - Prioritizes total_roi_earned field from portfolios
+  - Idempotency: credit_proxy_approval RPC with MD5-based deterministic UUID
+    ↓
+ROI credited to agent's wallet (for physical delivery to partner)
+    ↓
+Agent initiates "Withdraw" for delivery:
+  - Available balance = Total Accrued Returns - Completed Withdrawals
+  - Ledger category: proxy_partner_withdrawal
+    ↓
+Active delivery tasks labeled "Ready for delivery"
+```
+
+## 4.10 Financial Agent Requisition Flow
+
+**UI Components:** `AgentRequisitionForm.tsx` + `FinancialAgentSection.tsx` (bottom-sheet on agent dashboard)  
+**CFO Component:** `CFOAgentRequisitions.tsx` (approval queue)
+
+```
+Agent submits requisition (expense category, amount, justification)
+    ↓
+Requisition enters CFO approval queue
+    ↓
+CFO reviews and approves/rejects
+    ↓
+If approved: Funds credited to agent wallet
+```
+
 ## 4.8 Float Management
 
 - `AgentFloatManager.tsx` — Float overview & operations
