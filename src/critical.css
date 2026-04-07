@@ -115,8 +115,8 @@
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 200ms ease-out, color 200ms ease-out;
     overscroll-behavior: none;
-    overflow: hidden;
-    height: 100dvh;
+    overflow-y: auto;
+    min-height: 100dvh;
   }
 
   html[data-font-size="small"] { font-size: 14px; }
