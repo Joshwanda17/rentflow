@@ -2934,6 +2934,14 @@ Ownership calculation:
 | `register-proxy-funder` | Register funder via proxy |
 | `supporter-account-action` | Account management |
 | `angel-pool-invest` | Angel Pool share investment |
+| `agent-angel-pool-invest` | Agent-facilitated Angel Pool investment (1% agent commission) |
+
+### HR Operations
+| Function | Purpose |
+|----------|---------|
+| `hr-approve-leave` | Approve/reject leave requests |
+| `hr-issue-disciplinary` | Issue disciplinary records |
+| `hr-submit-payroll` | Submit and process payroll batches |
 
 ### Financial - Rewards & Processing
 | Function | Purpose |
