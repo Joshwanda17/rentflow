@@ -711,26 +711,35 @@ export type Database = {
         Row: {
           agent_id: string
           amount: number
+          bank_name: string | null
+          bank_reference: string | null
           created_at: string
           funded_by: string | null
           id: string
           notes: string | null
+          status: string
         }
         Insert: {
           agent_id: string
           amount: number
+          bank_name?: string | null
+          bank_reference?: string | null
           created_at?: string
           funded_by?: string | null
           id?: string
           notes?: string | null
+          status?: string
         }
         Update: {
           agent_id?: string
           amount?: number
+          bank_name?: string | null
+          bank_reference?: string | null
           created_at?: string
           funded_by?: string | null
           id?: string
           notes?: string | null
+          status?: string
         }
         Relationships: [
           {
