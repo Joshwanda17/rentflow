@@ -262,11 +262,15 @@ export function useFinancialStatements() {
       const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout']);
       const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
       const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
-      const operatingExpenses = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
+      const generalOperating = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
+      const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance']);
+      const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
+      const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
+      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses;
 
       const totalRevenue = accessFees + requestFees + otherServiceIncome;
       const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
-      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpenses;
+      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal;
 
       // ══════════════════════════════════════════════════════════════
       // CASH FLOW — Separated into platform ops, custodial, & financing
