@@ -697,7 +697,13 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         const msg = await extractFromErrorObject(response.error, 'Failed to reset password');
         throw new Error(msg);
       }
-      if (response.data?.error) throw new Error(response.data.error);
+      if (response.data?.error) {
+        const errMsg = response.data.error;
+        if (errMsg.toLowerCase().includes('weak') || errMsg.toLowerCase().includes('easy to guess')) {
+          throw new Error('This password has been found in a data breach and is not allowed. Please choose a stronger, unique password.');
+        }
+        throw new Error(errMsg);
+      }
       toast.success(`Password reset successfully for ${user.full_name}`);
       setNewPassword('');
       setShowPassword(false);
