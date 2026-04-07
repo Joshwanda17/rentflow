@@ -63,6 +63,7 @@ export default function CFODashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'cash', label: 'Cash Position', icon: Wallet },
     { id: 'channels', label: 'Channels', icon: Receipt },
     { id: 'revenue', label: 'P&L', icon: DollarSign },
