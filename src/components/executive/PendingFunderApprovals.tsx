@@ -129,7 +129,10 @@ export function PendingFunderApprovals() {
     <>
       <Card className="border-warning/40 bg-warning/5">
         <CardContent className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center justify-between w-full text-left"
+          >
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-warning/15">
                 <Shield className="h-4 w-4 text-warning" />
@@ -139,12 +142,15 @@ export function PendingFunderApprovals() {
                 <p className="text-[10px] text-muted-foreground">Agent-registered funders awaiting verification</p>
               </div>
             </div>
-            {count > 0 && (
-              <Badge className="bg-warning/20 text-warning border-0 text-xs font-bold">
-                {count}
-              </Badge>
-            )}
-          </div>
+            <div className="flex items-center gap-2">
+              {count > 0 && (
+                <Badge className="bg-warning/20 text-warning border-0 text-xs font-bold">
+                  {count}
+                </Badge>
+              )}
+              <svg className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isExpanded && "rotate-180")} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+          </button>
 
           {isLoading ? (
             <div className="space-y-2">
