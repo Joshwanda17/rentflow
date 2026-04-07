@@ -39,10 +39,10 @@ export function COOAgentTracker() {
   const { data: agents = [] } = useQuery({
     queryKey: ['coo-agents-list'],
     queryFn: async () => {
-      const { data } = await (supabase
+      const { data } = await (supabase as any)
         .from('profiles')
         .select('id, full_name, phone')
-        .eq('role', 'agent') as any);
+        .eq('role', 'agent');
       return (data || []) as { id: string; full_name: string; phone: string }[];
     },
   });
