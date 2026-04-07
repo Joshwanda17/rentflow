@@ -59,6 +59,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       title: 'Disbursements',
       items: [
         { label: 'Cash-Out Agents', icon: Banknote, id: 'cashout-agents' },
+        { label: 'Float Management', icon: Building2, id: 'float-management' },
         { label: 'Agent Activity', icon: Activity, id: 'agent-activity' },
         { label: 'Proxy Agents', icon: UserCog, id: 'proxy-agents' },
         { label: 'Agent Requisitions', icon: FileText, id: 'agent-requisitions' },
