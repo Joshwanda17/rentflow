@@ -194,7 +194,9 @@ Deno.serve(async (req) => {
         payout_day: null,
         maturity_date: maturityDate.toISOString().split("T")[0],
         next_roi_date: firstPayoutDate,
-        status: "active", // Instant activation for field investments
+        status: "active",
+        investment_reference: investment_reference || null,
+        receipt_file_url: receipt_file_url || null,
       })
       .select("id")
       .single();

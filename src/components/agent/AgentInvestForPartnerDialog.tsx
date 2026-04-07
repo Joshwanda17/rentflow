@@ -546,7 +546,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             <Button
               onClick={handleConfirmOpen}
-              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 50000 || parsedAmount > agentBalance}
+              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 50000 || parsedAmount > agentBalance || investmentReference.trim().length < 3 || !receiptFile}
               className="w-full"
             >
               {submitting ? (
