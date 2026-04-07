@@ -152,7 +152,7 @@ export function PendingFunderApprovals() {
             </div>
           </button>
 
-          {isLoading ? (
+          {isExpanded && (isLoading ? (
             <div className="space-y-2">
               {[1, 2].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
             </div>
