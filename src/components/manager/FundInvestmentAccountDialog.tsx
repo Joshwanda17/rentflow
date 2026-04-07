@@ -40,6 +40,20 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [transactionReference, setTransactionReference] = useState('');
   const [saving, setSaving] = useState(false);
+  const [partnerWalletBalance, setPartnerWalletBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
+  // Fetch partner wallet balance when dialog opens or account changes
+  useEffect(() => {
+    if (!open || !account) { setPartnerWalletBalance(null); return; }
+    const partnerId = account.investor_id || account.agent_id;
+    if (!partnerId) return;
+    setLoadingBalance(true);
+    supabase.from('wallets').select('balance').eq('user_id', partnerId).maybeSingle()
+      .then(({ data }) => { setPartnerWalletBalance(data ? Number(data.balance) : 0); })
+      .catch(() => setPartnerWalletBalance(0))
+      .finally(() => setLoadingBalance(false));
+  }, [open, account]);
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
