@@ -21,6 +21,7 @@ interface WithdrawRequestDialogProps {
   onSuccess?: () => void;
   prefillAmount?: number;
   prefillReason?: string;
+  linkedParty?: string;
 }
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
