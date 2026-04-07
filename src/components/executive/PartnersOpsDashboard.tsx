@@ -54,7 +54,7 @@ export function PartnersOpsDashboard() {
     queryKey: ['exec-partner-portfolios'],
     queryFn: async () => {
       const { data } = await supabase.from('investor_portfolios')
-        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, total_roi_earned, status, maturity_date, created_at, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number, payout_day, auto_reinvest, duration_months')
+        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, total_roi_earned, status, maturity_date, next_roi_date, created_at, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number, payout_day, auto_reinvest, duration_months')
         .order('created_at', { ascending: false }).limit(200);
 
       if (!data) return [];
