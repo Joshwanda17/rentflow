@@ -2435,7 +2435,8 @@ await supabase.from('wallets').update({ balance: current - amount });
 
 | Trigger | Purpose |
 |---------|---------|
-| `sync_wallet_from_ledger` | Auto-sync wallet balance from ledger entries (only when `transaction_group_id` is set) |
+| `sync_wallet_from_ledger` | **SOLE WRITER** for wallet balances. Auto-sync from ledger entries (only when `transaction_group_id` is set). Edge functions MUST NOT manually update wallets. |
+| `sync_collection_to_ledger` | Proportional revenue recognition: splits daily collections into `rent_principal_collected`, `access_fee_collected`, `registration_fee_collected` based on rent request fee ratios |
 | `auto_assign_ledger_scope` / `set_ledger_scope()` | Classify entries as wallet/platform/bridge. Routes `marketing_expense` → `platform` scope automatically. Routes float categories to `bridge` scope |
 | `trg_enforce_property_chain` | Blocks incomplete property chains |
 | `trg_auto_assign_landlord_on_rent_request` | Auto-assigns landlord |
