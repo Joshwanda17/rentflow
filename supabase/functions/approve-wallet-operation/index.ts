@@ -182,7 +182,169 @@ Deno.serve(async (req) => {
           }
         }
 
-        // ── Auto-deduct rent repayment for ANY cash_in deposit (wallet_deposit, etc.) ──
+        // ── Priority 1: Auto-deduct advance repayment (proportional — 30% of deposit) ──
+        // Takes a proportion of the deposit toward active/overdue advances before rent
+        if (op.direction === 'cash_in' && op.user_id && op.category !== 'supporter_facilitation_capital') {
+          try {
+            const ADVANCE_REPAYMENT_RATIO = 0.30; // 30% of deposit goes to advance repayment
+
+            const { data: activeAdvances } = await adminClient
+              .from("agent_advances")
+              .select("id, agent_id, outstanding_balance, daily_rate, principal, status")
+              .eq("agent_id", op.user_id)
+              .in("status", ["active", "overdue"])
+              .gt("outstanding_balance", 0)
+              .order("created_at", { ascending: true });
+
+            if (activeAdvances && activeAdvances.length > 0) {
+              const { data: advWallet } = await adminClient
+                .from("wallets")
+                .select("balance")
+                .eq("user_id", op.user_id)
+                .single();
+
+              const walletBalance = advWallet?.balance || 0;
+              let advanceBudget = Math.min(Math.floor(op.amount * ADVANCE_REPAYMENT_RATIO), walletBalance);
+              let remainingBudget = advanceBudget;
+
+              for (const advance of activeAdvances) {
+                if (remainingBudget <= 0) break;
+
+                const deductAmount = Math.min(remainingBudget, Number(advance.outstanding_balance));
+                if (deductAmount <= 0) continue;
+
+                const advTxGroupId = crypto.randomUUID();
+                const today = new Date().toISOString().split('T')[0];
+
+                const { error: advLedgerErr } = await adminClient
+                  .from("general_ledger")
+                  .insert({
+                    user_id: op.user_id,
+                    amount: deductAmount,
+                    direction: "cash_out",
+                    category: "advance_repayment",
+                    source_table: "agent_advances",
+                    source_id: advance.id,
+                    transaction_group_id: advTxGroupId,
+                    description: `Auto advance repayment (${Math.round(ADVANCE_REPAYMENT_RATIO * 100)}% of deposit) from wallet deposit (Ref: ${op.reference_id || op.id})`,
+                    reference_id: op.id,
+                    transaction_date: new Date().toISOString(),
+                  });
+
+                if (advLedgerErr) {
+                  console.error(`[approve-wallet-op] Advance ledger insert failed for advance ${advance.id}:`, advLedgerErr);
+                  continue;
+                }
+
+                const newOutstanding = Number(advance.outstanding_balance) - deductAmount;
+                const newStatus = newOutstanding <= 0 ? "completed" : advance.status;
+
+                await adminClient
+                  .from("agent_advances")
+                  .update({
+                    outstanding_balance: Math.max(0, newOutstanding),
+                    status: newStatus,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", advance.id);
+
+                await adminClient
+                  .from("agent_advance_ledger")
+                  .insert({
+                    advance_id: advance.id,
+                    date: today,
+                    opening_balance: Number(advance.outstanding_balance),
+                    amount_deducted: deductAmount,
+                    interest_accrued: 0,
+                    closing_balance: Math.max(0, newOutstanding),
+                    deduction_status: "success",
+                  });
+
+                remainingBudget -= deductAmount;
+
+                console.log(`[approve-wallet-op] Auto-deducted UGX ${deductAmount} (${Math.round(ADVANCE_REPAYMENT_RATIO * 100)}% proportion) for advance ${advance.id}. Remaining advance: ${Math.max(0, newOutstanding)}. User: ${op.user_id}`);
+
+                await adminClient.from("notifications").insert({
+                  user_id: op.user_id,
+                  title: "Advance Auto-Deducted 💳",
+                  message: `UGX ${deductAmount.toLocaleString()} (${Math.round(ADVANCE_REPAYMENT_RATIO * 100)}% of deposit) auto-deducted for advance repayment. Outstanding: UGX ${Math.max(0, newOutstanding).toLocaleString()}.`,
+                  type: "info",
+                });
+              }
+            }
+          } catch (advErr) {
+            console.error(`[approve-wallet-op] Advance auto-deduction error for ${op.id}:`, advErr);
+          }
+        }
+
+        // ── Priority 2: Auto-deduct rent repayment from remaining balance ──
+        // When a user deposits money and has an active rent request, auto-deduct outstanding rent
+        if (op.direction === 'cash_in' && op.user_id && op.category !== 'rent_payment_for_tenant' && op.category !== 'supporter_facilitation_capital') {
+          try {
+            const { data: activeRentRequest } = await adminClient
+              .from("rent_requests")
+              .select("id, total_repayment, amount_repaid, status")
+              .eq("tenant_id", op.user_id)
+              .in("status", ["funded", "disbursed", "approved"])
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (activeRentRequest) {
+              const outstanding = Number(activeRentRequest.total_repayment) - Number(activeRentRequest.amount_repaid);
+
+              if (outstanding > 0) {
+                const { data: freshWallet } = await adminClient
+                  .from("wallets")
+                  .select("balance")
+                  .eq("user_id", op.user_id)
+                  .single();
+
+                const availableBalance = freshWallet?.balance || 0;
+
+                if (availableBalance > 0) {
+                  const repaymentAmount = Math.min(availableBalance, outstanding);
+
+                  const { error: repaymentErr } = await adminClient.rpc(
+                    "record_rent_request_repayment",
+                    { p_tenant_id: op.user_id, p_amount: repaymentAmount }
+                  );
+
+                  if (!repaymentErr) {
+                    const txGroupId = crypto.randomUUID();
+                    await adminClient.from("general_ledger").insert({
+                      user_id: op.user_id,
+                      amount: repaymentAmount,
+                      direction: "cash_out",
+                      category: "rent_repayment",
+                      source_table: "pending_wallet_operations",
+                      source_id: op.id,
+                      reference_id: op.reference_id || op.id,
+                      transaction_group_id: txGroupId,
+                      description: `Auto rent deduction from wallet deposit (Ref: ${op.reference_id || 'N/A'})`,
+                      linked_party: activeRentRequest.id,
+                      transaction_date: new Date().toISOString(),
+                    });
+
+                    const newOutstanding = outstanding - repaymentAmount;
+                    console.log(`[approve-wallet-op] Auto-deducted UGX ${repaymentAmount} for rent repayment. Remaining: ${newOutstanding}. Tenant: ${op.user_id}`);
+
+                    await adminClient.from("notifications").insert({
+                      user_id: op.user_id,
+                      title: "Rent Auto-Deducted 🏠",
+                      message: `UGX ${repaymentAmount.toLocaleString()} auto-deducted for rent repayment from your deposit. Outstanding: UGX ${newOutstanding.toLocaleString()}.`,
+                      type: "info",
+                    });
+                  } else {
+                    console.error(`[approve-wallet-op] Rent repayment RPC failed for ${op.user_id}:`, repaymentErr.message);
+                  }
+                }
+              }
+            }
+          } catch (rentErr) {
+            console.error(`[approve-wallet-op] Auto-deduction error for ${op.id}:`, rentErr);
+          }
+        }
         // When a user deposits money and has an active rent request, auto-deduct outstanding rent
         if (op.direction === 'cash_in' && op.user_id && op.category !== 'rent_payment_for_tenant' && op.category !== 'supporter_facilitation_capital') {
           try {
