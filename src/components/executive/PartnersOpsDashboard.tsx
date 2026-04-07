@@ -54,7 +54,7 @@ export function PartnersOpsDashboard() {
     queryKey: ['exec-partner-portfolios'],
     queryFn: async () => {
       const { data } = await supabase.from('investor_portfolios')
-        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, total_roi_earned, status, maturity_date, created_at, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number, payout_day, auto_reinvest, duration_months')
+        .select('id, portfolio_code, account_name, investment_amount, roi_percentage, total_roi_earned, status, maturity_date, next_roi_date, created_at, investor_id, agent_id, display_currency, payment_method, mobile_money_number, mobile_network, bank_name, bank_account_name, account_number, payout_day, auto_reinvest, duration_months')
         .order('created_at', { ascending: false }).limit(200);
 
       if (!data) return [];
@@ -78,11 +78,14 @@ export function PartnersOpsDashboard() {
   const totalInvested = rows.reduce((s, p) => s + (p.investment_amount || 0), 0);
   const activePortfolios = rows.filter(p => p.status === 'active').length;
 
-  // Count portfolios nearing payout (within 7 days)
+  // Count portfolios nearing payout (within 7 days based on next_roi_date)
   const nearingPayoutsList = rows.filter(p => {
-    if (p.status !== 'active' || !p.maturity_date) return false;
-    const days = Math.ceil((new Date(p.maturity_date).getTime() - Date.now()) / 86400000);
-    return days <= 7 && days >= 0;
+    if (p.status !== 'active') return false;
+    const roiDate = p.next_roi_date;
+    if (!roiDate) return false;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const sevenDays = format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd');
+    return roiDate >= today && roiDate <= sevenDays;
   });
   const nearingPayouts = nearingPayoutsList.length;
 

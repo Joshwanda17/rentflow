@@ -24,8 +24,8 @@ export function PartnerOpsBrief({ onNavigate }: PartnerOpsBriefProps) {
         supabase.from('investor_portfolios').select('*', { count: 'exact', head: true }).gte('created_at', since),
         supabase.from('investor_portfolios').select('*', { count: 'exact', head: true }).eq('status', 'pending_approval'),
         supabase.from('investor_portfolios').select('id').eq('status', 'active')
-          .gte('maturity_date', format(new Date(), 'yyyy-MM-dd'))
-          .lte('maturity_date', format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd')),
+          .gte('next_roi_date', format(new Date(), 'yyyy-MM-dd'))
+          .lte('next_roi_date', format(new Date(Date.now() + 7 * 86400000), 'yyyy-MM-dd')),
         supabase.from('supporter_roi_payments').select('roi_amount').gte('due_date', since).eq('status', 'paid'),
         supabase.from('partner_escalations').select('*', { count: 'exact', head: true }).eq('status', 'open'),
       ]);
@@ -48,7 +48,7 @@ export function PartnerOpsBrief({ onNavigate }: PartnerOpsBriefProps) {
   const items = [
     { icon: UserPlus, label: 'New Portfolios (24h)', value: data.newPortfolios, color: 'text-blue-500', tab: 'portfolios' },
     { icon: AlertTriangle, label: 'Pending Approval', value: data.pendingApprovals, color: (data.pendingApprovals as number) > 0 ? 'text-amber-500' : 'text-muted-foreground', tab: 'portfolios' },
-    { icon: CalendarClock, label: 'Maturing in 7 days', value: data.maturingSoon, color: data.maturingSoon > 0 ? 'text-orange-500' : 'text-muted-foreground', tab: 'portfolios' },
+    { icon: CalendarClock, label: 'Payouts in 7 days', value: data.maturingSoon, color: data.maturingSoon > 0 ? 'text-orange-500' : 'text-muted-foreground', tab: 'portfolios' },
     { icon: DollarSign, label: 'ROI Paid (24h)', value: data.roiPaid24h > 0 ? `${(data.roiPaid24h / 1e3).toFixed(0)}K` : '0', color: 'text-green-500', tab: 'roi' },
     { icon: CheckCircle2, label: 'Open Escalations', value: data.openEscalations, color: data.openEscalations > 0 ? 'text-red-500' : 'text-green-500', tab: 'activity' },
   ];
