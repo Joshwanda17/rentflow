@@ -60,7 +60,7 @@ const PAYOUT_OPTIONS: { value: PayoutMode; label: string; sublabel: string; icon
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
 
-export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason }: WithdrawRequestDialogProps) {
+export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, linkedParty }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
