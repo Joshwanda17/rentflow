@@ -120,6 +120,7 @@ serve(async (req) => {
       source_table: "agent_earnings",
       source_id: landlord_id,
       description: `UGX 5,000 landlord registration bonus for ${landlord.name}`,
+      currency: 'UGX',
       ledger_scope: "wallet",
       transaction_date: now,
     });

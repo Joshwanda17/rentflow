@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
       source_table: "angel_pool_investments",
       source_id: wallet.id,
       description: `Angel Pool investment: ${shares} shares @ USh ${PRICE_PER_SHARE.toLocaleString()}/share`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: "Welile Angel Pool",
       transaction_group_id: txGroupId,

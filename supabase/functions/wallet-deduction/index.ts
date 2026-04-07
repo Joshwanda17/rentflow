@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
       direction: "cash_out",
       category: `wallet_deduction_${safeCategory}`,
       description: `Wallet deduction (${safeCategory}): ${reason}`,
+      currency: 'UGX',
       source_table: "wallet_deductions",
       linked_party: user.id,
       transaction_group_id: txnGroupId,

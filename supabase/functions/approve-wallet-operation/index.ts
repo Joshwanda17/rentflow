@@ -322,6 +322,7 @@ Deno.serve(async (req) => {
                       reference_id: op.reference_id || op.id,
                       transaction_group_id: txGroupId,
                       description: `Auto rent deduction from wallet deposit (Ref: ${op.reference_id || 'N/A'})`,
+      currency: 'UGX',
                       linked_party: activeRentRequest.id,
                       transaction_date: new Date().toISOString(),
                     });
@@ -399,6 +400,7 @@ Deno.serve(async (req) => {
                     direction: "cash_in",
                     category: "agent_investment_commission",
                     description: `2% commission on investment activation ${portfolioData.portfolio_code || ''}`,
+      currency: 'UGX',
                     source_table: "agent_earnings",
                     source_id: op.source_id,
                     transaction_group_id: commTxGroupId,

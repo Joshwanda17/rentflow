@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
         description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel}`,
+      currency: 'UGX',
         ledger_scope: "platform",
         transaction_date: now,
       },

@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
       source_table: 'rent_requests',
       source_id: rent_request_id,
       description: `UGX 5,000 landlord verification bonus – ${landlordName}`,
+      currency: 'UGX',
       linked_party: request.tenant_id,
       ledger_scope: 'wallet',
       transaction_group_id: txGroupId,
@@ -90,6 +91,7 @@ Deno.serve(async (req) => {
       source_user_id: user.id,
       rent_request_id,
       description: `UGX 5,000 landlord location verification bonus – ${landlordName}`,
+      currency: 'UGX',
     })
 
     // Notify agent

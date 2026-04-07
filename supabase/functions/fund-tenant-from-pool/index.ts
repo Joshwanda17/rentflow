@@ -212,6 +212,7 @@ Deno.serve(async (req) => {
       source_id: rr.id,
       transaction_group_id: txGroupId,
       description: `Pool deployment: UGX ${fundAmount.toLocaleString()} to landlord ${landlordRecord?.name || "Unknown"} for tenant rent (Transaction ID: ${transactionId})`,
+      currency: 'UGX',
       linked_party: landlordUserId || landlordRecord?.name || "Unknown Landlord",
       reference_id: transactionId,
     });
@@ -227,6 +228,7 @@ Deno.serve(async (req) => {
       source_id: rr.id,
       transaction_group_id: txGroupId,
       description: `Rent obligation - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
+      currency: 'UGX',
       linked_party: landlordUserId,
       reference_id: rr.id,
     });

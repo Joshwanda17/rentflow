@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
           source_id: advance.id,
           transaction_group_id: txnGroupId,
           description: `Advance daily deduction - Interest: ${interestAccrued}`,
+      currency: 'UGX',
           transaction_date: today,
         });
       }

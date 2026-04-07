@@ -137,6 +137,7 @@ Deno.serve(async (req) => {
       source_table: "wallets",
       transaction_group_id: txGroupId,
       description: `Welile Operations invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
     });
@@ -160,6 +161,7 @@ Deno.serve(async (req) => {
       source_table: "wallets",
       transaction_group_id: txGroupId,
       description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (facilitated by Welile Operations)`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: partnerName,
     });

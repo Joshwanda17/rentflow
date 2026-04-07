@@ -130,6 +130,7 @@ Deno.serve(async (req) => {
             source_id: charge.id,
             transaction_group_id: txGroupId,
             description: `No-smartphone tenant charge (retry): ${tenantName} (${tenantPhone}) — ${charge.frequency} instalment`,
+      currency: 'UGX',
             linked_party: `${tenantName} (${tenantPhone})`,
             transaction_date: now.toISOString(),
           });

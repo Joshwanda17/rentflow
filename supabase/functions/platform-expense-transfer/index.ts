@@ -95,6 +95,7 @@ serve(async (req) => {
           category: 'platform_expense_disbursement',
           source_table: 'platform_expense_transfers',
           description: `[${expense_category || fa.expense_category}] ${description}`,
+      currency: 'UGX',
           reference_id: refId,
         }
       ]);
@@ -177,6 +178,7 @@ serve(async (req) => {
             category: item.category === 'salary' ? 'salary_payment' : 'employee_advance',
             source_table: 'payroll_items',
             description: item.description || `${item.category} payment`,
+      currency: 'UGX',
             reference_id: refId,
           });
 
