@@ -1,56 +1,107 @@
 
 
-# Refactor Proxy Agent Manager: Table Layout + KPIs + Actions
+# CFO Payouts in Financial Statements
 
-## What Changes
+## Problem
+Several CFO-approved payout categories are recorded in the general ledger but **not captured** by the financial statement aggregation logic. This means the Income Statement and Cash Flow understate expenses.
 
-Convert the card-based proxy agent list into a proper table with KPI summary cards at the top and edit/delete actions per row.
+### Missing Categories
+
+| Ledger Category | Source | Currently Captured? |
+|---|---|---|
+| `platform_expense_disbursement` | Financial agent transfers | No |
+| `salary_payment` | Payroll disbursements | No |
+| `employee_advance` | Payroll advances | No |
+| `agent_requisition` | Agent fund requisitions (via `pending_wallet_operations`) | No |
+| `listing_bonus` (uses `platform_expense`) | House listing bonuses | Yes (already in `operatingExpenses`) |
+| `roi_payout` | Partner ROI payments | Yes (already in `platformRewards`) |
+| `agent_commission` | Agent commissions | Yes (already in `agentCommissions`) |
 
 ## Changes
 
-### File: `src/components/cfo/ProxyAgentManager.tsx`
+### File: `src/hooks/useFinancialStatements.ts`
 
-**1. Add KPI Summary Cards (top of page)**
-Computed from the `assignments` array:
-- **Total Assignments** — `assignments.length`
-- **Unique Agents** — count of distinct `agent_id`
-- **Partners Assigned** — count of distinct `beneficiary_id`
-- **Managed Accounts** — count where `is_managed_account === true`
+**1. Add new expense line items to the Income Statement data structure**
 
-Render as a 4-column grid of small summary cards above the table.
+Update `IncomeStatementData` interface to break operating expenses into sub-categories:
+- `operatingExpenses` → split into:
+  - `generalOperating` (existing `operational_expenses`, `platform_expense`)
+  - `payrollExpenses` (new: `salary_payment`, `employee_advance`)
+  - `agentRequisitions` (new: `agent_requisition`)
+  - `financialAgentExpenses` (new: `platform_expense_disbursement`)
 
-**2. Replace card list with a Table**
-Use the existing `Table` components from `@/components/ui/table`. Columns:
-- **#** (index)
-- **Agent** (name + phone)
-- **Partner/Beneficiary** (name + phone)
-- **Role** (Landlord / Partner badge)
-- **Managed** (Yes/No badge)
-- **Reason** (text)
-- **Date Assigned** (`created_at` formatted)
-- **Actions** (Edit + Delete buttons)
+**2. Update aggregation logic (lines 250-260)**
 
-**3. Add Edit functionality**
-- New state: `editingAssignment` (holds the assignment being edited)
-- Reuse the existing Dialog but in "edit mode" — pre-fill fields with current values
-- On save: `supabase.from('proxy_agent_assignments').update(...)` for `beneficiary_role`, `reason`, `is_managed_account`
-- Agent and beneficiary are read-only in edit mode (can't swap people, only update metadata)
+Add new `sumWithDirectionFallback` calls:
+```
+payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance'])
+agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition'])
+financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement'])
+```
 
-**4. Delete action**
-- Already exists as `deactivateMutation` — wire it to a Trash icon button in the Actions column
-- Add a confirmation step (simple `window.confirm` or inline)
+Update `operatingExpenses` to include all sub-items in the total.
 
-**5. Imports to add**
-- `Table, TableBody, TableCell, TableHead, TableHeader, TableRow` from `@/components/ui/table`
-- `Pencil, Trash2` from `lucide-react`
-- `format` from `date-fns`
+**3. Add these categories to `PLATFORM_CATEGORIES` in `approve-wallet-operation` (line 134)**
 
-| Change | Detail |
-|--------|--------|
-| KPI cards | 4 summary metrics at top |
-| Table layout | Replace card list with proper table |
-| Edit action | Dialog with pre-filled fields, updates metadata |
-| Delete action | Existing deactivate with confirmation |
+Ensure `agent_requisition`, `salary_payment`, `employee_advance`, `platform_expense_disbursement` are scoped as `platform` so they appear in platform-scoped queries.
 
-**Single file change:** `src/components/cfo/ProxyAgentManager.tsx`
+**4. Add to `costCategories` array (line 304)**
+
+Include the new categories in the Balance Sheet's all-time cost calculation.
+
+**5. Update Cash Flow data structure and logic**
+
+Add explicit line items under Operating Activities:
+- `payrollPaid` 
+- `agentRequisitionsPaid`
+- `financialAgentExpensesPaid`
+
+These feed into `netOperating` calculation.
+
+### File: `src/components/manager/FinancialStatementsPanel.tsx`
+
+**6. Update `IncomeStatementSection`**
+
+Add new line items under Operating Expenses:
+```
+<LineItem label="Payroll & Staff Costs" ... />
+<LineItem label="Agent Requisitions" ... />
+<LineItem label="Financial Agent Expenses" ... />
+<LineItem label="General Operating Expenses" ... />
+<LineItem label="Total Operating Expenses" ... bold />
+```
+
+**7. Update `CashFlowSection`**
+
+Add corresponding outflow lines under Platform Operating Activities:
+```
+<LineItem label="Payroll Paid" ... />
+<LineItem label="Agent Requisitions Paid" ... />
+<LineItem label="Financial Agent Expenses Paid" ... />
+```
+
+**8. Update CSV export rows**
+
+Add the new line items to both Income Statement and Cash Flow CSV export sections.
+
+### File: `supabase/functions/approve-wallet-operation/index.ts`
+
+**9. Add missing categories to `PLATFORM_CATEGORIES` array (line 134)**
+
+Add: `'agent_requisition'`, `'salary_payment'`, `'employee_advance'`, `'platform_expense_disbursement'`
+
+This ensures these entries get `ledger_scope: 'platform'` and appear in financial statement queries.
+
+## Summary
+
+| Area | Change |
+|---|---|
+| Data types | Add sub-fields to `IncomeStatementData` and `CashFlowData` |
+| Aggregation | 3 new `sumWithDirectionFallback` calls for missing categories |
+| Income Statement UI | 4 new line items under Operating Expenses |
+| Cash Flow UI | 3 new outflow line items |
+| CSV export | Matching new rows |
+| Edge function | Add categories to `PLATFORM_CATEGORIES` for correct scoping |
+
+**Files changed:** `useFinancialStatements.ts`, `FinancialStatementsPanel.tsx`, `approve-wallet-operation/index.ts`
 
