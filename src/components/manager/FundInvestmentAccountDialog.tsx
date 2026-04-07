@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Banknote, Smartphone, Building2, Clock, CheckCircle2 } from 'lucide-react';
+import { Loader2, Banknote, Smartphone, Building2, Clock, CheckCircle2, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
-type PaymentMethod = 'cash' | 'mobile_money' | 'bank';
+type PaymentMethod = 'cash' | 'mobile_money' | 'bank' | 'wallet';
 
 const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Banknote; description: string }[] = [
+  { value: 'wallet', label: 'Wallet', icon: Wallet, description: 'From partner wallet' },
   { value: 'cash', label: 'Cash', icon: Banknote, description: 'Physical cash deposit' },
   { value: 'mobile_money', label: 'Mobile Money', icon: Smartphone, description: 'MTN / Airtel MoMo' },
   { value: 'bank', label: 'Bank', icon: Building2, description: 'Bank transfer' },
