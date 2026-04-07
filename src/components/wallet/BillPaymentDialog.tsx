@@ -79,6 +79,7 @@ export function BillPaymentDialog({ open, onOpenChange }: BillPaymentDialogProps
         category: `bill_payment_${category}`,
         source_table: 'bill_payments',
         description: `${selectedCategory?.label} payment - ${accountNumber.trim()}`,
+          currency: 'UGX',
         reference_id: `BILL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       });
 

@@ -93,6 +93,7 @@ export function AgentProxyWithdrawalDialog({
           direction: 'cash_out',
           category: 'withdrawal_pending',
           description: `Proxy withdrawal by agent ${user.id} – funds held pending approval`,
+          currency: 'UGX',
           transaction_group_id: `wallet-withdraw-${newRow.id}`,
           source_table: 'withdrawal_requests',
           source_id: newRow.id,
@@ -117,6 +118,7 @@ export function AgentProxyWithdrawalDialog({
 
       toast.success('Withdrawal request submitted', {
         description: `${formatUGX(amount)} withdrawal for ${funderName} is pending approval`,
+          currency: 'UGX',
       });
       onOpenChange(false);
       onSuccess?.();
