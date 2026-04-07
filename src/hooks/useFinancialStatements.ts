@@ -274,7 +274,10 @@ export function useFinancialStatements() {
       const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
       const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses;
 
-      const totalRevenue = accessFees + requestFees + otherServiceIncome;
+      // Advance Access Fee Revenue (only recognized when collected)
+      const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
+
+      const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
       const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
       const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal;
 
