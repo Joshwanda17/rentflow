@@ -160,6 +160,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
           agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
           reason: reason.trim(),
+          ...(linkedParty ? { linked_party: linkedParty } : {}),
         } as any);
         if (error) throw error;
 
