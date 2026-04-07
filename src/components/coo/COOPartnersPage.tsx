@@ -2628,72 +2628,122 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const operationType = mode === 'agent_wallet' ? 'roi_agent_wallet_credit' : mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
       const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Cash';
       const managed = managedInfo[p.portfolioId];
-
       const txnGroupId = crypto.randomUUID();
-      const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
-        user_id: p.investorId,
-        amount: roiAmount,
-        direction: 'cash_in',
-        category: 'roi_payout',
-        source_table: 'investor_portfolios',
-        source_id: p.portfolioId,
-        reference_id: refId,
-        operation_type: operationType,
-        transaction_group_id: txnGroupId,
-        description: `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${mode === 'agent_wallet' ? managed?.agentName + "'s agent wallet" : p.name + "'s wallet"}. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
-        linked_party: user.id,
-        status: 'pending',
-        ...(mode === 'agent_wallet' && managed ? { target_wallet_user_id: managed.agentId } : {}),
-        metadata: {
-          partner_name: p.name,
-          roi_percentage: p.roiPercentage,
-          investment_amount: p.investmentAmount,
-          initiated_by: user.id,
-          reason,
-          pay_mode: mode,
-          ...(mode === 'agent_wallet' && managed ? { is_managed_payout: true, target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
-        },
-      });
-      if (pendErr) throw pendErr;
 
-      const auditAction = mode === 'agent_wallet' ? 'roi_managed_payout_requested' : mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: auditAction,
-        table_name: 'pending_wallet_operations',
-        record_id: p.portfolioId,
-        metadata: {
-          roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode,
-          ...(mode === 'agent_wallet' && managed ? { is_managed_payout: true, target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
-        },
-      });
+      if (mode === 'agent_wallet' && managed) {
+        // Direct credit to agent wallet — bypasses pending pipeline
+        const { error: ledgerErr } = await supabase.from('general_ledger').insert({
+          user_id: managed.agentId,
+          amount: roiAmount,
+          direction: 'cash_in',
+          category: 'roi_payout',
+          transaction_group_id: txnGroupId,
+          ledger_scope: 'platform',
+          linked_party: p.investorId,
+          reference_id: refId,
+          currency: 'UGX',
+          description: `[Agent Wallet] ROI payout of ${formatUGX(roiAmount)} to ${managed.agentName}'s agent wallet on behalf of ${p.name}. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
+        });
+        if (ledgerErr) throw ledgerErr;
 
-      await supabase.from('notifications').insert({
-        user_id: p.investorId,
-        title: mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
-        message: `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
-        type: 'payout_initiated',
-        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
-      });
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'roi_managed_payout_direct',
+          table_name: 'general_ledger',
+          record_id: p.portfolioId,
+          metadata: {
+            roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode,
+            is_managed_payout: true, target_agent_id: managed.agentId, target_agent_name: managed.agentName,
+            transaction_group_id: txnGroupId,
+          },
+        });
 
-      const { data: cfoUsers } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'cfo');
-      if (cfoUsers && cfoUsers.length > 0) {
-        await supabase.from('notifications').insert(
-          cfoUsers.map(c => ({
-            user_id: c.user_id,
-            title: 'ROI Payout Awaiting Approval',
-            message: `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending approval. Ref: ${refId}`,
-            type: 'approval_required',
-            metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
-          }))
-        );
+        // Notify partner
+        await supabase.from('notifications').insert({
+          user_id: p.investorId,
+          title: 'ROI Payout Credited to Agent',
+          message: `Your ROI payout of ${formatUGX(roiAmount)} has been credited to ${managed.agentName}'s agent wallet for delivery. Ref: ${refId}`,
+          type: 'payout_completed',
+          metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode, agent_name: managed.agentName },
+        });
+
+        // Inform CFO (no approval needed, just visibility)
+        const { data: cfoUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'cfo');
+        if (cfoUsers && cfoUsers.length > 0) {
+          await supabase.from('notifications').insert(
+            cfoUsers.map(c => ({
+              user_id: c.user_id,
+              title: 'Agent Wallet Credited (Direct)',
+              message: `[Agent Wallet] ${formatUGX(roiAmount)} credited directly to ${managed.agentName}'s wallet for ${p.name}. Ref: ${refId}`,
+              type: 'info',
+              metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
+            }))
+          );
+        }
+
+        toast.success(`${formatUGX(roiAmount)} credited directly to ${managed.agentName}'s agent wallet`, { description: `Ref: ${refId}` });
+        setCompleted(prev => ({ ...prev, [p.portfolioId]: 'completed' }));
+      } else {
+        // wallet / already_paid modes — go through pending pipeline as before
+        const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
+          user_id: p.investorId,
+          amount: roiAmount,
+          direction: 'cash_in',
+          category: 'roi_payout',
+          source_table: 'investor_portfolios',
+          source_id: p.portfolioId,
+          reference_id: refId,
+          operation_type: operationType,
+          transaction_group_id: txnGroupId,
+          description: `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
+          linked_party: user.id,
+          status: 'pending',
+          metadata: {
+            partner_name: p.name,
+            roi_percentage: p.roiPercentage,
+            investment_amount: p.investmentAmount,
+            initiated_by: user.id,
+            reason,
+            pay_mode: mode,
+          },
+        });
+        if (pendErr) throw pendErr;
+
+        const auditAction = mode === 'wallet' ? 'roi_payout_requested' : 'roi_already_paid_logged';
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: auditAction,
+          table_name: 'pending_wallet_operations',
+          record_id: p.portfolioId,
+          metadata: {
+            roi_amount: roiAmount, reference: refId, partner_id: p.investorId, partner_name: p.name, reason, pay_mode: mode,
+          },
+        });
+
+        await supabase.from('notifications').insert({
+          user_id: p.investorId,
+          title: mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
+          message: `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
+          type: 'payout_initiated',
+          metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
+        });
+
+        const { data: cfoUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'cfo');
+        if (cfoUsers && cfoUsers.length > 0) {
+          await supabase.from('notifications').insert(
+            cfoUsers.map(c => ({
+              user_id: c.user_id,
+              title: 'ROI Payout Awaiting Approval',
+              message: `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending approval. Ref: ${refId}`,
+              type: 'approval_required',
+              metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
+            }))
+          );
+        }
+
+        toast.success(`${modeLabel}: ${formatUGX(roiAmount)} submitted for approval`, { description: `Ref: ${refId}` });
+        setCompleted(prev => ({ ...prev, [p.portfolioId]: 'pending' }));
       }
-
-      toast.success(`${modeLabel}: ${formatUGX(roiAmount)} submitted for approval`, { description: `Ref: ${refId}` });
-      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'pending' }));
       setPaymentStep('list');
       setSelectedPayout(null);
       onActionComplete?.();
