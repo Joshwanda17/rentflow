@@ -216,7 +216,7 @@ export function AgentRequisitionForm() {
                         {status.label}
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(req.created_at), 'MMM d, HH:mm')}
+                        {format(new Date(req.created_at), 'MMM d, yyyy • hh:mm a')}
                       </span>
                     </div>
                   </div>
