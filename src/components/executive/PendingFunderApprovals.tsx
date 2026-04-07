@@ -51,20 +51,24 @@ export function PendingFunderApprovals() {
 
   const approveMutation = useMutation({
     mutationFn: async (assignmentId: string) => {
-      const assignment = pending?.find(p => p.id === assignmentId);
-      if (!assignment) throw new Error('Assignment not found');
-
-      const { data: latestAssignment, error: latestAssignmentError } = await supabase
+      // Always fetch fresh from DB — never rely on stale React Query cache
+      const { data: assignment, error: fetchError } = await supabase
         .from('proxy_agent_assignments')
-        .select('id, approval_status, beneficiary_id, agent_id')
+        .select('id, approval_status, beneficiary_id, agent_id, reason, created_at')
         .eq('id', assignmentId)
         .maybeSingle();
 
-      if (latestAssignmentError) throw latestAssignmentError;
-      if (!latestAssignment) throw new Error('Assignment not found');
-      if (latestAssignment.approval_status === 'approved') {
+      if (fetchError) throw fetchError;
+      if (!assignment) throw new Error('Assignment not found');
+      if (assignment.approval_status === 'approved') {
         throw new Error('This partner has already been approved and credited.');
       }
+
+      // Fetch names for toast/audit
+      const [{ data: agentProfile }, { data: beneficiaryProfile }] = await Promise.all([
+        supabase.from('profiles').select('full_name, phone').eq('id', assignment.agent_id).maybeSingle(),
+        supabase.from('profiles').select('full_name, phone').eq('id', assignment.beneficiary_id).maybeSingle(),
+      ]);
 
       // 1. Approve the assignment
       const { error } = await supabase
@@ -119,13 +123,13 @@ export function PendingFunderApprovals() {
         table_name: 'proxy_agent_assignments',
         record_id: assignmentId,
         metadata: {
-          beneficiary_name: assignment.beneficiary?.full_name,
-          agent_name: assignment.agent?.full_name,
+          beneficiary_name: beneficiaryProfile?.full_name,
+          agent_name: agentProfile?.full_name,
           credited_returns: totalReturns,
         },
       });
 
-      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name, amount: totalReturns };
+      return { beneficiaryName: beneficiaryProfile?.full_name, agentName: agentProfile?.full_name, amount: totalReturns };
     },
     onSuccess: (data) => {
       const amountStr = data.amount > 0 ? ` USh ${data.amount.toLocaleString()} returns credited to ${data.agentName}'s wallet.` : '';
