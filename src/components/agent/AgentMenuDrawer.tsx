@@ -71,6 +71,7 @@ interface AgentMenuDrawerProps {
   onInviteFunder?: () => void;
   onInviteAngelInvestor?: () => void;
   onOpenRequisition?: () => void;
+  onAngelPoolInvest?: () => void;
   isFinancialAgent?: boolean;
 }
 
@@ -118,6 +119,7 @@ export function AgentMenuDrawer({
   onInviteFunder,
   onInviteAngelInvestor,
   onOpenRequisition,
+  onAngelPoolInvest,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
@@ -152,6 +154,7 @@ export function AgentMenuDrawer({
         { icon: Receipt, label: 'Issue Receipt', description: 'Record cash payment', onClick: onIssueReceipt, accent: 'amber-500', badge: 'New' },
         { icon: Wallet, label: 'Top Up Wallet', description: 'Deposit to tenant wallet', onClick: onTopUpTenant, accent: 'emerald-500' },
         { icon: HandCoins, label: 'Invest for Partner', description: 'Proxy investment', onClick: onInvestForPartner, accent: 'emerald-600', badge: 'Proxy' },
+        { icon: PiggyBank, label: 'Angel Pool Invest', description: 'Invest in equity pool', onClick: onAngelPoolInvest, accent: 'emerald-500', badge: 'Angel' },
         { icon: Banknote, label: 'Cash Payouts', description: 'Verify & pay cash-outs', path: '/agent/cash-payouts', accent: 'orange-500', badge: '💵' },
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
         { icon: Heart, label: 'Invite Funder', description: 'Share signup link for funders', onClick: onInviteFunder, accent: 'primary', badge: '💜' },

@@ -43,7 +43,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
         .from('general_ledger')
         .select('id, amount, direction, category, description, reference_id, linked_party, transaction_date')
         .eq('user_id', user.id)
-        .in('category', ['agent_proxy_investment', 'proxy_investment_commission'])
+        .in('category', ['agent_proxy_investment', 'proxy_investment_commission', 'angel_pool_commission'])
         .order('transaction_date', { ascending: false })
         .limit(50);
 
@@ -61,7 +61,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalCommission = transactions
-    .filter(t => t.category === 'proxy_investment_commission')
+    .filter(t => t.category === 'proxy_investment_commission' || t.category === 'angel_pool_commission')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const investmentCount = transactions.filter(t => t.category === 'agent_proxy_investment').length;
@@ -114,6 +114,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
             ) : (
               transactions.map(tx => {
                 const isInvestment = tx.category === 'agent_proxy_investment';
+                const isAngelCommission = tx.category === 'angel_pool_commission';
                 const partner = extractPartner(tx.description);
 
                 return (
@@ -131,7 +132,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium truncate">
-                          {isInvestment ? `Funded for ${partner}` : '2% Commission'}
+                          {isInvestment ? `Funded for ${partner}` : isAngelCommission ? '1% Angel Commission' : '2% Commission'}
                         </p>
                         <Badge variant="outline" className="text-[10px] px-1.5 shrink-0">
                           {isInvestment ? 'Investment' : 'Earned'}

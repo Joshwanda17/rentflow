@@ -66,6 +66,7 @@ import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
+import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
 import { ProxyInvestmentHistorySheet } from '@/components/agent/ProxyInvestmentHistorySheet';
 import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
 import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
@@ -164,6 +165,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
   const [floatHistoryOpen, setFloatHistoryOpen] = useState(false);
   const [requisitionOpen, setRequisitionOpen] = useState(false);
+  const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
 
   const { isFinancialAgent } = useIsFinancialAgent();
   // Check if this agent is a CFO-assigned cashout agent
@@ -376,6 +378,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
         onOpenRequisition={() => { setMenuOpen(false); setRequisitionOpen(true); }}
+        onAngelPoolInvest={() => { setMenuOpen(false); setAngelPoolInvestOpen(true); }}
         isFinancialAgent={isFinancialAgent}
         onInviteFunder={() => {
           setMenuOpen(false);
@@ -436,6 +439,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />
       <AgentInvestForPartnerDialog open={investForPartnerOpen} onOpenChange={setInvestForPartnerOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
       <ProxyInvestmentHistorySheet open={proxyHistoryOpen} onOpenChange={setProxyHistoryOpen} />
+      <AgentAngelPoolInvestDialog open={angelPoolInvestOpen} onOpenChange={setAngelPoolInvestOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
       <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
