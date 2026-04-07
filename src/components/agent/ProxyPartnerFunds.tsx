@@ -127,7 +127,7 @@ export function ProxyPartnerFunds() {
 
     ledgerEntries.forEach(entry => {
       const pid = entry.linked_party;
-      if (!pid) return;
+      if (!pid || rejectedPartnerIds.has(pid)) return;
       if (!grouped[pid]) grouped[pid] = { received: 0, withdrawn: 0 };
 
       const amt = Number(entry.amount) || 0;
@@ -147,7 +147,7 @@ export function ProxyPartnerFunds() {
       totalWithdrawn: totals.withdrawn,
       available: totals.received - totals.withdrawn,
     })).sort((a, b) => b.available - a.available);
-  }, [ledgerEntries, profiles]);
+  }, [ledgerEntries, profiles, rejectedPartnerIds]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
