@@ -2406,6 +2406,8 @@ await supabase.from('wallets').update({ balance: current - amount });
 | `agent_commission` | Agent commission credit |
 | `referral_bonus` | Referral reward |
 | `pending_portfolio_topup` | Queued portfolio top-up |
+| `angel_pool_commission` | Agent commission for Angel Pool investment facilitation (1%) |
+| `balance_correction` | Reversal of double-deduction or other balance correction |
 
 ### Cash Out
 | Category | Description |
