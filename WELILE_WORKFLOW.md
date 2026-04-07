@@ -1,7 +1,7 @@
 # Welile Platform — Exhaustive UI & Backend Workflow
 
-**Version:** 4.0  
-**Date:** 2026-04-03  
+**Version:** 5.0  
+**Date:** 2026-04-07  
 **Status:** Living Document — Complete Feature Registry  
 **App Name:** Welile.com (PWA, all platforms)
 
