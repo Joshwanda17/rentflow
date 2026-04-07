@@ -136,7 +136,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   };
 
   const parsedAmount = parseFloat(amount) || 0;
-  const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && isRefValid();
+  const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && isRefValid() && !walletInsufficient;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
