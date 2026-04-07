@@ -405,18 +405,8 @@ Deno.serve(async (req) => {
             .update({ balance: newBalance, updated_at: now.toISOString() })
             .eq("user_id", charge.tenant_id);
 
-          await supabase.from("general_ledger").insert({
-            user_id: charge.tenant_id,
-            amount: tenantPartial,
-            direction: "cash_in",
-            category: "tenant_access_fee",
-            source_table: "subscription_charges",
-            source_id: charge.id,
-            description: `Auto-charge: partial instalment (${charge.frequency})`,
-            linked_party: "platform",
-            transaction_date: now.toISOString(),
-            ledger_scope: "platform",
-          });
+          // NOTE: Ledger entries now handled by sync_collection_to_ledger trigger
+          // which fires on subscription_charge_logs insert and splits proportionally
         }
 
         const shortfall = chargeAmount - tenantPartial;
