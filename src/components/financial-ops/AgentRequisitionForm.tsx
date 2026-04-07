@@ -118,7 +118,7 @@ export function AgentRequisitionForm() {
 
         {/* Amount */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Amount</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Amount (UGX)</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">UGX</span>
             <Input
