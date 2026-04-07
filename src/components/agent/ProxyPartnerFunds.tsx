@@ -78,14 +78,27 @@ export function ProxyPartnerFunds() {
         });
         setProfiles(profileMap);
 
-        // Build status map - use the most recent/active status per partner
+        // Build status map - match by linked_party or by reason containing partner name
         const statusMap: Record<string, string> = {};
         (withdrawalRes.data || []).forEach((w: any) => {
-          if (w.linked_party) {
-            // Priority: pending > processing > approved
+          // Match by linked_party if set
+          if (w.linked_party && partnerIds.includes(w.linked_party)) {
             const existing = statusMap[w.linked_party];
             if (!existing || w.status === 'pending') {
               statusMap[w.linked_party] = w.status;
+            }
+          }
+          // Fallback: match by reason containing partner name
+          if (!w.linked_party && w.reason) {
+            for (const pid of partnerIds) {
+              const name = (profileRes.data || []).find(p => p.id === pid)?.full_name;
+              if (name && w.reason.includes(name)) {
+                const existing = statusMap[pid];
+                if (!existing || w.status === 'pending') {
+                  statusMap[pid] = w.status;
+                }
+                break;
+              }
             }
           }
         });
