@@ -73,6 +73,7 @@ export interface BalanceSheetData {
     platformCash: number;
     userFundsHeld: number;
     receivables: number;
+    advanceAccessFeeReceivables: number;
     totalAssets: number;
   };
   platformObligations: {
