@@ -1,7 +1,7 @@
 # Welile Platform — Exhaustive UI & Backend Workflow
 
-**Version:** 4.0  
-**Date:** 2026-04-03  
+**Version:** 5.0  
+**Date:** 2026-04-07  
 **Status:** Living Document — Complete Feature Registry  
 **App Name:** Welile.com (PWA, all platforms)
 
@@ -46,7 +46,8 @@
 35. [Security & RLS](#35-security--rls)
 36. [Database Schema Overview](#36-database-schema-overview)
 37. [Known Issues & Technical Debt](#37-known-issues--technical-debt)
-38. [Appendices](#appendices)
+38. [HR Dashboard Workflows](#38-hr-dashboard-workflows)
+39. [Appendices](#appendices)
 
 ---
 
@@ -128,14 +129,14 @@ Always redirects to custom domain (welilereceipts.com) to avoid auth-bridge toke
 
 # 2. Role System & Navigation
 
-## 2.1 Supported Roles (14 total)
+## 2.1 Supported Roles (15 total)
 
 | Group | Roles |
 |-------|-------|
 | **Consumer** | `tenant`, `landlord` |
 | **Financial** | `supporter` |
 | **Field** | `agent` |
-| **Staff** | `manager`, `employee`, `operations` |
+| **Staff** | `manager`, `employee`, `operations`, `hr` |
 | **Executive** | `ceo`, `coo`, `cfo`, `cto`, `cmo`, `crm` |
 | **God Mode** | `super_admin` |
 
@@ -568,6 +569,81 @@ If rejected: Portfolio cancelled, agent refunded
 Notifications: 'Investment Activated' to supporter, 'Partner Investment Approved' to agent
 ```
 
+## 4.8 Agent-Facilitated Angel Pool Investment
+
+**Edge Function:** `agent-angel-pool-invest`  
+**UI Component:** `AgentAngelPoolInvestDialog.tsx`  
+**Branding:** Purple `#7718D1` (hover: `#6514B5`), responsive dialog `w-[95vw]`
+
+```
+Agent collects funds from investor (Cash, MoMo, Bank)
+    ↓
+Agent deposits into investor's wallet
+    ↓
+Agent opens Angel Pool Invest dialog:
+  - Search existing investor by phone
+  - OR register new investor inline (register-proxy-funder, phone duplicate check)
+    ↓
+Selects share count (UGX 20,000/share)
+    ↓
+agent-angel-pool-invest Edge Function:
+  1. Validates investor wallet balance
+  2. Checks remaining pool capacity (max 25,000 total shares)
+  3. Records shares in angel_pool_investments (with agent_id, payment_method, investment_reference)
+  4. Creates cash_out ledger entry for investor
+  5. Credits agent 1% commission (platform-funded):
+     - Platform debit: cash_out / marketing_expense / platform scope
+     - Agent credit: cash_in / angel_pool_commission / wallet scope
+     - Shared transaction_group_id for auditability
+    ↓
+Ownership calculation:
+  - Pool % = (shares / 25,000) * 100
+  - Company % = (shares / 25,000) * 8
+```
+
+**Flow Pattern:** Collect → Wallet → Pool (wallet acts as mandatory control layer)
+
+## 4.9 Proxy Partner Payout Management
+
+**UI Component:** `ProxyPartnerFunds.tsx` (in wallet Proxy Partners tab)
+
+```
+Proxy agent assigned to partner (proxy_agent_assignments, status: 'approved', is_active: true)
+    ↓
+Agent sees "Proxy Partners" tab in wallet
+    ↓
+Only partners with ROI balance > 0 shown as actionable
+    ↓
+Partner Ops approves ROI payout:
+  - ROI-Only Policy: ONLY accrued returns credited, principal stays in portfolio
+  - ROI = (investment_amount * roi_percentage / 100 / 12) * months_elapsed
+  - Prioritizes total_roi_earned field from portfolios
+  - Idempotency: credit_proxy_approval RPC with MD5-based deterministic UUID
+    ↓
+ROI credited to agent's wallet (for physical delivery to partner)
+    ↓
+Agent initiates "Withdraw" for delivery:
+  - Available balance = Total Accrued Returns - Completed Withdrawals
+  - Ledger category: proxy_partner_withdrawal
+    ↓
+Active delivery tasks labeled "Ready for delivery"
+```
+
+## 4.10 Financial Agent Requisition Flow
+
+**UI Components:** `AgentRequisitionForm.tsx` + `FinancialAgentSection.tsx` (bottom-sheet on agent dashboard)  
+**CFO Component:** `CFOAgentRequisitions.tsx` (approval queue)
+
+```
+Agent submits requisition (expense category, amount, justification)
+    ↓
+Requisition enters CFO approval queue
+    ↓
+CFO reviews and approves/rejects
+    ↓
+If approved: Funds credited to agent wallet
+```
+
 ## 4.8 Float Management
 
 - `AgentFloatManager.tsx` — Float overview & operations
@@ -682,6 +758,7 @@ Both entries share the same transaction_group_id for auditability.
 | Action | Reward |
 |--------|--------|
 | Proxy investment facilitation | 2% commission |
+| Angel Pool investment facilitation | 1% commission (platform-funded, `angel_pool_commission` category) |
 | Landlord management fee (non-smartphone landlords) | 2% |
 
 ## 4.14 Performance Tiering
@@ -1379,10 +1456,10 @@ Features:
 ## 9.1 Route: `/cfo/dashboard`
 
 ### UI Design: CFO Dashboard
-- **Layout**: Tabbed interface with 10 tabs (icons + labels)
+- **Layout**: Tabbed interface with 20+ tabs (icons + labels)
 - **Tab Strip**: Wrap-style tabs with icon + text, primary color when active
 - **Mobile**: Tab labels truncated to 4 chars
-- **Tabs**: Overview, Cash Position, Channels, P&L, Disbursements, Statements, Solvency, Payouts, Reconcile, Ledger
+- **Tabs**: Overview, Cash Position, Channels, P&L, Disbursements, Statements, Solvency, Payouts, Reconcile, Ledger, ROI Requests, Rent Collections, Agent Rankings, Retractions, Advances, Approval Audit, Agent Requisitions, Float Management, Listing Bonus
 
 ## 9.2 Tabs & Components
 
@@ -1398,6 +1475,15 @@ Features:
 | `payouts` | (See below) | Multi-section payout authorization |
 | `reconciliation` | `CFOReconciliationPanel` | Reconciliation tools |
 | `ledger` | `GeneralLedger` | Full ledger browser |
+| `roi-requests` | `CFOROIRequests` | Partner ROI payout authorization (CFO inbound credit authority) |
+| `rent-collections` | `RentCollectionsFeed` | Real-time agent collection tracking |
+| `agent-rankings` | `AgentPerformanceRankings` | Weighted KPI rankings (Earnings 30%, Collections 25%, Referrals 25%, Visits 20%) |
+| `retractions` | `WalletRetractionsFeed` | Wallet retraction monitoring |
+| `advances` | `CFOAdvancesManager` | Agent cash advances with compounding interest |
+| `approval-audit` | `ManagerApprovalAudit` | Cross-department approval audit trail |
+| `agent-requisitions` | `CFOAgentRequisitions` | Financial agent requisition approval queue |
+| `float-management` | `AgentFloatManagement` | 3-tab float management: Transfers, Balances, Reconciliation |
+| `listing-bonus` | `ListingBonusApprovalQueue` | Listing bonus payout approval |
 
 ### CFO-Specific Components
 
@@ -2104,6 +2190,7 @@ Balance is DERIVED from ledger (never edited directly)
     ↓
 sync_wallet_from_ledger trigger updates wallet on ledger entry
   - ONLY fires when transaction_group_id IS NOT NULL
+  - This trigger is the SOLE WRITER for wallet balances (Trigger-Only Policy, v5.0)
     ↓
 CHECK constraint: balance >= 0
     ↓
@@ -2111,6 +2198,26 @@ GREATEST(balance - amount, 0) prevents underflow
     ↓
 Float-related categories excluded from personal wallet sync
 ```
+
+### ⚠️ Trigger-Only Wallet Policy (v5.0)
+
+**CRITICAL RULE**: The `sync_wallet_from_ledger` trigger is the **sole writer** for `wallets.balance`. All edge functions are **strictly forbidden** from manually updating wallet balances (e.g., `.update({ balance: currentBalance - amount })`).
+
+**Why**: Manual wallet updates combined with ledger inserts (which fire the trigger) cause **double-deduction/credit bugs** — the balance changes twice for a single operation. This was identified and fixed in `approve-deposit` (v4.x) and `agent-deposit` (v5.0).
+
+**Pattern for edge functions:**
+```typescript
+// ✅ CORRECT: Only insert ledger entry — trigger handles wallet
+await supabase.from('general_ledger').insert({
+  user_id, amount, direction: 'cash_out', category: '...',
+  transaction_group_id: crypto.randomUUID()
+});
+
+// ❌ FORBIDDEN: Manual wallet update (causes double-deduction)
+await supabase.from('wallets').update({ balance: current - amount });
+```
+
+**Wallet creation**: Use `ensureWalletExists()` pattern — `upsert` with `ignoreDuplicates: true` to ensure wallet row exists without touching balance.
 
 ## 20.2 Wallet UI (`src/components/wallet/`)
 
@@ -2151,6 +2258,7 @@ Float-related categories excluded from personal wallet sync
 | `PendingRequestsDialog.tsx` | View pending requests |
 | `UserDepositRequests.tsx` | User's deposit history |
 | `UserWithdrawalRequests.tsx` | User's withdrawal history |
+| `ProxyPartnerFunds.tsx` | Proxy partner ROI delivery tab (Proxy Partners wallet tab) |
 | `AgentRentRequestsWalletSection.tsx` | Rent requests in wallet context |
 | `MyReferralsCount.tsx` | Referral count display |
 
@@ -2298,6 +2406,8 @@ Float-related categories excluded from personal wallet sync
 | `agent_commission` | Agent commission credit |
 | `referral_bonus` | Referral reward |
 | `pending_portfolio_topup` | Queued portfolio top-up |
+| `angel_pool_commission` | Agent commission for Angel Pool investment facilitation (1%) |
+| `balance_correction` | Reversal of double-deduction or other balance correction |
 
 ### Cash Out
 | Category | Description |
@@ -2316,12 +2426,17 @@ Float-related categories excluded from personal wallet sync
 | `marketing_expense` | Agent commissions & bonuses as platform marketing cost |
 | `withdrawal_pending` | Wallet pre-deduction at withdrawal request time |
 | `withdrawal_reversal` | Refund of pre-deducted funds on withdrawal rejection |
+| `proxy_partner_withdrawal` | Proxy partner ROI withdrawal for delivery |
+| `rent_principal_collected` | Proportional rent principal from collection |
+| `access_fee_collected` | Proportional access fee from collection |
+| `registration_fee_collected` | Proportional registration fee from collection |
 
 ## 21.6 Key Database Triggers
 
 | Trigger | Purpose |
 |---------|---------|
-| `sync_wallet_from_ledger` | Auto-sync wallet balance from ledger entries (only when `transaction_group_id` is set) |
+| `sync_wallet_from_ledger` | **SOLE WRITER** for wallet balances. Auto-sync from ledger entries (only when `transaction_group_id` is set). Edge functions MUST NOT manually update wallets. |
+| `sync_collection_to_ledger` | Proportional revenue recognition: splits daily collections into `rent_principal_collected`, `access_fee_collected`, `registration_fee_collected` based on rent request fee ratios |
 | `auto_assign_ledger_scope` / `set_ledger_scope()` | Classify entries as wallet/platform/bridge. Routes `marketing_expense` → `platform` scope automatically. Routes float categories to `bridge` scope |
 | `trg_enforce_property_chain` | Blocks incomplete property chains |
 | `trg_auto_assign_landlord_on_rent_request` | Auto-assigns landlord |
@@ -2345,6 +2460,7 @@ END IF;
 | `record_rent_request_repayment()` | Atomic repayment: updates rent_requests.amount_repaid, landlords receivables, creates general_ledger entry. Accepts optional `transaction_group_id`. |
 | `credit_agent_rent_commission()` | Credits 10% commission split with paired double-entry per agent role. Idempotent via `rent_request_id` + `repayment_amount` check. |
 | `credit_agent_event_bonus()` | Credits flat-fee event bonuses with double-entry marketing expense pattern. |
+| `credit_proxy_approval()` | Idempotent proxy partner ROI credit with MD5-based deterministic UUID. Prevents duplicate credits on re-approval. |
 
 ## 21.8 Ledger Account Hierarchy
 
@@ -2818,6 +2934,14 @@ Ownership calculation:
 | `register-proxy-funder` | Register funder via proxy |
 | `supporter-account-action` | Account management |
 | `angel-pool-invest` | Angel Pool share investment |
+| `agent-angel-pool-invest` | Agent-facilitated Angel Pool investment (1% agent commission) |
+
+### HR Operations
+| Function | Purpose |
+|----------|---------|
+| `hr-approve-leave` | Approve/reject leave requests |
+| `hr-issue-disciplinary` | Issue disciplinary records |
+| `hr-submit-payroll` | Submit and process payroll batches |
 
 ### Financial - Rewards & Processing
 | Function | Purpose |
@@ -3000,6 +3124,15 @@ Ownership calculation:
 | `agent_advance_topups` | Advance topups |
 | `agent_subagents` | Sub-agent relationships |
 | `service_centre_setups` | Service Centre submissions |
+| `financial_agents` | Tagged agents for financial expense categories |
+| `proxy_agent_assignments` | Proxy agent-partner assignment management |
+
+### HR & People
+| Table | Purpose |
+|-------|---------|
+| `leave_requests` | HR leave request management (annual, sick, personal, maternity, paternity) |
+| `disciplinary_records` | HR disciplinary tracking (warnings, suspensions, terminations) |
+| `payroll_batches` | HR payroll processing batches |
 
 ### Platform Operations
 | Table | Purpose |
@@ -3036,6 +3169,7 @@ Ownership calculation:
 | `credit_agent_event_bonus()` | Event bonus with double-entry |
 | `auto_route_rent_funds()` | Fund routing fallback |
 | `detect_velocity_abuse(window_min, threshold)` | Server-side velocity abuse detection |
+| `credit_proxy_approval()` | Idempotent proxy partner ROI credit (MD5-based deterministic UUID) |
 
 ---
 
@@ -3064,11 +3198,129 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 - **Before**: RPC inserted ledger without `transaction_group_id`. Callers also inserted their own entries → duplicates
 - **After**: Accepts optional `p_transaction_group_id` parameter. Backward-compatible.
 
-### Enforced Rules (Post-Fix)
-1. Wallet balance changes happen **only** via `sync_wallet_from_ledger` trigger OR via a single manual `.update()` — **never both**
+### Enforced Rules (Post-Fix, strengthened in v5.0)
+1. Wallet balance changes happen **only** via `sync_wallet_from_ledger` trigger — **never via manual `.update()`** (Trigger-Only Policy, v5.0)
 2. RPCs own their domain: `credit_agent_rent_commission` is the sole commission writer; `record_rent_request_repayment` is the sole repayment writer
 3. Edge functions must **not** duplicate what an RPC they call already does
-4. `auto-charge-wallets` uses manual `.update()` without `transaction_group_id` (single-writer for tenant deductions)
+4. `auto-charge-wallets` uses manual `.update()` without `transaction_group_id` (sole exception — single-writer for tenant deductions)
+
+## 37.2 Double-Deduction Bug (CRITICAL — Identified 2026-04-07, **RESOLVED v5.0**)
+
+**`agent-deposit` edge function manually deducted agent wallet AND inserted ledger entries, causing the `sync_wallet_from_ledger` trigger to deduct again.**
+
+### Root Cause
+The `agent-deposit` function had the same bug class as the `approve-deposit` fix. It:
+1. **Manually subtracted** from agent wallet: `balance = balance - amount`
+2. **Inserted `cash_out` ledger entry** → trigger fired → deducted again
+
+This caused 50k to become 100k and 10k to become 20k deductions for affected agents.
+
+Additionally, `creditWalletDirect()` manually credited recipient wallets before ledger entries were inserted, risking double-credits on the receiving side.
+
+### Resolution (v5.0)
+
+1. **Removed all manual wallet updates** from `agent-deposit` edge function (lines 403-418, 516-531)
+2. **Replaced `creditWalletDirect()` with `ensureWalletExists()`** — upsert with `ignoreDuplicates: true` (only ensures wallet row exists; balance managed exclusively by trigger)
+3. **Data correction**: Inserted `balance_correction` ledger entry of 60k for affected agent to reverse excess deductions
+4. **Established Trigger-Only Policy**: All edge functions are now forbidden from manual wallet balance manipulation
+
+### Impact
+- Affected agent (Akampurira Onesmus) had 60k excess deducted — corrected via `cash_in` / `balance_correction` ledger entry
+- `sync_wallet_from_ledger` trigger automatically restored correct balance
+
+---
+
+# 38. HR Dashboard Workflows
+
+## 38.1 Route: `/hr/dashboard`
+
+### UI Design: HR Dashboard
+- **Layout**: Tabbed interface via `ExecutiveDashboardLayout` with `role="hr"`
+- **Mobile**: Responsive tab strip with icon + label
+- **Sub-views**: 8 tabs (Overview, Employees, User Management, Leave, Payroll, Disciplinary, Audit, Departments)
+
+## 38.2 Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `HROverview.tsx` | `src/components/hr/` | Overview KPIs with navigation to sub-views |
+| `HREmployeeDirectory.tsx` | `src/components/hr/` | Searchable employee directory |
+| `HREmployeeDetailDrawer.tsx` | `src/components/hr/` | Employee detail side drawer |
+| `HRUserManagement.tsx` | `src/components/hr/` | HR-specific user management tools |
+| `HRLeaveManagement.tsx` | `src/components/hr/` | Leave request management (approve/reject) |
+| `HRPayroll.tsx` | `src/components/hr/` | Payroll batch processing |
+| `HRDisciplinary.tsx` | `src/components/hr/` | Disciplinary record management (warnings, suspensions, terminations) |
+| `HRAudit.tsx` | `src/components/hr/` | HR-specific audit trail (filters `hr_%` action types) |
+| `HRDepartments.tsx` | `src/components/hr/` | Department management |
+
+## 38.3 Leave Management Flow
+
+```
+Employee submits leave request (type: annual/sick/personal/maternity/paternity)
+    ↓
+Leave request stored in leave_requests table (status: 'pending')
+    ↓
+HR Manager reviews in HRLeaveManagement:
+  - Employee name, leave type, dates, reason
+    ↓
+hr-approve-leave Edge Function:
+  1. Validates leave request exists and is pending
+  2. Updates status to 'approved' or 'rejected'
+  3. Records reviewer and timestamp
+  4. Creates hr_leave_approved/hr_leave_rejected audit log entry
+    ↓
+Employee notified of decision
+```
+
+## 38.4 Payroll Flow
+
+```
+HR prepares payroll batch in HRPayroll
+    ↓
+hr-submit-payroll Edge Function:
+  1. Creates payroll_batches record
+  2. Processes employee salary calculations
+  3. Generates ledger entries for payments
+  4. Records hr_payroll_submitted audit log
+    ↓
+CFO reviews payroll batch for final approval
+    ↓
+Payments disbursed to employee wallets
+```
+
+## 38.5 Disciplinary Flow
+
+```
+HR Manager initiates disciplinary action in HRDisciplinary
+    ↓
+hr-issue-disciplinary Edge Function:
+  1. Creates disciplinary_records entry (type: warning/suspension/termination)
+  2. Records severity, description, evidence
+  3. Creates hr_disciplinary_issued audit log entry
+    ↓
+Employee record updated with disciplinary history
+    ↓
+For terminations: triggers account freeze workflow
+```
+
+## 38.6 Access Control
+
+- **Required role**: `hr`
+- HR role is a Staff-level role, accessed via `/hr/dashboard`
+- HR audit trail shows only `hr_%` prefixed action types
+- All HR actions logged to `audit_logs` with `hr_` prefix
+
+## 38.7 Employee Profiles
+
+| Route | Purpose |
+|-------|---------|
+| `/hr/profiles/:userId` | Individual employee profile deep-dive |
+
+## 38.8 Backend Edge Functions
+
+- **`hr-approve-leave`**: Process leave request approval/rejection with audit trail
+- **`hr-issue-disciplinary`**: Issue disciplinary records (warning, suspension, termination)
+- **`hr-submit-payroll`**: Submit and process payroll batches
 
 ---
 
@@ -3099,6 +3351,7 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 # Appendix C: Forbidden Anti-Patterns
 
 - ❌ Direct wallet balance edits
+- ❌ Manual wallet balance updates in edge functions (e.g., `.update({ balance: current - amount })`) — use ledger inserts only; trigger handles balance
 - ❌ Business logic in UI components
 - ❌ Offline financial updates
 - ❌ Duplicate logic across Edge Functions
@@ -3200,7 +3453,7 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 
 ---
 
-# Appendix G: Changelog (v2.0 → v4.0)
+# Appendix G: Changelog (v2.0 → v5.0)
 
 | Feature | Version | Change |
 |---------|---------|--------|
@@ -3216,21 +3469,34 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 | Service Centre Workflow | v3.3 | NEW — Photo/GPS submission and verification |
 | Agent Commission Benefits Page | v3.3 | NEW — Plain-language explainer |
 | Withdrawal Pipeline | v3.3 | SIMPLIFIED — Single-step Financial Ops approval |
-| **Agent Ops Dashboard** | **v4.0** | **DOCUMENTED — Quick Nav Grid with 14 sub-views** |
-| **Landlord Ops Dashboard** | **v4.0** | **NEW SECTION — Chain health, property map, viewing scheduler** |
-| **Angel Pool System** | **v4.0** | **NEW SECTION — Full investment system documentation** |
-| **All Wallet Components** | **v4.0** | **DOCUMENTED — 26 wallet components catalogued** |
-| **All Agent Components** | **v4.0** | **DOCUMENTED — 86 agent components catalogued** |
-| **All Supporter Components** | **v4.0** | **DOCUMENTED — 58 supporter components catalogued** |
-| **UI Design System** | **v4.0** | **NEW — Appendix F with design tokens and patterns** |
-| **Financial Ops Components** | **v4.0** | **DOCUMENTED — 13 Financial Ops components** |
-| **CFO Components** | **v4.0** | **DOCUMENTED — 23 CFO-specific components** |
-| **COO Components** | **v4.0** | **DOCUMENTED — 14 COO-specific components** |
-| **Manager Components** | **v4.0** | **DOCUMENTED — 100+ manager components** |
-| **AI Features** | **v4.0** | **DOCUMENTED — 4 AI-powered manager components** |
-| **PWA Branding** | **v4.0** | **UPDATED — App name "Welile.com" on all devices** |
-| **Edge Functions** | **v4.0** | **COMPLETE — All 81 edge functions documented** |
+| Agent Ops Dashboard | v4.0 | DOCUMENTED — Quick Nav Grid with 14 sub-views |
+| Landlord Ops Dashboard | v4.0 | NEW SECTION — Chain health, property map, viewing scheduler |
+| Angel Pool System | v4.0 | NEW SECTION — Full investment system documentation |
+| All Wallet Components | v4.0 | DOCUMENTED — 26 wallet components catalogued |
+| All Agent Components | v4.0 | DOCUMENTED — 86 agent components catalogued |
+| All Supporter Components | v4.0 | DOCUMENTED — 58 supporter components catalogued |
+| UI Design System | v4.0 | NEW — Appendix F with design tokens and patterns |
+| Financial Ops Components | v4.0 | DOCUMENTED — 13 Financial Ops components |
+| CFO Components | v4.0 | DOCUMENTED — 23 CFO-specific components |
+| COO Components | v4.0 | DOCUMENTED — 14 COO-specific components |
+| Manager Components | v4.0 | DOCUMENTED — 100+ manager components |
+| AI Features | v4.0 | DOCUMENTED — 4 AI-powered manager components |
+| PWA Branding | v4.0 | UPDATED — App name "Welile.com" on all devices |
+| Edge Functions | v4.0 | COMPLETE — All 81 edge functions documented |
+| **Trigger-Only Wallet Policy** | **v5.0** | **ENFORCED — `sync_wallet_from_ledger` is sole writer for wallet balances; manual updates forbidden** |
+| **Double-Deduction Bug Fix** | **v5.0** | **RESOLVED — `agent-deposit` patched to remove manual wallet subtraction** |
+| **HR Dashboard** | **v5.0** | **NEW SECTION 38 — Full HR module with 9 components, 3 edge functions** |
+| **Agent-Facilitated Angel Pool** | **v5.0** | **NEW — `agent-angel-pool-invest` edge function with 1% commission** |
+| **Proxy Partner Payout Management** | **v5.0** | **NEW — `ProxyPartnerFunds` component, `proxy_partner_withdrawal` category** |
+| **Financial Agent Requisitions** | **v5.0** | **NEW — `AgentRequisitionForm` + `CFOAgentRequisitions` approval queue** |
+| **CFO Dashboard Expansion** | **v5.0** | **EXPANDED — 20+ tabs (ROI Requests, Advances, Float Management, Rankings, etc.)** |
+| **Proportional Revenue Recognition** | **v5.0** | **NEW — `sync_collection_to_ledger` trigger splits collections** |
+| **Deterministic Idempotency** | **v5.0** | **NEW — `credit_proxy_approval` RPC with MD5-based UUID** |
+| **Financial Separation of Powers** | **v5.0** | **DOCUMENTED — CFO (inbound) vs Financial Ops (outbound)** |
+| **New DB Tables** | **v5.0** | **NEW — `leave_requests`, `disciplinary_records`, `payroll_batches`, `financial_agents`, `proxy_agent_assignments`** |
+| **Edge Functions** | **v5.0** | **EXPANDED — 89 total edge functions (4 new: HR + Angel Pool)** |
+| **HR Role** | **v5.0** | **NEW — 15 total roles (added `hr` to Staff group)** |
 
 ---
 
-*End of Document — Version 4.0*
+*End of Document — Version 5.0*
