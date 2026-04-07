@@ -119,6 +119,7 @@ export function AgentMenuDrawer({
   onInviteFunder,
   onInviteAngelInvestor,
   onOpenRequisition,
+  onAngelPoolInvest,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
