@@ -17,8 +17,10 @@ import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 interface WithdrawRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  walletBalance: number;
+  walletBalance?: number;
   onSuccess?: () => void;
+  prefillAmount?: number;
+  prefillReason?: string;
 }
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
