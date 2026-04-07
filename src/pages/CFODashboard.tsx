@@ -198,6 +198,11 @@ export default function CFODashboard() {
             </div>
           </TabsContent>
 
+          {/* Requisitions Tab */}
+          <TabsContent value="requisitions" className="space-y-6">
+            <CFOAgentRequisitions />
+          </TabsContent>
+
           {/* Reconciliation Tab */}
           <TabsContent value="reconciliation" className="space-y-6">
             <CFOReconciliationPanel />
