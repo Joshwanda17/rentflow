@@ -79,32 +79,28 @@ export function PendingFunderApprovals() {
           const amt = Number(portfolio.investment_amount) || 0;
           if (amt <= 0) continue;
 
-          // Idempotency: check if already credited for this portfolio+assignment
           const txGroupId = `proxy-approval-${assignmentId}-${portfolio.id}`;
-          const { data: existing } = await supabase
-            .from('general_ledger')
-            .select('id')
-            .eq('transaction_group_id', txGroupId)
-            .limit(1);
+          const description = `[Managed Payout] [Agent Wallet] Proxy approval credit of USh ${amt.toLocaleString()} to ${assignment.agent?.full_name}'s agent wallet on behalf of ${assignment.beneficiary?.full_name}. Portfolio: ${portfolio.portfolio_code}. — on behalf of partner ${assignment.beneficiary_id}`;
 
-          if (existing && existing.length > 0) continue;
+          // Use security definer function to bypass ledger RLS
+          const { data: credited, error: creditError } = await supabase.rpc('credit_proxy_approval', {
+            p_agent_id: assignment.agent_id,
+            p_beneficiary_id: assignment.beneficiary_id,
+            p_amount: amt,
+            p_description: description,
+            p_transaction_group_id: txGroupId,
+            p_source_id: portfolio.id,
+            p_portfolio_code: portfolio.portfolio_code,
+          });
 
-          // Credit agent wallet via ledger
-          await supabase.from('general_ledger').insert({
-            user_id: assignment.agent_id,
-            amount: amt,
-            direction: 'cash_in',
-            category: 'roi_payout',
-            description: `[Managed Payout] [Agent Wallet] Proxy approval credit of USh ${amt.toLocaleString()} to ${assignment.agent?.full_name}'s agent wallet on behalf of ${assignment.beneficiary?.full_name}. Portfolio: ${portfolio.portfolio_code}. — on behalf of partner ${assignment.beneficiary_id}`,
-            currency: 'UGX',
-            transaction_group_id: txGroupId,
-            source_table: 'investor_portfolios',
-            source_id: portfolio.id,
-            ledger_scope: 'wallet',
-            linked_party: assignment.beneficiary_id,
-          } as any);
+          if (creditError) {
+            console.error('Failed to credit proxy approval:', creditError);
+            continue;
+          }
 
-          totalCredited += amt;
+          if (credited) {
+            totalCredited += amt;
+          }
         }
       }
 
