@@ -2190,6 +2190,7 @@ Balance is DERIVED from ledger (never edited directly)
     ↓
 sync_wallet_from_ledger trigger updates wallet on ledger entry
   - ONLY fires when transaction_group_id IS NOT NULL
+  - This trigger is the SOLE WRITER for wallet balances (Trigger-Only Policy, v5.0)
     ↓
 CHECK constraint: balance >= 0
     ↓
@@ -2197,6 +2198,26 @@ GREATEST(balance - amount, 0) prevents underflow
     ↓
 Float-related categories excluded from personal wallet sync
 ```
+
+### ⚠️ Trigger-Only Wallet Policy (v5.0)
+
+**CRITICAL RULE**: The `sync_wallet_from_ledger` trigger is the **sole writer** for `wallets.balance`. All edge functions are **strictly forbidden** from manually updating wallet balances (e.g., `.update({ balance: currentBalance - amount })`).
+
+**Why**: Manual wallet updates combined with ledger inserts (which fire the trigger) cause **double-deduction/credit bugs** — the balance changes twice for a single operation. This was identified and fixed in `approve-deposit` (v4.x) and `agent-deposit` (v5.0).
+
+**Pattern for edge functions:**
+```typescript
+// ✅ CORRECT: Only insert ledger entry — trigger handles wallet
+await supabase.from('general_ledger').insert({
+  user_id, amount, direction: 'cash_out', category: '...',
+  transaction_group_id: crypto.randomUUID()
+});
+
+// ❌ FORBIDDEN: Manual wallet update (causes double-deduction)
+await supabase.from('wallets').update({ balance: current - amount });
+```
+
+**Wallet creation**: Use `ensureWalletExists()` pattern — `upsert` with `ignoreDuplicates: true` to ensure wallet row exists without touching balance.
 
 ## 20.2 Wallet UI (`src/components/wallet/`)
 
