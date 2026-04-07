@@ -59,7 +59,11 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold />
 
       <SectionHeader>Operating Expenses</SectionHeader>
-      <LineItem label="Operational & Withdrawal Expenses" value={d.operatingExpenses} negative indent />
+      <LineItem label="Payroll & Staff Costs" value={d.operatingExpenses.payrollExpenses} negative indent />
+      <LineItem label="Agent Requisitions" value={d.operatingExpenses.agentRequisitions} negative indent />
+      <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
+      <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
+      <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
 
       <div className={cn(
         'flex justify-between text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
@@ -80,7 +84,10 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="Other Platform Income" value={d.operatingActivities.otherServiceIncome} indent />
       <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
       <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
-      <LineItem label="Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
+      <LineItem label="Payroll Paid" value={d.operatingActivities.payrollPaid} negative indent />
+      <LineItem label="Agent Requisitions Paid" value={d.operatingActivities.agentRequisitionsPaid} negative indent />
+      <LineItem label="Financial Agent Expenses Paid" value={d.operatingActivities.financialAgentExpensesPaid} negative indent />
+      <LineItem label="General Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
       <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
 
       <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
@@ -260,7 +267,11 @@ export function FinancialStatementsPanel() {
       rows.push(['Agent Commissions', '', -d.serviceDeliveryCosts.agentCommissions]);
       rows.push(['Transaction Expenses', '', -d.serviceDeliveryCosts.transactionExpenses]);
       rows.push(['Total Service Costs', '', -d.serviceDeliveryCosts.total]);
-      rows.push(['Operating Expenses', '', -d.operatingExpenses]);
+      rows.push(['Payroll & Staff Costs', '', -d.operatingExpenses.payrollExpenses]);
+      rows.push(['Agent Requisitions', '', -d.operatingExpenses.agentRequisitions]);
+      rows.push(['Financial Agent Expenses', '', -d.operatingExpenses.financialAgentExpenses]);
+      rows.push(['General Operating Expenses', '', -d.operatingExpenses.generalOperating]);
+      rows.push(['Total Operating Expenses', '', -d.operatingExpenses.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
     } else if (activeTab === 'cashflow') {
       const d = data.cashFlow;
@@ -271,7 +282,10 @@ export function FinancialStatementsPanel() {
       rows.push(['Other Platform Income', '', d.operatingActivities.otherServiceIncome]);
       rows.push(['Platform Rewards Paid', '', -d.operatingActivities.platformRewardsPaid]);
       rows.push(['Agent Commissions Paid', '', -d.operatingActivities.agentCommissionsPaid]);
-      rows.push(['Withdrawals Paid', '', -d.operatingActivities.withdrawalsPaid]);
+      rows.push(['Payroll Paid', '', -d.operatingActivities.payrollPaid]);
+      rows.push(['Agent Requisitions Paid', '', -d.operatingActivities.agentRequisitionsPaid]);
+      rows.push(['Financial Agent Expenses Paid', '', -d.operatingActivities.financialAgentExpensesPaid]);
+      rows.push(['General Operating Expenses Paid', '', -d.operatingActivities.withdrawalsPaid]);
       rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
       rows.push(['', '', '']);
       rows.push(['RENT FACILITATION (PASS-THROUGH)', '', '']);
@@ -405,7 +419,12 @@ export function FinancialStatementsPanel() {
         addRow('Transaction Expenses', d.serviceDeliveryCosts.transactionExpenses, false, true, true);
         addRow('Total Service Costs', d.serviceDeliveryCosts.total, true, true);
         y += 3;
-        addRow('Operating Expenses', d.operatingExpenses, false, true);
+        addSection('Operating Expenses');
+        addRow('Payroll & Staff Costs', d.operatingExpenses.payrollExpenses, false, true, true);
+        addRow('Agent Requisitions', d.operatingExpenses.agentRequisitions, false, true, true);
+        addRow('Financial Agent Expenses', d.operatingExpenses.financialAgentExpenses, false, true, true);
+        addRow('General Operating', d.operatingExpenses.generalOperating, false, true, true);
+        addRow('Total Operating Expenses', d.operatingExpenses.total, true, true);
         y += 3;
         pdf.setFontSize(11);
         pdf.setFont('helvetica', 'bold');

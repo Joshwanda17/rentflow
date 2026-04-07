@@ -24,7 +24,13 @@ export interface IncomeStatementData {
     transactionExpenses: number;
     total: number;
   };
-  operatingExpenses: number;
+  operatingExpenses: {
+    generalOperating: number;
+    payrollExpenses: number;
+    agentRequisitions: number;
+    financialAgentExpenses: number;
+    total: number;
+  };
   netOperatingIncome: number;
 }
 
@@ -35,6 +41,9 @@ export interface CashFlowData {
     otherServiceIncome: number;
     platformRewardsPaid: number;
     agentCommissionsPaid: number;
+    payrollPaid: number;
+    agentRequisitionsPaid: number;
+    financialAgentExpensesPaid: number;
     withdrawalsPaid: number;
     netOperating: number;
   };
@@ -253,11 +262,15 @@ export function useFinancialStatements() {
       const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout']);
       const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
       const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
-      const operatingExpenses = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
+      const generalOperating = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
+      const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance']);
+      const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
+      const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
+      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses;
 
       const totalRevenue = accessFees + requestFees + otherServiceIncome;
       const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
-      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpenses;
+      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal;
 
       // ══════════════════════════════════════════════════════════════
       // CASH FLOW — Separated into platform ops, custodial, & financing
@@ -267,8 +280,11 @@ export function useFinancialStatements() {
       const tenantFeesReceived = accessFees + requestFees;
       const platformRewardsPaid = platformRewards;
       const agentCommissionsPaid = agentCommissions;
-      const withdrawalsPaid = operatingExpenses + transactionExpenses;
-      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - withdrawalsPaid;
+      const payrollPaid = payrollExpenses;
+      const agentRequisitionsPaid = agentRequisitions;
+      const financialAgentExpensesPaid = financialAgentExpenses;
+      const withdrawalsPaid = generalOperating + transactionExpenses;
+      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - withdrawalsPaid;
 
       // Facilitation Activities (capital pass-through: tenant repayments ↔ landlord deployments)
       const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
@@ -301,7 +317,7 @@ export function useFinancialStatements() {
       // Platform Cash = All-time cumulative retained earnings (Balance Sheet is a point-in-time snapshot)
       // Uses the SAME direction-fallback logic as the Income Statement for consistency
       const revenueCategories = ['tenant_access_fee', 'access_fee', 'access_fee_collected', 'tenant_request_fee', 'request_fee', 'registration_fee_collected', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
-      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense'];
+      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense', 'salary_payment', 'employee_advance', 'agent_requisition', 'platform_expense_disbursement'];
       const allTimePlatformIn = allTimePlatform.filter(e => e.direction === 'cash_in');
       const allTimePlatformOut = allTimePlatform.filter(e => e.direction === 'cash_out');
       const allTimeRevenue = sumWithDirectionFallback(allTimePlatformIn, allTimePlatformOut, revenueCategories);
@@ -344,12 +360,12 @@ export function useFinancialStatements() {
           period: formatPeriodLabel(activeFilters),
           revenue: { accessFees, requestFees, otherServiceIncome, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, transactionExpenses, total: totalServiceCosts },
-          operatingExpenses,
+          operatingExpenses: { generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses, total: operatingExpensesTotal },
           netOperatingIncome,
         },
         cashFlow: {
           period: formatPeriodLabel(activeFilters),
-          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, withdrawalsPaid, netOperating },
+          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, payrollPaid, agentRequisitionsPaid, financialAgentExpensesPaid, withdrawalsPaid, netOperating },
           facilitationActivities: { rentRepayments, rentDeployments, netFacilitation },
           custodialActivities: { userDeposits, userWithdrawals, userTransfers, netCustodial },
           financingActivities: { supporterCapitalInflows, supporterCapitalWithdrawals, netFinancing },
