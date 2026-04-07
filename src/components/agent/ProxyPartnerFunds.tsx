@@ -309,7 +309,7 @@ export function ProxyPartnerFunds() {
 
               {partner.available <= 0 && partner.totalReceived === 0 && (
                 <div className="text-center">
-                  <Badge variant="secondary" className="text-xs">Awaiting returns</Badge>
+                  <Badge variant="secondary" className="text-xs">Ready for delivery</Badge>
                 </div>
               )}
 
