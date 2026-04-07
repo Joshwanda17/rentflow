@@ -35,6 +35,7 @@ import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
 import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { AgentFloatManagement } from '@/components/cfo/AgentFloatManagement';
+import { CFODashboardOverview } from '@/components/cfo/CFODashboardOverview';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
