@@ -375,6 +375,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onShareSubAgentLink={() => { setMenuOpen(false); setShareLinkOpen(true); }}
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
+        onOpenRequisition={() => { setMenuOpen(false); setRequisitionOpen(true); }}
+        isFinancialAgent={isFinancialAgent}
         onInviteFunder={() => {
           setMenuOpen(false);
           const funderLink = `${getPublicOrigin()}/auth?ref=${user.id}&role=funder`;
