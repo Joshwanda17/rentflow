@@ -412,7 +412,7 @@ Deno.serve(async (req) => {
 
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId && landlordPayment > 0) {
-          await creditWalletDirect(adminClient, landlordUserId, landlordPayment);
+          await ensureWalletExists(adminClient, landlordUserId);
 
           const { error: landlordLedgerError } = await adminClient
             .from('general_ledger')
