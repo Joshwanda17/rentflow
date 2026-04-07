@@ -344,6 +344,13 @@ Just click the link and enter your password to get started!`;
               <p className="text-sm text-muted-foreground">{roleConfig[createdInvite.role].label}</p>
             </div>
           </div>
+
+          {createdInvite.autoActivated && (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-center">
+              <p className="text-green-600 font-semibold text-sm">✅ Account Active — User can sign in now</p>
+            </div>
+          )}
+
           <div className="bg-background rounded-lg p-3">
             <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
             <p className="font-mono font-bold text-lg">{createdInvite.password}</p>
@@ -351,26 +358,34 @@ Just click the link and enter your password to get started!`;
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Activation Link</Label>
-        <div className="flex gap-2">
-          <Input value={getShareLink()} readOnly className="h-12 text-sm" />
-          <Button variant="outline" size="icon" onClick={handleCopyLink} className="h-12 w-12 shrink-0">
-            {copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
-          </Button>
-        </div>
-      </div>
+      {!createdInvite.autoActivated && (
+        <>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Activation Link</Label>
+            <div className="flex gap-2">
+              <Input value={getShareLink()} readOnly className="h-12 text-sm" />
+              <Button variant="outline" size="icon" onClick={handleCopyLink} className="h-12 w-12 shrink-0">
+                {copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
+              </Button>
+            </div>
+          </div>
 
-      <Button 
-        onClick={handleShareWhatsApp} 
-        className="w-full h-14 text-base font-medium bg-green-600 hover:bg-green-700"
-      >
-        <Share2 className="h-5 w-5 mr-2" />
-        Share on WhatsApp
-      </Button>
+          <Button 
+            onClick={handleShareWhatsApp} 
+            className="w-full h-14 text-base font-medium bg-green-600 hover:bg-green-700"
+          >
+            <Share2 className="h-5 w-5 mr-2" />
+            Share on WhatsApp
+          </Button>
+        </>
+      )}
 
       <Button variant="outline" onClick={handleClose} className="w-full h-12 text-base">
         Create Another
+      </Button>
+
+      <Button variant="ghost" onClick={handleClose} className="w-full h-12 text-base">
+        Close
       </Button>
     </div>
   ) : null;
