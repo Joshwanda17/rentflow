@@ -368,36 +368,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        const { data: freshAgentWallet } = await adminClient
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', agentId)
-          .single();
-
-        if (!freshAgentWallet) {
-          return new Response(
-            JSON.stringify({ error: 'Agent wallet not found' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const newAgentBalance = toNumber(freshAgentWallet.balance) - amount;
-        const { data: deductResult, error: deductError } = await adminClient
-          .from('wallets')
-          .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
-          .eq('user_id', agentId)
-          .eq('balance', freshAgentWallet.balance)
-          .select()
-          .maybeSingle();
-
-        if (deductError || !deductResult) {
-          console.error('[agent-deposit] Agent wallet deduction failed:', deductError);
-          return new Response(
-            JSON.stringify({ error: 'Failed to deduct agent wallet. Please retry.' }),
-            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
+        // Agent wallet deduction is handled by sync_wallet_from_ledger trigger on ledger insert below
         const { error: agentLedgerError } = await adminClient
           .from('general_ledger')
           .insert({
