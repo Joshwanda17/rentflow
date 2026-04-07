@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { KPICard } from '@/components/executive/KPICard';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -19,16 +18,12 @@ import {
   ShieldAlert, Loader2, BarChart3
 } from 'lucide-react';
 
+type ModuleId = 'daily' | 'kpi' | 'payment' | 'defaulter' | 'field' | 'scorecard' | 'redflags' | 'cashout';
+
 export function COOAgentTracker() {
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    daily: true, kpi: true, payment: false, defaulter: false,
-    field: false, scorecard: false, redflags: false, cashout: false,
-  });
-
-  const toggleSection = (key: string) =>
-    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  const [activeModule, setActiveModule] = useState<ModuleId>('daily');
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const dayStart = startOfDay(selectedDate).toISOString();
@@ -199,6 +194,17 @@ export function COOAgentTracker() {
 
   const isLoading = loadingRent || loadingCollections;
 
+  const modules: { id: ModuleId; label: string; icon: typeof Users; badge?: number; badgeColor?: string }[] = [
+    { id: 'daily', label: 'Daily Report', icon: ClipboardList },
+    { id: 'kpi', label: 'Key Numbers', icon: TrendingUp },
+    { id: 'payment', label: 'Payments', icon: Banknote },
+    { id: 'defaulter', label: 'Defaulters', icon: ShieldAlert, badge: defaulters.length, badgeColor: 'bg-destructive text-destructive-foreground' },
+    { id: 'field', label: 'Field', icon: MapPin, badge: visits.length },
+    { id: 'scorecard', label: 'Scorecard', icon: Trophy },
+    { id: 'redflags', label: 'Red Flags', icon: AlertTriangle, badge: redFlags.length, badgeColor: redFlags.length > 0 ? 'bg-destructive text-destructive-foreground' : undefined },
+    { id: 'cashout', label: 'Cashout', icon: Activity },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -235,205 +241,177 @@ export function COOAgentTracker() {
         {isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground self-center" />}
       </div>
 
-      {/* 1. Daily Report */}
-      <CollapsibleAgentSection
-        icon={ClipboardList}
-        label="Daily Report"
-        totalCount={newTenants.length + collections.length + visits.length}
-        iconColor="text-blue-600"
-        isOpen={openSections.daily}
-        onToggle={() => toggleSection('daily')}
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3">
-          <StatBox icon={UserPlus} label="New Tenants" value={newTenants.length} color="text-blue-600 bg-blue-500/10" />
-          <StatBox icon={Banknote} label="Collected" value={formatUGX(totalCollectedToday)} color="text-emerald-600 bg-emerald-500/10" />
-          <StatBox icon={AlertTriangle} label="Defaulters" value={defaulters.length} color="text-red-600 bg-red-500/10" />
-          <StatBox icon={MapPin} label="Follow-ups" value={visits.length} color="text-purple-600 bg-purple-500/10" />
-        </div>
-      </CollapsibleAgentSection>
+      {/* Toggle Tab Bar */}
+      <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-hide">
+        {modules.map((m) => {
+          const isActive = activeModule === m.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => setActiveModule(m.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0',
+                isActive
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              )}
+            >
+              <m.icon className="h-3.5 w-3.5" />
+              {m.label}
+              {m.badge !== undefined && m.badge > 0 && (
+                <span className={cn(
+                  'ml-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full',
+                  isActive
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : m.badgeColor || 'bg-primary/15 text-primary'
+                )}>
+                  {m.badge > 99 ? '99+' : m.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* 2. Key Numbers */}
-      <CollapsibleAgentSection
-        icon={TrendingUp}
-        label="Key Numbers"
-        iconColor="text-emerald-600"
-        isOpen={openSections.kpi}
-        onToggle={() => toggleSection('kpi')}
-      >
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-3">
-          <KPICard title="Expected Rent" value={formatUGX(totalExpected)} icon={Banknote} color="bg-blue-500/10 text-blue-600" />
-          <KPICard title="Total Collected" value={formatUGX(totalCollectedAll)} icon={TrendingUp} color="bg-emerald-500/10 text-emerald-600" />
-          <KPICard title="Total Arrears" value={formatUGX(totalArrears)} icon={AlertTriangle} color="bg-red-500/10 text-red-600" />
-          <KPICard title="Collection Rate" value={`${collectionRate}%`} icon={BarChart3} color="bg-primary/10 text-primary" />
-        </div>
-      </CollapsibleAgentSection>
-
-      {/* 3. Payment Tracking */}
-      <CollapsibleAgentSection
-        icon={Banknote}
-        label="Payment Tracking"
-        iconColor="text-amber-600"
-        isOpen={openSections.payment}
-        onToggle={() => toggleSection('payment')}
-      >
-        <div className="p-3 space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Collected vs Expected</span>
-            <span className="font-semibold">{collectionRate}%</span>
+      {/* Module Content */}
+      <div className="rounded-2xl border border-border bg-card">
+        {activeModule === 'daily' && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
+            <StatBox icon={UserPlus} label="New Tenants" value={newTenants.length} color="text-blue-600 bg-blue-500/10" />
+            <StatBox icon={Banknote} label="Collected" value={formatUGX(totalCollectedToday)} color="text-emerald-600 bg-emerald-500/10" />
+            <StatBox icon={AlertTriangle} label="Defaulters" value={defaulters.length} color="text-red-600 bg-red-500/10" />
+            <StatBox icon={MapPin} label="Follow-ups" value={visits.length} color="text-purple-600 bg-purple-500/10" />
           </div>
-          <Progress value={collectionRate} className="h-3" />
-          <div className="grid grid-cols-3 gap-3 text-center text-xs">
-            <div className="rounded-xl bg-muted/50 p-2">
-              <p className="font-bold text-emerald-600">{formatUGX(totalCollectedToday)}</p>
-              <p className="text-muted-foreground">Manual</p>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-2">
-              <p className="font-bold text-blue-600">{formatUGX(totalAutoCharged)}</p>
-              <p className="text-muted-foreground">Auto-charged</p>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-2">
-              <p className="font-bold text-destructive">{formatUGX(totalArrears)}</p>
-              <p className="text-muted-foreground">Arrears</p>
-            </div>
-          </div>
-        </div>
-      </CollapsibleAgentSection>
+        )}
 
-      {/* 4. Defaulter Control */}
-      <CollapsibleAgentSection
-        icon={ShieldAlert}
-        label="Defaulter Control"
-        pendingCount={defaulters.length}
-        pendingLabel="unpaid"
-        iconColor="text-destructive"
-        isOpen={openSections.defaulter}
-        onToggle={() => toggleSection('defaulter')}
-      >
-        <div className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
-          {defaulters.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No defaulters today 🎉</p>
-          ) : (
-            defaulters.slice(0, 20).map(d => (
-              <div key={d.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
-                <div>
-                  <p className="font-medium truncate max-w-[180px]">Tenant #{d.tenant_id?.slice(0, 8)}</p>
-                  <p className="text-xs text-muted-foreground">Rent: {formatUGX(d.rent_amount || 0)}</p>
-                </div>
-                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
-                  Unpaid
-                </Badge>
+        {activeModule === 'kpi' && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+            <KPICard title="Expected Rent" value={formatUGX(totalExpected)} icon={Banknote} color="bg-blue-500/10 text-blue-600" />
+            <KPICard title="Total Collected" value={formatUGX(totalCollectedAll)} icon={TrendingUp} color="bg-emerald-500/10 text-emerald-600" />
+            <KPICard title="Total Arrears" value={formatUGX(totalArrears)} icon={AlertTriangle} color="bg-red-500/10 text-red-600" />
+            <KPICard title="Collection Rate" value={`${collectionRate}%`} icon={BarChart3} color="bg-primary/10 text-primary" />
+          </div>
+        )}
+
+        {activeModule === 'payment' && (
+          <div className="p-4 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Collected vs Expected</span>
+              <span className="font-semibold">{collectionRate}%</span>
+            </div>
+            <Progress value={collectionRate} className="h-3" />
+            <div className="grid grid-cols-3 gap-3 text-center text-xs">
+              <div className="rounded-xl bg-muted/50 p-2">
+                <p className="font-bold text-emerald-600">{formatUGX(totalCollectedToday)}</p>
+                <p className="text-muted-foreground">Manual</p>
               </div>
-            ))
-          )}
-          {defaulters.length > 20 && (
-            <p className="text-xs text-muted-foreground text-center">+{defaulters.length - 20} more</p>
-          )}
-        </div>
-      </CollapsibleAgentSection>
+              <div className="rounded-xl bg-muted/50 p-2">
+                <p className="font-bold text-blue-600">{formatUGX(totalAutoCharged)}</p>
+                <p className="text-muted-foreground">Auto-charged</p>
+              </div>
+              <div className="rounded-xl bg-muted/50 p-2">
+                <p className="font-bold text-destructive">{formatUGX(totalArrears)}</p>
+                <p className="text-muted-foreground">Arrears</p>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {/* 5. Field Accountability */}
-      <CollapsibleAgentSection
-        icon={MapPin}
-        label="Field Accountability"
-        totalCount={visits.length}
-        iconColor="text-purple-600"
-        isOpen={openSections.field}
-        onToggle={() => toggleSection('field')}
-      >
-        <div className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
-          {visits.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No field check-ins today</p>
-          ) : (
-            visits.map(v => (
-              <div key={v.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-primary shrink-0" />
+        {activeModule === 'defaulter' && (
+          <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+            {defaulters.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No defaulters today 🎉</p>
+            ) : (
+              defaulters.slice(0, 20).map(d => (
+                <div key={d.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
                   <div>
-                    <p className="font-medium truncate max-w-[160px]">{v.location_name || 'GPS Check-in'}</p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(v.checked_in_at), 'h:mm a')}</p>
+                    <p className="font-medium truncate max-w-[180px]">Tenant #{d.tenant_id?.slice(0, 8)}</p>
+                    <p className="text-xs text-muted-foreground">Rent: {formatUGX(d.rent_amount || 0)}</p>
                   </div>
+                  <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
+                    Unpaid
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-xs">
-                  Verified
-                </Badge>
-              </div>
-            ))
-          )}
-        </div>
-      </CollapsibleAgentSection>
-
-      {/* 6. Weekly Scorecard */}
-      <CollapsibleAgentSection
-        icon={Trophy}
-        label="Weekly Scorecard"
-        iconColor="text-amber-600"
-        isOpen={openSections.scorecard}
-        onToggle={() => toggleSection('scorecard')}
-      >
-        <div className="p-3 space-y-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold">Overall Score</span>
-            <Badge className={cn(
-              'text-sm font-bold',
-              weeklyScore.weighted >= 70 ? 'bg-emerald-500 hover:bg-emerald-600' : weeklyScore.weighted >= 40 ? 'bg-amber-500 hover:bg-amber-600' : 'bg-destructive hover:bg-destructive/90'
-            )}>
-              {weeklyScore.weighted}%
-            </Badge>
+              ))
+            )}
+            {defaulters.length > 20 && (
+              <p className="text-xs text-muted-foreground text-center">+{defaulters.length - 20} more</p>
+            )}
           </div>
-          <ScoreRow label="Collections (40%)" value={Math.round(weeklyScore.collScore)} />
-          <ScoreRow label="Active Tenants (20%)" value={Math.round(weeklyScore.tenantScore)} />
-          <ScoreRow label="Follow-ups (20%)" value={Math.round(weeklyScore.visitScore)} />
-        </div>
-      </CollapsibleAgentSection>
+        )}
 
-      {/* 7. Red Flags */}
-      <CollapsibleAgentSection
-        icon={AlertTriangle}
-        label="Red Flags"
-        pendingCount={redFlags.length}
-        pendingLabel="alerts"
-        iconColor="text-destructive"
-        isOpen={openSections.redflags}
-        onToggle={() => toggleSection('redflags')}
-      >
-        <div className="p-3 space-y-2">
-          {redFlags.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No red flags — all clear ✅</p>
-          ) : (
-            redFlags.map((flag, i) => (
-              <div key={i} className={cn(
-                'rounded-xl border p-3 text-sm',
-                flag.severity === 'high' ? 'border-destructive/30 bg-destructive/5' : 'border-amber-500/30 bg-amber-500/5'
+        {activeModule === 'field' && (
+          <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+            {visits.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No field check-ins today</p>
+            ) : (
+              visits.map(v => (
+                <div key={v.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <p className="font-medium truncate max-w-[160px]">{v.location_name || 'GPS Check-in'}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(v.checked_in_at), 'h:mm a')}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-xs">
+                    Verified
+                  </Badge>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeModule === 'scorecard' && (
+          <div className="p-4 space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold">Overall Score</span>
+              <Badge className={cn(
+                'text-sm font-bold',
+                weeklyScore.weighted >= 70 ? 'bg-emerald-500 hover:bg-emerald-600' : weeklyScore.weighted >= 40 ? 'bg-amber-500 hover:bg-amber-600' : 'bg-destructive hover:bg-destructive/90'
               )}>
-                <p className="font-semibold flex items-center gap-2">
-                  <AlertTriangle className={cn('h-4 w-4', flag.severity === 'high' ? 'text-destructive' : 'text-amber-500')} />
-                  {flag.type}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">{flag.message}</p>
-              </div>
-            ))
-          )}
-        </div>
-      </CollapsibleAgentSection>
+                {weeklyScore.weighted}%
+              </Badge>
+            </div>
+            <ScoreRow label="Collections (40%)" value={Math.round(weeklyScore.collScore)} />
+            <ScoreRow label="Active Tenants (20%)" value={Math.round(weeklyScore.tenantScore)} />
+            <ScoreRow label="Follow-ups (20%)" value={Math.round(weeklyScore.visitScore)} />
+          </div>
+        )}
 
-      {/* 8. Cashout Activity */}
-      <CollapsibleAgentSection
-        icon={Activity}
-        label="Cashout Activity"
-        iconColor="text-orange-600"
-        isOpen={openSections.cashout}
-        onToggle={() => toggleSection('cashout')}
-      >
-        <div className="p-1">
-          <CashoutAgentActivity />
-        </div>
-      </CollapsibleAgentSection>
+        {activeModule === 'redflags' && (
+          <div className="p-4 space-y-2">
+            {redFlags.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No red flags — all clear ✅</p>
+            ) : (
+              redFlags.map((flag, i) => (
+                <div key={i} className={cn(
+                  'rounded-xl border p-3 text-sm',
+                  flag.severity === 'high' ? 'border-destructive/30 bg-destructive/5' : 'border-amber-500/30 bg-amber-500/5'
+                )}>
+                  <p className="font-semibold flex items-center gap-2">
+                    <AlertTriangle className={cn('h-4 w-4', flag.severity === 'high' ? 'text-destructive' : 'text-amber-500')} />
+                    {flag.type}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{flag.message}</p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeModule === 'cashout' && (
+          <div className="p-2">
+            <CashoutAgentActivity />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function StatBox({ icon: Icon, label, value, color }: { icon: typeof Users; label: string; value: string | number; color: string }) {
-  const [bg, text] = color.split(' ');
   return (
     <div className="rounded-xl bg-muted/30 p-3 flex flex-col items-center gap-1 text-center">
       <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center', color)}>
