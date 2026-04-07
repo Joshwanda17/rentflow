@@ -1,11 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save, X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const statusColor = (s: string) => {
   const m: Record<string, string> = {
@@ -29,12 +33,25 @@ interface TenantDetailPanelProps {
 }
 
 export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistration }: TenantDetailPanelProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Profile edit state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileEdit, setProfileEdit] = useState({ full_name: '', phone: '', city: '' });
+
+  // Request edit state — keyed by request id
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [savingRequest, setSavingRequest] = useState(false);
+  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', daily_repayment: '', duration_days: '' });
+
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
       const [profileRes, requestsRes, walletRes, collectionsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, city, created_at').eq('id', tenantId).maybeSingle(),
-        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, created_at, landlord_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, created_at, landlord_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('wallet_transactions').select('id, amount, type, created_at, description').or(`sender_id.eq.${tenantId},recipient_id.eq.${tenantId}`).order('created_at', { ascending: false }).limit(10),
         supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
       ]);
@@ -69,6 +86,124 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const totalRent = requests.reduce((s, r) => s + Number(r.rent_amount || 0), 0);
   const totalRepaid = requests.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
 
+  // --- Profile edit handlers ---
+  const startEditProfile = () => {
+    setProfileEdit({
+      full_name: profile?.full_name || '',
+      phone: profile?.phone || '',
+      city: profile?.city || '',
+    });
+    setIsEditingProfile(true);
+  };
+
+  const cancelEditProfile = () => {
+    setIsEditingProfile(false);
+  };
+
+  const saveProfile = async () => {
+    if (!profileEdit.full_name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const changes: Record<string, { from: string; to: string }> = {};
+      if (profileEdit.full_name !== (profile?.full_name || '')) changes.full_name = { from: profile?.full_name || '', to: profileEdit.full_name };
+      if (profileEdit.phone !== (profile?.phone || '')) changes.phone = { from: profile?.phone || '', to: profileEdit.phone };
+      if (profileEdit.city !== (profile?.city || '')) changes.city = { from: profile?.city || '', to: profileEdit.city };
+
+      if (Object.keys(changes).length === 0) {
+        setIsEditingProfile(false);
+        return;
+      }
+
+      const { error } = await supabase.from('profiles').update({
+        full_name: profileEdit.full_name.trim(),
+        phone: profileEdit.phone.trim(),
+        city: profileEdit.city.trim() || null,
+      }).eq('id', tenantId);
+
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        action_type: 'tenant_profile_edit',
+        user_id: user?.id || null,
+        record_id: tenantId,
+        table_name: 'profiles',
+        metadata: { changes },
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      toast.success('Profile updated');
+      setIsEditingProfile(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  // --- Request edit handlers ---
+  const startEditRequest = (req: typeof requests[0]) => {
+    setRequestEdit({
+      rent_amount: String(req.rent_amount || 0),
+      daily_repayment: String(req.daily_repayment || 0),
+      duration_days: String(req.duration_days || 0),
+    });
+    setEditingRequestId(req.id);
+  };
+
+  const cancelEditRequest = () => {
+    setEditingRequestId(null);
+  };
+
+  const saveRequest = async (reqId: string) => {
+    const amount = Number(requestEdit.rent_amount);
+    const daily = Number(requestEdit.daily_repayment);
+    const days = Number(requestEdit.duration_days);
+    if (!amount || amount <= 0) { toast.error('Rent amount must be positive'); return; }
+    if (!daily || daily <= 0) { toast.error('Daily repayment must be positive'); return; }
+    if (!days || days <= 0) { toast.error('Duration days must be positive'); return; }
+
+    setSavingRequest(true);
+    try {
+      const originalReq = requests.find(r => r.id === reqId);
+      const changes: Record<string, { from: number; to: number }> = {};
+      if (amount !== Number(originalReq?.rent_amount || 0)) changes.rent_amount = { from: Number(originalReq?.rent_amount || 0), to: amount };
+      if (daily !== Number(originalReq?.daily_repayment || 0)) changes.daily_repayment = { from: Number(originalReq?.daily_repayment || 0), to: daily };
+      if (days !== Number(originalReq?.duration_days || 0)) changes.duration_days = { from: Number(originalReq?.duration_days || 0), to: days };
+
+      if (Object.keys(changes).length === 0) {
+        setEditingRequestId(null);
+        return;
+      }
+
+      const { error } = await supabase.from('rent_requests').update({
+        rent_amount: amount,
+        daily_repayment: daily,
+        duration_days: days,
+      }).eq('id', reqId);
+
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        action_type: 'tenant_request_edit',
+        user_id: user?.id || null,
+        record_id: reqId,
+        table_name: 'rent_requests',
+        metadata: { tenant_id: tenantId, changes },
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
+      toast.success('Request updated');
+      setEditingRequestId(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to save');
+    } finally {
+      setSavingRequest(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <Button variant="ghost" onClick={onBack} className="h-10 px-3 gap-2 text-sm font-semibold -ml-1">
@@ -89,30 +224,56 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                   <User className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-foreground">{profile?.full_name || tenantName}</p>
-                  <p className="text-sm text-muted-foreground">{profile?.phone || '—'}</p>
-                  {profile?.city && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <MapPin className="h-3 w-3" />{profile.city}
-                    </p>
+                  {isEditingProfile ? (
+                    <div className="space-y-2">
+                      <Input placeholder="Full name" value={profileEdit.full_name} onChange={e => setProfileEdit(v => ({ ...v, full_name: e.target.value }))} className="h-8 text-sm" />
+                      <Input placeholder="Phone" value={profileEdit.phone} onChange={e => setProfileEdit(v => ({ ...v, phone: e.target.value }))} className="h-8 text-sm" />
+                      <Input placeholder="City" value={profileEdit.city} onChange={e => setProfileEdit(v => ({ ...v, city: e.target.value }))} className="h-8 text-sm" />
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-bold text-foreground">{profile?.full_name || tenantName}</p>
+                      <p className="text-sm text-muted-foreground">{profile?.phone || '—'}</p>
+                      {profile?.city && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3" />{profile.city}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
                 <div className="flex gap-1.5">
-                  {profile?.phone && (
+                  {isEditingProfile ? (
                     <>
-                      <Button variant="outline" size="icon" className="h-9 w-9" asChild>
-                        <a href={`tel:${profile.phone}`}><Phone className="h-4 w-4" /></a>
+                      <Button variant="outline" size="icon" className="h-9 w-9" onClick={cancelEditProfile} disabled={savingProfile}>
+                        <X className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="icon" className="h-9 w-9" asChild>
-                        <a href={`https://wa.me/${profile.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
-                          <MessageCircle className="h-4 w-4" />
-                        </a>
+                      <Button size="icon" className="h-9 w-9" onClick={saveProfile} disabled={savingProfile}>
+                        {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={startEditProfile}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {profile?.phone && (
+                        <>
+                          <Button variant="outline" size="icon" className="h-9 w-9" asChild>
+                            <a href={`tel:${profile.phone}`}><Phone className="h-4 w-4" /></a>
+                          </Button>
+                          <Button variant="outline" size="icon" className="h-9 w-9" asChild>
+                            <a href={`https://wa.me/${profile.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                              <MessageCircle className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
               </div>
-              {onViewRegistration && (
+              {onViewRegistration && !isEditingProfile && (
                 <Button variant="soft" size="sm" className="mt-2 w-full gap-1.5 text-xs" onClick={onViewRegistration}>
                   <FileSearch className="h-3.5 w-3.5" /> View Registration Info
                 </Button>
@@ -146,29 +307,71 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                 <p className="p-4 text-sm text-muted-foreground text-center">No requests</p>
               ) : (
                 <div className="divide-y divide-border">
-                  {requests.map((req) => (
-                    <div key={req.id} className="px-4 py-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', statusColor(req.status))}>
-                          {req.status.replace(/_/g, ' ')}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(req.created_at), 'dd MMM yyyy')}
-                        </span>
+                  {requests.map((req) => {
+                    const isEditing = editingRequestId === req.id;
+                    return (
+                      <div key={req.id} className="px-4 py-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', statusColor(req.status || ''))}>
+                            {(req.status || '').replace(/_/g, ' ')}
+                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(req.created_at), 'dd MMM yyyy')}
+                            </span>
+                            {!isEditing && (
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => startEditRequest(req)}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {isEditing ? (
+                          <div className="space-y-2 pt-1">
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <label className="text-[10px] text-muted-foreground">Rent Amount</label>
+                                <Input type="number" value={requestEdit.rent_amount} onChange={e => setRequestEdit(v => ({ ...v, rent_amount: e.target.value }))} className="h-8 text-sm" />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground">Daily Repay</label>
+                                <Input type="number" value={requestEdit.daily_repayment} onChange={e => setRequestEdit(v => ({ ...v, daily_repayment: e.target.value }))} className="h-8 text-sm" />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-muted-foreground">Days</label>
+                                <Input type="number" value={requestEdit.duration_days} onChange={e => setRequestEdit(v => ({ ...v, duration_days: e.target.value }))} className="h-8 text-sm" />
+                              </div>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={cancelEditRequest} disabled={savingRequest}>
+                                Cancel
+                              </Button>
+                              <Button size="sm" className="h-7 text-xs gap-1" onClick={() => saveRequest(req.id)} disabled={savingRequest}>
+                                {savingRequest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-semibold">UGX {Number(req.rent_amount || 0).toLocaleString()}</span>
+                              <span className="text-muted-foreground">
+                                Repaid: UGX {Number(req.amount_repaid || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                              <span>Agent: {req.agent_name}</span>
+                              <span>Landlord: {req.landlord_name}</span>
+                              {req.daily_repayment && <span>Daily: UGX {Number(req.daily_repayment).toLocaleString()}</span>}
+                              {req.duration_days && <span>{req.duration_days}d</span>}
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-semibold">UGX {Number(req.rent_amount || 0).toLocaleString()}</span>
-                        <span className="text-muted-foreground">
-                          Repaid: UGX {Number(req.amount_repaid || 0).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                        <span>Agent: {req.agent_name}</span>
-                        <span>Landlord: {req.landlord_name}</span>
-                        {req.daily_repayment && <span>Daily: UGX {Number(req.daily_repayment).toLocaleString()}</span>}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
