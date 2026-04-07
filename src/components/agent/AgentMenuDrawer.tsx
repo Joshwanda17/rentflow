@@ -71,6 +71,7 @@ interface AgentMenuDrawerProps {
   onInviteFunder?: () => void;
   onInviteAngelInvestor?: () => void;
   onOpenRequisition?: () => void;
+  onAngelPoolInvest?: () => void;
   isFinancialAgent?: boolean;
 }
 
