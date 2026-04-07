@@ -2837,9 +2837,17 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                           <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
                             ✓ Compounded
                           </Badge>
+                        ) : p.daysUntil < 0 ? (
+                          <Badge variant="destructive" className="shrink-0 text-[10px]">
+                            {Math.abs(p.daysUntil)}d overdue
+                          </Badge>
+                        ) : p.daysUntil === 0 ? (
+                          <Badge className="shrink-0 text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                            Due Today
+                          </Badge>
                         ) : (
-                          <Badge variant={p.daysUntil <= 2 ? 'destructive' : 'secondary'} className="shrink-0 text-[10px]">
-                            {p.daysUntil === 0 ? 'Today' : p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
+                          <Badge variant={p.daysUntil <= 2 ? 'warning' : 'secondary'} className="shrink-0 text-[10px]">
+                            {p.daysUntil === 1 ? 'Tomorrow' : `${p.daysUntil}d away`}
                           </Badge>
                         )}
                       </div>
