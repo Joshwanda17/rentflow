@@ -535,7 +535,7 @@ export function ApprovalQueue() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-bold truncate">{item.userName}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{getItemDisplayLabel(item)}</p>
                             {item.userPhone && (
                               <p className="text-[10px] text-muted-foreground/70">{item.userPhone}</p>
                             )}
