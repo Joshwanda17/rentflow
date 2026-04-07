@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator } from 'lucide-react';
+import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +59,11 @@ export function CFOAdvancesManager() {
   const totalAccruedInterest = advances.reduce((s: number, a: any) => s + Math.max(0, Number(a.outstanding_balance) - Number(a.principal)), 0);
   const overdueExposure = advances.filter((a: any) => a.status === 'overdue').reduce((s: number, a: any) => s + Number(a.outstanding_balance), 0);
 
+  // Access Fee Receivables
+  const totalAccessFees = advances.reduce((s: number, a: any) => s + Number(a.access_fee || 0), 0);
+  const totalAccessFeeCollected = advances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
+  const accessFeeReceivables = totalAccessFees - totalAccessFeeCollected;
+
   const calcFee = calcAmount ? calculateAccessFee(Number(calcAmount), Number(calcRate), Number(calcDays)) : 0;
   const calcTotal = Number(calcAmount || 0) + calcFee;
 
@@ -67,6 +72,7 @@ export function CFOAdvancesManager() {
     { label: 'Outstanding', value: formatUGX(totalOutstanding), icon: TrendingUp, cls: 'text-amber-600' },
     { label: 'Accrued Interest', value: formatUGX(totalAccruedInterest), icon: Percent, cls: 'text-purple-600' },
     { label: 'Overdue Exposure', value: formatUGX(overdueExposure), icon: AlertTriangle, cls: 'text-destructive' },
+    { label: 'Fee Receivables', value: formatUGX(accessFeeReceivables), icon: Receipt, cls: 'text-blue-600' },
   ];
 
   return (
@@ -82,7 +88,7 @@ export function CFOAdvancesManager() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {summaryCards.map((card) => (
           <Card key={card.label} className="border-border/50">
             <CardContent className="p-4">
@@ -157,13 +163,15 @@ export function CFOAdvancesManager() {
       ) : (
         <div className="rounded-md border">
           <Table>
-            <TableHeader>
+             <TableHeader>
               <TableRow>
                 <TableHead>Recipient</TableHead>
                 <TableHead>Principal</TableHead>
                 <TableHead className="hidden sm:table-cell">Interest</TableHead>
                 <TableHead>Outstanding</TableHead>
-                <TableHead className="hidden md:table-cell">Daily Rate</TableHead>
+                <TableHead className="hidden md:table-cell">Access Fee</TableHead>
+                <TableHead className="hidden md:table-cell">Fee Collected</TableHead>
+                <TableHead className="hidden lg:table-cell">Fee Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Issued</TableHead>
                 <TableHead>Days Left</TableHead>
                 <TableHead>Status</TableHead>
@@ -175,6 +183,9 @@ export function CFOAdvancesManager() {
                 const risk = getRiskLevel(adv);
                 const daysLeft = Math.max(0, differenceInDays(new Date(adv.expires_at), new Date()));
                 const interest = Math.max(0, Number(adv.outstanding_balance) - Number(adv.principal));
+                const advFee = Number(adv.access_fee || 0);
+                const advFeeCollected = Number(adv.access_fee_collected || 0);
+                const feeStatus = adv.access_fee_status || 'unpaid';
 
                 return (
                   <TableRow
@@ -186,7 +197,17 @@ export function CFOAdvancesManager() {
                     <TableCell>{formatUGX(adv.principal)}</TableCell>
                     <TableCell className="hidden sm:table-cell text-amber-600">{formatUGX(interest)}</TableCell>
                     <TableCell className="font-semibold">{formatUGX(adv.outstanding_balance)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{formatUGX(adv.daily_rate)}/d</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatUGX(advFee)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatUGX(advFeeCollected)}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <Badge variant="outline" className={
+                        feeStatus === 'settled' ? 'border-emerald-500/30 text-emerald-600' :
+                        feeStatus === 'partial' ? 'border-amber-500/30 text-amber-600' :
+                        'border-destructive/30 text-destructive'
+                      }>
+                        {feeStatus}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {new Date(adv.issued_at).toLocaleDateString()}
                     </TableCell>

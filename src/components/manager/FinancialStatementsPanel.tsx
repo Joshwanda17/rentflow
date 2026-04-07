@@ -50,6 +50,7 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent />
       <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent />
       <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent />
+      <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent />
       <LineItem label="Total Revenue" value={d.revenue.total} bold />
 
       <SectionHeader>Service Delivery Costs</SectionHeader>
@@ -130,6 +131,7 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Platform Cash (Earned Revenue)" value={d.assets.platformCash} indent />
       <LineItem label="User Funds Held in Custody" value={d.assets.userFundsHeld} indent />
       <LineItem label="Rent Receivables (Funded)" value={d.assets.receivables} indent />
+      <LineItem label="Advance Access Fee Receivables" value={d.assets.advanceAccessFeeReceivables} indent />
       <LineItem label="Total Assets" value={d.assets.totalAssets} bold />
 
       <SectionHeader>Obligations (Liabilities)</SectionHeader>
@@ -260,6 +262,7 @@ export function FinancialStatementsPanel() {
       rows.push(['Access Fees', '', d.revenue.accessFees]);
       rows.push(['Request Fees', '', d.revenue.requestFees]);
       rows.push(['Other Service Income', '', d.revenue.otherServiceIncome]);
+      rows.push(['Advance Access Fees Collected', '', d.revenue.advanceAccessFeesCollected]);
       rows.push(['Total Revenue', '', d.revenue.total]);
       rows.push(['', '', '']);
       rows.push(['SERVICE DELIVERY COSTS', '', '']);
@@ -314,6 +317,7 @@ export function FinancialStatementsPanel() {
       rows.push(['Platform Cash (Earned Revenue)', '', d.assets.platformCash]);
       rows.push(['User Funds Held in Custody', '', d.assets.userFundsHeld]);
       rows.push(['Rent Receivables (Funded)', '', d.assets.receivables]);
+      rows.push(['Advance Access Fee Receivables', '', d.assets.advanceAccessFeeReceivables]);
       rows.push(['Total Assets', '', d.assets.totalAssets]);
       rows.push(['', '', '']);
       rows.push(['OBLIGATIONS (LIABILITIES)', '', '']);

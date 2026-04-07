@@ -16,6 +16,7 @@ export interface IncomeStatementData {
     accessFees: number;
     requestFees: number;
     otherServiceIncome: number;
+    advanceAccessFeesCollected: number;
     total: number;
   };
   serviceDeliveryCosts: {
@@ -73,6 +74,7 @@ export interface BalanceSheetData {
     platformCash: number;
     userFundsHeld: number;
     receivables: number;
+    advanceAccessFeeReceivables: number;
     totalAssets: number;
   };
   platformObligations: {
@@ -175,6 +177,8 @@ export function useFinancialStatements() {
         walletsRes,
         // Rent requests for facilitated volume
         rentRequestsRes,
+        // Active advances for access fee receivables
+        advancesRes,
         // All-time platform balance for opening balance
         prevPlatformRes,
         // All-time platform entries for Balance Sheet (no date filter)
@@ -188,6 +192,7 @@ export function useFinancialStatements() {
         buildScopedQuery('bridge', 'cash_out'),
         supabase.from('wallets').select('balance'),
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
+        supabase.from('agent_advances').select('access_fee, access_fee_collected, access_fee_status, status').in('status', ['active', 'overdue']),
         (() => {
           // Fix #1: No opening balance for "All Time" — prevents double-counting
           if (!startDate) return Promise.resolve({ data: [], error: null });
@@ -232,6 +237,7 @@ export function useFinancialStatements() {
       const bridgeOut = bridgeOutRes.data || [];
       const wallets = walletsRes.data || [];
       const rentRequests = rentRequestsRes.data || [];
+      const activeAdvances = advancesRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
       const allTimePlatform = allTimePlatformRes.data || [];
 
@@ -268,7 +274,10 @@ export function useFinancialStatements() {
       const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
       const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses;
 
-      const totalRevenue = accessFees + requestFees + otherServiceIncome;
+      // Advance Access Fee Revenue (only recognized when collected)
+      const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
+
+      const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
       const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
       const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal;
 
@@ -331,7 +340,11 @@ export function useFinancialStatements() {
         .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
         .reduce((s, r) => s + Number(r.rent_amount || 0), 0);
 
-      const totalAssets = platformCash + userFundsHeld + outstandingRent;
+      // Advance Access Fee Receivables: uncollected access fees on active/overdue advances
+      const advanceAccessFeeReceivables = activeAdvances.reduce((s: number, a: any) =>
+        s + (Number(a.access_fee || 0) - Number(a.access_fee_collected || 0)), 0);
+
+      const totalAssets = platformCash + userFundsHeld + outstandingRent + advanceAccessFeeReceivables;
 
       // Obligations
       const userWalletCustody = userFundsHeld; // We owe this back to users
@@ -358,7 +371,7 @@ export function useFinancialStatements() {
         filters: activeFilters,
         incomeStatement: {
           period: formatPeriodLabel(activeFilters),
-          revenue: { accessFees, requestFees, otherServiceIncome, total: totalRevenue },
+          revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, transactionExpenses, total: totalServiceCosts },
           operatingExpenses: { generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses, total: operatingExpensesTotal },
           netOperatingIncome,
@@ -374,7 +387,7 @@ export function useFinancialStatements() {
           closingBalance: Math.max(0, closingBalance),
         },
         balanceSheet: {
-          assets: { platformCash, userFundsHeld, receivables: outstandingRent, totalAssets },
+          assets: { platformCash, userFundsHeld, receivables: outstandingRent, advanceAccessFeeReceivables, totalAssets },
           platformObligations: { userWalletCustody, pendingWithdrawals, accruedPlatformRewards, agentCommissionsPayable, totalObligations },
           platformEquity: { retainedOperatingSurplus, totalEquity: retainedOperatingSurplus },
         },
