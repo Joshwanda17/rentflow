@@ -17,8 +17,10 @@ import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 interface WithdrawRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  walletBalance: number;
+  walletBalance?: number;
   onSuccess?: () => void;
+  prefillAmount?: number;
+  prefillReason?: string;
 }
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
@@ -57,7 +59,7 @@ const PAYOUT_OPTIONS: { value: PayoutMode; label: string; sublabel: string; icon
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
 
-export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuccess }: WithdrawRequestDialogProps) {
+export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -71,6 +73,16 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [reason, setReason] = useState('');
+
+  // Prefill from proxy partner funds
+  useEffect(() => {
+    if (open && prefillAmount && prefillAmount > 0) {
+      setAmount(prefillAmount);
+    }
+    if (open && prefillReason) {
+      setReason(prefillReason);
+    }
+  }, [open, prefillAmount, prefillReason]);
   const [fetchingProfile, setFetchingProfile] = useState(false);
 
   useEffect(() => {

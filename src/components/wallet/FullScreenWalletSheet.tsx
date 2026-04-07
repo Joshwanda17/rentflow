@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getDynamicCurrencyName } from '@/lib/currencyFormat';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,8 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
 import { WalletLedgerStatement } from './WalletLedgerStatement';
+import { ProxyPartnerFunds } from '@/components/agent/ProxyPartnerFunds';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BillPaymentDialog } from './BillPaymentDialog';
 import { FoodMarketDialog } from './FoodMarketDialog';
 import { WalletDisclaimer } from './WalletDisclaimer';
@@ -57,6 +60,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [hasProxyPartners, setHasProxyPartners] = useState(false);
 
   const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
@@ -65,6 +69,21 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     setPendingDeposits(counts.deposits);
     setPendingWithdrawals(counts.withdrawals);
   }, [user]);
+
+  // Check if user has proxy partner entries
+  useEffect(() => {
+    const checkProxy = async () => {
+      if (!user?.id) return;
+      const { count } = await supabase
+        .from('general_ledger')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('category', 'roi_payout')
+        .not('linked_party', 'is', null);
+      setHasProxyPartners((count || 0) > 0);
+    };
+    if (open) checkProxy();
+  }, [open, user?.id]);
 
   useEffect(() => {
     if (open) {
@@ -269,8 +288,23 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   </CardContent>
                 </Card>
 
-                {/* Ledger statement */}
-                <WalletLedgerStatement />
+                {/* Ledger statement with optional proxy tab */}
+                {hasProxyPartners ? (
+                  <Tabs defaultValue="statement">
+                    <TabsList variant="pills" className="w-full">
+                      <TabsTrigger value="statement" variant="pills">Wallet Statement</TabsTrigger>
+                      <TabsTrigger value="proxy" variant="pills">Proxy Partners</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="statement">
+                      <WalletLedgerStatement />
+                    </TabsContent>
+                    <TabsContent value="proxy">
+                      <ProxyPartnerFunds />
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <WalletLedgerStatement />
+                )}
               </div>
 
               {/* Recent Transactions */}
