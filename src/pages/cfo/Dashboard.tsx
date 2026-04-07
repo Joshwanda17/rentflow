@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummary';
+import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
@@ -36,6 +37,8 @@ export default function CFODashboardPage() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'roi-requests':
+        return <CFOROIRequests />;
       case 'rent-payouts':
         return (
           <div className="space-y-4">

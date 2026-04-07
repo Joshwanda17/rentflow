@@ -29,7 +29,7 @@ import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 import { ServiceCentrePayoutApproval } from '@/components/cfo/ServiceCentrePayoutApproval';
-
+import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -63,6 +63,7 @@ export default function CFODashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'cash', label: 'Cash Position', icon: Wallet },
     { id: 'channels', label: 'Channels', icon: Receipt },
     { id: 'revenue', label: 'P&L', icon: DollarSign },
@@ -113,6 +114,11 @@ export default function CFODashboard() {
           <TabsContent value="overview" className="space-y-6">
             <ThresholdAlerts />
             <FinancialOverview />
+          </TabsContent>
+
+          {/* ROI Requests Tab */}
+          <TabsContent value="roi" className="space-y-6">
+            <CFOROIRequests />
           </TabsContent>
 
           {/* Cash Position Tab */}
