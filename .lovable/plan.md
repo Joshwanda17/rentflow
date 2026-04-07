@@ -1,66 +1,77 @@
 
 
-# Direct Agent Wallet Credit for Proxy Payouts
+# Unified Financial Control System: CFO Approval Gate for ROI & Payouts
 
 ## Problem
-When COO/Partner Ops clicks "Credit Agent Wallet" from the Nearing Payouts section, the money goes into a `pending_wallet_operations` queue awaiting CFO approval. The agent never sees the money until CFO acts. The user wants the credit to land in the agent's wallet **immediately**.
+Currently, the "Credit Agent Wallet" mode bypasses CFO approval and credits the agent directly. The user wants **all** fund allocations to go through CFO approval first. The separation of powers is:
+- **CFO** controls money **into** wallets (approve credits)
+- **Financial Ops** controls money **out of** wallets (approve withdrawals)
 
-## Current Flow
+## Current vs. Required Flow
+
 ```text
-COO clicks "Credit Agent Wallet"
-  → pending_wallet_operations (status: pending)
-    → CFO approves
-      → general_ledger insert
-        → sync_wallet_from_ledger trigger
-          → agent wallet updated
-```
+CURRENT (agent_wallet mode):
+  Partner Ops clicks "Credit Agent Wallet"
+    → direct general_ledger insert → agent wallet credited immediately
 
-## New Flow
-```text
-COO clicks "Credit Agent Wallet"
-  → general_ledger insert (direct, cash_in to agent)
-    → sync_wallet_from_ledger trigger fires
-      → agent wallet balance increases immediately
-  → audit_logs + notifications
-  → next_roi_date advanced
-
-Agent withdraws to pay partner → normal withdrawal pipeline applies
+REQUIRED:
+  Partner Ops clicks any payout option
+    → pending_wallet_operations (status: pending)
+      → CFO approves → ledger insert → wallet credited
+        → Partner/Agent withdraws → Financial Ops approves → money out
 ```
 
 ## Changes
 
-### 1. `src/components/coo/COOPartnersPage.tsx` — `handlePay` function (mode `agent_wallet`)
+### 1. Revert Direct Credit in `COOPartnersPage.tsx`
 
-When `mode === 'agent_wallet'`, instead of inserting into `pending_wallet_operations`, the function will:
+In the `handlePay` function, remove the special `agent_wallet` direct-credit branch (lines ~2633-2687). All three modes (`wallet`, `agent_wallet`, `already_paid`) will go through `pending_wallet_operations` with status `pending`. The `agent_wallet` mode will set `target_wallet_user_id` to the agent's ID so the CFO and approve-wallet-operation function know which wallet to credit.
 
-- Insert directly into `general_ledger` with:
-  - `user_id`: agent's ID (from `managedInfo`)
-  - `direction`: `cash_in`
-  - `category`: `roi_payout`
-  - `transaction_group_id`: new UUID (required for `sync_wallet_from_ledger` trigger)
-  - `ledger_scope`: `platform`
-  - `linked_party`: partner's investor ID
-  - `description`: `[Agent Wallet] ROI payout of X to agent_name on behalf of partner_name`
-- Still advance `next_roi_date` on the portfolio
-- Still insert audit log (`roi_managed_payout_direct`)
-- Still notify the partner and CFO users (as informational, not approval-required)
-- Mark as completed immediately (no "pending" state)
+### 2. New CFO Tab: "ROI Requests"
 
-The `wallet` and `already_paid` modes remain unchanged — they still go through the pending pipeline.
+Create `src/components/cfo/CFOROIRequests.tsx` — a dedicated panel showing all `pending_wallet_operations` where `category = 'roi_payout'`.
 
-### 2. Same fix in the Partner Detail payment options (lines ~2940-3004)
+Displays:
+- Partner name, agent name (if proxy), amount, requested by, timestamp
+- Status badge (pending / approved / rejected)
+- Approve and Reject buttons with mandatory 10-char reason for rejection
 
-The same "Credit Agent Wallet" button exists in the partner detail view's payment options step. Apply the identical direct-credit logic there.
+On **Approve**: calls the existing `approve-wallet-operation` edge function which inserts into `general_ledger` and triggers `sync_wallet_from_ledger` to credit the wallet.
 
-### No Edge Function or Database Changes Needed
+On **Reject**: updates `pending_wallet_operations` status to `rejected` with reason, notifies Partner Ops.
 
-The `general_ledger` insert with a `transaction_group_id` already triggers `sync_wallet_from_ledger` which updates the agent's wallet balance. This is the same mechanism used by other direct-credit flows in the system.
+### 3. Add Tab to CFO Dashboard
+
+In `CFODashboard.tsx`, add a new `roi` tab between Overview and Cash Position:
+```
+{ id: 'roi', label: 'ROI Requests', icon: TrendingUp }
+```
+Renders `<CFOROIRequests />` with pending count badge.
+
+### 4. Update `approve-wallet-operation` Edge Function
+
+The existing function already handles approval of `pending_wallet_operations` → ledger insert. It needs one small addition: when `target_wallet_user_id` is set (agent wallet proxy), use that as the `user_id` for the ledger credit instead of `user_id`. This ensures proxy agent wallets get credited correctly upon CFO approval.
+
+### 5. Notifications
+
+- **On initiation**: CFO gets `approval_required` notification for all ROI/payout requests (already exists for `wallet` mode, now extended to `agent_wallet`)
+- **On CFO approval**: Partner gets `payout_completed` notification; agent gets notification if proxy
+- **On CFO rejection**: Partner Ops gets `payout_rejected` notification with reason
+
+## What Stays the Same
+
+- Withdrawal pipeline (Financial Ops approval for cash-out) — already works
+- `already_paid` mode logic — stays in pending pipeline
+- Advance recovery on deposit — already works
+- Audit logging — already in place
+- `next_roi_date` advancement — stays at initiation time to prevent duplicate claims
 
 ## Summary
 
 | Change | File |
 |--------|------|
-| Direct ledger credit for `agent_wallet` mode | `COOPartnersPage.tsx` (2 locations: NearingPayoutsDialog + partner detail) |
-
-One file change, two locations within it. The agent sees money immediately; the existing withdrawal pipeline governs how the agent sends it to the partner.
+| Revert direct credit, route all modes through pending pipeline | `COOPartnersPage.tsx` |
+| New ROI Requests approval panel | `CFOROIRequests.tsx` (new) |
+| Add ROI tab to CFO dashboard | `CFODashboard.tsx` |
+| Handle `target_wallet_user_id` for proxy credits | `approve-wallet-operation/index.ts` |
 
