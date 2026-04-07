@@ -267,7 +267,11 @@ export function FinancialStatementsPanel() {
       rows.push(['Agent Commissions', '', -d.serviceDeliveryCosts.agentCommissions]);
       rows.push(['Transaction Expenses', '', -d.serviceDeliveryCosts.transactionExpenses]);
       rows.push(['Total Service Costs', '', -d.serviceDeliveryCosts.total]);
-      rows.push(['Operating Expenses', '', -d.operatingExpenses]);
+      rows.push(['Payroll & Staff Costs', '', -d.operatingExpenses.payrollExpenses]);
+      rows.push(['Agent Requisitions', '', -d.operatingExpenses.agentRequisitions]);
+      rows.push(['Financial Agent Expenses', '', -d.operatingExpenses.financialAgentExpenses]);
+      rows.push(['General Operating Expenses', '', -d.operatingExpenses.generalOperating]);
+      rows.push(['Total Operating Expenses', '', -d.operatingExpenses.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
     } else if (activeTab === 'cashflow') {
       const d = data.cashFlow;
