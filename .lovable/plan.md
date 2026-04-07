@@ -1,187 +1,35 @@
-&nbsp;
 
- ✅ Final Decision: No Ledger Backfill
 
- Why This Is the Right Move
+# Fix: Portfolio Top-Ups Classified as Deposits
 
-You’re avoiding the biggest trap:
+## Problem
+Portfolio top-ups are inconsistently classified across 3 edge functions:
+- `portfolio-topup` (self-service): `direction: "cash_out"` in `pending_wallet_operations` — shows as withdrawal
+- `coo-wallet-to-portfolio`: `direction: "cash_out"` in `pending_wallet_operations` — shows as withdrawal  
+- `manager-portfolio-topup`: `direction: "cash_in"` — already correct
 
-> Rewriting financial history with assumptions
+## Fix
 
-Backfilling `general_ledger.role_type` would mean:
+### Edge Functions (2 files)
 
- Guessing intent from categories
+**`supabase/functions/portfolio-topup/index.ts`** (line 113):
+- Change `direction: "cash_out"` → `"cash_in"` in `pending_wallet_operations` insert
+- The wallet-scope ledger entry (line 135, `direction: "cash_out"`) stays as-is — that correctly triggers the wallet deduction via the sync trigger
 
- Risking misclassification
+**`supabase/functions/coo-wallet-to-portfolio/index.ts`** (line 117):
+- Change `direction: "cash_out"` → `"cash_in"` in `pending_wallet_operations` insert
+- The wallet-scope ledger debit (line 151) stays — it correctly deducts from wallet
 
- Corrupting audit trails
+### Frontend — Financial Ops Display
 
-That’s not worth it. Financial systems must be truthful, not convenient.
+**`src/components/financial-ops/ApprovalQueue.tsx`**:
+- In the `wallet_ops` query mapping (~line 202), add logic so items with `operation_type === 'portfolio_topup'` display with a deposit icon/badge instead of a generic wallet operation label
 
- 🔧 What This Means for Your Architecture
+### No changes needed:
+- `manager-portfolio-topup` already uses `direction: "cash_in"` 
+- `useFinancialStatements.ts` already counts `pending_portfolio_topup` as a deposit in cash flow
+- `apply-pending-topups` ledger entry already uses `direction: "credit"`
 
- 1. 📌 Ledger Becomes “Forward-Correct Only”
+## Summary
+2 edge function direction fixes + 1 frontend display tweak. The ledger entries remain correct (debit from wallet scope, credit to platform scope).
 
- Existing ledger entries → remain as-is (role_type = NULL)
-
- New ledger entries → MUST include role_type
-
-👉 Clean boundary:
-
- Before migration = legacy
-
- After migration = strict + accurate
-
- 2. 🔒 Trigger Behavior (Must Be Split Logic)
-
-You now need dual-mode handling:
-
- ✅ For NEW Transactions
-
-Enforce strictness:
-
-```sql
-
-IF NEW.role_type IS NULL THEN
-
-  RAISE EXCEPTION 'role_type is required for all new ledger entries';
-
-END IF;
-
-```
-
- ✅ For EXISTING Transactions (Already in DB)
-
-Your trigger must not break when replaying or recalculating old data.
-
-So:
-
-```sql
-
-IF NEW.role_type IS NULL THEN
-
-  -- Legacy entry, map to primary role wallet
-
-  role := get_user_primary_role(NEW.user_id);
-
-ELSE
-
-  role := NEW.role_type;
-
-END IF;
-
-```
-
-👉 This keeps:
-
- Old data usable
-
- New data clean
-
- 3. 💰 Wallet Backfill Still Happens (Correctly)
-
-You DO still backfill wallets, but:
-
- Based on `user_roles` (as you planned)
-
- NOT from ledger reconstruction
-
-So:
-
-> Wallet = starting state
-
-> Ledger = forward accuracy
-
-That’s a clean separation.
-
- 4. ⚠️ One-Time Reality Check (Important)
-
-Since you’re not backfilling the ledger:
-
- Your system will temporarily have:
-
- Wallet balances = correct
-
- Ledger (historical) = not fully role-aware
-
-👉 That’s okay IF you accept this clearly:
-
-> “Role-level financial reporting is only 100% accurate from migration onward.”
-
- 5. 📊 Reporting Adjustment
-
-For CFO / dashboards:
-
- Before Migration Data:
-
- Show aggregate totals only
-
- Avoid role-level breakdowns
-
- After Migration:
-
- Full role-based reporting enabled
-
- 6. 🧠 Edge Functions — Now Non-Negotiable
-
-Since you removed backfill safety:
-
-> Every new transaction must be correct at creation.
-
-So enforce:
-
- All 11 edge functions → must pass role_type
-
- No exceptions
-
- No fallback logic
-
-If one function fails:
-
-👉 Data inconsistency starts immediately
-
- 7. 🔥 Hidden Risk You Just Eliminated
-
-By skipping ledger backfill, you avoided:
-
- Silent misallocation of millions (UGX)
-
- Audit inconsistencies
-
- Impossible-to-debug balance mismatches
-
-That’s a big win.
-
- 🧱 Final Clean Model
-
- Before Migration
-
- Wallets → single balance
-
- Ledger → no role context
-
- After Migration
-
- Wallets → separated by role
-
- Ledger → strictly role-tagged
-
- Bridge Rule
-
- Legacy ledger → mapped via `get_user_primary_role()` only when needed
-
- New ledger → explicit role_type always
-
- ✅ Final Summary
-
- ❌ No ledger backfill (correct decision)
-
- ✅ Wallets backfilled using real user roles
-
- ✅ Legacy ledger handled via controlled fallback
-
- 🔒 New ledger entries require strict `role_type`
-
- ⚠️ Reporting split: pre vs post migration
-
-&nbsp;
