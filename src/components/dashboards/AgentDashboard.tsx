@@ -439,6 +439,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />
       <AgentInvestForPartnerDialog open={investForPartnerOpen} onOpenChange={setInvestForPartnerOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
       <ProxyInvestmentHistorySheet open={proxyHistoryOpen} onOpenChange={setProxyHistoryOpen} />
+      <AgentAngelPoolInvestDialog open={angelPoolInvestOpen} onOpenChange={setAngelPoolInvestOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
       <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
       <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
