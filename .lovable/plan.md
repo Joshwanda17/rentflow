@@ -1,16 +1,17 @@
 
 
-## Fix: Register New Investor dialog overflows on mobile
+## Fix: "Register & Select" button text cut off on mobile
 
-**Problem**: The dialog uses `max-w-md` (448px) which exceeds the 390px mobile viewport, causing horizontal overflow.
+**Problem**: The button row uses `flex-1` on both buttons, splitting space 50/50. The "Register & Select" text with its icon overflows on 390px viewports.
 
-**Changes to `src/components/agent/AgentAngelPoolInvestDialog.tsx`**:
+**Changes to `src/components/agent/AgentAngelPoolInvestDialog.tsx`** (lines 334-350):
 
-1. Change the `DialogContent` className from `max-w-md` to `w-[95vw] max-w-md` so it respects mobile viewport width while capping at `md` on larger screens.
+1. Change button layout from `flex-1` equal split to give the Register button more room:
+   - Remove `flex-1` from both buttons
+   - Use `shrink-0` on "Back to Search" and `flex-1` on the Register button, OR
+   - Simply add `text-sm` to both buttons and keep `flex-1` to shrink text to fit
 
-2. Add `px-4` padding adjustments to ensure inner content doesn't touch edges on small screens.
+2. Shorten button label to **"Register"** (removing "& Select" since auto-selection is implied) — this is the simplest fix and avoids any layout hacks.
 
-3. On the bottom button row (Back to Search / Register & Select), reduce text size on mobile to prevent the "Register & Select" button from being cut off — use `text-sm` on the buttons.
-
-This is a single-line CSS fix on the container, no logic changes needed.
+**Recommended approach**: Shorten the label to "Register" and keep the `UserPlus` icon. Single-line change.
 
