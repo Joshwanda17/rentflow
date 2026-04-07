@@ -1,54 +1,105 @@
 
 
-# Redesign Fund Requisition to Match Reference Design
+# Partner Investment Capture with Receipt Upload & CFO Review
+
+## What Exists Today
+
+The `AgentInvestForPartnerDialog` is a simple 3-field form (name, phone, amount) that immediately activates a portfolio via the `agent-invest-for-partner` edge function. There is **no receipt upload**, **no investment reference field**, and **no CFO review step** — investments go live instantly.
 
 ## What Changes
 
-Redesign `FinancialAgentSection` and `AgentRequisitionForm` to match the uploaded reference — a clean, modern financial app layout with a proper header, styled form card, prominent submit button, and polished requisition history cards.
+Add receipt upload + investment reference to the agent form, store receipt files in a private storage bucket, and add a CFO review panel for verifying partner investments with receipt visibility.
 
-## Changes
+---
 
-### File: `src/components/agent/FinancialAgentSection.tsx`
+## Database Changes
 
-Replace the Sheet wrapper with a full-height layout matching the reference:
-- **Header area**: "FINANCIAL AGENT" badge in purple below app name, large "Fund Requisition" title, subtitle "Request liquidity for operational disbursements."
-- Remove the info banner — the header conveys enough context
-- Render the redesigned `AgentRequisitionForm` below
-- Bottom security banner: purple rounded card with shield icon — "Secured Vault Access" + compliance message
+### 1. New storage bucket: `investment-receipts` (private)
+- RLS: agents upload to their own folder, CFO/manager/coo can read all
 
-### File: `src/components/financial-ops/AgentRequisitionForm.tsx`
+### 2. Alter `investor_portfolios` table
+Add two columns:
+- `investment_reference TEXT` — agent-provided transaction reference or description
+- `receipt_file_url TEXT` — URL to uploaded receipt in storage
 
-Complete visual overhaul (logic stays the same):
+These fields attach directly to the portfolio record, avoiding a new table since the existing `investor_portfolios` already tracks each investment with agent_id, partner info, amount, and status.
 
-**Form Card:**
-- Rounded card with light gray/purple tint background
-- Header row: purple icon + "Submit Fund Requisition" + subtitle "FUNDS WILL BE DISBURSED TO YOUR WALLET"
-- **Amount field**: Styled with "UGX" prefix label inside the input, placeholder "0.00", gray background
-- **Purpose dropdown**: Gray background, "Select requisition purpose" placeholder
-- **Description textarea**: Gray background, character counter "0 / 250" aligned right, placeholder "Provide details regarding this fund request..."
-- **Submit button**: Full-width, purple gradient (`bg-gradient-to-r from-purple-600 to-purple-500`), rounded-xl, large text "Submit Requisition" with arrow icon, no border
+---
 
-**History Section:**
-- Header row: "My Requisitions" left-aligned + "VIEW ALL" link right-aligned (purple text)
-- Show only first 3 by default; "VIEW ALL" toggles showing all
-- Each requisition card: horizontal layout with:
-  - Left: purple file icon in a light purple circle
-  - Middle: purpose label (bold) + status badge (colored: orange PENDING, green APPROVED, red DECLINED) + date/time
-  - Right: amount + "UGX" label, right-aligned
-- Status badges: solid background (not outline) — orange for pending, green for approved, red for declined, small rounded pill with uppercase text
+## File Changes
 
-**Style tokens:**
-- Form background: `bg-muted/40` or `bg-gray-50`
-- Input backgrounds: `bg-gray-100` with no visible border
-- Button: `bg-gradient-to-r from-primary to-primary/80 text-white rounded-xl py-6 text-base font-semibold`
-- Requisition cards: `bg-muted/30 rounded-2xl p-4` with no visible border
+### `src/components/agent/AgentInvestForPartnerDialog.tsx`
+- Add **Investment Reference** text input (required, placeholder "e.g. MoMo TID 12345 or cash receipt number")
+- Add **Receipt Upload** field (required) — file input accepting PDF, JPG, PNG with preview
+- Upload receipt to `investment-receipts/{agent_id}/{timestamp}_{filename}` before submitting
+- Pass `investment_reference` and `receipt_file_url` to the edge function
+- Validation: block submit if no receipt attached
+
+### `supabase/functions/agent-invest-for-partner/index.ts`
+- Accept new optional fields: `investment_reference`, `receipt_file_url`
+- Store them on the `investor_portfolios` record during creation
+- No other logic changes — the instant activation flow stays the same
+
+### New component: `src/components/cfo/CFOPartnerInvestments.tsx`
+CFO review panel showing all `investor_portfolios` with:
+- Partner name, agent name, phone, amount
+- Investment reference text
+- Receipt preview/download (using StorageImage for images, link for PDFs)
+- Submission date, status
+- **Verify** / **Flag** actions (updates a `cfo_verified` boolean on the portfolio)
+- Filter by status (all / pending verification / verified / flagged)
+
+### `src/pages/CFODashboard.tsx`
+- Add new tab: `{ id: 'investments', label: 'Investments', icon: HandCoins }`
+- Render `<CFOPartnerInvestments />` in that tab
+
+### Migration SQL
+```sql
+-- Add receipt tracking to investor_portfolios
+ALTER TABLE investor_portfolios 
+  ADD COLUMN IF NOT EXISTS investment_reference TEXT,
+  ADD COLUMN IF NOT EXISTS receipt_file_url TEXT,
+  ADD COLUMN IF NOT EXISTS cfo_verified BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS cfo_verified_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS cfo_verified_by UUID REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS cfo_rejection_reason TEXT;
+
+-- Private bucket for investment receipts
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('investment-receipts', 'investment-receipts', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Agents upload to their own folder
+CREATE POLICY "Agents upload investment receipts"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'investment-receipts' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Agents can view their own receipts
+CREATE POLICY "Agents view own investment receipts"
+ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id = 'investment-receipts' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Staff can view all investment receipts
+CREATE POLICY "Staff view all investment receipts"
+ON storage.objects FOR SELECT TO authenticated
+USING (
+  bucket_id = 'investment-receipts' 
+  AND EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE user_id = auth.uid() 
+    AND role IN ('manager', 'cfo', 'coo', 'super_admin', 'cto', 'operations')
+  )
+);
+```
+
+## Summary
 
 | Area | Change |
 |---|---|
-| FinancialAgentSection | New header layout, security banner at bottom |
-| AgentRequisitionForm (form) | Styled card with gray inputs, gradient button, UGX prefix |
-| AgentRequisitionForm (history) | Card-based list with icons, solid status badges, VIEW ALL toggle |
-| Logic | No changes — all mutations/queries stay identical |
+| Agent form | +Investment reference field, +Receipt upload (required) |
+| Edge function | Accept & store `investment_reference`, `receipt_file_url` |
+| Database | 6 new columns on `investor_portfolios`, new storage bucket |
+| CFO Dashboard | New "Investments" tab with verify/flag workflow |
 
-**Files changed:** `FinancialAgentSection.tsx`, `AgentRequisitionForm.tsx`
+**Files:** `AgentInvestForPartnerDialog.tsx`, `agent-invest-for-partner/index.ts`, new `CFOPartnerInvestments.tsx`, `CFODashboard.tsx`, 1 migration
 
