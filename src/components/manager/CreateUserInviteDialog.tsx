@@ -405,7 +405,7 @@ Just click the link and enter your password to get started!`;
             </SheetTitle>
             <SheetDescription>
               {createdInvite 
-                ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`
+                ? (createdInvite.autoActivated ? 'User has been added to the system' : `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`)
                 : 'Create a new user account'}
             </SheetDescription>
           </SheetHeader>
