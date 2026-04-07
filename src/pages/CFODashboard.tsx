@@ -72,6 +72,7 @@ export default function CFODashboard() {
     { id: 'statements', label: 'Statements', icon: BookOpen },
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'payouts', label: 'Payouts', icon: Banknote },
+    { id: 'requisitions', label: 'Requisitions', icon: FileText },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
     { id: 'ledger', label: 'Ledger', icon: ClipboardList },
   ];
