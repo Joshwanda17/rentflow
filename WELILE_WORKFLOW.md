@@ -3453,7 +3453,7 @@ For terminations: triggers account freeze workflow
 
 ---
 
-# Appendix G: Changelog (v2.0 → v4.0)
+# Appendix G: Changelog (v2.0 → v5.0)
 
 | Feature | Version | Change |
 |---------|---------|--------|
@@ -3469,21 +3469,34 @@ For terminations: triggers account freeze workflow
 | Service Centre Workflow | v3.3 | NEW — Photo/GPS submission and verification |
 | Agent Commission Benefits Page | v3.3 | NEW — Plain-language explainer |
 | Withdrawal Pipeline | v3.3 | SIMPLIFIED — Single-step Financial Ops approval |
-| **Agent Ops Dashboard** | **v4.0** | **DOCUMENTED — Quick Nav Grid with 14 sub-views** |
-| **Landlord Ops Dashboard** | **v4.0** | **NEW SECTION — Chain health, property map, viewing scheduler** |
-| **Angel Pool System** | **v4.0** | **NEW SECTION — Full investment system documentation** |
-| **All Wallet Components** | **v4.0** | **DOCUMENTED — 26 wallet components catalogued** |
-| **All Agent Components** | **v4.0** | **DOCUMENTED — 86 agent components catalogued** |
-| **All Supporter Components** | **v4.0** | **DOCUMENTED — 58 supporter components catalogued** |
-| **UI Design System** | **v4.0** | **NEW — Appendix F with design tokens and patterns** |
-| **Financial Ops Components** | **v4.0** | **DOCUMENTED — 13 Financial Ops components** |
-| **CFO Components** | **v4.0** | **DOCUMENTED — 23 CFO-specific components** |
-| **COO Components** | **v4.0** | **DOCUMENTED — 14 COO-specific components** |
-| **Manager Components** | **v4.0** | **DOCUMENTED — 100+ manager components** |
-| **AI Features** | **v4.0** | **DOCUMENTED — 4 AI-powered manager components** |
-| **PWA Branding** | **v4.0** | **UPDATED — App name "Welile.com" on all devices** |
-| **Edge Functions** | **v4.0** | **COMPLETE — All 81 edge functions documented** |
+| Agent Ops Dashboard | v4.0 | DOCUMENTED — Quick Nav Grid with 14 sub-views |
+| Landlord Ops Dashboard | v4.0 | NEW SECTION — Chain health, property map, viewing scheduler |
+| Angel Pool System | v4.0 | NEW SECTION — Full investment system documentation |
+| All Wallet Components | v4.0 | DOCUMENTED — 26 wallet components catalogued |
+| All Agent Components | v4.0 | DOCUMENTED — 86 agent components catalogued |
+| All Supporter Components | v4.0 | DOCUMENTED — 58 supporter components catalogued |
+| UI Design System | v4.0 | NEW — Appendix F with design tokens and patterns |
+| Financial Ops Components | v4.0 | DOCUMENTED — 13 Financial Ops components |
+| CFO Components | v4.0 | DOCUMENTED — 23 CFO-specific components |
+| COO Components | v4.0 | DOCUMENTED — 14 COO-specific components |
+| Manager Components | v4.0 | DOCUMENTED — 100+ manager components |
+| AI Features | v4.0 | DOCUMENTED — 4 AI-powered manager components |
+| PWA Branding | v4.0 | UPDATED — App name "Welile.com" on all devices |
+| Edge Functions | v4.0 | COMPLETE — All 81 edge functions documented |
+| **Trigger-Only Wallet Policy** | **v5.0** | **ENFORCED — `sync_wallet_from_ledger` is sole writer for wallet balances; manual updates forbidden** |
+| **Double-Deduction Bug Fix** | **v5.0** | **RESOLVED — `agent-deposit` patched to remove manual wallet subtraction** |
+| **HR Dashboard** | **v5.0** | **NEW SECTION 38 — Full HR module with 9 components, 3 edge functions** |
+| **Agent-Facilitated Angel Pool** | **v5.0** | **NEW — `agent-angel-pool-invest` edge function with 1% commission** |
+| **Proxy Partner Payout Management** | **v5.0** | **NEW — `ProxyPartnerFunds` component, `proxy_partner_withdrawal` category** |
+| **Financial Agent Requisitions** | **v5.0** | **NEW — `AgentRequisitionForm` + `CFOAgentRequisitions` approval queue** |
+| **CFO Dashboard Expansion** | **v5.0** | **EXPANDED — 20+ tabs (ROI Requests, Advances, Float Management, Rankings, etc.)** |
+| **Proportional Revenue Recognition** | **v5.0** | **NEW — `sync_collection_to_ledger` trigger splits collections** |
+| **Deterministic Idempotency** | **v5.0** | **NEW — `credit_proxy_approval` RPC with MD5-based UUID** |
+| **Financial Separation of Powers** | **v5.0** | **DOCUMENTED — CFO (inbound) vs Financial Ops (outbound)** |
+| **New DB Tables** | **v5.0** | **NEW — `leave_requests`, `disciplinary_records`, `payroll_batches`, `financial_agents`, `proxy_agent_assignments`** |
+| **Edge Functions** | **v5.0** | **EXPANDED — 89 total edge functions (4 new: HR + Angel Pool)** |
+| **HR Role** | **v5.0** | **NEW — 15 total roles (added `hr` to Staff group)** |
 
 ---
 
-*End of Document — Version 4.0*
+*End of Document — Version 5.0*
