@@ -9525,6 +9525,18 @@ export type Database = {
         }
         Returns: Json
       }
+      credit_proxy_approval: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_beneficiary_id: string
+          p_description: string
+          p_portfolio_code: string
+          p_source_id: string
+          p_transaction_group_id: string
+        }
+        Returns: boolean
+      }
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
