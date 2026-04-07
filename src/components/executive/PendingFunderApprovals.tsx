@@ -220,7 +220,7 @@ export function PendingFunderApprovals() {
                 </Card>
               ))}
             </div>
-          )}
+          ))}
         </CardContent>
       </Card>
 
