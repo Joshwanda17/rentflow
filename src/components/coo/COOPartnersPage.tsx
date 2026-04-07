@@ -2553,14 +2553,28 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   }, [open]);
 
   const filtered = useMemo(() => {
+    let list = localPortfolios;
+    // Apply range filter
+    if (rangeFilter === 'overdue') {
+      list = list.filter(p => p.daysUntil < 0);
+    } else if (rangeFilter === '7') {
+      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 7);
+    } else if (rangeFilter === '14') {
+      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 14);
+    } else if (rangeFilter === '30') {
+      list = list.filter(p => p.daysUntil >= -30 && p.daysUntil <= 30);
+    }
+    // Apply search filter
     const q = search.trim().toLowerCase();
-    if (!q) return localPortfolios;
-    return localPortfolios.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.phone.toLowerCase().includes(q) ||
-      p.email.toLowerCase().includes(q)
-    );
-  }, [localPortfolios, search]);
+    if (q) {
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.phone.toLowerCase().includes(q) ||
+        p.email.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [localPortfolios, search, rangeFilter]);
 
   const generateRef = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
