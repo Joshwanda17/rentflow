@@ -398,11 +398,7 @@ const App = () => (
                   <LanguageProvider>
                     <CurrencyProvider>
                       <DeferredProviders>
-                        <Suspense fallback={null}>
-                          <PWAInstallGate>
-                            <AppRoutes />
-                          </PWAInstallGate>
-                        </Suspense>
+                        <AppRoutes />
                       </DeferredProviders>
                       <Suspense fallback={null}>
                         <DeferredExtras />
