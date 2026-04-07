@@ -177,6 +177,8 @@ export function useFinancialStatements() {
         walletsRes,
         // Rent requests for facilitated volume
         rentRequestsRes,
+        // Active advances for access fee receivables
+        advancesRes,
         // All-time platform balance for opening balance
         prevPlatformRes,
         // All-time platform entries for Balance Sheet (no date filter)
