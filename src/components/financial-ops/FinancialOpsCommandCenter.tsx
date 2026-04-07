@@ -13,16 +13,17 @@ import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
+import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, X, ArrowLeft, Menu, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
 type View = 'home' | 'deposits';
-type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions';
+type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
 const tools = [
   { id: 'ops' as const, label: 'Ops Center', icon: Gauge },
