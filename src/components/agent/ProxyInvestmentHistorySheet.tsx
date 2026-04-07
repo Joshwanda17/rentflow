@@ -114,6 +114,7 @@ export function ProxyInvestmentHistorySheet({ open, onOpenChange }: ProxyInvestm
             ) : (
               transactions.map(tx => {
                 const isInvestment = tx.category === 'agent_proxy_investment';
+                const isAngelCommission = tx.category === 'angel_pool_commission';
                 const partner = extractPartner(tx.description);
 
                 return (
