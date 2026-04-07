@@ -141,7 +141,7 @@ export function ProxyPartnerFunds() {
       totalWithdrawn: totals.withdrawn,
       available: totals.received - totals.withdrawn,
     })).sort((a, b) => b.available - a.available);
-  }, [ledgerEntries, profiles, rejectedPartnerIds]);
+  }, [ledgerEntries, profiles]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
