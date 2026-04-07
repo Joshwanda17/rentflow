@@ -452,6 +452,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
       <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
+      <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
 
       {/* Cash Payouts Dialog - only rendered for cashout agents */}
       <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
