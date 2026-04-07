@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,8 +13,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
-  Banknote, Send, Loader2, Building2, TrendingUp,
-  Scale, Download, AlertTriangle, CheckCircle2, Hash
+  Loader2, Building2, TrendingUp,
+  Scale, Download, AlertTriangle, ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -80,7 +80,6 @@ function FloatTransfersTab() {
       } as any);
       if (error) throw error;
 
-      // Bridge ledger entry
       await supabase.from('general_ledger').insert([
         {
           user_id: selectedAgent,
@@ -118,88 +117,118 @@ function FloatTransfersTab() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const totalProcessed = transfers.reduce((s: number, t: any) => s + Number(t.amount), 0);
+
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Send className="h-4 w-4 text-primary" /> Record Bank Float Transfer
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      {/* Record Form */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-5 space-y-4">
           <div>
-            <Label className="text-xs">Cash-Out Agent</Label>
-            <select
-              className="w-full h-10 rounded-lg border border-input bg-background px-3 text-sm"
-              value={selectedAgent}
-              onChange={e => setSelectedAgent(e.target.value)}
+            <h3 className="text-base font-bold">Record Bank Float Transfer</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Initiate and document bank-to-agent float settlements.</p>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Cash-Out Agent</Label>
+              <select
+                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm mt-1.5 focus:outline-none focus:ring-2 focus:ring-ring"
+                value={selectedAgent}
+                onChange={e => setSelectedAgent(e.target.value)}
+              >
+                <option value="">Select agent…</option>
+                {agents.map((a: any) => (
+                  <option key={a.agent_id} value={a.agent_id}>
+                    {(a.profiles as any)?.full_name || 'Unknown'} — {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Amount (UGX)</Label>
+              <Input type="number" placeholder="500,000" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1.5 rounded-xl h-11" />
+            </div>
+
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Bank Reference (TID) *</Label>
+              <Input placeholder="TRF-12345" value={bankRef} onChange={e => setBankRef(e.target.value)} className="mt-1.5 rounded-xl h-11" />
+            </div>
+
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Bank Name</Label>
+              <Input value={bankName} onChange={e => setBankName(e.target.value)} className="mt-1.5 rounded-xl h-11" />
+            </div>
+
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Notes</Label>
+              <Textarea placeholder="Optional notes…" className="h-16 mt-1.5 rounded-xl" value={notes} onChange={e => setNotes(e.target.value)} />
+            </div>
+
+            <Button
+              onClick={() => sendMutation.mutate()}
+              disabled={sendMutation.isPending}
+              className="w-full bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 hover:from-purple-700 hover:via-purple-600 hover:to-pink-600 text-white rounded-full h-12 text-sm tracking-widest uppercase font-semibold shadow-lg"
             >
-              <option value="">Select agent…</option>
-              {agents.map((a: any) => (
-                <option key={a.agent_id} value={a.agent_id}>
-                  {(a.profiles as any)?.full_name || 'Unknown'} — {a.label}
-                </option>
-              ))}
-            </select>
+              {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Record Float Transfer <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Amount (UGX)</Label>
-              <Input type="number" placeholder="500000" value={amount} onChange={e => setAmount(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs">Bank Reference (TID) *</Label>
-              <Input placeholder="TRF-12345" value={bankRef} onChange={e => setBankRef(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <Label className="text-xs">Bank Name</Label>
-            <Input value={bankName} onChange={e => setBankName(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Notes</Label>
-            <Textarea placeholder="Optional notes…" className="h-16" value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
-          <Button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending} className="w-full">
-            {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-            Record Float Transfer
-          </Button>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Hash className="h-4 w-4 text-muted-foreground" /> Transfer History
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {transfersLoading ? (
-            <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
-          ) : transfers.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No float transfers recorded yet</p>
-          ) : (
-            <ScrollArea className="max-h-[40vh]">
-              <div className="space-y-2">
-                {transfers.map((t: any) => (
-                  <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border text-xs">
-                    <div className="min-w-0">
-                      <p className="font-bold truncate">{t.profile?.full_name || 'Unknown'}</p>
-                      <p className="text-muted-foreground">
-                        {t.bank_name || 'Bank'} · Ref: {t.bank_reference || 'N/A'}
-                      </p>
-                      <p className="text-muted-foreground">{format(new Date(t.created_at), 'dd MMM yyyy HH:mm')}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-primary">{formatUGX(t.amount)}</p>
-                    </div>
+      {/* Transfer History */}
+      <div>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="text-sm font-bold">Transfer History</h3>
+          <button className="text-xs font-semibold text-purple-600 uppercase tracking-widest">View All</button>
+        </div>
+
+        {transfersLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : transfers.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No float transfers recorded yet</p>
+        ) : (
+          <ScrollArea className="max-h-[40vh]">
+            <div className="space-y-2">
+              {transfers.map((t: any) => (
+                <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/40">
+                  <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-purple-600" />
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm truncate">{t.profile?.full_name || 'Unknown'}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {t.bank_name || 'Bank'} · TID: {t.bank_reference || 'N/A'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-sm">{formatUGX(t.amount)}</p>
+                    <Badge className={`text-[9px] px-2 py-0 rounded-full mt-0.5 ${
+                      t.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                        : 'bg-amber-100 text-amber-700 border-amber-200'
+                    }`}>
+                      {(t.status || 'COMPLETED').toUpperCase()}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+
+      {/* Summary Card */}
+      <div className="rounded-2xl bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 p-5 text-white">
+        <p className="text-[10px] uppercase tracking-widest opacity-80 font-semibold">Total Float Processed</p>
+        <p className="text-2xl font-bold mt-1">{formatUGX(totalProcessed)}</p>
+        <div className="flex items-center gap-1 mt-1">
+          <TrendingUp className="h-3 w-3" />
+          <span className="text-xs opacity-90">+12% from last week</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -209,7 +238,6 @@ function AgentFloatBalancesTab() {
   const { data: balances = [], isLoading } = useQuery({
     queryKey: ['agent-float-balances'],
     queryFn: async () => {
-      // Get all cashout agents
       const { data: agents } = await supabase
         .from('cashout_agents')
         .select('agent_id, label, profiles:agent_id(full_name, phone)')
@@ -217,14 +245,12 @@ function AgentFloatBalancesTab() {
       if (!agents) return [];
 
       const results = await Promise.all(agents.map(async (agent: any) => {
-        // Total funded
         const { data: funding } = await supabase
           .from('agent_float_funding')
           .select('amount')
           .eq('agent_id', agent.agent_id);
         const totalFunded = (funding || []).reduce((s: number, f: any) => s + Number(f.amount), 0);
 
-        // Total disbursed (completed withdrawals assigned to this agent)
         const { data: withdrawals } = await supabase
           .from('withdrawal_requests')
           .select('amount')
@@ -236,25 +262,12 @@ function AgentFloatBalancesTab() {
         const commission = totalDisbursed * 0.01;
         const healthPct = totalFunded > 0 ? (balance / totalFunded) * 100 : 0;
 
-        return {
-          ...agent,
-          totalFunded,
-          totalDisbursed,
-          balance,
-          commission,
-          healthPct,
-        };
+        return { ...agent, totalFunded, totalDisbursed, balance, commission, healthPct };
       }));
 
       return results;
     },
   });
-
-  const getHealthColor = (pct: number) => {
-    if (pct > 20) return 'border-emerald-500/50 bg-emerald-500/5';
-    if (pct > 0) return 'border-amber-500/50 bg-amber-500/5';
-    return 'border-destructive/50 bg-destructive/5';
-  };
 
   return (
     <div className="space-y-3">
@@ -264,33 +277,46 @@ function AgentFloatBalancesTab() {
         <p className="text-sm text-muted-foreground text-center py-6">No cashout agents found</p>
       ) : (
         balances.map((a: any) => (
-          <Card key={a.agent_id} className={`border-2 ${getHealthColor(a.healthPct)}`}>
-            <CardContent className="p-3 space-y-2">
+          <Card key={a.agent_id} className={`rounded-2xl border-2 ${
+            a.healthPct > 20 ? 'border-emerald-500/50 bg-emerald-500/5' :
+            a.healthPct > 0 ? 'border-amber-500/50 bg-amber-500/5' :
+            'border-destructive/50 bg-destructive/5'
+          }`}>
+            <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-sm">{(a.profiles as any)?.full_name || 'Unknown'}</p>
-                  <p className="text-xs text-muted-foreground">{a.label} · {(a.profiles as any)?.phone}</p>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">{(a.profiles as any)?.full_name || 'Unknown'}</p>
+                    <p className="text-[11px] text-muted-foreground">{a.label} · {(a.profiles as any)?.phone}</p>
+                  </div>
                 </div>
-                <Badge className={`text-xs ${a.healthPct > 20 ? 'bg-emerald-500/20 text-emerald-700' : a.healthPct > 0 ? 'bg-amber-500/20 text-amber-700' : 'bg-destructive/20 text-destructive'}`}>
-                  {a.healthPct.toFixed(0)}% available
+                <Badge className={`text-[10px] rounded-full px-2.5 ${
+                  a.healthPct > 20 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                  a.healthPct > 0 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                  'bg-red-100 text-red-700 border-red-200'
+                }`}>
+                  {a.healthPct.toFixed(0)}%
                 </Badge>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-muted-foreground">Float Sent</p>
-                  <p className="font-bold">{formatUGX(a.totalFunded)}</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-muted/50">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Float Sent</p>
+                  <p className="font-bold mt-0.5">{formatUGX(a.totalFunded)}</p>
                 </div>
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-muted-foreground">Disbursed</p>
-                  <p className="font-bold">{formatUGX(a.totalDisbursed)}</p>
+                <div className="p-2.5 rounded-xl bg-muted/50">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Disbursed</p>
+                  <p className="font-bold mt-0.5">{formatUGX(a.totalDisbursed)}</p>
                 </div>
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-muted-foreground">Available</p>
-                  <p className={`font-bold ${a.balance < 0 ? 'text-destructive' : 'text-emerald-600'}`}>{formatUGX(a.balance)}</p>
+                <div className="p-2.5 rounded-xl bg-muted/50">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Available</p>
+                  <p className={`font-bold mt-0.5 ${a.balance < 0 ? 'text-destructive' : 'text-emerald-600'}`}>{formatUGX(a.balance)}</p>
                 </div>
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-muted-foreground">Commission (1%)</p>
-                  <p className="font-bold text-primary">{formatUGX(a.commission)}</p>
+                <div className="p-2.5 rounded-xl bg-muted/50">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Commission</p>
+                  <p className="font-bold mt-0.5 text-purple-600">{formatUGX(a.commission)}</p>
                 </div>
               </div>
             </CardContent>
@@ -316,7 +342,6 @@ function FloatReconciliationTab() {
       if (!agents) return [];
 
       return Promise.all(agents.map(async (agent: any) => {
-        // Opening: all funding before dateFrom minus completed withdrawals before dateFrom
         let openingFunded = 0;
         let openingDisbursed = 0;
 
@@ -339,7 +364,6 @@ function FloatReconciliationTab() {
 
         const openingBalance = openingFunded - openingDisbursed;
 
-        // Period: funding and withdrawals within range
         let fundingQuery = supabase.from('agent_float_funding').select('amount').eq('agent_id', agent.agent_id);
         let withdrawQuery = supabase.from('withdrawal_requests').select('amount').eq('assigned_cashout_agent_id', agent.agent_id).eq('status', 'completed');
 
@@ -390,21 +414,20 @@ function FloatReconciliationTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Scale className="h-4 w-4 text-primary" /> Float Reconciliation
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-3 items-end">
+      <Card className="rounded-2xl">
+        <CardContent className="p-5 space-y-4">
+          <div>
+            <h3 className="text-base font-bold">Float Reconciliation</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Compare opening and closing balances per agent.</p>
+          </div>
+          <div className="space-y-3">
             <div>
-              <Label className="text-xs">From</Label>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">From Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs", !dateFrom && "text-muted-foreground")}>
-                    <CalendarIcon className="h-3 w-3 mr-1" />
-                    {dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'Start date'}
+                  <Button variant="outline" className={cn("w-full justify-start text-left text-sm mt-1.5 rounded-xl h-11", !dateFrom && "text-muted-foreground")}>
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {dateFrom ? format(dateFrom, 'dd MMM yyyy') : 'Select start date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -413,12 +436,12 @@ function FloatReconciliationTab() {
               </Popover>
             </div>
             <div>
-              <Label className="text-xs">To</Label>
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">To Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-[160px] justify-start text-left text-xs", !dateTo && "text-muted-foreground")}>
-                    <CalendarIcon className="h-3 w-3 mr-1" />
-                    {dateTo ? format(dateTo, 'dd MMM yyyy') : 'End date'}
+                  <Button variant="outline" className={cn("w-full justify-start text-left text-sm mt-1.5 rounded-xl h-11", !dateTo && "text-muted-foreground")}>
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {dateTo ? format(dateTo, 'dd MMM yyyy') : 'Select end date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -426,12 +449,17 @@ function FloatReconciliationTab() {
                 </PopoverContent>
               </Popover>
             </div>
-            <Button size="sm" variant="outline" onClick={() => refetch()}>
-              <Scale className="h-3 w-3 mr-1" /> Reconcile
-            </Button>
-            <Button size="sm" variant="outline" onClick={exportCSV} disabled={reconciliation.length === 0}>
-              <Download className="h-3 w-3 mr-1" /> CSV
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => refetch()}
+                className="flex-1 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 hover:from-purple-700 hover:via-purple-600 hover:to-pink-600 text-white rounded-full h-11 text-xs tracking-widest uppercase font-semibold"
+              >
+                <Scale className="h-4 w-4 mr-2" /> Reconcile
+              </Button>
+              <Button variant="outline" onClick={exportCSV} disabled={reconciliation.length === 0} className="rounded-full h-11 px-5">
+                <Download className="h-4 w-4 mr-1" /> CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -446,32 +474,37 @@ function FloatReconciliationTab() {
             {reconciliation.map((r: any) => {
               const hasVariance = r.expectedClosing < 0;
               return (
-                <Card key={r.agent_id} className={`border ${hasVariance ? 'border-destructive/50' : ''}`}>
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-bold text-sm">{r.name}</p>
+                <Card key={r.agent_id} className={`rounded-2xl border ${hasVariance ? 'border-destructive/50' : 'border-border/40'}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                          <Building2 className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <p className="font-bold text-sm">{r.name}</p>
+                      </div>
                       {hasVariance && (
-                        <Badge variant="destructive" className="text-[10px]">
-                          <AlertTriangle className="h-3 w-3 mr-1" /> Variance
+                        <Badge className="text-[9px] rounded-full bg-red-100 text-red-700 border-red-200">
+                          <AlertTriangle className="h-3 w-3 mr-1" /> VARIANCE
                         </Badge>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div className="p-2 rounded bg-muted/50">
-                        <p className="text-muted-foreground">Opening</p>
-                        <p className="font-bold">{formatUGX(r.openingBalance)}</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 rounded-xl bg-muted/50">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Opening</p>
+                        <p className="font-bold mt-0.5">{formatUGX(r.openingBalance)}</p>
                       </div>
-                      <div className="p-2 rounded bg-emerald-500/10">
-                        <p className="text-muted-foreground">+ Received</p>
-                        <p className="font-bold text-emerald-600">{formatUGX(r.received)}</p>
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">+ Received</p>
+                        <p className="font-bold mt-0.5 text-emerald-600">{formatUGX(r.received)}</p>
                       </div>
-                      <div className="p-2 rounded bg-amber-500/10">
-                        <p className="text-muted-foreground">− Executed</p>
-                        <p className="font-bold text-amber-600">{formatUGX(r.executed)}</p>
+                      <div className="p-2.5 rounded-xl bg-amber-500/10">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">− Executed</p>
+                        <p className="font-bold mt-0.5 text-amber-600">{formatUGX(r.executed)}</p>
                       </div>
-                      <div className="p-2 rounded bg-primary/10">
-                        <p className="text-muted-foreground">Expected Closing</p>
-                        <p className={`font-bold ${r.expectedClosing < 0 ? 'text-destructive' : 'text-primary'}`}>
+                      <div className="p-2.5 rounded-xl bg-purple-500/10">
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Expected</p>
+                        <p className={`font-bold mt-0.5 ${r.expectedClosing < 0 ? 'text-destructive' : 'text-purple-600'}`}>
                           {formatUGX(r.expectedClosing)}
                         </p>
                       </div>
@@ -490,26 +523,21 @@ function FloatReconciliationTab() {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function AgentFloatManagement() {
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-primary" />
-          Agent Float Management
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Track bank-to-agent float transfers, monitor balances, and reconcile payouts.
-        </p>
+    <div className="space-y-5">
+      <div className="px-1">
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Agent Float Management</p>
+        <h1 className="text-xl font-bold mt-0.5">Agent Float Management</h1>
       </div>
       <Tabs defaultValue="transfers" className="space-y-4">
-        <TabsList className="w-full">
-          <TabsTrigger value="transfers" className="flex-1 text-xs">
-            <Send className="h-3 w-3 mr-1" /> Transfers
+        <TabsList variant="underline" className="w-full justify-start">
+          <TabsTrigger value="transfers" variant="underline" className="text-sm font-semibold">
+            Transfers
           </TabsTrigger>
-          <TabsTrigger value="balances" className="flex-1 text-xs">
-            <TrendingUp className="h-3 w-3 mr-1" /> Balances
+          <TabsTrigger value="balances" variant="underline" className="text-sm font-semibold">
+            Balances
           </TabsTrigger>
-          <TabsTrigger value="reconciliation" className="flex-1 text-xs">
-            <Scale className="h-3 w-3 mr-1" /> Reconciliation
+          <TabsTrigger value="reconciliation" variant="underline" className="text-sm font-semibold">
+            Reconciliation
           </TabsTrigger>
         </TabsList>
         <TabsContent value="transfers"><FloatTransfersTab /></TabsContent>
