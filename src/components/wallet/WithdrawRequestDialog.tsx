@@ -176,17 +176,21 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
 
         // Pre-deduct wallet via ledger (sync_wallet_from_ledger trigger handles balance)
         if (newRow) {
+          const isProxyWithdrawal = !!linkedParty;
           await supabase.from('general_ledger').insert({
             user_id: user.id,
             amount,
             direction: 'cash_out',
-            category: 'withdrawal_pending',
-            description: 'Wallet withdrawal requested – funds held pending approval',
-          currency: 'UGX',
+            category: isProxyWithdrawal ? 'proxy_partner_withdrawal' : 'withdrawal_pending',
+            description: isProxyWithdrawal
+              ? `Proxy payout withdrawal for partner ${linkedParty} – funds deducted from agent wallet`
+              : 'Wallet withdrawal requested – funds held pending approval',
+            currency: 'UGX',
             transaction_group_id: `wallet-withdraw-${newRow.id}`,
             source_table: 'withdrawal_requests',
             source_id: newRow.id,
-            ledger_scope: 'platform',
+            ledger_scope: 'wallet',
+            ...(isProxyWithdrawal ? { linked_party: linkedParty } : {}),
           } as any);
         }
 
