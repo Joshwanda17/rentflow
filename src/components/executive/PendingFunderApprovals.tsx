@@ -51,6 +51,10 @@ export function PendingFunderApprovals() {
 
   const approveMutation = useMutation({
     mutationFn: async (assignmentId: string) => {
+      const assignment = pending?.find(p => p.id === assignmentId);
+      if (!assignment) throw new Error('Assignment not found');
+
+      // 1. Approve the assignment
       const { error } = await supabase
         .from('proxy_agent_assignments')
         .update({
@@ -62,21 +66,73 @@ export function PendingFunderApprovals() {
         .eq('id', assignmentId);
       if (error) throw error;
 
-      // Audit log
-      const assignment = pending?.find(p => p.id === assignmentId);
+      // 2. Check if partner has active portfolios and credit agent wallet
+      const { data: portfolios } = await supabase
+        .from('investor_portfolios')
+        .select('id, investment_amount, portfolio_code')
+        .eq('investor_id', assignment.beneficiary_id)
+        .eq('status', 'active');
+
+      let totalCredited = 0;
+      if (portfolios && portfolios.length > 0) {
+        for (const portfolio of portfolios) {
+          const amt = Number(portfolio.investment_amount) || 0;
+          if (amt <= 0) continue;
+
+          // Idempotency: check if already credited for this portfolio+assignment
+          const txGroupId = `proxy-approval-${assignmentId}-${portfolio.id}`;
+          const { data: existing } = await supabase
+            .from('general_ledger')
+            .select('id')
+            .eq('transaction_group_id', txGroupId)
+            .limit(1);
+
+          if (existing && existing.length > 0) continue;
+
+          // Credit agent wallet via ledger
+          await supabase.from('general_ledger').insert({
+            user_id: assignment.agent_id,
+            amount: amt,
+            direction: 'cash_in',
+            category: 'roi_payout',
+            description: `[Managed Payout] [Agent Wallet] Proxy approval credit of USh ${amt.toLocaleString()} to ${assignment.agent?.full_name}'s agent wallet on behalf of ${assignment.beneficiary?.full_name}. Portfolio: ${portfolio.portfolio_code}. — on behalf of partner ${assignment.beneficiary_id}`,
+            currency: 'UGX',
+            transaction_group_id: txGroupId,
+            source_table: 'investor_portfolios',
+            source_id: portfolio.id,
+            ledger_scope: 'wallet',
+            linked_party: assignment.beneficiary_id,
+          } as any);
+
+          totalCredited += amt;
+        }
+      }
+
+      // 3. Audit log
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
         action_type: 'approve_proxy_funder',
         table_name: 'proxy_agent_assignments',
         record_id: assignmentId,
         metadata: {
-          beneficiary_name: assignment?.beneficiary?.full_name,
-          agent_name: assignment?.agent?.full_name,
+          beneficiary_name: assignment.beneficiary?.full_name,
+          agent_name: assignment.agent?.full_name,
+          portfolios_credited: portfolios?.length || 0,
+          total_credited: totalCredited,
         },
       });
+
+      return { totalCredited, beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name };
     },
-    onSuccess: () => {
-      toast({ title: '✅ Funder approved', description: 'The proxy funder is now active' });
+    onSuccess: (data) => {
+      if (data.totalCredited > 0) {
+        toast({
+          title: '✅ Funder approved & wallet credited',
+          description: `USh ${data.totalCredited.toLocaleString()} credited to ${data.agentName}'s wallet for ${data.beneficiaryName}`,
+        });
+      } else {
+        toast({ title: '✅ Funder approved', description: 'The proxy funder is now active. No portfolios to credit yet.' });
+      }
       queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
     },
     onError: (err: any) => {
