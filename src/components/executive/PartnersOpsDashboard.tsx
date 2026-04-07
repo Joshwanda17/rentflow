@@ -206,7 +206,7 @@ export function PartnersOpsDashboard() {
       <PartnerOpsWithdrawalQueue />
 
       {/* ═══ E. DAILY BRIEF ═══ */}
-      <PartnerOpsBrief />
+      <PartnerOpsBrief onNavigate={(t) => setTab(t as Tab)} />
 
 
       {/* ═══ D. TAB BAR ═══ */}
