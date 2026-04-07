@@ -1,43 +1,54 @@
 
 
-# Financial Agent Requisition Access from Agent Dashboard
+# Redesign Fund Requisition to Match Reference Design
 
-## Problem
-When a CFO assigns an agent as a Financial Agent (via the `financial_agents` table), that agent has **no way to access the requisition form** from their own dashboard. The `AgentRequisitionForm` currently only exists inside the Financial Ops Command Center — a staff-only page.
+## What Changes
 
-## Solution
-Add a "Financial Agent" section to the agent dashboard that appears **only** when the logged-in agent exists in the `financial_agents` table with `is_active = true`. This section gives them access to submit fund requisitions and view their requisition history.
+Redesign `FinancialAgentSection` and `AgentRequisitionForm` to match the uploaded reference — a clean, modern financial app layout with a proper header, styled form card, prominent submit button, and polished requisition history cards.
 
 ## Changes
 
-### 1. New Hook: `src/hooks/useIsFinancialAgent.ts`
-A small hook that queries `financial_agents` to check if the current user is an active financial agent.
-```
-Returns: { isFinancialAgent: boolean, loading: boolean }
-```
+### File: `src/components/agent/FinancialAgentSection.tsx`
 
-### 2. New Component: `src/components/agent/FinancialAgentSection.tsx`
-A collapsible section/sheet that wraps the existing `AgentRequisitionForm` component. Shows:
-- A banner/card: "You are a Financial Agent — Submit fund requisitions here"
-- The `AgentRequisitionForm` (reused as-is) inside a bottom sheet
+Replace the Sheet wrapper with a full-height layout matching the reference:
+- **Header area**: "FINANCIAL AGENT" badge in purple below app name, large "Fund Requisition" title, subtitle "Request liquidity for operational disbursements."
+- Remove the info banner — the header conveys enough context
+- Render the redesigned `AgentRequisitionForm` below
+- Bottom security banner: purple rounded card with shield icon — "Secured Vault Access" + compliance message
 
-### 3. Update: `src/components/agent/AgentMenuDrawer.tsx`
-Add a new menu item under the **Tools** category (conditionally rendered when `isFinancialAgent` is true):
-```
-{ icon: FileText, label: 'Fund Requisition', description: 'Submit financial requests', onClick: onOpenRequisition, accent: 'primary', badge: 'FA' }
-```
+### File: `src/components/financial-ops/AgentRequisitionForm.tsx`
 
-### 4. Update: `src/components/dashboards/AgentDashboard.tsx`
-- Import `useIsFinancialAgent` hook
-- Add state for the requisition sheet (`showRequisitionSheet`)
-- Pass `onOpenRequisition` callback to `AgentMenuDrawer`
-- Render `FinancialAgentSection` sheet when triggered
-- Optionally show a small "Financial Agent" badge on the dashboard header when active
+Complete visual overhaul (logic stays the same):
 
-| File | Change |
+**Form Card:**
+- Rounded card with light gray/purple tint background
+- Header row: purple icon + "Submit Fund Requisition" + subtitle "FUNDS WILL BE DISBURSED TO YOUR WALLET"
+- **Amount field**: Styled with "UGX" prefix label inside the input, placeholder "0.00", gray background
+- **Purpose dropdown**: Gray background, "Select requisition purpose" placeholder
+- **Description textarea**: Gray background, character counter "0 / 250" aligned right, placeholder "Provide details regarding this fund request..."
+- **Submit button**: Full-width, purple gradient (`bg-gradient-to-r from-purple-600 to-purple-500`), rounded-xl, large text "Submit Requisition" with arrow icon, no border
+
+**History Section:**
+- Header row: "My Requisitions" left-aligned + "VIEW ALL" link right-aligned (purple text)
+- Show only first 3 by default; "VIEW ALL" toggles showing all
+- Each requisition card: horizontal layout with:
+  - Left: purple file icon in a light purple circle
+  - Middle: purpose label (bold) + status badge (colored: orange PENDING, green APPROVED, red DECLINED) + date/time
+  - Right: amount + "UGX" label, right-aligned
+- Status badges: solid background (not outline) — orange for pending, green for approved, red for declined, small rounded pill with uppercase text
+
+**Style tokens:**
+- Form background: `bg-muted/40` or `bg-gray-50`
+- Input backgrounds: `bg-gray-100` with no visible border
+- Button: `bg-gradient-to-r from-primary to-primary/80 text-white rounded-xl py-6 text-base font-semibold`
+- Requisition cards: `bg-muted/30 rounded-2xl p-4` with no visible border
+
+| Area | Change |
 |---|---|
-| `src/hooks/useIsFinancialAgent.ts` | New hook — checks `financial_agents` table |
-| `src/components/agent/FinancialAgentSection.tsx` | New — sheet wrapping `AgentRequisitionForm` |
-| `src/components/agent/AgentMenuDrawer.tsx` | Add conditional menu item |
-| `src/components/dashboards/AgentDashboard.tsx` | Wire up hook, state, and sheet |
+| FinancialAgentSection | New header layout, security banner at bottom |
+| AgentRequisitionForm (form) | Styled card with gray inputs, gradient button, UGX prefix |
+| AgentRequisitionForm (history) | Card-based list with icons, solid status badges, VIEW ALL toggle |
+| Logic | No changes — all mutations/queries stay identical |
+
+**Files changed:** `FinancialAgentSection.tsx`, `AgentRequisitionForm.tsx`
 
