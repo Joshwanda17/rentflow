@@ -3351,6 +3351,7 @@ For terminations: triggers account freeze workflow
 # Appendix C: Forbidden Anti-Patterns
 
 - ❌ Direct wallet balance edits
+- ❌ Manual wallet balance updates in edge functions (e.g., `.update({ balance: current - amount })`) — use ledger inserts only; trigger handles balance
 - ❌ Business logic in UI components
 - ❌ Offline financial updates
 - ❌ Duplicate logic across Edge Functions
