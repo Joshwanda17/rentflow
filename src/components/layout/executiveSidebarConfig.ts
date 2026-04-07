@@ -48,6 +48,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Withdrawals', icon: Wallet, id: 'withdrawals' },
         { label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' },
         { label: 'Wallet Retractions', icon: MinusCircle, id: 'retractions' },
+        { label: 'Approval Audit', icon: ShieldCheck, id: 'approval-audit' },
       ],
     },
     {

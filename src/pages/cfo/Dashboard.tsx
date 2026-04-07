@@ -109,6 +109,8 @@ export default function CFODashboardPage() {
         return <WalletRetractionsFeed />;
       case 'advances':
         return <CFOAdvancesManager />;
+      case 'approval-audit':
+        return <ManagerApprovalAudit />;
       default:
         return (
           <div className="space-y-4">
