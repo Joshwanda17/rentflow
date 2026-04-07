@@ -68,6 +68,21 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     setPendingWithdrawals(counts.withdrawals);
   }, [user]);
 
+  // Check if user has proxy partner entries
+  useEffect(() => {
+    const checkProxy = async () => {
+      if (!user?.id) return;
+      const { count } = await supabase
+        .from('general_ledger')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('category', 'roi_payout')
+        .not('linked_party', 'is', null);
+      setHasProxyPartners((count || 0) > 0);
+    };
+    if (open) checkProxy();
+  }, [open, user?.id]);
+
   useEffect(() => {
     if (open) {
       fetchAllPendingCounts();
