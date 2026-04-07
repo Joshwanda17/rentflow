@@ -163,13 +163,15 @@ export function CFOAdvancesManager() {
       ) : (
         <div className="rounded-md border">
           <Table>
-            <TableHeader>
+             <TableHeader>
               <TableRow>
                 <TableHead>Recipient</TableHead>
                 <TableHead>Principal</TableHead>
                 <TableHead className="hidden sm:table-cell">Interest</TableHead>
                 <TableHead>Outstanding</TableHead>
-                <TableHead className="hidden md:table-cell">Daily Rate</TableHead>
+                <TableHead className="hidden md:table-cell">Access Fee</TableHead>
+                <TableHead className="hidden md:table-cell">Fee Collected</TableHead>
+                <TableHead className="hidden lg:table-cell">Fee Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Issued</TableHead>
                 <TableHead>Days Left</TableHead>
                 <TableHead>Status</TableHead>
