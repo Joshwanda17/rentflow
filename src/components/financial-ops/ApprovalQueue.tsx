@@ -395,6 +395,12 @@ export function ApprovalQueue() {
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
   const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
 
+  // Portfolio top-ups should display as deposits
+  const getItemDisplayLabel = (item: QueueItem) => {
+    if (item.rawData?.operation_type === 'portfolio_topup') return '💰 Portfolio Deposit';
+    return item.description;
+  };
+
   return (
     <>
       <Card>
