@@ -3124,6 +3124,15 @@ Ownership calculation:
 | `agent_advance_topups` | Advance topups |
 | `agent_subagents` | Sub-agent relationships |
 | `service_centre_setups` | Service Centre submissions |
+| `financial_agents` | Tagged agents for financial expense categories |
+| `proxy_agent_assignments` | Proxy agent-partner assignment management |
+
+### HR & People
+| Table | Purpose |
+|-------|---------|
+| `leave_requests` | HR leave request management (annual, sick, personal, maternity, paternity) |
+| `disciplinary_records` | HR disciplinary tracking (warnings, suspensions, terminations) |
+| `payroll_batches` | HR payroll processing batches |
 
 ### Platform Operations
 | Table | Purpose |
