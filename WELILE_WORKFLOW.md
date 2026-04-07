@@ -2426,6 +2426,10 @@ await supabase.from('wallets').update({ balance: current - amount });
 | `marketing_expense` | Agent commissions & bonuses as platform marketing cost |
 | `withdrawal_pending` | Wallet pre-deduction at withdrawal request time |
 | `withdrawal_reversal` | Refund of pre-deducted funds on withdrawal rejection |
+| `proxy_partner_withdrawal` | Proxy partner ROI withdrawal for delivery |
+| `rent_principal_collected` | Proportional rent principal from collection |
+| `access_fee_collected` | Proportional access fee from collection |
+| `registration_fee_collected` | Proportional registration fee from collection |
 
 ## 21.6 Key Database Triggers
 
