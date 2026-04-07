@@ -56,21 +56,30 @@ export function ProxyPartnerFunds() {
       setLedgerEntries(entries || []);
 
       // Get unique partner IDs
-      const partnerIds = [...new Set((entries || []).map(e => e.linked_party).filter(Boolean))];
+      const allPartnerIds = [...new Set((entries || []).map(e => e.linked_party).filter(Boolean))];
 
-      if (partnerIds.length > 0) {
-        // Fetch profiles and pending withdrawals in parallel
-        const [profileRes, withdrawalRes] = await Promise.all([
+      if (allPartnerIds.length > 0) {
+        // Fetch profiles, pending withdrawals, and rejected assignments in parallel
+        const [profileRes, withdrawalRes, rejectedRes] = await Promise.all([
           supabase
             .from('profiles')
             .select('id, full_name, phone')
-            .in('id', partnerIds),
+            .in('id', allPartnerIds),
           supabase
             .from('withdrawal_requests')
             .select('linked_party, status, reason')
             .eq('user_id', user.id)
-            .in('status', ['pending', 'approved', 'processing'])
+            .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
+          supabase
+            .from('proxy_agent_assignments')
+            .select('beneficiary_id')
+            .eq('agent_id', user.id)
+            .eq('approval_status', 'rejected')
         ]);
+
+        // Filter out rejected partners
+        const rejectedIds = new Set((rejectedRes.data || []).map((r: any) => r.beneficiary_id));
+        const partnerIds = allPartnerIds.filter(id => !rejectedIds.has(id));
 
         const profileMap: Record<string, { full_name: string; phone: string }> = {};
         (profileRes.data || []).forEach(p => {
