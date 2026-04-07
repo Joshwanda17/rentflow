@@ -22,13 +22,24 @@ interface PendingWithdrawal {
   status: string;
 }
 
+interface PortfolioRow {
+  id: string;
+  investor_id: string | null;
+  investment_amount: number | null;
+  roi_percentage: number | null;
+  status: string;
+  created_at: string;
+  maturity_date: string | null;
+  total_roi_earned: number | null;
+}
+
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [approvedPartnerIds, setApprovedPartnerIds] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string; phone: string }>>({});
-  const [portfolios, setPortfolios] = useState<any[]>([]);
+  const [portfolios, setPortfolios] = useState<PortfolioRow[]>([]);
   const [completedWithdrawals, setCompletedWithdrawals] = useState<any[]>([]);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
@@ -51,7 +62,8 @@ export function ProxyPartnerFunds() {
         .select('beneficiary_id')
         .eq('agent_id', user.id)
         .eq('beneficiary_role', 'supporter')
-        .eq('approval_status', 'approved');
+        .eq('approval_status', 'approved')
+        .eq('is_active', true);
 
       if (assignmentsError) throw assignmentsError;
 
@@ -70,8 +82,8 @@ export function ProxyPartnerFunds() {
       // Step 2: Fetch profiles, portfolios, completed withdrawals, and active withdrawal requests
       const portfolioQuery: any = supabase
         .from('investor_portfolios' as any)
-        .select('id, user_id, investment_amount, roi_percentage, status, created_at, maturity_date')
-        .in('user_id', approvedIds);
+        .select('id, investor_id, investment_amount, roi_percentage, status, created_at, maturity_date, total_roi_earned')
+        .in('investor_id', approvedIds);
 
       const [profileRes, portfolioRes, completedRes, activeWithdrawalRes] = await Promise.all([
         supabase
@@ -99,7 +111,7 @@ export function ProxyPartnerFunds() {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
-      setPortfolios((portfolioRes.data || []).filter((p: any) => p.status === 'active'));
+      setPortfolios(((portfolioRes.data || []) as PortfolioRow[]).filter((p) => p.status === 'active'));
       setCompletedWithdrawals((completedRes.data || []).filter(w => approvedIds.includes(w.linked_party)));
 
       // Build active withdrawal status map
@@ -139,10 +151,16 @@ export function ProxyPartnerFunds() {
     return approvedPartnerIds
       .map((partnerId) => {
         // Calculate accrued ROI from portfolios
-        const partnerPortfolios = portfolios.filter(p => p.user_id === partnerId);
+        const partnerPortfolios = portfolios.filter(p => p.investor_id === partnerId);
         let totalReturns = 0;
 
         partnerPortfolios.forEach(portfolio => {
+          const trackedReturns = Number(portfolio.total_roi_earned) || 0;
+          if (trackedReturns > 0) {
+            totalReturns += trackedReturns;
+            return;
+          }
+
           const investmentAmount = Number(portfolio.investment_amount) || 0;
           const roiPercentage = Number(portfolio.roi_percentage) || 0;
           const createdAt = new Date(portfolio.created_at);
@@ -173,6 +191,7 @@ export function ProxyPartnerFunds() {
           available,
         };
       })
+      .filter((partner) => partner.available > 0)
       .sort((a, b) => {
         if (b.available !== a.available) return b.available - a.available;
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
