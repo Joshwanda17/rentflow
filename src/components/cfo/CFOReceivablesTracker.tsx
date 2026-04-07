@@ -25,6 +25,28 @@ interface Receivable {
 
 export function CFOReceivablesTracker() {
   const [expanded, setExpanded] = useState(false);
+  const [advanceExpanded, setAdvanceExpanded] = useState(false);
+
+  // Advance access fee receivables
+  const { data: advanceReceivables = [] } = useQuery({
+    queryKey: ['cfo-advance-fee-receivables'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_advances')
+        .select('id, agent_id, access_fee, access_fee_collected, access_fee_status, status, expires_at, profiles!agent_advances_agent_id_fkey(full_name)')
+        .in('status', ['active', 'overdue'])
+        .gt('access_fee', 0)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300_000,
+  });
+
+  const totalAdvanceFees = advanceReceivables.reduce((s: number, a: any) => s + Number(a.access_fee || 0), 0);
+  const totalAdvanceCollected = advanceReceivables.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
+  const totalAdvanceOutstanding = totalAdvanceFees - totalAdvanceCollected;
+  const advanceCollectionRate = totalAdvanceFees > 0 ? (totalAdvanceCollected / totalAdvanceFees) * 100 : 0;
 
   const { data: receivables, isLoading } = useQuery({
     queryKey: ['cfo-receivables'],
