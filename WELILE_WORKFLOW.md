@@ -2460,6 +2460,7 @@ END IF;
 | `record_rent_request_repayment()` | Atomic repayment: updates rent_requests.amount_repaid, landlords receivables, creates general_ledger entry. Accepts optional `transaction_group_id`. |
 | `credit_agent_rent_commission()` | Credits 10% commission split with paired double-entry per agent role. Idempotent via `rent_request_id` + `repayment_amount` check. |
 | `credit_agent_event_bonus()` | Credits flat-fee event bonuses with double-entry marketing expense pattern. |
+| `credit_proxy_approval()` | Idempotent proxy partner ROI credit with MD5-based deterministic UUID. Prevents duplicate credits on re-approval. |
 
 ## 21.8 Ledger Account Hierarchy
 
