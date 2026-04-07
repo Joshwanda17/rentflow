@@ -1,77 +1,62 @@
 
 
-# Unified Financial Control System: CFO Approval Gate for ROI & Payouts
+# Proxy Partner Funds Visibility in Agent Wallet
 
 ## Problem
-Currently, the "Credit Agent Wallet" mode bypasses CFO approval and credits the agent directly. The user wants **all** fund allocations to go through CFO approval first. The separation of powers is:
-- **CFO** controls money **into** wallets (approve credits)
-- **Financial Ops** controls money **out of** wallets (approve withdrawals)
+When CFO approves an ROI payout routed to an agent's wallet (via `target_wallet_user_id`), the money arrives but the agent has no way to distinguish proxy partner funds from their own earnings. They don't know which partner the money belongs to or how much to deliver.
 
-## Current vs. Required Flow
-
-```text
-CURRENT (agent_wallet mode):
-  Partner Ops clicks "Credit Agent Wallet"
-    → direct general_ledger insert → agent wallet credited immediately
-
-REQUIRED:
-  Partner Ops clicks any payout option
-    → pending_wallet_operations (status: pending)
-      → CFO approves → ledger insert → wallet credited
-        → Partner/Agent withdraws → Financial Ops approves → money out
-```
+## Solution
+Add a **tabbed UI** inside the agent's `FullScreenWalletSheet` with two tabs:
+1. **Wallet Statement** (existing `WalletLedgerStatement`)
+2. **Proxy Partners** (new — shows partner-specific balances with withdraw buttons)
 
 ## Changes
 
-### 1. Revert Direct Credit in `COOPartnersPage.tsx`
+### 1. New Component: `src/components/agent/ProxyPartnerFunds.tsx`
 
-In the `handlePay` function, remove the special `agent_wallet` direct-credit branch (lines ~2633-2687). All three modes (`wallet`, `agent_wallet`, `already_paid`) will go through `pending_wallet_operations` with status `pending`. The `agent_wallet` mode will set `target_wallet_user_id` to the agent's ID so the CFO and approve-wallet-operation function know which wallet to credit.
+Queries `general_ledger` for the agent's wallet entries where `category = 'roi_payout'` and `linked_party` is set (these are proxy partner credits). Groups by `linked_party` (partner ID), resolves partner names from `profiles`, and calculates:
+- **Total received** per partner (sum of `cash_in` entries with `roi_payout` category)
+- **Total withdrawn/sent** per partner (sum of `cash_out` entries linked to that partner)
+- **Available balance** per partner (received minus withdrawn)
 
-### 2. New CFO Tab: "ROI Requests"
+Each partner card shows:
+- Partner name and phone
+- Total received, total delivered, available balance
+- **Withdraw** button — opens `WithdrawRequestDialog` with the amount pre-filled to the available balance, and the reason pre-filled with `Proxy payout delivery for [partner name]`
 
-Create `src/components/cfo/CFOROIRequests.tsx` — a dedicated panel showing all `pending_wallet_operations` where `category = 'roi_payout'`.
+All withdraw actions log to `audit_logs` with `action_type: 'proxy_partner_withdrawal'` and metadata including partner ID, amount, and agent ID.
 
-Displays:
-- Partner name, agent name (if proxy), amount, requested by, timestamp
-- Status badge (pending / approved / rejected)
-- Approve and Reject buttons with mandatory 10-char reason for rejection
+### 2. Update `src/components/wallet/FullScreenWalletSheet.tsx`
 
-On **Approve**: calls the existing `approve-wallet-operation` edge function which inserts into `general_ledger` and triggers `sync_wallet_from_ledger` to credit the wallet.
+Replace the direct `<WalletLedgerStatement />` render (around line 273) with a `<Tabs>` component:
 
-On **Reject**: updates `pending_wallet_operations` status to `rejected` with reason, notifies Partner Ops.
-
-### 3. Add Tab to CFO Dashboard
-
-In `CFODashboard.tsx`, add a new `roi` tab between Overview and Cash Position:
 ```
-{ id: 'roi', label: 'ROI Requests', icon: TrendingUp }
+<Tabs defaultValue="statement">
+  <TabsList variant="pills">
+    <TabsTrigger value="statement">Wallet Statement</TabsTrigger>
+    <TabsTrigger value="proxy">Proxy Partners</TabsTrigger>
+  </TabsList>
+  <TabsContent value="statement">
+    <WalletLedgerStatement />
+  </TabsContent>
+  <TabsContent value="proxy">
+    <ProxyPartnerFunds />
+  </TabsContent>
+</Tabs>
 ```
-Renders `<CFOROIRequests />` with pending count badge.
 
-### 4. Update `approve-wallet-operation` Edge Function
+The "Proxy Partners" tab only shows for users who have proxy partner entries (query on mount, hide tab if count is 0).
 
-The existing function already handles approval of `pending_wallet_operations` → ledger insert. It needs one small addition: when `target_wallet_user_id` is set (agent wallet proxy), use that as the `user_id` for the ledger credit instead of `user_id`. This ensures proxy agent wallets get credited correctly upon CFO approval.
+### 3. Ledger Description Enhancement
 
-### 5. Notifications
-
-- **On initiation**: CFO gets `approval_required` notification for all ROI/payout requests (already exists for `wallet` mode, now extended to `agent_wallet`)
-- **On CFO approval**: Partner gets `payout_completed` notification; agent gets notification if proxy
-- **On CFO rejection**: Partner Ops gets `payout_rejected` notification with reason
-
-## What Stays the Same
-
-- Withdrawal pipeline (Financial Ops approval for cash-out) — already works
-- `already_paid` mode logic — stays in pending pipeline
-- Advance recovery on deposit — already works
-- Audit logging — already in place
-- `next_roi_date` advancement — stays at initiation time to prevent duplicate claims
+In the `approve-wallet-operation` edge function, when `isManaged` is true, the ledger entry `description` already contains `[Agent Wallet]` prefix and partner name. The `linked_party` field is set to the partner's `user_id`. This is sufficient for the new component to group by partner — no edge function changes needed.
 
 ## Summary
 
 | Change | File |
 |--------|------|
-| Revert direct credit, route all modes through pending pipeline | `COOPartnersPage.tsx` |
-| New ROI Requests approval panel | `CFOROIRequests.tsx` (new) |
-| Add ROI tab to CFO dashboard | `CFODashboard.tsx` |
-| Handle `target_wallet_user_id` for proxy credits | `approve-wallet-operation/index.ts` |
+| New proxy partner funds component with per-partner balances and withdraw buttons | `src/components/agent/ProxyPartnerFunds.tsx` (new) |
+| Add tabs (Statement / Proxy Partners) to wallet sheet | `src/components/wallet/FullScreenWalletSheet.tsx` |
+
+No database migration or edge function changes required. All data already exists in `general_ledger` via `linked_party` and `category` fields.
 
