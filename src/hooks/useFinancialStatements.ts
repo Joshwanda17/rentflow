@@ -24,7 +24,13 @@ export interface IncomeStatementData {
     transactionExpenses: number;
     total: number;
   };
-  operatingExpenses: number;
+  operatingExpenses: {
+    generalOperating: number;
+    payrollExpenses: number;
+    agentRequisitions: number;
+    financialAgentExpenses: number;
+    total: number;
+  };
   netOperatingIncome: number;
 }
 
