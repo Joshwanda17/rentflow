@@ -46,7 +46,8 @@
 35. [Security & RLS](#35-security--rls)
 36. [Database Schema Overview](#36-database-schema-overview)
 37. [Known Issues & Technical Debt](#37-known-issues--technical-debt)
-38. [Appendices](#appendices)
+38. [HR Dashboard Workflows](#38-hr-dashboard-workflows)
+39. [Appendices](#appendices)
 
 ---
 
