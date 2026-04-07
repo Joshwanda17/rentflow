@@ -1,47 +1,86 @@
 
 
-# Fix: Manual Rent Collection — Ledger-Based Wallet Deductions
+# Rent Collection Visibility & Agent Performance Ranking
 
-## Problem
-The `manual-collect-rent` edge function directly updates the `wallets` table for both tenant and agent deductions. This bypasses the `sync_wallet_from_ledger` trigger, violating the Single-Writer financial integrity principle. It also incorrectly writes deduction records to `pending_wallet_operations` instead of `general_ledger`.
+## Overview
+Build two new UI components that give the CFO real-time visibility into all rent collections and rank agents/managers by collection performance. No new database tables needed — all data already exists in `subscription_charge_logs`, `general_ledger`, `rent_requests`, and `audit_logs`.
 
-This means:
-- Wallet balances can drift from ledger totals
-- Agent wallet deductions (when tenant wallet is empty) may not sync properly
-- No `role_type` on entries, risking misallocation across role-based wallets
+## Data Sources (Already Exist)
 
-## Fix
+| Data Point | Source |
+|---|---|
+| Daily auto-charges (tenant + agent fallback) | `subscription_charge_logs` |
+| Manual collections | `general_ledger` where `category = 'rent_repayment'` |
+| Agent-tenant-property mapping | `rent_requests` (has `agent_id`, `tenant_id`, `landlord_id`) |
+| Who collected manually | `audit_logs` where `action_type = 'manual_rent_collection'` |
+| Agent names, manager hierarchy | `profiles`, `user_roles` |
 
-### Update `supabase/functions/manual-collect-rent/index.ts`
+## Changes
 
-Replace **direct wallet updates** with **general_ledger inserts** that include `transaction_group_id` (which triggers `sync_wallet_from_ledger` automatically).
+### 1. New Component: CFO Rent Collections Feed
+**File**: `src/components/cfo/RentCollectionsFeed.tsx`
 
-**Tenant deduction (lines 157-197):**
-- Remove: `supabase.from("wallets").update(...)` 
-- Replace with: `supabase.from("general_ledger").insert({ user_id, amount, direction: 'cash_out', category: 'rent_repayment', transaction_group_id, role_type: 'tenant', ... })`
-- Still verify tenant has sufficient balance by reading from `wallets` first (read-only check)
+A real-time feed of all rent collections visible to the CFO:
+- Queries `subscription_charge_logs` joined with `subscription_charges` (for `agent_id`, `tenant_id`, `rent_request_id`) and `rent_requests` (for `landlord_id`)
+- Also queries `general_ledger` entries with `category = 'rent_repayment'` for manual collections
+- Displays: Agent name, Tenant name, Amount, Property/Landlord, Date/Time, Collection method (auto/manual), Status (success/partial/failed)
+- Filterable by: date range, agent, status
+- Summary cards: Total collected today, Total collected this month, Auto vs Manual ratio
 
-**Agent deduction (lines 199-245):**
-- Remove: `supabase.from("wallets").update(...)`
-- Replace with: `supabase.from("general_ledger").insert({ user_id: agent_id, amount, direction: 'cash_out', category: 'rent_repayment', transaction_group_id, role_type: 'agent', ... })`
-- Same read-only balance check before inserting
+### 2. New Component: Agent Performance Rankings
+**File**: `src/components/cfo/AgentPerformanceRankings.tsx`
 
-**Key changes:**
-- All wallet mutations go through `general_ledger` → trigger handles balance
-- Add `role_type: 'tenant'` for tenant entries, `role_type: 'agent'` for agent entries
-- Add `scope: 'wallet'` on all entries
-- Remove all `pending_wallet_operations` inserts for deductions (those are for approval flows, not direct deductions)
-- Keep notifications, SMS, audit logs, and commission logic unchanged
+Rankings based on aggregated collection data:
+- **Agent Ranking**: Total collected, collection count, collection rate (amount_repaid / total_repayment across their rent_requests), average timeliness
+- **Manager Ranking**: Aggregated performance of agents under them (via `rent_requests.agent_id` → agent's manager from reporting structure)
+- Period selector: This week, This month, All time
+- Visual: Ranked list with position medals (🥇🥈🥉), progress bars for collection rate, trend arrows
+- Each agent shows: rank, total collected, # of active tenants, collection efficiency %
 
-## Summary
+### 3. Add to CFO Dashboard Sidebar
+**File**: `src/components/layout/executiveSidebarConfig.ts`
 
-| What | Before | After |
-|------|--------|-------|
-| Tenant deduction | Direct `wallets.update()` | `general_ledger.insert()` with `transaction_group_id` |
-| Agent deduction | Direct `wallets.update()` | `general_ledger.insert()` with `transaction_group_id` |
-| Deduction record | `pending_wallet_operations` | `general_ledger` |
-| Role tagging | Missing | `role_type: 'tenant'` / `'agent'` |
-| Balance sync | Manual calculation | Automatic via `sync_wallet_from_ledger` trigger |
+Add two items under the Finance section:
+- `{ label: 'Rent Collections', icon: Receipt, id: 'rent-collections' }`
+- `{ label: 'Agent Rankings', icon: TrendingUp, id: 'agent-rankings' }`
 
-**File changed:** `supabase/functions/manual-collect-rent/index.ts`
+### 4. Wire Up in CFO Dashboards
+**File**: `src/pages/cfo/Dashboard.tsx`
+
+Add cases:
+- `'rent-collections'` → `<RentCollectionsFeed />`
+- `'agent-rankings'` → `<AgentPerformanceRankings />`
+
+Also add `<AgentPerformanceRankings compact />` to the default overview tab.
+
+**File**: `src/pages/CFODashboard.tsx`
+
+Add corresponding tabs to the legacy dashboard.
+
+### 5. Agent Self-View (Optional — Agent Ops Dashboard)
+**File**: `src/components/agent/MyCollectionPerformance.tsx`
+
+A compact card for the agent dashboard showing:
+- Their rank among peers
+- Total collections this month
+- Collection rate %
+- Comparison to average
+
+This component would be added to the agent's existing dashboard view.
+
+## No Database Migration Needed
+All required data already exists in `subscription_charge_logs`, `general_ledger`, `rent_requests`, and `profiles`. Rankings are computed client-side from aggregated queries.
+
+## Query Strategy
+- Collections feed: Query `subscription_charge_logs` (last 30 days, limit 200) joined to `subscription_charges` for agent/tenant IDs, then resolve names from `profiles`
+- Rankings: Query `rent_requests` grouped by `agent_id`, sum `amount_repaid` vs `total_repayment` for collection rate, count active tenants
+- Performance is bounded by existing Supabase query limits (paginated if needed)
+
+| Change | File |
+|---|---|
+| Rent collections feed | `RentCollectionsFeed.tsx` (new) |
+| Agent/Manager rankings | `AgentPerformanceRankings.tsx` (new) |
+| Agent self-view card | `MyCollectionPerformance.tsx` (new) |
+| CFO sidebar items | `executiveSidebarConfig.ts` |
+| CFO dashboard wiring | `cfo/Dashboard.tsx`, `CFODashboard.tsx` |
 
