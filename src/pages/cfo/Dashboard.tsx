@@ -29,6 +29,7 @@ import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps'
 import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManagementPanel';
 import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
+import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
