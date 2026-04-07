@@ -59,7 +59,11 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold />
 
       <SectionHeader>Operating Expenses</SectionHeader>
-      <LineItem label="Operational & Withdrawal Expenses" value={d.operatingExpenses} negative indent />
+      <LineItem label="Payroll & Staff Costs" value={d.operatingExpenses.payrollExpenses} negative indent />
+      <LineItem label="Agent Requisitions" value={d.operatingExpenses.agentRequisitions} negative indent />
+      <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
+      <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
+      <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
 
       <div className={cn(
         'flex justify-between text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
