@@ -70,6 +70,8 @@ interface AgentMenuDrawerProps {
   onOpenPartnerDashboard?: () => void;
   onInviteFunder?: () => void;
   onInviteAngelInvestor?: () => void;
+  onOpenRequisition?: () => void;
+  isFinancialAgent?: boolean;
 }
 
 interface MenuItem {
