@@ -317,6 +317,7 @@ export function FinancialStatementsPanel() {
       rows.push(['Platform Cash (Earned Revenue)', '', d.assets.platformCash]);
       rows.push(['User Funds Held in Custody', '', d.assets.userFundsHeld]);
       rows.push(['Rent Receivables (Funded)', '', d.assets.receivables]);
+      rows.push(['Advance Access Fee Receivables', '', d.assets.advanceAccessFeeReceivables]);
       rows.push(['Total Assets', '', d.assets.totalAssets]);
       rows.push(['', '', '']);
       rows.push(['OBLIGATIONS (LIABILITIES)', '', '']);
