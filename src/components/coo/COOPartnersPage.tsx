@@ -431,25 +431,23 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const roiDate = dateOnlyToLocalDate(p.next_roi_date);
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        // Only upcoming payouts within 30 days (not past-due)
-        if (du >= 0 && du <= 30) {
-          const prof = profileMap.get(ownerId);
-          const effectivePayoutDay = p.payout_day || roiDate.getDate();
-          nearingList.push({
-            portfolioId: p.id,
-            investorId: ownerId,
-            name: prof?.full_name || ownerId.slice(0, 8),
-            phone: prof?.phone || '',
-            email: prof?.email || '',
-            investmentAmount: p.investment_amount || 0,
-            roiPercentage: p.roi_percentage ?? 15,
-            payoutDay: effectivePayoutDay,
-            roiMode: p.roi_mode ?? 'monthly_payout',
-            createdAt: p.created_at,
-            daysUntil: du,
-            nextPayoutDate: p.next_roi_date,
-          });
-        }
+        // Include all active portfolios with a next_roi_date (past-due + upcoming)
+        const prof = profileMap.get(ownerId);
+        const effectivePayoutDay = p.payout_day || roiDate.getDate();
+        nearingList.push({
+          portfolioId: p.id,
+          investorId: ownerId,
+          name: prof?.full_name || ownerId.slice(0, 8),
+          phone: prof?.phone || '',
+          email: prof?.email || '',
+          investmentAmount: p.investment_amount || 0,
+          roiPercentage: p.roi_percentage ?? 15,
+          payoutDay: effectivePayoutDay,
+          roiMode: p.roi_mode ?? 'monthly_payout',
+          createdAt: p.created_at,
+          daysUntil: du,
+          nextPayoutDate: p.next_roi_date,
+        });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
       setAllPortfoliosForPayout(nearingList);
