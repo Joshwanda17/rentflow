@@ -73,7 +73,7 @@ export default function AgentAdvanceDetail() {
     : projection.map((p) => ({ date: `Day ${p.day}`, balance: p.closingBalance }));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-y-auto h-screen">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
