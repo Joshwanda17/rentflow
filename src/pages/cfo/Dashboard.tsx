@@ -106,6 +106,8 @@ export default function CFODashboardPage() {
         return <AngelPoolManagementPanel userRole="cfo" />;
       case 'retractions':
         return <WalletRetractionsFeed />;
+      case 'advances':
+        return <CFOAdvancesManager />;
       default:
         return (
           <div className="space-y-4">
