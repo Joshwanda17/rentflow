@@ -1,33 +1,43 @@
 
 
-## Fix: Double-Credit Bug on Deposit Approval
+## Fix: Double-Credit Impact on Onesmus's Deposit
 
-### Root Cause
+### What Happened
 
-When a deposit is approved, the wallet gets credited **twice**:
+This is the same deposit double-credit bug we just fixed. When Onesmus's 60k deposit was approved, the old `approve-deposit` function:
 
-1. **Manual credit** in `approve-deposit` edge function (lines 129-146): reads wallet balance, adds deposit amount, writes new balance.
-2. **Trigger chain**: The same function updates `deposit_requests.status = 'approved'` → DB trigger `trg_deposit_to_ledger` fires → inserts a `cash_in` ledger entry → DB trigger `sync_wallet_from_ledger` fires → credits wallet **again**.
+1. **Manually credited** 60k to the wallet
+2. **Trigger chain** (`trg_deposit_to_ledger` → `sync_wallet_from_ledger`) credited another 60k
+3. Wallet showed 120k instead of 60k
+4. The auto-rent-deduction logic then saw 120k available and deducted 120k toward rent
 
-The manual credit was written when `sync_wallet_from_ledger` only fired for entries with `transaction_group_id`. A recent migration (`20260407121146`) removed that guard, making the trigger fire on ALL ledger inserts. The manual credit was never removed, resulting in a double-credit.
+Result: 120k was applied to rent repayment when only 60k was actually deposited. The rent request's `amount_repaid` is now inflated by 60k.
 
-### Fix
+### Status of the Root Cause Fix
 
-**Remove the manual wallet credit** from `supabase/functions/approve-deposit/index.ts` (lines 128-146). The trigger chain already handles it correctly:
+The `approve-deposit` edge function has already been patched — the manual wallet credit was removed. **No new deposits will be double-credited.** However, the function needs to be redeployed if it hasn't been already.
 
-- `deposit_requests` status → `approved`
-- `trg_deposit_to_ledger` → inserts `cash_in` ledger entry
-- `sync_wallet_from_ledger` → credits wallet
+### Data Correction Needed
 
-The manual upsert/read/update block should be deleted entirely. The subsequent code that reads `walletAfterCredit` (line 157-161) should remain but will now read the trigger-updated balance.
+We need to reverse the excess 60k that was incorrectly applied:
+
+1. **Identify the affected records** — Query Onesmus's ledger entries and the specific deposit request to confirm the exact amounts
+2. **Reverse the excess rent repayment** — Reduce `rent_requests.amount_repaid` by 60k (the overpayment)
+3. **Insert a corrective ledger entry** — A `cash_in` entry of 60k (category: `balance_correction`) to restore the wallet to the correct post-deposit state
+4. **Audit log** the correction with full metadata
 
 ### Changes
 
-**File: `supabase/functions/approve-deposit/index.ts`**
-- Remove lines 128-146 (manual wallet credit block)
-- Keep the wallet upsert on line 129-131 (ensure wallet row exists) but remove the balance manipulation on lines 133-146
+**Database migration (data correction):**
+- Query to identify Onesmus's affected deposit and the double-credited amount
+- Corrective `UPDATE` on `rent_requests.amount_repaid` (-60k)
+- Corrective `INSERT` into `general_ledger` (+60k cash_in, category `balance_correction`)
+- Insert audit trail entry
 
-### Risk Assessment
-- Low risk: the trigger chain is proven (all other deposit categories use it)
-- The auto-repayment, debt clearance, and prepay logic downstream is unaffected — it reads fresh wallet balance after the trigger fires
+**Edge function redeployment:**
+- Confirm `approve-deposit` is deployed with the fix (no manual wallet credit)
+
+### Before Proceeding
+
+I need to query the database to identify Onesmus's exact user ID, the affected deposit request, and confirm the amounts before writing the correction. Shall I proceed?
 
