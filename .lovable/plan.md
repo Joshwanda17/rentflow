@@ -1,34 +1,28 @@
 
 
-## Fix: Show Only Partner Returns, Not Full Principal
+## Fix: Remove Deposit Approval from Approval Queue
 
 ### Problem
-When Partner Ops approves a proxy partner, the system credits the partner's **full investment principal** (`investment_amount`) to the agent's wallet as `roi_payout`. This is wrong — the agent should only receive the partner's **earned returns** (`total_roi_earned`) for delivery, not the principal itself.
+The Financial Ops Approval Queue has a "Deposits" tab that duplicates the dedicated "Verify Deposits" (TID Verification) flow. Having two ways to approve deposits creates a risk of double-crediting wallets.
 
-### Root Cause
-In `PendingFunderApprovals.tsx` line 76:
-```typescript
-const totalInvestment = (portfolios || []).reduce((sum, p) => sum + (p.investment_amount || 0), 0);
-```
-This queries `investment_amount` instead of `total_roi_earned`.
+### Solution
+Remove the "Deposits" tab entirely from the Approval Queue component. The only way to approve deposits should be through the dedicated "Verify Deposits" flow (TidVerification component).
 
 ### Changes
 
-**1. `src/components/executive/PendingFunderApprovals.tsx`**
-- Change the portfolio query to select `total_roi_earned` instead of `investment_amount`
-- Sum `total_roi_earned` to get the actual returns due to the partner
-- Update toast/audit to say "returns" not "investment"
+**`src/components/financial-ops/ApprovalQueue.tsx`**
+- Remove `'deposits'` from the `QueueType` type
+- Change default `activeQueue` state from `'deposits'` to `'wallet_withdrawals'`
+- Remove the "Deposits" tab trigger from the TabsList
+- Remove all deposit-specific verification dialog state and handlers
+- Remove deposit fetching logic from the data query
+- Remove deposit-specific approval/rejection logic (the `handleDepositAction` function and related state)
 
-**2. Database: Fix existing incorrect ledger entries**
-- Create a migration to reverse the incorrect principal credits that were already inserted
-- Query all `roi_payout` entries with `description LIKE '%Proxy partner investment credit%'` 
-- For each, look up the actual `total_roi_earned` from the partner's portfolios
-- Insert correcting `cash_out` entries for the difference (principal - actual ROI)
-- Then insert correct `cash_in` entries for just the ROI amount
+**`src/components/financial-ops/FinancialOpsCommandCenter.tsx`**
+- No changes needed — the Approval Queue is already behind the "More Tools" sheet; removing the deposits tab inside it is sufficient
 
-**3. `src/components/agent/ProxyPartnerFunds.tsx`** — No code change needed
-The display logic already reads from the ledger correctly. Once ledger entries reflect returns instead of principal, the "Available" column will show the correct amounts.
-
-### Summary
-One-line fix in the approval flow + a data correction migration to fix the 14 partners that were already credited with principal instead of returns.
+### Result
+- Deposits can only be approved via the dedicated "Verify Deposits" → TID Verification flow
+- The Approval Queue will only show "Cash Out" and "Wallet Ops" tabs
+- Eliminates the double-credit risk entirely
 
