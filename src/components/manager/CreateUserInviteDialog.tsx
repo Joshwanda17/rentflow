@@ -436,7 +436,7 @@ Just click the link and enter your password to get started!`;
           </DialogTitle>
           <DialogDescription>
             {createdInvite 
-              ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`
+              ? (createdInvite.autoActivated ? 'User has been added to the system and can sign in immediately' : `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`)
               : 'Create a new user account and share the activation link'}
           </DialogDescription>
         </DialogHeader>
