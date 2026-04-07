@@ -183,6 +183,9 @@ export function CFOAdvancesManager() {
                 const risk = getRiskLevel(adv);
                 const daysLeft = Math.max(0, differenceInDays(new Date(adv.expires_at), new Date()));
                 const interest = Math.max(0, Number(adv.outstanding_balance) - Number(adv.principal));
+                const advFee = Number(adv.access_fee || 0);
+                const advFeeCollected = Number(adv.access_fee_collected || 0);
+                const feeStatus = adv.access_fee_status || 'unpaid';
 
                 return (
                   <TableRow
@@ -194,7 +197,17 @@ export function CFOAdvancesManager() {
                     <TableCell>{formatUGX(adv.principal)}</TableCell>
                     <TableCell className="hidden sm:table-cell text-amber-600">{formatUGX(interest)}</TableCell>
                     <TableCell className="font-semibold">{formatUGX(adv.outstanding_balance)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{formatUGX(adv.daily_rate)}/d</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatUGX(advFee)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatUGX(advFeeCollected)}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <Badge variant="outline" className={
+                        feeStatus === 'settled' ? 'border-emerald-500/30 text-emerald-600' :
+                        feeStatus === 'partial' ? 'border-amber-500/30 text-amber-600' :
+                        'border-destructive/30 text-destructive'
+                      }>
+                        {feeStatus}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {new Date(adv.issued_at).toLocaleDateString()}
                     </TableCell>
