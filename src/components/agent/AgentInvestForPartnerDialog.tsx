@@ -164,6 +164,21 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Upload receipt first
+      let receiptUrl: string | null = null;
+      if (receiptFile) {
+        setUploadingReceipt(true);
+        const timestamp = Date.now();
+        const safeName = receiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${user.id}/${timestamp}_${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('investment-receipts')
+          .upload(filePath, receiptFile);
+        setUploadingReceipt(false);
+        if (uploadErr) throw new Error('Receipt upload failed: ' + uploadErr.message);
+        receiptUrl = filePath;
+      }
+
       // Step 1: Try to find existing supporter by phone
       let partnerId: string | null = null;
 
