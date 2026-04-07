@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const { data: advances, error: fetchError } = await supabase
       .from('agent_advances')
       .select('*')
-      .eq('status', 'active');
+      .in('status', ['active', 'overdue']);
 
     if (fetchError) throw fetchError;
     if (!advances || advances.length === 0) {
@@ -31,28 +31,37 @@ Deno.serve(async (req) => {
     }
 
     const results = [];
+    const skipped = [];
     const today = new Date().toISOString().split('T')[0];
 
     for (const advance of advances) {
+      // Idempotency: skip if already processed today
+      const { data: existingEntry } = await supabase
+        .from('agent_advance_ledger')
+        .select('id')
+        .eq('advance_id', advance.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (existingEntry) {
+        skipped.push(advance.id);
+        continue;
+      }
+
       const openingBalance = Number(advance.outstanding_balance);
       const interestAccrued = Math.round(openingBalance * DAILY_INTEREST_RATE);
       const balanceAfterInterest = openingBalance + interestAccrued;
 
       const isOverdue = new Date() > new Date(advance.expires_at);
 
-      // Get agent wallet balance
-      const { data: walletEntries } = await supabase
-        .from('general_ledger')
-        .select('amount, direction')
+      // Read wallet balance from wallets table (Single-Writer principle)
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('balance')
         .eq('user_id', advance.agent_id)
-        .eq('category', 'wallet');
+        .maybeSingle();
 
-      let walletBalance = 0;
-      if (walletEntries) {
-        walletBalance = walletEntries.reduce((sum: number, e: any) => {
-          return sum + (e.direction === 'credit' ? Number(e.amount) : -Number(e.amount));
-        }, 0);
-      }
+      const walletBalance = wallet ? Number(wallet.balance) : 0;
 
       const maxDeduction = Math.min(walletBalance, balanceAfterInterest);
       const amountDeducted = Math.max(0, maxDeduction);
@@ -67,6 +76,7 @@ Deno.serve(async (req) => {
         deductionStatus = 'none';
       }
 
+      // Record in advance ledger
       await supabase.from('agent_advance_ledger').insert({
         advance_id: advance.id,
         date: today,
@@ -77,21 +87,25 @@ Deno.serve(async (req) => {
         deduction_status: deductionStatus,
       });
 
+      // Update advance status
       const newStatus = closingBalance <= 0 ? 'completed' : (isOverdue ? 'overdue' : 'active');
       await supabase.from('agent_advances').update({
         outstanding_balance: Math.max(0, closingBalance),
         status: newStatus,
       }).eq('id', advance.id);
 
+      // Deduct from wallet via ledger (with transaction_group_id for sync trigger)
       if (amountDeducted > 0) {
+        const txnGroupId = crypto.randomUUID();
         await supabase.from('general_ledger').insert({
           user_id: advance.agent_id,
           amount: amountDeducted,
-          direction: 'debit',
+          direction: 'cash_out',
           category: 'advance_repayment',
           source_table: 'agent_advances',
           source_id: advance.id,
-          description: `Agent advance daily deduction - Interest: ${interestAccrued}`,
+          transaction_group_id: txnGroupId,
+          description: `Advance daily deduction - Interest: ${interestAccrued}`,
           transaction_date: today,
         });
       }
@@ -106,7 +120,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ processed: results.length, results }), {
+    return new Response(JSON.stringify({ processed: results.length, skipped: skipped.length, results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

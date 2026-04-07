@@ -89,3 +89,5 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.bulk-password-reset]
     verify_jwt = false
+  [functions.process-agent-advance-deductions]
+    verify_jwt = false
