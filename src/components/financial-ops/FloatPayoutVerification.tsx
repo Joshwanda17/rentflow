@@ -156,6 +156,37 @@ export function FloatPayoutVerification() {
           console.warn('Disbursement finalization failed:', disbErr);
         }
 
+        // 1% commission to agent (platform expense, NOT charged to user)
+        const commissionAmount = Number(payout.amount) * 0.01;
+        if (commissionAmount > 0) {
+          const commissionGroupId = `float_commission_${id}_${Date.now()}`;
+          await supabase.from('general_ledger').insert([
+            {
+              user_id: payout.agent_id,
+              direction: 'cash_in',
+              amount: commissionAmount,
+              category: 'agent_commission',
+              description: `1% commission on float payout of ${payout.amount} to ${payout.landlord_name}`,
+              ledger_scope: 'wallet',
+              source_table: 'agent_float_withdrawals',
+              source_id: id,
+              transaction_group_id: commissionGroupId,
+              role_type: 'agent',
+            },
+            {
+              user_id: payout.agent_id,
+              direction: 'cash_out',
+              amount: commissionAmount,
+              category: 'marketing_expense',
+              description: `Platform commission (1%) for float payout TID: ${tid.trim()}`,
+              ledger_scope: 'platform',
+              source_table: 'agent_float_withdrawals',
+              source_id: id,
+              transaction_group_id: commissionGroupId,
+            },
+          ]);
+        }
+
         await supabase.from('audit_logs').insert({
           user_id: user!.id,
           action_type: 'float_payout_tid_verified',
@@ -164,6 +195,7 @@ export function FloatPayoutVerification() {
           metadata: {
             transaction_id: tid.trim(),
             amount: payout.amount,
+            commission: commissionAmount,
             landlord_name: payout.landlord_name,
             agent_id: payout.agent_id,
             payment_mode: payout.mobile_money_provider,
