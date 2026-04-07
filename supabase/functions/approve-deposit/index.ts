@@ -125,25 +125,10 @@ Deno.serve(async (req) => {
             .update({ status: "approved", approved_at: new Date().toISOString(), processed_by: user.id })
             .eq("id", depositRequest.id);
 
-          // Credit wallet manually (deposit cash_in ledger has no transaction_group_id, so trigger won't fire)
+          // Ensure wallet row exists (trigger chain handles the actual credit)
           await supabaseAdmin
             .from("wallets")
             .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
-
-          const { data: currentWallet } = await supabaseAdmin
-            .from("wallets")
-            .select("balance")
-            .eq("user_id", depositRequest.user_id)
-            .single();
-
-          if (currentWallet) {
-            const newBalance = (currentWallet.balance || 0) + depositRequest.amount;
-            await supabaseAdmin
-              .from("wallets")
-              .update({ balance: newBalance, updated_at: new Date().toISOString() })
-              .eq("user_id", depositRequest.user_id)
-              .eq("balance", currentWallet.balance);
-          }
 
           // ── Step 1: Auto-deduct rent repayment ──
           // NOTE: We do NOT manually deduct from wallets for cash_out operations.
