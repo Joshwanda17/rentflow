@@ -149,7 +149,10 @@ export function AgentRequisitionForm() {
 
         {/* Description */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Description</label>
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</label>
+            <p className="text-[10px] text-muted-foreground">{description.trim().length} / 250</p>
+          </div>
           <Textarea
             placeholder="Provide details regarding this fund request..."
             value={description}
@@ -158,7 +161,6 @@ export function AgentRequisitionForm() {
             rows={3}
             className="bg-muted border-0 rounded-xl text-sm"
           />
-          <p className="text-[10px] text-muted-foreground text-right">{description.trim().length} / 250</p>
         </div>
 
         {/* Submit */}
