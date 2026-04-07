@@ -371,7 +371,7 @@ export function useFinancialStatements() {
         filters: activeFilters,
         incomeStatement: {
           period: formatPeriodLabel(activeFilters),
-          revenue: { accessFees, requestFees, otherServiceIncome, total: totalRevenue },
+          revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, transactionExpenses, total: totalServiceCosts },
           operatingExpenses: { generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses, total: operatingExpensesTotal },
           netOperatingIncome,
