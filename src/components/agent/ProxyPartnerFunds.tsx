@@ -99,7 +99,7 @@ export function ProxyPartnerFunds() {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
-      setPortfolios(portfolioRes.data || []);
+      setPortfolios((portfolioRes.data || []).filter((p: any) => p.status === 'active'));
       setCompletedWithdrawals((completedRes.data || []).filter(w => approvedIds.includes(w.linked_party)));
 
       // Build active withdrawal status map
