@@ -121,7 +121,7 @@ export function ProxyPartnerFunds() {
 
     ledgerEntries.forEach(entry => {
       const pid = entry.linked_party;
-      if (!pid || rejectedPartnerIds.has(pid)) return;
+      if (!pid) return;
       if (!grouped[pid]) grouped[pid] = { received: 0, withdrawn: 0 };
 
       const amt = Number(entry.amount) || 0;
