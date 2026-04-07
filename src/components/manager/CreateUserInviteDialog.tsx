@@ -75,6 +75,7 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
     fullName: string;
     password: string;
     role: UserRole;
+    autoActivated?: boolean;
   } | null>(null);
 
   const generatePassword = () => {
