@@ -378,6 +378,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onManageFunders={() => { setMenuOpen(false); setFunderSheetOpen(true); }}
         onOpenPartnerDashboard={() => { setMenuOpen(false); setPartnerDashboardOpen(true); }}
         onOpenRequisition={() => { setMenuOpen(false); setRequisitionOpen(true); }}
+        onAngelPoolInvest={() => { setMenuOpen(false); setAngelPoolInvestOpen(true); }}
         isFinancialAgent={isFinancialAgent}
         onInviteFunder={() => {
           setMenuOpen(false);
