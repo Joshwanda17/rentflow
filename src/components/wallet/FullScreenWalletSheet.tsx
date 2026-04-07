@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getDynamicCurrencyName } from '@/lib/currencyFormat';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
