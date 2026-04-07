@@ -1,28 +1,49 @@
 
 
-## Fix: Remove Deposit Approval from Approval Queue
+## Fix: Proxy Partner Tab — Show Only Approved Partners with Actual Returns
 
 ### Problem
-The Financial Ops Approval Queue has a "Deposits" tab that duplicates the dedicated "Verify Deposits" (TID Verification) flow. Having two ways to approve deposits creates a risk of double-crediting wallets.
+Two issues in the agent's Proxy Partners tab:
+1. **Old/non-proxy data showing**: Partners like WINNIE & RICHARD and MUSEMA KIZITO appear because they have `roi_payout` ledger entries with `linked_party` set — but they were never approved through Partner Ops.
+2. **Principal shown instead of returns**: The "Received" column sums ALL `roi_payout` ledger entries (including old managed payouts, backfill principal credits, and corrections), producing inflated/incorrect amounts.
+
+### Root Cause
+Line 155 in `ProxyPartnerFunds.tsx`:
+```typescript
+const visiblePartnerIds = [...new Set([...approvedPartnerIds, ...Object.keys(grouped)])];
+```
+This includes ANY partner with a `roi_payout` ledger entry linked to the agent — not just those approved via Partner Ops.
+
+Additionally, the "Received" amount reads from messy ledger data (principal credits, corrections, old managed payouts) instead of calculating actual earned returns.
 
 ### Solution
-Remove the "Deposits" tab entirely from the Approval Queue component. The only way to approve deposits should be through the dedicated "Verify Deposits" flow (TidVerification component).
+Rewrite `ProxyPartnerFunds.tsx` to:
 
-### Changes
+**1. Only show approved proxy partners**
+- Remove `Object.keys(grouped)` from the visible list — use only `approvedPartnerIds` from `proxy_agent_assignments` where `approval_status = 'approved'`
 
-**`src/components/financial-ops/ApprovalQueue.tsx`**
-- Remove `'deposits'` from the `QueueType` type
-- Change default `activeQueue` state from `'deposits'` to `'wallet_withdrawals'`
-- Remove the "Deposits" tab trigger from the TabsList
-- Remove all deposit-specific verification dialog state and handlers
-- Remove deposit fetching logic from the data query
-- Remove deposit-specific approval/rejection logic (the `handleDepositAction` function and related state)
+**2. Calculate returns from portfolios, not ledger**
+- For each approved partner, query their `investor_portfolios` (active)
+- Calculate accrued ROI using the same time-based formula as `PendingFunderApprovals.tsx`:
+  ```
+  monthlyROI = investment_amount × roi_percentage / 100 / 12
+  monthsElapsed = (min(now, maturity) - created_at) / 30 days
+  returns = monthlyROI × monthsElapsed
+  ```
+- This gives the actual returns due, not principal
 
-**`src/components/financial-ops/FinancialOpsCommandCenter.tsx`**
-- No changes needed — the Approval Queue is already behind the "More Tools" sheet; removing the deposits tab inside it is sufficient
+**3. Track withdrawals from withdrawal_requests**
+- Query `withdrawal_requests` with `linked_party` matching the partner and completed status
+- Available = calculated returns - completed withdrawals
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/components/agent/ProxyPartnerFunds.tsx` | Rewrite data loading: only approved partners, calculate ROI from portfolios, track withdrawals separately |
 
 ### Result
-- Deposits can only be approved via the dedicated "Verify Deposits" → TID Verification flow
-- The Approval Queue will only show "Cash Out" and "Wallet Ops" tabs
-- Eliminates the double-credit risk entirely
+- Only 16 approved proxy partners will show (no WINNIE & RICHARD, no MUSEMA KIZITO)
+- "Received" shows actual calculated returns (e.g., NFITUMUKIZA BOSCO: ~951K, not 49M)
+- "Available" = returns - delivered withdrawals
+- No dependency on polluted ledger entries
 
