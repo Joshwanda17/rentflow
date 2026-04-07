@@ -2258,6 +2258,7 @@ await supabase.from('wallets').update({ balance: current - amount });
 | `PendingRequestsDialog.tsx` | View pending requests |
 | `UserDepositRequests.tsx` | User's deposit history |
 | `UserWithdrawalRequests.tsx` | User's withdrawal history |
+| `ProxyPartnerFunds.tsx` | Proxy partner ROI delivery tab (Proxy Partners wallet tab) |
 | `AgentRentRequestsWalletSection.tsx` | Rent requests in wallet context |
 | `MyReferralsCount.tsx` | Referral count display |
 
