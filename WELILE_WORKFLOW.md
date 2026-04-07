@@ -3198,11 +3198,129 @@ No single source of truth for wallet mutation — some paths used trigger-based 
 - **Before**: RPC inserted ledger without `transaction_group_id`. Callers also inserted their own entries → duplicates
 - **After**: Accepts optional `p_transaction_group_id` parameter. Backward-compatible.
 
-### Enforced Rules (Post-Fix)
-1. Wallet balance changes happen **only** via `sync_wallet_from_ledger` trigger OR via a single manual `.update()` — **never both**
+### Enforced Rules (Post-Fix, strengthened in v5.0)
+1. Wallet balance changes happen **only** via `sync_wallet_from_ledger` trigger — **never via manual `.update()`** (Trigger-Only Policy, v5.0)
 2. RPCs own their domain: `credit_agent_rent_commission` is the sole commission writer; `record_rent_request_repayment` is the sole repayment writer
 3. Edge functions must **not** duplicate what an RPC they call already does
-4. `auto-charge-wallets` uses manual `.update()` without `transaction_group_id` (single-writer for tenant deductions)
+4. `auto-charge-wallets` uses manual `.update()` without `transaction_group_id` (sole exception — single-writer for tenant deductions)
+
+## 37.2 Double-Deduction Bug (CRITICAL — Identified 2026-04-07, **RESOLVED v5.0**)
+
+**`agent-deposit` edge function manually deducted agent wallet AND inserted ledger entries, causing the `sync_wallet_from_ledger` trigger to deduct again.**
+
+### Root Cause
+The `agent-deposit` function had the same bug class as the `approve-deposit` fix. It:
+1. **Manually subtracted** from agent wallet: `balance = balance - amount`
+2. **Inserted `cash_out` ledger entry** → trigger fired → deducted again
+
+This caused 50k to become 100k and 10k to become 20k deductions for affected agents.
+
+Additionally, `creditWalletDirect()` manually credited recipient wallets before ledger entries were inserted, risking double-credits on the receiving side.
+
+### Resolution (v5.0)
+
+1. **Removed all manual wallet updates** from `agent-deposit` edge function (lines 403-418, 516-531)
+2. **Replaced `creditWalletDirect()` with `ensureWalletExists()`** — upsert with `ignoreDuplicates: true` (only ensures wallet row exists; balance managed exclusively by trigger)
+3. **Data correction**: Inserted `balance_correction` ledger entry of 60k for affected agent to reverse excess deductions
+4. **Established Trigger-Only Policy**: All edge functions are now forbidden from manual wallet balance manipulation
+
+### Impact
+- Affected agent (Akampurira Onesmus) had 60k excess deducted — corrected via `cash_in` / `balance_correction` ledger entry
+- `sync_wallet_from_ledger` trigger automatically restored correct balance
+
+---
+
+# 38. HR Dashboard Workflows
+
+## 38.1 Route: `/hr/dashboard`
+
+### UI Design: HR Dashboard
+- **Layout**: Tabbed interface via `ExecutiveDashboardLayout` with `role="hr"`
+- **Mobile**: Responsive tab strip with icon + label
+- **Sub-views**: 8 tabs (Overview, Employees, User Management, Leave, Payroll, Disciplinary, Audit, Departments)
+
+## 38.2 Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `HROverview.tsx` | `src/components/hr/` | Overview KPIs with navigation to sub-views |
+| `HREmployeeDirectory.tsx` | `src/components/hr/` | Searchable employee directory |
+| `HREmployeeDetailDrawer.tsx` | `src/components/hr/` | Employee detail side drawer |
+| `HRUserManagement.tsx` | `src/components/hr/` | HR-specific user management tools |
+| `HRLeaveManagement.tsx` | `src/components/hr/` | Leave request management (approve/reject) |
+| `HRPayroll.tsx` | `src/components/hr/` | Payroll batch processing |
+| `HRDisciplinary.tsx` | `src/components/hr/` | Disciplinary record management (warnings, suspensions, terminations) |
+| `HRAudit.tsx` | `src/components/hr/` | HR-specific audit trail (filters `hr_%` action types) |
+| `HRDepartments.tsx` | `src/components/hr/` | Department management |
+
+## 38.3 Leave Management Flow
+
+```
+Employee submits leave request (type: annual/sick/personal/maternity/paternity)
+    ↓
+Leave request stored in leave_requests table (status: 'pending')
+    ↓
+HR Manager reviews in HRLeaveManagement:
+  - Employee name, leave type, dates, reason
+    ↓
+hr-approve-leave Edge Function:
+  1. Validates leave request exists and is pending
+  2. Updates status to 'approved' or 'rejected'
+  3. Records reviewer and timestamp
+  4. Creates hr_leave_approved/hr_leave_rejected audit log entry
+    ↓
+Employee notified of decision
+```
+
+## 38.4 Payroll Flow
+
+```
+HR prepares payroll batch in HRPayroll
+    ↓
+hr-submit-payroll Edge Function:
+  1. Creates payroll_batches record
+  2. Processes employee salary calculations
+  3. Generates ledger entries for payments
+  4. Records hr_payroll_submitted audit log
+    ↓
+CFO reviews payroll batch for final approval
+    ↓
+Payments disbursed to employee wallets
+```
+
+## 38.5 Disciplinary Flow
+
+```
+HR Manager initiates disciplinary action in HRDisciplinary
+    ↓
+hr-issue-disciplinary Edge Function:
+  1. Creates disciplinary_records entry (type: warning/suspension/termination)
+  2. Records severity, description, evidence
+  3. Creates hr_disciplinary_issued audit log entry
+    ↓
+Employee record updated with disciplinary history
+    ↓
+For terminations: triggers account freeze workflow
+```
+
+## 38.6 Access Control
+
+- **Required role**: `hr`
+- HR role is a Staff-level role, accessed via `/hr/dashboard`
+- HR audit trail shows only `hr_%` prefixed action types
+- All HR actions logged to `audit_logs` with `hr_` prefix
+
+## 38.7 Employee Profiles
+
+| Route | Purpose |
+|-------|---------|
+| `/hr/profiles/:userId` | Individual employee profile deep-dive |
+
+## 38.8 Backend Edge Functions
+
+- **`hr-approve-leave`**: Process leave request approval/rejection with audit trail
+- **`hr-issue-disciplinary`**: Issue disciplinary records (warning, suspension, termination)
+- **`hr-submit-payroll`**: Submit and process payroll batches
 
 ---
 
