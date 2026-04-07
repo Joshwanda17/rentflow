@@ -179,7 +179,7 @@ export function ProxyPartnerFunds() {
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
         action_type: 'proxy_partner_withdrawal',
-        description: `Initiated proxy withdrawal of ${formatAmount(partner.available)} for partner ${partner.partnerName}`,
+        table_name: 'withdrawal_requests',
         metadata: {
           partner_id: partner.partnerId,
           partner_name: partner.partnerName,
