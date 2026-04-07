@@ -52,7 +52,7 @@ export default function AgentAdvances() {
       {/* Header */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/cfo')}>
+          <Button variant="ghost" size="icon" <Button variant="ghost" size="icon" onClick={() => navigate('/cfo-dashboard')}>>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
