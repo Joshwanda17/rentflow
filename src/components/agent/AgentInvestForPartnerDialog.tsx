@@ -57,10 +57,41 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setPartnerName('');
       setPartnerPhone('');
       setAmount('');
+      setInvestmentReference('');
+      setReceiptFile(null);
+      setReceiptPreview(null);
       setSuccess(null);
       setShowConfirm(false);
     }
   }, [open]);
+
+  const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast.error('Receipt file must be under 10MB');
+      return;
+    }
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Only JPG, PNG, or PDF files are accepted');
+      return;
+    }
+    setReceiptFile(file);
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setReceiptPreview(url);
+    } else {
+      setReceiptPreview(null);
+    }
+  };
+
+  const removeReceipt = () => {
+    setReceiptFile(null);
+    setReceiptPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const fetchAgentBalance = async () => {
     const { data: { user } } = await supabase.auth.getUser();
