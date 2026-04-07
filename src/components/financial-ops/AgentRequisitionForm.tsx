@@ -134,7 +134,7 @@ export function AgentRequisitionForm() {
 
         {/* Purpose */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Purpose</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Purpose</label>
           <Select value={purpose} onValueChange={setPurpose}>
             <SelectTrigger className="bg-muted border-0 rounded-xl h-12">
               <SelectValue placeholder="Select requisition purpose" />
