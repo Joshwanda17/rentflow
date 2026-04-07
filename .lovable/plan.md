@@ -1,35 +1,52 @@
 
 
-# Fix: Portfolio Top-Ups Classified as Deposits
+# Manager Approval Audit Visibility for CFO
 
-## Problem
-Portfolio top-ups are inconsistently classified across 3 edge functions:
-- `portfolio-topup` (self-service): `direction: "cash_out"` in `pending_wallet_operations` — shows as withdrawal
-- `coo-wallet-to-portfolio`: `direction: "cash_out"` in `pending_wallet_operations` — shows as withdrawal  
-- `manager-portfolio-topup`: `direction: "cash_in"` — already correct
+## Overview
+Add a dedicated "Approval Audit" tab to the CFO dashboard showing all manager-approved/rejected financial operations with filters and summary metrics. No database migration needed — all data exists in `pending_wallet_operations`.
 
-## Fix
+## Changes
 
-### Edge Functions (2 files)
+### 1. New Component: `src/components/cfo/ManagerApprovalAudit.tsx`
 
-**`supabase/functions/portfolio-topup/index.ts`** (line 113):
-- Change `direction: "cash_out"` → `"cash_in"` in `pending_wallet_operations` insert
-- The wallet-scope ledger entry (line 135, `direction: "cash_out"`) stays as-is — that correctly triggers the wallet deduction via the sync trigger
+Queries `pending_wallet_operations` where `status IN ('approved','rejected')` and `reviewed_by IS NOT NULL`. Fetches `profiles` separately for reviewer names (decoupled query pattern per project conventions).
 
-**`supabase/functions/coo-wallet-to-portfolio/index.ts`** (line 117):
-- Change `direction: "cash_out"` → `"cash_in"` in `pending_wallet_operations` insert
-- The wallet-scope ledger debit (line 151) stays — it correctly deducts from wallet
+**Summary cards (top):**
+- Total approved amount (today)
+- Total operations reviewed
+- Unique approvers count
+- Approval vs rejection ratio (percentage)
 
-### Frontend — Financial Ops Display
+**Filters:**
+- Date range: Today / This Week / This Month / All
+- Manager dropdown (populated from distinct `reviewed_by` values)
+- Status: All / Approved / Rejected
 
-**`src/components/financial-ops/ApprovalQueue.tsx`**:
-- In the `wallet_ops` query mapping (~line 202), add logic so items with `operation_type === 'portfolio_topup'` display with a deposit icon/badge instead of a generic wallet operation label
+**Table columns:**
+- Amount (formatted UGX)
+- Approved By (name from profiles)
+- Role (from user_roles join)
+- Approved At (formatted timestamp)
+- Category (operation_type/category)
+- Status (Badge: green=approved, red=rejected)
+- Description
 
-### No changes needed:
-- `manager-portfolio-topup` already uses `direction: "cash_in"` 
-- `useFinancialStatements.ts` already counts `pending_portfolio_topup` as a deposit in cash flow
-- `apply-pending-topups` ledger entry already uses `direction: "credit"`
+Mobile: card layout fallback. Uses existing `Card`, `Badge`, `Select`, `Table` components and `useQuery`.
 
-## Summary
-2 edge function direction fixes + 1 frontend display tweak. The ledger entries remain correct (debit from wallet scope, credit to platform scope).
+### 2. Sidebar: `src/components/layout/executiveSidebarConfig.ts`
+
+Add to CFO Finance section (after "Wallet Retractions"):
+```
+{ label: 'Approval Audit', icon: ShieldCheck, id: 'approval-audit' }
+```
+
+Import `ShieldCheck` from lucide-react.
+
+### 3. Dashboard: `src/pages/cfo/Dashboard.tsx`
+
+- Import `ManagerApprovalAudit`
+- Add switch case `'approval-audit'` → `<ManagerApprovalAudit />`
+
+## No Migration Needed
+`pending_wallet_operations` already has `reviewed_by`, `reviewed_at`, `amount`, `status`, `category`, `description`. Access is role-gated by the CFO dashboard layout.
 
