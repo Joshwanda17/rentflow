@@ -2776,24 +2776,38 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                 Portfolios Nearing Payout
               </DialogTitle>
               <DialogDescription className="text-xs">
-                {portfolios.length} portfolio{portfolios.length !== 1 ? 's' : ''} with payouts due within 30 days
+                {filtered.length} of {localPortfolios.length} portfolio{localPortfolios.length !== 1 ? 's' : ''} · {localPortfolios.filter(p => p.daysUntil < 0).length} overdue
               </DialogDescription>
             </DialogHeader>
-            <div className="px-4 sm:px-5">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by name, phone, or email…"
-                  className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
-                />
-                {search && (
-                  <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
-                    <X className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                )}
+            <div className="px-4 sm:px-5 space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by name, phone, or email…"
+                    className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
+                  />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+                <Select value={rangeFilter} onValueChange={setRangeFilter}>
+                  <SelectTrigger className="w-[120px] h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="7">7 days</SelectItem>
+                    <SelectItem value="14">14 days</SelectItem>
+                    <SelectItem value="30">30 days</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="overflow-y-auto max-h-[calc(90vh-160px)] px-4 pb-4 sm:px-5 sm:pb-5 space-y-2">
