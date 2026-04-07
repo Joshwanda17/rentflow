@@ -428,7 +428,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
         if (!ownerId) return;
 
-        const roiDate = dateOnlyToLocalDate(p.next_roi_date);
+        const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+        const roiDate = dateOnlyToLocalDate(effectiveNextDate);
         const diffMs = roiDate.getTime() - now.getTime();
         const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         // Include all active portfolios with a next_roi_date (past-due + upcoming)
@@ -446,7 +447,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           roiMode: p.roi_mode ?? 'monthly_payout',
           createdAt: p.created_at,
           daysUntil: du,
-          nextPayoutDate: p.next_roi_date,
+          nextPayoutDate: effectiveNextDate,
         });
       });
       nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
