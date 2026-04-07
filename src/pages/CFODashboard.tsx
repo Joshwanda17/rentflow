@@ -78,6 +78,7 @@ export default function CFODashboard() {
     { id: 'requisitions', label: 'Requisitions', icon: FileText },
     { id: 'collections', label: 'Collections', icon: Receipt },
     { id: 'rankings', label: 'Rankings', icon: TrendingUp },
+    { id: 'investments', label: 'Investments', icon: HandCoins },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
     { id: 'ledger', label: 'Ledger', icon: ClipboardList },
   ];
