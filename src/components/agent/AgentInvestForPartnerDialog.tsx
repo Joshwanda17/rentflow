@@ -468,6 +468,64 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               )}
             </div>
 
+            {/* Investment Reference */}
+            <div className="space-y-2">
+              <Label htmlFor="invest-ref">Investment Reference</Label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="invest-ref"
+                  placeholder="e.g. MoMo TID 12345 or cash receipt number"
+                  value={investmentReference}
+                  onChange={(e) => setInvestmentReference(e.target.value)}
+                  className="pl-9"
+                  maxLength={200}
+                />
+              </div>
+            </div>
+
+            {/* Receipt Upload */}
+            <div className="space-y-2">
+              <Label>Receipt Upload <span className="text-destructive">*</span></Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,application/pdf"
+                onChange={handleReceiptChange}
+                className="hidden"
+              />
+              {receiptFile ? (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {receiptFile.type.startsWith('image/') ? (
+                        <Image className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                      )}
+                      <span className="text-xs truncate text-foreground">{receiptFile.name}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={removeReceipt}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {receiptPreview && (
+                    <img src={receiptPreview} alt="Receipt preview" className="rounded-md max-h-32 w-full object-contain" />
+                  )}
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-dashed h-20 flex-col gap-1"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Tap to upload receipt (JPG, PNG, PDF)</span>
+                </Button>
+              )}
+            </div>
+
             {/* Payout Cycle Info */}
             <div className="p-3 rounded-lg bg-muted/50 border border-border/60">
               <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date</p>
