@@ -387,7 +387,7 @@ export function useFinancialStatements() {
           closingBalance: Math.max(0, closingBalance),
         },
         balanceSheet: {
-          assets: { platformCash, userFundsHeld, receivables: outstandingRent, totalAssets },
+          assets: { platformCash, userFundsHeld, receivables: outstandingRent, advanceAccessFeeReceivables, totalAssets },
           platformObligations: { userWalletCustody, pendingWithdrawals, accruedPlatformRewards, agentCommissionsPayable, totalObligations },
           platformEquity: { retainedOperatingSurplus, totalEquity: retainedOperatingSurplus },
         },
