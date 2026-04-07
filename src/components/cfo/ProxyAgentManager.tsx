@@ -11,8 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Handshake, UserPlus, Loader2, XCircle, Smartphone, ShieldCheck } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
+import { format } from 'date-fns';
 
 export function ProxyAgentManager() {
   const { user } = useAuth();
@@ -24,6 +26,7 @@ export function ProxyAgentManager() {
   const [beneficiaryRole, setBeneficiaryRole] = useState('landlord');
   const [reason, setReason] = useState('No smartphone access');
   const [isManagedAccount, setIsManagedAccount] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<any>(null);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['proxy-assignments'],
@@ -37,6 +40,19 @@ export function ProxyAgentManager() {
       return data || [];
     },
   });
+
+  const uniqueAgents = new Set(assignments.map((a: any) => a.agent_id)).size;
+  const uniquePartners = new Set(assignments.map((a: any) => a.beneficiary_id)).size;
+  const managedCount = assignments.filter((a: any) => a.is_managed_account).length;
+
+  const resetForm = () => {
+    setPickedAgent(null);
+    setPickedBeneficiary(null);
+    setBeneficiaryRole('landlord');
+    setReason('No smartphone access');
+    setIsManagedAccount(false);
+    setEditingAssignment(null);
+  };
 
   const assignMutation = useMutation({
     mutationFn: async () => {
@@ -56,9 +72,26 @@ export function ProxyAgentManager() {
       toast({ title: '✅ Proxy agent linked' });
       qc.invalidateQueries({ queryKey: ['proxy-assignments'] });
       setShowAssign(false);
-      setPickedAgent(null);
-      setPickedBeneficiary(null);
-      setIsManagedAccount(false);
+      resetForm();
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingAssignment) throw new Error('No assignment selected');
+      const { error } = await supabase.from('proxy_agent_assignments').update({
+        beneficiary_role: beneficiaryRole,
+        reason,
+        is_managed_account: isManagedAccount,
+      }).eq('id', editingAssignment.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: '✅ Assignment updated' });
+      qc.invalidateQueries({ queryKey: ['proxy-assignments'] });
+      setShowAssign(false);
+      resetForm();
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -74,6 +107,27 @@ export function ProxyAgentManager() {
     },
   });
 
+  const openEdit = (a: any) => {
+    setEditingAssignment(a);
+    setBeneficiaryRole(a.beneficiary_role || 'landlord');
+    setReason(a.reason || '');
+    setIsManagedAccount(a.is_managed_account || false);
+    setShowAssign(true);
+  };
+
+  const handleDelete = (a: any) => {
+    if (window.confirm(`Deactivate proxy link: ${a.agent?.full_name} → ${a.beneficiary?.full_name}?`)) {
+      deactivateMutation.mutate(a.id);
+    }
+  };
+
+  const kpis = [
+    { label: 'Total Assignments', value: assignments.length, icon: Handshake, color: 'text-primary' },
+    { label: 'Unique Agents', value: uniqueAgents, icon: Users, color: 'text-blue-500' },
+    { label: 'Partners Assigned', value: uniquePartners, icon: UserCheck, color: 'text-green-500' },
+    { label: 'Managed Accounts', value: managedCount, icon: Building, color: 'text-amber-500' },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -81,29 +135,33 @@ export function ProxyAgentManager() {
           <Handshake className="h-5 w-5 text-primary" />
           Proxy Agents
         </h2>
-        <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) { setPickedAgent(null); setPickedBeneficiary(null); setIsManagedAccount(false); } }}>
+        <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5"><UserPlus className="h-4 w-4" /> Link Agent</Button>
           </DialogTrigger>
           <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Link Proxy Agent</DialogTitle></DialogHeader>
-            <p className="text-xs text-muted-foreground">
-              Assign an agent to act on behalf of a landlord or partner who doesn't have smartphone access.
-            </p>
+            <DialogHeader>
+              <DialogTitle>{editingAssignment ? 'Edit Proxy Assignment' : 'Link Proxy Agent'}</DialogTitle>
+            </DialogHeader>
+            {!editingAssignment && (
+              <p className="text-xs text-muted-foreground">
+                Assign an agent to act on behalf of a landlord or partner who doesn't have smartphone access.
+              </p>
+            )}
             <div className="space-y-3">
-              <UserSearchPicker
-                label="Search Agent"
-                placeholder="Search agent by name or phone..."
-                selectedUser={pickedAgent}
-                onSelect={setPickedAgent}
-                roleFilter="agent"
-              />
-              <UserSearchPicker
-                label="Search Beneficiary (landlord/partner)"
-                placeholder="Search beneficiary by name or phone..."
-                selectedUser={pickedBeneficiary}
-                onSelect={setPickedBeneficiary}
-              />
+              {editingAssignment ? (
+                <div className="space-y-1 rounded-lg border border-border p-3 bg-muted/30">
+                  <p className="text-xs text-muted-foreground">Agent</p>
+                  <p className="text-sm font-medium">{editingAssignment.agent?.full_name}</p>
+                  <p className="text-xs text-muted-foreground mt-2">Beneficiary</p>
+                  <p className="text-sm font-medium">{editingAssignment.beneficiary?.full_name}</p>
+                </div>
+              ) : (
+                <>
+                  <UserSearchPicker label="Search Agent" placeholder="Search agent by name or phone..." selectedUser={pickedAgent} onSelect={setPickedAgent} roleFilter="agent" />
+                  <UserSearchPicker label="Search Beneficiary (landlord/partner)" placeholder="Search beneficiary by name or phone..." selectedUser={pickedBeneficiary} onSelect={setPickedBeneficiary} />
+                </>
+              )}
               <div>
                 <Label>Beneficiary Role</Label>
                 <Select value={beneficiaryRole} onValueChange={setBeneficiaryRole}>
@@ -121,7 +179,7 @@ export function ProxyAgentManager() {
                     Managed Account
                   </Label>
                   <p className="text-[10px] text-muted-foreground leading-tight">
-                    Payouts go to agent's wallet instead of the partner's. Prevents double-credit.
+                    Payouts go to agent's wallet instead of the partner's.
                   </p>
                 </div>
                 <Switch checked={isManagedAccount} onCheckedChange={setIsManagedAccount} />
@@ -130,15 +188,35 @@ export function ProxyAgentManager() {
                 <Label>Reason</Label>
                 <Input value={reason} onChange={e => setReason(e.target.value)} />
               </div>
-              <Button className="w-full" onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending || !pickedAgent || !pickedBeneficiary}>
-                {assignMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Link Proxy
+              <Button
+                className="w-full"
+                onClick={() => editingAssignment ? editMutation.mutate() : assignMutation.mutate()}
+                disabled={(editingAssignment ? editMutation.isPending : assignMutation.isPending) || (!editingAssignment && (!pickedAgent || !pickedBeneficiary))}
+              >
+                {(editingAssignment ? editMutation.isPending : assignMutation.isPending) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {editingAssignment ? 'Update Assignment' : 'Link Proxy'}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {kpis.map(k => (
+          <Card key={k.label}>
+            <CardContent className="p-3 flex items-center gap-3">
+              <k.icon className={`h-8 w-8 ${k.color} shrink-0`} />
+              <div>
+                <p className="text-2xl font-bold">{k.value}</p>
+                <p className="text-[11px] text-muted-foreground leading-tight">{k.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Table */}
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : assignments.length === 0 ? (
@@ -147,36 +225,67 @@ export function ProxyAgentManager() {
           No proxy agents assigned. Link agents for landlords/partners without smartphones.
         </CardContent></Card>
       ) : (
-        <div className="space-y-2">
-          {assignments.map((a: any) => (
-            <Card key={a.id}>
-              <CardContent className="p-3 flex items-center justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-sm">{a.agent?.full_name || 'Agent'}</p>
-                    <span className="text-xs text-muted-foreground">→</span>
-                    <p className="text-sm">{a.beneficiary?.full_name || 'Beneficiary'}</p>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge variant="outline" className="text-[10px]">
-                      {a.beneficiary_role === 'landlord' ? '🏠 Landlord' : '💼 Partner'}
-                    </Badge>
-                    {a.is_managed_account && (
-                      <Badge variant="primary" className="text-[10px] gap-0.5">
-                        <ShieldCheck className="h-2.5 w-2.5" />
-                        Managed
+        <Card>
+          <div className="overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">#</TableHead>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>Partner / Beneficiary</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Managed</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Assigned</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assignments.map((a: any, idx: number) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
+                    <TableCell>
+                      <p className="font-medium text-sm">{a.agent?.full_name || '—'}</p>
+                      <p className="text-[11px] text-muted-foreground">{a.agent?.phone || ''}</p>
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-medium text-sm">{a.beneficiary?.full_name || '—'}</p>
+                      <p className="text-[11px] text-muted-foreground">{a.beneficiary?.phone || ''}</p>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px]">
+                        {a.beneficiary_role === 'landlord' ? '🏠 Landlord' : '💼 Partner'}
                       </Badge>
-                    )}
-                    <span className="text-[10px] text-muted-foreground">{a.reason}</span>
-                  </div>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => deactivateMutation.mutate(a.id)}>
-                  <XCircle className="h-4 w-4 text-destructive" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    </TableCell>
+                    <TableCell>
+                      {a.is_managed_account ? (
+                        <Badge className="text-[10px] gap-0.5 bg-primary/10 text-primary border-primary/20">
+                          <ShieldCheck className="h-2.5 w-2.5" /> Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs max-w-[150px] truncate">{a.reason || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {a.created_at ? format(new Date(a.created_at), 'dd MMM yyyy') : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(a)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(a)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       )}
     </div>
   );
