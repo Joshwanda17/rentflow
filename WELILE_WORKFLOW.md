@@ -129,14 +129,14 @@ Always redirects to custom domain (welilereceipts.com) to avoid auth-bridge toke
 
 # 2. Role System & Navigation
 
-## 2.1 Supported Roles (14 total)
+## 2.1 Supported Roles (15 total)
 
 | Group | Roles |
 |-------|-------|
 | **Consumer** | `tenant`, `landlord` |
 | **Financial** | `supporter` |
 | **Field** | `agent` |
-| **Staff** | `manager`, `employee`, `operations` |
+| **Staff** | `manager`, `employee`, `operations`, `hr` |
 | **Executive** | `ceo`, `coo`, `cfo`, `cto`, `cmo`, `crm` |
 | **God Mode** | `super_admin` |
 
