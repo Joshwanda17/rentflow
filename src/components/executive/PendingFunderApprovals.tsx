@@ -66,22 +66,33 @@ export function PendingFunderApprovals() {
         .eq('id', assignmentId);
       if (error) throw error;
 
-      // 2. Query beneficiary's total active investment amount
+      // 2. Query beneficiary's portfolios and calculate accrued ROI
       const { data: portfolios } = await supabase
         .from('investor_portfolios')
-        .select('id, investment_amount')
+        .select('id, investment_amount, roi_percentage, created_at, maturity_date, total_roi_earned')
         .eq('investor_id', assignment.beneficiary_id)
         .eq('status', 'active');
 
-      const totalInvestment = (portfolios || []).reduce((sum, p) => sum + (p.investment_amount || 0), 0);
+      // Calculate actual returns: sum of (investment × roi% / 100 / 12 × months elapsed) per portfolio
+      const now = new Date();
+      const totalReturns = (portfolios || []).reduce((sum, p) => {
+        // Use total_roi_earned if already tracked, otherwise calculate from elapsed time
+        if ((p.total_roi_earned || 0) > 0) return sum + p.total_roi_earned;
+        const created = new Date(p.created_at);
+        const maturity = p.maturity_date ? new Date(p.maturity_date) : now;
+        const endDate = maturity < now ? maturity : now;
+        const monthsElapsed = Math.max(0, (endDate.getTime() - created.getTime()) / (30 * 24 * 60 * 60 * 1000));
+        const monthlyROI = (p.investment_amount || 0) * (p.roi_percentage || 0) / 100 / 12;
+        return sum + Math.floor(monthlyROI * monthsElapsed);
+      }, 0);
       const firstPortfolioId = portfolios?.[0]?.id || assignmentId;
 
-      // 3. Credit agent wallet with partner's investment amount via atomic RPC
-      if (totalInvestment > 0) {
+      // 3. Credit agent wallet with partner's earned returns (not principal)
+      if (totalReturns > 0) {
         const { error: rpcError } = await supabase.rpc('credit_proxy_approval', {
           p_agent_id: assignment.agent_id,
           p_beneficiary_id: assignment.beneficiary_id,
-          p_amount: totalInvestment,
+          p_amount: totalReturns,
           p_source_id: firstPortfolioId,
           p_transaction_group_id: `proxy-init-${assignmentId}`,
         });
@@ -97,14 +108,14 @@ export function PendingFunderApprovals() {
         metadata: {
           beneficiary_name: assignment.beneficiary?.full_name,
           agent_name: assignment.agent?.full_name,
-          credited_amount: totalInvestment,
+          credited_returns: totalReturns,
         },
       });
 
-      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name, amount: totalInvestment };
+      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name, amount: totalReturns };
     },
     onSuccess: (data) => {
-      const amountStr = data.amount > 0 ? ` USh ${data.amount.toLocaleString()} credited to ${data.agentName}'s wallet.` : '';
+      const amountStr = data.amount > 0 ? ` USh ${data.amount.toLocaleString()} returns credited to ${data.agentName}'s wallet.` : '';
       toast({ title: '✅ Funder approved', description: `${data.beneficiaryName} approved.${amountStr}` });
       queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
     },
