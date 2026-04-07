@@ -189,7 +189,7 @@ export function ProxyPartnerFunds() {
         </Badge>
       );
     }
-    if (status === 'approved' || status === 'processing') {
+    if (status === 'approved' || status === 'processing' || status === 'manager_approved') {
       return (
         <Badge variant="success" size="sm" className="gap-1">
           <CheckCircle2 className="h-3 w-3" />
