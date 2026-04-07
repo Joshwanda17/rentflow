@@ -1,42 +1,48 @@
+## Plan: Credit Partner Investment to Proxy Agent on Approval
 
+### Problem
 
-# Redesign Agent Float Management — Sovereign Vault Aesthetic
+When Partner Ops approves a proxy partner, the partner disappears into an "Awaiting returns" state. The approval means the partner's investment amount should be immediately available to the proxy agent for delivery.
 
-## Reference Analysis (from screenshot)
+### Changes
 
-The design uses the Sovereign Vault aesthetic with:
-- "AGENT FLOAT MANAGEMENT" uppercase tracking-widest subtitle above a bold heading
-- Clean tab bar (Transfers / Balances / Reconciliation) without icons, text-only
-- Card with "Record Bank Float Transfer" heading + subtitle description
-- Uppercase tracking-widest field labels (CASH-OUT AGENT, AMOUNT (UGX), BANK REFERENCE (TID)*, BANK NAME, NOTES)
-- Full-width stacked fields (not 2-column grid)
-- Purple-pink gradient pill-shaped submit button: "Record Float Transfer ➤"
-- "Transfer History" section with "VIEW ALL" link in primary color
-- Each history item shows a bank icon (purple circle), branch name, bank + TID, amount in UGX, and COMPLETED/PENDING badge
-- Bottom summary card: purple gradient with "TOTAL FLOAT PROCESSED" uppercase label, large formatted amount, and "+X% from last week" trend
-- Bottom tab bar: HOME, TRANSFERS, BALANCES, PROFILE (with icons)
+**1. `src/components/executive/PendingFunderApprovals.tsx` — Credit wallet on approval**
 
-## Changes — Single File
+- After approving the assignment, query `investor_portfolios` for the beneficiary's total active investment amount
+- Create a `general_ledger` entry: `cash_in`, category `roi_payout`, with `linked_party` set to the partner's ID, credited to the agent's wallet
+- Update the agent's wallet balance accordingly
+- Show the credited amount in the success toast
 
-### `src/components/cfo/AgentFloatManagement.tsx`
+**2. `src/components/agent/ProxyPartnerFunds.tsx` — Remove "Awaiting returns" badge**
 
-**Main layout:**
-- Replace header with uppercase "AGENT FLOAT MANAGEMENT" subtitle + bold "Agent Float Management" title
-- Tab bar: text-only triggers without icons, clean underline style
+- Replace the "Awaiting returns" badge (line 312) with "Ready for delivery" or simply show the zero balance without a misleading label
+- **the partnes with awaiting returns are those who are ready to withdraw for their returns**
+- Partners with zero balance but approved status will show USh 0 until the approval ledger entry lands
 
-**FloatTransfersTab:**
-- Card with rounded-2xl, "Record Bank Float Transfer" heading + "Initiate and document bank-to-agent float settlements." subtitle
-- All labels uppercase tracking-widest (CASH-OUT AGENT, AMOUNT (UGX), BANK REFERENCE (TID)*, BANK NAME, NOTES)
-- Stack all fields vertically (no 2-column grid)
-- Agent selector styled as a rounded-xl select with chevron
-- Submit button: full-width pill shape with purple-pink gradient (`bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 rounded-full`)
-- Transfer History section with "VIEW ALL" header link
-- Each history row: circle icon with bank building, branch name, bank + TID ref, right-aligned UGX amount + COMPLETED/PENDING badge (green/amber)
-- Bottom summary card: purple gradient background showing "TOTAL FLOAT PROCESSED" with computed sum and weekly trend percentage
+**3. Database migration — Wallet update function**
 
-**No logic changes** — only visual/layout restructuring. All existing mutations, queries, and data flow remain identical.
+- Create or reuse an RPC function (`credit_proxy_approval`) that atomically:
+  1. Inserts the ledger entry
+  2. Updates the agent's wallet balance
+- This prevents race conditions and ensures the wallet stays in sync
 
-| File | Change |
-|---|---|
-| `src/components/cfo/AgentFloatManagement.tsx` | Restyle entire component to Sovereign Vault aesthetic |
+### Flow After Fix
 
+```text
+Partner Ops approves → 
+  1. Assignment marked approved/active
+  2. Partner's investment_amount queried from investor_portfolios
+  3. Ledger entry created (cash_in / roi_payout) on agent's wallet
+  4. Agent's wallet balance updated
+  → Partner appears in Proxy Partners tab with available balance
+  → Agent can withdraw and deliver to partner
+```
+
+### Technical Details
+
+- **the partnes with awaiting returns are those who are ready to withdraw for their returns**
+
+- Category: `roi_payout` with `ledger_scope: 'wallet'` to match existing proxy partner fund logic
+- The `linked_party` field ties the ledger entry to the specific partner
+- Source table: `investor_portfolios`, source ID: the portfolio ID
+- If a partner has multiple active portfolios, sum all `investment_amount` values
