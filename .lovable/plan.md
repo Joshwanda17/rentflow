@@ -1,40 +1,44 @@
 
 
-# Add Date Range Filter to Nearing Payouts (Including Past-Due)
+# Fix Nearing Payouts to Use Rolled-Forward Dates
 
 ## Problem
-The nearing payouts list only shows portfolios with `next_roi_date` between today and 30 days ahead (`du >= 0 && du <= 30`). Past-due/missed payouts (where `next_roi_date` is in the past) are completely hidden.
+The nearing payouts dialog uses the raw `next_roi_date` from the database, while the investment portfolio detail uses `getNextPayoutDate()` which rolls stale dates forward month-by-month until they're >= today.
 
-## Changes
+Example: MWAKA ISAAC has `next_roi_date = "2026-02-07"` in the DB. The portfolio view rolls this to `2026-04-07` (today), but the nearing payouts shows `Feb 7` and marks it as ~59 days overdue.
 
-### 1. `src/components/coo/COOPartnersPage.tsx` — Data fetch (lines ~420-455)
-- Remove the `du >= 0 && du <= 30` filter so ALL active portfolios with a `next_roi_date` are collected into the nearing list (both past-due and future)
-- Allow negative `daysUntil` values (negative = overdue by N days)
+## Root Cause
+In `fetchData` (line 431-449), both `daysUntil` and `nextPayoutDate` are computed from the raw `p.next_roi_date`. They should instead use the rolled-forward date from `getNextPayoutDate()`.
 
-### 2. `NearingPayoutsDialog` — Add range dropdown
-- Add a `Select` dropdown at the top with options: **Overdue**, **7 days**, **14 days**, **30 days**, **All**
-- Default to **7 days**
-- Filter logic:
-  - **Overdue** → `daysUntil < 0` (missed payouts only)
-  - **7 days** → `daysUntil >= -30 && daysUntil <= 7` (past 30 days missed + next 7 days)
-  - **14 days** → `daysUntil >= -30 && daysUntil <= 14`
-  - **30 days** → `daysUntil >= -30 && daysUntil <= 30`
-  - **All** → no filter
-- Apply this filter alongside the existing search filter
+## Fix — `src/components/coo/COOPartnersPage.tsx` (lines ~431-449)
 
-### 3. `NearingPayoutsDialog` — Visual distinction for overdue items
-- Overdue portfolios (`daysUntil < 0`) get a red "Overdue" badge and show "X days overdue" instead of "in X days"
-- Today's payouts get an amber "Due Today" badge
+Replace the raw date usage with the rolled-forward date:
 
-### 4. `NearingPayoutsCard` — Update count and label
-- Pass filtered count or show total with a note like "3 overdue" if any are past-due
-- Update subtitle to reflect the range
+```typescript
+// BEFORE (line 431-433, 449):
+const roiDate = dateOnlyToLocalDate(p.next_roi_date);
+const diffMs = roiDate.getTime() - now.getTime();
+const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+...
+nextPayoutDate: p.next_roi_date,
+
+// AFTER:
+const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+const roiDate = dateOnlyToLocalDate(effectiveNextDate);
+const diffMs = roiDate.getTime() - now.getTime();
+const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+...
+nextPayoutDate: effectiveNextDate,
+```
+
+This ensures:
+- `daysUntil` is computed from the same rolled-forward date the portfolio view shows
+- The "Payout Date" cell in the dialog matches what the portfolio detail displays
+- Portfolios like MWAKA ISAAC with payout day 7 show as "Due Today" on April 7th instead of "59d overdue"
 
 | File | Change |
 |---|---|
-| `COOPartnersPage.tsx` (fetchData ~line 435) | Remove `du >= 0 && du <= 30` gate, allow all active portfolios with `next_roi_date` |
-| `COOPartnersPage.tsx` (NearingPayoutsDialog) | Add range Select dropdown, filter by range, style overdue items |
-| `COOPartnersPage.tsx` (NearingPayoutsCard) | Show overdue count highlight |
+| `COOPartnersPage.tsx` (~line 431-449) | Use `getNextPayoutDate()` for `daysUntil` and `nextPayoutDate` instead of raw `p.next_roi_date` |
 
-**No database changes needed.**
+Single file, 3-line change. No database or logic changes elsewhere.
 
