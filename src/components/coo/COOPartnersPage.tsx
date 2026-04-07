@@ -2637,6 +2637,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           amount: roiAmount,
           direction: 'cash_in',
           category: 'roi_payout',
+          source_table: 'investor_portfolios',
+          source_id: p.portfolioId,
           transaction_group_id: txnGroupId,
           ledger_scope: 'platform',
           linked_party: p.investorId,
