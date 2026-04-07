@@ -54,7 +54,7 @@ export function PendingFunderApprovals() {
       const assignment = pending?.find(p => p.id === assignmentId);
       if (!assignment) throw new Error('Assignment not found');
 
-      // 1. Approve the assignment (no wallet credit — ROI returns come via nearing payouts)
+      // 1. Approve the assignment
       const { error } = await supabase
         .from('proxy_agent_assignments')
         .update({
@@ -66,7 +66,29 @@ export function PendingFunderApprovals() {
         .eq('id', assignmentId);
       if (error) throw error;
 
-      // 2. Audit log
+      // 2. Query beneficiary's total active investment amount
+      const { data: portfolios } = await supabase
+        .from('investor_portfolios')
+        .select('id, investment_amount')
+        .eq('investor_id', assignment.beneficiary_id)
+        .eq('status', 'active');
+
+      const totalInvestment = (portfolios || []).reduce((sum, p) => sum + (p.investment_amount || 0), 0);
+      const firstPortfolioId = portfolios?.[0]?.id || assignmentId;
+
+      // 3. Credit agent wallet with partner's investment amount via atomic RPC
+      if (totalInvestment > 0) {
+        const { error: rpcError } = await supabase.rpc('credit_proxy_approval', {
+          p_agent_id: assignment.agent_id,
+          p_beneficiary_id: assignment.beneficiary_id,
+          p_amount: totalInvestment,
+          p_source_id: firstPortfolioId,
+          p_transaction_group_id: `proxy-init-${assignmentId}`,
+        });
+        if (rpcError) throw rpcError;
+      }
+
+      // 4. Audit log
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
         action_type: 'approve_proxy_funder',
@@ -75,13 +97,15 @@ export function PendingFunderApprovals() {
         metadata: {
           beneficiary_name: assignment.beneficiary?.full_name,
           agent_name: assignment.agent?.full_name,
+          credited_amount: totalInvestment,
         },
       });
 
-      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name };
+      return { beneficiaryName: assignment.beneficiary?.full_name, agentName: assignment.agent?.full_name, amount: totalInvestment };
     },
     onSuccess: (data) => {
-      toast({ title: '✅ Funder approved', description: `${data.beneficiaryName} is now linked to ${data.agentName}. ROI returns will appear via nearing payouts.` });
+      const amountStr = data.amount > 0 ? ` USh ${data.amount.toLocaleString()} credited to ${data.agentName}'s wallet.` : '';
+      toast({ title: '✅ Funder approved', description: `${data.beneficiaryName} approved.${amountStr}` });
       queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
     },
     onError: (err: any) => {
