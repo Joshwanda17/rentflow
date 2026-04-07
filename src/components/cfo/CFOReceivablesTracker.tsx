@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
-import { Banknote, TrendingUp, PieChart, ChevronDown, ChevronUp } from 'lucide-react';
+import { Banknote, TrendingUp, PieChart, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Progress } from '@/components/ui/progress';
