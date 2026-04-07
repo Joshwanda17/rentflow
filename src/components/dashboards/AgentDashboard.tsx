@@ -85,6 +85,8 @@ import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
+import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
+import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
