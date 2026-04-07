@@ -6,9 +6,10 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
-import { Loader2, Search, User, Wallet, PiggyBank, CheckCircle, ArrowRight, Copy } from 'lucide-react';
+import { Loader2, Search, User, Wallet, PiggyBank, CheckCircle, ArrowRight, Copy, UserPlus, Info } from 'lucide-react';
 import { PRICE_PER_SHARE, TOTAL_SHARES, POOL_PERCENT } from '@/components/angel-pool/constants';
 import { cn } from '@/lib/utils';
+import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 
 interface AgentAngelPoolInvestDialogProps {
   open: boolean;
@@ -40,6 +41,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedInvestor, setSelectedInvestor] = useState<InvestorResult | null>(null);
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<string>('cash');
@@ -47,16 +49,31 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<InvestmentResult | null>(null);
 
+  // Registration state
+  const [showRegister, setShowRegister] = useState(false);
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regNotes, setRegNotes] = useState('');
+  const [registering, setRegistering] = useState(false);
+
+  const { isDuplicate, isChecking, duplicateMessage } = usePhoneDuplicateCheck(regPhone);
+
   const reset = () => {
     setStep('search');
     setSearchQuery('');
     setSearchResults([]);
+    setHasSearched(false);
     setSelectedInvestor(null);
     setAmount('');
     setPaymentMethod('cash');
     setInvestmentReference('');
     setSubmitting(false);
     setResult(null);
+    setShowRegister(false);
+    setRegName('');
+    setRegPhone('');
+    setRegNotes('');
+    setRegistering(false);
   };
 
   const handleClose = () => {
@@ -67,6 +84,8 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const handleSearch = async () => {
     if (searchQuery.length < 2) return;
     setSearching(true);
+    setHasSearched(true);
+    setShowRegister(false);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -97,6 +116,53 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
       walletBalance: wallet?.balance ?? 0,
     });
     setStep('amount');
+  };
+
+  const handleRegister = async () => {
+    if (!regName.trim() || regName.trim().length < 2) {
+      toast.error('Name must be at least 2 characters');
+      return;
+    }
+    const cleanedPhone = regPhone.replace(/\D/g, '');
+    if (cleanedPhone.length < 9) {
+      toast.error('Enter a valid phone number');
+      return;
+    }
+    if (isDuplicate) {
+      toast.error('This phone number is already registered');
+      return;
+    }
+
+    setRegistering(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('register-proxy-funder', {
+        body: {
+          full_name: regName.trim(),
+          phone: regPhone.trim(),
+          agent_id: user.id,
+          notes: regNotes.trim() || 'Registered during Angel Pool investment',
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`${data.full_name} registered successfully!`);
+
+      // Auto-select the newly created investor
+      await selectInvestor({
+        id: data.funder_id,
+        full_name: data.full_name,
+        phone: data.phone,
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Registration failed');
+    } finally {
+      setRegistering(false);
+    }
   };
 
   const parsedAmount = Number(amount) || 0;
@@ -150,13 +216,16 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
     window.open(`https://wa.me/${selectedInvestor.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
   };
 
+  const regPhoneClean = regPhone.replace(/\D/g, '');
+  const canRegister = regName.trim().length >= 2 && regPhoneClean.length >= 9 && !isDuplicate && !isChecking;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-emerald-500" />
-            {step === 'search' && 'Select Investor'}
+            {step === 'search' && (showRegister ? 'Register New Investor' : 'Select Investor')}
             {step === 'amount' && 'Investment Details'}
             {step === 'preview' && 'Confirm Investment'}
             {step === 'success' && 'Investment Complete'}
@@ -164,7 +233,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
         </DialogHeader>
 
         {/* Step 1: Search */}
-        {step === 'search' && (
+        {step === 'search' && !showRegister && (
           <div className="space-y-4">
             <div className="flex gap-2">
               <Input
@@ -194,9 +263,90 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </button>
               ))}
-              {searchResults.length === 0 && searchQuery.length >= 2 && !searching && (
-                <p className="text-center text-sm text-muted-foreground py-4">No results found</p>
+              {searchResults.length === 0 && hasSearched && !searching && (
+                <p className="text-center text-sm text-muted-foreground py-2">No results found</p>
               )}
+            </div>
+
+            {/* Register New Investor button */}
+            <button
+              onClick={() => setShowRegister(true)}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-primary/40 hover:bg-primary/5 transition-colors text-primary text-sm font-medium"
+            >
+              <UserPlus className="h-4 w-4" />
+              Register New Investor
+            </button>
+          </div>
+        )}
+
+        {/* Step 1b: Inline Registration */}
+        {step === 'search' && showRegister && (
+          <div className="space-y-4">
+            <div className="flex items-start gap-2 rounded-lg bg-blue-500/10 border border-blue-500/20 p-3">
+              <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                This creates a no-smartphone account. The investor will receive updates via USSD/SMS.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Full Name <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="e.g. John Mukasa"
+                value={regName}
+                onChange={(e) => setRegName(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Phone Number <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="e.g. 0771234567"
+                value={regPhone}
+                onChange={(e) => setRegPhone(e.target.value)}
+                type="tel"
+                maxLength={15}
+              />
+              {isChecking && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Checking...
+                </p>
+              )}
+              {isDuplicate && duplicateMessage && (
+                <p className="text-xs text-destructive">{duplicateMessage}</p>
+              )}
+              {regPhoneClean.length >= 9 && !isDuplicate && !isChecking && (
+                <p className="text-xs text-emerald-600">✓ Phone available</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Input
+                placeholder="e.g. Referred by village chairman"
+                value={regNotes}
+                onChange={(e) => setRegNotes(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowRegister(false)} className="flex-1">
+                Back to Search
+              </Button>
+              <Button
+                onClick={handleRegister}
+                disabled={!canRegister || registering}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+              >
+                {registering ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <UserPlus className="h-4 w-4 mr-2" />
+                )}
+                Register & Select
+              </Button>
             </div>
           </div>
         )}
