@@ -28,6 +28,7 @@ interface PendingFunder {
 
 export function PendingFunderApprovals() {
   const { user } = useAuth();
+  const [isExpanded, setIsExpanded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [rejectId, setRejectId] = useState<string | null>(null);
