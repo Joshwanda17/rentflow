@@ -31,6 +31,8 @@ import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 import { ServiceCentrePayoutApproval } from '@/components/cfo/ServiceCentrePayoutApproval';
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
+import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
+import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
