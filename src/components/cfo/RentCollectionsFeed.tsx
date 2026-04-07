@@ -84,7 +84,7 @@ export function RentCollectionsFeed() {
     queryFn: async () => {
       const { data: entries } = await supabase
         .from('general_ledger')
-        .select('id, user_id, amount, direction, category, created_at, role_type, source_id, justification')
+        .select('id, user_id, amount, direction, category, created_at, source_id, description, ledger_scope')
         .eq('category', 'rent_repayment')
         .eq('direction', 'cash_out')
         .gte('created_at', dateFrom)
@@ -93,7 +93,7 @@ export function RentCollectionsFeed() {
 
       if (!entries?.length) return [];
 
-      const userIds = [...new Set(entries.map(e => e.user_id))];
+      const userIds = [...new Set(entries.filter(e => e.user_id).map(e => e.user_id!))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name')
@@ -105,11 +105,11 @@ export function RentCollectionsFeed() {
         id: e.id,
         amount: e.amount,
         date: e.created_at,
-        tenantName: nameMap.get(e.user_id) || 'Unknown',
-        agentName: e.role_type === 'agent' ? nameMap.get(e.user_id) || 'Agent' : '—',
+        tenantName: e.user_id ? (nameMap.get(e.user_id) || 'Unknown') : 'Unknown',
+        agentName: '—',
         method: 'manual' as const,
         status: 'completed',
-        landlordInfo: e.justification || undefined,
+        landlordInfo: e.description || undefined,
       }));
     },
   });
