@@ -27,6 +27,7 @@ export function ProxyPartnerFunds() {
   const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
+  const [approvedPartnerIds, setApprovedPartnerIds] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string; phone: string }>>({});
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
@@ -44,25 +45,36 @@ export function ProxyPartnerFunds() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      // Fetch ledger entries
-      const { data: entries, error } = await supabase
-        .from('general_ledger')
-        .select('*')
-        .eq('user_id', user.id)
-        .not('linked_party', 'is', null)
-        .in('category', ['roi_payout', 'proxy_partner_withdrawal'])
-        .order('created_at', { ascending: false });
+      const [{ data: entries, error }, { data: assignments, error: assignmentsError }] = await Promise.all([
+        supabase
+          .from('general_ledger')
+          .select('*')
+          .eq('user_id', user.id)
+          .not('linked_party', 'is', null)
+          .in('category', ['roi_payout', 'proxy_partner_withdrawal'])
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('proxy_agent_assignments')
+          .select('beneficiary_id')
+          .eq('agent_id', user.id)
+          .eq('beneficiary_role', 'supporter')
+          .eq('approval_status', 'approved'),
+      ]);
 
       if (error) throw error;
-      setLedgerEntries(entries || []);
+      if (assignmentsError) throw assignmentsError;
 
-      // Get unique partner IDs
-      const allPartnerIds = [...new Set((entries || []).map(e => e.linked_party).filter(Boolean))];
+      setLedgerEntries(entries || []);
+      const approvedIds = [...new Set((assignments || []).map(a => a.beneficiary_id).filter(Boolean))];
+      setApprovedPartnerIds(approvedIds);
+
+      // Include approved partners even before first ROI payout so they don't disappear after approval
+      const allPartnerIds = [...new Set([
+        ...(entries || []).map(e => e.linked_party).filter(Boolean),
+        ...approvedIds,
+      ])];
 
       if (allPartnerIds.length > 0) {
-        // Fetch profiles and pending withdrawals in parallel
-        // Note: Do NOT filter out rejected assignments here — partners with existing funds
-        // must always be visible so the agent can deliver/withdraw those funds
         const [profileRes, withdrawalRes] = await Promise.all([
           supabase
             .from('profiles')
@@ -108,6 +120,9 @@ export function ProxyPartnerFunds() {
           }
         });
         setPartnerWithdrawalStatus(statusMap);
+      } else {
+        setProfiles({});
+        setPartnerWithdrawalStatus({});
       }
     } catch (err) {
       console.error('Error loading proxy funds:', err);
@@ -133,15 +148,26 @@ export function ProxyPartnerFunds() {
       }
     });
 
-    return Object.entries(grouped).map(([partnerId, totals]) => ({
-      partnerId,
-      partnerName: profiles[partnerId]?.full_name || 'Unknown Partner',
-      partnerPhone: profiles[partnerId]?.phone || '',
-      totalReceived: totals.received,
-      totalWithdrawn: totals.withdrawn,
-      available: totals.received - totals.withdrawn,
-    })).sort((a, b) => b.available - a.available);
-  }, [ledgerEntries, profiles]);
+    const visiblePartnerIds = [...new Set([...approvedPartnerIds, ...Object.keys(grouped)])];
+
+    return visiblePartnerIds
+      .map((partnerId) => {
+        const totals = grouped[partnerId] || { received: 0, withdrawn: 0 };
+        return {
+          partnerId,
+          partnerName: profiles[partnerId]?.full_name || 'Unknown Partner',
+          partnerPhone: profiles[partnerId]?.phone || '',
+          totalReceived: totals.received,
+          totalWithdrawn: totals.withdrawn,
+          available: totals.received - totals.withdrawn,
+        };
+      })
+      .sort((a, b) => {
+        if (b.available !== a.available) return b.available - a.available;
+        if (b.totalReceived !== a.totalReceived) return b.totalReceived - a.totalReceived;
+        return a.partnerName.localeCompare(b.partnerName);
+      });
+  }, [approvedPartnerIds, ledgerEntries, profiles]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
@@ -207,8 +233,8 @@ export function ProxyPartnerFunds() {
       <Card className="border-border/50">
         <CardContent className="py-10 text-center text-muted-foreground">
           <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm font-medium">No proxy partner funds</p>
-          <p className="text-xs mt-1">Partner payout credits will appear here</p>
+          <p className="text-sm font-medium">No proxy partners yet</p>
+          <p className="text-xs mt-1">Approved partners and their ROI returns will appear here</p>
         </CardContent>
       </Card>
     );
@@ -281,7 +307,13 @@ export function ProxyPartnerFunds() {
                 </Button>
               )}
 
-              {partner.available <= 0 && (
+              {partner.available <= 0 && partner.totalReceived === 0 && (
+                <div className="text-center">
+                  <Badge variant="secondary" className="text-xs">Awaiting returns</Badge>
+                </div>
+              )}
+
+              {partner.available <= 0 && partner.totalReceived > 0 && (
                 <div className="text-center">
                   <Badge variant="secondary" className="text-xs">Fully delivered</Badge>
                 </div>
