@@ -59,6 +59,11 @@ export function CFOAdvancesManager() {
   const totalAccruedInterest = advances.reduce((s: number, a: any) => s + Math.max(0, Number(a.outstanding_balance) - Number(a.principal)), 0);
   const overdueExposure = advances.filter((a: any) => a.status === 'overdue').reduce((s: number, a: any) => s + Number(a.outstanding_balance), 0);
 
+  // Access Fee Receivables
+  const totalAccessFees = advances.reduce((s: number, a: any) => s + Number(a.access_fee || 0), 0);
+  const totalAccessFeeCollected = advances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
+  const accessFeeReceivables = totalAccessFees - totalAccessFeeCollected;
+
   const calcFee = calcAmount ? calculateAccessFee(Number(calcAmount), Number(calcRate), Number(calcDays)) : 0;
   const calcTotal = Number(calcAmount || 0) + calcFee;
 
@@ -67,6 +72,7 @@ export function CFOAdvancesManager() {
     { label: 'Outstanding', value: formatUGX(totalOutstanding), icon: TrendingUp, cls: 'text-amber-600' },
     { label: 'Accrued Interest', value: formatUGX(totalAccruedInterest), icon: Percent, cls: 'text-purple-600' },
     { label: 'Overdue Exposure', value: formatUGX(overdueExposure), icon: AlertTriangle, cls: 'text-destructive' },
+    { label: 'Fee Receivables', value: formatUGX(accessFeeReceivables), icon: Receipt, cls: 'text-blue-600' },
   ];
 
   return (
