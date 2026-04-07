@@ -118,7 +118,7 @@ export function AgentRequisitionForm() {
 
         {/* Amount */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Amount</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Amount (UGX)</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">UGX</span>
             <Input
@@ -134,7 +134,7 @@ export function AgentRequisitionForm() {
 
         {/* Purpose */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Purpose</label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Purpose</label>
           <Select value={purpose} onValueChange={setPurpose}>
             <SelectTrigger className="bg-muted border-0 rounded-xl h-12">
               <SelectValue placeholder="Select requisition purpose" />
@@ -149,7 +149,10 @@ export function AgentRequisitionForm() {
 
         {/* Description */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Description</label>
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</label>
+            <p className="text-[10px] text-muted-foreground">{description.trim().length} / 250</p>
+          </div>
           <Textarea
             placeholder="Provide details regarding this fund request..."
             value={description}
@@ -158,12 +161,11 @@ export function AgentRequisitionForm() {
             rows={3}
             className="bg-muted border-0 rounded-xl text-sm"
           />
-          <p className="text-[10px] text-muted-foreground text-right">{description.trim().length} / 250</p>
         </div>
 
         {/* Submit */}
         <Button
-          className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl py-6 text-base font-semibold shadow-lg"
+          className="w-full gap-2 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 text-white rounded-full py-6 text-base font-semibold shadow-lg hover:opacity-90"
           onClick={() => submitMutation.mutate()}
           disabled={submitMutation.isPending || !amount || !purpose || description.trim().length < 10}
         >
@@ -206,15 +208,15 @@ export function AgentRequisitionForm() {
                     <FileText className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground capitalize truncate">
-                      {meta.purpose || 'Requisition'}
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {PURPOSE_OPTIONS.find(p => p.value === meta.purpose)?.label || meta.purpose || 'Requisition'}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Badge className={`text-[9px] px-1.5 py-0 h-4 font-bold ${status.className}`}>
                         {status.label}
                       </Badge>
                       <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(req.created_at), 'MMM d, HH:mm')}
+                        {format(new Date(req.created_at), 'MMM d, yyyy • hh:mm a')}
                       </span>
                     </div>
                   </div>
