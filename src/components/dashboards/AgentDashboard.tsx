@@ -165,6 +165,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
   const [floatHistoryOpen, setFloatHistoryOpen] = useState(false);
   const [requisitionOpen, setRequisitionOpen] = useState(false);
+  const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
 
   const { isFinancialAgent } = useIsFinancialAgent();
   // Check if this agent is a CFO-assigned cashout agent
