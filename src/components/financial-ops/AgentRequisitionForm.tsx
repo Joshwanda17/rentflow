@@ -208,8 +208,8 @@ export function AgentRequisitionForm() {
                     <FileText className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground capitalize truncate">
-                      {meta.purpose || 'Requisition'}
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {PURPOSE_OPTIONS.find(p => p.value === meta.purpose)?.label || meta.purpose || 'Requisition'}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Badge className={`text-[9px] px-1.5 py-0 h-4 font-bold ${status.className}`}>

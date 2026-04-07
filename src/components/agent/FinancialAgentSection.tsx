@@ -47,7 +47,7 @@ export function FinancialAgentSection({ open, onOpenChange }: FinancialAgentSect
           <div>
             <p className="text-xs font-semibold text-primary">Secured Vault Access</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              All requisitions are encrypted and require CFO approval before disbursement.
+              All fund requisitions are encrypted and audited per Sovereign compliance standards.
             </p>
           </div>
         </div>
