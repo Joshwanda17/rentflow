@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Banknote, Smartphone, Building2, Clock, CheckCircle2 } from 'lucide-react';
+import { Loader2, Banknote, Smartphone, Building2, Clock, CheckCircle2, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
-type PaymentMethod = 'cash' | 'mobile_money' | 'bank';
+type PaymentMethod = 'cash' | 'mobile_money' | 'bank' | 'wallet';
 
 const PAYMENT_OPTIONS: { value: PaymentMethod; label: string; icon: typeof Banknote; description: string }[] = [
+  { value: 'wallet', label: 'Wallet', icon: Wallet, description: 'From partner wallet' },
   { value: 'cash', label: 'Cash', icon: Banknote, description: 'Physical cash deposit' },
   { value: 'mobile_money', label: 'Mobile Money', icon: Smartphone, description: 'MTN / Airtel MoMo' },
   { value: 'bank', label: 'Bank', icon: Building2, description: 'Bank transfer' },
@@ -39,6 +40,27 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [transactionReference, setTransactionReference] = useState('');
   const [saving, setSaving] = useState(false);
+  const [partnerWalletBalance, setPartnerWalletBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+
+  // Fetch partner wallet balance when dialog opens or account changes
+  useEffect(() => {
+    if (!open || !account) { setPartnerWalletBalance(null); return; }
+    const partnerId = account.investor_id || account.agent_id;
+    if (!partnerId) return;
+    setLoadingBalance(true);
+    const fetchBalance = async () => {
+      try {
+        const { data } = await supabase.from('wallets').select('balance').eq('user_id', partnerId).maybeSingle();
+        setPartnerWalletBalance(data ? Number(data.balance) : 0);
+      } catch {
+        setPartnerWalletBalance(0);
+      } finally {
+        setLoadingBalance(false);
+      }
+    };
+    fetchBalance();
+  }, [open, account]);
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
@@ -51,11 +73,13 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   };
 
   const isRefValid = () => {
-    if (paymentMethod === 'cash') return true;
+    if (paymentMethod === 'cash' || paymentMethod === 'wallet') return true;
     if (paymentMethod === 'mobile_money') return transactionReference.trim().length >= 8;
     if (paymentMethod === 'bank') return transactionReference.trim().length >= 6;
     return false;
   };
+
+  const walletInsufficient = paymentMethod === 'wallet' && partnerWalletBalance !== null && (parseFloat(amount) || 0) > partnerWalletBalance;
 
   const handleSubmit = async () => {
     if (!account || !amount) return;
@@ -112,7 +136,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
   };
 
   const parsedAmount = parseFloat(amount) || 0;
-  const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && isRefValid();
+  const canSubmit = !saving && parsedAmount >= 1000 && notes.trim().length >= 10 && isRefValid() && !walletInsufficient;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -138,7 +162,7 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
             {/* Payment method selector */}
             <div className="space-y-1.5">
               <Label className="text-xs">Payment Method</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {PAYMENT_OPTIONS.map(opt => {
                   const Icon = opt.icon;
                   const selected = paymentMethod === opt.value;
@@ -148,18 +172,26 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
                       type="button"
                       onClick={() => { setPaymentMethod(opt.value); setTransactionReference(''); }}
                       className={cn(
-                        "flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-all text-center",
+                        "flex flex-col items-center gap-1 rounded-lg border-2 p-2.5 transition-all text-center",
                         selected
                           ? "border-primary bg-primary/10 shadow-sm"
                           : "border-border bg-background hover:border-muted-foreground/30"
                       )}
                     >
-                      <Icon className={cn("h-5 w-5", selected ? "text-primary" : "text-muted-foreground")} />
-                      <span className={cn("text-xs font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
+                      <Icon className={cn("h-4 w-4", selected ? "text-primary" : "text-muted-foreground")} />
+                      <span className={cn("text-[10px] font-medium", selected ? "text-primary" : "text-muted-foreground")}>{opt.label}</span>
                     </button>
                   );
                 })}
               </div>
+              {paymentMethod === 'wallet' && (
+                <div className="mt-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Partner Wallet Balance</span>
+                  <span className="text-sm font-bold text-foreground">
+                    {loadingBalance ? '...' : partnerWalletBalance !== null ? formatUGX(partnerWalletBalance) : '—'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Amount */}
@@ -174,6 +206,11 @@ export function FundInvestmentAccountDialog({ open, onOpenChange, account, onSuc
                 className="h-9"
                 autoFocus
               />
+              {walletInsufficient && (
+                <p className="text-[10px] text-destructive font-medium">
+                  Insufficient wallet balance ({formatUGX(partnerWalletBalance || 0)} available)
+                </p>
+              )}
             </div>
 
             {/* Conditional reference field */}
