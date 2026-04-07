@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, BarChart3, Shield, Banknote, ClipboardList, 
   BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine,
-  Receipt, Wallet, Bell, Layers, DollarSign, FileText
+  Receipt, Wallet, Bell, Layers, DollarSign, FileText, HandCoins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +33,7 @@ import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
 import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
+import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -77,6 +78,7 @@ export default function CFODashboard() {
     { id: 'requisitions', label: 'Requisitions', icon: FileText },
     { id: 'collections', label: 'Collections', icon: Receipt },
     { id: 'rankings', label: 'Rankings', icon: TrendingUp },
+    { id: 'investments', label: 'Investments', icon: HandCoins },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
     { id: 'ledger', label: 'Ledger', icon: ClipboardList },
   ];
@@ -215,6 +217,11 @@ export default function CFODashboard() {
           {/* Rankings Tab */}
           <TabsContent value="rankings" className="space-y-6">
             <AgentPerformanceRankings />
+          </TabsContent>
+
+          {/* Investments Tab */}
+          <TabsContent value="investments" className="space-y-6">
+            <CFOPartnerInvestments />
           </TabsContent>
 
           {/* Reconciliation Tab */}

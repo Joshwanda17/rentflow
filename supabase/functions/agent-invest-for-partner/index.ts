@@ -50,10 +50,12 @@ Deno.serve(async (req) => {
     if (!agentRole) return errorResponse("Only agents can invest on behalf of partners", 403);
 
     // --- Parse & validate inputs ---
-    const { partner_id, amount, summary_id } = await req.json() as {
+    const { partner_id, amount, summary_id, investment_reference, receipt_file_url } = await req.json() as {
       partner_id: string;
       amount: number;
       summary_id: string;
+      investment_reference?: string;
+      receipt_file_url?: string;
     };
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -192,7 +194,9 @@ Deno.serve(async (req) => {
         payout_day: null,
         maturity_date: maturityDate.toISOString().split("T")[0],
         next_roi_date: firstPayoutDate,
-        status: "active", // Instant activation for field investments
+        status: "active",
+        investment_reference: investment_reference || null,
+        receipt_file_url: receipt_file_url || null,
       })
       .select("id")
       .single();

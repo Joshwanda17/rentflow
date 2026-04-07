@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Loader2, HandCoins, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info, User, Phone } from 'lucide-react';
+import { Loader2, HandCoins, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info, User, Phone, Upload, FileText, X, Image } from 'lucide-react';
 import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
 
 interface AgentInvestForPartnerDialogProps {
@@ -34,6 +34,11 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [partnerName, setPartnerName] = useState('');
   const [partnerPhone, setPartnerPhone] = useState('');
   const [amount, setAmount] = useState('');
+  const [investmentReference, setInvestmentReference] = useState('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -52,10 +57,41 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setPartnerName('');
       setPartnerPhone('');
       setAmount('');
+      setInvestmentReference('');
+      setReceiptFile(null);
+      setReceiptPreview(null);
       setSuccess(null);
       setShowConfirm(false);
     }
   }, [open]);
+
+  const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast.error('Receipt file must be under 10MB');
+      return;
+    }
+    const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Only JPG, PNG, or PDF files are accepted');
+      return;
+    }
+    setReceiptFile(file);
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setReceiptPreview(url);
+    } else {
+      setReceiptPreview(null);
+    }
+  };
+
+  const removeReceipt = () => {
+    setReceiptFile(null);
+    setReceiptPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const fetchAgentBalance = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -104,6 +140,14 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       toast.error('Amount exceeds current rent demand');
       return false;
     }
+    if (investmentReference.trim().length < 3) {
+      toast.error('Investment reference is required (min 3 characters)');
+      return false;
+    }
+    if (!receiptFile) {
+      toast.error('Receipt upload is mandatory');
+      return false;
+    }
     return true;
   };
 
@@ -119,6 +163,21 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      // Upload receipt first
+      let receiptUrl: string | null = null;
+      if (receiptFile) {
+        setUploadingReceipt(true);
+        const timestamp = Date.now();
+        const safeName = receiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${user.id}/${timestamp}_${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('investment-receipts')
+          .upload(filePath, receiptFile);
+        setUploadingReceipt(false);
+        if (uploadErr) throw new Error('Receipt upload failed: ' + uploadErr.message);
+        receiptUrl = filePath;
+      }
 
       // Step 1: Try to find existing supporter by phone
       let partnerId: string | null = null;
@@ -169,6 +228,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           partner_id: partnerId,
           amount: parsedAmount,
           summary_id: summaryId,
+          investment_reference: investmentReference.trim(),
+          receipt_file_url: receiptUrl,
         },
       });
 
@@ -407,6 +468,64 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               )}
             </div>
 
+            {/* Investment Reference */}
+            <div className="space-y-2">
+              <Label htmlFor="invest-ref">Investment Reference</Label>
+              <div className="relative">
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="invest-ref"
+                  placeholder="e.g. MoMo TID 12345 or cash receipt number"
+                  value={investmentReference}
+                  onChange={(e) => setInvestmentReference(e.target.value)}
+                  className="pl-9"
+                  maxLength={200}
+                />
+              </div>
+            </div>
+
+            {/* Receipt Upload */}
+            <div className="space-y-2">
+              <Label>Receipt Upload <span className="text-destructive">*</span></Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,application/pdf"
+                onChange={handleReceiptChange}
+                className="hidden"
+              />
+              {receiptFile ? (
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {receiptFile.type.startsWith('image/') ? (
+                        <Image className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                      )}
+                      <span className="text-xs truncate text-foreground">{receiptFile.name}</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={removeReceipt}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {receiptPreview && (
+                    <img src={receiptPreview} alt="Receipt preview" className="rounded-md max-h-32 w-full object-contain" />
+                  )}
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-dashed h-20 flex-col gap-1"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Tap to upload receipt (JPG, PNG, PDF)</span>
+                </Button>
+              )}
+            </div>
+
             {/* Payout Cycle Info */}
             <div className="p-3 rounded-lg bg-muted/50 border border-border/60">
               <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date</p>
@@ -427,7 +546,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
             <Button
               onClick={handleConfirmOpen}
-              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 50000 || parsedAmount > agentBalance}
+              disabled={submitting || partnerName.trim().length < 2 || !partnerPhone.trim() || parsedAmount < 50000 || parsedAmount > agentBalance || investmentReference.trim().length < 3 || !receiptFile}
               className="w-full"
             >
               {submitting ? (

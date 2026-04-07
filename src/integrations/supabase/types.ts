@@ -4015,11 +4015,16 @@ export type Database = {
           auto_reinvest: boolean
           bank_account_name: string | null
           bank_name: string | null
+          cfo_rejection_reason: string | null
+          cfo_verified: boolean | null
+          cfo_verified_at: string | null
+          cfo_verified_by: string | null
           created_at: string
           display_currency: string
           duration_months: number
           id: string
           investment_amount: number
+          investment_reference: string | null
           investor_id: string | null
           invite_id: string | null
           maturity_alert_30d: boolean
@@ -4032,6 +4037,7 @@ export type Database = {
           payout_day: number | null
           portfolio_code: string
           portfolio_pin: string
+          receipt_file_url: string | null
           roi_mode: string
           roi_percentage: number
           status: string
@@ -4045,11 +4051,16 @@ export type Database = {
           auto_reinvest?: boolean
           bank_account_name?: string | null
           bank_name?: string | null
+          cfo_rejection_reason?: string | null
+          cfo_verified?: boolean | null
+          cfo_verified_at?: string | null
+          cfo_verified_by?: string | null
           created_at?: string
           display_currency?: string
           duration_months: number
           id?: string
           investment_amount: number
+          investment_reference?: string | null
           investor_id?: string | null
           invite_id?: string | null
           maturity_alert_30d?: boolean
@@ -4062,6 +4073,7 @@ export type Database = {
           payout_day?: number | null
           portfolio_code: string
           portfolio_pin: string
+          receipt_file_url?: string | null
           roi_mode?: string
           roi_percentage?: number
           status?: string
@@ -4075,11 +4087,16 @@ export type Database = {
           auto_reinvest?: boolean
           bank_account_name?: string | null
           bank_name?: string | null
+          cfo_rejection_reason?: string | null
+          cfo_verified?: boolean | null
+          cfo_verified_at?: string | null
+          cfo_verified_by?: string | null
           created_at?: string
           display_currency?: string
           duration_months?: number
           id?: string
           investment_amount?: number
+          investment_reference?: string | null
           investor_id?: string | null
           invite_id?: string | null
           maturity_alert_30d?: boolean
@@ -4092,6 +4109,7 @@ export type Database = {
           payout_day?: number | null
           portfolio_code?: string
           portfolio_pin?: string
+          receipt_file_url?: string | null
           roi_mode?: string
           roi_percentage?: number
           status?: string
