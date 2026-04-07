@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
       user_id: user.id,
       amount: topupAmount,
-      direction: "cash_out",
+      direction: "cash_in",
       category: "pending_portfolio_topup",
       source_table: "investor_portfolios",
       source_id: portfolio_id,

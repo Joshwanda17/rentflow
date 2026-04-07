@@ -395,6 +395,12 @@ export function ApprovalQueue() {
   const urgencyBg = { green: 'border-l-emerald-500', amber: 'border-l-amber-500', red: 'border-l-destructive' };
   const queueIcon: Record<QueueType, typeof ArrowDownToLine> = { deposits: ArrowDownToLine, wallet_withdrawals: Banknote, wallet_ops: Wallet };
 
+  // Portfolio top-ups should display as deposits
+  const getItemDisplayLabel = (item: QueueItem) => {
+    if (item.rawData?.operation_type === 'portfolio_topup') return '💰 Portfolio Deposit';
+    return item.description;
+  };
+
   return (
     <>
       <Card>
@@ -529,7 +535,7 @@ export function ApprovalQueue() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-bold truncate">{item.userName}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{getItemDisplayLabel(item)}</p>
                             {item.userPhone && (
                               <p className="text-[10px] text-muted-foreground/70">{item.userPhone}</p>
                             )}
