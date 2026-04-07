@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -12,12 +11,12 @@ import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSect
 import { KPICard } from '@/components/executive/KPICard';
 import { CashoutAgentActivity } from '@/components/cfo/CashoutAgentActivity';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, subDays, startOfDay, endOfDay, differenceInDays } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   CalendarIcon, Users, Banknote, MapPin, AlertTriangle,
   Trophy, Activity, ClipboardList, TrendingUp, UserPlus,
-  Eye, ShieldAlert, Loader2, BarChart3, Clock
+  ShieldAlert, Loader2, BarChart3
 } from 'lucide-react';
 
 export function COOAgentTracker() {
@@ -36,25 +35,25 @@ export function COOAgentTracker() {
   const dayEnd = endOfDay(selectedDate).toISOString();
   const weekAgo = subDays(selectedDate, 7).toISOString();
 
-  // --- Fetch agents (role = agent) ---
+  // Fetch agents
   const { data: agents = [] } = useQuery({
     queryKey: ['coo-agents-list'],
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, role')
+        .select('id, full_name, phone')
         .eq('role', 'agent');
-      return data || [];
+      return (data || []) as { id: string; full_name: string; phone: string }[];
     },
   });
 
-  // --- Rent requests (expected rent) ---
+  // Rent requests (expected rent)
   const { data: rentRequests = [], isLoading: loadingRent } = useQuery({
     queryKey: ['coo-tracker-rent', selectedAgent],
     queryFn: async () => {
       let q = supabase
         .from('rent_requests')
-        .select('id, user_id, monthly_rent, status, assigned_agent_id, created_at')
+        .select('id, tenant_id, rent_amount, status, assigned_agent_id, created_at')
         .in('status', ['approved', 'active', 'disbursed', 'repaying']);
       if (selectedAgent !== 'all') q = q.eq('assigned_agent_id', selectedAgent);
       const { data } = await q;
@@ -62,7 +61,7 @@ export function COOAgentTracker() {
     },
   });
 
-  // --- Collections today ---
+  // Collections today
   const { data: collections = [], isLoading: loadingCollections } = useQuery({
     queryKey: ['coo-tracker-collections', selectedAgent, dateStr],
     queryFn: async () => {
@@ -77,22 +76,21 @@ export function COOAgentTracker() {
     },
   });
 
-  // --- Auto charges today ---
+  // Auto charges today
   const { data: autoCharges = [] } = useQuery({
-    queryKey: ['coo-tracker-charges', selectedAgent, dateStr],
+    queryKey: ['coo-tracker-charges', dateStr],
     queryFn: async () => {
-      let q = supabase
+      const { data } = await supabase
         .from('subscription_charge_logs')
-        .select('id, user_id, amount_charged, status, created_at')
+        .select('id, tenant_id, charge_amount, status, created_at')
         .eq('status', 'success')
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd);
-      const { data } = await q;
       return data || [];
     },
   });
 
-  // --- Visits today ---
+  // Visits today
   const { data: visits = [] } = useQuery({
     queryKey: ['coo-tracker-visits', selectedAgent, dateStr],
     queryFn: async () => {
@@ -107,22 +105,7 @@ export function COOAgentTracker() {
     },
   });
 
-  // --- Landlords registered (lc1_chairpersons) ---
-  const { data: newLandlords = [] } = useQuery({
-    queryKey: ['coo-tracker-landlords', selectedAgent, dateStr],
-    queryFn: async () => {
-      let q = supabase
-        .from('lc1_chairpersons')
-        .select('id, registered_by, created_at')
-        .gte('created_at', dayStart)
-        .lte('created_at', dayEnd);
-      if (selectedAgent !== 'all') q = q.eq('registered_by', selectedAgent);
-      const { data } = await q;
-      return data || [];
-    },
-  });
-
-  // --- New tenants registered today ---
+  // New tenants registered today
   const { data: newTenants = [] } = useQuery({
     queryKey: ['coo-tracker-new-tenants', selectedAgent, dateStr],
     queryFn: async () => {
@@ -137,7 +120,7 @@ export function COOAgentTracker() {
     },
   });
 
-  // --- Week collections for scorecard ---
+  // Week collections for scorecard
   const { data: weekCollections = [] } = useQuery({
     queryKey: ['coo-tracker-week-collections', selectedAgent],
     queryFn: async () => {
@@ -151,7 +134,7 @@ export function COOAgentTracker() {
     },
   });
 
-  // --- Week visits for scorecard ---
+  // Week visits for scorecard
   const { data: weekVisits = [] } = useQuery({
     queryKey: ['coo-tracker-week-visits', selectedAgent],
     queryFn: async () => {
@@ -165,15 +148,15 @@ export function COOAgentTracker() {
     },
   });
 
-  // --- Computed metrics ---
+  // Computed metrics
   const totalExpected = useMemo(() =>
-    rentRequests.reduce((s, r) => s + (r.monthly_rent || 0), 0), [rentRequests]);
+    rentRequests.reduce((s, r) => s + (r.rent_amount || 0), 0), [rentRequests]);
 
   const totalCollectedToday = useMemo(() =>
     collections.reduce((s, c) => s + (c.amount || 0), 0), [collections]);
 
   const totalAutoCharged = useMemo(() =>
-    autoCharges.reduce((s, c) => s + (c.amount_charged || 0), 0), [autoCharges]);
+    autoCharges.reduce((s, c) => s + (c.charge_amount || 0), 0), [autoCharges]);
 
   const totalCollectedAll = totalCollectedToday + totalAutoCharged;
   const totalArrears = Math.max(0, totalExpected - totalCollectedAll);
@@ -182,9 +165,9 @@ export function COOAgentTracker() {
   // Defaulters: tenants with active rent but no collection today
   const defaulters = useMemo(() => {
     const collectedTenantIds = new Set(collections.map(c => c.tenant_id));
-    const chargedUserIds = new Set(autoCharges.map(c => c.user_id));
+    const chargedTenantIds = new Set(autoCharges.map(c => c.tenant_id));
     return rentRequests.filter(r =>
-      !collectedTenantIds.has(r.user_id) && !chargedUserIds.has(r.user_id)
+      !collectedTenantIds.has(r.tenant_id) && !chargedTenantIds.has(r.tenant_id)
     );
   }, [rentRequests, collections, autoCharges]);
 
@@ -193,11 +176,10 @@ export function COOAgentTracker() {
     const weekCollTotal = weekCollections.reduce((s, c) => s + (c.amount || 0), 0);
     const collScore = totalExpected > 0 ? Math.min(100, (weekCollTotal / totalExpected) * 100) : 0;
     const visitScore = Math.min(100, (weekVisits.length / Math.max(1, rentRequests.length)) * 100);
-    const tenantScore = Math.min(100, rentRequests.length * 5); // 20 tenants = 100%
-    const landlordScore = Math.min(100, newLandlords.length * 25); // 4 landlords = 100%
-    const weighted = collScore * 0.4 + tenantScore * 0.2 + visitScore * 0.2 + landlordScore * 0.2;
-    return { collScore, tenantScore, visitScore, landlordScore, weighted: Math.round(weighted) };
-  }, [weekCollections, weekVisits, rentRequests, newLandlords, totalExpected]);
+    const tenantScore = Math.min(100, rentRequests.length * 5);
+    const weighted = collScore * 0.4 + tenantScore * 0.2 + visitScore * 0.2 + 0;
+    return { collScore, tenantScore, visitScore, weighted: Math.round(weighted) };
+  }, [weekCollections, weekVisits, rentRequests, totalExpected]);
 
   // Red flags
   const redFlags = useMemo(() => {
@@ -216,7 +198,6 @@ export function COOAgentTracker() {
   }, [collectionRate, totalExpected, defaulters, rentRequests, visits]);
 
   const isLoading = loadingRent || loadingCollections;
-  const agentName = selectedAgent === 'all' ? 'All Agents' : agents.find(a => a.id === selectedAgent)?.full_name || 'Agent';
 
   return (
     <div className="space-y-4">
@@ -236,7 +217,7 @@ export function COOAgentTracker() {
 
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className={cn('w-full sm:w-[200px] justify-start text-left font-normal')}>
+            <Button variant="outline" className="w-full sm:w-[200px] justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
               {format(selectedDate, 'PPP')}
             </Button>
@@ -254,7 +235,7 @@ export function COOAgentTracker() {
         {isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground self-center" />}
       </div>
 
-      {/* 1. Daily Report Card */}
+      {/* 1. Daily Report */}
       <CollapsibleAgentSection
         icon={ClipboardList}
         label="Daily Report"
@@ -263,12 +244,11 @@ export function COOAgentTracker() {
         isOpen={openSections.daily}
         onToggle={() => toggleSection('daily')}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3">
           <StatBox icon={UserPlus} label="New Tenants" value={newTenants.length} color="text-blue-600 bg-blue-500/10" />
           <StatBox icon={Banknote} label="Collected" value={formatUGX(totalCollectedToday)} color="text-emerald-600 bg-emerald-500/10" />
           <StatBox icon={AlertTriangle} label="Defaulters" value={defaulters.length} color="text-red-600 bg-red-500/10" />
           <StatBox icon={MapPin} label="Follow-ups" value={visits.length} color="text-purple-600 bg-purple-500/10" />
-          <StatBox icon={Users} label="Landlords" value={newLandlords.length} color="text-amber-600 bg-amber-500/10" />
         </div>
       </CollapsibleAgentSection>
 
@@ -303,16 +283,16 @@ export function COOAgentTracker() {
           </div>
           <Progress value={collectionRate} className="h-3" />
           <div className="grid grid-cols-3 gap-3 text-center text-xs">
-            <div className="rounded-xl bg-emerald-500/10 p-2">
+            <div className="rounded-xl bg-muted/50 p-2">
               <p className="font-bold text-emerald-600">{formatUGX(totalCollectedToday)}</p>
               <p className="text-muted-foreground">Manual</p>
             </div>
-            <div className="rounded-xl bg-blue-500/10 p-2">
+            <div className="rounded-xl bg-muted/50 p-2">
               <p className="font-bold text-blue-600">{formatUGX(totalAutoCharged)}</p>
               <p className="text-muted-foreground">Auto-charged</p>
             </div>
-            <div className="rounded-xl bg-red-500/10 p-2">
-              <p className="font-bold text-red-600">{formatUGX(totalArrears)}</p>
+            <div className="rounded-xl bg-muted/50 p-2">
+              <p className="font-bold text-destructive">{formatUGX(totalArrears)}</p>
               <p className="text-muted-foreground">Arrears</p>
             </div>
           </div>
@@ -325,7 +305,7 @@ export function COOAgentTracker() {
         label="Defaulter Control"
         pendingCount={defaulters.length}
         pendingLabel="unpaid"
-        iconColor="text-red-600"
+        iconColor="text-destructive"
         isOpen={openSections.defaulter}
         onToggle={() => toggleSection('defaulter')}
       >
@@ -336,10 +316,10 @@ export function COOAgentTracker() {
             defaulters.slice(0, 20).map(d => (
               <div key={d.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
                 <div>
-                  <p className="font-medium truncate max-w-[180px]">Tenant #{d.user_id?.slice(0, 8)}</p>
-                  <p className="text-xs text-muted-foreground">Rent: {formatUGX(d.monthly_rent || 0)}</p>
+                  <p className="font-medium truncate max-w-[180px]">Tenant #{d.tenant_id?.slice(0, 8)}</p>
+                  <p className="text-xs text-muted-foreground">Rent: {formatUGX(d.rent_amount || 0)}</p>
                 </div>
-                <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30 text-xs">
+                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
                   Unpaid
                 </Badge>
               </div>
@@ -367,7 +347,7 @@ export function COOAgentTracker() {
             visits.map(v => (
               <div key={v.id} className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-purple-500 shrink-0" />
+                  <MapPin className="h-4 w-4 text-primary shrink-0" />
                   <div>
                     <p className="font-medium truncate max-w-[160px]">{v.location_name || 'GPS Check-in'}</p>
                     <p className="text-xs text-muted-foreground">{format(new Date(v.checked_in_at), 'h:mm a')}</p>
@@ -395,7 +375,7 @@ export function COOAgentTracker() {
             <span className="text-sm font-semibold">Overall Score</span>
             <Badge className={cn(
               'text-sm font-bold',
-              weeklyScore.weighted >= 70 ? 'bg-emerald-500' : weeklyScore.weighted >= 40 ? 'bg-amber-500' : 'bg-red-500'
+              weeklyScore.weighted >= 70 ? 'bg-emerald-500 hover:bg-emerald-600' : weeklyScore.weighted >= 40 ? 'bg-amber-500 hover:bg-amber-600' : 'bg-destructive hover:bg-destructive/90'
             )}>
               {weeklyScore.weighted}%
             </Badge>
@@ -403,7 +383,6 @@ export function COOAgentTracker() {
           <ScoreRow label="Collections (40%)" value={Math.round(weeklyScore.collScore)} />
           <ScoreRow label="Active Tenants (20%)" value={Math.round(weeklyScore.tenantScore)} />
           <ScoreRow label="Follow-ups (20%)" value={Math.round(weeklyScore.visitScore)} />
-          <ScoreRow label="New Landlords (20%)" value={Math.round(weeklyScore.landlordScore)} />
         </div>
       </CollapsibleAgentSection>
 
@@ -413,7 +392,7 @@ export function COOAgentTracker() {
         label="Red Flags"
         pendingCount={redFlags.length}
         pendingLabel="alerts"
-        iconColor="text-red-600"
+        iconColor="text-destructive"
         isOpen={openSections.redflags}
         onToggle={() => toggleSection('redflags')}
       >
@@ -424,10 +403,10 @@ export function COOAgentTracker() {
             redFlags.map((flag, i) => (
               <div key={i} className={cn(
                 'rounded-xl border p-3 text-sm',
-                flag.severity === 'high' ? 'border-red-500/30 bg-red-500/5' : 'border-amber-500/30 bg-amber-500/5'
+                flag.severity === 'high' ? 'border-destructive/30 bg-destructive/5' : 'border-amber-500/30 bg-amber-500/5'
               )}>
                 <p className="font-semibold flex items-center gap-2">
-                  <AlertTriangle className={cn('h-4 w-4', flag.severity === 'high' ? 'text-red-500' : 'text-amber-500')} />
+                  <AlertTriangle className={cn('h-4 w-4', flag.severity === 'high' ? 'text-destructive' : 'text-amber-500')} />
                   {flag.type}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{flag.message}</p>
@@ -453,10 +432,10 @@ export function COOAgentTracker() {
   );
 }
 
-// --- Helper components ---
-function StatBox({ icon: Icon, label, value, color }: { icon: any; label: string; value: string | number; color: string }) {
+function StatBox({ icon: Icon, label, value, color }: { icon: typeof Users; label: string; value: string | number; color: string }) {
+  const [bg, text] = color.split(' ');
   return (
-    <div className={cn('rounded-xl p-3 flex flex-col items-center gap-1 text-center', color.split(' ')[1])}>
+    <div className="rounded-xl bg-muted/30 p-3 flex flex-col items-center gap-1 text-center">
       <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center', color)}>
         <Icon className="h-4 w-4" />
       </div>
