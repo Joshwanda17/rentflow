@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, BarChart3, Shield, Banknote, ClipboardList, 
   BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine,
-  Receipt, Wallet, Bell, Layers, DollarSign
+  Receipt, Wallet, Bell, Layers, DollarSign, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,6 +30,7 @@ import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
 import { ServiceCentrePayoutApproval } from '@/components/cfo/ServiceCentrePayoutApproval';
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
+import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -71,6 +72,7 @@ export default function CFODashboard() {
     { id: 'statements', label: 'Statements', icon: BookOpen },
     { id: 'solvency', label: 'Solvency', icon: Shield },
     { id: 'payouts', label: 'Payouts', icon: Banknote },
+    { id: 'requisitions', label: 'Requisitions', icon: FileText },
     { id: 'reconciliation', label: 'Reconcile', icon: Scale },
     { id: 'ledger', label: 'Ledger', icon: ClipboardList },
   ];
@@ -194,6 +196,11 @@ export default function CFODashboard() {
               </h3>
               <WithdrawalRequestsManager />
             </div>
+          </TabsContent>
+
+          {/* Requisitions Tab */}
+          <TabsContent value="requisitions" className="space-y-6">
+            <CFOAgentRequisitions />
           </TabsContent>
 
           {/* Reconciliation Tab */}

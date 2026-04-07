@@ -13,16 +13,17 @@ import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
+import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, X, ArrowLeft, Menu, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
 type View = 'home' | 'deposits';
-type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions';
+type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
 const tools = [
   { id: 'ops' as const, label: 'Ops Center', icon: Gauge },
@@ -34,6 +35,7 @@ const tools = [
   { id: 'withdrawals' as const, label: 'Withdrawals & Payouts', icon: Banknote },
   { id: 'opportunities' as const, label: 'Capital Opportunities', icon: TrendingUp },
   { id: 'deductions' as const, label: 'Wallet Deductions', icon: MinusCircle },
+  { id: 'requisitions' as const, label: 'Fund Requisitions', icon: FileText },
 ];
 
 export function FinancialOpsCommandCenter() {
@@ -97,6 +99,11 @@ export function FinancialOpsCommandCenter() {
               Wallet Deductions
             </h2>
             <WalletDeductionPanel />
+          </div>
+        )}
+        {activeTool === 'requisitions' && (
+          <div className="max-w-2xl w-full">
+            <AgentRequisitionForm />
           </div>
         )}
       </div>
