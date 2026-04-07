@@ -34,6 +34,7 @@ const tools = [
   { id: 'withdrawals' as const, label: 'Withdrawals & Payouts', icon: Banknote },
   { id: 'opportunities' as const, label: 'Capital Opportunities', icon: TrendingUp },
   { id: 'deductions' as const, label: 'Wallet Deductions', icon: MinusCircle },
+  { id: 'requisitions' as const, label: 'Fund Requisitions', icon: FileText },
 ];
 
 export function FinancialOpsCommandCenter() {
