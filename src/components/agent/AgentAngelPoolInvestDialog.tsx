@@ -338,7 +338,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               <Button
                 onClick={handleRegister}
                 disabled={!canRegister || registering}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                className="flex-1 bg-[#7718D1] hover:bg-[#6514B5]"
               >
                 {registering ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
