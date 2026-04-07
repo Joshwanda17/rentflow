@@ -207,6 +207,16 @@ export default function CFODashboard() {
             <CFOAgentRequisitions />
           </TabsContent>
 
+          {/* Collections Tab */}
+          <TabsContent value="collections" className="space-y-6">
+            <RentCollectionsFeed />
+          </TabsContent>
+
+          {/* Rankings Tab */}
+          <TabsContent value="rankings" className="space-y-6">
+            <AgentPerformanceRankings />
+          </TabsContent>
+
           {/* Reconciliation Tab */}
           <TabsContent value="reconciliation" className="space-y-6">
             <CFOReconciliationPanel />
