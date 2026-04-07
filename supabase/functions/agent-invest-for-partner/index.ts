@@ -50,10 +50,12 @@ Deno.serve(async (req) => {
     if (!agentRole) return errorResponse("Only agents can invest on behalf of partners", 403);
 
     // --- Parse & validate inputs ---
-    const { partner_id, amount, summary_id } = await req.json() as {
+    const { partner_id, amount, summary_id, investment_reference, receipt_file_url } = await req.json() as {
       partner_id: string;
       amount: number;
       summary_id: string;
+      investment_reference?: string;
+      receipt_file_url?: string;
     };
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
