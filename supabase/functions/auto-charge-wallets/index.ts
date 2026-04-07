@@ -691,6 +691,7 @@ async function chargeAgent(
     description,
     linked_party: `${tenantName} (${tenantPhone})`,
     transaction_date: new Date().toISOString(),
+    currency: 'UGX',
   });
 
   await supabase.from("pending_wallet_operations").insert({

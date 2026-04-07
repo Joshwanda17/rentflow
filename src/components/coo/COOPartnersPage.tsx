@@ -821,6 +821,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         source_id: newPortfolio.id,
         reference_id: refId,
         description: `Manual portfolio created by Welile Operations for ${detailPartner.profile.full_name}`,
+          currency: 'UGX',
         linked_party: 'Rent Management Pool',
         transaction_date: createdAt,
       });
@@ -2582,6 +2583,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         source_id: p.portfolioId,
         reference_id: refId,
         description: `ROI compounded: ${formatUGX(roiAmount)} added to portfolio. New principal: ${formatUGX(newAmount)}. Reason: ${reason}`,
+          currency: 'UGX',
         linked_party: user.id,
       });
 

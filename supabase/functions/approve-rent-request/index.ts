@@ -226,6 +226,7 @@ serve(async (req) => {
           user_id: rentRequest.tenant_id, amount: totalRepayment, direction: "cash_out",
           category: "rent_obligation", source_table: "rent_requests", source_id: rent_request_id,
           transaction_group_id: txGroupId, description: `Rent obligation (${durationDays} days repayment)`,
+      currency: 'UGX',
           linked_party: approverId, reference_id: rent_request_id,
         });
         if (obligationErr) console.error("Failed to post obligation ledger entry:", obligationErr.message);

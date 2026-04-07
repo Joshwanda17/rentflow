@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
       source_table: 'listing_bonus_approvals',
       source_id: approval_id,
       description: `UGX ${approval.amount.toLocaleString()} house listing bonus (platform expense)`,
+      currency: 'UGX',
       ledger_scope: 'wallet',
       transaction_date: now,
       transaction_group_id: txGroupId,
@@ -113,6 +114,7 @@ Deno.serve(async (req) => {
       source_table: 'listing_bonus_approvals',
       source_id: approval_id,
       description: `Platform expense: agent listing bonus for house registration`,
+      currency: 'UGX',
       ledger_scope: 'platform',
       transaction_date: now,
       transaction_group_id: txGroupId,
@@ -146,6 +148,7 @@ Deno.serve(async (req) => {
       earning_type: 'listing_bonus',
       source_user_id: user.id,
       description: `House listing bonus (CFO approved)`,
+      currency: 'UGX',
     })
 
     // Credit event bonus to commission accrual ledger

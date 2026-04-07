@@ -108,6 +108,7 @@ Deno.serve(async (req) => {
           source_table: 'credit_access_draws',
           source_id: draw.id,
           description: `Credit daily charge - Day ${Math.ceil((Date.now() - new Date(draw.started_at).getTime()) / 86400000)}`,
+      currency: 'UGX',
           transaction_date: today,
           transaction_group_id: groupId,
         });
@@ -124,6 +125,7 @@ Deno.serve(async (req) => {
           source_table: 'credit_access_draws',
           source_id: draw.id,
           description: `Agent fallback for credit charge - user shortfall`,
+      currency: 'UGX',
           transaction_date: today,
           transaction_group_id: agentGroupId,
         });

@@ -293,6 +293,7 @@ Deno.serve(async (req) => {
         source_id: rr.id,
         transaction_group_id: txGroupId,
         description: `Rent obligation - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
+      currency: 'UGX',
         linked_party: user.id,
         reference_id: rr.id,
       });

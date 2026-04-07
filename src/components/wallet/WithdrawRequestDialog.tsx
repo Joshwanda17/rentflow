@@ -168,6 +168,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance, onSuc
             direction: 'cash_out',
             category: 'withdrawal_pending',
             description: 'Wallet withdrawal requested – funds held pending approval',
+          currency: 'UGX',
             transaction_group_id: `wallet-withdraw-${newRow.id}`,
             source_table: 'withdrawal_requests',
             source_id: newRow.id,

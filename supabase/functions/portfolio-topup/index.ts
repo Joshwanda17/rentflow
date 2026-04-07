@@ -138,6 +138,7 @@ Deno.serve(async (req) => {
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
         description: `Pending portfolio top-up: ${accountLabel}`,
+      currency: 'UGX',
         ledger_scope: "wallet",
         transaction_date: now,
       },
@@ -150,6 +151,7 @@ Deno.serve(async (req) => {
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
         description: `Pending capital for ${accountLabel} — applied at maturity`,
+      currency: 'UGX',
         ledger_scope: "platform",
         transaction_date: now,
       },
@@ -180,6 +182,7 @@ Deno.serve(async (req) => {
         source_id: portfolio_id,
         transaction_group_id: crypto.randomUUID(),
         description: `Reversal: insufficient balance for ${accountLabel} top-up`,
+      currency: 'UGX',
         ledger_scope: "wallet",
         transaction_date: now,
       }]);

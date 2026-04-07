@@ -202,6 +202,7 @@ Deno.serve(async (req) => {
                   reference_id: depositRequest.transaction_id || depositRequest.id,
                   transaction_group_id: txGroupId,
                   description: `Auto rent deduction from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
+      currency: 'UGX',
                   linked_party: rentRequestId,
                   transaction_date: new Date().toISOString(),
                 });
@@ -267,6 +268,7 @@ Deno.serve(async (req) => {
                 reference_id: depositRequest.transaction_id || depositRequest.id,
                 transaction_group_id: subTxGroupId,
                 description: `Auto debt clearance from deposit (UGX ${debtCleared.toLocaleString()})`,
+      currency: 'UGX',
                 linked_party: activeSub.rent_request_id,
                 transaction_date: new Date().toISOString(),
               });
@@ -334,6 +336,7 @@ Deno.serve(async (req) => {
                 reference_id: depositRequest.transaction_id || depositRequest.id,
                 transaction_group_id: subTxGroupId,
                 description: `Pre-paid ${daysPrepaid} days access fee (UGX ${prepaidAmount.toLocaleString()})`,
+      currency: 'UGX',
                 linked_party: activeSub.rent_request_id,
                 transaction_date: new Date().toISOString(),
                 ledger_scope: "platform",

@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
         source_table: "rent_requests",
         source_id: rentRequest.id,
         description: `Rent payment from wallet`,
+      currency: 'UGX',
         linked_party: rentRequest.landlord_id,
         reference_id: rentRequest.id,
         transaction_group_id: txnGroupId,

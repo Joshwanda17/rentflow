@@ -44,6 +44,8 @@ export function calculateCreditRepayment(
   };
 }
 
+import { formatDynamic } from '@/lib/currencyFormat';
+
 export function formatUGX(amount: number): string {
-  return `UGX ${amount.toLocaleString()}`;
+  return formatDynamic(amount);
 }

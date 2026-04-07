@@ -84,6 +84,8 @@ export function getRiskLevel(advance: {
   return 'green';
 }
 
+import { formatDynamic } from '@/lib/currencyFormat';
+
 export function formatUGX(amount: number): string {
-  return `UGX ${Math.round(amount).toLocaleString()}`;
+  return formatDynamic(amount);
 }

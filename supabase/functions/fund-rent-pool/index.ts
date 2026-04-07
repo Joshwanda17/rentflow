@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
       source_table: "opportunity_summaries",
       source_id: summary_id,
       description: `Supporter rent funding: UGX ${amount.toLocaleString()} to Rent Management Pool. Payout day: ${payout_day}th. First payout: ${firstPayoutDate}`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
       transaction_group_id: txGroupId,

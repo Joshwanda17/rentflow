@@ -134,6 +134,7 @@ Deno.serve(async (req) => {
       source_table: "wallets",
       source_id: wallet.id,
       description: `Test funds seeded by manager (${user.email})`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: user.email || "Manager",
       transaction_group_id: txGroupId,

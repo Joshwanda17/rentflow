@@ -107,6 +107,7 @@ async function applyRepaymentForRepayingRequest(
       source_table: 'repayments',
       source_id: rentRequest.id,
       description: `Rent repayment - ${rentRequest.landlords?.name || 'landlord'}`,
+      currency: 'UGX',
       linked_party: rentRequest.landlord_id || null,
       reference_id: rentRequest.id,
     });
@@ -424,6 +425,7 @@ Deno.serve(async (req) => {
             direction: 'cash_out',
             category: 'rent_payment_for_tenant',
             description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
+      currency: 'UGX',
             source_table: 'wallet_deposits',
             linked_party: targetUserId,
           });
@@ -468,6 +470,7 @@ Deno.serve(async (req) => {
               direction: 'cash_in',
               category: 'landlord_rent_payment',
               description: `Landlord credit from agent rent payment for UGX ${repaymentAmount.toLocaleString()}`,
+      currency: 'UGX',
               source_table: 'rent_requests',
               source_id: activeRentRequest.id,
               linked_party: targetUserId,
@@ -535,6 +538,7 @@ Deno.serve(async (req) => {
           direction: 'cash_out',
           category: 'rent_payment_for_tenant',
           description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
+      currency: 'UGX',
           source_table: 'wallet_deposits',
           linked_party: targetUserId,
         });
@@ -560,6 +564,7 @@ Deno.serve(async (req) => {
           direction: 'cash_in',
           category: 'wallet_deposit',
           description: `Agent deposited UGX ${depositAmount.toLocaleString()} to tenant wallet`,
+      currency: 'UGX',
           source_table: 'wallet_deposits',
           source_id: activeRentRequest?.id,
           linked_party: agentId,

@@ -125,6 +125,7 @@ Deno.serve(async (req) => {
       source_table: "investor_portfolios",
       source_id: summary_id || null,
       description: `Agent proxy investment: UGX ${amount.toLocaleString()} to Rent Management Pool on behalf of ${partnerName}. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
     });
@@ -218,6 +219,7 @@ Deno.serve(async (req) => {
       source_id: portfolio.id,
       transaction_group_id: cashInTxGroupId,
       description: `Agent ${agentName} invested UGX ${amount.toLocaleString()} on behalf of ${partnerName} into Rent Management Pool`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: agentName,
     });
@@ -240,6 +242,7 @@ Deno.serve(async (req) => {
       source_id: portfolio.id,
       transaction_group_id: cashOutTxGroupId,
       description: `Investment of UGX ${amount.toLocaleString()} moved to portfolio ${portfolioCode}`,
+      currency: 'UGX',
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
     });
