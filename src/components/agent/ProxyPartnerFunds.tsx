@@ -33,6 +33,7 @@ export function ProxyPartnerFunds() {
   const [prefillReason, setPrefillReason] = useState('');
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
+  const [rejectedPartnerIds, setRejectedPartnerIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user?.id) return;
