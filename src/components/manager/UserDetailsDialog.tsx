@@ -709,7 +709,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       setShowPassword(false);
     } catch (error: any) {
       console.error('Error resetting password:', error);
-      toast.error(error.message || 'Failed to reset password');
+      const msg = error.message || 'Failed to reset password';
+      if (msg.toLowerCase().includes('weak') || msg.toLowerCase().includes('easy to guess') || msg.toLowerCase().includes('pwned')) {
+        toast.error('This password has been found in a data breach and is not allowed. Please choose a stronger, unique password.');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setResettingPassword(false);
     }
