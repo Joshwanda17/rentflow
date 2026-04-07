@@ -308,8 +308,17 @@ export function ProxyPartnerFunds() {
               )}
 
               {partner.available <= 0 && partner.totalReceived === 0 && (
-                <div className="text-center">
-                  <Badge variant="secondary" className="text-xs">Ready for delivery</Badge>
+                <div className="space-y-1.5">
+                  <Badge variant="secondary" className="text-xs w-full justify-center">Ready for delivery</Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => handleWithdraw(partner)}
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Withdraw
+                  </Button>
                 </div>
               )}
 
