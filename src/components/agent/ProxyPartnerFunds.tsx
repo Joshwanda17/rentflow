@@ -67,8 +67,8 @@ export function ProxyPartnerFunds() {
             .in('id', partnerIds),
           supabase
             .from('withdrawal_requests')
-            .select('linked_party, status')
-            .in('linked_party', partnerIds)
+            .select('linked_party, status, reason')
+            .eq('user_id', user.id)
             .in('status', ['pending', 'approved', 'processing'])
         ]);
 
