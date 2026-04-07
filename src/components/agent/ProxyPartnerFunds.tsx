@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, ArrowUpRight, Wallet } from 'lucide-react';
+import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -17,6 +17,11 @@ interface PartnerBalance {
   available: number;
 }
 
+interface PendingWithdrawal {
+  partnerId: string;
+  status: string;
+}
+
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
@@ -26,6 +31,8 @@ export function ProxyPartnerFunds() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
   const [prefillReason, setPrefillReason] = useState('');
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
+  const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user?.id) return;
@@ -36,7 +43,7 @@ export function ProxyPartnerFunds() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      // Fetch all ledger entries for this agent where linked_party is set and category is roi_payout
+      // Fetch ledger entries
       const { data: entries, error } = await supabase
         .from('general_ledger')
         .select('*')
@@ -50,17 +57,39 @@ export function ProxyPartnerFunds() {
 
       // Get unique partner IDs
       const partnerIds = [...new Set((entries || []).map(e => e.linked_party).filter(Boolean))];
+
       if (partnerIds.length > 0) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', partnerIds);
+        // Fetch profiles and pending withdrawals in parallel
+        const [profileRes, withdrawalRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', partnerIds),
+          supabase
+            .from('withdrawal_requests')
+            .select('linked_party, status')
+            .in('linked_party', partnerIds)
+            .in('status', ['pending', 'approved', 'processing'])
+        ]);
 
         const profileMap: Record<string, { full_name: string; phone: string }> = {};
-        (profileData || []).forEach(p => {
+        (profileRes.data || []).forEach(p => {
           profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
         });
         setProfiles(profileMap);
+
+        // Build status map - use the most recent/active status per partner
+        const statusMap: Record<string, string> = {};
+        (withdrawalRes.data || []).forEach((w: any) => {
+          if (w.linked_party) {
+            // Priority: pending > processing > approved
+            const existing = statusMap[w.linked_party];
+            if (!existing || w.status === 'pending') {
+              statusMap[w.linked_party] = w.status;
+            }
+          }
+        });
+        setPartnerWithdrawalStatus(statusMap);
       }
     } catch (err) {
       console.error('Error loading proxy funds:', err);
@@ -97,11 +126,11 @@ export function ProxyPartnerFunds() {
   }, [ledgerEntries, profiles]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
+    setSelectedPartnerId(partner.partnerId);
     setPrefillAmount(partner.available);
     setPrefillReason(`Proxy payout delivery for ${partner.partnerName}`);
     setWithdrawOpen(true);
 
-    // Audit log
     try {
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
@@ -117,6 +146,34 @@ export function ProxyPartnerFunds() {
     } catch (err) {
       console.error('Audit log error:', err);
     }
+  };
+
+  const handleWithdrawSuccess = () => {
+    // Reload to pick up new pending status
+    loadProxyFunds();
+  };
+
+  const getStatusBadge = (partnerId: string) => {
+    const status = partnerWithdrawalStatus[partnerId];
+    if (!status) return null;
+
+    if (status === 'pending') {
+      return (
+        <Badge variant="warning" size="sm" className="gap-1">
+          <Clock className="h-3 w-3" />
+          Pending
+        </Badge>
+      );
+    }
+    if (status === 'approved' || status === 'processing') {
+      return (
+        <Badge variant="success" size="sm" className="gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          Approved
+        </Badge>
+      );
+    }
+    return null;
   };
 
   if (loading) {
@@ -145,56 +202,76 @@ export function ProxyPartnerFunds() {
         Funds received on behalf of your assigned partners. Withdraw to deliver to partner.
       </p>
 
-      {partnerBalances.map((partner) => (
-        <Card key={partner.partnerId} className="border-border/50 shadow-sm">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
-                {partner.partnerPhone && (
-                  <p className="text-xs text-muted-foreground">{partner.partnerPhone}</p>
-                )}
-              </div>
-              <Badge variant="outline" className="text-xs gap-1">
-                <Users className="h-3 w-3" />
-                Proxy
-              </Badge>
-            </div>
+      {partnerBalances.map((partner) => {
+        const hasPending = !!partnerWithdrawalStatus[partner.partnerId];
+        const statusBadge = getStatusBadge(partner.partnerId);
 
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg bg-success/10 p-2">
-                <p className="text-[10px] text-muted-foreground">Received</p>
-                <p className="text-xs font-bold text-success tabular-nums">{formatAmount(partner.totalReceived)}</p>
+        return (
+          <Card key={partner.partnerId} className="border-border/50 shadow-sm">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
+                  {partner.partnerPhone && (
+                    <p className="text-xs text-muted-foreground">{partner.partnerPhone}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {statusBadge}
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Users className="h-3 w-3" />
+                    Proxy
+                  </Badge>
+                </div>
               </div>
-              <div className="rounded-lg bg-muted/50 p-2">
-                <p className="text-[10px] text-muted-foreground">Delivered</p>
-                <p className="text-xs font-bold text-foreground tabular-nums">{formatAmount(partner.totalWithdrawn)}</p>
-              </div>
-              <div className="rounded-lg bg-primary/10 p-2">
-                <p className="text-[10px] text-muted-foreground">Available</p>
-                <p className="text-xs font-bold text-primary tabular-nums">{formatAmount(partner.available)}</p>
-              </div>
-            </div>
 
-            {partner.available > 0 && (
-              <Button
-                size="sm"
-                className="w-full gap-2"
-                onClick={() => handleWithdraw(partner)}
-              >
-                <ArrowUpRight className="h-4 w-4" />
-                Withdraw {formatAmount(partner.available)}
-              </Button>
-            )}
-
-            {partner.available <= 0 && (
-              <div className="text-center">
-                <Badge variant="secondary" className="text-xs">Fully delivered</Badge>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-success/10 p-2">
+                  <p className="text-[10px] text-muted-foreground">Received</p>
+                  <p className="text-xs font-bold text-success tabular-nums">{formatAmount(partner.totalReceived)}</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-2">
+                  <p className="text-[10px] text-muted-foreground">Delivered</p>
+                  <p className="text-xs font-bold text-foreground tabular-nums">{formatAmount(partner.totalWithdrawn)}</p>
+                </div>
+                <div className="rounded-lg bg-primary/10 p-2">
+                  <p className="text-[10px] text-muted-foreground">Available</p>
+                  <p className="text-xs font-bold text-primary tabular-nums">{formatAmount(partner.available)}</p>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+
+              {partner.available > 0 && !hasPending && (
+                <Button
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => handleWithdraw(partner)}
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                  Withdraw {formatAmount(partner.available)}
+                </Button>
+              )}
+
+              {partner.available > 0 && hasPending && (
+                <Button
+                  size="sm"
+                  className="w-full gap-2"
+                  variant="outline"
+                  disabled
+                >
+                  <Clock className="h-4 w-4" />
+                  Withdrawal {partnerWithdrawalStatus[partner.partnerId] === 'pending' ? 'Pending Approval' : 'Processing'}
+                </Button>
+              )}
+
+              {partner.available <= 0 && (
+                <div className="text-center">
+                  <Badge variant="secondary" className="text-xs">Fully delivered</Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       <WithdrawRequestDialog
         open={withdrawOpen}
@@ -202,6 +279,8 @@ export function ProxyPartnerFunds() {
         walletBalance={prefillAmount}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
+        linkedParty={selectedPartnerId}
+        onSuccess={handleWithdrawSuccess}
       />
     </div>
   );

@@ -9302,6 +9302,7 @@ export type Database = {
           fin_ops_verified_at: string | null
           fin_ops_verified_by: string | null
           id: string
+          linked_party: string | null
           manager_approved_at: string | null
           manager_approved_by: string | null
           mobile_money_name: string | null
@@ -9344,6 +9345,7 @@ export type Database = {
           fin_ops_verified_at?: string | null
           fin_ops_verified_by?: string | null
           id?: string
+          linked_party?: string | null
           manager_approved_at?: string | null
           manager_approved_by?: string | null
           mobile_money_name?: string | null
@@ -9386,6 +9388,7 @@ export type Database = {
           fin_ops_verified_at?: string | null
           fin_ops_verified_by?: string | null
           id?: string
+          linked_party?: string | null
           manager_approved_at?: string | null
           manager_approved_by?: string | null
           mobile_money_name?: string | null

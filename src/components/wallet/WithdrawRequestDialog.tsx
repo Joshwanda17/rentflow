@@ -21,6 +21,7 @@ interface WithdrawRequestDialogProps {
   onSuccess?: () => void;
   prefillAmount?: number;
   prefillReason?: string;
+  linkedParty?: string;
 }
 
 type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
@@ -59,7 +60,7 @@ const PAYOUT_OPTIONS: { value: PayoutMode; label: string; sublabel: string; icon
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
 
-export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason }: WithdrawRequestDialogProps) {
+export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, linkedParty }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -159,6 +160,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
           agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
           reason: reason.trim(),
+          ...(linkedParty ? { linked_party: linkedParty } : {}),
         } as any);
         if (error) throw error;
 
