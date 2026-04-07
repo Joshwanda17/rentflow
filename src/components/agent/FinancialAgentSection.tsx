@@ -1,6 +1,6 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { Banknote } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { AgentRequisitionForm } from '@/components/financial-ops/AgentRequisitionForm';
 
 interface FinancialAgentSectionProps {
@@ -11,22 +11,33 @@ interface FinancialAgentSectionProps {
 export function FinancialAgentSection({ open, onOpenChange }: FinancialAgentSectionProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] overflow-y-auto rounded-t-2xl">
-        <SheetHeader className="pb-4">
-          <SheetTitle className="flex items-center gap-2">
-            <Banknote className="h-5 w-5 text-primary" />
-            Fund Requisition
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">
-              Financial Agent
-            </Badge>
-          </SheetTitle>
-        </SheetHeader>
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 mb-4">
-          <p className="text-xs text-muted-foreground">
-            You are a <span className="font-semibold text-primary">Financial Agent</span> — submit fund requisitions below for CFO approval.
+      <SheetContent side="bottom" className="h-[92vh] overflow-y-auto rounded-t-2xl px-4 pb-6 pt-5">
+        {/* Header */}
+        <div className="mb-5">
+          <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold tracking-widest uppercase mb-2">
+            Financial Agent
+          </Badge>
+          <h1 className="text-2xl font-bold text-foreground">Fund Requisition</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Request liquidity for operational disbursements.
           </p>
         </div>
+
+        {/* Form + History */}
         <AgentRequisitionForm />
+
+        {/* Security Banner */}
+        <div className="mt-6 rounded-2xl bg-primary/10 p-4 flex items-start gap-3">
+          <div className="rounded-full bg-primary/20 p-2 shrink-0">
+            <Shield className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-primary">Secured Vault Access</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              All requisitions are encrypted and require CFO approval before disbursement.
+            </p>
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   );
