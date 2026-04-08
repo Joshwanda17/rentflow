@@ -5,7 +5,7 @@ Platform: welile.com
 Company: Welile Technologies Limited ("Welile", "we", "us")
 Agent: [Agent Name / Phone] ("Agent", "you")
 Effective Date: [Auto-filled Date]
-Version: v1.0
+Version: v1.1
 
 By clicking "I Agree", you confirm you have read, understood, and accepted these Terms.
 
@@ -86,10 +86,12 @@ Violations may result in:
 
 6.1 Agents may earn commissions/rewards for tasks completed and approved in the platform.
 
-6.2 Earnings are only payable when:
-• tasks are completed correctly
-• required evidence is submitted
-• platform validation and/or manager approval is completed
+6.2 Earnings are recorded in a dedicated COMMISSION WALLET, separate from the Agent's FLOAT WALLET.
+
+IMPORTANT — WALLET SEPARATION:
+• FLOAT WALLET: Money deposited by the agent onto the platform. Float can be used to pay tenant rent on behalf of tenants. Float is YOUR money — it is not a reward.
+• COMMISSION WALLET: Money rewarded by the system to the agent upon successful rent repayments, registrations, and other qualifying activities. Commission is EARNED money.
+• These two wallets are strictly separated. Float cannot be mixed with commission, and commission cannot be manually used to pre-pay rent.
 
 6.3 Commission Structure on Rent Repayments:
 
@@ -126,10 +128,34 @@ WHY RECRUIT SUB-AGENTS?
 • sustainability and market changes
 Any updates will be communicated within the platform.
 
-6.4 Welile may reverse or withhold payments if:
+6.6 Welile may reverse or withhold payments if:
 • fraud is detected
 • errors occurred
 • disputes are unresolved
+
+6A) Guarantor Responsibility
+
+6A.1 AUTOMATIC GUARANTOR STATUS: By onboarding a tenant on the Welile platform, you automatically become the financial guarantor for that tenant. This means you accept full financial responsibility if the tenant defaults on rent payments.
+
+6A.2 DEFAULT RECOVERY PROCESS:
+• When a tenant you onboarded fails to pay rent, the system initiates a 72-hour grace period.
+• If the tenant has not paid after 72 hours, the outstanding amount is automatically deducted from your COMMISSION WALLET (not your float wallet).
+• You CANNOT manually use your commission to pre-pay rent — only the system triggers recovery after a confirmed default.
+
+6A.3 INSUFFICIENT COMMISSION:
+• If your commission wallet does not have sufficient funds to cover the default, the shortfall is recorded as an AGENT LIABILITY (debt).
+• This debt will be automatically recovered from future commission earnings.
+• The debt is tracked transparently in your agent profile and the platform ledger.
+
+6A.4 RECOVERY LOGGING:
+• Every default recovery deduction is logged as a RECOVERY_TRANSACTION in the platform's financial ledger.
+• You can view all recovery deductions and your current liability in your Risk Exposure dashboard.
+
+6A.5 YOUR RESPONSIBILITY:
+• You are encouraged to carefully assess tenants before onboarding them.
+• You should monitor your tenants' repayment behaviour and follow up proactively.
+• Your Risk Exposure dashboard shows: guaranteed tenants, total exposure, active debt, and monthly defaults.
+• Agents who consistently onboard defaulting tenants may face performance review, reduced task allocation, or account suspension.
 
 7) Payments & Payouts
 
@@ -212,6 +238,8 @@ By clicking "I Agree", you confirm that:
 • you understand you are not a Welile employee
 • you agree to follow Welile SOP and rules
 • you consent to monitoring and performance scoring
-• you accept the earnings and payout terms`;
+• you accept the earnings and payout terms
+• you accept the guarantor responsibility for tenants you onboard (Section 6A)
+• you understand defaults will be recovered from your commission wallet`;
 
-export const AGENT_AGREEMENT_VERSION = 'v1.0';
+export const AGENT_AGREEMENT_VERSION = 'v1.1';
