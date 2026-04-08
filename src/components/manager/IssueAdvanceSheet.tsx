@@ -242,6 +242,18 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           </div>
 
           <div className="space-y-2">
+            <Label>Interest Rate (Monthly)</Label>
+            <Select value={monthlyRate} onValueChange={setMonthlyRate}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {RATE_OPTIONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label} / month</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Repayment Period</Label>
             <Select value={String(cycleDays)} onValueChange={(v) => setCycleDays(Number(v))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
