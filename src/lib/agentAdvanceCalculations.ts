@@ -38,8 +38,8 @@ export function calculateTotalPayable(principal: number, days: number, monthlyRa
 /**
  * Daily payment = total ÷ period days
  */
-export function calculateDailyPayment(principal: number, days: number): number {
-  return Math.ceil(calculateTotalPayable(principal, days) / days);
+export function calculateDailyPayment(principal: number, days: number, monthlyRate: number = MONTHLY_RATE): number {
+  return Math.ceil(calculateTotalPayable(principal, days, monthlyRate) / days);
 }
 
 /**
