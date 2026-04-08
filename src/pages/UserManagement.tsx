@@ -630,7 +630,77 @@ Just click the link and enter your password to get started!`;
         className="flex-1 overflow-auto"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {displayUsers.length === 0 && !loadingMore ? (
+        {roleFilter === 'pending_invites' ? (
+          // Pending Invites View
+          pendingInvitesLoading ? (
+            <div className="px-4 py-8 space-y-3">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+            </div>
+          ) : pendingInvites.length === 0 ? (
+            <div className="text-center py-20 px-4">
+              <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
+                <Clock className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <p className="font-semibold text-lg text-foreground">No pending invites</p>
+              <p className="text-sm text-muted-foreground mt-1">All invitations have been activated</p>
+            </div>
+          ) : (
+            <div className="px-3 py-3 space-y-2">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-muted-foreground">{pendingInvites.length} pending activation{pendingInvites.length !== 1 ? 's' : ''}</p>
+                <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={fetchPendingInvites}>
+                  <RefreshCw className="h-3 w-3" /> Refresh
+                </Button>
+              </div>
+              {pendingInvites.map(invite => {
+                const roleInfo = inviteRoleConfig[invite.role] || { label: 'User', emoji: '👤' };
+                return (
+                  <div key={invite.id} className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="text-2xl shrink-0">{roleInfo.emoji}</div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground truncate">{invite.full_name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{invite.phone}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{roleInfo.label}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-warning/10 text-warning border-warning/20">
+                              <Clock className="h-2.5 w-2.5 mr-0.5" /> Pending
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => handleResendInviteWhatsApp(invite)}
+                          disabled={resendingInviteId === invite.id}
+                        >
+                          {resendingInviteId === invite.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Share2 className="h-3 w-3" />}
+                          Resend
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => handleActivateInvite(invite)}
+                          disabled={activatingId === invite.id}
+                        >
+                          {activatingId === invite.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
+                          Activate
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : displayUsers.length === 0 && !loadingMore ? (
           <div className="text-center py-20 px-4">
             <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
               <Users className="h-12 w-12 text-muted-foreground" />
