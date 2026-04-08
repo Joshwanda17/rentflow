@@ -301,6 +301,7 @@ export function PendingFunderApprovals() {
                       </div>
                     )}
 
+                    <div className="flex gap-2 pt-1">
                       <Button
                         size="sm"
                         className="flex-1 h-8 text-xs gap-1.5 bg-success hover:bg-success/90 text-white"
