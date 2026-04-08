@@ -103,21 +103,8 @@ Deno.serve(async (req) => {
         const agentBalance = Number(agentWallet.balance);
 
         if (agentBalance >= chargeAmount) {
-          // Agent can now pay — deduct with optimistic lock
+          // Agent can now pay — ledger insert triggers wallet deduction
           const newBalance = agentBalance - chargeAmount;
-          const { data: updated, error: deductErr } = await supabase
-            .from("wallets")
-            .update({ balance: newBalance, updated_at: now.toISOString() })
-            .eq("user_id", charge.agent_id)
-            .eq("balance", agentBalance)
-            .select("id")
-            .maybeSingle();
-
-          if (deductErr || !updated) {
-            console.error(`[retry-no-smartphone] Deduct conflict for agent ${charge.agent_id}`);
-            results.still_pending++;
-            continue;
-          }
 
           // Ledger entry
           const txGroupId = crypto.randomUUID();

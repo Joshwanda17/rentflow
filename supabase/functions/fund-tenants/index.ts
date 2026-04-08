@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
       if (coverage_type === "partial") fundAmount = Math.round(rentAmount * 0.5);
       else if (coverage_type === "daily" && funding_days) fundAmount = Math.round(rentAmount * (funding_days / 30));
 
-      // Deduct from supporter wallet (optimistic lock)
+      // Check supporter balance (read-only, trigger handles updates)
       const { data: freshWallet } = await adminClient
         .from("wallets")
         .select("balance")
@@ -133,18 +133,6 @@ Deno.serve(async (req) => {
         break;
       }
 
-      const { error: deductErr } = await adminClient
-        .from("wallets")
-        .update({ balance: freshWallet.balance - fundAmount, updated_at: new Date().toISOString() })
-        .eq("user_id", user.id)
-        .eq("balance", freshWallet.balance);
-
-      if (deductErr) {
-        console.error("Deduct error:", deductErr);
-        continue;
-      }
-
-      // Credit landlord wallet (find or create by landlord's tenant_id mapping)
       // Find landlord's linked user profile via phone
       const landlordRecord = rr.landlords as any;
       const landlordPhone = landlordRecord?.phone;
@@ -159,24 +147,11 @@ Deno.serve(async (req) => {
         landlordUserId = landlordProfile?.id || null;
       }
 
+      // Ensure landlord wallet exists if they have a profile
       if (landlordUserId) {
-        // Credit landlord wallet
-        const { data: lWallet } = await adminClient
+        await adminClient
           .from("wallets")
-          .select("balance")
-          .eq("user_id", landlordUserId)
-          .maybeSingle();
-
-        if (lWallet) {
-          await adminClient
-            .from("wallets")
-            .update({ balance: lWallet.balance + fundAmount, updated_at: new Date().toISOString() })
-            .eq("user_id", landlordUserId);
-        } else {
-          await adminClient
-            .from("wallets")
-            .insert({ user_id: landlordUserId, balance: fundAmount });
-        }
+          .upsert({ user_id: landlordUserId, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
       }
 
       // Update rent request status to funded

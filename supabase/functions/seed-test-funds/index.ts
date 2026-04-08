@@ -85,36 +85,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Ensure wallet exists
+    // Ensure wallet exists (trigger handles balance updates)
     await adminClient
       .from("wallets")
       .upsert(
         { user_id: target_user_id, balance: 0, updated_at: new Date().toISOString() },
         { onConflict: "user_id", ignoreDuplicates: true }
       );
-
-    // Credit wallet with optimistic locking
-    const { data: wallet } = await adminClient
-      .from("wallets")
-      .select("id, balance")
-      .eq("user_id", target_user_id)
-      .single();
-
-    if (!wallet) {
-      return new Response(
-        JSON.stringify({ error: "Wallet not found after upsert" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const newBalance = wallet.balance + amount;
-    const { error: updateErr } = await adminClient
-      .from("wallets")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq("user_id", target_user_id)
-      .eq("balance", wallet.balance); // optimistic lock
-
-    if (updateErr) throw updateErr;
 
     // Generate reference ID
     const now = new Date();

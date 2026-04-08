@@ -127,12 +127,8 @@ Deno.serve(async (req) => {
     });
 
     if (ledgerErr) {
-      // ROLLBACK: restore partner wallet balance
-      console.error("[coo-invest-for-partner] Ledger insert failed, rolling back wallet:", ledgerErr.message);
-      await adminClient.from("wallets")
-        .update({ balance: partnerWallet.balance, updated_at: new Date().toISOString() })
-        .eq("user_id", partner_id);
-      return new Response(JSON.stringify({ error: "Failed to record transaction, wallet restored. Please retry." }),
+      console.error("[coo-invest-for-partner] Ledger insert failed:", ledgerErr.message);
+      return new Response(JSON.stringify({ error: "Failed to record transaction. Please retry." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

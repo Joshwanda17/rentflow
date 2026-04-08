@@ -122,28 +122,22 @@ Deno.serve(async (req) => {
     });
 
     if (pendingErr) {
-      // Rollback wallet
-      await supabase
-        .from("wallets")
-        .update({ balance: currentBalance, updated_at: now })
-        .eq("user_id", partnerId);
-
       console.error("[coo-wallet-to-portfolio] pending insert error:", pendingErr);
-      return jsonRes({ error: "Failed to record pending top-up. Wallet restored." }, 500);
+      return jsonRes({ error: "Failed to record pending top-up." }, 500);
     }
 
-    // 3. Double-entry ledger
+    // 3. Double-entry ledger (trigger handles wallet balance)
     await supabase.from("general_ledger").insert([
       {
         user_id: partnerId,
         amount: topupAmount,
-        direction: "debit",
+        direction: "cash_out",
         category: "pending_portfolio_topup",
         source_table: "investor_portfolios",
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
         description: `Wallet deduction for ${accountLabel} — Tenant Partnership Operations`,
-      currency: 'UGX',
+        currency: 'UGX',
         ledger_scope: "wallet",
         transaction_date: now,
       },
@@ -156,7 +150,7 @@ Deno.serve(async (req) => {
         source_id: portfolio_id,
         transaction_group_id: txGroupId,
         description: `Pending capital for ${accountLabel} — applied at maturity`,
-      currency: 'UGX',
+        currency: 'UGX',
         ledger_scope: "platform",
         transaction_date: now,
       },
