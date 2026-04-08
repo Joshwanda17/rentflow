@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
     }
 
     // Create the user account with final details
+    let userId: string;
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: finalEmail,
       password: finalPassword,
@@ -194,16 +195,49 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
-      console.error("[activate-supporter] Auth error:", authError);
-      return new Response(JSON.stringify({ error: "Failed to create account: " + authError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // If email already exists, look up the existing user and proceed
+      if (authError.message?.includes('already been registered') || (authError as any).code === 'email_exists') {
+        console.log("[activate-supporter] Email exists, looking up existing user for:", finalEmail);
+        const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
+        if (listError) {
+          console.error("[activate-supporter] Failed to list users:", listError);
+          return new Response(JSON.stringify({ error: "Failed to find existing account" }), {
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const existingUser = listData.users.find((u: any) => u.email === finalEmail);
+        if (!existingUser) {
+          return new Response(JSON.stringify({ error: "Email registered but user not found" }), {
+            status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        userId = existingUser.id;
+        // Update their password and metadata
+        await adminClient.auth.admin.updateUser(userId, {
+          password: finalPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: finalFullName,
+            phone: invite.phone,
+            role: userRole,
+            referrer_id: invite.created_by,
+          },
+        });
+        console.log("[activate-supporter] Linked to existing auth user:", userId);
+      } else {
+        console.error("[activate-supporter] Auth error:", authError);
+        return new Response(JSON.stringify({ error: "Failed to create account: " + authError.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      userId = authData.user.id;
     }
 
     // Add user role (use upsert to avoid duplicate key errors from auto_assign trigger)
     const { error: roleError } = await adminClient
       .from("user_roles")
-      .upsert({ user_id: authData.user.id, role: userRole }, { onConflict: 'user_id,role' });
+      .upsert({ user_id: userId, role: userRole }, { onConflict: 'user_id,role' });
     if (roleError) console.error("[activate-supporter] Role error:", roleError);
 
     // For supporter-only accounts: remove any auto-assigned extra roles
@@ -212,7 +246,7 @@ Deno.serve(async (req) => {
       const { error: cleanupError } = await adminClient
         .from("user_roles")
         .delete()
-        .eq("user_id", authData.user.id)
+        .eq("user_id", userId)
         .neq("role", "supporter");
       if (cleanupError) {
         console.error("[activate-supporter] Role cleanup error:", cleanupError);
@@ -242,7 +276,7 @@ Deno.serve(async (req) => {
     if (isSubAgent && parentAgentId) {
       const { error: subAgentError } = await adminClient
         .from("agent_subagents")
-        .insert({ parent_agent_id: parentAgentId, sub_agent_id: authData.user.id, source: 'invite' });
+        .insert({ parent_agent_id: parentAgentId, sub_agent_id: userId, source: 'invite' });
       if (subAgentError) console.error("[activate-supporter] Sub-agent error:", subAgentError);
 
       // Sub-agent registration bonus (UGX 10,000) is now awarded automatically
@@ -256,7 +290,7 @@ Deno.serve(async (req) => {
       .update({
         status: "activated",
         activated_at: new Date().toISOString(),
-        activated_user_id: authData.user.id,
+        activated_user_id: userId,
         temp_password: null,
         full_name: finalFullName,
         email: finalEmail,
@@ -274,7 +308,7 @@ Deno.serve(async (req) => {
 
       const { error: portfolioLinkError } = await adminClient
         .from("investor_portfolios")
-        .update({ investor_id: authData.user.id })
+        .update({ investor_id: userId })
         .eq("invite_id", invite.id)
         .is("investor_id", null);
       if (portfolioLinkError) {
@@ -289,7 +323,7 @@ Deno.serve(async (req) => {
           const portfolioIds = linkedPortfolios.map(p => p.id);
           const { error: pendingLinkError } = await adminClient
             .from("pending_wallet_operations")
-            .update({ user_id: authData.user.id })
+            .update({ user_id: userId })
             .in("source_id", portfolioIds)
             .is("user_id", null)
             .eq("status", "pending");
@@ -310,7 +344,7 @@ Deno.serve(async (req) => {
     // Supporter referral tracking (not bonus - that's handled by profile trigger → referrals trigger)
     if (userRole === 'supporter') {
       await adminClient.from("supporter_referrals").insert({
-        referrer_id: invite.created_by, referred_id: authData.user.id, bonus_amount: 500,
+        referrer_id: invite.created_by, referred_id: userId, bonus_amount: 500,
       });
     }
 
@@ -330,7 +364,7 @@ Deno.serve(async (req) => {
         ? `${finalFullName} has joined your team as a sub-agent!`
         : `${finalFullName} has activated their ${userRole} account! You earned UGX 500 referral bonus.`,
       type: "success",
-      metadata: { user_id: authData.user.id, invite_id: invite.id, role: userRole, is_sub_agent: isSubAgent },
+      metadata: { user_id: userId, invite_id: invite.id, role: userRole, is_sub_agent: isSubAgent },
     });
 
     console.log(`[activate-supporter] Activated ${isSubAgent ? 'sub-agent' : userRole} account for ${finalEmail}`);
