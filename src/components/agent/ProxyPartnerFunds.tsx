@@ -146,11 +146,14 @@ export function ProxyPartnerFunds() {
     return approvedPartnerIds
       .map((partnerId) => {
         // Sum only actual approved ROI credits from the ledger for this partner
-        const partnerCredits = ledgerCredits.filter(
+        const partnerEntries = ledgerCredits.filter(
           (entry) => entry.linked_party === partnerId
         );
-        const totalReturns = partnerCredits.reduce(
-          (sum, entry) => sum + (Number(entry.amount) || 0),
+        const totalReturns = partnerEntries.reduce(
+          (sum, entry) => {
+            const amt = Number(entry.amount) || 0;
+            return entry.direction === 'cash_out' ? sum - amt : sum + amt;
+          },
           0
         );
 
