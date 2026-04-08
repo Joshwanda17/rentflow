@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
           partner_name: partnerName,
           commission,
           commission_ref: commRefId,
-          new_balance: newAgentBalance,
+          balance_before: agentWallet.balance,
           portfolio_code: portfolioCode,
         },
       }),
