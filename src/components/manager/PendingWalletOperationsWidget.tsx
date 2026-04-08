@@ -130,7 +130,7 @@ export function PendingWalletOperationsWidget() {
     fetchOperations();
   }, [fetchOperations]);
 
-  const handleAction = async (opId: string, action: 'approve' | 'reject') => {
+  const handleAction = async (opId: string, action: 'approve' | 'reject', paymentDetails?: { payment_method: string; payment_reference: string }) => {
     setProcessing(opId);
     try {
       const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
@@ -139,6 +139,8 @@ export function PendingWalletOperationsWidget() {
           action,
           rejection_reason: action === 'reject' ? rejectionReason : undefined,
           display_currency: action === 'approve' ? (currencyOverrides[opId] || 'UGX') : undefined,
+          payment_method: paymentDetails?.payment_method,
+          payment_reference: paymentDetails?.payment_reference,
         },
       });
 
