@@ -237,6 +237,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const handleSubmit = async () => {
     if (!user || !fees) return;
 
+    if (!guarantorConsent) {
+      toast.error('Please accept guarantor responsibility before submitting');
+      return;
+    }
+
     if (!tenantName.trim() || !tenantPhone.trim()) {
       toast.error('Please provide tenant name and phone');
       return;
