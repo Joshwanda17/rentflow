@@ -82,13 +82,12 @@ export function ProxyPartnerFunds() {
           .from('profiles')
           .select('id, full_name, phone')
           .in('id', approvedIds),
-        // Actual approved ROI credits from the ledger for this agent
+        // Actual approved ROI entries from the ledger for this agent (both cash_in and cash_out for corrections)
         supabase
           .from('general_ledger')
           .select('user_id, linked_party, amount, direction, category')
           .eq('user_id', user.id)
-          .eq('category', 'roi_payout')
-          .eq('direction', 'cash_in'),
+          .in('category', ['roi_payout', 'balance_correction']),
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
