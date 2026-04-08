@@ -28,6 +28,15 @@ interface PendingOperation {
   agent_name?: string;
 }
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: 'bank', label: 'Bank Payment', refLabel: 'Bank Reference Number', placeholder: 'e.g. REF20250408001' },
+  { value: 'mtn_momo', label: 'MTN MoMo', refLabel: 'Transaction ID (TID)', placeholder: 'e.g. MP39665905645' },
+  { value: 'airtel_money', label: 'Airtel Money', refLabel: 'Transaction ID (TID)', placeholder: 'e.g. TID8827364510' },
+  { value: 'cash', label: 'Cash Payment', refLabel: 'Receipt Number', placeholder: 'e.g. RCT-00412' },
+] as const;
+
+type ApprovePaymentMethod = typeof PAYMENT_METHOD_OPTIONS[number]['value'] | '';
+
 export function PendingWalletOperationsWidget() {
   const { user } = useAuth();
   const [operations, setOperations] = useState<PendingOperation[]>([]);
@@ -35,6 +44,32 @@ export function PendingWalletOperationsWidget() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [currencyOverrides, setCurrencyOverrides] = useState<Record<string, string>>({});
+
+  // Approval dialog state
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approveOpId, setApproveOpId] = useState<string | null>(null);
+  const [approvePaymentMethod, setApprovePaymentMethod] = useState<ApprovePaymentMethod>('');
+  const [approvePaymentRef, setApprovePaymentRef] = useState('');
+
+  const selectedMethodMeta = PAYMENT_METHOD_OPTIONS.find(m => m.value === approvePaymentMethod);
+  const canConfirmApproval = approvePaymentMethod !== '' && approvePaymentRef.trim().length >= 4;
+
+  const openApproveDialog = (opId: string) => {
+    setApproveOpId(opId);
+    setApprovePaymentMethod('');
+    setApprovePaymentRef('');
+    setApproveDialogOpen(true);
+  };
+
+  const confirmApproval = async () => {
+    if (!approveOpId || !canConfirmApproval) return;
+    setApproveDialogOpen(false);
+    await handleAction(approveOpId, 'approve', {
+      payment_method: approvePaymentMethod,
+      payment_reference: approvePaymentRef.trim(),
+    });
+    setApproveOpId(null);
+  };
 
   const SUPPORTED_CURRENCIES = ['UGX', 'USD', 'KES', 'TZS', 'RWF', 'GBP', 'EUR'];
 
