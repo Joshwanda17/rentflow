@@ -5760,6 +5760,8 @@ export type Database = {
           linked_party: string | null
           metadata: Json | null
           operation_type: string
+          payment_method: string | null
+          payment_reference: string | null
           reference_id: string | null
           rejection_reason: string | null
           reviewed_at: string | null
@@ -5783,6 +5785,8 @@ export type Database = {
           linked_party?: string | null
           metadata?: Json | null
           operation_type?: string
+          payment_method?: string | null
+          payment_reference?: string | null
           reference_id?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
@@ -5806,6 +5810,8 @@ export type Database = {
           linked_party?: string | null
           metadata?: Json | null
           operation_type?: string
+          payment_method?: string | null
+          payment_reference?: string | null
           reference_id?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null

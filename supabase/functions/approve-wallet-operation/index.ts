@@ -56,12 +56,14 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { operation_id, action, rejection_reason, bulk_ids, display_currency } = body as {
+    const { operation_id, action, rejection_reason, bulk_ids, display_currency, payment_method, payment_reference } = body as {
       operation_id?: string;
       action: "approve" | "reject";
       rejection_reason?: string;
       bulk_ids?: string[];
       display_currency?: string;
+      payment_method?: string;
+      payment_reference?: string;
     };
 
     // Validate action
@@ -441,7 +443,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Mark as approved
+        // Mark as approved with payment details
         await adminClient
           .from("pending_wallet_operations")
           .update({
@@ -449,6 +451,8 @@ Deno.serve(async (req) => {
             reviewed_by: userId,
             reviewed_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            payment_method: payment_method || null,
+            payment_reference: payment_reference || null,
           })
           .eq("id", op.id);
 

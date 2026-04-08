@@ -28,6 +28,15 @@ interface PendingOperation {
   agent_name?: string;
 }
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: 'bank', label: 'Bank Payment', refLabel: 'Bank Reference Number', placeholder: 'e.g. REF20250408001' },
+  { value: 'mtn_momo', label: 'MTN MoMo', refLabel: 'Transaction ID (TID)', placeholder: 'e.g. MP39665905645' },
+  { value: 'airtel_money', label: 'Airtel Money', refLabel: 'Transaction ID (TID)', placeholder: 'e.g. TID8827364510' },
+  { value: 'cash', label: 'Cash Payment', refLabel: 'Receipt Number', placeholder: 'e.g. RCT-00412' },
+] as const;
+
+type ApprovePaymentMethod = typeof PAYMENT_METHOD_OPTIONS[number]['value'] | '';
+
 export function PendingWalletOperationsWidget() {
   const { user } = useAuth();
   const [operations, setOperations] = useState<PendingOperation[]>([]);
@@ -35,6 +44,32 @@ export function PendingWalletOperationsWidget() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [currencyOverrides, setCurrencyOverrides] = useState<Record<string, string>>({});
+
+  // Approval dialog state
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [approveOpId, setApproveOpId] = useState<string | null>(null);
+  const [approvePaymentMethod, setApprovePaymentMethod] = useState<ApprovePaymentMethod>('');
+  const [approvePaymentRef, setApprovePaymentRef] = useState('');
+
+  const selectedMethodMeta = PAYMENT_METHOD_OPTIONS.find(m => m.value === approvePaymentMethod);
+  const canConfirmApproval = approvePaymentMethod !== '' && approvePaymentRef.trim().length >= 4;
+
+  const openApproveDialog = (opId: string) => {
+    setApproveOpId(opId);
+    setApprovePaymentMethod('');
+    setApprovePaymentRef('');
+    setApproveDialogOpen(true);
+  };
+
+  const confirmApproval = async () => {
+    if (!approveOpId || !canConfirmApproval) return;
+    setApproveDialogOpen(false);
+    await handleAction(approveOpId, 'approve', {
+      payment_method: approvePaymentMethod,
+      payment_reference: approvePaymentRef.trim(),
+    });
+    setApproveOpId(null);
+  };
 
   const SUPPORTED_CURRENCIES = ['UGX', 'USD', 'KES', 'TZS', 'RWF', 'GBP', 'EUR'];
 
@@ -95,7 +130,7 @@ export function PendingWalletOperationsWidget() {
     fetchOperations();
   }, [fetchOperations]);
 
-  const handleAction = async (opId: string, action: 'approve' | 'reject') => {
+  const handleAction = async (opId: string, action: 'approve' | 'reject', paymentDetails?: { payment_method: string; payment_reference: string }) => {
     setProcessing(opId);
     try {
       const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
@@ -104,6 +139,8 @@ export function PendingWalletOperationsWidget() {
           action,
           rejection_reason: action === 'reject' ? rejectionReason : undefined,
           display_currency: action === 'approve' ? (currencyOverrides[opId] || 'UGX') : undefined,
+          payment_method: paymentDetails?.payment_method,
+          payment_reference: paymentDetails?.payment_reference,
         },
       });
 
@@ -123,31 +160,7 @@ export function PendingWalletOperationsWidget() {
     }
   };
 
-  const handleBulkApprove = async () => {
-    if (operations.length === 0) return;
-    setProcessing('bulk');
-    try {
-      const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
-        body: {
-          bulk_ids: operations.map(op => op.id),
-          action: 'approve',
-        },
-      });
-
-      if (error) {
-        const msg = await extractFromErrorObject(error, 'Bulk approve failed');
-        toast.error(msg);
-        return;
-      }
-
-      toast.success(`${operations.length} operations approved`);
-      setOperations([]);
-    } catch (e: any) {
-      toast.error(e.message || 'Bulk approve failed');
-    } finally {
-      setProcessing(null);
-    }
-  };
+  // Bulk approve removed — individual payment references required
 
   const formatUGX = (amount: number) => `UGX ${amount.toLocaleString()}`;
   const formatTime = (dateStr: string) => {
@@ -218,29 +231,7 @@ export function PendingWalletOperationsWidget() {
               </div>
             </div>
 
-            {/* Bulk approve */}
-            {pendingCount > 1 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button className="w-full h-12 text-sm font-bold gap-2" disabled={processing === 'bulk'}>
-                    {processing === 'bulk' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                    Approve All {pendingCount} Operations
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Approve All {pendingCount} Operations?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will process {formatUGX(totalPendingIn)} in deposits and {formatUGX(totalPendingOut)} in withdrawals.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBulkApprove}>Approve All</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            {/* Bulk approve removed — individual payment references required */}
           </CardContent>
         </Card>
       )}
@@ -357,7 +348,7 @@ export function PendingWalletOperationsWidget() {
                   <Button
                     size="lg"
                     className="h-14 text-sm font-bold gap-2 rounded-xl"
-                    onClick={() => handleAction(op.id, 'approve')}
+                    onClick={() => openApproveDialog(op.id)}
                     disabled={processing === op.id}
                   >
                     {processing === op.id ? (
@@ -411,6 +402,56 @@ export function PendingWalletOperationsWidget() {
           </Card>
         );
       })}
+
+      {/* Payment Method Approval Dialog */}
+      <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select the payment method used and provide the reference details.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Method</label>
+              <Select value={approvePaymentMethod} onValueChange={(v) => setApprovePaymentMethod(v as ApprovePaymentMethod)}>
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select payment method…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHOD_OPTIONS.map(m => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {approvePaymentMethod && selectedMethodMeta && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{selectedMethodMeta.refLabel}</label>
+                <Input
+                  placeholder={selectedMethodMeta.placeholder}
+                  value={approvePaymentRef}
+                  onChange={e => setApprovePaymentRef(e.target.value)}
+                  className="h-12 text-base font-mono"
+                />
+                {approvePaymentRef.length > 0 && approvePaymentRef.trim().length < 4 && (
+                  <p className="text-xs text-destructive">Minimum 4 characters required</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmApproval} disabled={!canConfirmApproval}>
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
