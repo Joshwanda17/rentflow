@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
     }
 
     // Create the user account with final details
+    let userId: string;
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: finalEmail,
       password: finalPassword,
@@ -194,10 +195,43 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
-      console.error("[activate-supporter] Auth error:", authError);
-      return new Response(JSON.stringify({ error: "Failed to create account: " + authError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // If email already exists, look up the existing user and proceed
+      if (authError.message?.includes('already been registered') || (authError as any).code === 'email_exists') {
+        console.log("[activate-supporter] Email exists, looking up existing user for:", finalEmail);
+        const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
+        if (listError) {
+          console.error("[activate-supporter] Failed to list users:", listError);
+          return new Response(JSON.stringify({ error: "Failed to find existing account" }), {
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const existingUser = listData.users.find((u: any) => u.email === finalEmail);
+        if (!existingUser) {
+          return new Response(JSON.stringify({ error: "Email registered but user not found" }), {
+            status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        userId = existingUser.id;
+        // Update their password and metadata
+        await adminClient.auth.admin.updateUser(userId, {
+          password: finalPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: finalFullName,
+            phone: invite.phone,
+            role: userRole,
+            referrer_id: invite.created_by,
+          },
+        });
+        console.log("[activate-supporter] Linked to existing auth user:", userId);
+      } else {
+        console.error("[activate-supporter] Auth error:", authError);
+        return new Response(JSON.stringify({ error: "Failed to create account: " + authError.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      userId = authData.user.id;
     }
 
     // Add user role (use upsert to avoid duplicate key errors from auto_assign trigger)
