@@ -31,7 +31,7 @@ export function useCFOOverviewData() {
       };
 
       (deposits || []).forEach((d) => {
-        const provider = mapProvider(d.mobile_money_provider);
+        const provider = mapProvider(d.provider);
         channels[provider].deposits += Number(d.amount);
       });
 
