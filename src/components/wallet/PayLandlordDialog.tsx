@@ -176,36 +176,23 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
       .maybeSingle();
 
     if (!landlordProfile) {
-      // Landlord doesn't have a Welile account, just record the payment
-      // Get fresh wallet balance to prevent race conditions
-      const { data: freshWallet, error: walletFetchError } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', user?.id)
-        .single();
+      // Landlord doesn't have a Welile account — use edge function for ledger-based deduction
+      const { error } = await supabase.functions.invoke('wallet-transfer', {
+        body: {
+          recipient_id: null,
+          amount: finalAmount,
+          description: `Rent payment to ${landlord.name} (no account) - Discount: ${formatCurrency(getApplicableDiscount())}`,
+          landlord_id: selectedLandlord,
+        },
+      });
 
-      if (walletFetchError || !freshWallet || freshWallet.balance < finalAmount) {
-        toast.error('Insufficient balance. Please try again.');
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Payment failed');
+        toast.error(msg);
         setLoading(false);
         return;
       }
-
-      // Deduct from wallet with optimistic lock
-      const { data: updatedWallet, error: walletError } = await supabase
-        .from('wallets')
-        .update({ balance: freshWallet.balance - finalAmount, updated_at: new Date().toISOString() })
-        .eq('user_id', user?.id)
-        .eq('balance', freshWallet.balance) // Only update if balance unchanged
-        .select()
-        .maybeSingle();
-
-      if (walletError || !updatedWallet) {
-        toast.error('Transaction conflict. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      // platform_transactions table removed - skip recording
     } else {
       // Use wallet transfer
       const { error } = await supabase.functions.invoke('wallet-transfer', {
