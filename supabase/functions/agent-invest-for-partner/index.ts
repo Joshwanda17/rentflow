@@ -113,8 +113,7 @@ Deno.serve(async (req) => {
     });
 
     if (ledgerErr) {
-      await rollbackAgentWallet();
-      return errorResponse("Failed to record transaction, wallet restored. Please retry.", 500);
+      return errorResponse("Failed to record transaction. Please retry.", 500);
     }
 
     // --- Decrement opportunity summary ---
