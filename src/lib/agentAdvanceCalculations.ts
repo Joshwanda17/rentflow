@@ -48,9 +48,10 @@ export function calculateDailyPayment(principal: number, days: number, monthlyRa
  */
 export function calculateCompoundProjection(
   principal: number,
-  days: number = 30
+  days: number = 30,
+  monthlyRate: number = MONTHLY_RATE
 ): DayProjection[] {
-  const dailyRate = Math.pow(1 + MONTHLY_RATE, 1 / 30) - 1;
+  const dailyRate = Math.pow(1 + monthlyRate, 1 / 30) - 1;
   const projections: DayProjection[] = [];
   let balance = principal;
 

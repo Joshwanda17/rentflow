@@ -64,6 +64,7 @@ export type Database = {
           amount: number
           created_at: string
           id: string
+          monthly_rate: number
           topped_up_by: string
         }
         Insert: {
@@ -71,6 +72,7 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
+          monthly_rate?: number
           topped_up_by: string
         }
         Update: {
@@ -78,6 +80,7 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
+          monthly_rate?: number
           topped_up_by?: string
         }
         Relationships: [
@@ -131,6 +134,7 @@ export type Database = {
           id: string
           issued_at: string
           issued_by: string
+          monthly_rate: number
           outstanding_balance: number
           principal: number
           registration_fee: number | null
@@ -149,6 +153,7 @@ export type Database = {
           id?: string
           issued_at?: string
           issued_by: string
+          monthly_rate?: number
           outstanding_balance?: number
           principal?: number
           registration_fee?: number | null
@@ -167,6 +172,7 @@ export type Database = {
           id?: string
           issued_at?: string
           issued_by?: string
+          monthly_rate?: number
           outstanding_balance?: number
           principal?: number
           registration_fee?: number | null
