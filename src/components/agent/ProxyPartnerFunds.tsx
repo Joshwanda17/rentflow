@@ -22,15 +22,12 @@ interface PendingWithdrawal {
   status: string;
 }
 
-interface PortfolioRow {
-  id: string;
-  investor_id: string | null;
-  investment_amount: number | null;
-  roi_percentage: number | null;
-  status: string;
-  created_at: string;
-  maturity_date: string | null;
-  total_roi_earned: number | null;
+interface LedgerCredit {
+  user_id: string | null;
+  linked_party: string | null;
+  amount: number;
+  direction: string;
+  category: string;
 }
 
 export function ProxyPartnerFunds() {
