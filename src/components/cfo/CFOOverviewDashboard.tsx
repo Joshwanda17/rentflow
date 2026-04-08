@@ -66,7 +66,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   return (
     <div className="space-y-6">
       {/* SECTION 0: Sticky KPI Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-3 pt-1 -mx-1 px-1">
+      <div className="pb-3 pt-1">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KPICard
             label="Total Cash"
