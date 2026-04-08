@@ -160,31 +160,7 @@ export function PendingWalletOperationsWidget() {
     }
   };
 
-  const handleBulkApprove = async () => {
-    if (operations.length === 0) return;
-    setProcessing('bulk');
-    try {
-      const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
-        body: {
-          bulk_ids: operations.map(op => op.id),
-          action: 'approve',
-        },
-      });
-
-      if (error) {
-        const msg = await extractFromErrorObject(error, 'Bulk approve failed');
-        toast.error(msg);
-        return;
-      }
-
-      toast.success(`${operations.length} operations approved`);
-      setOperations([]);
-    } catch (e: any) {
-      toast.error(e.message || 'Bulk approve failed');
-    } finally {
-      setProcessing(null);
-    }
-  };
+  // Bulk approve removed — individual payment references required
 
   const formatUGX = (amount: number) => `UGX ${amount.toLocaleString()}`;
   const formatTime = (dateStr: string) => {
