@@ -395,13 +395,17 @@ export function TidVerification() {
                 <div className="space-y-2">
                   {matches.map((m) => {
                     const isApproved = approvedIds.has(m.id);
+                    const isRejected = rejectedIds.has(m.id);
                     const isProcessing = approving === m.id;
+                    const isDone = isApproved || isRejected;
                     return (
                       <div
                         key={m.id}
                         className={`rounded-lg border p-2.5 transition-colors ${
                           isApproved
                             ? 'border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20'
+                            : isRejected
+                            ? 'border-destructive/30 bg-destructive/5'
                             : m.status === 'matched'
                             ? 'border-emerald-200 bg-background'
                             : 'border-amber-200 bg-amber-50/30 dark:bg-amber-950/10'
@@ -433,16 +437,26 @@ export function TidVerification() {
                             {isApproved && (
                               <Badge className="bg-emerald-700 text-[9px] h-4 px-1">Approved ✓</Badge>
                             )}
+                            {isRejected && (
+                              <Badge variant="destructive" className="text-[9px] h-4 px-1">Rejected ✗</Badge>
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
                             <span>{m.provider || 'MoMo'}</span>
                             <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
                           </div>
-                          {!isApproved && m.status === 'matched' && (
-                            <Button size="sm" className="h-8 text-xs gap-1 w-full mt-1" disabled={isProcessing} onClick={() => handleAutoApprove(m)}>
-                              {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
-                              Auto-Approve
-                            </Button>
+                          {!isDone && (
+                            <div className="flex gap-2 mt-1">
+                              {m.status === 'matched' && (
+                                <Button size="sm" className="h-8 text-xs gap-1 flex-1" disabled={isProcessing} onClick={() => handleAutoApprove(m)}>
+                                  {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
+                                  Auto-Approve
+                                </Button>
+                              )}
+                              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1 flex-1" onClick={() => openRejectDialog(m.id)}>
+                                <Ban className="h-3 w-3" /> Reject
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -457,6 +471,38 @@ export function TidVerification() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Reject Confirmation Dialog */}
+        <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reject Deposit</AlertDialogTitle>
+              <AlertDialogDescription>
+                Provide a reason for rejecting this deposit. The user will be notified.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Enter rejection reason (min 10 characters)..."
+              className="min-h-[80px]"
+            />
+            {rejectionReason.trim().length > 0 && rejectionReason.trim().length < 10 && (
+              <p className="text-[11px] text-destructive">Reason must be at least 10 characters</p>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={rejecting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleReject}
+                disabled={rejecting || rejectionReason.trim().length < 10}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {rejecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Ban className="h-3 w-3 mr-1" />}
+                Confirm Reject
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
