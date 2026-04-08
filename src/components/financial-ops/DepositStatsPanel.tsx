@@ -185,7 +185,8 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
     }
   }, [user, rejectingDeposit, rejectionReason]);
 
-  if (loading) return (
+  if (loading) {
+    return (
       <div className="flex items-center justify-center py-6">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
