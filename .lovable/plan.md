@@ -1,75 +1,30 @@
 
 
-# Remove All Proxy Partner Assignments for LUKODDA JOSEPH
+# Add Reject Button to TID Deposit Verification
 
-## Current State
+## Problem
+The TID Verification screen only has "Auto-Approve" buttons for matched deposits. There is no way to reject a deposit from this screen. Withdrawals already have reject functionality.
 
-LUKODDA JOSEPH (`b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c`) has **28 proxy assignments**:
-- **17 approved & active** (these show in Proxy Partners tab with incorrect balances)
-- **7 rejected & inactive** (already dead, no action needed)
-- **1 pending** (duplicate of ATUHAIRE CAROLYNE)
-- **3 others** (Jane Precious, chelangat Sarah princess, SIISA JESSE JOEL, MONDO EMMANUEL COLLINS — newer additions)
+## What Changes
 
-## What We'll Do
+### File: `src/components/financial-ops/TidVerification.tsx`
 
-**Deactivate all 28 assignments** by setting `is_active = false` and `approval_status = 'rejected'` with a rejection reason. This effectively removes them from the Proxy Partners tab and all payout routing.
+1. **Add reject state variables**: `rejectingId`, `rejectionReason`, `rejectDialogOpen`
 
-The agent can then re-submit partner requests through the proper flow, and Partner Operations can re-approve them cleanly.
+2. **Add `handleReject` function**: Calls the existing `approve-deposit` edge function with `action: 'reject'` and `rejection_reason`. The backend already supports this — no edge function changes needed.
 
-### Data Operation (via insert tool — UPDATE)
+3. **Add Reject button next to Auto-Approve**: For each matched deposit, show both an Approve and a Reject button side by side. For mismatched amounts, show only the Reject button (since approve isn't offered for mismatches anyway).
 
-```sql
-UPDATE proxy_agent_assignments
-SET is_active = false,
-    approval_status = 'rejected',
-    rejection_reason = 'Clean slate reset: deactivated for re-approval through proper pipeline'
-WHERE agent_id = 'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c';
-```
+4. **Add Reject confirmation dialog**: An `AlertDialog` with a textarea for the rejection reason (min 10 characters), matching the same pattern used in `FinOpsWithdrawalVerification.tsx`.
 
-Also remove the unique constraint conflict for re-submission:
+5. **Track rejected IDs**: Add a `rejectedIds` set (similar to `approvedIds`) so rejected items show a "Rejected" badge and disable further actions.
 
-```sql
-DELETE FROM proxy_agent_assignments
-WHERE agent_id = 'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c';
-```
-
-**Wait** — there's a UNIQUE constraint on `(agent_id, beneficiary_id)`. If we only deactivate, the agent can't re-submit the same partner. So we need to **delete** the rows entirely so they can be re-created fresh.
-
-### Revised Approach
-
-**Delete all 28 proxy_agent_assignments** for this agent, then insert one audit log entry recording the action.
-
-```sql
--- 1. Delete all assignments
-DELETE FROM proxy_agent_assignments
-WHERE agent_id = 'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c';
-
--- 2. Audit log
-INSERT INTO audit_logs (user_id, action_type, table_name, metadata)
-VALUES (
-  'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c',
-  'bulk_delete_proxy_assignments',
-  'proxy_agent_assignments',
-  '{"reason": "Clean slate: removed all 28 proxy partner assignments for re-approval", "agent": "LUKODDA JOSEPH", "count": 28}'
-);
-```
-
-### No Code Changes Needed
-
-The `ProxyPartnerFunds.tsx` already filters for `approval_status = 'approved'` and `is_active = true`. Once assignments are deleted, the tab will show empty — exactly what you want.
+### No other files change
+- The `approve-deposit` edge function already handles `action: 'reject'` with `rejection_reason`
+- The `FinOpsWithdrawalVerification.tsx` already has reject — no changes needed there
 
 ## Result
-
-- Proxy Partners tab for LUKODDA JOSEPH: **empty**
-- Agent re-submits partners through the normal flow
-- Partner Operations re-approves each one
-- Only future approved payouts will build balances
-- Full audit trail of the reset
-
-## Files Changed
-
-| Target | Change |
-|--------|--------|
-| `proxy_agent_assignments` table | DELETE all 28 rows for this agent |
-| `audit_logs` table | INSERT 1 record documenting the bulk reset |
+- Every matched/mismatched deposit in TID Verification gets a red "Reject" button
+- Clicking it opens a dialog requiring a reason (min 10 chars)
+- Rejection calls the same backend, updates status, notifies the user, and logs an audit entry
 
