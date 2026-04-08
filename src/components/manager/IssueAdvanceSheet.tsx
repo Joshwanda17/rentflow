@@ -275,7 +275,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
                     <p className="font-bold">{formatUGX(parsedAmount)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Access Fee (33%/mo)</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Access Fee ({(rate * 100).toFixed(0)}%/mo)</p>
                     <p className="font-bold text-amber-600">{formatUGX(accessFee)}</p>
                   </div>
                   <div>
