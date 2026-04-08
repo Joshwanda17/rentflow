@@ -145,6 +145,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
 
       setAmount('');
       setCycleDays(30);
+      setMonthlyRate('0.33');
       setAgentId(preselectedAgentId || '');
       setAgentSearch('');
       onOpenChange(false);
