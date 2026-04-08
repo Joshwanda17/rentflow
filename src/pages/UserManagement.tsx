@@ -4,11 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   Users, Search, Star, CheckCircle, X, 
-  ArrowLeft, RefreshCw, MoreVertical, Loader2, BadgeCheck
+  ArrowLeft, RefreshCw, MoreVertical, Loader2, BadgeCheck, Clock, Send, Share2, UserCheck
 } from 'lucide-react';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { formatDistanceToNow } from 'date-fns';
 
 import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
