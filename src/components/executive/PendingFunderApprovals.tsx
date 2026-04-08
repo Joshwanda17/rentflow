@@ -255,7 +255,7 @@ export function PendingFunderApprovals() {
                           <span className="font-semibold text-foreground">UGX {p.investmentTotal.toLocaleString()}</span>
                         </div>
                         <div className="text-[10px]">
-                          <span className="text-muted-foreground">Returns Due:</span>{' '}
+                          <span className="text-muted-foreground">Accrued (not yet paid):</span>{' '}
                           <span className={cn("font-semibold", p.accruedReturns > 0 ? "text-success" : "text-muted-foreground")}>
                             UGX {p.accruedReturns.toLocaleString()}
                           </span>
