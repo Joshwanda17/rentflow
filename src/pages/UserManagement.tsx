@@ -717,7 +717,8 @@ Just click the link and enter your password to get started!`;
                 );
               })}
             </div>
-          )
+          );
+          })()
         ) : displayUsers.length === 0 && !loadingMore ? (
           <div className="text-center py-20 px-4">
             <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
