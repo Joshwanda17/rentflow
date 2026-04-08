@@ -61,6 +61,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
 
   const agentCommission = monthlyRent ? Math.round(parseInt(monthlyRent) * 0.02) : 0;
 
