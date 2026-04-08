@@ -113,10 +113,10 @@ export function useCFOOverviewData() {
   const revenue = useQuery({
     queryKey: ['cfo-overview-revenue'],
     queryFn: async () => {
-      const { data: entries } = await supabase
-        .from('general_ledger')
+      const { data: entries } = (await supabase
+        .from('general_ledger' as any)
         .select('amount, direction, category, created_at')
-        .eq('scope', 'platform') as { data: { amount: number; direction: string; category: string; created_at: string }[] | null };
+        .eq('scope', 'platform')) as { data: { amount: number; direction: string; category: string; created_at: string }[] | null };
 
       let totalRevenue = 0;
       let totalCosts = 0;
