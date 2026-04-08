@@ -116,7 +116,7 @@ export function useCFOOverviewData() {
       const { data: entries } = await supabase
         .from('general_ledger')
         .select('amount, direction, category, created_at')
-        .eq('scope', 'platform');
+        .eq('scope', 'platform') as { data: { amount: number; direction: string; category: string; created_at: string }[] | null };
 
       let totalRevenue = 0;
       let totalCosts = 0;
