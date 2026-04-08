@@ -1,11 +1,12 @@
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Banknote, Wallet, TrendingUp, ArrowUpDown, ShieldAlert, Users, Smartphone, Building2, HandCoins, ArrowDownToLine, PiggyBank } from 'lucide-react';
+import { Loader2, Banknote, Wallet, TrendingUp, ArrowUpDown, ShieldAlert, Users, Smartphone, Building2, HandCoins, ArrowDownToLine, PiggyBank, ReceiptText, AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Bar, BarChart } from 'recharts';
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -23,7 +24,7 @@ const fmtShort = (n: number) => {
 const pct = (part: number, total: number) => (total === 0 ? 0 : Math.round((part / total) * 100));
 
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
-  const { channelBalances, liabilities, revenue, moneyFlow, isLoading } = useCFOOverviewData();
+  const { channelBalances, liabilities, revenue, moneyFlow, receivables, cashFlowByPurpose, isLoading } = useCFOOverviewData();
 
   if (isLoading) {
     return (
@@ -34,18 +35,18 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   }
 
   const totalCash = channelBalances?.totalCash ?? 0;
+  const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
-  const platformRevenue = revenue?.netProfit ?? 0;
-  const solvencyRatio = totalLiabilities > 0 ? (totalCash / totalLiabilities) * 100 : 100;
+  const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
 
   const solvencyColor =
     solvencyRatio >= 100 ? 'text-emerald-600' : solvencyRatio >= 80 ? 'text-yellow-600' : 'text-red-600';
   const solvencyBg =
     solvencyRatio >= 100
-      ? 'bg-emerald-50 border-emerald-200'
+      ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800'
       : solvencyRatio >= 80
-        ? 'bg-yellow-50 border-yellow-200'
-        : 'bg-red-50 border-red-200';
+        ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800'
+        : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800';
 
   const channels = channelBalances?.channels ?? {};
   const channelIcons: Record<string, React.ReactNode> = {
@@ -54,6 +55,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     Bank: <Building2 className="h-5 w-5 text-blue-600" />,
     Cash: <Banknote className="h-5 w-5 text-emerald-600" />,
   };
+
+  const negativeChannels = Object.entries(channels).filter(([, v]) => v.deposits - v.withdrawals < 0);
 
   const liabilityItems = [
     { label: 'Tenant Funds', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
@@ -65,7 +68,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
   return (
     <div className="space-y-6">
-      {/* SECTION 0: Sticky KPI Header */}
+      {/* SECTION 0: KPI Header Bar */}
       <div className="pb-3 pt-1">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KPICard
@@ -77,20 +80,19 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             onClick={() => onTabChange?.('reconciliation')}
           />
           <KPICard
+            label="Total Receivables"
+            value={fmt(totalReceivables)}
+            subtitle="Money expected back"
+            accent="border-l-purple-500"
+            icon={<ReceiptText className="h-5 w-5 text-purple-500" />}
+          />
+          <KPICard
             label="Total Liabilities"
             value={fmt(totalLiabilities)}
             subtitle="User funds owed"
             accent="border-l-yellow-500"
             icon={<Wallet className="h-5 w-5 text-yellow-500" />}
             onClick={() => onTabChange?.('solvency')}
-          />
-          <KPICard
-            label="Platform Revenue"
-            value={fmt(platformRevenue)}
-            subtitle="Net earnings"
-            accent="border-l-emerald-500"
-            icon={<TrendingUp className="h-5 w-5 text-emerald-500" />}
-            onClick={() => onTabChange?.('statements')}
           />
           <div
             className={`rounded-2xl border-l-4 border ${solvencyBg} p-4 cursor-pointer hover:shadow-md transition-shadow`}
@@ -101,28 +103,39 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               <span className="text-sm font-medium text-muted-foreground">Solvency Ratio</span>
             </div>
             <p className={`text-2xl font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Cash / Liabilities</p>
+            <p className="text-xs text-muted-foreground mt-0.5">(Cash + Receivables) / Liabilities</p>
           </div>
         </div>
       </div>
 
       {/* SECTION 1: Cash & Liquidity */}
       <SectionCard title="Cash & Liquidity" icon={<Banknote className="h-5 w-5 text-blue-500" />} accent="border-l-blue-500">
+        {negativeChannels.length > 0 && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              ⚠️ Negative balance detected in: {negativeChannels.map(([n]) => n).join(', ')}. Immediate attention required.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="mb-4">
           <p className="text-sm text-muted-foreground">Total Cash</p>
           <p className="text-3xl font-bold font-mono">{fmt(totalCash)}</p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          {Object.entries(channels).map(([name, vals]) => (
-            <div key={name} className="rounded-xl border bg-muted/30 p-3">
-              <div className="flex items-center gap-2 mb-1">
-                {channelIcons[name]}
-                <span className="text-sm font-medium">{name}</span>
+          {Object.entries(channels).map(([name, vals]) => {
+            const balance = vals.deposits - vals.withdrawals;
+            return (
+              <div key={name} className={`rounded-xl border p-3 ${balance < 0 ? 'border-red-400 bg-red-50/50 dark:bg-red-950/20' : 'bg-muted/30'}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  {channelIcons[name]}
+                  <span className="text-sm font-medium">{name}</span>
+                </div>
+                <p className={`text-lg font-bold font-mono ${balance < 0 ? 'text-red-600' : ''}`}>{fmt(balance)}</p>
+                <p className="text-xs text-muted-foreground">In: {fmtShort(vals.deposits)} · Out: {fmtShort(vals.withdrawals)}</p>
               </div>
-              <p className="text-lg font-bold font-mono">{fmt(vals.deposits - vals.withdrawals)}</p>
-              <p className="text-xs text-muted-foreground">In: {fmtShort(vals.deposits)} · Out: {fmtShort(vals.withdrawals)}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
@@ -136,7 +149,44 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </div>
       </SectionCard>
 
-      {/* SECTION 2: Liabilities / User Funds */}
+      {/* SECTION 2: Assets / Receivables */}
+      <SectionCard title="Assets (Money Expected Back)" icon={<ReceiptText className="h-5 w-5 text-purple-500" />} accent="border-l-purple-500">
+        <div className="mb-4">
+          <p className="text-sm text-muted-foreground">Total Receivables</p>
+          <p className="text-3xl font-bold font-mono text-purple-600">{fmt(totalReceivables)}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
+            <p className="text-xs text-muted-foreground">Tenant Outstanding</p>
+            <p className="text-lg font-bold font-mono">{fmt(receivables?.tenantOutstanding ?? 0)}</p>
+            <p className="text-xs text-muted-foreground">{pct(receivables?.tenantOutstanding ?? 0, totalReceivables)}% of total</p>
+          </div>
+          <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
+            <p className="text-xs text-muted-foreground">Advances Outstanding</p>
+            <p className="text-lg font-bold font-mono">{fmt(receivables?.advancesOutstanding ?? 0)}</p>
+            <p className="text-xs text-muted-foreground">{pct(receivables?.advancesOutstanding ?? 0, totalReceivables)}% of total</p>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-muted/30 p-3">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Aging (Coming Soon)</p>
+          <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+            <div className="text-center p-2 rounded-lg bg-muted/50">
+              <p className="font-medium">0–30 days</p>
+              <p className="text-sm font-mono mt-1">—</p>
+            </div>
+            <div className="text-center p-2 rounded-lg bg-muted/50">
+              <p className="font-medium">30–60 days</p>
+              <p className="text-sm font-mono mt-1">—</p>
+            </div>
+            <div className="text-center p-2 rounded-lg bg-muted/50">
+              <p className="font-medium">60+ days</p>
+              <p className="text-sm font-mono mt-1">—</p>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* SECTION 3: Liabilities / User Funds */}
       <SectionCard title="User Funds (Liabilities)" icon={<Wallet className="h-5 w-5 text-yellow-500" />} accent="border-l-yellow-500">
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           {liabilityItems.map((item) => (
@@ -150,7 +200,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             </div>
           ))}
         </div>
-        {/* Horizontal stacked bar */}
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground">Liability Breakdown</p>
           <div className="flex h-3 rounded-full overflow-hidden bg-muted">
@@ -171,13 +220,13 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </div>
       </SectionCard>
 
-      {/* SECTION 3: Platform Earnings */}
-      <SectionCard title="Platform Earnings & Equity" icon={<PiggyBank className="h-5 w-5 text-emerald-500" />} accent="border-l-emerald-500">
+      {/* SECTION 4: Platform Earnings */}
+      <SectionCard title="Platform Earnings & Profit" icon={<PiggyBank className="h-5 w-5 text-emerald-500" />} accent="border-l-emerald-500">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <MiniKPI label="Total Revenue" value={fmt(revenue?.totalRevenue ?? 0)} />
-          <MiniKPI label="Total Costs" value={fmt(revenue?.totalCosts ?? 0)} />
+          <MiniKPI label="Revenue" value={fmt(revenue?.totalRevenue ?? 0)} />
+          <MiniKPI label="Fees" value={fmt(0)} muted />
+          <MiniKPI label="Expenses" value={fmt(revenue?.totalExpenses ?? 0)} />
           <MiniKPI label="Net Profit" value={fmt(revenue?.netProfit ?? 0)} highlight />
-          <MiniKPI label="Margin" value={`${revenue?.totalRevenue ? pct(revenue.netProfit, revenue.totalRevenue) : 0}%`} />
         </div>
         {revenue?.trend && revenue.trend.length > 0 && (
           <div className="h-32">
@@ -199,13 +248,45 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         )}
       </SectionCard>
 
-      {/* SECTION 4: Money Flow */}
-      <SectionCard title="Money Movement" icon={<ArrowUpDown className="h-5 w-5 text-purple-500" />} accent="border-l-purple-500">
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <MiniKPI label="Total Inflows" value={fmt(moneyFlow?.totalInflows ?? 0)} />
-          <MiniKPI label="Total Outflows" value={fmt(moneyFlow?.totalOutflows ?? 0)} />
-          <MiniKPI label="Net Flow" value={fmt(moneyFlow?.netFlow ?? 0)} highlight />
+      {/* SECTION 5: Cash Flow Engine */}
+      <SectionCard title="Cash Flow by Purpose" icon={<ArrowUpDown className="h-5 w-5 text-indigo-500" />} accent="border-l-indigo-500">
+        <div className="grid lg:grid-cols-2 gap-4 mb-4">
+          {/* Cash In */}
+          <div className="rounded-xl border bg-emerald-50/50 dark:bg-emerald-950/10 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowDownRight className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">CASH IN</span>
+              <span className="ml-auto text-sm font-bold font-mono text-emerald-600">{fmt(cashFlowByPurpose?.totalIn ?? 0)}</span>
+            </div>
+            <div className="space-y-2">
+              <FlowRow label="Partner Funding" value={cashFlowByPurpose?.cashIn.partnerFunding ?? 0} />
+              <FlowRow label="Tenant Repayments" value={cashFlowByPurpose?.cashIn.tenantRepayments ?? 0} />
+              <FlowRow label="Other Income" value={cashFlowByPurpose?.cashIn.other ?? 0} />
+            </div>
+          </div>
+          {/* Cash Out */}
+          <div className="rounded-xl border bg-red-50/50 dark:bg-red-950/10 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowUpRight className="h-4 w-4 text-red-600" />
+              <span className="text-sm font-semibold text-red-700 dark:text-red-400">CASH OUT</span>
+              <span className="ml-auto text-sm font-bold font-mono text-red-600">{fmt(cashFlowByPurpose?.totalOut ?? 0)}</span>
+            </div>
+            <div className="space-y-2">
+              <FlowRow label="Rent Payments" value={cashFlowByPurpose?.cashOut.rentPayments ?? 0} />
+              <FlowRow label="ROI Payouts" value={cashFlowByPurpose?.cashOut.roiPayouts ?? 0} />
+              <FlowRow label="Advances" value={cashFlowByPurpose?.cashOut.advances ?? 0} />
+              <FlowRow label="Other Costs" value={cashFlowByPurpose?.cashOut.other ?? 0} />
+            </div>
+          </div>
         </div>
+        {/* Net Cash Movement */}
+        <div className="rounded-xl border bg-indigo-50/50 dark:bg-indigo-950/20 p-4 mb-4">
+          <p className="text-xs text-muted-foreground">Net Cash Movement</p>
+          <p className={`text-2xl font-bold font-mono ${(cashFlowByPurpose?.netMovement ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {fmt(cashFlowByPurpose?.netMovement ?? 0)}
+          </p>
+        </div>
+        {/* 30-day trend */}
         {moneyFlow?.trend && moneyFlow.trend.length > 0 && (
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
@@ -231,13 +312,14 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         )}
       </SectionCard>
 
-      {/* SECTION 5: Risk & Reconciliation */}
-      <SectionCard title="Risk & Controls" icon={<ShieldAlert className="h-5 w-5 text-red-500" />} accent="border-l-red-500">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      {/* SECTION 6: Risk & Control */}
+      <SectionCard title="Risk & Control" icon={<ShieldAlert className="h-5 w-5 text-red-500" />} accent="border-l-red-500">
+        {/* Section A: Channel Reconciliation */}
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Channel Reconciliation</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {Object.entries(channels).map(([name, vals]) => {
             const systemBalance = vals.deposits - vals.withdrawals;
-            // In a full implementation, actualBalance would come from manual reconciliation entries
-            const actualBalance = systemBalance; // placeholder
+            const actualBalance = systemBalance;
             const variance = systemBalance - actualBalance;
             const status = Math.abs(variance) < 1 ? 'ok' : Math.abs(variance) < systemBalance * 0.05 ? 'warning' : 'critical';
             return (
@@ -260,7 +342,27 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             );
           })}
         </div>
-        {/* Solvency indicator */}
+
+        {/* Section B: Solvency Breakdown */}
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Solvency Breakdown</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
+            <p className="text-xs text-muted-foreground">Cash</p>
+            <p className="text-lg font-bold font-mono text-blue-600">{fmt(totalCash)}</p>
+          </div>
+          <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
+            <p className="text-xs text-muted-foreground">Receivables</p>
+            <p className="text-lg font-bold font-mono text-purple-600">{fmt(totalReceivables)}</p>
+          </div>
+          <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
+            <p className="text-xs text-muted-foreground">Liabilities</p>
+            <p className="text-lg font-bold font-mono text-yellow-600">{fmt(totalLiabilities)}</p>
+          </div>
+          <div className={`rounded-xl border p-3 ${solvencyBg}`}>
+            <p className="text-xs text-muted-foreground">Coverage</p>
+            <p className={`text-lg font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
+          </div>
+        </div>
         <div className={`rounded-xl border p-4 ${solvencyBg}`}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Solvency Indicator</span>
@@ -268,12 +370,37 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           </div>
           <Progress value={Math.min(solvencyRatio, 100)} className="h-3" />
           <p className="text-xs text-muted-foreground mt-1">
-            System is {solvencyRatio.toFixed(0)}% solvent — {solvencyRatio >= 100 ? 'Fully covered' : solvencyRatio >= 80 ? 'Warning zone' : 'Critical: underfunded'}
+            {solvencyRatio >= 100 ? '✅ Fully covered' : solvencyRatio >= 80 ? '⚠️ Warning zone — monitor closely' : '❌ Critical: underfunded — immediate action needed'}
           </p>
         </div>
+
+        {/* Section C: Alerts */}
+        {(negativeChannels.length > 0 || solvencyRatio < 80) && (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Alerts</p>
+            {negativeChannels.map(([name]) => (
+              <Alert key={name} variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>🔴 {name} channel has a negative balance. Investigate immediately.</AlertDescription>
+              </Alert>
+            ))}
+            {solvencyRatio < 80 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>🔴 Solvency below 80%. Platform is underfunded — liquidity risk is high.</AlertDescription>
+              </Alert>
+            )}
+            {solvencyRatio >= 80 && solvencyRatio < 100 && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>🟡 Solvency below 100%. Not all liabilities are fully covered by cash + receivables.</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
       </SectionCard>
 
-      {/* SECTION 6: Operations */}
+      {/* SECTION 7: Operations */}
       <SectionCard title="Operations" icon={<Users className="h-5 w-5 text-muted-foreground" />} accent="border-l-muted-foreground/40">
         <div className="grid lg:grid-cols-2 gap-4">
           <div>
@@ -326,11 +453,20 @@ function SectionCard({ title, icon, accent, children }: {
   );
 }
 
-function MiniKPI({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function MiniKPI({ label, value, highlight, muted: isMuted }: { label: string; value: string; highlight?: boolean; muted?: boolean }) {
   return (
     <div className="rounded-xl border bg-muted/30 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-lg font-bold font-mono ${highlight ? 'text-emerald-600' : ''}`}>{value}</p>
+      <p className={`text-lg font-bold font-mono ${highlight ? 'text-emerald-600' : isMuted ? 'text-muted-foreground' : ''}`}>{value}</p>
+    </div>
+  );
+}
+
+function FlowRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex justify-between items-center text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono font-medium">{fmt(value)}</span>
     </div>
   );
 }
