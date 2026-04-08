@@ -231,29 +231,7 @@ export function PendingWalletOperationsWidget() {
               </div>
             </div>
 
-            {/* Bulk approve */}
-            {pendingCount > 1 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button className="w-full h-12 text-sm font-bold gap-2" disabled={processing === 'bulk'}>
-                    {processing === 'bulk' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                    Approve All {pendingCount} Operations
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Approve All {pendingCount} Operations?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will process {formatUGX(totalPendingIn)} in deposits and {formatUGX(totalPendingOut)} in withdrawals.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBulkApprove}>Approve All</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            {/* Bulk approve removed — individual payment references required */}
           </CardContent>
         </Card>
       )}
