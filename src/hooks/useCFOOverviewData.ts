@@ -18,10 +18,6 @@ export function useCFOOverviewData() {
         .select('amount, mobile_money_provider')
         .eq('status', 'approved');
 
-      const { data: withdrawals } = await supabase
-        .from('withdrawal_requests')
-        .select('amount, mobile_money_provider')
-        .eq('status', 'approved');
 
       const channels: Record<string, { deposits: number; withdrawals: number }> = {
         MTN: { deposits: 0, withdrawals: 0 },
