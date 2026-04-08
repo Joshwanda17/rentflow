@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Monthly rate 33%, daily equivalent: (1.33^(1/30) - 1)
-const DAILY_INTEREST_RATE = Math.pow(1.33, 1 / 30) - 1;
+// Default monthly rate 33%, daily equivalent: (1.33^(1/30) - 1)
+const DEFAULT_MONTHLY_RATE = 0.33;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -48,8 +48,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      const advanceMonthlyRate = Number(advance.monthly_rate) || Number(advance.daily_rate) || DEFAULT_MONTHLY_RATE;
+      const dailyInterestRate = Math.pow(1 + advanceMonthlyRate, 1 / 30) - 1;
+
       const openingBalance = Number(advance.outstanding_balance);
-      const interestAccrued = Math.round(openingBalance * DAILY_INTEREST_RATE);
+      const interestAccrued = Math.round(openingBalance * dailyInterestRate);
       const balanceAfterInterest = openingBalance + interestAccrued;
 
       const isOverdue = new Date() > new Date(advance.expires_at);

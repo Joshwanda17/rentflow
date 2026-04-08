@@ -31,11 +31,21 @@ interface IssueAdvanceSheetProps {
   preselectedAgentId?: string;
 }
 
+const RATE_OPTIONS = [
+  { value: '0.33', label: '33%' },
+  { value: '0.30', label: '30%' },
+  { value: '0.25', label: '25%' },
+  { value: '0.20', label: '20%' },
+  { value: '0.15', label: '15%' },
+  { value: '0.10', label: '10%' },
+];
+
 export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, preselectedAgentId }: IssueAdvanceSheetProps) {
   const { user } = useAuth();
   const [agentId, setAgentId] = useState(preselectedAgentId || '');
   const [amount, setAmount] = useState('');
   const [cycleDays, setCycleDays] = useState<number>(30);
+  const [monthlyRate, setMonthlyRate] = useState('0.33');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agentSearch, setAgentSearch] = useState('');
   const [agentPopoverOpen, setAgentPopoverOpen] = useState(false);
@@ -72,11 +82,12 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
   const isTopUp = !!existingAdvance;
   const selectedAgent = agents.find((a: any) => a.id === agentId);
 
+  const rate = Number(monthlyRate);
   const regFee = useMemo(() => calculateRegistrationFee(parsedAmount), [parsedAmount]);
-  const accessFee = useMemo(() => calculateAccessFee(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
-  const totalPayable = useMemo(() => calculateTotalPayable(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
-  const dailyPayment = useMemo(() => calculateDailyPayment(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
-  const projection = useMemo(() => parsedAmount > 0 ? calculateCompoundProjection(parsedAmount, cycleDays).slice(0, 5) : [], [parsedAmount, cycleDays]);
+  const accessFee = useMemo(() => calculateAccessFee(parsedAmount, cycleDays, rate), [parsedAmount, cycleDays, rate]);
+  const totalPayable = useMemo(() => calculateTotalPayable(parsedAmount, cycleDays, rate), [parsedAmount, cycleDays, rate]);
+  const dailyPayment = useMemo(() => calculateDailyPayment(parsedAmount, cycleDays, rate), [parsedAmount, cycleDays, rate]);
+  const projection = useMemo(() => parsedAmount > 0 ? calculateCompoundProjection(parsedAmount, cycleDays, rate).slice(0, 5) : [], [parsedAmount, cycleDays, rate]);
 
   const handleSubmit = async () => {
     if (!agentId || parsedAmount <= 0 || !user) {
@@ -91,7 +102,8 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           advance_id: existingAdvance.id,
           amount: parsedAmount,
           topped_up_by: user.id,
-        });
+          monthly_rate: rate,
+        } as any);
         if (topupError) throw topupError;
 
         const newAccessFee = Number(existingAdvance.access_fee || 0) + accessFee;
@@ -116,7 +128,8 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           agent_id: agentId,
           principal: parsedAmount,
           outstanding_balance: parsedAmount,
-          daily_rate: 0.33,
+          daily_rate: rate,
+          monthly_rate: rate,
           cycle_days: cycleDays,
           registration_fee: regFee,
           access_fee: accessFee,
@@ -124,7 +137,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           access_fee_status: 'unpaid',
           issued_by: user.id,
           expires_at: new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString(),
-        });
+        } as any);
         if (error) throw error;
 
         toast.success(`Advance of ${formatUGX(parsedAmount)} issued successfully`);
@@ -132,6 +145,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
 
       setAmount('');
       setCycleDays(30);
+      setMonthlyRate('0.33');
       setAgentId(preselectedAgentId || '');
       setAgentSearch('');
       onOpenChange(false);
@@ -228,6 +242,18 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           </div>
 
           <div className="space-y-2">
+            <Label>Interest Rate (Monthly)</Label>
+            <Select value={monthlyRate} onValueChange={setMonthlyRate}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {RATE_OPTIONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label} / month</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Repayment Period</Label>
             <Select value={String(cycleDays)} onValueChange={(v) => setCycleDays(Number(v))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -249,7 +275,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
                     <p className="font-bold">{formatUGX(parsedAmount)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Access Fee (33%/mo)</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Access Fee ({(rate * 100).toFixed(0)}%/mo)</p>
                     <p className="font-bold text-amber-600">{formatUGX(accessFee)}</p>
                   </div>
                   <div>

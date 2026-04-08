@@ -24,22 +24,22 @@ export function calculateRegistrationFee(principal: number): number {
 /**
  * Access fee: principal × (1.33^(days/30) - 1)
  */
-export function calculateAccessFee(principal: number, days: number): number {
-  return Math.round(principal * (Math.pow(1 + MONTHLY_RATE, days / 30) - 1));
+export function calculateAccessFee(principal: number, days: number, monthlyRate: number = MONTHLY_RATE): number {
+  return Math.round(principal * (Math.pow(1 + monthlyRate, days / 30) - 1));
 }
 
 /**
  * Total payable = principal + access fee + registration fee
  */
-export function calculateTotalPayable(principal: number, days: number): number {
-  return principal + calculateAccessFee(principal, days) + calculateRegistrationFee(principal);
+export function calculateTotalPayable(principal: number, days: number, monthlyRate: number = MONTHLY_RATE): number {
+  return principal + calculateAccessFee(principal, days, monthlyRate) + calculateRegistrationFee(principal);
 }
 
 /**
  * Daily payment = total ÷ period days
  */
-export function calculateDailyPayment(principal: number, days: number): number {
-  return Math.ceil(calculateTotalPayable(principal, days) / days);
+export function calculateDailyPayment(principal: number, days: number, monthlyRate: number = MONTHLY_RATE): number {
+  return Math.ceil(calculateTotalPayable(principal, days, monthlyRate) / days);
 }
 
 /**
@@ -48,9 +48,10 @@ export function calculateDailyPayment(principal: number, days: number): number {
  */
 export function calculateCompoundProjection(
   principal: number,
-  days: number = 30
+  days: number = 30,
+  monthlyRate: number = MONTHLY_RATE
 ): DayProjection[] {
-  const dailyRate = Math.pow(1 + MONTHLY_RATE, 1 / 30) - 1;
+  const dailyRate = Math.pow(1 + monthlyRate, 1 / 30) - 1;
   const projections: DayProjection[] = [];
   let balance = principal;
 
