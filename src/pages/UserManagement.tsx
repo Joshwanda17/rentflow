@@ -163,8 +163,12 @@ export default function UserManagement() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`${invite.full_name} activated successfully!`);
-      await fetchPendingInvites();
-      await fetchTotalCount();
+      // Refresh invites list and counts
+      await Promise.all([fetchPendingInvites(), fetchTotalCount()]);
+      // Switch to 'all' filter so the newly activated user is visible
+      setRoleFilter('all');
+      setCurrentPage(0);
+      setHasMore(true);
     } catch (err: any) {
       toast.error(err.message || 'Failed to activate invite');
     } finally {
@@ -641,23 +645,32 @@ Just click the link and enter your password to get started!`;
             <div className="px-4 py-8 space-y-3">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
             </div>
-          ) : pendingInvites.length === 0 ? (
+          ) : (() => {
+            const searchLower = debouncedSearch.trim().toLowerCase();
+            const filteredInvites = searchLower
+              ? pendingInvites.filter(inv =>
+                  inv.full_name.toLowerCase().includes(searchLower) ||
+                  inv.phone.toLowerCase().includes(searchLower) ||
+                  inv.email.toLowerCase().includes(searchLower)
+                )
+              : pendingInvites;
+            return filteredInvites.length === 0 ? (
             <div className="text-center py-20 px-4">
               <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
                 <Clock className="h-12 w-12 text-muted-foreground" />
               </div>
-              <p className="font-semibold text-lg text-foreground">No pending invites</p>
-              <p className="text-sm text-muted-foreground mt-1">All invitations have been activated</p>
+              <p className="font-semibold text-lg text-foreground">{searchLower ? 'No matching invites' : 'No pending invites'}</p>
+              <p className="text-sm text-muted-foreground mt-1">{searchLower ? 'Try a different search term' : 'All invitations have been activated'}</p>
             </div>
           ) : (
             <div className="px-3 py-3 space-y-2">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-muted-foreground">{pendingInvites.length} pending activation{pendingInvites.length !== 1 ? 's' : ''}</p>
+                <p className="text-sm text-muted-foreground">{filteredInvites.length} pending activation{filteredInvites.length !== 1 ? 's' : ''}{searchLower ? ` (of ${pendingInvites.length})` : ''}</p>
                 <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={fetchPendingInvites}>
                   <RefreshCw className="h-3 w-3" /> Refresh
                 </Button>
               </div>
-              {pendingInvites.map(invite => {
+              {filteredInvites.map(invite => {
                 const roleInfo = inviteRoleConfig[invite.role] || { label: 'User', emoji: '👤' };
                 return (
                   <div key={invite.id} className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors">
@@ -704,7 +717,8 @@ Just click the link and enter your password to get started!`;
                 );
               })}
             </div>
-          )
+          );
+          })()
         ) : displayUsers.length === 0 && !loadingMore ? (
           <div className="text-center py-20 px-4">
             <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
