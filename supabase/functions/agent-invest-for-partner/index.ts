@@ -182,9 +182,8 @@ Deno.serve(async (req) => {
 
     if (portfolioErr) {
       console.error("[agent-invest-for-partner] Portfolio creation failed:", portfolioErr.message);
-      await rollbackAgentWallet();
       await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
-      return errorResponse("Failed to create portfolio, wallet restored. Please retry.", 500);
+      return errorResponse("Failed to create portfolio. Please retry.", 500);
     }
 
     // --- Direct ledger entries for instant activation (net-zero pattern) ---
