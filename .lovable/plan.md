@@ -1,107 +1,79 @@
-# Agent Guarantor System — Full Implementation Plan
 
-SPLIT WALLET INTO TWO COMMISSION AND FLOAT. WHEREBY FLOAT IS THE AMOUNT DEPOSITED BY THE AGENT ONTO THEIR WALLETS AND IT  CAN BE SENT TO TENANT WALLETS USED TO PAY THE TENANT RENT. WHILE COMMISSION IS THE MONEY REWARDED BY THE SYSTEM TO THE AGENT UPON SUCCESSFUL RENT REPAYMENTS
 
-## What Exists Today
+# Fix: Zero Out Proxy Partner Balances for LUKODDA JOSEPH — Clean Slate
 
-The system **already has most of the mechanics** in place:
+## Problem
 
-- `subscription_charges.agent_id` links tenants to their onboarding agent
-- `auto-charge-wallets` edge function implements 72-hour grace period + agent fallback charging
-- `chargeAgent()` deducts from agent wallet when tenant defaults
-- `accumulated_debt` tracks unpaid shortfalls
-- Circuit breaker (3 consecutive failures → stalled)
+The Proxy Partners tab shows massively inflated balances (e.g., NFITUMUKIZA BOSCO at 50.7M instead of 1.7M) because the code query on line 91 of `ProxyPartnerFunds.tsx` filters `.eq('direction', 'cash_in')` — ignoring all `cash_out` correction entries.
 
-**What's missing:**
+But even after fixing the query, the net balances still include legacy "corrected" credits from the old backfill (e.g., BOSCO would show 1,701,017 instead of only the 750K that was actually approved through the proper pipeline).
 
-1. No explicit guarantor consent at onboarding ("By onboarding this tenant, you accept financial responsibility")
-2. No agent-facing **Risk Exposure** dashboard showing guaranteed tenants + potential losses
-3. `chargeAgent()` deducts from the general wallet (not commission-specific) and directly updates balance (violates Trigger-Only policy)
-4. No agent liability/debt tracking when commission is insufficient
-5. Agent Agreement (v1.0) doesn't mention guarantor responsibility
+**Your request**: Remove all proxy partner records so we start fresh — only real approved payouts going forward.
 
-## Plan
+## Approach: Two-Part Fix
 
-### 1. Add Guarantor Consent to Tenant Registration Flow
+### Part 1: Fix the Code (ProxyPartnerFunds.tsx)
 
-**Files:** `src/components/agent/CreateUserInviteDialog.tsx`, `src/components/agent/AgentRentRequestDialog.tsx`, `src/components/agent/RegisterTenantDialog.tsx`
+**Line 91**: Remove `.eq('direction', 'cash_in')` so both `cash_in` and `cash_out` entries are fetched.
 
-Before submitting a tenant registration, show a confirmation dialog:
+**Balance calculation** (around lines 150-160): Change from summing all entries to calculating net:
+- `cash_in` amounts → add
+- `cash_out` amounts → subtract
+- `available = net - withdrawals`
 
-> "By onboarding this tenant, you accept full financial responsibility if they default on rent payments. Defaults will be recovered from your commission wallet after a 72-hour grace period."
+This is the code fix that was previously declined — but it's a prerequisite. Without it, any correction entries we insert will also be ignored.
 
-Add a mandatory checkbox acknowledgment. Store `guarantor_acknowledged_at` timestamp in the `register-tenant` edge function response metadata.
+### Part 2: Insert Balance Correction Entries (Data Cleanup)
 
-### 2. Update Agent Agreement to v1.1
+Using the append-only ledger policy, insert `balance_correction` entries (direction: `cash_out`) to zero out the remaining net balance for each partner. This uses the `balance_correction` category per the financial integrity governance rules.
 
-**File:** `src/components/agent/agreement/AgentAgreementContent.ts`
+**Correction entries to insert** (one per partner with a non-zero net):
 
-Add a new **Section 6A: Guarantor Responsibility** to the agreement text:
+| Partner | Current Net | Correction Amount (cash_out) |
+|---------|-------------|------------------------------|
+| NFITUMUKIZA BOSCO | 1,701,017 | 1,701,017 |
+| NATUKUNDA JOSHUA | 3,995,103 | 3,995,103 |
+| KABAHETERE SANDRA | 1,221,985 | 1,221,985 |
+| NANDUGA DEBORAH | 1,019,165 | 1,019,165 |
+| HILLARY TUMUSIIME | 1,108,528 | 1,108,528 |
+| ADONG FLAVIA | 535,921 | 535,921 |
+| KYOBE JEREMIAH | 672,551 | 672,551 |
+| ATIM PAMELA | 32,796 | 32,796 |
+| ATUKUNDA CLAIRE | 18,929 | 18,929 |
+| MUSISI JEROM | 36,187 | 36,187 |
+| JENNIFER MIREMBE | 132,402 | 132,402 |
+| NASSAMULA JOYCE | 65,635 | 65,635 |
+| AMON OYIRWOTH | 24,067 | 24,067 |
+| SSENFUMA FRANCIS | 110,536 | 110,536 |
 
-- Agent automatically becomes guarantor for every tenant they onboard
-- After 72-hour grace period, defaults are recovered from agent's commission wallet
-- If commission is insufficient, the shortfall becomes an agent liability (debt)
-- Agent cannot manually use commission to pre-pay rent — only the system triggers recovery
-- Every recovery deduction is logged as a `RECOVERY_TRANSACTION` in the ledger
+Each correction entry:
+- `user_id`: LUKODDA JOSEPH's ID
+- `category`: `balance_correction`
+- `direction`: `cash_out`
+- `linked_party`: partner's ID
+- `description`: "Clean slate correction: zero out legacy proxy ROI credits for [PARTNER NAME]"
 
-Bump version to `v1.1`. Existing agents will see the "Accept Terms" button again.
+Additionally, two partners have entries but NO active proxy assignment (rejected):
+- WINNIE & RICHARD: 1,064,000 net
+- MUSEMA KIZITO: 1,200,000 net
 
-### 3. Build Agent Risk Exposure Card
+These also get zeroed out.
 
-**New file:** `src/components/agent/AgentRiskExposureCard.tsx`
+### Part 3: Audit Log
 
-A card on the agent dashboard showing:
+Insert one audit log entry recording the bulk correction action with the total amount zeroed and the reason.
 
-- **Guaranteed Tenants**: count of active `subscription_charges` where `agent_id = me`
-- **Total Exposure**: sum of `charge_amount` across all active subscriptions (what they'd owe per period if ALL tenants defaulted)
-- **Active Debt**: sum of `accumulated_debt` across their tenants' subscriptions
-- **Defaults This Month**: count of `tenant_default_charge` ledger entries this month
-- Color-coded risk indicator (green/yellow/red based on exposure vs. commission earnings)
+## Result After Fix
 
-Data source: `subscription_charges` where `agent_id = user.id` and `status = 'active'`
-
-### 4. Fix `chargeAgent()` to Follow Trigger-Only Wallet Policy
-
-**File:** `supabase/functions/auto-charge-wallets/index.ts`
-
-The current `chargeAgent()` function directly updates `wallets.balance` (line 671-675), violating the Trigger-Only policy. Fix to:
-
-1. Upsert wallet existence (ensure row exists)
-2. Insert `general_ledger` entry with `category: 'tenant_default_charge'`, `direction: 'cash_out'`, `role_type: 'agent'`
-3. Let `sync_wallet_from_ledger` trigger handle balance update
-4. Remove the direct `.update({ balance: newBalance })` call
-5. Keep the balance check (SELECT) to verify sufficient funds before inserting the ledger entry
-
-### 5. Add Agent Liability Tracking for Insufficient Commission
-
-**File:** `supabase/functions/auto-charge-wallets/index.ts` (in `chargeAgent()`)
-
-When agent wallet has insufficient funds:
-
-- Record the shortfall in `accumulated_debt` on `subscription_charges` (already happens)
-- Insert a `general_ledger` entry with `category: 'agent_liability'`, `direction: 'cash_out'`, amount = shortfall, `description: 'Agent guarantor liability — insufficient commission'`
-- This creates a traceable debt record in the ledger
-- When agent next receives commission, the existing auto-repayment mechanism in `approve-wallet-operation` can recover it
+- All proxy partners for LUKODDA JOSEPH show **USh 0** available
+- Only future COO→CFO approved payouts will appear as withdrawable
+- The ledger maintains full history (append-only integrity preserved)
+- No data deleted — corrections are traceable
 
 ## Files Changed
 
+| File | Change |
+|------|--------|
+| `src/components/agent/ProxyPartnerFunds.tsx` | Remove `direction` filter; calculate net balance (cash_in − cash_out) |
+| Data operation (insert tool) | Insert 16 `balance_correction` ledger entries + 1 audit log |
 
-| File                                                      | Change                                                                 |
-| --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `src/components/agent/agreement/AgentAgreementContent.ts` | Add Section 6A (Guarantor), bump to v1.1                               |
-| `src/components/agent/CreateUserInviteDialog.tsx`         | Add guarantor consent checkbox for tenant type                         |
-| `src/components/agent/AgentRentRequestDialog.tsx`         | Add guarantor consent before submitting                                |
-| `src/components/agent/RegisterTenantDialog.tsx`           | Add guarantor consent before submitting                                |
-| `src/components/agent/AgentRiskExposureCard.tsx`          | New — risk exposure dashboard card                                     |
-| `src/components/agent/AgentDashboard.tsx` (or equivalent) | Mount the risk exposure card                                           |
-| `supabase/functions/auto-charge-wallets/index.ts`         | Fix `chargeAgent()` to use ledger-only pattern; add liability tracking |
-
-
-## What This Achieves
-
-- Agent is explicitly informed of guarantor responsibility before onboarding
-- Agreement is legally binding with clear guarantor terms
-- Agent can see their risk exposure at all times (behavioral incentive to be careful)
-- Wallet integrity maintained via ledger-only writes
-- Shortfalls become tracked liabilities, recoverable from future commissions
-- Self-regulating system: agents stop onboarding risky tenants
