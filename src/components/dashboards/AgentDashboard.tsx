@@ -6,6 +6,7 @@ import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { AgentWalletHeroCard } from '@/components/agent/AgentWalletHeroCard';
+import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 
 import { Button } from '@/components/ui/button';
 import { 
