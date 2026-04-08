@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
         });
       }
     } else {
-      userId = userId;
+      userId = authData.user.id;
     }
 
     // Add user role (use upsert to avoid duplicate key errors from auto_assign trigger)
