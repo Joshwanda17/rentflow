@@ -14,6 +14,17 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import {
   Hash,
   Search,
   CheckCircle2,
@@ -24,6 +35,7 @@ import {
   AlertTriangle,
   Zap,
   Clock,
+  Ban,
 } from 'lucide-react';
 
 interface MatchResult {
