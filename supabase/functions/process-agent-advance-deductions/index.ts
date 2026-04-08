@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Monthly rate 33%, daily equivalent: (1.33^(1/30) - 1)
-const DAILY_INTEREST_RATE = Math.pow(1.33, 1 / 30) - 1;
+// Default monthly rate 33%, daily equivalent: (1.33^(1/30) - 1)
+const DEFAULT_MONTHLY_RATE = 0.33;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
