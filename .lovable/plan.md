@@ -1,79 +1,75 @@
 
 
-# Fix: Zero Out Proxy Partner Balances for LUKODDA JOSEPH — Clean Slate
+# Remove All Proxy Partner Assignments for LUKODDA JOSEPH
 
-## Problem
+## Current State
 
-The Proxy Partners tab shows massively inflated balances (e.g., NFITUMUKIZA BOSCO at 50.7M instead of 1.7M) because the code query on line 91 of `ProxyPartnerFunds.tsx` filters `.eq('direction', 'cash_in')` — ignoring all `cash_out` correction entries.
+LUKODDA JOSEPH (`b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c`) has **28 proxy assignments**:
+- **17 approved & active** (these show in Proxy Partners tab with incorrect balances)
+- **7 rejected & inactive** (already dead, no action needed)
+- **1 pending** (duplicate of ATUHAIRE CAROLYNE)
+- **3 others** (Jane Precious, chelangat Sarah princess, SIISA JESSE JOEL, MONDO EMMANUEL COLLINS — newer additions)
 
-But even after fixing the query, the net balances still include legacy "corrected" credits from the old backfill (e.g., BOSCO would show 1,701,017 instead of only the 750K that was actually approved through the proper pipeline).
+## What We'll Do
 
-**Your request**: Remove all proxy partner records so we start fresh — only real approved payouts going forward.
+**Deactivate all 28 assignments** by setting `is_active = false` and `approval_status = 'rejected'` with a rejection reason. This effectively removes them from the Proxy Partners tab and all payout routing.
 
-## Approach: Two-Part Fix
+The agent can then re-submit partner requests through the proper flow, and Partner Operations can re-approve them cleanly.
 
-### Part 1: Fix the Code (ProxyPartnerFunds.tsx)
+### Data Operation (via insert tool — UPDATE)
 
-**Line 91**: Remove `.eq('direction', 'cash_in')` so both `cash_in` and `cash_out` entries are fetched.
+```sql
+UPDATE proxy_agent_assignments
+SET is_active = false,
+    approval_status = 'rejected',
+    rejection_reason = 'Clean slate reset: deactivated for re-approval through proper pipeline'
+WHERE agent_id = 'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c';
+```
 
-**Balance calculation** (around lines 150-160): Change from summing all entries to calculating net:
-- `cash_in` amounts → add
-- `cash_out` amounts → subtract
-- `available = net - withdrawals`
+Also remove the unique constraint conflict for re-submission:
 
-This is the code fix that was previously declined — but it's a prerequisite. Without it, any correction entries we insert will also be ignored.
+```sql
+DELETE FROM proxy_agent_assignments
+WHERE agent_id = 'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c';
+```
 
-### Part 2: Insert Balance Correction Entries (Data Cleanup)
+**Wait** — there's a UNIQUE constraint on `(agent_id, beneficiary_id)`. If we only deactivate, the agent can't re-submit the same partner. So we need to **delete** the rows entirely so they can be re-created fresh.
 
-Using the append-only ledger policy, insert `balance_correction` entries (direction: `cash_out`) to zero out the remaining net balance for each partner. This uses the `balance_correction` category per the financial integrity governance rules.
+### Revised Approach
 
-**Correction entries to insert** (one per partner with a non-zero net):
+**Delete all 28 proxy_agent_assignments** for this agent, then insert one audit log entry recording the action.
 
-| Partner | Current Net | Correction Amount (cash_out) |
-|---------|-------------|------------------------------|
-| NFITUMUKIZA BOSCO | 1,701,017 | 1,701,017 |
-| NATUKUNDA JOSHUA | 3,995,103 | 3,995,103 |
-| KABAHETERE SANDRA | 1,221,985 | 1,221,985 |
-| NANDUGA DEBORAH | 1,019,165 | 1,019,165 |
-| HILLARY TUMUSIIME | 1,108,528 | 1,108,528 |
-| ADONG FLAVIA | 535,921 | 535,921 |
-| KYOBE JEREMIAH | 672,551 | 672,551 |
-| ATIM PAMELA | 32,796 | 32,796 |
-| ATUKUNDA CLAIRE | 18,929 | 18,929 |
-| MUSISI JEROM | 36,187 | 36,187 |
-| JENNIFER MIREMBE | 132,402 | 132,402 |
-| NASSAMULA JOYCE | 65,635 | 65,635 |
-| AMON OYIRWOTH | 24,067 | 24,067 |
-| SSENFUMA FRANCIS | 110,536 | 110,536 |
+```sql
+-- 1. Delete all assignments
+DELETE FROM proxy_agent_assignments
+WHERE agent_id = 'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c';
 
-Each correction entry:
-- `user_id`: LUKODDA JOSEPH's ID
-- `category`: `balance_correction`
-- `direction`: `cash_out`
-- `linked_party`: partner's ID
-- `description`: "Clean slate correction: zero out legacy proxy ROI credits for [PARTNER NAME]"
+-- 2. Audit log
+INSERT INTO audit_logs (user_id, action_type, table_name, metadata)
+VALUES (
+  'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c',
+  'bulk_delete_proxy_assignments',
+  'proxy_agent_assignments',
+  '{"reason": "Clean slate: removed all 28 proxy partner assignments for re-approval", "agent": "LUKODDA JOSEPH", "count": 28}'
+);
+```
 
-Additionally, two partners have entries but NO active proxy assignment (rejected):
-- WINNIE & RICHARD: 1,064,000 net
-- MUSEMA KIZITO: 1,200,000 net
+### No Code Changes Needed
 
-These also get zeroed out.
+The `ProxyPartnerFunds.tsx` already filters for `approval_status = 'approved'` and `is_active = true`. Once assignments are deleted, the tab will show empty — exactly what you want.
 
-### Part 3: Audit Log
+## Result
 
-Insert one audit log entry recording the bulk correction action with the total amount zeroed and the reason.
-
-## Result After Fix
-
-- All proxy partners for LUKODDA JOSEPH show **USh 0** available
-- Only future COO→CFO approved payouts will appear as withdrawable
-- The ledger maintains full history (append-only integrity preserved)
-- No data deleted — corrections are traceable
+- Proxy Partners tab for LUKODDA JOSEPH: **empty**
+- Agent re-submits partners through the normal flow
+- Partner Operations re-approves each one
+- Only future approved payouts will build balances
+- Full audit trail of the reset
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/components/agent/ProxyPartnerFunds.tsx` | Remove `direction` filter; calculate net balance (cash_in − cash_out) |
-| Data operation (insert tool) | Insert 16 `balance_correction` ledger entries + 1 audit log |
+| Target | Change |
+|--------|--------|
+| `proxy_agent_assignments` table | DELETE all 28 rows for this agent |
+| `audit_logs` table | INSERT 1 record documenting the bulk reset |
 
