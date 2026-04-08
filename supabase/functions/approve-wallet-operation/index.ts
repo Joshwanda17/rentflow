@@ -443,7 +443,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Mark as approved
+        // Mark as approved with payment details
         await adminClient
           .from("pending_wallet_operations")
           .update({
@@ -451,6 +451,8 @@ Deno.serve(async (req) => {
             reviewed_by: userId,
             reviewed_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            payment_method: payment_method || null,
+            payment_reference: payment_reference || null,
           })
           .eq("id", op.id);
 

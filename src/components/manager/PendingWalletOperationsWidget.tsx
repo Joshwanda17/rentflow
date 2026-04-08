@@ -402,6 +402,56 @@ export function PendingWalletOperationsWidget() {
           </Card>
         );
       })}
+
+      {/* Payment Method Approval Dialog */}
+      <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select the payment method used and provide the reference details.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Method</label>
+              <Select value={approvePaymentMethod} onValueChange={(v) => setApprovePaymentMethod(v as ApprovePaymentMethod)}>
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select payment method…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHOD_OPTIONS.map(m => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {approvePaymentMethod && selectedMethodMeta && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{selectedMethodMeta.refLabel}</label>
+                <Input
+                  placeholder={selectedMethodMeta.placeholder}
+                  value={approvePaymentRef}
+                  onChange={e => setApprovePaymentRef(e.target.value)}
+                  className="h-12 text-base font-mono"
+                />
+                {approvePaymentRef.length > 0 && approvePaymentRef.trim().length < 4 && (
+                  <p className="text-xs text-destructive">Minimum 4 characters required</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmApproval} disabled={!canConfirmApproval}>
+              Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
