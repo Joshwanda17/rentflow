@@ -77,11 +77,14 @@ export function useCFOOverviewData() {
       // ROI obligations from investor portfolios
       const { data: portfolios } = await supabase
         .from('investor_portfolios')
-        .select('expected_return, actual_return')
+        .select('investment_amount, roi_percentage, total_roi_earned')
         .eq('status', 'active');
 
       const roiObligations = (portfolios || []).reduce(
-        (sum, p) => sum + (Number(p.expected_return) - Number(p.actual_return || 0)),
+        (sum, p) => {
+          const expectedReturn = Number(p.investment_amount) * (Number(p.roi_percentage) / 100);
+          return sum + (expectedReturn - Number(p.total_roi_earned || 0));
+        },
         0
       );
 
