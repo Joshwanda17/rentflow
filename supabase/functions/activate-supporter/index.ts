@@ -234,6 +234,29 @@ Deno.serve(async (req) => {
       userId = authData.user.id;
     }
 
+    // Ensure profile exists (trigger may not fire if auth user already existed)
+    const { error: profileError } = await adminClient
+      .from("profiles")
+      .upsert({
+        id: userId,
+        full_name: finalFullName,
+        phone: invite.phone,
+        email: finalEmail,
+        referrer_id: invite.created_by,
+        verified: true,
+      }, { onConflict: 'id' });
+    if (profileError) {
+      console.error("[activate-supporter] Profile upsert error:", profileError);
+    } else {
+      console.log("[activate-supporter] Profile ensured for user:", userId);
+    }
+
+    // Ensure wallet exists
+    const { error: walletError } = await adminClient
+      .from("wallets")
+      .upsert({ user_id: userId, balance: 0 }, { onConflict: 'user_id' });
+    if (walletError) console.error("[activate-supporter] Wallet upsert error:", walletError);
+
     // Add user role (use upsert to avoid duplicate key errors from auto_assign trigger)
     const { error: roleError } = await adminClient
       .from("user_roles")
