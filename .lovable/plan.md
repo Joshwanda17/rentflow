@@ -1,30 +1,33 @@
 
 
-# Add Reject Button to TID Deposit Verification
+# Add Adjustable Interest Rate on Advance Top-Up
 
 ## Problem
-The TID Verification screen only has "Auto-Approve" buttons for matched deposits. There is no way to reject a deposit from this screen. Withdrawals already have reject functionality.
+When the CFO tops up an existing advance, the rate is hardcoded at 33%. The CFO needs the ability to lower the rate for the top-up portion.
 
-## What Changes
+## Changes
 
-### File: `src/components/financial-ops/TidVerification.tsx`
+### 1. `src/components/manager/IssueAdvanceSheet.tsx`
+- Add a `rate` state variable, defaulting to `0.33` (33%)
+- When `isTopUp` is true, show a rate selector dropdown with options: 33%, 30%, 25%, 20%, 15%, 10%
+- Pass the custom rate to `calculateAccessFee`, `calculateTotalPayable`, `calculateDailyPayment`, and `calculateCompoundProjection` instead of using the hardcoded 0.33
+- Store the chosen rate in the `agent_advance_topups` insert (new column) and use it for the access fee calculation on the top-up amount
+- For new advances, also allow rate selection (defaulting to 33%)
 
-1. **Add reject state variables**: `rejectingId`, `rejectionReason`, `rejectDialogOpen`
+### 2. `src/lib/agentAdvanceCalculations.ts`
+- Update `calculateAccessFee`, `calculateTotalPayable`, `calculateDailyPayment`, and `calculateCompoundProjection` to accept an optional `monthlyRate` parameter (defaults to 0.33)
+- This keeps backward compatibility while enabling variable rates
 
-2. **Add `handleReject` function**: Calls the existing `approve-deposit` edge function with `action: 'reject'` and `rejection_reason`. The backend already supports this — no edge function changes needed.
+### 3. Database migration
+- Add `monthly_rate` column (numeric, default 0.33) to `agent_advance_topups` table to record the rate used for each top-up
+- Add `monthly_rate` column (numeric, default 0.33) to `agent_advances` table for new advances
 
-3. **Add Reject button next to Auto-Approve**: For each matched deposit, show both an Approve and a Reject button side by side. For mismatched amounts, show only the Reject button (since approve isn't offered for mismatches anyway).
-
-4. **Add Reject confirmation dialog**: An `AlertDialog` with a textarea for the rejection reason (min 10 characters), matching the same pattern used in `FinOpsWithdrawalVerification.tsx`.
-
-5. **Track rejected IDs**: Add a `rejectedIds` set (similar to `approvedIds`) so rejected items show a "Rejected" badge and disable further actions.
-
-### No other files change
-- The `approve-deposit` edge function already handles `action: 'reject'` with `rejection_reason`
-- The `FinOpsWithdrawalVerification.tsx` already has reject — no changes needed there
+### 4. Edge function: `process-agent-advance-deductions/index.ts`
+- Read `daily_rate` (already stored on the advance) to use the advance-specific rate instead of the hardcoded 0.33
 
 ## Result
-- Every matched/mismatched deposit in TID Verification gets a red "Reject" button
-- Clicking it opens a dialog requiring a reason (min 10 chars)
-- Rejection calls the same backend, updates status, notifies the user, and logs an audit entry
+- CFO sees a rate dropdown (33% down to 10%) when topping up an advance
+- The breakdown recalculates live as the rate changes
+- The chosen rate is persisted for audit trail
+- Daily deduction processing respects per-advance rates
 
