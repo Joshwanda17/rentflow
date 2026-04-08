@@ -4,11 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   Users, Search, Star, CheckCircle, X, 
-  ArrowLeft, RefreshCw, MoreVertical, Loader2, BadgeCheck
+  ArrowLeft, RefreshCw, MoreVertical, Loader2, BadgeCheck, Clock, Send, Share2, UserCheck
 } from 'lucide-react';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { formatDistanceToNow } from 'date-fns';
 
 import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
@@ -48,7 +51,7 @@ interface UserWithRating {
   last_active_at: string | null;
 }
 
-type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active' | 'inactive';
+type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active' | 'inactive' | 'pending_invites';
 type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low' | 'last_active' | 'least_active';
 type VerificationFilter = 'all' | 'verified' | 'pending';
 
@@ -110,6 +113,83 @@ export default function UserManagement() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
 
+  // Pending invites state
+  interface PendingInvite {
+    id: string;
+    email: string;
+    full_name: string;
+    phone: string;
+    temp_password: string;
+    activation_token: string;
+    role: string;
+    created_at: string;
+    status: string;
+  }
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
+  const [pendingInvitesLoading, setPendingInvitesLoading] = useState(false);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+
+  const inviteRoleConfig: Record<string, { label: string; emoji: string }> = {
+    tenant: { label: 'Tenant', emoji: '🏠' },
+    landlord: { label: 'Landlord', emoji: '🏢' },
+    agent: { label: 'Agent', emoji: '💼' },
+    supporter: { label: 'Partner', emoji: '💰' },
+    manager: { label: 'Manager', emoji: '👑' },
+  };
+
+  const fetchPendingInvites = async () => {
+    setPendingInvitesLoading(true);
+    const { data, error, count } = await supabase
+      .from('supporter_invites')
+      .select('id, email, full_name, phone, temp_password, activation_token, role, created_at, status', { count: 'exact' })
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setPendingInvites(data);
+      setPendingInvitesCount(count || data.length);
+    }
+    setPendingInvitesLoading(false);
+  };
+
+  const handleActivateInvite = async (invite: PendingInvite) => {
+    setActivatingId(invite.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('activate-supporter', {
+        body: { token: invite.activation_token, password: invite.temp_password },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`${invite.full_name} activated successfully!`);
+      await fetchPendingInvites();
+      await fetchTotalCount();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to activate invite');
+    } finally {
+      setActivatingId(null);
+    }
+  };
+
+  const handleResendInviteWhatsApp = (invite: PendingInvite) => {
+    setResendingInviteId(invite.id);
+    const roleInfo = inviteRoleConfig[invite.role] || { label: 'User', emoji: '👤' };
+    const link = `${getPublicOrigin()}/join?t=${invite.activation_token}`;
+    const message = `${roleInfo.emoji} Welcome to Welile, ${invite.full_name}!
+
+You've been invited to join as a ${roleInfo.label}!
+
+🔐 Your password: ${invite.temp_password}
+
+👉 Activate your account here:
+${link}
+
+Just click the link and enter your password to get started!`;
+    window.open(`https://wa.me/${invite.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+    setTimeout(() => setResendingInviteId(null), 1000);
+  };
+
   // Debounce search
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -140,7 +220,15 @@ export default function UserManagement() {
   // Fetch counts on mount
   useEffect(() => {
     fetchTotalCount();
+    fetchPendingInvites();
   }, []);
+
+  // Fetch pending invites when filter switches to pending_invites
+  useEffect(() => {
+    if (roleFilter === 'pending_invites') {
+      fetchPendingInvites();
+    }
+  }, [roleFilter]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
@@ -182,6 +270,11 @@ export default function UserManagement() {
   };
 
   const fetchUsersPage = async (page: number) => {
+    // Skip profile fetch when viewing pending invites
+    if (roleFilter === 'pending_invites') {
+      setLoading(false);
+      return;
+    }
     if (page === 0) setLoading(true);
     else { setLoadingMore(true); loadingMoreRef.current = true; }
 
@@ -397,6 +490,7 @@ export default function UserManagement() {
 
   const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
     { value: 'all', label: 'All', count: totalUserCount },
+    { value: 'pending_invites', label: '⏳ Pending Invites', count: pendingInvitesCount },
     { value: 'active', label: 'Online', count: activeUserCount },
     { value: 'tenant', label: 'Tenants', count: roleCounts['tenant'] || 0 },
     { value: 'agent', label: 'Agents', count: roleCounts['agent'] || 0 },
@@ -541,7 +635,77 @@ export default function UserManagement() {
         className="flex-1 overflow-auto"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {displayUsers.length === 0 && !loadingMore ? (
+        {roleFilter === 'pending_invites' ? (
+          // Pending Invites View
+          pendingInvitesLoading ? (
+            <div className="px-4 py-8 space-y-3">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+            </div>
+          ) : pendingInvites.length === 0 ? (
+            <div className="text-center py-20 px-4">
+              <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
+                <Clock className="h-12 w-12 text-muted-foreground" />
+              </div>
+              <p className="font-semibold text-lg text-foreground">No pending invites</p>
+              <p className="text-sm text-muted-foreground mt-1">All invitations have been activated</p>
+            </div>
+          ) : (
+            <div className="px-3 py-3 space-y-2">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-muted-foreground">{pendingInvites.length} pending activation{pendingInvites.length !== 1 ? 's' : ''}</p>
+                <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={fetchPendingInvites}>
+                  <RefreshCw className="h-3 w-3" /> Refresh
+                </Button>
+              </div>
+              {pendingInvites.map(invite => {
+                const roleInfo = inviteRoleConfig[invite.role] || { label: 'User', emoji: '👤' };
+                return (
+                  <div key={invite.id} className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="text-2xl shrink-0">{roleInfo.emoji}</div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-foreground truncate">{invite.full_name}</p>
+                          <p className="text-sm text-muted-foreground truncate">{invite.phone}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{roleInfo.label}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-warning/10 text-warning border-warning/20">
+                              <Clock className="h-2.5 w-2.5 mr-0.5" /> Pending
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => handleResendInviteWhatsApp(invite)}
+                          disabled={resendingInviteId === invite.id}
+                        >
+                          {resendingInviteId === invite.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Share2 className="h-3 w-3" />}
+                          Resend
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 gap-1 text-xs"
+                          onClick={() => handleActivateInvite(invite)}
+                          disabled={activatingId === invite.id}
+                        >
+                          {activatingId === invite.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
+                          Activate
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : displayUsers.length === 0 && !loadingMore ? (
           <div className="text-center py-20 px-4">
             <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
               <Users className="h-12 w-12 text-muted-foreground" />
