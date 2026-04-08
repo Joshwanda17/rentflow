@@ -22,15 +22,12 @@ interface PendingWithdrawal {
   status: string;
 }
 
-interface PortfolioRow {
-  id: string;
-  investor_id: string | null;
-  investment_amount: number | null;
-  roi_percentage: number | null;
-  status: string;
-  created_at: string;
-  maturity_date: string | null;
-  total_roi_earned: number | null;
+interface LedgerCredit {
+  user_id: string | null;
+  linked_party: string | null;
+  amount: number;
+  direction: string;
+  category: string;
 }
 
 export function ProxyPartnerFunds() {
@@ -39,7 +36,7 @@ export function ProxyPartnerFunds() {
   const [loading, setLoading] = useState(true);
   const [approvedPartnerIds, setApprovedPartnerIds] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string; phone: string }>>({});
-  const [portfolios, setPortfolios] = useState<PortfolioRow[]>([]);
+  const [ledgerCredits, setLedgerCredits] = useState<LedgerCredit[]>([]);
   const [completedWithdrawals, setCompletedWithdrawals] = useState<any[]>([]);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
@@ -72,25 +69,26 @@ export function ProxyPartnerFunds() {
 
       if (approvedIds.length === 0) {
         setProfiles({});
-        setPortfolios([]);
+        setLedgerCredits([]);
         setCompletedWithdrawals([]);
         setPartnerWithdrawalStatus({});
         setLoading(false);
         return;
       }
 
-      // Step 2: Fetch profiles, portfolios, completed withdrawals, and active withdrawal requests
-      const portfolioQuery: any = supabase
-        .from('investor_portfolios' as any)
-        .select('id, investor_id, investment_amount, roi_percentage, status, created_at, maturity_date, total_roi_earned')
-        .in('investor_id', approvedIds);
-
-      const [profileRes, portfolioRes, completedRes, activeWithdrawalRes] = await Promise.all([
+      // Step 2: Fetch profiles, actual ledger credits (roi_payout), completed withdrawals, and active withdrawal requests
+      const [profileRes, ledgerRes, completedRes, activeWithdrawalRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
           .in('id', approvedIds),
-        portfolioQuery as any,
+        // Actual approved ROI credits from the ledger for this agent
+        supabase
+          .from('general_ledger')
+          .select('user_id, linked_party, amount, direction, category')
+          .eq('user_id', user.id)
+          .eq('category', 'roi_payout')
+          .eq('direction', 'cash_in'),
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
@@ -111,7 +109,7 @@ export function ProxyPartnerFunds() {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
-      setPortfolios(((portfolioRes.data || []) as PortfolioRow[]).filter((p) => p.status === 'active'));
+      setLedgerCredits((ledgerRes.data || []) as LedgerCredit[]);
       setCompletedWithdrawals((completedRes.data || []).filter(w => approvedIds.includes(w.linked_party)));
 
       // Build active withdrawal status map
@@ -146,39 +144,16 @@ export function ProxyPartnerFunds() {
   };
 
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
-    const now = new Date();
-
     return approvedPartnerIds
       .map((partnerId) => {
-        // Calculate accrued ROI from portfolios
-        const partnerPortfolios = portfolios.filter(p => p.investor_id === partnerId);
-        let totalReturns = 0;
-
-        partnerPortfolios.forEach(portfolio => {
-          const trackedReturns = Number(portfolio.total_roi_earned) || 0;
-          if (trackedReturns > 0) {
-            totalReturns += trackedReturns;
-            return;
-          }
-
-          const investmentAmount = Number(portfolio.investment_amount) || 0;
-          const roiPercentage = Number(portfolio.roi_percentage) || 0;
-          const createdAt = new Date(portfolio.created_at);
-          const maturityDate = portfolio.maturity_date ? new Date(portfolio.maturity_date) : null;
-          const endDate = maturityDate && maturityDate < now ? maturityDate : now;
-
-          const msElapsed = endDate.getTime() - createdAt.getTime();
-          const monthsElapsed = Math.max(0, msElapsed / (30 * 24 * 60 * 60 * 1000));
-
-          if (roiPercentage > 100) {
-            console.error(`Invalid monthly ROI percentage: ${roiPercentage}% for portfolio`);
-            return;
-          }
-          const monthlyROI = (investmentAmount * roiPercentage) / 100;
-          totalReturns += monthlyROI * monthsElapsed;
-        });
-
-        totalReturns = Math.round(totalReturns);
+        // Sum only actual approved ROI credits from the ledger for this partner
+        const partnerCredits = ledgerCredits.filter(
+          (entry) => entry.linked_party === partnerId
+        );
+        const totalReturns = partnerCredits.reduce(
+          (sum, entry) => sum + (Number(entry.amount) || 0),
+          0
+        );
 
         // Calculate completed withdrawals for this partner
         const partnerWithdrawals = completedWithdrawals.filter(w => w.linked_party === partnerId);
@@ -201,7 +176,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedPartnerIds, portfolios, completedWithdrawals, profiles]);
+  }, [approvedPartnerIds, ledgerCredits, completedWithdrawals, profiles]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
