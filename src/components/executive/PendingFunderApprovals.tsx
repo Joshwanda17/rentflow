@@ -95,7 +95,7 @@ export function PendingFunderApprovals() {
       if (fetchError) throw fetchError;
       if (!assignment) throw new Error('Assignment not found');
       if (assignment.approval_status === 'approved') {
-        throw new Error('This partner has already been approved and credited.');
+        throw new Error('This partner has already been approved.');
       }
 
       // Fetch names for toast/audit
@@ -104,7 +104,7 @@ export function PendingFunderApprovals() {
         supabase.from('profiles').select('full_name, phone').eq('id', assignment.beneficiary_id).maybeSingle(),
       ]);
 
-      // 1. Approve the assignment
+      // 1. Approve the assignment — NO wallet credit. Payouts go through COO→CFO pipeline.
       const { error } = await supabase
         .from('proxy_agent_assignments')
         .update({
@@ -117,45 +117,7 @@ export function PendingFunderApprovals() {
         .eq('approval_status', 'pending');
       if (error) throw error;
 
-      // 2. Query beneficiary's portfolios and calculate accrued ROI
-      const { data: portfolios } = await supabase
-        .from('investor_portfolios')
-        .select('id, investment_amount, roi_percentage, created_at, maturity_date, total_roi_earned')
-        .eq('investor_id', assignment.beneficiary_id)
-        .eq('status', 'active');
-
-      // Calculate actual returns: sum of (investment × roi% / 100 / 12 × months elapsed) per portfolio
-      const now = new Date();
-      const totalReturns = (portfolios || []).reduce((sum, p) => {
-        // Use total_roi_earned if already tracked, otherwise calculate from elapsed time
-        if ((p.total_roi_earned || 0) > 0) return sum + p.total_roi_earned;
-        const created = new Date(p.created_at);
-        const maturity = p.maturity_date ? new Date(p.maturity_date) : now;
-        const endDate = maturity < now ? maturity : now;
-        const monthsElapsed = Math.max(0, (endDate.getTime() - created.getTime()) / (30 * 24 * 60 * 60 * 1000));
-        const roiPct = p.roi_percentage || 0;
-        if (roiPct > 100) {
-          console.error(`Invalid monthly ROI percentage: ${roiPct}%`);
-          return sum;
-        }
-        const monthlyROI = (p.investment_amount || 0) * roiPct / 100;
-        return sum + Math.floor(monthlyROI * monthsElapsed);
-      }, 0);
-      const firstPortfolioId = portfolios?.[0]?.id || assignmentId;
-
-      // 3. Credit agent wallet with partner's earned returns (not principal)
-      if (totalReturns > 0) {
-        const { error: rpcError } = await supabase.rpc('credit_proxy_approval', {
-          p_agent_id: assignment.agent_id,
-          p_beneficiary_id: assignment.beneficiary_id,
-          p_amount: totalReturns,
-          p_source_id: firstPortfolioId,
-          p_transaction_group_id: `proxy-init-${assignmentId}`,
-        });
-        if (rpcError) throw rpcError;
-      }
-
-      // 4. Audit log
+      // 2. Audit log
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
         action_type: 'approve_proxy_funder',
@@ -164,15 +126,14 @@ export function PendingFunderApprovals() {
         metadata: {
           beneficiary_name: beneficiaryProfile?.full_name,
           agent_name: agentProfile?.full_name,
-          credited_returns: totalReturns,
+          note: 'Assignment activated. No lump-sum credit — payouts via COO→CFO pipeline.',
         },
       });
 
-      return { beneficiaryName: beneficiaryProfile?.full_name, agentName: agentProfile?.full_name, amount: totalReturns };
+      return { beneficiaryName: beneficiaryProfile?.full_name, agentName: agentProfile?.full_name };
     },
     onSuccess: (data) => {
-      const amountStr = data.amount > 0 ? ` USh ${data.amount.toLocaleString()} returns credited to ${data.agentName}'s wallet.` : '';
-      toast({ title: '✅ Funder approved', description: `${data.beneficiaryName} approved.${amountStr}` });
+      toast({ title: '✅ Funder approved', description: `${data.beneficiaryName} approved. Monthly payouts will go through the normal approval pipeline.` });
       queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
     },
     onError: (err: any) => {

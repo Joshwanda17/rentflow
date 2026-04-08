@@ -144,39 +144,16 @@ export function ProxyPartnerFunds() {
   };
 
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
-    const now = new Date();
-
     return approvedPartnerIds
       .map((partnerId) => {
-        // Calculate accrued ROI from portfolios
-        const partnerPortfolios = portfolios.filter(p => p.investor_id === partnerId);
-        let totalReturns = 0;
-
-        partnerPortfolios.forEach(portfolio => {
-          const trackedReturns = Number(portfolio.total_roi_earned) || 0;
-          if (trackedReturns > 0) {
-            totalReturns += trackedReturns;
-            return;
-          }
-
-          const investmentAmount = Number(portfolio.investment_amount) || 0;
-          const roiPercentage = Number(portfolio.roi_percentage) || 0;
-          const createdAt = new Date(portfolio.created_at);
-          const maturityDate = portfolio.maturity_date ? new Date(portfolio.maturity_date) : null;
-          const endDate = maturityDate && maturityDate < now ? maturityDate : now;
-
-          const msElapsed = endDate.getTime() - createdAt.getTime();
-          const monthsElapsed = Math.max(0, msElapsed / (30 * 24 * 60 * 60 * 1000));
-
-          if (roiPercentage > 100) {
-            console.error(`Invalid monthly ROI percentage: ${roiPercentage}% for portfolio`);
-            return;
-          }
-          const monthlyROI = (investmentAmount * roiPercentage) / 100;
-          totalReturns += monthlyROI * monthsElapsed;
-        });
-
-        totalReturns = Math.round(totalReturns);
+        // Sum only actual approved ROI credits from the ledger for this partner
+        const partnerCredits = ledgerCredits.filter(
+          (entry) => entry.linked_party === partnerId
+        );
+        const totalReturns = partnerCredits.reduce(
+          (sum, entry) => sum + (Number(entry.amount) || 0),
+          0
+        );
 
         // Calculate completed withdrawals for this partner
         const partnerWithdrawals = completedWithdrawals.filter(w => w.linked_party === partnerId);
@@ -199,7 +176,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedPartnerIds, portfolios, completedWithdrawals, profiles]);
+  }, [approvedPartnerIds, ledgerCredits, completedWithdrawals, profiles]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
