@@ -288,7 +288,19 @@ export function PendingFunderApprovals() {
                       </p>
                     </div>
 
-                    <div className="flex gap-2 pt-1">
+                    {(p.investmentTotal > 0 || p.accruedReturns > 0) && (
+                      <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-2.5 py-1.5">
+                        <div className="text-[10px]">
+                          <span className="text-muted-foreground">Invested:</span>{' '}
+                          <span className="font-semibold text-foreground">UGX {p.investmentTotal.toLocaleString()}</span>
+                        </div>
+                        <div className="text-[10px]">
+                          <span className="text-muted-foreground">Returns Due:</span>{' '}
+                          <span className="font-semibold text-success">UGX {p.accruedReturns.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
+
                       <Button
                         size="sm"
                         className="flex-1 h-8 text-xs gap-1.5 bg-success hover:bg-success/90 text-white"
