@@ -127,19 +127,7 @@ export default function CFODashboardPage() {
       case 'float-management':
         return <AgentFloatManagement />;
       default:
-        return (
-          <div className="space-y-4">
-            <PlatformVsWalletSummary />
-            <ChannelBalanceTracker />
-            <AgentPerformanceRankings compact />
-            <PendingPortfolioTopUps />
-            <WalletRetractionsFeed compact />
-            <CFOReceivablesTracker />
-            <FinancialOverview />
-            <ListingBonusApprovalQueue filter="pending_cfo" />
-            <RentPipelineQueue stage="coo_approved" />
-          </div>
-        );
+        return <CFOOverviewDashboard onTabChange={setActiveTab} />;
     }
   };
 
