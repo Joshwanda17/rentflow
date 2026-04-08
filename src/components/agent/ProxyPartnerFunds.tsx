@@ -36,7 +36,7 @@ export function ProxyPartnerFunds() {
   const [loading, setLoading] = useState(true);
   const [approvedPartnerIds, setApprovedPartnerIds] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string; phone: string }>>({});
-  const [portfolios, setPortfolios] = useState<PortfolioRow[]>([]);
+  const [ledgerCredits, setLedgerCredits] = useState<LedgerCredit[]>([]);
   const [completedWithdrawals, setCompletedWithdrawals] = useState<any[]>([]);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
