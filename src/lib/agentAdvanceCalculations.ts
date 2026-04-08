@@ -31,8 +31,8 @@ export function calculateAccessFee(principal: number, days: number, monthlyRate:
 /**
  * Total payable = principal + access fee + registration fee
  */
-export function calculateTotalPayable(principal: number, days: number): number {
-  return principal + calculateAccessFee(principal, days) + calculateRegistrationFee(principal);
+export function calculateTotalPayable(principal: number, days: number, monthlyRate: number = MONTHLY_RATE): number {
+  return principal + calculateAccessFee(principal, days, monthlyRate) + calculateRegistrationFee(principal);
 }
 
 /**
