@@ -1,11 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, ChevronDown, ChevronUp, User, Ban } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface DepositStats {
   pending: number;
@@ -32,11 +39,17 @@ interface DepositStatsPanelProps {
 }
 
 export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps) {
+  const { user } = useAuth();
   const [stats, setStats] = useState<DepositStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingDeposits, setPendingDeposits] = useState<PendingDeposit[]>([]);
   const [showPendingList, setShowPendingList] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectingDeposit, setRejectingDeposit] = useState<PendingDeposit | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchStats() {
@@ -125,6 +138,52 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
       setLoadingList(false);
     }
   };
+
+  const openRejectDialog = (deposit: PendingDeposit) => {
+    setRejectingDeposit(deposit);
+    setRejectionReason('');
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectDeposit = useCallback(async () => {
+    if (!user || !rejectingDeposit || rejectionReason.trim().length < 10) return;
+    setRejecting(true);
+
+    try {
+      const { error } = await supabase.functions.invoke('approve-deposit', {
+        body: { deposit_request_id: rejectingDeposit.id, action: 'reject', rejection_reason: rejectionReason.trim() },
+      });
+
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to reject deposit');
+        throw new Error(msg);
+      }
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'deposit_rejected_inline',
+        table_name: 'deposit_requests',
+        record_id: rejectingDeposit.id,
+        metadata: {
+          transaction_id: rejectingDeposit.transaction_id,
+          amount: rejectingDeposit.amount,
+          depositor_name: rejectingDeposit.depositor_name,
+          rejection_reason: rejectionReason.trim(),
+        },
+      });
+
+      setRejectedIds(prev => new Set(prev).add(rejectingDeposit.id));
+      setPendingDeposits(prev => prev.filter(d => d.id !== rejectingDeposit.id));
+      toast.success(`Rejected deposit from ${rejectingDeposit.depositor_name || 'user'}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Rejection failed');
+    } finally {
+      setRejecting(false);
+      setRejectDialogOpen(false);
+      setRejectingDeposit(null);
+    }
+  }, [user, rejectingDeposit, rejectionReason]);
 
   if (loading) {
     return (
@@ -231,9 +290,19 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
                           {format(new Date(d.created_at), 'MMM d, h:mm a')}
                         </p>
                       </div>
-                      <p className="text-sm font-bold text-warning shrink-0">
-                        {formatUGX(d.amount)}
-                      </p>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <p className="text-sm font-bold text-warning">
+                          {formatUGX(d.amount)}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                          onClick={() => openRejectDialog(d)}
+                        >
+                          <Ban className="h-2.5 w-2.5 mr-0.5" /> Reject
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -248,6 +317,38 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Reject Deposit Dialog */}
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Deposit</AlertDialogTitle>
+            <AlertDialogDescription>
+              Reject {rejectingDeposit ? formatUGX(rejectingDeposit.amount) : ''} from {rejectingDeposit?.depositor_name || 'user'}. The user will be notified.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Enter rejection reason (min 10 characters)..."
+            className="min-h-[80px]"
+          />
+          {rejectionReason.trim().length > 0 && rejectionReason.trim().length < 10 && (
+            <p className="text-[11px] text-destructive">Reason must be at least 10 characters</p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rejecting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRejectDeposit}
+              disabled={rejecting || rejectionReason.trim().length < 10}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {rejecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Ban className="h-3 w-3 mr-1" />}
+              Confirm Reject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
