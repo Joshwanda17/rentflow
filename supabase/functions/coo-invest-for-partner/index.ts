@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Check PARTNER's wallet balance (partner pays from their own wallet)
+    // Check PARTNER's wallet balance (read-only, trigger handles updates)
     const { data: partnerWallet, error: walletErr } = await adminClient
       .from("wallets").select("id, balance")
       .eq("user_id", partner_id).single();
@@ -86,22 +86,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: `Insufficient partner balance. Available: UGX ${partnerWallet.balance.toLocaleString()}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    // Deduct from PARTNER's wallet using optimistic locking
-    const { data: updatedWallet, error: deductErr } = await adminClient
-      .from("wallets")
-      .update({ balance: partnerWallet.balance - amount, updated_at: new Date().toISOString() })
-      .eq("user_id", partner_id)
-      .eq("balance", partnerWallet.balance)  // optimistic lock: ensure balance hasn't changed
-      .select('id, balance')
-      .maybeSingle();
-
-    if (deductErr || !updatedWallet) {
-      return new Response(JSON.stringify({ error: "Insufficient balance or concurrent update, please retry" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const newBalance = updatedWallet.balance;
 
     // Generate reference
     const now = new Date();
@@ -143,12 +127,8 @@ Deno.serve(async (req) => {
     });
 
     if (ledgerErr) {
-      // ROLLBACK: restore partner wallet balance
-      console.error("[coo-invest-for-partner] Ledger insert failed, rolling back wallet:", ledgerErr.message);
-      await adminClient.from("wallets")
-        .update({ balance: partnerWallet.balance, updated_at: new Date().toISOString() })
-        .eq("user_id", partner_id);
-      return new Response(JSON.stringify({ error: "Failed to record transaction, wallet restored. Please retry." }),
+      console.error("[coo-invest-for-partner] Ledger insert failed:", ledgerErr.message);
+      return new Response(JSON.stringify({ error: "Failed to record transaction. Please retry." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -203,7 +183,7 @@ Deno.serve(async (req) => {
       metadata: { amount, reference_id: referenceId, payout_day, monthly_reward: monthlyReward, first_payout_date: firstPayoutDate, initiated_by: caller.id },
     });
 
-    console.log(`[coo-invest-for-partner] COO ${caller.id} invested ${amount} from partner ${partner_id}'s wallet. Balance: ${partnerWallet.balance} → ${newBalance}. Ref: ${referenceId}, TxGroup: ${txGroupId}`);
+    console.log(`[coo-invest-for-partner] COO ${caller.id} invested ${amount} from partner ${partner_id}'s wallet. Ref: ${referenceId}, TxGroup: ${txGroupId}`);
 
 
     // Notify managers (fire-and-forget)
@@ -218,7 +198,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         reference_id: referenceId,
-        new_balance: newBalance,
         payout_day,
         first_payout_date: firstPayoutDate,
         monthly_reward: monthlyReward,

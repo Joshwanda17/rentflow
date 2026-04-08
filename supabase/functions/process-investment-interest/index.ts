@@ -85,27 +85,26 @@ serve(async (req) => {
         continue;
       }
 
-      // Credit the interest to the user's wallet
-      const { data: wallet, error: walletFetchError } = await supabase
+      // Ensure wallet exists (trigger handles balance updates)
+      await supabase
         .from("wallets")
-        .select("balance")
-        .eq("user_id", account.user_id)
-        .single();
+        .upsert({ user_id: account.user_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
-      if (walletFetchError) {
-        console.error(`Error fetching wallet for user ${account.user_id}:`, walletFetchError);
-        continue;
-      }
+      // Credit interest via ledger (trigger updates wallet balance)
+      const { error: ledgerError } = await supabase.from("general_ledger").insert({
+        user_id: account.user_id,
+        amount: interestAmount,
+        direction: "cash_in",
+        category: "investment_interest",
+        source_table: "investment_interest_payments",
+        source_id: account.id,
+        description: `Monthly interest (15%) on investment account "${account.name}"`,
+        currency: 'UGX',
+        ledger_scope: "wallet",
+      });
 
-      const newWalletBalance = Number(wallet.balance) + interestAmount;
-
-      const { error: walletUpdateError } = await supabase
-        .from("wallets")
-        .update({ balance: newWalletBalance })
-        .eq("user_id", account.user_id);
-
-      if (walletUpdateError) {
-        console.error(`Error updating wallet for user ${account.user_id}:`, walletUpdateError);
+      if (ledgerError) {
+        console.error(`Error posting ledger for user ${account.user_id}:`, ledgerError);
         continue;
       }
 

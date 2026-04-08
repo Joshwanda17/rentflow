@@ -137,24 +137,21 @@ export function AiIdLendDialog({ open, onOpenChange, targetAiId, maxAmount }: Pr
         return;
       }
 
-      // Deduct from lender wallet
-      await supabase
-        .from('wallets')
-        .update({ balance: wallet.balance - lendAmount })
-        .eq('user_id', user.id);
+      // Transfer funds via edge function (ledger-based, trigger handles wallet balance)
+      const { error: transferError } = await supabase.functions.invoke('wallet-transfer', {
+        body: {
+          recipient_id: borrowerId,
+          amount: lendAmount,
+          description: `AI ID facilitation to ${borrowerName} (${targetAiId})`,
+        },
+      });
 
-      // Credit borrower wallet
-      const { data: borrowerWallet } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', borrowerId)
-        .maybeSingle();
-
-      if (borrowerWallet) {
-        await supabase
-          .from('wallets')
-          .update({ balance: borrowerWallet.balance + lendAmount })
-          .eq('user_id', borrowerId);
+      if (transferError) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(transferError, 'Transfer failed');
+        toast.error(msg);
+        setLoading(false);
+        return;
       }
 
       setSuccess(true);

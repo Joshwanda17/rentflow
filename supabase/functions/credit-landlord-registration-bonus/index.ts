@@ -74,33 +74,12 @@ serve(async (req) => {
       });
     }
 
-    // Get or create agent wallet
-    let { data: wallet } = await adminClient
+    // Ensure wallet exists (trigger handles balance updates)
+    await adminClient
       .from("wallets")
-      .select("id, balance")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!wallet) {
-      const { data: newWallet, error: createErr } = await adminClient
-        .from("wallets")
-        .insert({ user_id: user.id, balance: 0 })
-        .select("id, balance")
-        .single();
-      if (createErr) throw createErr;
-      wallet = newWallet;
-    }
+      .upsert({ user_id: user.id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
     const now = new Date().toISOString();
-    const newBalance = (wallet!.balance || 0) + REGISTRATION_BONUS;
-
-    // Credit wallet
-    const { error: walletErr } = await adminClient
-      .from("wallets")
-      .update({ balance: newBalance, updated_at: now })
-      .eq("user_id", user.id);
-
-    if (walletErr) throw walletErr;
 
     // Record earning
     await adminClient.from("agent_earnings").insert({
@@ -138,7 +117,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       bonus: REGISTRATION_BONUS,
-      new_balance: newBalance,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

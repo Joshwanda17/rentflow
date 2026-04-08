@@ -68,24 +68,12 @@ Deno.serve(async (req) => {
       .eq("user_id", partner_id).eq("role", "supporter").maybeSingle();
     if (!partnerRole) return errorResponse("Selected user is not a registered partner/supporter", 400);
 
-    // --- Check agent wallet ---
+    // --- Check agent wallet balance (read-only, trigger handles updates) ---
     const { data: agentWallet, error: walletErr } = await adminClient
       .from("wallets").select("id, balance")
       .eq("user_id", agent.id).single();
     if (walletErr || !agentWallet) return errorResponse("Agent wallet not found", 404);
     if (agentWallet.balance < amount) return errorResponse("Insufficient agent balance", 400);
-
-    // --- Deduct from agent wallet (optimistic lock) ---
-    const newAgentBalance = agentWallet.balance - amount;
-    const { data: deductResult, error: deductErr } = await adminClient
-      .from("wallets")
-      .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
-      .eq("user_id", agent.id)
-      .eq("balance", agentWallet.balance)
-      .select("id")
-      .maybeSingle();
-
-    if (deductErr || !deductResult) return errorResponse("Balance changed, please retry", 409);
 
     // --- Generate IDs ---
     const now = new Date();
@@ -101,14 +89,6 @@ Deno.serve(async (req) => {
     const firstPayoutMs = now.getTime() + 30 * 24 * 60 * 60 * 1000;
     const candidate = new Date(firstPayoutMs);
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
-
-    // --- Helper: rollback agent wallet on failure ---
-    const rollbackAgentWallet = async () => {
-      console.error("[agent-invest-for-partner] Rolling back agent wallet deduction");
-      await adminClient.from("wallets")
-        .update({ balance: agentWallet.balance, updated_at: new Date().toISOString() })
-        .eq("user_id", agent.id);
-    };
 
     // --- Get profile names ---
     const [partnerProfileRes, agentProfileRes] = await Promise.all([
@@ -133,8 +113,7 @@ Deno.serve(async (req) => {
     });
 
     if (ledgerErr) {
-      await rollbackAgentWallet();
-      return errorResponse("Failed to record transaction, wallet restored. Please retry.", 500);
+      return errorResponse("Failed to record transaction. Please retry.", 500);
     }
 
     // --- Decrement opportunity summary ---
@@ -203,9 +182,8 @@ Deno.serve(async (req) => {
 
     if (portfolioErr) {
       console.error("[agent-invest-for-partner] Portfolio creation failed:", portfolioErr.message);
-      await rollbackAgentWallet();
       await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
-      return errorResponse("Failed to create portfolio, wallet restored. Please retry.", 500);
+      return errorResponse("Failed to create portfolio. Please retry.", 500);
     }
 
     // --- Direct ledger entries for instant activation (net-zero pattern) ---
@@ -230,7 +208,6 @@ Deno.serve(async (req) => {
 
     if (partnerCashInErr) {
       console.error("[agent-invest-for-partner] Partner cash_in ledger failed:", partnerCashInErr.message);
-      await rollbackAgentWallet();
       await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
       await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
       return errorResponse("Failed to credit partner, all changes rolled back. Please retry.", 500);
@@ -317,7 +294,7 @@ Deno.serve(async (req) => {
           partner_name: partnerName,
           commission,
           commission_ref: commRefId,
-          new_balance: newAgentBalance,
+          balance_before: agentWallet.balance,
           portfolio_code: portfolioCode,
         },
       }),
@@ -349,7 +326,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         reference_id: referenceId,
-        new_balance: newAgentBalance,
+        amount_invested: amount,
         payout_day,
         first_payout_date: firstPayoutDate,
         monthly_reward: monthlyReward,

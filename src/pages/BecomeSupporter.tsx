@@ -118,19 +118,8 @@ export default function BecomeSupporter() {
           credited_at: new Date().toISOString(),
         });
 
-        // Credit the referrer's wallet with UGX 500
-        const { data: walletData } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', storedReferrerId)
-          .maybeSingle();
-
-        if (walletData) {
-          await supabase
-            .from('wallets')
-            .update({ balance: walletData.balance + 500 })
-            .eq('user_id', storedReferrerId);
-        }
+        // Referral bonus is handled server-side via the referral record
+        // The credit_referral_bonus trigger/function processes the 500 UGX credit via ledger
 
         // Notification removed - table dropped
 

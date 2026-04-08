@@ -234,18 +234,10 @@ serve(async (req) => {
 
       // === PAY AGENT BONUS ===
       if (rentRequest.agent_id && isManager) {
-        let { data: agentWallet } = await adminClient
-          .from('wallets').select('*').eq('user_id', rentRequest.agent_id).maybeSingle();
-
-        if (!agentWallet) {
-          const { data: newWallet } = await adminClient
-            .from('wallets').insert({ user_id: rentRequest.agent_id, balance: 0 }).select().single();
-          agentWallet = newWallet;
-        }
-
-        await adminClient.from('wallets')
-          .update({ balance: (agentWallet?.balance || 0) + AGENT_APPROVAL_BONUS })
-          .eq('user_id', rentRequest.agent_id);
+        // Ensure agent wallet exists (trigger handles balance updates)
+        await adminClient
+          .from('wallets')
+          .upsert({ user_id: rentRequest.agent_id, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
 
         await adminClient.from('agent_earnings').insert({
           agent_id: rentRequest.agent_id, amount: AGENT_APPROVAL_BONUS,
@@ -253,7 +245,7 @@ serve(async (req) => {
           rent_request_id: rent_request_id, description: `UGX 5,000 bonus for approved tenant registration`,
         });
 
-        // Credit event bonus to commission accrual ledger
+        // Credit event bonus to commission accrual ledger (this inserts ledger entry, trigger updates wallet)
         await adminClient.rpc('credit_agent_event_bonus', {
           p_agent_id: rentRequest.agent_id,
           p_tenant_id: rentRequest.tenant_id,
