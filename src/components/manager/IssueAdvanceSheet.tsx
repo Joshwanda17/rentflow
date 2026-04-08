@@ -82,11 +82,12 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
   const isTopUp = !!existingAdvance;
   const selectedAgent = agents.find((a: any) => a.id === agentId);
 
+  const rate = Number(monthlyRate);
   const regFee = useMemo(() => calculateRegistrationFee(parsedAmount), [parsedAmount]);
-  const accessFee = useMemo(() => calculateAccessFee(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
-  const totalPayable = useMemo(() => calculateTotalPayable(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
-  const dailyPayment = useMemo(() => calculateDailyPayment(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
-  const projection = useMemo(() => parsedAmount > 0 ? calculateCompoundProjection(parsedAmount, cycleDays).slice(0, 5) : [], [parsedAmount, cycleDays]);
+  const accessFee = useMemo(() => calculateAccessFee(parsedAmount, cycleDays, rate), [parsedAmount, cycleDays, rate]);
+  const totalPayable = useMemo(() => calculateTotalPayable(parsedAmount, cycleDays, rate), [parsedAmount, cycleDays, rate]);
+  const dailyPayment = useMemo(() => calculateDailyPayment(parsedAmount, cycleDays, rate), [parsedAmount, cycleDays, rate]);
+  const projection = useMemo(() => parsedAmount > 0 ? calculateCompoundProjection(parsedAmount, cycleDays, rate).slice(0, 5) : [], [parsedAmount, cycleDays, rate]);
 
   const handleSubmit = async () => {
     if (!agentId || parsedAmount <= 0 || !user) {
