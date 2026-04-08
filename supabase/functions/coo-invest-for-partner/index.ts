@@ -198,7 +198,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         reference_id: referenceId,
-        new_balance: newBalance,
         payout_day,
         first_payout_date: firstPayoutDate,
         monthly_reward: monthlyReward,
