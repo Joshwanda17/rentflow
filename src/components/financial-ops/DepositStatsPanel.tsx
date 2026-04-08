@@ -139,7 +139,52 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
     }
   };
 
-  if (loading) {
+  const openRejectDialog = (deposit: PendingDeposit) => {
+    setRejectingDeposit(deposit);
+    setRejectionReason('');
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectDeposit = useCallback(async () => {
+    if (!user || !rejectingDeposit || rejectionReason.trim().length < 10) return;
+    setRejecting(true);
+
+    try {
+      const { error } = await supabase.functions.invoke('approve-deposit', {
+        body: { deposit_request_id: rejectingDeposit.id, action: 'reject', rejection_reason: rejectionReason.trim() },
+      });
+
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to reject deposit');
+        throw new Error(msg);
+      }
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'deposit_rejected_inline',
+        table_name: 'deposit_requests',
+        record_id: rejectingDeposit.id,
+        metadata: {
+          transaction_id: rejectingDeposit.transaction_id,
+          amount: rejectingDeposit.amount,
+          depositor_name: rejectingDeposit.depositor_name,
+          rejection_reason: rejectionReason.trim(),
+        },
+      });
+
+      setRejectedIds(prev => new Set(prev).add(rejectingDeposit.id));
+      setPendingDeposits(prev => prev.filter(d => d.id !== rejectingDeposit.id));
+      toast.success(`Rejected deposit from ${rejectingDeposit.depositor_name || 'user'}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Rejection failed');
+    } finally {
+      setRejecting(false);
+      setRejectDialogOpen(false);
+      setRejectingDeposit(null);
+    }
+  }, [user, rejectingDeposit, rejectionReason]);
+
     return (
       <div className="flex items-center justify-center py-6">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
