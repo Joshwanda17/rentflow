@@ -63,6 +63,11 @@ export function TidVerification() {
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [approving, setApproving] = useState<string | null>(null);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
