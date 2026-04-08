@@ -289,9 +289,19 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
                           {format(new Date(d.created_at), 'MMM d, h:mm a')}
                         </p>
                       </div>
-                      <p className="text-sm font-bold text-warning shrink-0">
-                        {formatUGX(d.amount)}
-                      </p>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <p className="text-sm font-bold text-warning">
+                          {formatUGX(d.amount)}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                          onClick={() => openRejectDialog(d)}
+                        >
+                          <Ban className="h-2.5 w-2.5 mr-0.5" /> Reject
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -306,6 +316,38 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Reject Deposit Dialog */}
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Deposit</AlertDialogTitle>
+            <AlertDialogDescription>
+              Reject {rejectingDeposit ? formatUGX(rejectingDeposit.amount) : ''} from {rejectingDeposit?.depositor_name || 'user'}. The user will be notified.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Enter rejection reason (min 10 characters)..."
+            className="min-h-[80px]"
+          />
+          {rejectionReason.trim().length > 0 && rejectionReason.trim().length < 10 && (
+            <p className="text-[11px] text-destructive">Reason must be at least 10 characters</p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rejecting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRejectDeposit}
+              disabled={rejecting || rejectionReason.trim().length < 10}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {rejecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Ban className="h-3 w-3 mr-1" />}
+              Confirm Reject
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
