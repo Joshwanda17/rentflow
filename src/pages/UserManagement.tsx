@@ -113,6 +113,83 @@ export default function UserManagement() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
 
+  // Pending invites state
+  interface PendingInvite {
+    id: string;
+    email: string;
+    full_name: string;
+    phone: string;
+    temp_password: string;
+    activation_token: string;
+    role: string;
+    created_at: string;
+    status: string;
+  }
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
+  const [pendingInvitesLoading, setPendingInvitesLoading] = useState(false);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+
+  const inviteRoleConfig: Record<string, { label: string; emoji: string }> = {
+    tenant: { label: 'Tenant', emoji: '🏠' },
+    landlord: { label: 'Landlord', emoji: '🏢' },
+    agent: { label: 'Agent', emoji: '💼' },
+    supporter: { label: 'Partner', emoji: '💰' },
+    manager: { label: 'Manager', emoji: '👑' },
+  };
+
+  const fetchPendingInvites = async () => {
+    setPendingInvitesLoading(true);
+    const { data, error, count } = await supabase
+      .from('supporter_invites')
+      .select('id, email, full_name, phone, temp_password, activation_token, role, created_at, status', { count: 'exact' })
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setPendingInvites(data);
+      setPendingInvitesCount(count || data.length);
+    }
+    setPendingInvitesLoading(false);
+  };
+
+  const handleActivateInvite = async (invite: PendingInvite) => {
+    setActivatingId(invite.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('activate-supporter', {
+        body: { token: invite.activation_token, password: invite.temp_password },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`${invite.full_name} activated successfully!`);
+      await fetchPendingInvites();
+      await fetchTotalCount();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to activate invite');
+    } finally {
+      setActivatingId(null);
+    }
+  };
+
+  const handleResendInviteWhatsApp = (invite: PendingInvite) => {
+    setResendingInviteId(invite.id);
+    const roleInfo = inviteRoleConfig[invite.role] || { label: 'User', emoji: '👤' };
+    const link = `${getPublicOrigin()}/join?t=${invite.activation_token}`;
+    const message = `${roleInfo.emoji} Welcome to Welile, ${invite.full_name}!
+
+You've been invited to join as a ${roleInfo.label}!
+
+🔐 Your password: ${invite.temp_password}
+
+👉 Activate your account here:
+${link}
+
+Just click the link and enter your password to get started!`;
+    window.open(`https://wa.me/${invite.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+    setTimeout(() => setResendingInviteId(null), 1000);
+  };
+
   // Debounce search
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
