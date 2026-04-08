@@ -1,67 +1,107 @@
+# Agent Guarantor System — Full Implementation Plan
 
+SPLIT WALLET INTO TWO COMMISSION AND FLOAT. WHEREBY FLOAT IS THE AMOUNT DEPOSITED BY THE AGENT ONTO THEIR WALLETS AND IT  CAN BE SENT TO TENANT WALLETS USED TO PAY THE TENANT RENT. WHILE COMMISSION IS THE MONEY REWARDED BY THE SYSTEM TO THE AGENT UPON SUCCESSFUL RENT REPAYMENTS
 
-# Fix: Proxy Agent Sees Full Accrued Returns Instead of Only Credited ROI
+## What Exists Today
 
-## The Problem
+The system **already has most of the mechanics** in place:
 
-The screenshot shows NFITUMUKIZA BOSCO with **UGX 11,586,348** available for withdrawal. This person should only receive UGX 750,000 per month (the approved payout), but the Proxy Partners tab is recalculating ALL returns from portfolio creation date instead of reading only what has been approved and credited to the agent's wallet.
+- `subscription_charges.agent_id` links tenants to their onboarding agent
+- `auto-charge-wallets` edge function implements 72-hour grace period + agent fallback charging
+- `chargeAgent()` deducts from agent wallet when tenant defaults
+- `accumulated_debt` tracks unpaid shortfalls
+- Circuit breaker (3 consecutive failures → stalled)
 
-**How it happens today (wrong):**
-1. Partner has 5M @ 15% portfolio created ~15 months ago
-2. ProxyPartnerFunds.tsx calculates: `5M × 15% × 15 months = 11,250,000`
-3. Agent sees UGX 11.5M as withdrawable — the entire lifetime of returns
-4. Agent can withdraw that full amount in one go
+**What's missing:**
 
-**What should happen (correct):**
-1. COO initiates monthly ROI payout (750K) → goes to pending_wallet_operations
-2. CFO approves → edge function credits agent wallet via general_ledger (category: `roi_payout`, linked_party: partner_id)
-3. ProxyPartnerFunds should only show the sum of these **actual approved credits** minus completed withdrawals
+1. No explicit guarantor consent at onboarding ("By onboarding this tenant, you accept financial responsibility")
+2. No agent-facing **Risk Exposure** dashboard showing guaranteed tenants + potential losses
+3. `chargeAgent()` deducts from the general wallet (not commission-specific) and directly updates balance (violates Trigger-Only policy)
+4. No agent liability/debt tracking when commission is insufficient
+5. Agent Agreement (v1.0) doesn't mention guarantor responsibility
 
-## Root Cause (Two Issues)
+## Plan
 
-### Issue 1: ProxyPartnerFunds.tsx — Recalculates instead of reading ledger
-Lines 148-203 calculate returns from portfolio age using `investmentAmount × roiPercentage / 100 × monthsElapsed`. This shows the full theoretical lifetime return, not what was actually approved and credited.
+### 1. Add Guarantor Consent to Tenant Registration Flow
 
-### Issue 2: PendingFunderApprovals.tsx — Credits all accrued returns on proxy approval
-Lines 120-156 calculate ALL accrued returns since portfolio creation and credit the agent's wallet in one lump sum via `credit_proxy_approval` RPC. This means the moment a proxy is approved, months/years of theoretical returns get dumped into the agent's wallet — bypassing the monthly COO→CFO approval pipeline entirely.
+**Files:** `src/components/agent/CreateUserInviteDialog.tsx`, `src/components/agent/AgentRentRequestDialog.tsx`, `src/components/agent/RegisterTenantDialog.tsx`
 
-## Fix Plan
+Before submitting a tenant registration, show a confirmation dialog:
 
-### 1. ProxyPartnerFunds.tsx — Read actual ledger credits instead of recalculating
+> "By onboarding this tenant, you accept full financial responsibility if they default on rent payments. Defaults will be recovered from your commission wallet after a 72-hour grace period."
 
-Replace the portfolio-based ROI calculation with a query to `general_ledger` for actual `roi_payout` credits where `user_id = agent_id` and `linked_party = partner_id`. This ensures the agent only sees money that was actually approved and deposited.
+Add a mandatory checkbox acknowledgment. Store `guarantor_acknowledged_at` timestamp in the `register-tenant` edge function response metadata.
 
-**Data source change:**
-- Remove: `investor_portfolios` query and monthly ROI math
-- Add: `general_ledger` query filtering `category = 'roi_payout'` and `user_id = agent.id` with `linked_party` matching partner IDs
-- **Returns Due** = sum of all `roi_payout` credits for that partner
-- **Delivered** = sum of completed `proxy_partner_withdrawal` withdrawals (already correct)
-- **Available** = Returns Due − Delivered
+### 2. Update Agent Agreement to v1.1
 
-### 2. PendingFunderApprovals.tsx — Remove lump-sum credit on approval
+**File:** `src/components/agent/agreement/AgentAgreementContent.ts`
 
-Remove the `credit_proxy_approval` RPC call (lines 146-156) from the approval flow. Proxy approval should only activate the assignment — it should NOT credit any money. Monthly payouts go through the normal COO→CFO pipeline, which is the correct path.
+Add a new **Section 6A: Guarantor Responsibility** to the agreement text:
 
-- Remove the portfolio query and ROI calculation (lines 120-143)
-- Remove the `credit_proxy_approval` call (lines 147-156)
-- Keep the assignment status update and audit log
-- Update the success toast to remove the "returns credited" message
+- Agent automatically becomes guarantor for every tenant they onboard
+- After 72-hour grace period, defaults are recovered from agent's commission wallet
+- If commission is insufficient, the shortfall becomes an agent liability (debt)
+- Agent cannot manually use commission to pre-pay rent — only the system triggers recovery
+- Every recovery deduction is logged as a `RECOVERY_TRANSACTION` in the ledger
 
-### 3. Display adjustment
+Bump version to `v1.1`. Existing agents will see the "Accept Terms" button again.
 
-Keep the existing "Invested" and "Returns Due" display on the approval cards for informational purposes, but label it clearly as "Accrued (not yet paid)" so operators understand this is just context, not what gets credited.
+### 3. Build Agent Risk Exposure Card
 
-## What This Fixes
+**New file:** `src/components/agent/AgentRiskExposureCard.tsx`
 
-- Agent can only withdraw what was actually approved by CFO
-- No lump-sum credit dump on proxy approval
-- Monthly payout discipline is enforced end-to-end
-- The 750K monthly payout for NFITUMUKIZA BOSCO would show correctly after the next approved cycle
+A card on the agent dashboard showing:
+
+- **Guaranteed Tenants**: count of active `subscription_charges` where `agent_id = me`
+- **Total Exposure**: sum of `charge_amount` across all active subscriptions (what they'd owe per period if ALL tenants defaulted)
+- **Active Debt**: sum of `accumulated_debt` across their tenants' subscriptions
+- **Defaults This Month**: count of `tenant_default_charge` ledger entries this month
+- Color-coded risk indicator (green/yellow/red based on exposure vs. commission earnings)
+
+Data source: `subscription_charges` where `agent_id = user.id` and `status = 'active'`
+
+### 4. Fix `chargeAgent()` to Follow Trigger-Only Wallet Policy
+
+**File:** `supabase/functions/auto-charge-wallets/index.ts`
+
+The current `chargeAgent()` function directly updates `wallets.balance` (line 671-675), violating the Trigger-Only policy. Fix to:
+
+1. Upsert wallet existence (ensure row exists)
+2. Insert `general_ledger` entry with `category: 'tenant_default_charge'`, `direction: 'cash_out'`, `role_type: 'agent'`
+3. Let `sync_wallet_from_ledger` trigger handle balance update
+4. Remove the direct `.update({ balance: newBalance })` call
+5. Keep the balance check (SELECT) to verify sufficient funds before inserting the ledger entry
+
+### 5. Add Agent Liability Tracking for Insufficient Commission
+
+**File:** `supabase/functions/auto-charge-wallets/index.ts` (in `chargeAgent()`)
+
+When agent wallet has insufficient funds:
+
+- Record the shortfall in `accumulated_debt` on `subscription_charges` (already happens)
+- Insert a `general_ledger` entry with `category: 'agent_liability'`, `direction: 'cash_out'`, amount = shortfall, `description: 'Agent guarantor liability — insufficient commission'`
+- This creates a traceable debt record in the ledger
+- When agent next receives commission, the existing auto-repayment mechanism in `approve-wallet-operation` can recover it
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/components/agent/ProxyPartnerFunds.tsx` | Replace portfolio ROI calculation with ledger-based query |
-| `src/components/executive/PendingFunderApprovals.tsx` | Remove lump-sum credit on proxy approval |
 
+| File                                                      | Change                                                                 |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `src/components/agent/agreement/AgentAgreementContent.ts` | Add Section 6A (Guarantor), bump to v1.1                               |
+| `src/components/agent/CreateUserInviteDialog.tsx`         | Add guarantor consent checkbox for tenant type                         |
+| `src/components/agent/AgentRentRequestDialog.tsx`         | Add guarantor consent before submitting                                |
+| `src/components/agent/RegisterTenantDialog.tsx`           | Add guarantor consent before submitting                                |
+| `src/components/agent/AgentRiskExposureCard.tsx`          | New — risk exposure dashboard card                                     |
+| `src/components/agent/AgentDashboard.tsx` (or equivalent) | Mount the risk exposure card                                           |
+| `supabase/functions/auto-charge-wallets/index.ts`         | Fix `chargeAgent()` to use ledger-only pattern; add liability tracking |
+
+
+## What This Achieves
+
+- Agent is explicitly informed of guarantor responsibility before onboarding
+- Agreement is legally binding with clear guarantor terms
+- Agent can see their risk exposure at all times (behavioral incentive to be careful)
+- Wallet integrity maintained via ledger-only writes
+- Shortfalls become tracked liabilities, recoverable from future commissions
+- Self-regulating system: agents stop onboarding risky tenants
