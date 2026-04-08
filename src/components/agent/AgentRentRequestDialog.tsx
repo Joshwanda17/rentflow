@@ -4,6 +4,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
