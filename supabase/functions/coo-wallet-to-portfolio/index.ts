@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
     const partnerId = portfolio.investor_id || portfolio.agent_id;
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
 
-    // Fetch partner wallet with optimistic lock
+    // Check partner wallet balance (read-only, trigger handles updates)
     const { data: wallet, error: wErr } = await supabase
       .from("wallets")
       .select("balance")
@@ -98,17 +98,6 @@ Deno.serve(async (req) => {
 
     const txGroupId = crypto.randomUUID();
     const now = new Date().toISOString();
-
-    // 1. Deduct from partner's wallet (optimistic lock)
-    const { error: deductErr } = await supabase
-      .from("wallets")
-      .update({ balance: currentBalance - topupAmount, updated_at: now })
-      .eq("user_id", partnerId)
-      .eq("balance", currentBalance);
-
-    if (deductErr) {
-      return jsonRes({ error: "Balance changed, please try again" }, 409);
-    }
 
     // 2. Record pending top-up (applied at maturity)
     const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
