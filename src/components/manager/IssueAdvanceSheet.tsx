@@ -31,11 +31,21 @@ interface IssueAdvanceSheetProps {
   preselectedAgentId?: string;
 }
 
+const RATE_OPTIONS = [
+  { value: '0.33', label: '33%' },
+  { value: '0.30', label: '30%' },
+  { value: '0.25', label: '25%' },
+  { value: '0.20', label: '20%' },
+  { value: '0.15', label: '15%' },
+  { value: '0.10', label: '10%' },
+];
+
 export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, preselectedAgentId }: IssueAdvanceSheetProps) {
   const { user } = useAuth();
   const [agentId, setAgentId] = useState(preselectedAgentId || '');
   const [amount, setAmount] = useState('');
   const [cycleDays, setCycleDays] = useState<number>(30);
+  const [monthlyRate, setMonthlyRate] = useState('0.33');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agentSearch, setAgentSearch] = useState('');
   const [agentPopoverOpen, setAgentPopoverOpen] = useState(false);
