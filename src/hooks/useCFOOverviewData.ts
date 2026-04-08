@@ -10,6 +10,11 @@ export function useCFOOverviewData() {
     queryFn: async () => {
       const { data: deposits } = await supabase
         .from('deposit_requests')
+        .select('amount, provider')
+        .eq('status', 'approved');
+
+      const { data: withdrawals } = await supabase
+        .from('withdrawal_requests')
         .select('amount, mobile_money_provider')
         .eq('status', 'approved');
 
