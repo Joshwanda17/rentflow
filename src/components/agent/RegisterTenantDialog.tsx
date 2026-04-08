@@ -110,6 +110,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     e.preventDefault();
     if (!user) return;
 
+    if (!guarantorConsent) {
+      toast.error('Please accept guarantor responsibility before registering');
+      return;
+    }
+
     if (!tenantEmail.trim() && !tenantPhone.trim()) {
       toast.error('Please provide tenant email or phone');
       return;

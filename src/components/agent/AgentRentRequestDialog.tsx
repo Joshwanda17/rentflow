@@ -1033,6 +1033,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 </div>
               </div>
 
+              <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+
               <div className="flex gap-3 pt-2">
                 <Button 
                   type="button" 
@@ -1045,7 +1047,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 <Button 
                   onClick={handleSubmit} 
                   className="flex-1"
-                  disabled={loading || !amount || amount < 50000}
+                  disabled={loading || !amount || amount < 50000 || !guarantorConsent}
                 >
                   {loading ? (
                     <>

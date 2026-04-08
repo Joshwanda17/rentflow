@@ -277,6 +277,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
 
+        {/* Risk Exposure — guarantor liability visibility */}
+        <AgentRiskExposureCard />
+
         {/* Daily Rent Expected — top priority visibility */}
         <div key="daily-rent-card">
           <DailyRentExpectedCard userId={user.id} />
