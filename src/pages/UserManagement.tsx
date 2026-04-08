@@ -485,6 +485,7 @@ Just click the link and enter your password to get started!`;
 
   const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
     { value: 'all', label: 'All', count: totalUserCount },
+    { value: 'pending_invites', label: '⏳ Pending Invites', count: pendingInvitesCount },
     { value: 'active', label: 'Online', count: activeUserCount },
     { value: 'tenant', label: 'Tenants', count: roleCounts['tenant'] || 0 },
     { value: 'agent', label: 'Agents', count: roleCounts['agent'] || 0 },
