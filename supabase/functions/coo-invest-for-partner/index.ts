@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Check PARTNER's wallet balance (partner pays from their own wallet)
+    // Check PARTNER's wallet balance (read-only, trigger handles updates)
     const { data: partnerWallet, error: walletErr } = await adminClient
       .from("wallets").select("id, balance")
       .eq("user_id", partner_id).single();
@@ -86,22 +86,6 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: `Insufficient partner balance. Available: UGX ${partnerWallet.balance.toLocaleString()}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    // Deduct from PARTNER's wallet using optimistic locking
-    const { data: updatedWallet, error: deductErr } = await adminClient
-      .from("wallets")
-      .update({ balance: partnerWallet.balance - amount, updated_at: new Date().toISOString() })
-      .eq("user_id", partner_id)
-      .eq("balance", partnerWallet.balance)  // optimistic lock: ensure balance hasn't changed
-      .select('id, balance')
-      .maybeSingle();
-
-    if (deductErr || !updatedWallet) {
-      return new Response(JSON.stringify({ error: "Insufficient balance or concurrent update, please retry" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const newBalance = updatedWallet.balance;
 
     // Generate reference
     const now = new Date();
