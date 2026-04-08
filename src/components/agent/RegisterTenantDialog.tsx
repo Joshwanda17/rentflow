@@ -80,6 +80,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setLc1Name('');
     setLc1Phone('');
     setLc1Village('');
+    setGuarantorConsent(false);
     setSuccess(false);
   };
 
