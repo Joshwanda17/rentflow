@@ -128,7 +128,8 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           agent_id: agentId,
           principal: parsedAmount,
           outstanding_balance: parsedAmount,
-          daily_rate: 0.33,
+          daily_rate: rate,
+          monthly_rate: rate,
           cycle_days: cycleDays,
           registration_fee: regFee,
           access_fee: accessFee,
@@ -136,7 +137,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           access_fee_status: 'unpaid',
           issued_by: user.id,
           expires_at: new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString(),
-        });
+        } as any);
         if (error) throw error;
 
         toast.success(`Advance of ${formatUGX(parsedAmount)} issued successfully`);
