@@ -117,7 +117,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       bonus: REGISTRATION_BONUS,
-      new_balance: newBalance,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

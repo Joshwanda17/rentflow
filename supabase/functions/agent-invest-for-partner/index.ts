@@ -208,7 +208,6 @@ Deno.serve(async (req) => {
 
     if (partnerCashInErr) {
       console.error("[agent-invest-for-partner] Partner cash_in ledger failed:", partnerCashInErr.message);
-      await rollbackAgentWallet();
       await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
       await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
       return errorResponse("Failed to credit partner, all changes rolled back. Please retry.", 500);

@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `TST${yy}${mm}${dd}${seq}`;
 
-    // Record in general_ledger for audit trail
+    // Record in general_ledger (trigger handles wallet balance)
     const txGroupId = crypto.randomUUID();
     await adminClient.from("general_ledger").insert({
       user_id: target_user_id,
@@ -109,7 +109,6 @@ Deno.serve(async (req) => {
       direction: "cash_in",
       category: "test_funds_cleanup",
       source_table: "wallets",
-      source_id: wallet.id,
       description: `Test funds seeded by manager (${user.email})`,
       currency: 'UGX',
       reference_id: referenceId,
@@ -123,7 +122,6 @@ Deno.serve(async (req) => {
         reference_id: referenceId,
         target_user: targetProfile.full_name,
         amount,
-        new_balance: newBalance,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
