@@ -39,11 +39,17 @@ interface DepositStatsPanelProps {
 }
 
 export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps) {
+  const { user } = useAuth();
   const [stats, setStats] = useState<DepositStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingDeposits, setPendingDeposits] = useState<PendingDeposit[]>([]);
   const [showPendingList, setShowPendingList] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectingDeposit, setRejectingDeposit] = useState<PendingDeposit | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchStats() {
