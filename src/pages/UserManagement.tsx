@@ -51,7 +51,7 @@ interface UserWithRating {
   last_active_at: string | null;
 }
 
-type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active' | 'inactive';
+type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active' | 'inactive' | 'pending_invites';
 type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low' | 'last_active' | 'least_active';
 type VerificationFilter = 'all' | 'verified' | 'pending';
 
