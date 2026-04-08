@@ -95,7 +95,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
-
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
       toast.error('GPS not supported on this device');
