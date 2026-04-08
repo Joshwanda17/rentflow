@@ -18,7 +18,6 @@ export function useCFOOverviewData() {
         .select('amount, mobile_money_provider')
         .eq('status', 'approved');
 
-
       const channels: Record<string, { deposits: number; withdrawals: number }> = {
         MTN: { deposits: 0, withdrawals: 0 },
         Airtel: { deposits: 0, withdrawals: 0 },
@@ -46,6 +45,39 @@ export function useCFOOverviewData() {
     staleTime: STALE_TIME,
   });
 
+  // Receivables: tenant outstanding + advances outstanding
+  const receivables = useQuery({
+    queryKey: ['cfo-overview-receivables'],
+    queryFn: async () => {
+      const { data: charges } = await supabase
+        .from('subscription_charges')
+        .select('accumulated_debt')
+        .eq('status', 'active');
+
+      const tenantOutstanding = (charges || []).reduce(
+        (sum, c) => sum + Number(c.accumulated_debt || 0),
+        0
+      );
+
+      const { data: advances } = await supabase
+        .from('agent_advances')
+        .select('outstanding_balance')
+        .eq('status', 'active');
+
+      const advancesOutstanding = (advances || []).reduce(
+        (sum, a) => sum + Number(a.outstanding_balance || 0),
+        0
+      );
+
+      return {
+        tenantOutstanding,
+        advancesOutstanding,
+        totalReceivables: tenantOutstanding + advancesOutstanding,
+      };
+    },
+    staleTime: STALE_TIME,
+  });
+
   // Wallet totals grouped by role for liability breakdown
   const liabilities = useQuery({
     queryKey: ['cfo-overview-liabilities'],
@@ -59,7 +91,6 @@ export function useCFOOverviewData() {
         0
       );
 
-      // Pending withdrawals
       const { data: pendingWithdrawals } = await supabase
         .from('withdrawal_requests')
         .select('amount')
@@ -70,7 +101,6 @@ export function useCFOOverviewData() {
         0
       );
 
-      // ROI obligations from investor portfolios
       const { data: portfolios } = await supabase
         .from('investor_portfolios')
         .select('investment_amount, roi_percentage, total_roi_earned')
@@ -84,7 +114,6 @@ export function useCFOOverviewData() {
         0
       );
 
-      // Agent commission payouts pending
       const { data: agentPayouts } = await supabase
         .from('agent_commission_payouts')
         .select('amount')
@@ -100,7 +129,7 @@ export function useCFOOverviewData() {
       return {
         tenantFunds: totalWalletBalance,
         agentPayables,
-        landlordPayables: 0, // derived from rent pipeline if needed
+        landlordPayables: 0,
         roiObligations,
         pendingWithdrawals: pendingWithdrawalTotal,
         totalLiabilities,
@@ -119,18 +148,17 @@ export function useCFOOverviewData() {
         .eq('scope', 'platform')) as { data: { amount: number; direction: string; category: string; created_at: string }[] | null };
 
       let totalRevenue = 0;
-      let totalCosts = 0;
+      let totalExpenses = 0;
 
       (entries || []).forEach((e) => {
         if (e.category === 'opening_balance') return;
         const amt = Number(e.amount);
         if (e.direction === 'cash_in') totalRevenue += amt;
-        else totalCosts += amt;
+        else totalExpenses += amt;
       });
 
       // 7-day trend
       const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
       const dailyRevenue: { date: string; amount: number }[] = [];
 
       for (let i = 6; i >= 0; i--) {
@@ -149,8 +177,8 @@ export function useCFOOverviewData() {
 
       return {
         totalRevenue,
-        totalCosts,
-        netProfit: totalRevenue - totalCosts,
+        totalExpenses,
+        netProfit: totalRevenue - totalExpenses,
         trend: dailyRevenue,
       };
     },
@@ -210,14 +238,66 @@ export function useCFOOverviewData() {
     staleTime: STALE_TIME,
   });
 
+  // Cash Flow by Purpose from general_ledger
+  const cashFlowByPurpose = useQuery({
+    queryKey: ['cfo-overview-cashflow-purpose'],
+    queryFn: async () => {
+      const { data: entries } = (await supabase
+        .from('general_ledger' as any)
+        .select('amount, direction, category, created_at')
+        .eq('scope', 'platform')) as { data: { amount: number; direction: string; category: string; created_at: string }[] | null };
+
+      const cashIn = { partnerFunding: 0, tenantRepayments: 0, other: 0 };
+      const cashOut = { rentPayments: 0, roiPayouts: 0, advances: 0, other: 0 };
+
+      (entries || []).forEach((e) => {
+        if (e.category === 'opening_balance') return;
+        const amt = Number(e.amount);
+        if (e.direction === 'cash_in') {
+          if (e.category.includes('partner') || e.category.includes('investor') || e.category.includes('supporter')) {
+            cashIn.partnerFunding += amt;
+          } else if (e.category.includes('repayment') || e.category.includes('tenant')) {
+            cashIn.tenantRepayments += amt;
+          } else {
+            cashIn.other += amt;
+          }
+        } else {
+          if (e.category.includes('rent') || e.category.includes('landlord')) {
+            cashOut.rentPayments += amt;
+          } else if (e.category.includes('roi') || e.category.includes('payout')) {
+            cashOut.roiPayouts += amt;
+          } else if (e.category.includes('advance')) {
+            cashOut.advances += amt;
+          } else {
+            cashOut.other += amt;
+          }
+        }
+      });
+
+      const totalIn = cashIn.partnerFunding + cashIn.tenantRepayments + cashIn.other;
+      const totalOut = cashOut.rentPayments + cashOut.roiPayouts + cashOut.advances + cashOut.other;
+
+      return {
+        cashIn,
+        cashOut,
+        totalIn,
+        totalOut,
+        netMovement: totalIn - totalOut,
+      };
+    },
+    staleTime: STALE_TIME,
+  });
+
   const isLoading =
-    channelBalances.isLoading || liabilities.isLoading || revenue.isLoading || moneyFlow.isLoading;
+    channelBalances.isLoading || liabilities.isLoading || revenue.isLoading || moneyFlow.isLoading || receivables.isLoading || cashFlowByPurpose.isLoading;
 
   return {
     channelBalances: channelBalances.data,
     liabilities: liabilities.data,
     revenue: revenue.data,
     moneyFlow: moneyFlow.data,
+    receivables: receivables.data,
+    cashFlowByPurpose: cashFlowByPurpose.data,
     isLoading,
   };
 }
