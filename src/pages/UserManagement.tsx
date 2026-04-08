@@ -270,6 +270,11 @@ Just click the link and enter your password to get started!`;
   };
 
   const fetchUsersPage = async (page: number) => {
+    // Skip profile fetch when viewing pending invites
+    if (roleFilter === 'pending_invites') {
+      setLoading(false);
+      return;
+    }
     if (page === 0) setLoading(true);
     else { setLoadingMore(true); loadingMoreRef.current = true; }
 
