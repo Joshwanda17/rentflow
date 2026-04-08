@@ -126,6 +126,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
   const [supporterData, setSupporterData] = useState<SupporterFormData>(defaultSupporterData);
   const [investmentData, setInvestmentData] = useState<InvestmentFormData>(defaultInvestmentData);
   const [expandedSection, setExpandedSection] = useState<string | null>('personal');
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [createdInvite, setCreatedInvite] = useState<{
     token: string;
     fullName: string;
