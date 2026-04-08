@@ -583,7 +583,11 @@ Just click the link and enter your password to get started!`;
 
       {isSupporterRole ? supporterFormSections : standardFormFields}
 
-      <Button type="submit" className="w-full h-14 text-sm sm:text-base font-semibold rounded-xl" disabled={isLoading}>
+      {selectedRole === 'tenant' && (
+        <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+      )}
+
+      <Button type="submit" className="w-full h-14 text-sm sm:text-base font-semibold rounded-xl" disabled={isLoading || (selectedRole === 'tenant' && !guarantorConsent)}>
         {isLoading ? (
           <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> <span className="truncate">Creating Account...</span></>
         ) : (
