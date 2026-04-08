@@ -220,7 +220,15 @@ Just click the link and enter your password to get started!`;
   // Fetch counts on mount
   useEffect(() => {
     fetchTotalCount();
+    fetchPendingInvites();
   }, []);
+
+  // Fetch pending invites when filter switches to pending_invites
+  useEffect(() => {
+    if (roleFilter === 'pending_invites') {
+      fetchPendingInvites();
+    }
+  }, [roleFilter]);
 
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
