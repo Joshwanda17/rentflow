@@ -102,7 +102,8 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           advance_id: existingAdvance.id,
           amount: parsedAmount,
           topped_up_by: user.id,
-        });
+          monthly_rate: rate,
+        } as any);
         if (topupError) throw topupError;
 
         const newAccessFee = Number(existingAdvance.access_fee || 0) + accessFee;
