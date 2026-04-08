@@ -340,6 +340,7 @@ Just click the link and enter your password to get started!`;
     setInvestmentData(defaultInvestmentData);
     setCreatedInvite(null);
     setCopied(false);
+    setGuarantorConsent(false);
     setSelectedRole(defaultRole || 'tenant');
     setExpandedSection('personal');
     onOpenChange(false);
