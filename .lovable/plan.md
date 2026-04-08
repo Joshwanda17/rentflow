@@ -1,33 +1,92 @@
 
 
-# Add Adjustable Interest Rate on Advance Top-Up
+# CFO Dashboard Overview Redesign
 
-## Problem
-When the CFO tops up an existing advance, the rate is hardcoded at 33%. The CFO needs the ability to lower the rate for the top-up portion.
+## Goal
+Replace the current flat list of components on the CFO overview tab with a structured, color-coded financial command center following the 6-section layout hierarchy.
 
-## Changes
+## Current State
+The overview tab renders 9 components in a flat `space-y-4` stack: `PlatformVsWalletSummary`, `ChannelBalanceTracker`, `AgentPerformanceRankings`, `PendingPortfolioTopUps`, `WalletRetractionsFeed`, `CFOReceivablesTracker`, `FinancialOverview`, `ListingBonusApprovalQueue`, `RentPipelineQueue`. No visual hierarchy or section separation.
 
-### 1. `src/components/manager/IssueAdvanceSheet.tsx`
-- Add a `rate` state variable, defaulting to `0.33` (33%)
-- When `isTopUp` is true, show a rate selector dropdown with options: 33%, 30%, 25%, 20%, 15%, 10%
-- Pass the custom rate to `calculateAccessFee`, `calculateTotalPayable`, `calculateDailyPayment`, and `calculateCompoundProjection` instead of using the hardcoded 0.33
-- Store the chosen rate in the `agent_advance_topups` insert (new column) and use it for the access fee calculation on the top-up amount
-- For new advances, also allow rate selection (defaulting to 33%)
+## What Changes
 
-### 2. `src/lib/agentAdvanceCalculations.ts`
-- Update `calculateAccessFee`, `calculateTotalPayable`, `calculateDailyPayment`, and `calculateCompoundProjection` to accept an optional `monthlyRate` parameter (defaults to 0.33)
-- This keeps backward compatibility while enabling variable rates
+### 1. New component: `src/components/cfo/CFOOverviewDashboard.tsx`
+A single orchestrator component that replaces the current default case in the CFO dashboard. It contains 7 sections:
 
-### 3. Database migration
-- Add `monthly_rate` column (numeric, default 0.33) to `agent_advance_topups` table to record the rate used for each top-up
-- Add `monthly_rate` column (numeric, default 0.33) to `agent_advances` table for new advances
+**Section 0 — Sticky Header KPI Bar (4 cards)**
+- Total Cash (blue) — sum of all channel balances (deposits - withdrawals)
+- Total Liabilities (yellow) — sum of all wallet balances (user funds owed)
+- Platform Revenue (green) — net platform earnings from platform-scope ledger
+- Solvency Ratio (dynamic color) — Total Cash / Total Liabilities as %
+- Sticky positioning with `sticky top-0 z-10 bg-background`
 
-### 4. Edge function: `process-agent-advance-deductions/index.ts`
-- Read `daily_rate` (already stored on the advance) to use the advance-specific rate instead of the hardcoded 0.33
+**Section 1 — Cash & Liquidity (blue border-left accent)**
+- Large "Total Cash" hero number
+- Channel breakdown grid: MTN, Airtel, Bank, Cash with icons
+- Available Cash vs Restricted Cash (user funds) sub-row
+- Reuses data from `ChannelBalanceTracker` query logic
 
-## Result
-- CFO sees a rate dropdown (33% down to 10%) when topping up an advance
-- The breakdown recalculates live as the rate changes
-- The chosen rate is persisted for audit trail
-- Daily deduction processing respects per-advance rates
+**Section 2 — Liabilities / User Funds (yellow accent)**
+- Grid of 5 cards: Tenant Funds, Agent Payables, Landlord Payables, ROI Obligations, Pending Withdrawals
+- Each shows amount, label, % of total liabilities
+- Horizontal stacked bar showing liability breakdown
+- Data from wallets table (role-filtered) + withdrawal_requests + investor ROI
+
+**Section 3 — Platform Earnings (green accent)**
+- 4 KPI cards: Total Revenue, Fees Earned, Net Profit, Growth %
+- Small 7-day trend sparkline chart below
+- Reuses platform-scope ledger query from `PlatformVsWalletSummary`
+
+**Section 4 — Money Flow (purple accent)**
+- 3 KPI cards: Total Inflows, Total Outflows, Net Flow
+- Area chart: deposits vs withdrawals over last 30 days
+- Data from deposit_requests and withdrawal_requests
+
+**Section 5 — Risk & Reconciliation (red accent)**
+- 4 channel status cards: MTN, Airtel, Bank, Cash — each shows System vs Actual, Variance, status badge (OK/Warning/Critical)
+- Large solvency indicator bar
+- Reuses reconciliation logic from `CFOReconciliationPanel` and buffer metrics from `BufferAccountPanel`
+
+**Section 6 — Operations (grey accent, bottom)**
+- Two-column layout: Left = Top Agents (compact rankings), Right = Recent Activity (retractions, approvals)
+- Reuses `AgentPerformanceRankings compact` and `WalletRetractionsFeed compact`
+
+### 2. Update `src/pages/cfo/Dashboard.tsx`
+- Replace the default case content with `<CFOOverviewDashboard />`
+- Keep all other sidebar tab cases unchanged
+
+### 3. Sidebar remains unchanged
+- The left-hand sidebar (`ExecutiveDashboardLayout` + `executiveSidebarConfig`) stays exactly as-is
+
+### 4. Data hooks
+- Create `src/hooks/useCFOOverviewData.ts` — a single hook that fetches all overview data in parallel using React Query:
+  - Channel balances (deposits/withdrawals by provider)
+  - Wallet totals (grouped by role for liability breakdown)
+  - Platform-scope ledger (revenue/costs)
+  - Pending withdrawals count/amount
+  - ROI obligations from investor_portfolios
+  - 30-day deposit/withdrawal trend data
+- Each query uses `staleTime: 300_000` (5 min) to minimize load
+
+### 5. Interaction design
+- Hover on any KPI card shows tooltip with breakdown, source, last updated
+- Click on section cards navigates to the relevant sidebar tab (e.g., clicking Liabilities goes to `solvency` tab, clicking a channel goes to `reconciliation`)
+
+## Visual Design
+- Each section wrapped in a Card with a colored left border (4px): blue, yellow, green, purple, red, grey
+- Section titles use consistent typography: `text-lg font-bold` with matching color icon
+- Numbers: `text-2xl font-bold font-mono` for hero values, `text-sm text-muted-foreground` for labels
+- Solvency ratio badge: green >= 100%, yellow 80-99%, red < 80%
+
+## Files Created/Modified
+| File | Action |
+|------|--------|
+| `src/components/cfo/CFOOverviewDashboard.tsx` | Create — main overview layout |
+| `src/hooks/useCFOOverviewData.ts` | Create — consolidated data hook |
+| `src/pages/cfo/Dashboard.tsx` | Modify — swap default case to use new component |
+
+## What stays the same
+- Left sidebar (all tabs, config, layout)
+- All other tab views (roi-requests, statements, reconciliation, etc.)
+- Existing components remain available for their dedicated tabs
 
