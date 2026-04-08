@@ -163,8 +163,12 @@ export default function UserManagement() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success(`${invite.full_name} activated successfully!`);
-      await fetchPendingInvites();
-      await fetchTotalCount();
+      // Refresh invites list and counts
+      await Promise.all([fetchPendingInvites(), fetchTotalCount()]);
+      // Switch to 'all' filter so the newly activated user is visible
+      setRoleFilter('all');
+      setCurrentPage(0);
+      setHasMore(true);
     } catch (err: any) {
       toast.error(err.message || 'Failed to activate invite');
     } finally {
