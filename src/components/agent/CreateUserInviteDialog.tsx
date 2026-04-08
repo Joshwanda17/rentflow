@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
