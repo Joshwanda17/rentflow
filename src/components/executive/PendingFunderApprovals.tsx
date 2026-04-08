@@ -99,7 +99,12 @@ export function PendingFunderApprovals() {
         const maturity = p.maturity_date ? new Date(p.maturity_date) : now;
         const endDate = maturity < now ? maturity : now;
         const monthsElapsed = Math.max(0, (endDate.getTime() - created.getTime()) / (30 * 24 * 60 * 60 * 1000));
-        const monthlyROI = (p.investment_amount || 0) * (p.roi_percentage || 0) / 100 / 12;
+        const roiPct = p.roi_percentage || 0;
+        if (roiPct > 100) {
+          console.error(`Invalid monthly ROI percentage: ${roiPct}%`);
+          return sum;
+        }
+        const monthlyROI = (p.investment_amount || 0) * roiPct / 100;
         return sum + Math.floor(monthlyROI * monthsElapsed);
       }, 0);
       const firstPortfolioId = portfolios?.[0]?.id || assignmentId;

@@ -170,7 +170,11 @@ export function ProxyPartnerFunds() {
           const msElapsed = endDate.getTime() - createdAt.getTime();
           const monthsElapsed = Math.max(0, msElapsed / (30 * 24 * 60 * 60 * 1000));
 
-          const monthlyROI = (investmentAmount * roiPercentage) / 100 / 12;
+          if (roiPercentage > 100) {
+            console.error(`Invalid monthly ROI percentage: ${roiPercentage}% for portfolio`);
+            return;
+          }
+          const monthlyROI = (investmentAmount * roiPercentage) / 100;
           totalReturns += monthlyROI * monthsElapsed;
         });
 
