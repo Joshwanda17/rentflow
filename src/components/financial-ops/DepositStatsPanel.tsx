@@ -1,11 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, ChevronDown, ChevronUp, User, Ban } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface DepositStats {
   pending: number;
