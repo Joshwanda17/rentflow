@@ -24,6 +24,8 @@ interface PendingFunder {
   created_at: string;
   agent: { full_name: string; phone: string } | null;
   beneficiary: { full_name: string; phone: string } | null;
+  accruedReturns: number;
+  investmentTotal: number;
 }
 
 export function PendingFunderApprovals() {
@@ -44,7 +46,39 @@ export function PendingFunderApprovals() {
         .eq('beneficiary_role', 'supporter')
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return (data as unknown as PendingFunder[]) || [];
+      const items = (data as unknown as Omit<PendingFunder, 'accruedReturns' | 'investmentTotal'>[]) || [];
+
+      // Enrich with portfolio returns for each funder
+      const enriched = await Promise.all(items.map(async (item) => {
+        const { data: portfolios } = await supabase
+          .from('investor_portfolios')
+          .select('investment_amount, roi_percentage, created_at, maturity_date, total_roi_earned')
+          .eq('investor_id', item.beneficiary_id)
+          .eq('status', 'active');
+
+        const now = new Date();
+        let accruedReturns = 0;
+        let investmentTotal = 0;
+
+        (portfolios || []).forEach((p) => {
+          const amt = Number(p.investment_amount) || 0;
+          investmentTotal += amt;
+          if ((p.total_roi_earned || 0) > 0) {
+            accruedReturns += p.total_roi_earned;
+            return;
+          }
+          const created = new Date(p.created_at);
+          const maturity = p.maturity_date ? new Date(p.maturity_date) : now;
+          const endDate = maturity < now ? maturity : now;
+          const monthsElapsed = Math.max(0, (endDate.getTime() - created.getTime()) / (30 * 24 * 60 * 60 * 1000));
+          const roiPct = Number(p.roi_percentage) || 0;
+          accruedReturns += Math.floor(amt * roiPct / 100 * monthsElapsed);
+        });
+
+        return { ...item, accruedReturns: Math.round(accruedReturns), investmentTotal: Math.round(investmentTotal) };
+      }));
+
+      return enriched as PendingFunder[];
     },
     refetchInterval: 30000,
   });
