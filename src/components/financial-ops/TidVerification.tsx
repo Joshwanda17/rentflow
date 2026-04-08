@@ -209,15 +209,67 @@ export function TidVerification() {
     for (const match of exact) await handleAutoApprove(match);
   }, [matches, approvedIds, handleAutoApprove]);
 
+  const openRejectDialog = (id: string) => {
+    setRejectingId(id);
+    setRejectionReason('');
+    setRejectDialogOpen(true);
+  };
+
+  const handleReject = useCallback(async () => {
+    if (!user || !rejectingId || rejectionReason.trim().length < 10) return;
+    setRejecting(true);
+
+    try {
+      const { error } = await supabase.functions.invoke('approve-deposit', {
+        body: { deposit_request_id: rejectingId, action: 'reject', rejection_reason: rejectionReason.trim() },
+      });
+
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to reject deposit');
+        throw new Error(msg);
+      }
+
+      const match = matches.find(m => m.id === rejectingId);
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'tid_verified_reject',
+        table_name: 'deposit_requests',
+        record_id: rejectingId,
+        metadata: {
+          transaction_id: match?.transaction_id,
+          amount: match?.amount,
+          depositor_name: match?.userName,
+          rejection_reason: rejectionReason.trim(),
+          operator_entered_tid: tid.trim(),
+          operator_entered_amount: operatorAmount,
+        },
+      });
+
+      setRejectedIds(prev => new Set(prev).add(rejectingId));
+      toast.success(`Rejected deposit for ${match?.userName || 'user'}`);
+
+      queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Rejection failed');
+    } finally {
+      setRejecting(false);
+      setRejectDialogOpen(false);
+      setRejectingId(null);
+    }
+  }, [user, rejectingId, rejectionReason, matches, tid, operatorAmount, queryClient]);
+
   const reset = () => {
     setTid('');
     setOperatorAmount('');
     setMatches([]);
     setResultState('idle');
     setApprovedIds(new Set());
+    setRejectedIds(new Set());
   };
 
-  const pendingMatches = matches.filter(m => m.status === 'matched' && !approvedIds.has(m.id));
+  const pendingMatches = matches.filter(m => m.status === 'matched' && !approvedIds.has(m.id) && !rejectedIds.has(m.id));
 
   return (
     <Card>
