@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -125,6 +126,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
   const [supporterData, setSupporterData] = useState<SupporterFormData>(defaultSupporterData);
   const [investmentData, setInvestmentData] = useState<InvestmentFormData>(defaultInvestmentData);
   const [expandedSection, setExpandedSection] = useState<string | null>('personal');
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [createdInvite, setCreatedInvite] = useState<{
     token: string;
     fullName: string;
@@ -162,6 +164,12 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (selectedRole === 'tenant' && !guarantorConsent) {
+      toast({ title: 'Please accept guarantor responsibility', description: 'You must acknowledge financial responsibility before registering a tenant.', variant: 'destructive' });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -338,6 +346,7 @@ Just click the link and enter your password to get started!`;
     setInvestmentData(defaultInvestmentData);
     setCreatedInvite(null);
     setCopied(false);
+    setGuarantorConsent(false);
     setSelectedRole(defaultRole || 'tenant');
     setExpandedSection('personal');
     onOpenChange(false);
@@ -580,7 +589,11 @@ Just click the link and enter your password to get started!`;
 
       {isSupporterRole ? supporterFormSections : standardFormFields}
 
-      <Button type="submit" className="w-full h-14 text-sm sm:text-base font-semibold rounded-xl" disabled={isLoading}>
+      {selectedRole === 'tenant' && (
+        <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+      )}
+
+      <Button type="submit" className="w-full h-14 text-sm sm:text-base font-semibold rounded-xl" disabled={isLoading || (selectedRole === 'tenant' && !guarantorConsent)}>
         {isLoading ? (
           <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> <span className="truncate">Creating Account...</span></>
         ) : (

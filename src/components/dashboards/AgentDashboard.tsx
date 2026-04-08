@@ -6,6 +6,7 @@ import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { AgentWalletHeroCard } from '@/components/agent/AgentWalletHeroCard';
+import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 
 import { Button } from '@/components/ui/button';
 import { 
@@ -276,6 +277,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
+
+        {/* Risk Exposure — guarantor liability visibility */}
+        <AgentRiskExposureCard />
 
         {/* Daily Rent Expected — top priority visibility */}
         <div key="daily-rent-card">

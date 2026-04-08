@@ -4,6 +4,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
@@ -94,7 +95,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
-
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
       toast.error('GPS not supported on this device');
@@ -177,6 +178,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setGpsLoading(false);
     housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
     setHousePhotos([]);
+    setGuarantorConsent(false);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
@@ -234,6 +236,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
   const handleSubmit = async () => {
     if (!user || !fees) return;
+
+    if (!guarantorConsent) {
+      toast.error('Please accept guarantor responsibility before submitting');
+      return;
+    }
 
     if (!tenantName.trim() || !tenantPhone.trim()) {
       toast.error('Please provide tenant name and phone');
@@ -1026,6 +1033,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 </div>
               </div>
 
+              <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+
               <div className="flex gap-3 pt-2">
                 <Button 
                   type="button" 
@@ -1038,7 +1047,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                 <Button 
                   onClick={handleSubmit} 
                   className="flex-1"
-                  disabled={loading || !amount || amount < 50000}
+                  disabled={loading || !amount || amount < 50000 || !guarantorConsent}
                 >
                   {loading ? (
                     <>

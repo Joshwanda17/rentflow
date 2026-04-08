@@ -649,6 +649,7 @@ async function chargeAgent(
   tenantName: string,
   tenantPhone: string,
 ): Promise<boolean> {
+  // Check agent wallet balance (read only — no direct updates)
   const { data: agentWallet, error: awErr } = await supabase
     .from("wallets")
     .select("balance")
@@ -661,27 +662,36 @@ async function chargeAgent(
   }
 
   const agentBalance = Number(agentWallet.balance);
-  if (agentBalance < shortfall) {
-    console.log(`[auto-charge-wallets] Agent ${charge.agent_id} insufficient (${agentBalance} < ${shortfall})`);
-    return false;
-  }
-
-  const newAgentBalance = agentBalance - shortfall;
-  // Optimistic lock to prevent double-deduction
-  const { error: deductErr } = await supabase
-    .from("wallets")
-    .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
-    .eq("user_id", charge.agent_id)
-    .eq("balance", agentBalance);
-
-  if (deductErr) {
-    console.error(`[auto-charge-wallets] Agent deduct error:`, deductErr);
-    return false;
-  }
-
   const description = `Tenant default: ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace`;
 
-  await supabase.from("general_ledger").insert({
+  if (agentBalance < shortfall) {
+    console.log(`[auto-charge-wallets] Agent ${charge.agent_id} insufficient (${agentBalance} < ${shortfall})`);
+
+    // Record liability in ledger for the shortfall
+    await supabase.from("general_ledger").insert({
+      user_id: charge.agent_id,
+      amount: shortfall,
+      direction: "cash_out",
+      category: "agent_liability",
+      source_table: "subscription_charges",
+      source_id: charge.id,
+      description: `Agent guarantor liability — insufficient commission. ${description}`,
+      linked_party: `${tenantName} (${tenantPhone})`,
+      transaction_date: new Date().toISOString(),
+      currency: 'UGX',
+      role_type: 'agent',
+    });
+
+    return false;
+  }
+
+  // Ensure wallet exists (upsert)
+  await supabase
+    .from("wallets")
+    .upsert({ user_id: charge.agent_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
+
+  // Ledger-first: insert debit entry — trigger handles balance
+  const { error: ledgerErr } = await supabase.from("general_ledger").insert({
     user_id: charge.agent_id,
     amount: shortfall,
     direction: "cash_out",
@@ -692,7 +702,13 @@ async function chargeAgent(
     linked_party: `${tenantName} (${tenantPhone})`,
     transaction_date: new Date().toISOString(),
     currency: 'UGX',
+    role_type: 'agent',
   });
+
+  if (ledgerErr) {
+    console.error(`[auto-charge-wallets] Agent ledger insert error:`, ledgerErr);
+    return false;
+  }
 
   await supabase.from("pending_wallet_operations").insert({
     user_id: charge.agent_id,
@@ -718,6 +734,6 @@ async function chargeAgent(
     });
   }
 
-  console.log(`[auto-charge-wallets] Agent ${charge.agent_id} charged ${shortfall} for tenant ${tenantName} (${charge.tenant_id}) after 72h grace`);
+  console.log(`[auto-charge-wallets] Agent ${charge.agent_id} charged ${shortfall} via ledger for tenant ${tenantName} (${charge.tenant_id}) after 72h grace`);
   return true;
 }

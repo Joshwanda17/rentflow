@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -60,6 +61,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
 
   const agentCommission = monthlyRent ? Math.round(parseInt(monthlyRent) * 0.02) : 0;
 
@@ -78,6 +80,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setLc1Name('');
     setLc1Phone('');
     setLc1Village('');
+    setGuarantorConsent(false);
     setSuccess(false);
   };
 
@@ -106,6 +109,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    if (!guarantorConsent) {
+      toast.error('Please accept guarantor responsibility before registering');
+      return;
+    }
 
     if (!tenantEmail.trim() && !tenantPhone.trim()) {
       toast.error('Please provide tenant email or phone');
@@ -544,7 +552,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+
+              <Button type="submit" className="w-full" disabled={loading || !guarantorConsent}>
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
