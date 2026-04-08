@@ -348,7 +348,7 @@ export function PendingWalletOperationsWidget() {
                   <Button
                     size="lg"
                     className="h-14 text-sm font-bold gap-2 rounded-xl"
-                    onClick={() => handleAction(op.id, 'approve')}
+                    onClick={() => openApproveDialog(op.id)}
                     disabled={processing === op.id}
                   >
                     {processing === op.id ? (
