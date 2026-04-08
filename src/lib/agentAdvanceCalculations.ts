@@ -24,8 +24,8 @@ export function calculateRegistrationFee(principal: number): number {
 /**
  * Access fee: principal × (1.33^(days/30) - 1)
  */
-export function calculateAccessFee(principal: number, days: number): number {
-  return Math.round(principal * (Math.pow(1 + MONTHLY_RATE, days / 30) - 1));
+export function calculateAccessFee(principal: number, days: number, monthlyRate: number = MONTHLY_RATE): number {
+  return Math.round(principal * (Math.pow(1 + monthlyRate, days / 30) - 1));
 }
 
 /**
