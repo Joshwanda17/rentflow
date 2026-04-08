@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
       metadata: { amount, reference_id: referenceId, payout_day, monthly_reward: monthlyReward, first_payout_date: firstPayoutDate, initiated_by: caller.id },
     });
 
-    console.log(`[coo-invest-for-partner] COO ${caller.id} invested ${amount} from partner ${partner_id}'s wallet. Balance: ${partnerWallet.balance} → ${newBalance}. Ref: ${referenceId}, TxGroup: ${txGroupId}`);
+    console.log(`[coo-invest-for-partner] COO ${caller.id} invested ${amount} from partner ${partner_id}'s wallet. Ref: ${referenceId}, TxGroup: ${txGroupId}`);
 
 
     // Notify managers (fire-and-forget)
