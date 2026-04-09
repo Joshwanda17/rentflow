@@ -131,8 +131,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
                   {channelIcons[name]}
                   <span className="text-sm font-medium">{name}</span>
                 </div>
-                <p className={`text-lg font-bold font-mono ${balance < 0 ? 'text-red-600' : ''}`}>{fmt(balance)}</p>
-                <p className="text-xs text-muted-foreground">In: {fmtShort(vals.deposits)} · Out: {fmtShort(vals.withdrawals)}</p>
+                <p className={`text-base sm:text-lg font-bold font-mono truncate ${balance < 0 ? 'text-red-600' : ''}`}>{fmt(balance)}</p>
+                <p className="text-xs text-muted-foreground truncate">In: {fmtShort(vals.deposits)} · Out: {fmtShort(vals.withdrawals)}</p>
               </div>
             );
           })}
