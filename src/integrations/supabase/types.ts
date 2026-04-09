@@ -8678,6 +8678,30 @@ export type Database = {
           },
         ]
       }
+      treasury_controls: {
+        Row: {
+          control_key: string
+          enabled: boolean
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          control_key: string
+          enabled?: boolean
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          control_key?: string
+          enabled?: boolean
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_activity_log: {
         Row: {
           activity_type: string
