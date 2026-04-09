@@ -1,67 +1,102 @@
 
 
-# Per-Portfolio Payout Tracking in Proxy Agent & Approval Views
+# Shareable Tenant Registration Form
 
-## Problem
-When a partner like NAMBAFU SHEILLAH has multiple portfolios (e.g., "ALICE NAMONO" / WIP2509086610 and WIP2604081274), both ROI payouts land in the agent's proxy view as **one combined balance** because the code groups by `linked_party` (partner user ID). The agent cannot distinguish which portfolio's ROI they're withdrawing for, and the approval queue doesn't show portfolio references either.
+## Overview
+Build a public-facing tenant registration form that agents can share via link. When a tenant fills it out, the submission is tied to the agent, creating a tenant record in `supporter_invites` (which already has all needed columns). The form lives at `/register-tenant?agent={agentId}&token={token}` — no login required.
 
-**Root cause**: `ProxyPartnerFunds.tsx` aggregates ledger entries by partner ID only. The data already contains `source_id` (portfolio ID) on every ledger entry — it's purely a display/grouping problem.
+## Architecture
 
-## What changes
-
-### 1. `src/components/agent/ProxyPartnerFunds.tsx` — Per-portfolio breakdown
-
-**Current**: Groups all ROI entries by `linked_party` → one card per partner with combined balance.
-
-**New**: 
-- Fetch the agent's assigned partners' portfolios (`investor_portfolios` where `investor_id` in approved partner IDs) to get portfolio codes and account names
-- Also fetch `source_id` from the ledger query (already available — `general_ledger.source_id` maps to portfolio ID)
-- Group ledger entries by `(linked_party, source_id)` instead of just `linked_party`
-- Render one card per **portfolio** instead of per partner:
-  ```
-  NAMBAFU SHEILLAH
-  Portfolio: ALICE NAMONO (WIP2509086610)
-  Returns Due: USh 60,000 | Delivered: 0 | Available: USh 60,000
-  [Withdraw USh 60,000]
-
-  NAMBAFU SHEILLAH  
-  Portfolio: WIP2604081274
-  Returns Due: USh 60,000 | Delivered: 0 | Available: USh 60,000
-  [Withdraw USh 60,000]
-  ```
-- Include `portfolio_id` in the withdrawal request metadata and prefill reason so FinOps knows which portfolio the agent is withdrawing for
-- Update `PartnerBalance` interface to include `portfolioId`, `portfolioCode`, `accountName`
-
-### 2. `src/components/financial-ops/ApprovalQueue.tsx` — Show portfolio ref in wallet ops queue
-
-- In `getItemDisplayLabel`, for `roi_payout` category items, extract `source_id` from `rawData` and show: `"ROI Payout · Portfolio: XXXXXXXX"` instead of just the raw description
-- Also extract `metadata.partner_name` if available and show it alongside the user name when different
-
-### 3. `src/components/executive/PartnerFinancialActivity.tsx` — Show portfolio ref in activity feed
-
-- When building activity rows from `walletOps`, extract `source_id` and include the first 8 chars as a portfolio reference in the description column for `roi_payout` entries
-- Format: `"ROI payout · Portfolio: 33e070bc"`
-
-## Technical details
-
-**Ledger query change in ProxyPartnerFunds**: Add `source_id` to the select (it's already on `general_ledger`):
-```sql
-SELECT user_id, linked_party, amount, direction, category, source_id
-FROM general_ledger
-WHERE user_id = :agentId AND category IN ('roi_payout', 'balance_correction')
+```text
+Agent Dashboard                    Public Form Page
+┌──────────────┐     share link    ┌────────────────────┐
+│ "Share Tenant │  ─────────────►  │ /register-tenant   │
+│  Form" button │                  │ ?agent=xxx&token=yy │
+└──────────────┘                  │                    │
+                                   │ Full Name           │
+                                   │ Phone               │
+                                   │ National ID         │
+                                   │ Property Address    │
+                                   │ Rent Amount         │
+                                   │ [Submit]            │
+                                   │                    │
+                                   │ Shared by: Agent X  │
+                                   │ Phone: +256...      │
+                                   └────────────────────┘
+                                          │
+                                          ▼
+                                   Edge Function:
+                                   submit-tenant-form
+                                   ─ validate token
+                                   ─ validate fields
+                                   ─ insert supporter_invites
+                                     (role='tenant', status='pending')
+                                   ─ create auth user via register-tenant
 ```
 
-**Portfolio lookup**: One additional query to get portfolio codes:
-```sql
-SELECT id, portfolio_code, account_name, investor_id
-FROM investor_portfolios
-WHERE investor_id IN (:approvedPartnerIds)
-```
+## Changes
 
-**Withdrawal tagging**: When creating proxy withdrawal, include `portfolio_id` and `portfolio_code` in metadata so the FinOps approval queue can trace exactly which portfolio the withdrawal is for.
+### 1. Database: `agent_form_tokens` table (migration)
+Stores shareable tokens per agent with expiry and usage tracking.
 
-## Files changed
-1. `src/components/agent/ProxyPartnerFunds.tsx` — group by portfolio, show per-portfolio cards, tag withdrawals with portfolio ID
-2. `src/components/financial-ops/ApprovalQueue.tsx` — show portfolio ref for ROI payout items
-3. `src/components/executive/PartnerFinancialActivity.tsx` — show portfolio ref in activity rows
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| agent_id | uuid | FK profiles, NOT NULL |
+| token | text | unique, NOT NULL |
+| expires_at | timestamptz | default now() + 72 hours |
+| max_uses | int | default 50 |
+| uses_count | int | default 0 |
+| is_active | boolean | default true |
+| created_at | timestamptz | default now() |
+
+RLS: agents can SELECT/INSERT their own tokens. Public can SELECT (for validation in edge function, but edge function uses service role anyway).
+
+### 2. Edge Function: `submit-tenant-form`
+New edge function (`supabase/functions/submit-tenant-form/index.ts`):
+- **No auth required** (public endpoint)
+- Validates token exists, not expired, not exceeded max uses
+- Validates form fields (full_name, phone, national_id, rent_amount, property_address)
+- Looks up agent profile for the footer data return
+- Calls existing `register-tenant` logic internally (create auth user + profile)
+- Inserts into `supporter_invites` with `role='tenant'`, `source='shared_form'`, `created_by=agent_id`
+- Increments `uses_count` on the token
+- Returns success with tenant ID
+
+### 3. New Page: `src/pages/RegisterTenantPublic.tsx`
+Public page at `/register-tenant` route:
+- Reads `agent` and `token` from URL params
+- Fetches agent name/phone from a lightweight edge function call (or embed in token validation response)
+- Shows branded form: Full Name, Phone, National ID, Rent Amount, Property/Unit Address
+- Footer: "This form was shared by: **Agent Name** · Phone: +256..."
+- Submit calls `submit-tenant-form` edge function
+- Success screen with confirmation
+- Welile branding throughout
+
+### 4. Agent Dashboard: "Share Tenant Form" button
+In `AgentDashboard.tsx` and/or `AgentMenuDrawer`:
+- Add "Share Tenant Form" action
+- On click: calls edge function to generate token → builds URL → triggers native share or clipboard copy
+- Pattern matches existing funder/sub-agent share link flow
+
+### 5. Edge Function: `generate-tenant-form-token`
+Lightweight function:
+- Requires auth (agent must be logged in)
+- Creates row in `agent_form_tokens`
+- Returns the shareable URL
+
+### 6. Route Registration
+Add `<Route path="/register-tenant" element={<RegisterTenantPublic />} />` in `App.tsx` (public, no RoleGuard).
+
+### 7. Visibility in Tenant Ops
+Submissions via shared form already land in `supporter_invites` with `role='tenant'` and `status='pending'`, which existing tenant operations flows can pick up. The `source` metadata distinguishes shared-form submissions from agent-direct registrations.
+
+## Files Changed
+1. **Migration** — create `agent_form_tokens` table with RLS
+2. `supabase/functions/generate-tenant-form-token/index.ts` — token generation (auth required)
+3. `supabase/functions/submit-tenant-form/index.ts` — public form submission handler
+4. `src/pages/RegisterTenantPublic.tsx` — public tenant registration form page
+5. `src/App.tsx` — add `/register-tenant` route
+6. `src/components/dashboards/AgentDashboard.tsx` — add share button + state
+7. `src/components/agent/AgentMenuDrawer.tsx` — add "Share Tenant Form" menu item
 
