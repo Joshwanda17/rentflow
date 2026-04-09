@@ -47,8 +47,12 @@ interface FullScreenWalletSheetProps {
 export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSheetProps) {
   const navigate = useNavigate();
   const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { profile } = useProfile();
+  const isAgent = role === 'agent';
+  const { commissionBalance } = useAgentBalances();
+  const displayBalance = isAgent ? commissionBalance : (wallet?.balance || 0);
+  const balanceLabel = isAgent ? 'Commission Balance' : 'Available Balance';
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
