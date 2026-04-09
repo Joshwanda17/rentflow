@@ -12,6 +12,9 @@ interface PartnerBalance {
   partnerId: string;
   partnerName: string;
   partnerPhone: string;
+  portfolioId: string | null;
+  portfolioCode: string | null;
+  accountName: string | null;
   totalReturns: number;
   totalWithdrawn: number;
   available: number;
@@ -28,6 +31,14 @@ interface LedgerCredit {
   amount: number;
   direction: string;
   category: string;
+  source_id: string | null;
+}
+
+interface PortfolioInfo {
+  id: string;
+  portfolio_code: string | null;
+  account_name: string | null;
+  investor_id: string;
 }
 
 export function ProxyPartnerFunds() {
@@ -38,6 +49,7 @@ export function ProxyPartnerFunds() {
   const [profiles, setProfiles] = useState<Record<string, { full_name: string; phone: string }>>({});
   const [ledgerCredits, setLedgerCredits] = useState<LedgerCredit[]>([]);
   const [completedWithdrawals, setCompletedWithdrawals] = useState<any[]>([]);
+  const [portfolios, setPortfolios] = useState<PortfolioInfo[]>([]);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [prefillAmount, setPrefillAmount] = useState<number>(0);
   const [prefillReason, setPrefillReason] = useState('');
@@ -71,36 +83,42 @@ export function ProxyPartnerFunds() {
         setProfiles({});
         setLedgerCredits([]);
         setCompletedWithdrawals([]);
+        setPortfolios([]);
         setPartnerWithdrawalStatus({});
         setLoading(false);
         return;
       }
 
-      // Step 2: Fetch profiles, actual ledger credits (roi_payout), completed withdrawals, and active withdrawal requests
-      const [profileRes, ledgerRes, completedRes, activeWithdrawalRes] = await Promise.all([
+      // Step 2: Fetch profiles, ledger credits (with source_id), completed withdrawals, active withdrawals, and portfolios
+      const [profileRes, ledgerRes, completedRes, activeWithdrawalRes, portfolioRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
           .in('id', approvedIds),
-        // Actual approved ROI entries from the ledger for this agent (both cash_in and cash_out for corrections)
+        // Actual approved ROI entries from the ledger for this agent (include source_id for portfolio mapping)
         supabase
           .from('general_ledger')
-          .select('user_id, linked_party, amount, direction, category')
+          .select('user_id, linked_party, amount, direction, category, source_id')
           .eq('user_id', user.id)
           .in('category', ['roi_payout', 'balance_correction']),
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, amount, status, reason')
+          .select('linked_party, amount, status, reason, metadata')
           .eq('user_id', user.id)
           .eq('status', 'completed')
           .not('linked_party', 'is', null),
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, status, reason')
+          .select('linked_party, status, reason, metadata')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
+        // Portfolios for approved partners
+        supabase
+          .from('investor_portfolios')
+          .select('id, portfolio_code, account_name, investor_id')
+          .in('investor_id', approvedIds),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -110,11 +128,24 @@ export function ProxyPartnerFunds() {
       setProfiles(profileMap);
       setLedgerCredits((ledgerRes.data || []) as LedgerCredit[]);
       setCompletedWithdrawals((completedRes.data || []).filter(w => approvedIds.includes(w.linked_party)));
+      setPortfolios((portfolioRes.data || []) as PortfolioInfo[]);
 
-      // Build active withdrawal status map
+      // Build active withdrawal status map keyed by partnerId-portfolioId
       const statusMap: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
+        const meta = (w.metadata || {}) as Record<string, any>;
+        const portfolioKey = meta.portfolio_id
+          ? `${w.linked_party}-${meta.portfolio_id}`
+          : w.linked_party;
+
         if (w.linked_party && approvedIds.includes(w.linked_party)) {
+          if (portfolioKey) {
+            const existing = statusMap[portfolioKey];
+            if (!existing || w.status === 'pending') {
+              statusMap[portfolioKey] = w.status;
+            }
+          }
+          // Also set partner-level status for backward compat
           const existing = statusMap[w.linked_party];
           if (!existing || w.status === 'pending') {
             statusMap[w.linked_party] = w.status;
@@ -142,14 +173,39 @@ export function ProxyPartnerFunds() {
     }
   };
 
+  // Build a map of portfolio id -> portfolio info
+  const portfolioMap = useMemo(() => {
+    const map: Record<string, PortfolioInfo> = {};
+    portfolios.forEach(p => { map[p.id] = p; });
+    return map;
+  }, [portfolios]);
+
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
-    return approvedPartnerIds
-      .map((partnerId) => {
-        // Sum only actual approved ROI credits from the ledger for this partner
-        const partnerEntries = ledgerCredits.filter(
-          (entry) => entry.linked_party === partnerId
-        );
-        const totalReturns = partnerEntries.reduce(
+    // Group ledger entries by (linked_party, source_id)
+    const groupMap: Record<string, { partnerId: string; portfolioId: string | null; entries: LedgerCredit[] }> = {};
+
+    ledgerCredits.forEach((entry) => {
+      if (!entry.linked_party || !approvedPartnerIds.includes(entry.linked_party)) return;
+      const key = `${entry.linked_party}-${entry.source_id || 'no_portfolio'}`;
+      if (!groupMap[key]) {
+        groupMap[key] = { partnerId: entry.linked_party, portfolioId: entry.source_id, entries: [] };
+      }
+      groupMap[key].entries.push(entry);
+    });
+
+    // Group completed withdrawals by (linked_party, metadata.portfolio_id)
+    const withdrawalsByKey: Record<string, number> = {};
+    completedWithdrawals.forEach(w => {
+      const meta = (w.metadata || {}) as Record<string, any>;
+      const key = meta.portfolio_id
+        ? `${w.linked_party}-${meta.portfolio_id}`
+        : `${w.linked_party}-no_portfolio`;
+      withdrawalsByKey[key] = (withdrawalsByKey[key] || 0) + (Number(w.amount) || 0);
+    });
+
+    return Object.values(groupMap)
+      .map((group) => {
+        const totalReturns = group.entries.reduce(
           (sum, entry) => {
             const amt = Number(entry.amount) || 0;
             return entry.direction === 'cash_out' ? sum - amt : sum + amt;
@@ -157,16 +213,19 @@ export function ProxyPartnerFunds() {
           0
         );
 
-        // Calculate completed withdrawals for this partner
-        const partnerWithdrawals = completedWithdrawals.filter(w => w.linked_party === partnerId);
-        const totalWithdrawn = partnerWithdrawals.reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
-
+        const key = `${group.partnerId}-${group.portfolioId || 'no_portfolio'}`;
+        const totalWithdrawn = withdrawalsByKey[key] || 0;
         const available = Math.max(0, totalReturns - totalWithdrawn);
 
+        const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
+
         return {
-          partnerId,
-          partnerName: profiles[partnerId]?.full_name || 'Unknown Partner',
-          partnerPhone: profiles[partnerId]?.phone || '',
+          partnerId: group.partnerId,
+          partnerName: profiles[group.partnerId]?.full_name || 'Unknown Partner',
+          partnerPhone: profiles[group.partnerId]?.phone || '',
+          portfolioId: group.portfolioId,
+          portfolioCode: pInfo?.portfolio_code || null,
+          accountName: pInfo?.account_name || null,
           totalReturns,
           totalWithdrawn,
           available,
@@ -178,12 +237,16 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedPartnerIds, ledgerCredits, completedWithdrawals, profiles]);
+  }, [approvedPartnerIds, ledgerCredits, completedWithdrawals, profiles, portfolioMap]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
     setPrefillAmount(partner.available);
-    setPrefillReason(`Proxy payout delivery for ${partner.partnerName}`);
+
+    const portfolioLabel = partner.portfolioCode
+      ? ` (Portfolio: ${partner.accountName || partner.portfolioCode})`
+      : '';
+    setPrefillReason(`Proxy payout delivery for ${partner.partnerName}${portfolioLabel}`);
     setWithdrawOpen(true);
 
     try {
@@ -194,6 +257,9 @@ export function ProxyPartnerFunds() {
         metadata: {
           partner_id: partner.partnerId,
           partner_name: partner.partnerName,
+          portfolio_id: partner.portfolioId,
+          portfolio_code: partner.portfolioCode,
+          account_name: partner.accountName,
           amount: partner.available,
           agent_id: user?.id,
         },
@@ -207,8 +273,17 @@ export function ProxyPartnerFunds() {
     loadProxyFunds();
   };
 
-  const getStatusBadge = (partnerId: string) => {
-    const status = partnerWithdrawalStatus[partnerId];
+  const getStatusKey = (partner: PartnerBalance) => {
+    if (partner.portfolioId) {
+      const portfolioKey = `${partner.partnerId}-${partner.portfolioId}`;
+      if (partnerWithdrawalStatus[portfolioKey]) return portfolioKey;
+    }
+    return partner.partnerId;
+  };
+
+  const getStatusBadge = (partner: PartnerBalance) => {
+    const key = getStatusKey(partner);
+    const status = partnerWithdrawalStatus[key];
     if (!status) return null;
 
     if (status === 'pending') {
@@ -257,15 +332,25 @@ export function ProxyPartnerFunds() {
       </p>
 
       {partnerBalances.map((partner) => {
-        const hasPending = !!partnerWithdrawalStatus[partner.partnerId];
-        const statusBadge = getStatusBadge(partner.partnerId);
+        const statusKey = getStatusKey(partner);
+        const hasPending = !!partnerWithdrawalStatus[statusKey];
+        const statusBadge = getStatusBadge(partner);
+        const cardKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
 
         return (
-          <Card key={partner.partnerId} className="border-border/50 shadow-sm">
+          <Card key={cardKey} className="border-border/50 shadow-sm">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
+                  {(partner.portfolioCode || partner.accountName) && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      📁 {partner.accountName || partner.portfolioCode}
+                      {partner.portfolioCode && partner.accountName ? (
+                        <span className="text-[10px] text-muted-foreground/60 ml-1">({partner.portfolioCode})</span>
+                      ) : null}
+                    </p>
+                  )}
                   {partner.partnerPhone && (
                     <p className="text-xs text-muted-foreground">{partner.partnerPhone}</p>
                   )}
@@ -313,7 +398,7 @@ export function ProxyPartnerFunds() {
                   disabled
                 >
                   <Clock className="h-4 w-4" />
-                  Withdrawal {partnerWithdrawalStatus[partner.partnerId] === 'pending' ? 'Pending Approval' : 'Processing'}
+                  Withdrawal {partnerWithdrawalStatus[statusKey] === 'pending' ? 'Pending Approval' : 'Processing'}
                 </Button>
               )}
 

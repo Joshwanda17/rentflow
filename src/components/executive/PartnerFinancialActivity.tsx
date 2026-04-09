@@ -146,6 +146,15 @@ export function PartnerFinancialActivity() {
         || op.operation_type?.replace(/_/g, ' ')
         || '—';
 
+      // Build description with portfolio ref for ROI payouts
+      let description = meta.reason || meta.pay_mode || op.operation_type?.replace(/_/g, ' ') || '—';
+      if (type === 'Payout' && (op as any).source_id) {
+        const portfolioRef = meta.portfolio_code || (op as any).source_id?.slice(0, 8);
+        if (portfolioRef) {
+          description = `ROI payout · Portfolio: ${portfolioRef}`;
+        }
+      }
+
       result.push({
         type,
         partner_name: partnerName,
@@ -153,7 +162,7 @@ export function PartnerFinancialActivity() {
         status: op.status || 'pending',
         date: op.created_at,
         reference: op.id?.slice(0, 8) || '—',
-        description: meta.reason || meta.pay_mode || op.operation_type?.replace(/_/g, ' ') || '—',
+        description,
       });
     });
 
