@@ -1,56 +1,61 @@
 
 
-# Fix: Proxy Partner Balance — Remove Per-Group Clamping, Aggregate at Partner Level
+# Fix: Agent Split Balances RPC — Production-Grade
 
-## Problem
+## Summary
+Apply two critical refinements to the `get_agent_split_balances` RPC: clamp commission to never go negative, and use explicit direction mapping with `ELSE 0` safety.
 
-Line 206 does `Math.max(0, returns)` per `source_id` group, which silently zeroes out correction entries that landed in different groups than the entries they correct. This inflates balances (e.g., 49M instead of 750K).
+## Database Migration
 
-## Fix (Frontend — `src/components/agent/ProxyPartnerFunds.tsx`)
+Replace `get_agent_split_balances` with the user's provided production-ready version:
 
-### Step 1: Compute partner-level net balance (source of truth)
+**Key changes from previous proposal:**
+1. **`GREATEST(0, raw_commission_balance)`** — commission can never be negative; any overshoot absorbs into float
+2. **`ELSE 0` fallback** — unknown directions don't silently corrupt totals
+3. **Removed `agent_commission_payout`** from commission credits (it's a payout, not earnings)
+4. **`raw_commission_balance`** intermediate alias for clarity
 
-Replace the current `partnerTotals` calculation (lines 203-207) with a simple sum of ALL entries per `linked_party` — no grouping by `source_id`, no clamping:
-
+```sql
+CREATE OR REPLACE FUNCTION public.get_agent_split_balances(p_agent_id UUID)
+RETURNS TABLE(float_balance NUMERIC, commission_balance NUMERIC)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  WITH totals AS (
+    SELECT
+      COALESCE(SUM(
+        CASE
+          WHEN direction IN ('credit', 'cash_in') THEN amount
+          WHEN direction IN ('debit', 'cash_out') THEN -amount
+          ELSE 0
+        END
+      ), 0) AS total_balance,
+      COALESCE(SUM(
+        CASE
+          WHEN category IN (
+            'agent_commission_earned', 'agent_commission',
+            'agent_bonus', 'referral_bonus', 'proxy_investment_commission'
+          ) AND direction IN ('credit', 'cash_in') THEN amount
+          WHEN category IN (
+            'agent_commission_withdrawal',
+            'agent_commission_used_for_rent',
+            'tenant_default_charge'
+          ) AND direction IN ('debit', 'cash_out') THEN -amount
+          ELSE 0
+        END
+      ), 0) AS raw_commission_balance
+    FROM general_ledger
+    WHERE user_id = p_agent_id AND ledger_scope = 'wallet'
+  )
+  SELECT
+    total_balance - GREATEST(0, raw_commission_balance) AS float_balance,
+    GREATEST(0, raw_commission_balance) AS commission_balance
+  FROM totals;
+$$;
 ```
-partnerNet[partnerId] = SUM(credits) - SUM(debits)  // all categories, all source_ids
-```
 
-Then subtract completed withdrawals:
+## No Frontend Changes
+`useAgentBalances.ts` already reads `float_balance` and `commission_balance` from this RPC — no code changes needed.
 
-```
-partnerAvailable[partnerId] = Math.max(0, partnerNet - totalWithdrawn)
-```
-
-Single clamp, at the final partner total only.
-
-### Step 2: Portfolio display is cosmetic only
-
-For positive-net portfolio groups, distribute the capped `partnerAvailable` proportionally for display:
-
-```
-proportion = max(0, groupNet) / sumOfPositiveGroups
-displayAmount = partnerAvailable * proportion
-```
-
-Negative or zero groups are simply not displayed — they don't contribute to the total but they also don't get clamped to zero and added.
-
-### Step 3: Remove all per-group `Math.max(0, ...)` calls
-
-- Line 206: `Math.max(0, returns)` → remove
-- Line 221: `Math.max(0, totalReturns)` → remove  
-- Line 223: `Math.max(0, totalReturns - totalWithdrawn)` → replaced by partner-level available distributed proportionally
-
-### What changes
-
-| Before | After |
-|--------|-------|
-| Each group clamped to 0 independently | Partner-level sum, single clamp at end |
-| Corrections in wrong group = invisible | All corrections always counted |
-| 49M + 0 + 0 + 1.5M = 50.5M | 49M - 48M - 1.7M + 1.5M = 750K |
-
-### File changed
-- `src/components/agent/ProxyPartnerFunds.tsx` — rewrite `partnerBalances` useMemo (lines 183-245)
-
-No database migration needed.
+## Files Changed
+- 1 new migration file only
 
