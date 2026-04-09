@@ -242,13 +242,23 @@ Deno.serve(async (req) => {
         full_name: finalFullName,
         phone: invite.phone,
         email: finalEmail,
-        referrer_id: invite.created_by,
         verified: true,
       }, { onConflict: 'id' });
     if (profileError) {
       console.error("[activate-supporter] Profile upsert error:", profileError);
     } else {
       console.log("[activate-supporter] Profile ensured for user:", userId);
+
+      if (invite.created_by) {
+        const { error: referrerLinkError } = await adminClient
+          .from("profiles")
+          .update({ referrer_id: invite.created_by })
+          .eq("id", userId);
+
+        if (referrerLinkError) {
+          console.error("[activate-supporter] Referrer link error:", referrerLinkError);
+        }
+      }
     }
 
     // Ensure wallet exists
@@ -364,16 +374,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Supporter referral tracking (not bonus - that's handled by profile trigger → referrals trigger)
+    if (invite.created_by) {
+      const referralBonus = isSubAgent ? 0 : 500;
+
+      const { error: referralError } = await adminClient
+        .from("referrals")
+        .upsert({
+          referrer_id: invite.created_by,
+          referred_id: userId,
+          bonus_amount: referralBonus,
+          credited: referralBonus > 0,
+        }, { onConflict: 'referred_id' });
+
+      if (referralError) {
+        console.error("[activate-supporter] Referral upsert error:", referralError);
+      }
+    }
+
     if (userRole === 'supporter') {
       await adminClient.from("supporter_referrals").insert({
         referrer_id: invite.created_by, referred_id: userId, bonus_amount: 500,
       });
     }
-
-    // Note: General referral + wallet bonus is handled automatically by the
-    // credit_referral_bonus trigger on profiles (inserts into referrals table)
-    // which then fires credit_signup_referral_bonus to credit the referrer's wallet.
 
     const roleLabels: Record<string, string> = {
       tenant: 'Tenant', agent: 'Agent', supporter: 'Supporter', landlord: 'Landlord',
