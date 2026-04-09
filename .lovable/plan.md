@@ -1,30 +1,40 @@
 
 
-# Harden RPC Idempotency — Final Tightening
+# Fix Empty String Reference ID — Final Hardening
 
-## Changes
+## Problem
+
+Line 256 of the current `create_ledger_transaction` RPC:
+
+```sql
+COALESCE(idempotency_key, entry->>'reference_id', '')
+```
+
+When both `idempotency_key` and `entry->>'reference_id'` are NULL, this defaults to `''` (empty string). All keyless transactions then share the same `reference_id = ''`, which means:
+- Advisory lock on `hashtext('')` would serialize **all** keyless transactions against each other
+- The idempotency SELECT could match unrelated transactions
+
+## Current State (Already Correct)
+
+- **Lock order**: Advisory lock fires BEFORE the SELECT lookup (lines 154-155) — no change needed
+- **Deterministic ORDER BY**: Already present — no change needed
+
+## Change
 
 ### 1 database migration
 
-Update `create_ledger_transaction` with two small fixes:
-
-**a) NULL key guard** — already present (`IF idempotency_key IS NOT NULL`), no change needed.
-
-**b) Deterministic lookup** — add `ORDER BY created_at ASC` to the existing idempotency SELECT:
+Replace the empty-string fallback with NULL:
 
 ```sql
--- Line 36-39 becomes:
-SELECT transaction_group_id INTO group_id
-FROM public.general_ledger
-WHERE reference_id = idempotency_key
-ORDER BY created_at ASC
-LIMIT 1;
+-- Line 256 changes from:
+COALESCE(idempotency_key, entry->>'reference_id', '')
+-- To:
+COALESCE(idempotency_key, NULLIF(entry->>'reference_id', ''))
 ```
 
-This guarantees a consistent `group_id` is returned even in edge cases where multiple rows share a `reference_id`.
+This ensures:
+- With a key → deterministic idempotency (lock + dedup)
+- Without a key → `reference_id = NULL`, no collision, independent execution
 
-## Scope
-
-- Single migration, single function change (one line added)
-- No edge function or trigger changes
+Single line change in the RPC function body. No other files affected.
 
