@@ -52,7 +52,9 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
   const [approvePaymentRef, setApprovePaymentRef] = useState('');
 
   const selectedMethodMeta = PAYMENT_METHOD_OPTIONS.find(m => m.value === approvePaymentMethod);
-  const canConfirmApproval = approvePaymentMethod !== '' && approvePaymentRef.trim().length >= 4;
+  const canConfirmApproval = requirePaymentRef
+    ? (approvePaymentMethod !== '' && approvePaymentRef.trim().length >= 4)
+    : approvePaymentMethod !== '';
 
   const openApproveDialog = (opId: string) => {
     setApproveOpId(opId);
