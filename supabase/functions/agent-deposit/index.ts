@@ -222,17 +222,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check agent's wallet balance first
-    const { data: agentWalletCheck } = await adminClient
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', agentId)
-      .maybeSingle();
+    // Check agent's FLOAT balance (not total wallet) via split balances RPC
+    const { data: splitBalances, error: splitErr } = await adminClient.rpc('get_agent_split_balances', {
+      p_agent_id: agentId,
+    });
 
-    const agentBalance = agentWalletCheck?.balance || 0;
-    if (agentBalance < amount) {
+    if (splitErr) {
+      console.error('[agent-deposit] Split balance RPC error:', splitErr);
       return new Response(
-        JSON.stringify({ error: `Insufficient wallet balance. You have UGX ${agentBalance.toLocaleString()} but need UGX ${amount.toLocaleString()}` }),
+        JSON.stringify({ error: 'Failed to check agent float balance' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
+    const agentFloatBalance = Number(balRow?.float_balance ?? 0);
+    if (agentFloatBalance < amount) {
+      return new Response(
+        JSON.stringify({ error: `Insufficient Float Balance. You have UGX ${agentFloatBalance.toLocaleString()} float but need UGX ${amount.toLocaleString()}. Commission cannot be used for rent payments.` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
