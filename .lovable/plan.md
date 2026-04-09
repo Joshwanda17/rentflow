@@ -1,44 +1,30 @@
 
 
-# CFO Dashboard Data Accuracy Fixes
+# Remove Payment Reference Requirement from COO Withdrawal Approval
 
-## What's broken and why
+## Problem
+The COO withdrawal approval dialog (`COOWithdrawalApprovals.tsx`) currently requires a **Transaction ID** and **Transaction Time** before the COO can approve. This is wrong — the COO's role is operational clearance (business review), not payment execution. Payment references (TID, bank ref) are the responsibility of **Financial Ops** who actually disburse the funds.
 
-1. **Revenue & Cash Flow by Purpose = all zeros**: Queries use `.eq('scope', 'platform')` but the column is `ledger_scope`. Returns empty data.
-2. **Channel Balance Tracker shows zero withdrawals**: Filters by `status = 'completed'` but that status doesn't exist. Real statuses are `approved`, `fin_ops_approved`, `manager_approved`, `rejected`.
-3. **Null providers mapped to Cash**: Inflates Cash channel, makes it unreliable.
+## What we'll change
 
-## What we'll do
+### File: `src/components/coo/COOWithdrawalApprovals.tsx`
 
-### New file: `src/lib/ledgerConstants.ts`
-Create shared constants to prevent future silent bugs:
-```ts
-export const LEDGER_SCOPE = {
-  PLATFORM: 'platform',
-  WALLET: 'wallet',
-  BRIDGE: 'bridge',
-} as const;
+1. **Remove state variables** for `transactionId` and `transactionTime` (lines 45-46)
+2. **Remove Input import** (line 6) and **Label import** (line 8) — no longer needed
+3. **Simplify `handleApprove`** (lines 88-124):
+   - Remove the validation checks for transactionId and transactionTime (lines 90-97)
+   - Remove `transaction_id` and `transaction_time` from the update payload (lines 109-110)
+   - Keep `status: 'approved'`, `coo_approved_at`, `coo_approved_by`, `processed_by`, `processed_at`
+4. **Simplify the approve dialog** (lines 250-293):
+   - Remove the Transaction ID input and Transaction Time input fields entirely
+   - Change dialog title from "Final Approval & Payment" to "Confirm Operations Clearance"
+   - Update description to clarify this is an operational sign-off, not a payment confirmation
+   - Remove the disabled condition checking for transactionId/transactionTime
+   - Change button text from "Approve & Confirm Payment" to "Approve & Forward"
+5. **Update the card button** text from "Approve & Pay" to "Approve" (line 239)
 
-export const FINAL_WITHDRAWAL_STATUSES = ['approved', 'fin_ops_approved'];
-```
-
-### Fix 1: `src/hooks/useCFOOverviewData.ts`
-- Lines 147-148: `.eq('scope', 'platform')` → `.eq('ledger_scope', LEDGER_SCOPE.PLATFORM)` and remove `as any` cast
-- Lines 246-248: Same fix for the cashFlowByPurpose query
-- Line 19 (channel balances query): Change `.eq('status', 'approved')` to `.in('status', FINAL_WITHDRAWAL_STATUSES)`
-- Line 306: `mapProvider` — null provider returns `'Unassigned'` instead of `'Cash'`
-- Add `'Unassigned'` to channels object initialization
-
-### Fix 2: `src/components/cfo/ChannelBalanceTracker.tsx`
-- Line 38: Change `.eq('status', 'completed')` to `.in('status', FINAL_WITHDRAWAL_STATUSES)`
-- Add an `'Unassigned'` channel entry with a warning indicator
-- When Unassigned channel has balance > 0, show a small alert badge for CFO attention
-
-### Why channel balances stay on request tables (for now)
-The `general_ledger` has no `channel` or `provider` column. Channel-level cash tracking requires the `deposit_requests.provider` and `withdrawal_requests.mobile_money_provider` fields. Migrating this to ledger requires a schema change (adding a `channel` column to `general_ledger`) — that's a separate, larger initiative.
+The COO approval simply moves the withdrawal to `approved` status, after which Financial Ops handles the actual disbursement and records payment references.
 
 ## Files changed
-1. `src/lib/ledgerConstants.ts` — new, shared constants
-2. `src/hooks/useCFOOverviewData.ts` — fix column name, withdrawal statuses, null provider mapping
-3. `src/components/cfo/ChannelBalanceTracker.tsx` — fix withdrawal status filter, add Unassigned channel with alert
+1. `src/components/coo/COOWithdrawalApprovals.tsx` — remove payment reference fields from approval dialog
 
