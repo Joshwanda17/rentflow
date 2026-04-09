@@ -386,14 +386,6 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                     <span className="text-muted-foreground">Landlord gets</span>
                     <span className="font-semibold">{formatUGX(monthlyRent)}/month</span>
                   </div>
-                  <div className="flex justify-between text-xs mt-1">
-                    <span className="text-muted-foreground">Access fee (33%)</span>
-                    <span>{formatUGX(pricing.accessFee)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs mt-1">
-                    <span className="text-muted-foreground">Platform fee</span>
-                    <span>{formatUGX(pricing.platformFee)}</span>
-                  </div>
                   <div className="border-t border-success/20 mt-2 pt-2 flex justify-between">
                     <span className="text-sm font-bold text-success">Daily Rate</span>
                     <span className="text-sm font-bold text-success">{formatUGX(pricing.dailyRate)}/day</span>
