@@ -11,7 +11,7 @@ import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
-import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
+
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { COOAgentTracker } from '@/components/coo/COOAgentTracker';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
