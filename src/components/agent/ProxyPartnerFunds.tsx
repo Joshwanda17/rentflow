@@ -216,8 +216,10 @@ export function ProxyPartnerFunds() {
           0
         );
 
-        const key = `${group.partnerId}-${group.portfolioId || 'no_portfolio'}`;
-        const totalWithdrawn = withdrawalsByKey[key] || 0;
+        // Proportionally distribute partner-level withdrawals across portfolios
+        const partnerTotal = partnerTotals[group.partnerId] || 0;
+        const proportion = partnerTotal > 0 ? Math.max(0, totalReturns) / partnerTotal : 0;
+        const totalWithdrawn = Math.round((withdrawalsByPartner[group.partnerId] || 0) * proportion);
         const available = Math.max(0, totalReturns - totalWithdrawn);
 
         const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
