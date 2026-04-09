@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RentPipelineTracker } from './RentPipelineTracker';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,7 +15,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X } from 'lucide-react';
+import { calculateRentRepayment } from '@/lib/rentCalculations';
+import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { AgentProximitySelector } from './AgentProximitySelector';
 
@@ -136,6 +138,138 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   const [processing, setProcessing] = useState(false);
   const [quickProcessingId, setQuickProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const startEditing = useCallback((field: string, currentValue: any) => {
+    setEditingField(field);
+    setEditValue(String(currentValue ?? ''));
+  }, []);
+
+  const cancelEditing = useCallback(() => {
+    setEditingField(null);
+    setEditValue('');
+  }, []);
+
+  const handleFieldSave = useCallback(async (field: string) => {
+    if (!selectedRequest || !user) return;
+    setSavingEdit(true);
+
+    try {
+      let updates: Record<string, any> = {};
+      const isNumber = field !== 'house_category';
+      const newVal = isNumber ? Number(editValue) : editValue;
+
+      if (isNumber && (isNaN(newVal as number) || (newVal as number) <= 0)) {
+        sonnerToast.error('Please enter a valid positive number');
+        setSavingEdit(false);
+        return;
+      }
+
+      if (field === 'rent_amount' || field === 'duration_days') {
+        const rentAmt = field === 'rent_amount' ? (newVal as number) : selectedRequest.rent_amount;
+        const durDays = field === 'duration_days' ? (newVal as number) : selectedRequest.duration_days;
+        const calc = calculateRentRepayment(rentAmt, durDays);
+        updates = {
+          rent_amount: calc.rentAmount,
+          duration_days: calc.durationDays,
+          access_fee: calc.accessFee,
+          request_fee: calc.requestFee,
+          total_repayment: calc.totalRepayment,
+          daily_repayment: calc.dailyRepayment,
+        };
+      } else {
+        updates[field] = newVal;
+      }
+
+      const { error } = await supabase
+        .from('rent_requests')
+        .update(updates)
+        .eq('id', selectedRequest.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setSelectedRequest((prev: any) => prev ? { ...prev, ...updates } : prev);
+      queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'inline_edit_rent_request',
+        table_name: 'rent_requests',
+        record_id: selectedRequest.id,
+        metadata: { field, old_value: selectedRequest[field], new_value: newVal, updates },
+      });
+
+      sonnerToast.success(`${field.replace(/_/g, ' ')} updated`);
+      cancelEditing();
+    } catch (err: any) {
+      sonnerToast.error('Update failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [selectedRequest, user, editValue, queryClient, cancelEditing]);
+
+  const InlineEditableField = ({ field, label, value, prefix, suffix, className }: {
+    field: string; label: string; value: any; prefix?: string; suffix?: string; className?: string;
+  }) => {
+    const isEditing = editingField === field;
+    const isText = field === 'house_category';
+
+    if (isEditing) {
+      return (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <div className="flex items-center gap-1">
+            <Input
+              type={isText ? 'text' : 'number'}
+              inputMode={isText ? 'text' : 'numeric'}
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              className="h-7 text-sm px-2 flex-1"
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleFieldSave(field);
+                if (e.key === 'Escape') cancelEditing();
+              }}
+            />
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="h-6 w-6 min-h-0 min-w-0 text-primary"
+              onClick={() => handleFieldSave(field)}
+              disabled={savingEdit}
+            >
+              {savingEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="h-6 w-6 min-h-0 min-w-0 text-muted-foreground"
+              onClick={cancelEditing}
+              disabled={savingEdit}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-0.5 group cursor-pointer" onClick={() => startEditing(field, value)}>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="flex items-center gap-1">
+          <p className={className || 'font-semibold'}>
+            {prefix}{typeof value === 'number' ? fmt(value) : value}{suffix}
+          </p>
+          <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </div>
+    );
+  };
 
   // Quick approve directly from list — no dialog needed
   const handleQuickApprove = async (req: any, e: React.MouseEvent) => {
@@ -504,31 +638,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                     <p className="text-xs text-muted-foreground mt-0.5">✉️ {selectedRequest.agent_email}</p>
                   )}
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Rent Amount</p>
-                  <p className="font-bold text-base">UGX {fmt(selectedRequest.rent_amount)}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Duration</p>
-                  <p className="font-semibold">{selectedRequest.duration_days} days</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Access Fee</p>
-                  <p className="font-semibold">UGX {fmt(selectedRequest.access_fee)}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Daily Repayment</p>
-                  <p className="font-bold text-base text-primary">UGX {fmt(selectedRequest.daily_repayment)}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Total Repayment</p>
-                  <p className="font-semibold">UGX {fmt(selectedRequest.total_repayment)}</p>
-                </div>
+                <InlineEditableField field="rent_amount" label="Rent Amount" value={selectedRequest.rent_amount} prefix="UGX " className="font-bold text-base" />
+                <InlineEditableField field="duration_days" label="Duration" value={selectedRequest.duration_days} suffix=" days" />
+                <InlineEditableField field="access_fee" label="Access Fee" value={selectedRequest.access_fee} prefix="UGX " />
+                <InlineEditableField field="daily_repayment" label="Daily Repayment" value={selectedRequest.daily_repayment} prefix="UGX " className="font-bold text-base text-primary" />
+                <InlineEditableField field="total_repayment" label="Total Repayment" value={selectedRequest.total_repayment} prefix="UGX " />
                 {selectedRequest.house_category && (
-                  <div className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground">House Category</p>
-                    <p className="font-semibold">{selectedRequest.house_category}</p>
-                  </div>
+                  <InlineEditableField field="house_category" label="House Category" value={selectedRequest.house_category} />
                 )}
                 {selectedRequest.request_city && (
                   <div className="space-y-0.5">
