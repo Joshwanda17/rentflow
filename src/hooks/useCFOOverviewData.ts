@@ -290,6 +290,133 @@ export function useCFOOverviewData() {
     staleTime: STALE_TIME,
   });
 
+  // TODAY's cash flow from general_ledger
+  const todayCashFlow = useQuery({
+    queryKey: ['cfo-overview-today'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const { data: entries } = await supabase
+        .from('general_ledger')
+        .select('amount, direction')
+        .gte('created_at', `${todayStr}T00:00:00`)
+        .lt('created_at', `${todayStr}T23:59:59.999`);
+
+      let cashInToday = 0;
+      let cashOutToday = 0;
+
+      ((entries as any[]) || []).forEach((e) => {
+        const amt = Number(e.amount);
+        if (e.direction === 'cash_in') cashInToday += amt;
+        else if (e.direction === 'cash_out') cashOutToday += amt;
+      });
+
+      return {
+        cashInToday,
+        cashOutToday,
+        netToday: cashInToday - cashOutToday,
+      };
+    },
+    staleTime: 60_000, // 1 minute for today's data
+  });
+
+  // Ledger integrity diagnostics
+  const integrityChecks = useQuery({
+    queryKey: ['cfo-overview-integrity'],
+    queryFn: async () => {
+      // 1. Wallet vs Ledger drift: compare wallets.balance vs ledger net per user
+      const { data: wallets } = await supabase
+        .from('wallets')
+        .select('user_id, balance');
+
+      const { data: ledgerEntries } = await supabase
+        .from('general_ledger')
+        .select('user_id, amount, direction')
+        .eq('ledger_scope', 'wallet');
+
+      // Build ledger balances per user
+      const ledgerBalances: Record<string, number> = {};
+      ((ledgerEntries as any[]) || []).forEach((e) => {
+        if (!e.user_id) return;
+        if (!ledgerBalances[e.user_id]) ledgerBalances[e.user_id] = 0;
+        const amt = Number(e.amount);
+        if (e.direction === 'cash_in') ledgerBalances[e.user_id] += amt;
+        else if (e.direction === 'cash_out') ledgerBalances[e.user_id] -= amt;
+      });
+
+      let walletDriftCount = 0;
+      (wallets || []).forEach((w) => {
+        const ledgerBal = ledgerBalances[w.user_id] ?? 0;
+        const diff = Math.abs(Number(w.balance) - ledgerBal);
+        if (diff > 100) walletDriftCount++;
+      });
+
+      // 2. Missing transaction_group_id in last 7 days
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { data: recentEntries } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_group_id')
+        .gte('created_at', sevenDaysAgo);
+
+      const missingGroupCount = ((recentEntries as any[]) || []).filter(
+        (e) => !e.transaction_group_id
+      ).length;
+
+      // 3. Negative ledger balances per user (wallet scope)
+      let negativeLedgerCount = 0;
+      Object.values(ledgerBalances).forEach((bal) => {
+        if (bal < 0) negativeLedgerCount++;
+      });
+
+      return {
+        walletDriftCount,
+        missingGroupCount,
+        negativeLedgerCount,
+      };
+    },
+    staleTime: STALE_TIME,
+  });
+
+  // Pending approvals from pending_wallet_operations
+  const pendingApprovals = useQuery({
+    queryKey: ['cfo-overview-pending-approvals'],
+    queryFn: async () => {
+      const { data, count } = await supabase
+        .from('pending_wallet_operations')
+        .select('amount', { count: 'exact' })
+        .eq('status', 'pending');
+
+      const totalAmount = (data || []).reduce(
+        (sum, d) => sum + Number(d.amount || 0),
+        0
+      );
+
+      return {
+        count: count ?? data?.length ?? 0,
+        totalAmount,
+      };
+    },
+    staleTime: 60_000,
+  });
+
+  // Treasury controls
+  const treasuryControls = useQuery({
+    queryKey: ['cfo-treasury-controls'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('treasury_controls' as any)
+        .select('*');
+
+      const controls: Record<string, boolean> = {};
+      ((data as any[]) || []).forEach((row: any) => {
+        controls[row.control_key] = row.enabled;
+      });
+
+      return controls;
+    },
+    staleTime: 60_000,
+  });
+
   const isLoading =
     channelBalances.isLoading || liabilities.isLoading || revenue.isLoading || moneyFlow.isLoading || receivables.isLoading || cashFlowByPurpose.isLoading;
 
@@ -300,6 +427,11 @@ export function useCFOOverviewData() {
     moneyFlow: moneyFlow.data,
     receivables: receivables.data,
     cashFlowByPurpose: cashFlowByPurpose.data,
+    todayCashFlow: todayCashFlow.data,
+    integrityChecks: integrityChecks.data,
+    pendingApprovals: pendingApprovals.data,
+    treasuryControls: treasuryControls.data,
+    refetchControls: treasuryControls.refetch,
     isLoading,
   };
 }
