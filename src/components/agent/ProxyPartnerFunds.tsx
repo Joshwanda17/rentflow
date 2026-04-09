@@ -193,14 +193,17 @@ export function ProxyPartnerFunds() {
       groupMap[key].entries.push(entry);
     });
 
-    // Group completed withdrawals by (linked_party, metadata.portfolio_id)
-    const withdrawalsByKey: Record<string, number> = {};
+    // Group completed withdrawals by linked_party (portfolio-level tracking will apply to new withdrawals)
+    const withdrawalsByPartner: Record<string, number> = {};
     completedWithdrawals.forEach(w => {
-      const meta = (w.metadata || {}) as Record<string, any>;
-      const key = meta.portfolio_id
-        ? `${w.linked_party}-${meta.portfolio_id}`
-        : `${w.linked_party}-no_portfolio`;
-      withdrawalsByKey[key] = (withdrawalsByKey[key] || 0) + (Number(w.amount) || 0);
+      withdrawalsByPartner[w.linked_party] = (withdrawalsByPartner[w.linked_party] || 0) + (Number(w.amount) || 0);
+    });
+
+    // Distribute withdrawals across portfolios proportionally
+    const partnerTotals: Record<string, number> = {};
+    Object.values(groupMap).forEach(g => {
+      const returns = g.entries.reduce((s, e) => s + (e.direction === 'cash_out' ? -Number(e.amount) : Number(e.amount)), 0);
+      partnerTotals[g.partnerId] = (partnerTotals[g.partnerId] || 0) + Math.max(0, returns);
     });
 
     return Object.values(groupMap)
