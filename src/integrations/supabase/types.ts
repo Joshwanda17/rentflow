@@ -10098,6 +10098,10 @@ export type Database = {
         }
         Returns: Json
       }
+      validate_treasury_action: {
+        Args: { action_type: string; p_amount: number; p_user_id?: string }
+        Returns: boolean
+      }
       verify_staff_access_password: {
         Args: { p_password: string; p_user_id: string }
         Returns: Json
