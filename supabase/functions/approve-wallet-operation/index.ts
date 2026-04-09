@@ -148,24 +148,50 @@ Deno.serve(async (req) => {
             ? 'bridge'
             : 'wallet';
 
-        const { error: ledgerErr } = await adminClient
-          .from("general_ledger")
-          .insert({
-            user_id: ledgerUserId,
-            amount: op.amount,
-            direction: op.direction,
-            category: op.category,
-            description: isManaged
-              ? `[Managed Payout] ${op.description || ''} — on behalf of partner ${op.user_id}`
-              : op.description,
-            source_table: op.source_table,
-            source_id: op.source_id,
-            transaction_group_id: effectiveTxGroupId,
-            linked_party: isManaged ? op.user_id : op.linked_party,
-            reference_id: op.reference_id,
-            account: op.account,
-            ledger_scope: scopeForCategory,
-          });
+        // Insert into general_ledger via RPC
+        const { data: rpcTxGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+          entries: JSON.stringify([
+            {
+              user_id: ledgerUserId,
+              amount: op.amount,
+              direction: op.direction,
+              category: op.category === 'supporter_platform_rewards' ? 'roi_wallet_credit'
+                : op.category === 'agent_commission_payout' ? 'agent_commission_earned'
+                : op.category === 'platform_expense_disbursement' ? 'system_balance_correction'
+                : op.category === 'salary_payment' ? 'system_balance_correction'
+                : op.category === 'employee_advance' ? 'system_balance_correction'
+                : op.category === 'agent_requisition' ? 'system_balance_correction'
+                : op.category === 'supporter_facilitation_capital' ? 'partner_funding'
+                : op.category === 'wallet_to_investment' ? 'partner_funding'
+                : op.category === 'rent_payment_for_tenant' ? 'agent_float_used_for_rent'
+                : op.category,
+              ledger_scope: scopeForCategory,
+              description: isManaged
+                ? `[Managed Payout] ${op.description || ''} — on behalf of partner ${op.user_id}`
+                : op.description,
+              source_table: op.source_table,
+              source_id: op.source_id,
+              linked_party: isManaged ? op.user_id : op.linked_party,
+              reference_id: op.reference_id,
+              account: op.account,
+              currency: 'UGX',
+              transaction_date: new Date().toISOString(),
+            },
+            {
+              direction: op.direction === 'cash_in' ? 'cash_out' : 'cash_in',
+              amount: op.amount,
+              category: op.category === 'supporter_platform_rewards' ? 'roi_expense'
+                : op.category === 'supporter_facilitation_capital' ? 'partner_funding'
+                : 'system_balance_correction',
+              ledger_scope: 'platform',
+              description: `Platform contra for ${op.category}`,
+              source_table: op.source_table,
+              source_id: op.source_id,
+              currency: 'UGX',
+              transaction_date: new Date().toISOString(),
+            },
+          ]),
+        });
 
         if (ledgerErr) {
           console.error(`[approve-wallet-op] Ledger insert failed for ${op.id}:`, ledgerErr);
@@ -220,20 +246,34 @@ Deno.serve(async (req) => {
                 const advTxGroupId = crypto.randomUUID();
                 const today = new Date().toISOString().split('T')[0];
 
-                const { error: advLedgerErr } = await adminClient
-                  .from("general_ledger")
-                  .insert({
-                    user_id: op.user_id,
-                    amount: deductAmount,
-                    direction: "cash_out",
-                    category: "advance_repayment",
-                    source_table: "agent_advances",
-                    source_id: advance.id,
-                    transaction_group_id: advTxGroupId,
-                    description: `Auto advance repayment (${Math.round(ADVANCE_REPAYMENT_RATIO * 100)}% of deposit) from wallet deposit (Ref: ${op.reference_id || op.id})`,
-                    reference_id: op.id,
-                    transaction_date: new Date().toISOString(),
-                  });
+                const { error: advLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
+                  entries: JSON.stringify([
+                    {
+                      user_id: op.user_id,
+                      amount: deductAmount,
+                      direction: 'cash_out',
+                      category: 'agent_repayment',
+                      ledger_scope: 'wallet',
+                      source_table: 'agent_advances',
+                      source_id: advance.id,
+                      description: `Auto advance repayment (${Math.round(ADVANCE_REPAYMENT_RATIO * 100)}% of deposit) from wallet deposit (Ref: ${op.reference_id || op.id})`,
+                      reference_id: op.id,
+                      currency: 'UGX',
+                      transaction_date: new Date().toISOString(),
+                    },
+                    {
+                      direction: 'cash_in',
+                      amount: deductAmount,
+                      category: 'agent_repayment',
+                      ledger_scope: 'platform',
+                      source_table: 'agent_advances',
+                      source_id: advance.id,
+                      description: `Platform receives advance repayment`,
+                      currency: 'UGX',
+                      transaction_date: new Date().toISOString(),
+                    },
+                  ]),
+                });
 
                 if (advLedgerErr) {
                   console.error(`[approve-wallet-op] Advance ledger insert failed for advance ${advance.id}:`, advLedgerErr);
@@ -315,21 +355,38 @@ Deno.serve(async (req) => {
                   );
 
                   if (!repaymentErr) {
-                    const txGroupId = crypto.randomUUID();
-                    await adminClient.from("general_ledger").insert({
-                      user_id: op.user_id,
-                      amount: repaymentAmount,
-                      direction: "cash_out",
-                      category: "rent_repayment",
-                      source_table: "pending_wallet_operations",
-                      source_id: op.id,
-                      reference_id: op.reference_id || op.id,
-                      transaction_group_id: txGroupId,
-                      description: `Auto rent deduction from wallet deposit (Ref: ${op.reference_id || 'N/A'})`,
-      currency: 'UGX',
-                      linked_party: activeRentRequest.id,
-                      transaction_date: new Date().toISOString(),
+                    const { error: rentLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
+                      entries: JSON.stringify([
+                        {
+                          user_id: op.user_id,
+                          amount: repaymentAmount,
+                          direction: 'cash_out',
+                          category: 'tenant_repayment',
+                          ledger_scope: 'wallet',
+                          source_table: 'pending_wallet_operations',
+                          source_id: op.id,
+                          reference_id: op.reference_id || op.id,
+                          description: `Auto rent deduction from wallet deposit (Ref: ${op.reference_id || 'N/A'})`,
+                          currency: 'UGX',
+                          linked_party: activeRentRequest.id,
+                          transaction_date: new Date().toISOString(),
+                        },
+                        {
+                          direction: 'cash_in',
+                          amount: repaymentAmount,
+                          category: 'tenant_repayment',
+                          ledger_scope: 'platform',
+                          source_table: 'pending_wallet_operations',
+                          source_id: op.id,
+                          description: `Platform receives rent repayment`,
+                          currency: 'UGX',
+                          transaction_date: new Date().toISOString(),
+                        },
+                      ]),
                     });
+                    if (rentLedgerErr) {
+                      console.error(`[approve-wallet-op] Rent ledger RPC failed:`, rentLedgerErr.message);
+                    } else {
 
                     const newOutstanding = outstanding - repaymentAmount;
                     console.log(`[approve-wallet-op] Auto-deducted UGX ${repaymentAmount} for rent repayment. Remaining: ${newOutstanding}. Tenant: ${op.user_id}`);
