@@ -649,23 +649,22 @@ async function chargeAgent(
   tenantName: string,
   tenantPhone: string,
 ): Promise<boolean> {
-  // Check agent wallet balance (read only — no direct updates)
-  const { data: agentWallet, error: awErr } = await supabase
-    .from("wallets")
-    .select("balance")
-    .eq("user_id", charge.agent_id)
-    .single();
+  // Check agent's COMMISSION balance specifically (72h grace = commission usage)
+  const { data: splitBalances, error: splitErr } = await supabase.rpc('get_agent_split_balances', {
+    p_agent_id: charge.agent_id,
+  });
 
-  if (awErr || !agentWallet) {
-    console.error(`[auto-charge-wallets] No wallet for agent ${charge.agent_id}`);
+  if (splitErr || !splitBalances) {
+    console.error(`[auto-charge-wallets] Split balance RPC error for agent ${charge.agent_id}:`, splitErr);
     return false;
   }
 
-  const agentBalance = Number(agentWallet.balance);
-  const description = `Tenant default: ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace`;
+  const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
+  const commissionBalance = Number(balRow?.commission_balance ?? 0);
+  const description = `Tenant default (commission): ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace [used_commission_for_rent=true]`;
 
-  if (agentBalance < shortfall) {
-    console.log(`[auto-charge-wallets] Agent ${charge.agent_id} insufficient (${agentBalance} < ${shortfall})`);
+  if (commissionBalance < shortfall) {
+    console.log(`[auto-charge-wallets] Agent ${charge.agent_id} insufficient commission (${commissionBalance} < ${shortfall})`);
 
     // Record liability in ledger for the shortfall
     await supabase.from("general_ledger").insert({
@@ -690,12 +689,12 @@ async function chargeAgent(
     .from("wallets")
     .upsert({ user_id: charge.agent_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
-  // Ledger-first: insert debit entry — trigger handles balance
+  // Ledger-first: insert debit entry with commission-specific category — trigger handles balance
   const { error: ledgerErr } = await supabase.from("general_ledger").insert({
     user_id: charge.agent_id,
     amount: shortfall,
     direction: "cash_out",
-    category: "tenant_default_charge",
+    category: "agent_commission_used_for_rent",
     source_table: "subscription_charges",
     source_id: charge.id,
     description,
