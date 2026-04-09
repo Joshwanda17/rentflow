@@ -411,6 +411,26 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             });
           }
         }}
+        onShareTenantForm={async () => {
+          setMenuOpen(false);
+          try {
+            const { toast } = await import('sonner');
+            toast.info('Generating shareable link...');
+            const { data, error } = await supabase.functions.invoke('generate-tenant-form-token', {});
+            if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to generate link');
+            const tenantFormLink = `${getPublicOrigin()}/register-tenant?agent=${user.id}&token=${data.token}`;
+            const shareText = `Register as a Welile tenant using this form: ${tenantFormLink}`;
+            if (navigator.share) {
+              navigator.share({ title: 'Tenant Registration', text: shareText, url: tenantFormLink }).catch(() => {});
+            } else {
+              await navigator.clipboard.writeText(tenantFormLink);
+              toast.success('Tenant registration link copied!');
+            }
+          } catch (err: any) {
+            const { toast } = await import('sonner');
+            toast.error(err.message || 'Failed to generate link');
+          }
+        }}
       />
 
       {/* Existing Dialogs */}
