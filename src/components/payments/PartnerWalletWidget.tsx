@@ -36,20 +36,15 @@ export default function PartnerWalletWidget({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Balances */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="p-3 bg-background/50 rounded-lg text-center">
-              <p className="text-xs text-muted-foreground">Available</p>
-              <p className="text-sm font-bold">{formatCurrency(availableBalance, 'UGX')}</p>
-            </div>
-            <div className="p-3 bg-background/50 rounded-lg text-center">
-              <p className="text-xs text-muted-foreground">Contributed</p>
-              <p className="text-sm font-bold text-blue-600">{formatCurrency(lockedBalance, 'UGX')}</p>
-            </div>
-            <div className="p-3 bg-background/50 rounded-lg text-center">
-              <p className="text-xs text-muted-foreground">Rewards Earned</p>
-              <p className="text-sm font-bold text-emerald-600">+{formatCurrency(roiEarned, 'UGX')}</p>
-            </div>
+          {/* Primary balance */}
+          <div className="p-4 bg-background/50 rounded-lg text-center">
+            <p className="text-xs text-muted-foreground mb-1">Total Balance</p>
+            <p className="text-2xl font-bold">{formatCurrency(availableBalance, 'UGX')}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Contributed: <span className="font-medium text-blue-600">{formatCurrency(lockedBalance, 'UGX')}</span>
+              {' · '}
+              Rewards: <span className="font-medium text-emerald-600">+{formatCurrency(roiEarned, 'UGX')}</span>
+            </p>
           </div>
 
           {/* Action buttons */}
