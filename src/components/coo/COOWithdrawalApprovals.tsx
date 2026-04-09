@@ -219,7 +219,7 @@ export function COOWithdrawalApprovals() {
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Approve & Pay
+                        Approve
                       </Button>
                     </div>
                   </div>
