@@ -287,17 +287,41 @@ Deno.serve(async (req) => {
 
         // === TENANT CAN PAY: charge them, clear grace period ===
         if (hasSufficientFunds) {
-          const newBalance = walletBalance - chargeAmount;
-          const { error: deductError } = await supabase
-            .from("wallets")
-            .update({ balance: newBalance, updated_at: now.toISOString() })
-            .eq("user_id", charge.tenant_id);
+          // Deduct via RPC — trigger handles wallet balance
+          const { error: deductErr } = await supabase.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                user_id: charge.tenant_id,
+                amount: chargeAmount,
+                direction: "cash_out",
+                category: "tenant_repayment",
+                source_table: "subscription_charges",
+                source_id: charge.id,
+                description: `Auto-charge: ${charge.frequency} rent instalment for ${tenantName}`,
+                currency: 'UGX',
+                ledger_scope: "wallet",
+              },
+              {
+                user_id: null,
+                amount: chargeAmount,
+                direction: "cash_in",
+                category: "tenant_repayment",
+                source_table: "subscription_charges",
+                source_id: charge.id,
+                description: `Tenant repayment received: ${tenantName}`,
+                currency: 'UGX',
+                ledger_scope: "platform",
+              },
+            ]),
+          });
 
-          if (deductError) {
-            console.error(`[auto-charge-wallets] Deduct error for ${charge.tenant_id}:`, deductError);
+          if (deductErr) {
+            console.error(`[auto-charge-wallets] RPC deduct error for ${charge.tenant_id}:`, deductErr);
             results.errors.push(`${charge.id}: Deduction failed`);
             continue;
           }
+
+          const newBalance = walletBalance - chargeAmount;
 
           // NOTE: Ledger entries now handled by sync_collection_to_ledger trigger
           // which fires on subscription_charge_logs insert and splits proportionally
@@ -400,14 +424,34 @@ Deno.serve(async (req) => {
 
         if (tenantPartial > 0) {
           amountDeducted = tenantPartial;
+          // Deduct partial via RPC — trigger handles wallet balance
+          await supabase.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                user_id: charge.tenant_id,
+                amount: tenantPartial,
+                direction: "cash_out",
+                category: "tenant_repayment",
+                source_table: "subscription_charges",
+                source_id: charge.id,
+                description: `Partial auto-charge: ${tenantName} (${tenantPartial} of ${chargeAmount})`,
+                currency: 'UGX',
+                ledger_scope: "wallet",
+              },
+              {
+                user_id: null,
+                amount: tenantPartial,
+                direction: "cash_in",
+                category: "tenant_repayment",
+                source_table: "subscription_charges",
+                source_id: charge.id,
+                description: `Partial tenant repayment received: ${tenantName}`,
+                currency: 'UGX',
+                ledger_scope: "platform",
+              },
+            ]),
+          });
           const newBalance = walletBalance - tenantPartial;
-          await supabase.from("wallets")
-            .update({ balance: newBalance, updated_at: now.toISOString() })
-            .eq("user_id", charge.tenant_id);
-
-          // NOTE: Ledger entries now handled by sync_collection_to_ledger trigger
-          // which fires on subscription_charge_logs insert and splits proportionally
-        }
 
         const shortfall = chargeAmount - tenantPartial;
 
@@ -666,19 +710,33 @@ async function chargeAgent(
   if (commissionBalance < shortfall) {
     console.log(`[auto-charge-wallets] Agent ${charge.agent_id} insufficient commission (${commissionBalance} < ${shortfall})`);
 
-    // Record liability in ledger for the shortfall
-    await supabase.from("general_ledger").insert({
-      user_id: charge.agent_id,
-      amount: shortfall,
-      direction: "cash_out",
-      category: "agent_liability",
-      source_table: "subscription_charges",
-      source_id: charge.id,
-      description: `Agent guarantor liability — insufficient commission. ${description}`,
-      linked_party: `${tenantName} (${tenantPhone})`,
-      transaction_date: new Date().toISOString(),
-      currency: 'UGX',
-      role_type: 'agent',
+    // Record liability via RPC
+    await supabase.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: charge.agent_id,
+          amount: shortfall,
+          direction: "cash_out",
+          category: "system_balance_correction",
+          source_table: "subscription_charges",
+          source_id: charge.id,
+          description: `Agent guarantor liability — insufficient commission. ${description}`,
+          linked_party: `${tenantName} (${tenantPhone})`,
+          currency: 'UGX',
+          ledger_scope: "wallet",
+        },
+        {
+          user_id: null,
+          amount: shortfall,
+          direction: "cash_in",
+          category: "system_balance_correction",
+          source_table: "subscription_charges",
+          source_id: charge.id,
+          description: `Agent liability recorded for tenant default: ${tenantName}`,
+          currency: 'UGX',
+          ledger_scope: "platform",
+        },
+      ]),
     });
 
     return false;
@@ -689,19 +747,33 @@ async function chargeAgent(
     .from("wallets")
     .upsert({ user_id: charge.agent_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
-  // Ledger-first: insert debit entry with commission-specific category — trigger handles balance
-  const { error: ledgerErr } = await supabase.from("general_ledger").insert({
-    user_id: charge.agent_id,
-    amount: shortfall,
-    direction: "cash_out",
-    category: "agent_commission_used_for_rent",
-    source_table: "subscription_charges",
-    source_id: charge.id,
-    description,
-    linked_party: `${tenantName} (${tenantPhone})`,
-    transaction_date: new Date().toISOString(),
-    currency: 'UGX',
-    role_type: 'agent',
+  // Ledger-first via RPC: commission-specific category — trigger handles balance
+  const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
+    entries: JSON.stringify([
+      {
+        user_id: charge.agent_id,
+        amount: shortfall,
+        direction: "cash_out",
+        category: "agent_commission_used_for_rent",
+        source_table: "subscription_charges",
+        source_id: charge.id,
+        description,
+        linked_party: `${tenantName} (${tenantPhone})`,
+        currency: 'UGX',
+        ledger_scope: "wallet",
+      },
+      {
+        user_id: null,
+        amount: shortfall,
+        direction: "cash_in",
+        category: "agent_commission_used_for_rent",
+        source_table: "subscription_charges",
+        source_id: charge.id,
+        description: `Agent commission collected for tenant default: ${tenantName}`,
+        currency: 'UGX',
+        ledger_scope: "platform",
+      },
+    ]),
   });
 
   if (ledgerErr) {
