@@ -451,7 +451,8 @@ Deno.serve(async (req) => {
               },
             ]),
           });
-          const newBalance = walletBalance - tenantPartial;
+        }
+        const newBalance = walletBalance - amountDeducted;
 
         const shortfall = chargeAmount - tenantPartial;
 
