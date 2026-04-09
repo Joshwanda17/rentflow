@@ -93,19 +93,19 @@ export function AgentWalletHeroCard({
               <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-white/50 mt-1.5">Earned</p>
             </div>
 
-            {/* Wallet — Opens sheet */}
+            {/* Commission — Opens sheet */}
             <button
               onClick={() => { hapticTap(); setShowWallet(true); }}
               className="portfolio-stat-cell-v2 rounded-xl px-1.5 py-3 text-center overflow-hidden hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-center mb-1.5">
-                <Wallet className="h-3.5 w-3.5 text-amber-400/80" />
+                <Wallet className="h-3.5 w-3.5 text-emerald-400/80" />
               </div>
-              <p className="text-sm font-black leading-none text-white truncate" title={formatAmount(walletBalance)}>
-                {formatAmountCompact(walletBalance)}
+              <p className="text-sm font-black leading-none text-white truncate" title={formatAmount(commissionBalance)}>
+                {formatAmountCompact(commissionBalance)}
               </p>
               <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-white/50 mt-1.5 flex items-center justify-center gap-0.5">
-                Wallet
+                Commission
                 <ChevronRight className="h-2.5 w-2.5" />
               </p>
             </button>
