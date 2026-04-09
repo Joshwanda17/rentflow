@@ -11,7 +11,7 @@ import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
 import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
-import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
+
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { COOAgentTracker } from '@/components/coo/COOAgentTracker';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
@@ -34,7 +34,7 @@ interface QuickNavItem {
 
 const quickNavItems: QuickNavItem[] = [
   { id: 'rent-approvals', label: 'Rent Approvals', icon: ClipboardList, color: 'bg-blue-500/10 text-blue-600 border-blue-500/20', description: 'Review & approve' },
-  { id: 'wallets', label: 'Wallets & Ops', icon: Wallet, color: 'bg-primary/10 text-primary border-primary/20', description: 'Deposits & payouts' },
+  
   { id: 'transactions', label: 'Transactions', icon: BarChart3, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20', description: 'Monitor activity' },
   { id: 'collections', label: 'Collections', icon: Users, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', description: 'Agent reports' },
   { id: 'withdrawals', label: 'Withdrawals', icon: Banknote, color: 'bg-red-500/10 text-red-600 border-red-500/20', description: 'Approve payouts' },
@@ -104,13 +104,6 @@ export default function COODashboardPage() {
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Agent Collections', Users)}
             <AgentCollectionsOverview />
-          </div>
-        );
-      case 'wallets':
-        return (
-          <div className="space-y-3">
-            {isMobile && renderBackButton('Overview')}
-            <FinancialOpsCommandCenter />
           </div>
         );
       case 'agent-activity':
