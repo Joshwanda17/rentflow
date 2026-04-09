@@ -37,7 +37,7 @@ const PAYMENT_METHOD_OPTIONS = [
 
 type ApprovePaymentMethod = typeof PAYMENT_METHOD_OPTIONS[number]['value'] | '';
 
-export function PendingWalletOperationsWidget() {
+export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { requirePaymentRef?: boolean } = {}) {
   const { user } = useAuth();
   const [operations, setOperations] = useState<PendingOperation[]>([]);
   const [loading, setLoading] = useState(true);
