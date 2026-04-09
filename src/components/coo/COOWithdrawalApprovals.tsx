@@ -230,46 +230,24 @@ export function COOWithdrawalApprovals() {
         </CardContent>
       </Card>
 
-      {/* Approve Dialog — requires transaction ID */}
+      {/* Approve Dialog — operations clearance */}
       <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Final Approval & Payment</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Operations Clearance</AlertDialogTitle>
             <AlertDialogDescription>
               Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}. 
-              This will trigger the wallet deduction and confirm payment.
+              This will forward the request to Financial Ops for payment execution.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label>Transaction ID (from MoMo) <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="e.g. TXN123456789"
-                value={transactionId}
-                onChange={e => setTransactionId(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Transaction Time <span className="text-destructive">*</span></Label>
-              <Input
-                type="datetime-local"
-                value={transactionTime}
-                onChange={e => setTransactionTime(e.target.value)}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the exact time from the MoMo payment SMS
-              </p>
-            </div>
-          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
-              disabled={!transactionId.trim() || !transactionTime.trim() || !!processing}
+              disabled={!!processing}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {processing ? 'Processing...' : 'Approve & Confirm Payment'}
+              {processing ? 'Processing...' : 'Approve & Forward'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
