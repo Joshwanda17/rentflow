@@ -71,7 +71,7 @@ export function PartnerFinancialActivity() {
     queryFn: async () => {
       const { data } = await supabase
         .from('pending_wallet_operations')
-        .select('id, operation_type, amount, status, created_at, target_wallet_user_id, metadata, category')
+        .select('id, operation_type, amount, status, created_at, target_wallet_user_id, metadata, category, source_id')
         .order('created_at', { ascending: false })
         .limit(500);
       return data || [];
