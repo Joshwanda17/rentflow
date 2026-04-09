@@ -140,7 +140,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
             <p className="text-xs text-muted-foreground">Available Cash</p>
-            <p className="text-lg font-bold font-mono text-blue-600">{fmt(Math.max(0, totalCash - totalLiabilities))}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-blue-600">{fmt(Math.max(0, totalCash - totalLiabilities))}</p>
           </div>
           <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
             <p className="text-xs text-muted-foreground">Restricted (User Funds)</p>
