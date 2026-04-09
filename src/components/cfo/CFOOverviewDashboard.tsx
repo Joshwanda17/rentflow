@@ -95,14 +95,14 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             onClick={() => onTabChange?.('solvency')}
           />
           <div
-            className={`rounded-2xl border-l-4 border ${solvencyBg} p-4 cursor-pointer hover:shadow-md transition-shadow`}
+            className={`rounded-2xl border-l-4 border ${solvencyBg} p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow`}
             onClick={() => onTabChange?.('solvency')}
           >
             <div className="flex items-center gap-2 mb-1">
               <ShieldAlert className={`h-5 w-5 ${solvencyColor}`} />
               <span className="text-sm font-medium text-muted-foreground">Solvency Ratio</span>
             </div>
-            <p className={`text-2xl font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
+            <p className={`text-base sm:text-2xl font-bold font-mono truncate ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
             <p className="text-xs text-muted-foreground mt-0.5">(Cash + Receivables) / Liabilities</p>
           </div>
         </div>
@@ -120,7 +120,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         )}
         <div className="mb-4">
           <p className="text-sm text-muted-foreground">Total Cash</p>
-          <p className="text-3xl font-bold font-mono">{fmt(totalCash)}</p>
+          <p className="text-xl sm:text-3xl font-bold font-mono truncate">{fmt(totalCash)}</p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           {Object.entries(channels).map(([name, vals]) => {
@@ -131,8 +131,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
                   {channelIcons[name]}
                   <span className="text-sm font-medium">{name}</span>
                 </div>
-                <p className={`text-lg font-bold font-mono ${balance < 0 ? 'text-red-600' : ''}`}>{fmt(balance)}</p>
-                <p className="text-xs text-muted-foreground">In: {fmtShort(vals.deposits)} · Out: {fmtShort(vals.withdrawals)}</p>
+                <p className={`text-base sm:text-lg font-bold font-mono truncate ${balance < 0 ? 'text-red-600' : ''}`}>{fmt(balance)}</p>
+                <p className="text-xs text-muted-foreground truncate">In: {fmtShort(vals.deposits)} · Out: {fmtShort(vals.withdrawals)}</p>
               </div>
             );
           })}
@@ -140,11 +140,11 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
             <p className="text-xs text-muted-foreground">Available Cash</p>
-            <p className="text-lg font-bold font-mono text-blue-600">{fmt(Math.max(0, totalCash - totalLiabilities))}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-blue-600">{fmt(Math.max(0, totalCash - totalLiabilities))}</p>
           </div>
           <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
             <p className="text-xs text-muted-foreground">Restricted (User Funds)</p>
-            <p className="text-lg font-bold font-mono text-yellow-600">{fmt(Math.min(totalCash, totalLiabilities))}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-yellow-600">{fmt(Math.min(totalCash, totalLiabilities))}</p>
           </div>
         </div>
       </SectionCard>
@@ -153,17 +153,17 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <SectionCard title="Assets (Money Expected Back)" icon={<ReceiptText className="h-5 w-5 text-purple-500" />} accent="border-l-purple-500">
         <div className="mb-4">
           <p className="text-sm text-muted-foreground">Total Receivables</p>
-          <p className="text-3xl font-bold font-mono text-purple-600">{fmt(totalReceivables)}</p>
+          <p className="text-xl sm:text-3xl font-bold font-mono truncate text-purple-600">{fmt(totalReceivables)}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
             <p className="text-xs text-muted-foreground">Tenant Outstanding</p>
-            <p className="text-lg font-bold font-mono">{fmt(receivables?.tenantOutstanding ?? 0)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(receivables?.tenantOutstanding ?? 0)}</p>
             <p className="text-xs text-muted-foreground">{pct(receivables?.tenantOutstanding ?? 0, totalReceivables)}% of total</p>
           </div>
           <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
             <p className="text-xs text-muted-foreground">Advances Outstanding</p>
-            <p className="text-lg font-bold font-mono">{fmt(receivables?.advancesOutstanding ?? 0)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(receivables?.advancesOutstanding ?? 0)}</p>
             <p className="text-xs text-muted-foreground">{pct(receivables?.advancesOutstanding ?? 0, totalReceivables)}% of total</p>
           </div>
         </div>
@@ -188,14 +188,14 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
       {/* SECTION 3: Liabilities / User Funds */}
       <SectionCard title="User Funds (Liabilities)" icon={<Wallet className="h-5 w-5 text-yellow-500" />} accent="border-l-yellow-500">
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           {liabilityItems.map((item) => (
             <div key={item.label} className="rounded-xl border bg-muted/30 p-3">
               <div className="flex items-center gap-1.5 mb-1">
                 {item.icon}
                 <span className="text-xs text-muted-foreground">{item.label}</span>
               </div>
-              <p className="text-lg font-bold font-mono">{fmt(item.value)}</p>
+              <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(item.value)}</p>
               <p className="text-xs text-muted-foreground">{pct(item.value, totalLiabilities)}% of total</p>
             </div>
           ))}
@@ -282,7 +282,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         {/* Net Cash Movement */}
         <div className="rounded-xl border bg-indigo-50/50 dark:bg-indigo-950/20 p-4 mb-4">
           <p className="text-xs text-muted-foreground">Net Cash Movement</p>
-          <p className={`text-2xl font-bold font-mono ${(cashFlowByPurpose?.netMovement ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <p className={`text-xl sm:text-2xl font-bold font-mono truncate ${(cashFlowByPurpose?.netMovement ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {fmt(cashFlowByPurpose?.netMovement ?? 0)}
           </p>
         </div>
@@ -348,19 +348,19 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
             <p className="text-xs text-muted-foreground">Cash</p>
-            <p className="text-lg font-bold font-mono text-blue-600">{fmt(totalCash)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-blue-600">{fmt(totalCash)}</p>
           </div>
           <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
             <p className="text-xs text-muted-foreground">Receivables</p>
-            <p className="text-lg font-bold font-mono text-purple-600">{fmt(totalReceivables)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-purple-600">{fmt(totalReceivables)}</p>
           </div>
           <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
             <p className="text-xs text-muted-foreground">Liabilities</p>
-            <p className="text-lg font-bold font-mono text-yellow-600">{fmt(totalLiabilities)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-yellow-600">{fmt(totalLiabilities)}</p>
           </div>
           <div className={`rounded-xl border p-3 ${solvencyBg}`}>
             <p className="text-xs text-muted-foreground">Coverage</p>
-            <p className={`text-lg font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
+            <p className={`text-base sm:text-lg font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
           </div>
         </div>
         <div className={`rounded-xl border p-4 ${solvencyBg}`}>
@@ -424,14 +424,14 @@ function KPICard({ label, value, subtitle, accent, icon, onClick }: {
 }) {
   return (
     <div
-      className={`rounded-2xl border border-border/60 bg-card p-4 border-l-4 ${accent} cursor-pointer hover:shadow-md transition-shadow`}
+      className={`rounded-2xl border border-border/60 bg-card p-3 sm:p-4 border-l-4 ${accent} cursor-pointer hover:shadow-md transition-shadow`}
       onClick={onClick}
     >
       <div className="flex items-center gap-2 mb-1">
         {icon}
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
       </div>
-      <p className="text-2xl font-bold font-mono">{value}</p>
+      <p className="text-base sm:text-2xl font-bold font-mono truncate">{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
     </div>
   );
@@ -457,7 +457,7 @@ function MiniKPI({ label, value, highlight, muted: isMuted }: { label: string; v
   return (
     <div className="rounded-xl border bg-muted/30 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-lg font-bold font-mono ${highlight ? 'text-emerald-600' : isMuted ? 'text-muted-foreground' : ''}`}>{value}</p>
+      <p className={`text-base sm:text-lg font-bold font-mono truncate ${highlight ? 'text-emerald-600' : isMuted ? 'text-muted-foreground' : ''}`}>{value}</p>
     </div>
   );
 }
