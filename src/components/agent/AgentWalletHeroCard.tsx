@@ -54,17 +54,17 @@ export function AgentWalletHeroCard({
           >
             <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-white/60 mb-1.5 flex items-center gap-1.5">
               <Banknote className="h-3 w-3" />
-              Float Balance
+              Total Balance
             </p>
             <div className="flex items-baseline gap-2 min-w-0 w-full">
               <p className="text-[clamp(1.1rem,4.5vw,2.25rem)] font-black tracking-tight leading-none text-white truncate w-full">
-                {formatAmount(floatBalance)}
+                {formatAmount(floatBalance + commissionBalance)}
               </p>
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <Shield className="h-3 w-3 text-emerald-400/70" />
-              <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-white/50">Commission</span>
-              <span className="text-sm font-bold text-emerald-300 ml-auto">{formatAmountCompact(commissionBalance)}</span>
+              <span className="text-[10px] font-medium text-white/50">
+                Withdrawable: {formatAmountCompact(commissionBalance)} · Locked: {formatAmountCompact(floatBalance)}
+              </span>
             </div>
           </button>
 
