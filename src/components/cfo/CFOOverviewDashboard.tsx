@@ -431,7 +431,7 @@ function KPICard({ label, value, subtitle, accent, icon, onClick }: {
         {icon}
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
       </div>
-      <p className="text-2xl font-bold font-mono">{value}</p>
+      <p className="text-base sm:text-2xl font-bold font-mono truncate">{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
     </div>
   );
