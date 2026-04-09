@@ -104,14 +104,14 @@ export function ProxyPartnerFunds() {
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, amount, status, reason, metadata')
+          .select('linked_party, amount, status, reason')
           .eq('user_id', user.id)
           .eq('status', 'completed')
           .not('linked_party', 'is', null),
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, status, reason, metadata')
+          .select('linked_party, status, reason')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
         // Portfolios for approved partners
