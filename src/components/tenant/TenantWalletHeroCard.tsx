@@ -58,12 +58,17 @@ export function TenantWalletHeroCard({
           >
             <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-white/60 mb-1.5 flex items-center gap-1.5">
               <Wallet className="h-3 w-3" />
-              Available Balance
+              Total Balance
             </p>
             <div className="flex items-baseline gap-2 min-w-0 w-full">
               <p className="text-[clamp(1.1rem,4.5vw,2.25rem)] font-black tracking-tight leading-none text-white truncate w-full">
                 {formatAmount(walletBalance)}
               </p>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[10px] font-medium text-white/50">
+                Used for Rent: {formatAmountCompact(rentDue)}
+              </span>
             </div>
             {rentDue > 0 && walletBalance >= rentDue && (
               <div className="flex items-center gap-1.5 mt-2">
