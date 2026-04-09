@@ -95,7 +95,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             onClick={() => onTabChange?.('solvency')}
           />
           <div
-            className={`rounded-2xl border-l-4 border ${solvencyBg} p-4 cursor-pointer hover:shadow-md transition-shadow`}
+            className={`rounded-2xl border-l-4 border ${solvencyBg} p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow`}
             onClick={() => onTabChange?.('solvency')}
           >
             <div className="flex items-center gap-2 mb-1">
