@@ -1,43 +1,50 @@
 
 
-# Remove Bank Reference from COO Wallet Ops Approval Dialog
+# Add Inline Editing to Review Rent Request Dialog
 
 ## Problem
-The "Confirm Approval" dialog in the COO's "Wallets & Ops" tab (rendered by `PendingWalletOperationsWidget` inside `FinancialOpsCommandCenter`) requires both a Payment Method selection and a Bank Reference Number / TID input. The COO should not need to provide payment references — that is Financial Ops' job.
+The "Review Rent Request" dialog in `RentPipelineQueue.tsx` displays financial details (Rent Amount, Duration, Access Fee, Daily Repayment, Total Repayment, House Category) as read-only text. Users need to edit these values directly within the review dialog without opening a separate edit form.
+
+## Approach
+Add a tap-to-edit pattern on the financial fields in the review dialog. Each field shows its current value normally, and when tapped, switches to an inline input. A small "Save" button persists changes to the `rent_requests` table and refreshes the data.
 
 ## What we'll change
 
-### File: `src/components/manager/PendingWalletOperationsWidget.tsx`
+### File: `src/components/executive/RentPipelineQueue.tsx`
 
-This widget is shared across dashboards, so instead of modifying it globally (which would break Financial Ops), we need a different approach. However, since the user said "leave the rest intact" and only remove the reference field, and the screenshot clearly shows this is the same shared component, the simplest fix is:
+1. **Add editing state** — `editingField` (which field is active), `editValue` (current input value), and `savingEdit` (loading state).
 
-**Option chosen**: Add an optional `skipPaymentRef` prop to `PendingWalletOperationsWidget`, then pass it from the COO's usage via `FinancialOpsCommandCenter`.
+2. **Create an `InlineEditableField` sub-component** that renders:
+   - **View mode**: The existing label + value with a subtle pencil icon on tap
+   - **Edit mode**: An `<Input type="number">` with Save/Cancel buttons
 
-Actually, the cleaner approach given "just remove it on COO" is to make the component context-aware. But that's complex. Let me check if there's a simpler path.
+3. **Add a `handleFieldSave` function** that:
+   - Updates the specific field on `rent_requests` via Supabase
+   - Auto-recalculates dependent fields when `rent_amount` or `duration_days` change (using `calculateRentRepayment` from `rentCalculations.ts`)
+   - Invalidates the query cache to refresh the list
+   - Updates `selectedRequest` locally so the dialog reflects the change immediately
+   - Logs an audit trail entry
 
-**Simpler approach**: Since the COO dashboard renders `FinancialOpsCommandCenter` directly, and modifying a shared component risks breaking Financial Ops, the best approach is:
+4. **Apply `InlineEditableField`** to these fields (lines 507-538):
+   - `rent_amount` — Rent Amount
+   - `duration_days` — Duration
+   - `access_fee` — Access Fee
+   - `daily_repayment` — Daily Repayment
+   - `total_repayment` — Total Repayment
+   - `house_category` — House Category (text input, not number)
 
-1. **Add a `requirePaymentRef` prop** (default `true`) to `PendingWalletOperationsWidget`
-2. When `false`: skip the reference input, allow approval with just the payment method selected
-3. **Thread the prop** through `FinancialOpsCommandCenter` 
-4. **Pass `requirePaymentRef={false}`** from the COO Dashboard
+5. **Import** `Pencil` icon from lucide-react and `calculateRentRepayment` from `@/lib/rentCalculations`.
 
-### Files changed
-1. `src/components/manager/PendingWalletOperationsWidget.tsx` — add `requirePaymentRef` prop, conditionally hide reference input, adjust validation
-2. `src/components/financial-ops/FinancialOpsCommandCenter.tsx` — accept and forward `requirePaymentRef` prop
-3. `src/pages/coo/Dashboard.tsx` — pass `requirePaymentRef={false}` to `FinancialOpsCommandCenter`
+### Auto-recalculation logic
+When `rent_amount` or `duration_days` is edited, the save function will recalculate `access_fee`, `total_repayment`, and `daily_repayment` using `calculateRentRepayment()` and include all recalculated fields in the update payload. This ensures financial consistency.
 
-### Details
+### UX details
+- Pencil icon appears on each editable field row
+- Tapping the pencil switches that single field to edit mode
+- Save button confirms; Cancel or blur reverts
+- Toast confirms success or shows error
+- Only one field editable at a time
 
-**PendingWalletOperationsWidget.tsx**:
-- Add `requirePaymentRef?: boolean` prop (default `true`)
-- Change `canConfirmApproval` to only require payment method when `requirePaymentRef` is false
-- Conditionally render the reference input block (lines 431-444) only when `requirePaymentRef` is true
-- When approving without ref, pass empty string for `payment_reference`
-
-**FinancialOpsCommandCenter.tsx**:
-- Accept `requirePaymentRef?: boolean` and forward to `PendingWalletOperationsWidget`
-
-**COO Dashboard.tsx**:
-- `<FinancialOpsCommandCenter requirePaymentRef={false} />`
+## Files changed
+1. `src/components/executive/RentPipelineQueue.tsx` — add inline editing to the review dialog's financial fields
 
