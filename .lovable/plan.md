@@ -1,25 +1,44 @@
-# Allow Proxy Agents to Withdraw Without TID/Payout Details
 
-## Problem
 
-Proxy agents are currently required to select a payout method (MTN, Airtel, Cash) and enter MoMo recipient details before submitting a withdrawal. This is unnecessary friction — Financial Ops should handle payout method selection and TID confirmation during approval.
+# CFO Dashboard Data Accuracy Fixes
 
-## What Changes
+## What's broken and why
 
-### 1. Simplify `AgentProxyWithdrawalDialog.tsx`
+1. **Revenue & Cash Flow by Purpose = all zeros**: Queries use `.eq('scope', 'platform')` but the column is `ledger_scope`. Returns empty data.
+2. **Channel Balance Tracker shows zero withdrawals**: Filters by `status = 'completed'` but that status doesn't exist. Real statuses are `approved`, `fin_ops_approved`, `manager_approved`, `rejected`.
+3. **Null providers mapped to Cash**: Inflates Cash channel, makes it unreliable.
 
-- **Should select**  the payout method selector (MTN / Airtel / Cash buttons)
-- **Put**  the MoMo recipient name and phone number fields
-- **Keep** only: Amount, Reason, and the audit warning
-- Submit the withdrawal request with `payout_method: null` (Financial Ops decides how to pay)
-- Update validation: only require `amount >= 500`, `amount <= walletBalance`, and `reason >= 10 chars`
+## What we'll do
 
-### 2. Update `FinOpsWithdrawalVerification.tsx` — Add Proxy Agent Badge
+### New file: `src/lib/ledgerConstants.ts`
+Create shared constants to prevent future silent bugs:
+```ts
+export const LEDGER_SCOPE = {
+  PLATFORM: 'platform',
+  WALLET: 'wallet',
+  BRIDGE: 'bridge',
+} as const;
 
-- When a withdrawal's `reason` contains `[Agent proxy:]`, show a "Proxy Agent" badge on the card so Financial Ops knows this was submitted by an agent on behalf of a funder
-- The approval dialog already requires payment method + TID/reference — no changes needed there
+export const FINAL_WITHDRAWAL_STATUSES = ['approved', 'fin_ops_approved'];
+```
 
-### Files Changed
+### Fix 1: `src/hooks/useCFOOverviewData.ts`
+- Lines 147-148: `.eq('scope', 'platform')` → `.eq('ledger_scope', LEDGER_SCOPE.PLATFORM)` and remove `as any` cast
+- Lines 246-248: Same fix for the cashFlowByPurpose query
+- Line 19 (channel balances query): Change `.eq('status', 'approved')` to `.in('status', FINAL_WITHDRAWAL_STATUSES)`
+- Line 306: `mapProvider` — null provider returns `'Unassigned'` instead of `'Cash'`
+- Add `'Unassigned'` to channels object initialization
 
-1. `src/components/agent/AgentProxyWithdrawalDialog.tsx` — Remove payout method, MoMo fields, simplify validation
-2. `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — Add proxy agent indicator badge
+### Fix 2: `src/components/cfo/ChannelBalanceTracker.tsx`
+- Line 38: Change `.eq('status', 'completed')` to `.in('status', FINAL_WITHDRAWAL_STATUSES)`
+- Add an `'Unassigned'` channel entry with a warning indicator
+- When Unassigned channel has balance > 0, show a small alert badge for CFO attention
+
+### Why channel balances stay on request tables (for now)
+The `general_ledger` has no `channel` or `provider` column. Channel-level cash tracking requires the `deposit_requests.provider` and `withdrawal_requests.mobile_money_provider` fields. Migrating this to ledger requires a schema change (adding a `channel` column to `general_ledger`) — that's a separate, larger initiative.
+
+## Files changed
+1. `src/lib/ledgerConstants.ts` — new, shared constants
+2. `src/hooks/useCFOOverviewData.ts` — fix column name, withdrawal statuses, null provider mapping
+3. `src/components/cfo/ChannelBalanceTracker.tsx` — fix withdrawal status filter, add Unassigned channel with alert
+
