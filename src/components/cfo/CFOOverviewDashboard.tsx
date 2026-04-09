@@ -102,7 +102,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               <ShieldAlert className={`h-5 w-5 ${solvencyColor}`} />
               <span className="text-sm font-medium text-muted-foreground">Solvency Ratio</span>
             </div>
-            <p className={`text-2xl font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
+            <p className={`text-base sm:text-2xl font-bold font-mono truncate ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
             <p className="text-xs text-muted-foreground mt-0.5">(Cash + Receivables) / Liabilities</p>
           </div>
         </div>
