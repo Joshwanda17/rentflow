@@ -49,6 +49,7 @@ export const LOCKED_CATEGORIES = [
   // Wallet operations
   'wallet_withdrawal',
   'wallet_transfer',
+  'wallet_deduction',
   // System
   'system_balance_correction',
   'orphan_reassignment',
