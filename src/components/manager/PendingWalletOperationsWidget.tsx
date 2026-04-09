@@ -37,7 +37,7 @@ const PAYMENT_METHOD_OPTIONS = [
 
 type ApprovePaymentMethod = typeof PAYMENT_METHOD_OPTIONS[number]['value'] | '';
 
-export function PendingWalletOperationsWidget() {
+export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { requirePaymentRef?: boolean } = {}) {
   const { user } = useAuth();
   const [operations, setOperations] = useState<PendingOperation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,9 @@ export function PendingWalletOperationsWidget() {
   const [approvePaymentRef, setApprovePaymentRef] = useState('');
 
   const selectedMethodMeta = PAYMENT_METHOD_OPTIONS.find(m => m.value === approvePaymentMethod);
-  const canConfirmApproval = approvePaymentMethod !== '' && approvePaymentRef.trim().length >= 4;
+  const canConfirmApproval = requirePaymentRef
+    ? (approvePaymentMethod !== '' && approvePaymentRef.trim().length >= 4)
+    : approvePaymentMethod !== '';
 
   const openApproveDialog = (opId: string) => {
     setApproveOpId(opId);
@@ -428,7 +430,7 @@ export function PendingWalletOperationsWidget() {
               </Select>
             </div>
 
-            {approvePaymentMethod && selectedMethodMeta && (
+            {requirePaymentRef && approvePaymentMethod && selectedMethodMeta && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">{selectedMethodMeta.refLabel}</label>
                 <Input

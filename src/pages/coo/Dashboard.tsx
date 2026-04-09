@@ -110,7 +110,7 @@ export default function COODashboardPage() {
         return (
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
-            <FinancialOpsCommandCenter />
+            <FinancialOpsCommandCenter requirePaymentRef={false} />
           </div>
         );
       case 'agent-activity':

@@ -38,7 +38,7 @@ const tools = [
   { id: 'requisitions' as const, label: 'Fund Requisitions', icon: FileText },
 ];
 
-export function FinancialOpsCommandCenter() {
+export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
   const [view, setView] = useState<View>('home');
   const [toolSheet, setToolSheet] = useState(false);
   const [activeTool, setActiveTool] = useState<Tool>(null);
@@ -85,7 +85,7 @@ export function FinancialOpsCommandCenter() {
               Withdrawals & Payouts
             </h2>
             <FinOpsWithdrawalVerification />
-            <PendingWalletOperationsWidget />
+            <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
             <FloatPayoutVerification />
           </>
         )}
