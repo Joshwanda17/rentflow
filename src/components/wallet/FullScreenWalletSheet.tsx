@@ -26,6 +26,7 @@ import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
@@ -46,8 +47,12 @@ interface FullScreenWalletSheetProps {
 export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSheetProps) {
   const navigate = useNavigate();
   const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { profile } = useProfile();
+  const isAgent = role === 'agent';
+  const { commissionBalance } = useAgentBalances();
+  const displayBalance = isAgent ? commissionBalance : (wallet?.balance || 0);
+  const balanceLabel = isAgent ? 'Commission Balance' : 'Available Balance';
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -170,10 +175,10 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               <Card className="overflow-hidden border-0 shadow-lg">
                 <div className="bg-gradient-to-br from-[hsl(270,80%,55%)] via-[hsl(265,75%,50%)] to-[hsl(280,70%,40%)] p-6 text-center">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
-                    Available Balance
+                    {balanceLabel}
                   </p>
                   <AnimatedBalance 
-                    value={wallet?.balance || 0} 
+                    value={displayBalance} 
                     className="text-[clamp(2rem,9vw,3rem)] font-black text-white tracking-tight block leading-none"
                   />
                   <p className="text-[11px] text-white/50 mt-2 uppercase tracking-widest font-medium">
@@ -407,7 +412,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
       <WithdrawRequestDialog 
         open={withdrawOpen} 
         onOpenChange={setWithdrawOpen} 
-        walletBalance={wallet?.balance || 0}
+        walletBalance={isAgent ? commissionBalance : (wallet?.balance || 0)}
         onSuccess={refreshWallet}
       />
       <TransactionReceipt 
