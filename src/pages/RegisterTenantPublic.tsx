@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +78,29 @@ export default function RegisterTenantPublic() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [lc1Name, setLc1Name] = useState('');
+  const [shownInsight, setShownInsight] = useState(false);
+  const [insightVisible, setInsightVisible] = useState(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showRentInsight = useCallback((amount: string) => {
+    const num = parseFloat(amount);
+    if (!shownInsight && num > 0) {
+      setInsightVisible(true);
+      setShownInsight(true);
+    }
+  }, [shownInsight]);
+
+  const handleRentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setRentAmount(val);
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => showRentInsight(val), 1000);
+  };
+
+  const handleRentBlur = () => {
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    showRentInsight(rentAmount);
+  };
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
   const [guarantorConsent, setGuarantorConsent] = useState(false);
@@ -316,7 +339,30 @@ export default function RegisterTenantPublic() {
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Banknote className="h-4 w-4" /> Rent Details</h2>
           <div className="space-y-2">
             <Label>How much is your rent amount? <span className="text-destructive">*</span></Label>
-            <Input type="number" value={rentAmount} onChange={e => setRentAmount(e.target.value)} placeholder="e.g. 350000" min="0" required />
+            <Input type="number" value={rentAmount} onChange={handleRentChange} onBlur={handleRentBlur} placeholder="e.g. 350000" min="0" required />
+            {insightVisible && parseFloat(rentAmount) > 0 && (
+              <div className="relative mt-2 rounded-lg border border-primary/30 bg-primary/5 p-3 animate-in slide-in-from-top-2 fade-in duration-300">
+                <button
+                  type="button"
+                  onClick={() => setInsightVisible(false)}
+                  className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <p className="text-sm font-semibold text-primary mb-1">💡 Did You Know?</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  If your monthly rent is <span className="font-bold text-foreground">UGX {parseFloat(rentAmount).toLocaleString()}</span>,
+                  you are committing up to:
+                </p>
+                <p className="text-base font-bold text-foreground mt-1">
+                  👉 UGX {(parseFloat(rentAmount) * 12).toLocaleString()} per year
+                </p>
+                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                  That's over <span className="font-semibold text-foreground">{(parseFloat(rentAmount) * 12 / 1000000).toFixed(1)} Million UGX</span> yearly.
+                  We help you spread this into manageable payments based on your income.
+                </p>
+              </div>
+            )}
           </div>
           {incomeType === 'daily' ? (
             <div className="space-y-2">
