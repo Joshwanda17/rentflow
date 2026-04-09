@@ -638,31 +638,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                     <p className="text-xs text-muted-foreground mt-0.5">✉️ {selectedRequest.agent_email}</p>
                   )}
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Rent Amount</p>
-                  <p className="font-bold text-base">UGX {fmt(selectedRequest.rent_amount)}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Duration</p>
-                  <p className="font-semibold">{selectedRequest.duration_days} days</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Access Fee</p>
-                  <p className="font-semibold">UGX {fmt(selectedRequest.access_fee)}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Daily Repayment</p>
-                  <p className="font-bold text-base text-primary">UGX {fmt(selectedRequest.daily_repayment)}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-muted-foreground">Total Repayment</p>
-                  <p className="font-semibold">UGX {fmt(selectedRequest.total_repayment)}</p>
-                </div>
+                <InlineEditableField field="rent_amount" label="Rent Amount" value={selectedRequest.rent_amount} prefix="UGX " className="font-bold text-base" />
+                <InlineEditableField field="duration_days" label="Duration" value={selectedRequest.duration_days} suffix=" days" />
+                <InlineEditableField field="access_fee" label="Access Fee" value={selectedRequest.access_fee} prefix="UGX " />
+                <InlineEditableField field="daily_repayment" label="Daily Repayment" value={selectedRequest.daily_repayment} prefix="UGX " className="font-bold text-base text-primary" />
+                <InlineEditableField field="total_repayment" label="Total Repayment" value={selectedRequest.total_repayment} prefix="UGX " />
                 {selectedRequest.house_category && (
-                  <div className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground">House Category</p>
-                    <p className="font-semibold">{selectedRequest.house_category}</p>
-                  </div>
+                  <InlineEditableField field="house_category" label="House Category" value={selectedRequest.house_category} />
                 )}
                 {selectedRequest.request_city && (
                   <div className="space-y-0.5">
