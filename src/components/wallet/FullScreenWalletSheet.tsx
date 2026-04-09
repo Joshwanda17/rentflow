@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { CompactAmount } from '@/components/ui/CompactAmount';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getDynamicCurrencyName } from '@/lib/currencyFormat';
 import { useNavigate } from 'react-router-dom';
