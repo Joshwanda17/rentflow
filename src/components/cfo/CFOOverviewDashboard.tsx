@@ -188,7 +188,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
       {/* SECTION 3: Liabilities / User Funds */}
       <SectionCard title="User Funds (Liabilities)" icon={<Wallet className="h-5 w-5 text-yellow-500" />} accent="border-l-yellow-500">
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           {liabilityItems.map((item) => (
             <div key={item.label} className="rounded-xl border bg-muted/30 p-3">
               <div className="flex items-center gap-1.5 mb-1">
