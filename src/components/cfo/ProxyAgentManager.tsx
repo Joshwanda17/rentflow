@@ -229,6 +229,19 @@ export function ProxyAgentManager() {
         ))}
       </div>
 
+      {/* Search */}
+      {assignments.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search agent, partner, phone..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+      )}
+
       {/* Table */}
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -236,6 +249,10 @@ export function ProxyAgentManager() {
         <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">
           <Smartphone className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
           No proxy agents assigned. Link agents for landlords/partners without smartphones.
+        </CardContent></Card>
+      ) : filteredAssignments.length === 0 ? (
+        <Card><CardContent className="py-6 text-center text-muted-foreground text-sm">
+          No results for "{searchTerm}"
         </CardContent></Card>
       ) : (
         <Card>
@@ -254,7 +271,7 @@ export function ProxyAgentManager() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {assignments.map((a: any, idx: number) => (
+                {filteredAssignments.map((a: any, idx: number) => (
                   <TableRow key={a.id}>
                     <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
                     <TableCell>
