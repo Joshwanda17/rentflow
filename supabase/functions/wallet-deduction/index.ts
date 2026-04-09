@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
           user_id: target_user_id,
           amount: amount,
           direction: 'cash_out',
-          category: 'system_balance_correction',
+          category: 'wallet_deduction',
           ledger_scope: 'wallet',
           description: `Wallet deduction (${safeCategory}): ${reason}`,
           currency: 'UGX',
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
         {
           direction: 'cash_in',
           amount: amount,
-          category: 'system_balance_correction',
+          category: 'wallet_deduction',
           ledger_scope: 'platform',
           description: `Platform receives deduction (${safeCategory}): ${reason}`,
           currency: 'UGX',
