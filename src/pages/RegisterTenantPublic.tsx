@@ -315,7 +315,7 @@ export default function RegisterTenantPublic() {
         <section className="space-y-3">
           <h2 className="text-sm font-semibold flex items-center gap-1.5"><Banknote className="h-4 w-4" /> Rent Details</h2>
           <div className="space-y-2">
-            <Label>Rent Amount (UGX) <span className="text-destructive">*</span></Label>
+            <Label>How much is your rent amount? <span className="text-destructive">*</span></Label>
             <Input type="number" value={rentAmount} onChange={e => setRentAmount(e.target.value)} placeholder="e.g. 350000" min="0" required />
           </div>
           {incomeType === 'daily' ? (
