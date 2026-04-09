@@ -3,9 +3,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
   Smartphone, Shield,
@@ -42,8 +40,6 @@ export function COOWithdrawalApprovals() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [transactionId, setTransactionId] = useState('');
-  const [transactionTime, setTransactionTime] = useState('');
 
   const { formatAmount: formatCurrency } = useCurrency();
 
@@ -87,17 +83,8 @@ export function COOWithdrawalApprovals() {
 
   const handleApprove = async () => {
     if (!user || !selected) return;
-    if (!transactionId.trim()) {
-      toast.error('Please enter the transaction ID');
-      return;
-    }
-    if (!transactionTime.trim()) {
-      toast.error('Please enter the transaction time');
-      return;
-    }
     setProcessing(selected.id);
     try {
-      // COO final approval — sets status to 'approved' which triggers wallet deduction
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
@@ -106,16 +93,12 @@ export function COOWithdrawalApprovals() {
           coo_approved_by: user.id,
           processed_by: user.id,
           processed_at: new Date().toISOString(),
-          transaction_id: transactionId.trim(),
-          transaction_time: transactionTime.trim(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
-      toast.success('Withdrawal approved & payment confirmed!');
+      toast.success('Withdrawal approved — forwarded to Financial Ops for payment');
       setRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
-      setTransactionId('');
-      setTransactionTime('');
       setSelected(null);
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
@@ -236,7 +219,7 @@ export function COOWithdrawalApprovals() {
                         disabled={!!processing}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Approve & Pay
+                        Approve
                       </Button>
                     </div>
                   </div>
@@ -247,46 +230,24 @@ export function COOWithdrawalApprovals() {
         </CardContent>
       </Card>
 
-      {/* Approve Dialog — requires transaction ID */}
+      {/* Approve Dialog — operations clearance */}
       <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Final Approval & Payment</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Operations Clearance</AlertDialogTitle>
             <AlertDialogDescription>
               Approving <strong>{selected ? formatCurrency(selected.amount) : ''}</strong> for {selected?.user?.full_name}. 
-              This will trigger the wallet deduction and confirm payment.
+              This will forward the request to Financial Ops for payment execution.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label>Transaction ID (from MoMo) <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="e.g. TXN123456789"
-                value={transactionId}
-                onChange={e => setTransactionId(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Transaction Time <span className="text-destructive">*</span></Label>
-              <Input
-                type="datetime-local"
-                value={transactionTime}
-                onChange={e => setTransactionTime(e.target.value)}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the exact time from the MoMo payment SMS
-              </p>
-            </div>
-          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
-              disabled={!transactionId.trim() || !transactionTime.trim() || !!processing}
+              disabled={!!processing}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {processing ? 'Processing...' : 'Approve & Confirm Payment'}
+              {processing ? 'Processing...' : 'Approve & Forward'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
