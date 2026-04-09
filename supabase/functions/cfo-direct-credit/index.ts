@@ -106,51 +106,55 @@ Deno.serve(async (req) => {
     const groupId = crypto.randomUUID();
 
     if (op === "credit") {
-      await adminClient.from("general_ledger").insert([
-        {
-          user_id: target_user_id,
-          amount,
-          direction: "cash_in",
-          type: "cfo_direct_credit",
-          description: `CFO Credit: ${reason}`,
-      currency: 'UGX',
-          transaction_group_id: groupId,
-          ledger_scope: "bridge",
-        },
-        {
-          user_id: null,
-          amount,
-          direction: "cash_out",
-          type: "platform_expense",
-          description: `Platform → ${targetProfile.full_name}: ${reason}`,
-      currency: 'UGX',
-          transaction_group_id: groupId,
-          ledger_scope: "platform",
-        },
-      ]);
+      const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: target_user_id,
+            amount,
+            direction: 'cash_in',
+            category: 'system_balance_correction',
+            ledger_scope: 'wallet',
+            description: `CFO Credit: ${reason}`,
+            currency: 'UGX',
+            transaction_date: new Date().toISOString(),
+          },
+          {
+            direction: 'cash_out',
+            amount,
+            category: 'system_balance_correction',
+            ledger_scope: 'platform',
+            description: `Platform → ${targetProfile.full_name}: ${reason}`,
+            currency: 'UGX',
+            transaction_date: new Date().toISOString(),
+          },
+        ]),
+      });
+      if (rpcErr) throw new Error(`Ledger error: ${rpcErr.message}`);
     } else {
-      await adminClient.from("general_ledger").insert([
-        {
-          user_id: target_user_id,
-          amount,
-          direction: "cash_out",
-          type: "cfo_direct_debit",
-          description: `CFO Debit: ${reason}`,
-      currency: 'UGX',
-          transaction_group_id: groupId,
-          ledger_scope: "bridge",
-        },
-        {
-          user_id: null,
-          amount,
-          direction: "cash_in",
-          type: "platform_income",
-          description: `${targetProfile.full_name} → Platform: ${reason}`,
-      currency: 'UGX',
-          transaction_group_id: groupId,
-          ledger_scope: "platform",
-        },
-      ]);
+      const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: target_user_id,
+            amount,
+            direction: 'cash_out',
+            category: 'system_balance_correction',
+            ledger_scope: 'wallet',
+            description: `CFO Debit: ${reason}`,
+            currency: 'UGX',
+            transaction_date: new Date().toISOString(),
+          },
+          {
+            direction: 'cash_in',
+            amount,
+            category: 'system_balance_correction',
+            ledger_scope: 'platform',
+            description: `${targetProfile.full_name} → Platform: ${reason}`,
+            currency: 'UGX',
+            transaction_date: new Date().toISOString(),
+          },
+        ]),
+      });
+      if (rpcErr) throw new Error(`Ledger error: ${rpcErr.message}`);
     }
 
     // Audit log

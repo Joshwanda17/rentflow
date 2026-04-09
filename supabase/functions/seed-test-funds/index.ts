@@ -101,20 +101,43 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `TST${yy}${mm}${dd}${seq}`;
 
-    // Record in general_ledger (trigger handles wallet balance)
-    const txGroupId = crypto.randomUUID();
-    await adminClient.from("general_ledger").insert({
-      user_id: target_user_id,
-      amount,
-      direction: "cash_in",
-      category: "test_funds_cleanup",
-      source_table: "wallets",
-      description: `Test funds seeded by manager (${user.email})`,
-      currency: 'UGX',
-      reference_id: referenceId,
-      linked_party: user.email || "Manager",
-      transaction_group_id: txGroupId,
+    // Record via RPC (trigger handles wallet balance)
+    const { data: txGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: target_user_id,
+          amount,
+          direction: 'cash_in',
+          category: 'test_funds_cleanup',
+          ledger_scope: 'wallet',
+          source_table: 'wallets',
+          description: `Test funds seeded by manager (${user.email})`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: user.email || 'Manager',
+          transaction_date: new Date().toISOString(),
+        },
+        {
+          direction: 'cash_out',
+          amount,
+          category: 'test_funds_cleanup',
+          ledger_scope: 'platform',
+          source_table: 'wallets',
+          description: `Platform seeded test funds to ${targetProfile.full_name}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          transaction_date: new Date().toISOString(),
+        },
+      ]),
     });
+
+    if (ledgerErr) {
+      console.error("Ledger RPC error:", ledgerErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to record transaction" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify({

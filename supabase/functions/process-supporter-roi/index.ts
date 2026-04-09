@@ -136,37 +136,38 @@ Deno.serve(async (req) => {
             .update({ investment_amount: newAmount })
             .eq('id', reinvestInfo.portfolio_id);
 
-          // Ledger: platform expense for ROI
-          await supabase.from('general_ledger').insert({
-            user_id: null,
-            amount: roiAmount,
-            direction: 'cash_out',
-            category: 'supporter_platform_rewards',
-            source_table: 'supporter_roi_payments',
-            source_id: rr.id,
-            transaction_group_id: txGroupId,
-            description: `ROI payout #${paymentNumber} auto-reinvested into portfolio`,
-      currency: 'UGX',
-            linked_party: 'platform',
-            ledger_scope: 'platform',
-            transaction_date: now.toISOString(),
+          // Balanced ledger via RPC: roi_expense → roi_reinvestment
+          const { error: reinvestLedgerErr } = await supabase.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                direction: 'cash_out',
+                amount: roiAmount,
+                category: 'roi_expense',
+                ledger_scope: 'platform',
+                source_table: 'supporter_roi_payments',
+                source_id: rr.id,
+                description: `ROI payout #${paymentNumber} auto-reinvested into portfolio`,
+                currency: 'UGX',
+                linked_party: 'platform',
+                transaction_date: now.toISOString(),
+              },
+              {
+                user_id: rr.supporter_id,
+                direction: 'cash_in',
+                amount: roiAmount,
+                category: 'roi_reinvestment',
+                ledger_scope: 'platform',
+                source_table: 'investor_portfolios',
+                source_id: reinvestInfo.portfolio_id,
+                description: `Auto-reinvested ROI #${paymentNumber} (${roiAmount.toLocaleString()}) into portfolio`,
+                currency: 'UGX',
+                linked_party: 'platform',
+                transaction_date: now.toISOString(),
+              },
+            ]),
           });
 
-          // Ledger: reinvestment credit (platform scope - not wallet)
-          await supabase.from('general_ledger').insert({
-            user_id: rr.supporter_id,
-            amount: roiAmount,
-            direction: 'cash_in',
-            category: 'investment_reinvestment',
-            source_table: 'investor_portfolios',
-            source_id: reinvestInfo.portfolio_id,
-            transaction_group_id: txGroupId,
-            description: `Auto-reinvested ROI #${paymentNumber} (${roiAmount.toLocaleString()}) into portfolio`,
-      currency: 'UGX',
-            linked_party: 'platform',
-            ledger_scope: 'platform',
-            transaction_date: now.toISOString(),
-          });
+          if (reinvestLedgerErr) throw reinvestLedgerErr;
 
           // Notify supporter
           await supabase.from('notifications').insert({
@@ -181,38 +182,38 @@ Deno.serve(async (req) => {
           reinvestInfo.current_amount = newAmount;
           results.reinvested++;
         } else {
-          // ═══ STANDARD WALLET CREDIT ═══
-          // Debit: Platform expense
-          await supabase.from('general_ledger').insert({
-            user_id: null,
-            amount: roiAmount,
-            direction: 'cash_out',
-            category: 'supporter_platform_rewards',
-            source_table: 'supporter_roi_payments',
-            source_id: rr.id,
-            transaction_group_id: txGroupId,
-            description: `Platform ROI payout #${paymentNumber} to supporter for rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
-      currency: 'UGX',
-            linked_party: 'platform',
-            ledger_scope: 'platform',
-            transaction_date: now.toISOString(),
+          // ═══ STANDARD WALLET CREDIT via RPC ═══
+          const { error: walletLedgerErr } = await supabase.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                direction: 'cash_out',
+                amount: roiAmount,
+                category: 'roi_expense',
+                ledger_scope: 'platform',
+                source_table: 'supporter_roi_payments',
+                source_id: rr.id,
+                description: `Platform ROI payout #${paymentNumber} to supporter for rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
+                currency: 'UGX',
+                linked_party: 'platform',
+                transaction_date: now.toISOString(),
+              },
+              {
+                user_id: rr.supporter_id,
+                direction: 'cash_in',
+                amount: roiAmount,
+                category: 'roi_wallet_credit',
+                ledger_scope: 'wallet',
+                source_table: 'supporter_roi_payments',
+                source_id: rr.id,
+                description: `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
+                currency: 'UGX',
+                linked_party: 'platform',
+                transaction_date: now.toISOString(),
+              },
+            ]),
           });
 
-          // Credit: Supporter wallet (triggers sync_wallet_from_ledger)
-          await supabase.from('general_ledger').insert({
-            user_id: rr.supporter_id,
-            amount: roiAmount,
-            direction: 'cash_in',
-            category: 'supporter_platform_rewards',
-            source_table: 'supporter_roi_payments',
-            source_id: rr.id,
-            transaction_group_id: txGroupId,
-            description: `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
-      currency: 'UGX',
-            linked_party: 'platform',
-            ledger_scope: 'wallet',
-            transaction_date: now.toISOString(),
-          });
+          if (walletLedgerErr) throw walletLedgerErr;
 
           await supabase.from('notifications').insert({
             user_id: rr.supporter_id,

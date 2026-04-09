@@ -64,21 +64,34 @@ Deno.serve(async (req) => {
     const now = new Date().toISOString()
     const landlordName = landlord?.name || 'Unknown'
 
-    // Credit UGX 5,000 landlord verification bonus via ledger
-    const txGroupId = crypto.randomUUID()
-    const { error: ledgerErr } = await serviceClient.from('general_ledger').insert({
-      user_id: agentId,
-      amount: LANDLORD_VERIFICATION_BONUS,
-      direction: 'cash_in',
-      category: 'agent_bonus',
-      source_table: 'rent_requests',
-      source_id: rent_request_id,
-      description: `UGX 5,000 landlord verification bonus – ${landlordName}`,
-      currency: 'UGX',
-      linked_party: request.tenant_id,
-      ledger_scope: 'wallet',
-      transaction_group_id: txGroupId,
-      transaction_date: now,
+    // Credit UGX 5,000 landlord verification bonus via RPC
+    const { data: txGroupId, error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: agentId,
+          amount: LANDLORD_VERIFICATION_BONUS,
+          direction: 'cash_in',
+          category: 'agent_commission_earned',
+          ledger_scope: 'wallet',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `UGX 5,000 landlord verification bonus – ${landlordName}`,
+          currency: 'UGX',
+          linked_party: request.tenant_id,
+          transaction_date: now,
+        },
+        {
+          direction: 'cash_out',
+          amount: LANDLORD_VERIFICATION_BONUS,
+          category: 'agent_commission_earned',
+          ledger_scope: 'platform',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `Platform expense: verification bonus – ${landlordName}`,
+          currency: 'UGX',
+          transaction_date: now,
+        },
+      ]),
     })
 
     if (ledgerErr) throw new Error(`Ledger error: ${ledgerErr.message}`)

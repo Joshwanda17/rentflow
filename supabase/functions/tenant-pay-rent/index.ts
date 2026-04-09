@@ -108,32 +108,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    const txnGroupId = crypto.randomUUID();
-
-    // 1. Insert cash_out ledger entry for tenant wallet deduction
-    const { error: ledgerErr } = await supabaseAdmin
-      .from("general_ledger")
-      .insert({
-        user_id: tenantId,
-        amount: payAmount,
-        direction: "cash_out",
-        category: "rent_payment",
-        source_table: "rent_requests",
-        source_id: rentRequest.id,
-        description: `Rent payment from wallet`,
-      currency: 'UGX',
-        linked_party: rentRequest.landlord_id,
-        reference_id: rentRequest.id,
-        transaction_group_id: txnGroupId,
-      });
+    // 1. Insert balanced ledger entries via RPC
+    const { data: txnGroupId, error: ledgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: tenantId,
+          amount: payAmount,
+          direction: 'cash_out',
+          category: 'tenant_repayment',
+          ledger_scope: 'wallet',
+          source_table: 'rent_requests',
+          source_id: rentRequest.id,
+          description: 'Rent payment from wallet',
+          currency: 'UGX',
+          linked_party: rentRequest.landlord_id,
+          reference_id: rentRequest.id,
+          transaction_date: new Date().toISOString(),
+        },
+        {
+          direction: 'cash_in',
+          amount: payAmount,
+          category: 'tenant_repayment',
+          ledger_scope: 'platform',
+          source_table: 'rent_requests',
+          source_id: rentRequest.id,
+          description: 'Rent payment received from tenant wallet',
+          currency: 'UGX',
+          transaction_date: new Date().toISOString(),
+        },
+      ]),
+    });
 
     if (ledgerErr) {
-      console.error("Ledger insert error:", ledgerErr);
+      console.error("Ledger RPC error:", ledgerErr);
       return new Response(
         JSON.stringify({ error: "Failed to record payment" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const txGroupId = txnGroupId;
 
     // 2. Call record_rent_request_repayment RPC (updates rent_requests, repayments, landlords)
     // Do NOT pass transaction_group_id here — the RPC's ledger entry is audit-only (no wallet trigger)

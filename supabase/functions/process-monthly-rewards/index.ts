@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Call the database function to process rewards
+    // Call the database function to process rewards (already uses RPC internally)
     const { error } = await supabase.rpc("process_monthly_referral_rewards");
 
     if (error) {

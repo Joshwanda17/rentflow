@@ -85,40 +85,36 @@ Deno.serve(async (req) => {
       })
     }
 
-    // APPROVE: Credit agent wallet via ledger as platform expense
-    const txGroupId = crypto.randomUUID()
-
-    // Credit to agent wallet
-    const { error: ledgerErr } = await serviceClient.from('general_ledger').insert({
-      user_id: approval.agent_id,
-      amount: approval.amount,
-      direction: 'cash_in',
-      category: 'platform_expense',
-      source_table: 'listing_bonus_approvals',
-      source_id: approval_id,
-      description: `UGX ${approval.amount.toLocaleString()} house listing bonus (platform expense)`,
-      currency: 'UGX',
-      ledger_scope: 'wallet',
-      transaction_date: now,
-      transaction_group_id: txGroupId,
+    // APPROVE: Credit agent wallet via RPC as balanced entry
+    const { data: txGroupId, error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: approval.agent_id,
+          amount: approval.amount,
+          direction: 'cash_in',
+          category: 'agent_commission_earned',
+          ledger_scope: 'wallet',
+          source_table: 'listing_bonus_approvals',
+          source_id: approval_id,
+          description: `UGX ${approval.amount.toLocaleString()} house listing bonus`,
+          currency: 'UGX',
+          transaction_date: now,
+        },
+        {
+          direction: 'cash_out',
+          amount: approval.amount,
+          category: 'agent_commission_earned',
+          ledger_scope: 'platform',
+          source_table: 'listing_bonus_approvals',
+          source_id: approval_id,
+          description: `Platform expense: agent listing bonus for house registration`,
+          currency: 'UGX',
+          transaction_date: now,
+        },
+      ]),
     })
 
     if (ledgerErr) throw new Error(`Ledger credit failed: ${ledgerErr.message}`)
-
-    // Platform expense entry
-    await serviceClient.from('general_ledger').insert({
-      user_id: approval.agent_id,
-      amount: approval.amount,
-      direction: 'cash_out',
-      category: 'platform_expense',
-      source_table: 'listing_bonus_approvals',
-      source_id: approval_id,
-      description: `Platform expense: agent listing bonus for house registration`,
-      currency: 'UGX',
-      ledger_scope: 'platform',
-      transaction_date: now,
-      transaction_group_id: txGroupId,
-    })
 
     // Update approval record
     await serviceClient

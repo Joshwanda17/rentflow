@@ -95,9 +95,6 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `WCI${yy}${mm}${dd}${seq}`;
 
-    // Generate transaction_group_id for double-entry ledger integrity
-    const txGroupId = crypto.randomUUID();
-
     // Calculate first payout date: strict 30-day cycle from investment date
     const firstPayoutMs = now.getTime() + 30 * 24 * 60 * 60 * 1000;
     const candidate = new Date(firstPayoutMs);
@@ -112,39 +109,42 @@ Deno.serve(async (req) => {
     const partnerProfileRes = await adminClient.from("profiles").select("full_name").eq("id", partner_id).single();
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
 
-    // Record DEBIT in general_ledger (partner cash_out → pool)
-    const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
-      user_id: partner_id,
-      amount,
-      direction: "cash_out",
-      category: "coo_proxy_investment",
-      source_table: "wallets",
-      transaction_group_id: txGroupId,
-      description: `Welile Operations invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
-      currency: 'UGX',
-      reference_id: referenceId,
-      linked_party: "Rent Management Pool",
+    // Record balanced ledger entries via RPC
+    const { data: txGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: partner_id,
+          amount,
+          direction: 'cash_out',
+          category: 'partner_funding',
+          ledger_scope: 'wallet',
+          source_table: 'wallets',
+          description: `Welile Operations invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: 'Rent Management Pool',
+          transaction_date: new Date().toISOString(),
+        },
+        {
+          direction: 'cash_in',
+          amount,
+          category: 'partner_funding',
+          ledger_scope: 'platform',
+          source_table: 'wallets',
+          description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (facilitated by Welile Operations)`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: partnerName,
+          transaction_date: new Date().toISOString(),
+        },
+      ]),
     });
 
     if (ledgerErr) {
-      console.error("[coo-invest-for-partner] Ledger insert failed:", ledgerErr.message);
+      console.error("[coo-invest-for-partner] Ledger RPC failed:", ledgerErr.message);
       return new Response(JSON.stringify({ error: "Failed to record transaction. Please retry." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    // Record CREDIT in general_ledger (pool receives capital)
-    await adminClient.from("general_ledger").insert({
-      user_id: null,
-      amount,
-      direction: "cash_in",
-      category: "pool_capital_received",
-      source_table: "wallets",
-      transaction_group_id: txGroupId,
-      description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (facilitated by Welile Operations)`,
-      currency: 'UGX',
-      reference_id: referenceId,
-      linked_party: partnerName,
-    });
 
     // Generate a 4-digit portfolio PIN for the supporter
     const portfolioPin = String(Math.floor(1000 + Math.random() * 9000));

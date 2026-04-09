@@ -121,31 +121,43 @@ Deno.serve(async (req) => {
 
     const targetName = targetProfile?.full_name || "Unknown";
 
-    // Insert ledger entry (cash_out) with transaction_group_id to trigger sync_wallet_from_ledger
-    const txnGroupId = crypto.randomUUID();
-    const ledgerEntryId = crypto.randomUUID();
-
-    const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
-      id: ledgerEntryId,
-      user_id: target_user_id,
-      amount: amount,
-      direction: "cash_out",
-      category: `wallet_deduction_${safeCategory}`,
-      description: `Wallet deduction (${safeCategory}): ${reason}`,
-      currency: 'UGX',
-      source_table: "wallet_deductions",
-      linked_party: user.id,
-      transaction_group_id: txnGroupId,
-      transaction_date: new Date().toISOString(),
+    // Insert balanced ledger entry via RPC (cash_out from wallet, cash_in to platform)
+    const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: target_user_id,
+          amount: amount,
+          direction: 'cash_out',
+          category: 'system_balance_correction',
+          ledger_scope: 'wallet',
+          description: `Wallet deduction (${safeCategory}): ${reason}`,
+          currency: 'UGX',
+          source_table: 'wallet_deductions',
+          linked_party: user.id,
+          transaction_date: new Date().toISOString(),
+        },
+        {
+          direction: 'cash_in',
+          amount: amount,
+          category: 'system_balance_correction',
+          ledger_scope: 'platform',
+          description: `Platform receives deduction (${safeCategory}): ${reason}`,
+          currency: 'UGX',
+          source_table: 'wallet_deductions',
+          transaction_date: new Date().toISOString(),
+        },
+      ]),
     });
 
     if (ledgerErr) {
-      console.error("Ledger insert error:", ledgerErr);
+      console.error("Ledger RPC error:", ledgerErr);
       return new Response(JSON.stringify({ error: "Failed to record ledger entry" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const ledgerEntryId = txnGroupId;
 
     // Record in wallet_deductions table
     const { error: deductionErr } = await adminClient.from("wallet_deductions").insert({

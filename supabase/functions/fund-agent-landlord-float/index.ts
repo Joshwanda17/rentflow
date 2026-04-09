@@ -120,38 +120,37 @@ Deno.serve(async (req) => {
       notes: `CFO funded rent for landlord ${landlord?.name || 'Unknown'} – Request: ${rent_request_id.slice(0, 8)}`,
     })
 
-    // Record in general ledger — platform cash out to agent float (platform scope)
-    const transactionGroupId = crypto.randomUUID()
-    await serviceClient.from('general_ledger').insert({
-      source_table: 'rent_requests',
-      source_id: rent_request_id,
-      category: 'rent_float_funding',
-      direction: 'cash_out',
-      amount: request.rent_amount,
-      description: `Rent float funded for agent to pay landlord ${landlord?.name || 'Unknown'}. Request: ${rent_request_id.slice(0, 8)}`,
-      currency: 'UGX',
-      user_id: bonusAgentId,
-      linked_party: request.landlord_id,
-      ledger_scope: 'platform',
-      transaction_group_id: transactionGroupId,
-      transaction_date: now,
-    })
-
-    // Bridge ledger entry — visible to agent in their landlord float ledger
-    await serviceClient.from('general_ledger').insert({
-      source_table: 'rent_requests',
-      source_id: rent_request_id,
-      category: 'rent_float_funding',
-      direction: 'cash_in',
-      amount: request.rent_amount,
-      description: `Landlord float credited – ${landlord?.name || 'Unknown'} (UGX ${request.rent_amount.toLocaleString()})`,
-      currency: 'UGX',
-      user_id: bonusAgentId,
-      linked_party: request.landlord_id,
-      ledger_scope: 'bridge',
-      transaction_group_id: transactionGroupId,
-      transaction_date: now,
-    })
+    // Record in general ledger via RPC — platform cash out to agent float
+    const { data: transactionGroupId, error: floatLedgerErr } = await serviceClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          direction: 'cash_out',
+          amount: request.rent_amount,
+          category: 'rent_disbursement',
+          ledger_scope: 'platform',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `Rent float funded for agent to pay landlord ${landlord?.name || 'Unknown'}. Request: ${rent_request_id.slice(0, 8)}`,
+          currency: 'UGX',
+          user_id: bonusAgentId,
+          linked_party: request.landlord_id,
+          transaction_date: now,
+        },
+        {
+          direction: 'cash_in',
+          amount: request.rent_amount,
+          category: 'rent_receivable_created',
+          ledger_scope: 'bridge',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `Landlord float credited – ${landlord?.name || 'Unknown'} (UGX ${request.rent_amount.toLocaleString()})`,
+          currency: 'UGX',
+          user_id: bonusAgentId,
+          linked_party: request.landlord_id,
+          transaction_date: now,
+        },
+      ]),
+    });
 
     // ============================================================
     // AGENT BONUS: UGX 5,000 flat bonus for rent funded
@@ -166,20 +165,33 @@ Deno.serve(async (req) => {
 
     const agentName = agentProfile?.full_name || 'Agent'
 
-    const bonusTxGroupId = crypto.randomUUID()
-    const { error: ledgerErr } = await serviceClient.from('general_ledger').insert({
-      user_id: bonusAgentId,
-      amount: RENT_FUNDED_BONUS,
-      direction: 'cash_in',
-      category: 'agent_bonus',
-      source_table: 'rent_requests',
-      source_id: rent_request_id,
-      description: `UGX 5,000 rent funded bonus – landlord ${landlord?.name || 'Unknown'}`,
-      currency: 'UGX',
-      linked_party: request.tenant_id,
-      ledger_scope: 'wallet',
-      transaction_group_id: bonusTxGroupId,
-      transaction_date: now,
+    const { error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: bonusAgentId,
+          amount: RENT_FUNDED_BONUS,
+          direction: 'cash_in',
+          category: 'agent_commission_earned',
+          ledger_scope: 'wallet',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `UGX 5,000 rent funded bonus – landlord ${landlord?.name || 'Unknown'}`,
+          currency: 'UGX',
+          linked_party: request.tenant_id,
+          transaction_date: now,
+        },
+        {
+          direction: 'cash_out',
+          amount: RENT_FUNDED_BONUS,
+          category: 'agent_commission_earned',
+          ledger_scope: 'platform',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `Platform expense: rent funded bonus`,
+          currency: 'UGX',
+          transaction_date: now,
+        },
+      ]),
     })
 
     if (!ledgerErr) {
