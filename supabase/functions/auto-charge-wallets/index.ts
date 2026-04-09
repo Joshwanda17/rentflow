@@ -37,13 +37,133 @@ async function sendTenantSMS(phone: string, message: string): Promise<boolean> {
 const GRACE_PERIOD_HOURS = 72;
 const MAX_CONSECUTIVE_FAILURES = 3;
 
-/**
- * Calculate days between two date strings (YYYY-MM-DD).
- */
 function daysBetween(dateStr: string, todayStr: string): number {
   const d1 = new Date(dateStr + "T00:00:00Z");
   const d2 = new Date(todayStr + "T00:00:00Z");
   return Math.floor((d2.getTime() - d1.getTime()) / 86400000);
+}
+
+/**
+ * Calculate proportional fee split for a charge amount based on rent_request breakdown.
+ */
+interface FeeSplit {
+  principalShare: number;
+  accessShare: number;
+  registrationShare: number;
+}
+
+async function getFeeSplit(
+  supabase: ReturnType<typeof createClient>,
+  rentRequestId: string | null,
+  chargeAmount: number,
+): Promise<FeeSplit> {
+  if (!rentRequestId) {
+    return { principalShare: chargeAmount, accessShare: 0, registrationShare: 0 };
+  }
+
+  const { data: rr } = await supabase
+    .from("rent_requests")
+    .select("rent_amount, access_fee, request_fee, total_repayment")
+    .eq("id", rentRequestId)
+    .single();
+
+  if (!rr || !rr.total_repayment || rr.total_repayment <= 0) {
+    return { principalShare: chargeAmount, accessShare: 0, registrationShare: 0 };
+  }
+
+  const principalShare = Math.round(chargeAmount * (Number(rr.rent_amount || 0) / Number(rr.total_repayment)));
+  const accessShare = Math.round(chargeAmount * (Number(rr.access_fee || 0) / Number(rr.total_repayment)));
+  const registrationShare = chargeAmount - principalShare - accessShare;
+
+  return { principalShare, accessShare, registrationShare };
+}
+
+/**
+ * Build proportional RPC entries for a tenant repayment (wallet cash_out + platform revenue split + bridge receivable reduction).
+ */
+function buildTenantRepaymentEntries(
+  tenantId: string,
+  amount: number,
+  split: FeeSplit,
+  chargeId: string,
+  description: string,
+  now: Date,
+): any[] {
+  const entries: any[] = [
+    // 1. Tenant pays (wallet → platform cash movement)
+    {
+      user_id: tenantId,
+      amount,
+      direction: "cash_out",
+      category: "tenant_repayment",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description,
+      currency: "UGX",
+      ledger_scope: "wallet",
+      transaction_date: now.toISOString(),
+    },
+  ];
+
+  // 2. Platform receives — split into revenue categories
+  if (split.principalShare > 0) {
+    entries.push({
+      amount: split.principalShare,
+      direction: "cash_in",
+      category: "rent_principal_collected",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description: `Rent principal collected: ${description}`,
+      currency: "UGX",
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  if (split.accessShare > 0) {
+    entries.push({
+      amount: split.accessShare,
+      direction: "cash_in",
+      category: "access_fee_collected",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description: `Access fee collected: ${description}`,
+      currency: "UGX",
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  if (split.registrationShare > 0) {
+    entries.push({
+      amount: split.registrationShare,
+      direction: "cash_in",
+      category: "registration_fee_collected",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description: `Registration fee collected: ${description}`,
+      currency: "UGX",
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  // 3. Reduce receivable (bridge scope)
+  if (split.principalShare > 0) {
+    entries.push({
+      amount: split.principalShare,
+      direction: "cash_out",
+      category: "rent_principal_collected",
+      source_table: "subscription_charges",
+      source_id: chargeId,
+      description: `Receivable reduction: ${description}`,
+      currency: "UGX",
+      ledger_scope: "bridge",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  return entries;
 }
 
 Deno.serve(async (req) => {
@@ -61,7 +181,6 @@ Deno.serve(async (req) => {
 
     console.log(`[auto-charge-wallets] Processing charges due on or before ${today}`);
 
-    // Fetch active AND stalled charges that are due (stalled ones won't be re-processed, just skipped with a log)
     const { data: dueCharges, error: fetchError } = await supabase
       .from("subscription_charges")
       .select("*")
@@ -102,7 +221,6 @@ Deno.serve(async (req) => {
       try {
         results.processed++;
 
-        // Fetch tenant name for clear descriptions
         const { data: tenantProfile } = await supabase
           .from("profiles")
           .select("full_name, phone")
@@ -118,13 +236,11 @@ Deno.serve(async (req) => {
         const missedDays = daysBetween(charge.next_charge_date, today);
 
         if (missedDays > 1) {
-          // Calculate how many charge periods were missed
           let missedPeriods: number;
           if (charge.frequency === "daily") missedPeriods = missedDays;
           else if (charge.frequency === "weekly") missedPeriods = Math.floor(missedDays / 7);
           else missedPeriods = Math.floor(missedDays / 30);
 
-          // Cap to remaining charges
           missedPeriods = Math.min(missedPeriods, charge.charges_remaining);
 
           if (missedPeriods > 0) {
@@ -132,7 +248,6 @@ Deno.serve(async (req) => {
 
             console.log(`[auto-charge-wallets] CATCH-UP: ${tenantName} has ${missedDays} stale days (${missedPeriods} missed ${charge.frequency} periods). Recording UGX ${catchupDebt} as debt.`);
 
-            // Record the entire backlog as debt in one entry
             await supabase.from("subscription_charge_logs").insert({
               subscription_id: charge.id,
               tenant_id: charge.tenant_id,
@@ -145,7 +260,6 @@ Deno.serve(async (req) => {
               charge_date: today,
             });
 
-            // Update the charge: add catchup debt, advance completed/remaining, jump date to today
             const newRemaining = Math.max(0, charge.charges_remaining - missedPeriods);
             const isComplete = newRemaining <= 0;
 
@@ -155,11 +269,10 @@ Deno.serve(async (req) => {
               charges_remaining: newRemaining,
               next_charge_date: isComplete ? charge.next_charge_date : today,
               status: isComplete ? "completed" : "active",
-              tenant_failed_at: null, // Clear stale grace period
-              consecutive_failures: 0, // Reset since we're catching up
+              tenant_failed_at: null,
+              consecutive_failures: 0,
             }).eq("id", charge.id);
 
-            // Notify agent about catch-up debt
             if (charge.agent_id) {
               await supabase.from("notifications").insert({
                 user_id: charge.agent_id,
@@ -179,7 +292,6 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // Refresh the charge object with updated values for today's processing
             charge.next_charge_date = today;
             charge.charges_remaining = newRemaining;
             charge.charges_completed = charge.charges_completed + missedPeriods;
@@ -196,20 +308,17 @@ Deno.serve(async (req) => {
           let debtAdded = 0;
           let logStatus: string;
 
-          const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today, tenantName, tenantPhone);
+          const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today, tenantName, tenantPhone, now);
           if (agentCharged) {
             agentAmountCharged = chargeAmount;
             logStatus = "agent_direct_no_smartphone";
             results.agent_charged++;
 
-            // Reset consecutive failures on success
             await supabase.from("subscription_charges").update({ consecutive_failures: 0 }).eq("id", charge.id);
           } else {
-            // Don't record debt immediately — let the 3-hour retry function handle it
             logStatus = "agent_insufficient_no_smartphone_retry_pending";
             results.insufficient++;
 
-            // Log the failed attempt
             await supabase.from("subscription_charge_logs").insert({
               subscription_id: charge.id,
               tenant_id: charge.tenant_id,
@@ -222,7 +331,6 @@ Deno.serve(async (req) => {
               charge_date: today,
             });
 
-            // Notify agent
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
               title: "⚠️ Insufficient Funds — Retrying in 3 Hours",
@@ -251,7 +359,6 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Notify agent
           if (agentAmountCharged > 0) {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
@@ -262,7 +369,6 @@ Deno.serve(async (req) => {
             });
           }
 
-          // SMS to tenant (no-smartphone) about agent payment
           if (agentAmountCharged > 0 && tenantPhone) {
             const remaining = Number(charge.charges_remaining) - 1;
             const sms = `WELILE: Dear ${tenantName}, UGX ${agentAmountCharged.toLocaleString()} has been paid for your rent by your agent. ${remaining > 0 ? `${remaining} payments remaining.` : 'Rent fully paid!'} Access up to UGX 30M with WELILE. Ask your agent!`;
@@ -285,34 +391,19 @@ Deno.serve(async (req) => {
         const walletBalance = (!walletError && wallet) ? Number(wallet.balance) : 0;
         const hasSufficientFunds = walletBalance >= chargeAmount;
 
-        // === TENANT CAN PAY: charge them, clear grace period ===
+        // === TENANT CAN PAY: charge them with proportional revenue split ===
         if (hasSufficientFunds) {
-          // Deduct via RPC — trigger handles wallet balance
+          // Get proportional fee split
+          const split = await getFeeSplit(supabase, charge.rent_request_id, chargeAmount);
+
           const { error: deductErr } = await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
-              {
-                user_id: charge.tenant_id,
-                amount: chargeAmount,
-                direction: "cash_out",
-                category: "tenant_repayment",
-                source_table: "subscription_charges",
-                source_id: charge.id,
-                description: `Auto-charge: ${charge.frequency} rent instalment for ${tenantName}`,
-                currency: 'UGX',
-                ledger_scope: "wallet",
-              },
-              {
-                user_id: null,
-                amount: chargeAmount,
-                direction: "cash_in",
-                category: "tenant_repayment",
-                source_table: "subscription_charges",
-                source_id: charge.id,
-                description: `Tenant repayment received: ${tenantName}`,
-                currency: 'UGX',
-                ledger_scope: "platform",
-              },
-            ]),
+            entries: JSON.stringify(
+              buildTenantRepaymentEntries(
+                charge.tenant_id, chargeAmount, split, charge.id,
+                `Auto-charge: ${charge.frequency} rent instalment for ${tenantName}`,
+                now,
+              )
+            ),
           });
 
           if (deductErr) {
@@ -322,9 +413,6 @@ Deno.serve(async (req) => {
           }
 
           const newBalance = walletBalance - chargeAmount;
-
-          // NOTE: Ledger entries now handled by sync_collection_to_ledger trigger
-          // which fires on subscription_charge_logs insert and splits proportionally
 
           if (charge.rent_request_id) {
             await supabase.rpc("record_rent_request_repayment", {
@@ -337,7 +425,6 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Clear grace period and reset failures on success
           if (charge.tenant_failed_at || charge.consecutive_failures > 0) {
             await supabase.from("subscription_charges").update({
               tenant_failed_at: null,
@@ -374,7 +461,6 @@ Deno.serve(async (req) => {
         const tenantFailedAt = charge.tenant_failed_at ? new Date(charge.tenant_failed_at) : null;
 
         if (!tenantFailedAt) {
-          // First failure — start the 72-hour grace period
           await supabase.from("subscription_charges").update({
             tenant_failed_at: now.toISOString(),
           }).eq("id", charge.id);
@@ -415,7 +501,7 @@ Deno.serve(async (req) => {
         // === GRACE PERIOD EXPIRED: Charge agent ===
         console.log(`[auto-charge-wallets] ${charge.tenant_id}: Grace period expired (${Math.round(hoursSinceFailure)}h). Charging agent.`);
 
-        // Try partial from tenant first
+        // Try partial from tenant first (with proportional split)
         const tenantPartial = Math.max(0, walletBalance);
         let amountDeducted = 0;
         let agentAmountCharged = 0;
@@ -424,32 +510,16 @@ Deno.serve(async (req) => {
 
         if (tenantPartial > 0) {
           amountDeducted = tenantPartial;
-          // Deduct partial via RPC — trigger handles wallet balance
+          const partialSplit = await getFeeSplit(supabase, charge.rent_request_id, tenantPartial);
+
           await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
-              {
-                user_id: charge.tenant_id,
-                amount: tenantPartial,
-                direction: "cash_out",
-                category: "tenant_repayment",
-                source_table: "subscription_charges",
-                source_id: charge.id,
-                description: `Partial auto-charge: ${tenantName} (${tenantPartial} of ${chargeAmount})`,
-                currency: 'UGX',
-                ledger_scope: "wallet",
-              },
-              {
-                user_id: null,
-                amount: tenantPartial,
-                direction: "cash_in",
-                category: "tenant_repayment",
-                source_table: "subscription_charges",
-                source_id: charge.id,
-                description: `Partial tenant repayment received: ${tenantName}`,
-                currency: 'UGX',
-                ledger_scope: "platform",
-              },
-            ]),
+            entries: JSON.stringify(
+              buildTenantRepaymentEntries(
+                charge.tenant_id, tenantPartial, partialSplit, charge.id,
+                `Partial auto-charge: ${tenantName} (${tenantPartial} of ${chargeAmount})`,
+                now,
+              )
+            ),
           });
         }
         const newBalance = walletBalance - amountDeducted;
@@ -457,36 +527,28 @@ Deno.serve(async (req) => {
         const shortfall = chargeAmount - tenantPartial;
 
         if (charge.agent_id) {
-          const agentCharged = await chargeAgent(supabase, charge, shortfall, today, tenantName, tenantPhone);
+          const agentCharged = await chargeAgent(supabase, charge, shortfall, today, tenantName, tenantPhone, now);
           if (agentCharged) {
             agentAmountCharged = shortfall;
             logStatus = tenantPartial > 0 ? "partial_agent_covered_72h" : "agent_covered_72h";
             results.agent_charged++;
 
-            // Reset consecutive failures on success
             await supabase.from("subscription_charges").update({ consecutive_failures: 0 }).eq("id", charge.id);
           } else {
             debtAdded = shortfall;
             logStatus = tenantPartial > 0 ? "partial_72h" : "insufficient_72h";
             results.insufficient++;
 
-            // =====================================================
-            // PART 2: GRACE CIRCUIT BREAKER
-            // =====================================================
+            // GRACE CIRCUIT BREAKER
             const newFailures = (charge.consecutive_failures || 0) + 1;
 
             if (newFailures >= MAX_CONSECUTIVE_FAILURES) {
-              // Mark as stalled — stop processing until manual intervention
               await supabase.from("subscription_charges").update({
                 status: "stalled",
                 consecutive_failures: newFailures,
                 tenant_failed_at: null,
               }).eq("id", charge.id);
 
-              // =====================================================
-              // PART 3: MANAGER STALLED ALERT
-              // =====================================================
-              // Notify all managers via notifications
               const { data: managers } = await supabase
                 .from("profiles")
                 .select("id")
@@ -503,7 +565,6 @@ Deno.serve(async (req) => {
                 await supabase.from("notifications").insert(managerNotifications);
               }
 
-              // Notify agent
               await supabase.from("notifications").insert({
                 user_id: charge.agent_id,
                 title: "🛑 Charge Stalled — Action Required",
@@ -515,15 +576,9 @@ Deno.serve(async (req) => {
               results.stalled++;
               console.log(`[auto-charge-wallets] STALLED: ${tenantName} after ${newFailures} consecutive failures`);
             } else {
-              // Advance next_charge_date to TOMORROW (not +1 from stale date)
-              // This prevents the backlog from growing further
-              const tomorrow = new Date(now);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              const tomorrowStr = tomorrow.toISOString().split("T")[0];
-
               await supabase.from("subscription_charges").update({
                 consecutive_failures: newFailures,
-                tenant_failed_at: null, // Reset grace period for next cycle
+                tenant_failed_at: null,
               }).eq("id", charge.id);
 
               console.log(`[auto-charge-wallets] ${tenantName}: failure #${newFailures}/${MAX_CONSECUTIVE_FAILURES}, grace reset`);
@@ -535,12 +590,10 @@ Deno.serve(async (req) => {
           results.insufficient++;
         }
 
-        // Clear grace period (already handled for stalled above, but needed for normal flow)
         if ((charge.consecutive_failures || 0) + 1 < MAX_CONSECUTIVE_FAILURES || agentAmountCharged > 0) {
           await supabase.from("subscription_charges").update({ tenant_failed_at: null }).eq("id", charge.id);
         }
 
-        // Record rent repayment
         const totalCollected = amountDeducted + agentAmountCharged;
         if (charge.rent_request_id && totalCollected > 0) {
           await supabase.rpc("record_rent_request_repayment", {
@@ -624,7 +677,6 @@ Deno.serve(async (req) => {
 
 /**
  * Log charge attempt and update subscription totals.
- * Advances next_charge_date to TOMORROW (relative to today) instead of +1 from stale date.
  */
 async function logAndUpdateCharge(
   supabase: ReturnType<typeof createClient>,
@@ -655,7 +707,6 @@ async function logAndUpdateCharge(
   const newAgentChargedAmount = Number(charge.agent_charged_amount || 0) + opts.agentAmountCharged;
   const newAgentChargeCount = (charge.agent_charge_count || 0) + (opts.agentAmountCharged > 0 ? 1 : 0);
 
-  // Always advance to TOMORROW from today, not +1 from stale next_charge_date
   const todayDate = new Date(opts.today + "T00:00:00Z");
   let nextDate: Date;
   if (charge.frequency === "daily") {
@@ -684,7 +735,9 @@ async function logAndUpdateCharge(
 }
 
 /**
- * Charge the agent's wallet for shortfall with clear tenant details in ledger.
+ * Charge the agent's wallet for shortfall.
+ * Uses agent_float_used_for_rent (float-first) per the 72h rule.
+ * Only falls back to agent_commission_used_for_rent if float is insufficient.
  */
 async function chargeAgent(
   supabase: ReturnType<typeof createClient>,
@@ -693,8 +746,8 @@ async function chargeAgent(
   today: string,
   tenantName: string,
   tenantPhone: string,
+  now: Date,
 ): Promise<boolean> {
-  // Check agent's COMMISSION balance specifically (72h grace = commission usage)
   const { data: splitBalances, error: splitErr } = await supabase.rpc('get_agent_split_balances', {
     p_agent_id: charge.agent_id,
   });
@@ -705,11 +758,12 @@ async function chargeAgent(
   }
 
   const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
+  const floatBalance = Number(balRow?.float_balance ?? 0);
   const commissionBalance = Number(balRow?.commission_balance ?? 0);
-  const description = `Tenant default (commission): ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace [used_commission_for_rent=true]`;
+  const totalAvailable = floatBalance + commissionBalance;
 
-  if (commissionBalance < shortfall) {
-    console.log(`[auto-charge-wallets] Agent ${charge.agent_id} insufficient commission (${commissionBalance} < ${shortfall})`);
+  if (totalAvailable < shortfall) {
+    console.log(`[auto-charge-wallets] Agent ${charge.agent_id} insufficient total (float:${floatBalance} + commission:${commissionBalance} < ${shortfall})`);
 
     // Record liability via RPC
     await supabase.rpc('create_ledger_transaction', {
@@ -721,13 +775,13 @@ async function chargeAgent(
           category: "system_balance_correction",
           source_table: "subscription_charges",
           source_id: charge.id,
-          description: `Agent guarantor liability — insufficient commission. ${description}`,
+          description: `Agent guarantor liability — insufficient funds. Tenant: ${tenantName} (${tenantPhone})`,
           linked_party: `${tenantName} (${tenantPhone})`,
           currency: 'UGX',
           ledger_scope: "wallet",
+          transaction_date: now.toISOString(),
         },
         {
-          user_id: null,
           amount: shortfall,
           direction: "cash_in",
           category: "system_balance_correction",
@@ -736,6 +790,7 @@ async function chargeAgent(
           description: `Agent liability recorded for tenant default: ${tenantName}`,
           currency: 'UGX',
           ledger_scope: "platform",
+          transaction_date: now.toISOString(),
         },
       ]),
     });
@@ -743,56 +798,119 @@ async function chargeAgent(
     return false;
   }
 
-  // Ensure wallet exists (upsert)
+  // Ensure wallet exists
   await supabase
     .from("wallets")
     .upsert({ user_id: charge.agent_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
-  // Ledger-first via RPC: commission-specific category — trigger handles balance
+  // Float-first: use float balance first, then commission for remainder
+  const floatPortion = Math.min(floatBalance, shortfall);
+  const commissionPortion = shortfall - floatPortion;
+
+  // Get proportional fee split for the agent repayment
+  const split = await getFeeSplit(supabase, charge.rent_request_id, shortfall);
+
+  const entries: any[] = [];
+
+  // Agent wallet cash_out entries (split by source: float vs commission)
+  if (floatPortion > 0) {
+    entries.push({
+      user_id: charge.agent_id,
+      amount: floatPortion,
+      direction: "cash_out",
+      category: "agent_float_used_for_rent",
+      source_table: "subscription_charges",
+      source_id: charge.id,
+      description: `Agent float used for tenant default: ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace`,
+      linked_party: `${tenantName} (${tenantPhone})`,
+      currency: 'UGX',
+      ledger_scope: "wallet",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  if (commissionPortion > 0) {
+    entries.push({
+      user_id: charge.agent_id,
+      amount: commissionPortion,
+      direction: "cash_out",
+      category: "agent_commission_used_for_rent",
+      source_table: "subscription_charges",
+      source_id: charge.id,
+      description: `Agent commission used for tenant default: ${tenantName} (${tenantPhone}) — ${charge.frequency} rent instalment after 72h grace`,
+      linked_party: `${tenantName} (${tenantPhone})`,
+      currency: 'UGX',
+      ledger_scope: "wallet",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  // Platform receives — proportional revenue split (same as tenant repayment)
+  if (split.principalShare > 0) {
+    entries.push({
+      amount: split.principalShare,
+      direction: "cash_in",
+      category: "rent_principal_collected",
+      source_table: "subscription_charges",
+      source_id: charge.id,
+      description: `Rent principal collected via agent repayment: ${tenantName}`,
+      currency: 'UGX',
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  if (split.accessShare > 0) {
+    entries.push({
+      amount: split.accessShare,
+      direction: "cash_in",
+      category: "access_fee_collected",
+      source_table: "subscription_charges",
+      source_id: charge.id,
+      description: `Access fee collected via agent repayment: ${tenantName}`,
+      currency: 'UGX',
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  if (split.registrationShare > 0) {
+    entries.push({
+      amount: split.registrationShare,
+      direction: "cash_in",
+      category: "registration_fee_collected",
+      source_table: "subscription_charges",
+      source_id: charge.id,
+      description: `Registration fee collected via agent repayment: ${tenantName}`,
+      currency: 'UGX',
+      ledger_scope: "platform",
+      transaction_date: now.toISOString(),
+    });
+  }
+
+  // Bridge: reduce receivable
+  if (split.principalShare > 0) {
+    entries.push({
+      amount: split.principalShare,
+      direction: "cash_out",
+      category: "rent_principal_collected",
+      source_table: "subscription_charges",
+      source_id: charge.id,
+      description: `Receivable reduction via agent repayment: ${tenantName}`,
+      currency: 'UGX',
+      ledger_scope: "bridge",
+      transaction_date: now.toISOString(),
+    });
+  }
+
   const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
-    entries: JSON.stringify([
-      {
-        user_id: charge.agent_id,
-        amount: shortfall,
-        direction: "cash_out",
-        category: "agent_commission_used_for_rent",
-        source_table: "subscription_charges",
-        source_id: charge.id,
-        description,
-        linked_party: `${tenantName} (${tenantPhone})`,
-        currency: 'UGX',
-        ledger_scope: "wallet",
-      },
-      {
-        user_id: null,
-        amount: shortfall,
-        direction: "cash_in",
-        category: "agent_commission_used_for_rent",
-        source_table: "subscription_charges",
-        source_id: charge.id,
-        description: `Agent commission collected for tenant default: ${tenantName}`,
-        currency: 'UGX',
-        ledger_scope: "platform",
-      },
-    ]),
+    entries: JSON.stringify(entries),
   });
 
   if (ledgerErr) {
     console.error(`[auto-charge-wallets] Agent ledger insert error:`, ledgerErr);
     return false;
   }
-
-  await supabase.from("pending_wallet_operations").insert({
-    user_id: charge.agent_id,
-    amount: shortfall,
-    direction: "cash_out",
-    category: "agent_commission_used_for_rent",
-    source_table: "subscription_charges",
-    source_id: charge.id,
-    description,
-    linked_party: `${tenantName} (${tenantPhone})`,
-    status: "approved",
-  });
 
   if (charge.rent_request_id) {
     await supabase.rpc("record_rent_request_repayment", {
@@ -806,6 +924,6 @@ async function chargeAgent(
     });
   }
 
-  console.log(`[auto-charge-wallets] Agent ${charge.agent_id} charged ${shortfall} via ledger for tenant ${tenantName} (${charge.tenant_id}) after 72h grace`);
+  console.log(`[auto-charge-wallets] Agent ${charge.agent_id} charged ${shortfall} (float:${floatPortion}, commission:${commissionPortion}) for tenant ${tenantName} (${charge.tenant_id}) after 72h grace`);
   return true;
 }
