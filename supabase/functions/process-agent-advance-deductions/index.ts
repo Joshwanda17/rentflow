@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Default monthly rate 33%, daily equivalent: (1.33^(1/30) - 1)
 const DEFAULT_MONTHLY_RATE = 0.33;
 
 Deno.serve(async (req) => {
@@ -35,7 +34,6 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().split('T')[0];
 
     for (const advance of advances) {
-      // Idempotency: skip if already processed today
       const { data: existingEntry } = await supabase
         .from('agent_advance_ledger')
         .select('id')
@@ -57,7 +55,6 @@ Deno.serve(async (req) => {
 
       const isOverdue = new Date() > new Date(advance.expires_at);
 
-      // Read wallet balance from wallets table (Single-Writer principle)
       const { data: wallet } = await supabase
         .from('wallets')
         .select('balance')
@@ -71,15 +68,10 @@ Deno.serve(async (req) => {
       const closingBalance = balanceAfterInterest - amountDeducted;
 
       let deductionStatus: string;
-      if (amountDeducted >= balanceAfterInterest) {
-        deductionStatus = 'full';
-      } else if (amountDeducted > 0) {
-        deductionStatus = 'partial';
-      } else {
-        deductionStatus = 'none';
-      }
+      if (amountDeducted >= balanceAfterInterest) deductionStatus = 'full';
+      else if (amountDeducted > 0) deductionStatus = 'partial';
+      else deductionStatus = 'none';
 
-      // Record in advance ledger
       await supabase.from('agent_advance_ledger').insert({
         advance_id: advance.id,
         date: today,
@@ -90,7 +82,6 @@ Deno.serve(async (req) => {
         deduction_status: deductionStatus,
       });
 
-      // Update advance status + proportional access fee collection
       const newStatus = closingBalance <= 0 ? 'completed' : (isOverdue ? 'overdue' : 'active');
       const advAccessFee = Number(advance.access_fee || 0);
       const totalPayable = Number(advance.principal) + advAccessFee;
@@ -106,21 +97,36 @@ Deno.serve(async (req) => {
         access_fee_status: feeStatus,
       }).eq('id', advance.id);
 
-      // Deduct from wallet via ledger (with transaction_group_id for sync trigger)
+      // Deduct from wallet via balanced RPC
       if (amountDeducted > 0) {
-        const txnGroupId = crypto.randomUUID();
-        await supabase.from('general_ledger').insert({
-          user_id: advance.agent_id,
-          amount: amountDeducted,
-          direction: 'cash_out',
-          category: 'advance_repayment',
-          source_table: 'agent_advances',
-          source_id: advance.id,
-          transaction_group_id: txnGroupId,
-          description: `Advance daily deduction - Interest: ${interestAccrued}`,
-      currency: 'UGX',
-          transaction_date: today,
+        const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
+          entries: JSON.stringify([
+            {
+              user_id: advance.agent_id,
+              ledger_scope: 'wallet',
+              direction: 'cash_out',
+              amount: amountDeducted,
+              category: 'agent_repayment',
+              source_table: 'agent_advances',
+              source_id: advance.id,
+              description: `Advance daily deduction - Interest: ${interestAccrued}`,
+              currency: 'UGX',
+              transaction_date: today,
+            },
+            {
+              ledger_scope: 'platform',
+              direction: 'cash_in',
+              amount: amountDeducted,
+              category: 'agent_repayment',
+              source_table: 'agent_advances',
+              source_id: advance.id,
+              description: `Advance repayment received from agent`,
+              currency: 'UGX',
+              transaction_date: today,
+            },
+          ]),
         });
+        if (rpcErr) console.error(`[process-agent-advance-deductions] RPC error for advance ${advance.id}:`, rpcErr);
       }
 
       results.push({

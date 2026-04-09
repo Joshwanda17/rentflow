@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get all active draws
     const { data: draws, error: fetchError } = await supabase
       .from('credit_access_draws')
       .select('*')
@@ -39,7 +38,6 @@ Deno.serve(async (req) => {
       const openingBalance = Number(draw.outstanding_balance);
       if (openingBalance <= 0) continue;
 
-      // Check if overdue → compound
       const isOverdue = new Date() > new Date(draw.expires_at);
       let dailyCharge = Number(draw.daily_charge);
 
@@ -48,7 +46,6 @@ Deno.serve(async (req) => {
         dailyCharge = dailyCharge + compoundInterest;
       }
 
-      // Read user wallet balance from wallets table
       const { data: userWallet } = await supabase
         .from('wallets')
         .select('balance')
@@ -60,7 +57,6 @@ Deno.serve(async (req) => {
       let remaining = dailyCharge - userDeducted;
       let agentDeducted = 0;
 
-      // Fallback to agent wallet if insufficient
       if (remaining > 0 && draw.agent_id) {
         const { data: agentWallet } = await supabase
           .from('wallets')
@@ -76,7 +72,6 @@ Deno.serve(async (req) => {
       const totalDeducted = userDeducted + agentDeducted;
       const closingBalance = openingBalance - totalDeducted;
 
-      // If overdue and not fully deducted, outstanding compounds
       const compoundedClosing = isOverdue && remaining > 0
         ? closingBalance + Math.round(remaining * DAILY_COMPOUND_RATE)
         : closingBalance;
@@ -96,39 +91,68 @@ Deno.serve(async (req) => {
         deduction_status: deductionStatus,
       });
 
-      // Debit user wallet via ledger + wallet update
-      const groupId = crypto.randomUUID();
+      // Debit user wallet via RPC (balanced: wallet cash_out + platform cash_in)
       if (userDeducted > 0) {
-        // Insert cash_out ledger entry (sync_wallet_from_ledger trigger handles wallet)
-        await supabase.from('general_ledger').insert({
-          user_id: draw.user_id,
-          amount: userDeducted,
-          direction: 'cash_out',
-          category: 'credit_access_repayment',
-          source_table: 'credit_access_draws',
-          source_id: draw.id,
-          description: `Credit daily charge - Day ${Math.ceil((Date.now() - new Date(draw.started_at).getTime()) / 86400000)}`,
-      currency: 'UGX',
-          transaction_date: today,
-          transaction_group_id: groupId,
+        const { error: userRpcErr } = await supabase.rpc('create_ledger_transaction', {
+          entries: JSON.stringify([
+            {
+              user_id: draw.user_id,
+              ledger_scope: 'wallet',
+              direction: 'cash_out',
+              amount: userDeducted,
+              category: 'agent_repayment',
+              source_table: 'credit_access_draws',
+              source_id: draw.id,
+              description: `Credit daily charge - Day ${Math.ceil((Date.now() - new Date(draw.started_at).getTime()) / 86400000)}`,
+              currency: 'UGX',
+              transaction_date: today,
+            },
+            {
+              ledger_scope: 'platform',
+              direction: 'cash_in',
+              amount: userDeducted,
+              category: 'agent_repayment',
+              source_table: 'credit_access_draws',
+              source_id: draw.id,
+              description: `Credit daily charge received from user`,
+              currency: 'UGX',
+              transaction_date: today,
+            },
+          ]),
         });
+        if (userRpcErr) console.error(`[process-credit-daily-charges] User RPC error for draw ${draw.id}:`, userRpcErr);
       }
 
-      // Debit agent wallet if used
+      // Debit agent wallet via RPC (balanced: wallet cash_out + platform cash_in)
       if (agentDeducted > 0 && draw.agent_id) {
-        const agentGroupId = crypto.randomUUID();
-        await supabase.from('general_ledger').insert({
-          user_id: draw.agent_id,
-          amount: agentDeducted,
-          direction: 'cash_out',
-          category: 'credit_access_agent_fallback',
-          source_table: 'credit_access_draws',
-          source_id: draw.id,
-          description: `Agent fallback for credit charge - user shortfall`,
-      currency: 'UGX',
-          transaction_date: today,
-          transaction_group_id: agentGroupId,
+        const { error: agentRpcErr } = await supabase.rpc('create_ledger_transaction', {
+          entries: JSON.stringify([
+            {
+              user_id: draw.agent_id,
+              ledger_scope: 'wallet',
+              direction: 'cash_out',
+              amount: agentDeducted,
+              category: 'agent_repayment',
+              source_table: 'credit_access_draws',
+              source_id: draw.id,
+              description: `Agent fallback for credit charge - user shortfall`,
+              currency: 'UGX',
+              transaction_date: today,
+            },
+            {
+              ledger_scope: 'platform',
+              direction: 'cash_in',
+              amount: agentDeducted,
+              category: 'agent_repayment',
+              source_table: 'credit_access_draws',
+              source_id: draw.id,
+              description: `Agent fallback credit charge received`,
+              currency: 'UGX',
+              transaction_date: today,
+            },
+          ]),
         });
+        if (agentRpcErr) console.error(`[process-credit-daily-charges] Agent RPC error for draw ${draw.id}:`, agentRpcErr);
       }
 
       // Update draw status
