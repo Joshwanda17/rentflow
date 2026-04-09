@@ -98,18 +98,36 @@ Deno.serve(async (req) => {
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
     const agentName = agentProfileRes.data?.full_name || "Agent";
 
-    // --- Record agent cash_out in general_ledger ---
-    const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
-      user_id: agent.id,
-      amount,
-      direction: "cash_out",
-      category: "agent_proxy_investment",
-      source_table: "investor_portfolios",
-      source_id: summary_id || null,
-      description: `Agent proxy investment: UGX ${amount.toLocaleString()} to Rent Management Pool on behalf of ${partnerName}. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
-      currency: 'UGX',
-      reference_id: referenceId,
-      linked_party: "Rent Management Pool",
+    // --- Record agent cash_out via RPC ---
+    const { error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: agent.id,
+          amount,
+          direction: "cash_out",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: summary_id || null,
+          description: `Agent proxy investment: UGX ${amount.toLocaleString()} to Rent Management Pool on behalf of ${partnerName}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: "Rent Management Pool",
+          ledger_scope: "wallet",
+        },
+        {
+          user_id: null,
+          amount,
+          direction: "cash_in",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: summary_id || null,
+          description: `Agent proxy capital received for ${partnerName}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: agent.id,
+          ledger_scope: "platform",
+        },
+      ]),
     });
 
     if (ledgerErr) {
@@ -182,57 +200,76 @@ Deno.serve(async (req) => {
 
     if (portfolioErr) {
       console.error("[agent-invest-for-partner] Portfolio creation failed:", portfolioErr.message);
-      await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
+      // RPC is atomic — no need for manual ledger delete rollback
       return errorResponse("Failed to create portfolio. Please retry.", 500);
     }
 
-    // --- Direct ledger entries for instant activation (net-zero pattern) ---
+    // --- Direct ledger entries for instant activation via RPC (net-zero: credit then debit partner) ---
     const monthlyReward = Math.round(amount * 0.15);
-    const cashInTxGroupId = crypto.randomUUID();
-    const cashOutTxGroupId = crypto.randomUUID();
 
-    // Step 1: Credit partner wallet (cash_in — supporter_facilitation_capital)
-    const { error: partnerCashInErr } = await adminClient.from("general_ledger").insert({
-      user_id: partner_id,
-      amount,
-      direction: "cash_in",
-      category: "supporter_facilitation_capital",
-      source_table: "investor_portfolios",
-      source_id: portfolio.id,
-      transaction_group_id: cashInTxGroupId,
-      description: `Agent ${agentName} invested UGX ${amount.toLocaleString()} on behalf of ${partnerName} into Rent Management Pool`,
-      currency: 'UGX',
-      reference_id: referenceId,
-      linked_party: agentName,
+    // Step 1: Credit partner wallet
+    await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: null,
+          amount,
+          direction: "cash_out",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio.id,
+          description: `Agent ${agentName} invested UGX ${amount.toLocaleString()} on behalf of ${partnerName}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: agentName,
+          ledger_scope: "platform",
+        },
+        {
+          user_id: partner_id,
+          amount,
+          direction: "cash_in",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio.id,
+          description: `Agent ${agentName} invested UGX ${amount.toLocaleString()} on behalf of ${partnerName}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: agentName,
+          ledger_scope: "wallet",
+        },
+      ]),
     });
 
-    if (partnerCashInErr) {
-      console.error("[agent-invest-for-partner] Partner cash_in ledger failed:", partnerCashInErr.message);
-      await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
-      await adminClient.from("general_ledger").delete().eq("reference_id", referenceId);
-      return errorResponse("Failed to credit partner, all changes rolled back. Please retry.", 500);
-    }
-
-    // Step 2: Debit partner wallet into portfolio (cash_out — wallet_to_investment)
-    const { error: partnerCashOutErr } = await adminClient.from("general_ledger").insert({
-      user_id: partner_id,
-      amount,
-      direction: "cash_out",
-      category: "wallet_to_investment",
-      source_table: "investor_portfolios",
-      source_id: portfolio.id,
-      transaction_group_id: cashOutTxGroupId,
-      description: `Investment of UGX ${amount.toLocaleString()} moved to portfolio ${portfolioCode}`,
-      currency: 'UGX',
-      reference_id: referenceId,
-      linked_party: "Rent Management Pool",
+    // Step 2: Debit partner wallet into portfolio
+    await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: partner_id,
+          amount,
+          direction: "cash_out",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio.id,
+          description: `Investment of UGX ${amount.toLocaleString()} moved to portfolio ${portfolioCode}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: "Rent Management Pool",
+          ledger_scope: "wallet",
+        },
+        {
+          user_id: null,
+          amount,
+          direction: "cash_in",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio.id,
+          description: `Partner capital received for portfolio ${portfolioCode}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: partner_id,
+          ledger_scope: "platform",
+        },
+      ]),
     });
-
-    if (partnerCashOutErr) {
-      console.error("[agent-invest-for-partner] Partner cash_out ledger failed:", partnerCashOutErr.message);
-      // Non-fatal: the cash_in already happened, wallet sync trigger will balance it.
-      // Log but don't rollback — manual reconciliation preferred over partial state.
-    }
 
     // --- Agent 2% commission — queue for approval ---
     const commission = Math.round(amount * 0.02);

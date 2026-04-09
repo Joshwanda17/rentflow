@@ -127,38 +127,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Record ledger entry — the sync_wallet_from_ledger trigger handles wallet deduction
-    const { error: ledgerErr } = await supabase.from("general_ledger").insert([
-      {
-        user_id: user.id,
-        amount: topupAmount,
-        direction: "cash_out",
-        category: "pending_portfolio_topup",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `Pending portfolio top-up: ${accountLabel}`,
-      currency: 'UGX',
-        ledger_scope: "wallet",
-        transaction_date: now,
-      },
-      {
-        user_id: user.id,
-        amount: topupAmount,
-        direction: "cash_in",
-        category: "pending_portfolio_topup",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `Pending capital for ${accountLabel} — applied at maturity`,
-      currency: 'UGX',
-        ledger_scope: "platform",
-        transaction_date: now,
-      },
-    ]);
+    // 2. Record ledger entry via RPC — the sync_wallet_from_ledger trigger handles wallet deduction
+    const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: user.id,
+          amount: topupAmount,
+          direction: "cash_out",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          description: `Pending portfolio top-up: ${accountLabel}`,
+          currency: 'UGX',
+          ledger_scope: "wallet",
+        },
+        {
+          user_id: null,
+          amount: topupAmount,
+          direction: "cash_in",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          description: `Pending capital for ${accountLabel} — applied at maturity`,
+          currency: 'UGX',
+          ledger_scope: "platform",
+        },
+      ]),
+    });
 
     if (ledgerErr) {
-      console.error("[portfolio-topup] Ledger insert failed:", ledgerErr);
+      console.error("[portfolio-topup] Ledger RPC failed:", ledgerErr);
       return new Response(JSON.stringify({ error: "Failed to record ledger entry" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -172,20 +170,33 @@ Deno.serve(async (req) => {
       .single();
 
     if (postWallet && Number(postWallet.balance) < 0) {
-      // Race condition: rollback by inserting a reversal ledger entry
-      await supabase.from("general_ledger").insert([{
-        user_id: user.id,
-        amount: topupAmount,
-        direction: "cash_in",
-        category: "portfolio_topup_reversal",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: crypto.randomUUID(),
-        description: `Reversal: insufficient balance for ${accountLabel} top-up`,
-      currency: 'UGX',
-        ledger_scope: "wallet",
-        transaction_date: now,
-      }]);
+      // Race condition: rollback via RPC
+      await supabase.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: user.id,
+            amount: topupAmount,
+            direction: "cash_in",
+            category: "system_balance_correction",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Reversal: insufficient balance for ${accountLabel} top-up`,
+            currency: 'UGX',
+            ledger_scope: "wallet",
+          },
+          {
+            user_id: null,
+            amount: topupAmount,
+            direction: "cash_out",
+            category: "system_balance_correction",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Reversal: platform return for failed ${accountLabel} top-up`,
+            currency: 'UGX',
+            ledger_scope: "platform",
+          },
+        ]),
+      });
 
       // Cancel pending op
       await supabase.from("pending_wallet_operations")

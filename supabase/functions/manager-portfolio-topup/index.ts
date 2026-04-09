@@ -143,35 +143,33 @@ Deno.serve(async (req) => {
         return jsonRes({ error: "Failed to record pending top-up" }, 500);
       }
 
-      // 3. Ledger entries — wallet debit (deducts from partner wallet) + platform credit
-      const { error: ledgerErr } = await supabase.from("general_ledger").insert([
-        {
-          user_id: partnerId,
-          amount: topupAmount,
-          direction: "cash_out",
-          category: "pending_portfolio_topup",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          transaction_group_id: txGroupId,
-          description: `Wallet deduction for portfolio top-up: ${accountLabel}`,
-          currency: 'UGX',
-          ledger_scope: "wallet",
-          transaction_date: now,
-        },
-        {
-          user_id: partnerId,
-          amount: topupAmount,
-          direction: "credit",
-          category: "pending_portfolio_topup",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          transaction_group_id: txGroupId,
-          description: `Pending capital via Wallet for ${accountLabel}`,
-          currency: 'UGX',
-          ledger_scope: "platform",
-          transaction_date: now,
-        },
-      ]);
+      // 3. Ledger entries via RPC — wallet debit + platform credit
+      const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: partnerId,
+            amount: topupAmount,
+            direction: "cash_out",
+            category: "partner_funding",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Wallet deduction for portfolio top-up: ${accountLabel}`,
+            currency: 'UGX',
+            ledger_scope: "wallet",
+          },
+          {
+            user_id: null,
+            amount: topupAmount,
+            direction: "cash_in",
+            category: "partner_funding",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Pending capital via Wallet for ${accountLabel}`,
+            currency: 'UGX',
+            ledger_scope: "platform",
+          },
+        ]),
+      });
 
       if (ledgerErr) {
         console.error("[manager-portfolio-topup] wallet ledger error:", ledgerErr);
@@ -186,20 +184,33 @@ Deno.serve(async (req) => {
         .single();
 
       if (postWallet && Number(postWallet.balance) < 0) {
-        // Race condition: rollback
-        await supabase.from("general_ledger").insert([{
-          user_id: partnerId,
-          amount: topupAmount,
-          direction: "cash_in",
-          category: "portfolio_topup_reversal",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          transaction_group_id: crypto.randomUUID(),
-          description: `Reversal: insufficient balance for ${accountLabel} wallet top-up`,
-          currency: 'UGX',
-          ledger_scope: "wallet",
-          transaction_date: now,
-        }]);
+        // Race condition: rollback via RPC
+        await supabase.rpc('create_ledger_transaction', {
+          entries: JSON.stringify([
+            {
+              user_id: partnerId,
+              amount: topupAmount,
+              direction: "cash_in",
+              category: "system_balance_correction",
+              source_table: "investor_portfolios",
+              source_id: portfolio_id,
+              description: `Reversal: insufficient balance for ${accountLabel} wallet top-up`,
+              currency: 'UGX',
+              ledger_scope: "wallet",
+            },
+            {
+              user_id: null,
+              amount: topupAmount,
+              direction: "cash_out",
+              category: "system_balance_correction",
+              source_table: "investor_portfolios",
+              source_id: portfolio_id,
+              description: `Reversal: platform return for failed ${accountLabel} wallet top-up`,
+              currency: 'UGX',
+              ledger_scope: "platform",
+            },
+          ]),
+        });
 
         await supabase.from("pending_wallet_operations")
           .update({ status: "cancelled" })
@@ -247,35 +258,33 @@ Deno.serve(async (req) => {
         return jsonRes({ error: "Failed to record pending top-up" }, 500);
       }
 
-      // 2. Ledger entries
-      await supabase.from("general_ledger").insert([
-        {
-          user_id: partnerId,
-          amount: topupAmount,
-          direction: "debit",
-          category: "pending_portfolio_topup",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          transaction_group_id: txGroupId,
-          description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
-          currency: 'UGX',
-          ledger_scope: "wallet",
-          transaction_date: now,
-        },
-        {
-          user_id: partnerId,
-          amount: topupAmount,
-          direction: "credit",
-          category: "pending_portfolio_topup",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          transaction_group_id: txGroupId,
-          description: `Pending capital via ${methodLabel} for ${accountLabel}`,
-          currency: 'UGX',
-          ledger_scope: "platform",
-          transaction_date: now,
-        },
-      ]);
+      // 2. Ledger entries via RPC
+      await supabase.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: partnerId,
+            amount: topupAmount,
+            direction: "cash_out",
+            category: "partner_funding",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
+            currency: 'UGX',
+            ledger_scope: "wallet",
+          },
+          {
+            user_id: null,
+            amount: topupAmount,
+            direction: "cash_in",
+            category: "partner_funding",
+            source_table: "investor_portfolios",
+            source_id: portfolio_id,
+            description: `Pending capital via ${methodLabel} for ${accountLabel}`,
+            currency: 'UGX',
+            ledger_scope: "platform",
+          },
+        ]),
+      });
     }
 
     // ── SHARED: Audit trail ──
