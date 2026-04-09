@@ -1,43 +1,70 @@
 
 
-# Fix Double Revenue + Harden Trigger
+# Final Locks: Trigger Idempotency + RPC Hardening
 
-## Problem
+## Current State
 
-The `sync_collection_to_ledger` trigger fires on every `subscription_charge_logs` INSERT and creates platform revenue entries (rent_principal_collected, access_fee_collected, registration_fee_collected). The edge function `auto-charge-wallets` ALSO creates these same entries via RPC. The current 5-minute time-based idempotency guard is unreliable (race conditions, retries, delayed jobs).
+- **Trigger guard** checks `source_table + source_id + ledger_scope='bridge'` — good but could be tighter with explicit `category` filter
+- **RPC** already enforces `total_in = total_out` and rejects zero/negative amounts
+- **RPC** has NO reference-based idempotency (duplicate calls with same data will succeed twice)
 
-Result: **2x revenue** in the ledger per collection.
+## Changes
 
-## Fix (2 Changes)
+### 1. Tighten trigger idempotency guard
 
-### 1. Strip revenue logic from the trigger — keep only bridge receivable reduction
+Add `category = 'rent_principal_collected'` to the existing guard for deterministic specificity:
 
-The trigger should **never create money**. It should only:
-- Reduce bridge receivables (`bridge/cash_out/rent_principal_collected`)
-- The edge function is the sole source of truth for revenue
+```sql
+IF EXISTS (
+  SELECT 1 FROM public.general_ledger
+  WHERE source_table = 'subscription_charge_logs'
+    AND source_id = NEW.id::text
+    AND category = 'rent_principal_collected'
+    AND ledger_scope = 'bridge'
+) THEN
+  RETURN NEW;
+END IF;
+```
 
-The trigger will be rewritten to:
-- Keep the status filter (only process success/partial/agent statuses)
-- Keep the rent_request lookup and proportional calculation
-- **Remove** all three `platform/cash_in` inserts (rent_principal, access_fee, registration_fee)
-- **Keep** the single `bridge/cash_out/rent_principal_collected` insert
-- Replace the unreliable time-based guard with a deterministic check: `source_table = 'subscription_charge_logs' AND source_id = NEW.id::text AND ledger_scope = 'bridge'`
+### 2. Add reference-based idempotency to `create_ledger_transaction` RPC
 
-### 2. Remove any leftover manual balance math in auto-charge-wallets
+Add an optional `idempotency_key` parameter. If provided, check if a transaction group with that key already exists and return it instead of creating a duplicate:
 
-Verify and remove any `const newBalance = walletBalance - chargeAmount` or similar lines. The wallet trigger (`sync_wallet_from_ledger`) handles all balance updates. (Search confirmed these are already removed — this is a verification step.)
+```sql
+CREATE OR REPLACE FUNCTION public.create_ledger_transaction(
+  entries JSONB,
+  idempotency_key TEXT DEFAULT NULL
+) RETURNS UUID ...
+
+-- At top of function body:
+IF idempotency_key IS NOT NULL THEN
+  SELECT transaction_group_id INTO group_id
+  FROM general_ledger
+  WHERE reference_id = idempotency_key
+  LIMIT 1;
+  IF group_id IS NOT NULL THEN
+    RETURN group_id;  -- Already processed, return existing
+  END IF;
+  group_id := gen_random_uuid();
+END IF;
+```
+
+Edge functions pass a deterministic key like `charge-{charge_log_id}` or `pay-{rent_request_id}-{timestamp}` to prevent duplicate processing on retries.
+
+### 3. No edge function changes needed now
+
+The idempotency key is optional — existing calls work unchanged. We can incrementally add keys to each edge function caller in follow-up work.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| 1 database migration | Rewrite `sync_collection_to_ledger`: remove platform revenue inserts, keep bridge receivable reduction, replace time-based guard with deterministic idempotency |
-| No edge function changes | Already correct |
+| 1 database migration | Update trigger guard to include `category` filter; add `idempotency_key` parameter to `create_ledger_transaction` RPC |
 
-## After This
+## Result
 
-- Revenue comes from exactly ONE source (edge function RPC)
-- Bridge receivables reduce via trigger (safe — no cash movement)
-- No time-based guards anywhere
-- Balance enforcement already exists in RPC (`total_in != total_out` → exception)
+- Trigger cannot double-reduce receivables (deterministic guard on exact category + source)
+- RPC rejects unbalanced and zero transactions (already done)
+- RPC supports reference-based idempotency for retry safety
+- System becomes fully deterministic — no silent duplicates possible
 
