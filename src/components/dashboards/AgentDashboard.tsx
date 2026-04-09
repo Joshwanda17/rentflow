@@ -210,7 +210,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }
 
   const handleRefresh = async () => {
-    await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet()]);
+    await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet(), refreshBalances()]);
   };
 
   const handleRegisterUser = () => { hapticTap(); setRegisterUserOpen(true); };
