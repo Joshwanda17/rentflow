@@ -386,7 +386,7 @@ Deno.serve(async (req) => {
                     });
                     if (rentLedgerErr) {
                       console.error(`[approve-wallet-op] Rent ledger RPC failed:`, rentLedgerErr.message);
-                    } else {
+                    }
 
                     const newOutstanding = outstanding - repaymentAmount;
                     console.log(`[approve-wallet-op] Auto-deducted UGX ${repaymentAmount} for rent repayment. Remaining: ${newOutstanding}. Tenant: ${op.user_id}`);
