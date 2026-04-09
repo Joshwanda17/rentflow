@@ -417,6 +417,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             const { toast } = await import('sonner');
             toast.info('Generating shareable link...');
             const { supabase } = await import('@/integrations/supabase/client');
+            const { data, error } = await supabase.functions.invoke('generate-tenant-form-token', {});
             if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to generate link');
             const tenantFormLink = `${getPublicOrigin()}/register-tenant?agent=${user.id}&token=${data.token}`;
             const shareText = `Register as a Welile tenant using this form: ${tenantFormLink}`;
