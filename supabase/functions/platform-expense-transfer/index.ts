@@ -31,11 +31,9 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    // Verify caller is manager/cfo/coo
     const { data: roles } = await adminClient.from('user_roles').select('role').eq('user_id', user.id);
     const allowedRoles = ['manager', 'cfo', 'coo', 'super_admin'];
-    const hasRole = roles?.some(r => allowedRoles.includes(r.role));
-    if (!hasRole) {
+    if (!roles?.some(r => allowedRoles.includes(r.role))) {
       return new Response(JSON.stringify({ error: 'Insufficient permissions' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -50,7 +48,6 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Invalid parameters' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Get financial agent
       const { data: fa, error: faErr } = await adminClient
         .from('financial_agents')
         .select('*, profiles:agent_id(id, full_name)')
@@ -64,63 +61,48 @@ serve(async (req) => {
 
       const agentId = fa.agent_id;
 
-      // Get or create agent wallet
-      let { data: wallet } = await adminClient.from('wallets').select('*').eq('user_id', agentId).single();
-      if (!wallet) {
-        const { data: nw, error: nwErr } = await adminClient.from('wallets').insert({ user_id: agentId, balance: 0 }).select().single();
-        if (nwErr) return new Response(JSON.stringify({ error: 'Failed to create wallet' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        wallet = nw;
-      }
+      // Ensure wallet exists
+      await adminClient.from('wallets')
+        .upsert({ user_id: agentId, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
 
-      // Credit agent wallet
-      const { data: updated, error: upErr } = await adminClient
-        .from('wallets')
-        .update({ balance: wallet.balance + amount, updated_at: new Date().toISOString() })
-        .eq('user_id', agentId)
-        .eq('balance', wallet.balance)
-        .select()
-        .maybeSingle();
-
-      if (upErr || !updated) {
-        return new Response(JSON.stringify({ error: 'Wallet update conflict, retry' }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      // Record in general ledger
+      // Credit agent wallet via balanced RPC: platform cash_out + wallet cash_in
       const refId = crypto.randomUUID();
-      await adminClient.from('general_ledger').insert([
-        {
-          user_id: agentId,
-          amount,
-          direction: 'in',
-          category: 'platform_expense_disbursement',
-          source_table: 'platform_expense_transfers',
-          description: `[${expense_category || fa.expense_category}] ${description}`,
-      currency: 'UGX',
-          reference_id: refId,
-        }
-      ]);
-
-      // Record expense transfer
-      await adminClient.from('platform_expense_transfers').insert({
-        financial_agent_id,
-        agent_id: agentId,
-        amount,
-        expense_category: expense_category || fa.expense_category,
-        description,
-        approved_by: user.id,
-        ledger_reference_id: refId,
+      const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            ledger_scope: 'platform', direction: 'cash_out',
+            amount, category: 'system_balance_correction',
+            source_table: 'platform_expense_transfers',
+            description: `[${expense_category || fa.expense_category}] ${description}`,
+            currency: 'UGX', reference_id: refId,
+          },
+          {
+            user_id: agentId, ledger_scope: 'wallet', direction: 'cash_in',
+            amount, category: 'system_balance_correction',
+            source_table: 'platform_expense_transfers',
+            description: `Platform expense credit: [${expense_category || fa.expense_category}] ${description}`,
+            currency: 'UGX', reference_id: refId,
+          },
+        ]),
       });
 
-      // Audit log
+      if (rpcErr) {
+        console.error('[platform-expense-transfer] RPC error:', rpcErr);
+        return new Response(JSON.stringify({ error: 'Transaction failed' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      await adminClient.from('platform_expense_transfers').insert({
+        financial_agent_id, agent_id: agentId, amount,
+        expense_category: expense_category || fa.expense_category,
+        description, approved_by: user.id, ledger_reference_id: refId,
+      });
+
       await adminClient.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'platform_expense_transfer',
-        table_name: 'platform_expense_transfers',
-        record_id: refId,
+        user_id: user.id, action_type: 'platform_expense_transfer',
+        table_name: 'platform_expense_transfers', record_id: refId,
         metadata: { agent_id: agentId, amount, category: expense_category || fa.expense_category, description },
       });
 
-      // Log system event
       logSystemEvent(adminClient, 'expense_transfer', user.id, 'platform_expense_transfers', refId, { amount, agent_id: agentId, category: expense_category || fa.expense_category });
 
       return new Response(JSON.stringify({ success: true, message: `UGX ${amount.toLocaleString()} transferred to ${fa.profiles?.full_name || 'agent'}` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -133,7 +115,6 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: 'batch_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Get batch
       const { data: batch, error: bErr } = await adminClient.from('payroll_batches').select('*').eq('id', batch_id).eq('status', 'draft').single();
       if (bErr || !batch) {
         return new Response(JSON.stringify({ error: 'Batch not found or already processed' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -141,7 +122,6 @@ serve(async (req) => {
 
       await adminClient.from('payroll_batches').update({ status: 'processing' }).eq('id', batch_id);
 
-      // Get pending items
       const { data: items } = await adminClient.from('payroll_items').select('*').eq('batch_id', batch_id).eq('status', 'pending');
       if (!items || items.length === 0) {
         await adminClient.from('payroll_batches').update({ status: 'completed', processed_at: new Date().toISOString() }).eq('id', batch_id);
@@ -151,36 +131,36 @@ serve(async (req) => {
       let processed = 0;
       for (const item of items) {
         try {
-          // Get or create wallet
-          let { data: w } = await adminClient.from('wallets').select('*').eq('user_id', item.employee_id).single();
-          if (!w) {
-            const { data: nw } = await adminClient.from('wallets').insert({ user_id: item.employee_id, balance: 0 }).select().single();
-            w = nw;
-          }
-          if (!w) continue;
+          // Ensure wallet exists
+          await adminClient.from('wallets')
+            .upsert({ user_id: item.employee_id, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
 
-          // Credit
-          const { data: upd } = await adminClient
-            .from('wallets')
-            .update({ balance: w.balance + item.amount, updated_at: new Date().toISOString() })
-            .eq('user_id', item.employee_id)
-            .eq('balance', w.balance)
-            .select()
-            .maybeSingle();
-
-          if (!upd) continue;
-
+          // Credit via balanced RPC: platform cash_out + wallet cash_in
           const refId = crypto.randomUUID();
-          await adminClient.from('general_ledger').insert({
-            user_id: item.employee_id,
-            amount: item.amount,
-            direction: 'in',
-            category: item.category === 'salary' ? 'salary_payment' : 'employee_advance',
-            source_table: 'payroll_items',
-            description: item.description || `${item.category} payment`,
-      currency: 'UGX',
-            reference_id: refId,
+          const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                ledger_scope: 'platform', direction: 'cash_out',
+                amount: item.amount, category: 'system_balance_correction',
+                source_table: 'payroll_items',
+                description: `${item.category === 'salary' ? 'Salary' : 'Employee advance'} payment`,
+                currency: 'UGX', reference_id: refId,
+              },
+              {
+                user_id: item.employee_id, ledger_scope: 'wallet', direction: 'cash_in',
+                amount: item.amount, category: 'system_balance_correction',
+                source_table: 'payroll_items',
+                description: item.description || `${item.category} payment`,
+                currency: 'UGX', reference_id: refId,
+              },
+            ]),
           });
+
+          if (rpcErr) {
+            console.error(`Payroll RPC error for ${item.id}:`, rpcErr);
+            await adminClient.from('payroll_items').update({ status: 'failed' }).eq('id', item.id);
+            continue;
+          }
 
           await adminClient.from('payroll_items').update({ status: 'paid', paid_at: new Date().toISOString(), ledger_reference_id: refId }).eq('id', item.id);
           processed++;
@@ -191,30 +171,23 @@ serve(async (req) => {
       }
 
       await adminClient.from('payroll_batches').update({
-        status: 'completed',
-        processed_count: processed,
-        processed_at: new Date().toISOString(),
+        status: 'completed', processed_count: processed, processed_at: new Date().toISOString(),
       }).eq('id', batch_id);
 
       await adminClient.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'payroll_batch_processed',
-        table_name: 'payroll_batches',
-        record_id: batch_id,
+        user_id: user.id, action_type: 'payroll_batch_processed',
+        table_name: 'payroll_batches', record_id: batch_id,
         metadata: { total_items: items.length, processed },
       });
 
       return new Response(JSON.stringify({ success: true, message: `Processed ${processed}/${items.length} payments` }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-
-    // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({ title: "💳 Platform Expense", body: "Activity: expense transfer", url: "/manager" }),
     }).catch(() => {});
-
 
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
