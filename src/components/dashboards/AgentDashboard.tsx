@@ -47,6 +47,7 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
@@ -113,6 +114,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { profile } = useProfile();
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
+  const { floatBalance, commissionBalance, refetch: refreshBalances } = useAgentBalances();
   const { isOnline } = useOffline();
   
   const { 
@@ -208,7 +210,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }
 
   const handleRefresh = async () => {
-    await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet()]);
+    await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet(), refreshBalances()]);
   };
 
   const handleRegisterUser = () => { hapticTap(); setRegisterUserOpen(true); };
@@ -269,7 +271,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Wallet Hero Card */}
         <AgentWalletHeroCard
-          walletBalance={wallet?.balance ?? 0}
+          floatBalance={floatBalance}
+          commissionBalance={commissionBalance}
           tenantsCount={tenantsCount}
           totalEarnings={totalEarnings}
           territory={profile?.territory}

@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
-import { Loader2, CheckCircle2, ArrowDownCircle, AlertCircle, Smartphone, Building2 } from 'lucide-react';
+import { Loader2, CheckCircle2, ArrowDownCircle, AlertCircle, Smartphone, Building2, Banknote, CreditCard } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface AgentDepositCashDialogProps {
@@ -16,17 +16,20 @@ interface AgentDepositCashDialogProps {
   onSuccess?: () => void;
 }
 
+type DepositType = 'float' | 'rent_repayment';
+
 export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentDepositCashDialogProps) {
   const { profile } = useProfile();
   const { toast } = useToast();
   const [amount, setAmount] = useState('');
+  const [depositType, setDepositType] = useState<DepositType>('float');
   const [method, setMethod] = useState<'mtn' | 'airtel' | 'bank'>('mtn');
   const [transactionId, setTransactionId] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const handleClose = () => {
-    setAmount(''); setMethod('mtn'); setTransactionId(''); setSuccess(false);
+    setAmount(''); setDepositType('float'); setMethod('mtn'); setTransactionId(''); setSuccess(false);
     onOpenChange(false);
   };
 
@@ -63,7 +66,11 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
 
     setLoading(false);
     setSuccess(true);
-    toast({ title: 'Deposit recorded! Float capacity restored.' });
+    toast({ 
+      title: depositType === 'float' 
+        ? 'Float deposit recorded! Float capacity restored.' 
+        : 'Rent repayment deposit recorded!'
+    });
     onSuccess?.();
   };
 
@@ -84,11 +91,46 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
             </div>
             <h3 className="text-lg font-semibold">Deposit Received!</h3>
             <p className="text-sm text-muted-foreground">{formatUGX(parseFloat(amount))}</p>
-            <p className="text-sm font-medium text-success">Float Capacity Restored</p>
+            <p className="text-sm font-medium text-success">
+              {depositType === 'float' ? 'Float Capacity Restored' : 'Rent Repayment Recorded'}
+            </p>
             <Button onClick={handleClose} className="w-full h-12">Done</Button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Deposit Type Selection */}
+            <div className="space-y-3">
+              <Label className="font-semibold">Deposit Type</Label>
+              <RadioGroup value={depositType} onValueChange={(v) => setDepositType(v as DepositType)} className="space-y-2">
+                <Label
+                  htmlFor="type-float"
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    depositType === 'float' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
+                  }`}
+                >
+                  <RadioGroupItem value="float" id="type-float" className="sr-only" />
+                  <Banknote className="h-5 w-5 text-primary" />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">Float</p>
+                    <p className="text-xs text-muted-foreground">Replenish operational float for rent payments</p>
+                  </div>
+                </Label>
+                <Label
+                  htmlFor="type-rent"
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    depositType === 'rent_repayment' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
+                  }`}
+                >
+                  <RadioGroupItem value="rent_repayment" id="type-rent" className="sr-only" />
+                  <CreditCard className="h-5 w-5 text-emerald-600" />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">Rent Repayment</p>
+                    <p className="text-xs text-muted-foreground">Tenant cash repayment — reduces tenant debt directly</p>
+                  </div>
+                </Label>
+              </RadioGroup>
+            </div>
+
             <div className="space-y-2">
               <Label>Amount (UGX)</Label>
               <Input
@@ -142,6 +184,13 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
                 From your mobile money SMS or bank deposit slip
               </p>
             </div>
+
+            {/* Context info based on deposit type */}
+            {depositType === 'rent_repayment' && (
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-muted-foreground">
+                💡 This deposit bypasses your wallet and goes directly to reducing the tenant's debt and recognizing platform revenue.
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={handleClose} className="flex-1 h-12">Cancel</Button>

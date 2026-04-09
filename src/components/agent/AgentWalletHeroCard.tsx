@@ -5,14 +5,16 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 
 interface AgentWalletHeroCardProps {
-  walletBalance: number;
+  floatBalance: number;
+  commissionBalance: number;
   tenantsCount: number;
   totalEarnings: number;
   territory?: string;
 }
 
 export function AgentWalletHeroCard({
-  walletBalance,
+  floatBalance,
+  commissionBalance,
   tenantsCount,
   totalEarnings,
   territory,
@@ -51,13 +53,18 @@ export function AgentWalletHeroCard({
             className="w-full text-left group"
           >
             <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-white/60 mb-1.5 flex items-center gap-1.5">
-              <Wallet className="h-3 w-3" />
-              Available Balance
+              <Banknote className="h-3 w-3" />
+              Float Balance
             </p>
             <div className="flex items-baseline gap-2 min-w-0 w-full">
               <p className="text-[clamp(1.1rem,4.5vw,2.25rem)] font-black tracking-tight leading-none text-white truncate w-full">
-                {formatAmount(walletBalance)}
+                {formatAmount(floatBalance)}
               </p>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Shield className="h-3 w-3 text-emerald-400/70" />
+              <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-white/50">Commission</span>
+              <span className="text-sm font-bold text-emerald-300 ml-auto">{formatAmountCompact(commissionBalance)}</span>
             </div>
           </button>
 
@@ -86,19 +93,19 @@ export function AgentWalletHeroCard({
               <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-white/50 mt-1.5">Earned</p>
             </div>
 
-            {/* Wallet — Opens sheet */}
+            {/* Commission — Opens sheet */}
             <button
               onClick={() => { hapticTap(); setShowWallet(true); }}
               className="portfolio-stat-cell-v2 rounded-xl px-1.5 py-3 text-center overflow-hidden hover:bg-white/20 active:scale-95 transition-all cursor-pointer"
             >
               <div className="flex items-center justify-center mb-1.5">
-                <Wallet className="h-3.5 w-3.5 text-amber-400/80" />
+                <Wallet className="h-3.5 w-3.5 text-emerald-400/80" />
               </div>
-              <p className="text-sm font-black leading-none text-white truncate" title={formatAmount(walletBalance)}>
-                {formatAmountCompact(walletBalance)}
+              <p className="text-sm font-black leading-none text-white truncate" title={formatAmount(commissionBalance)}>
+                {formatAmountCompact(commissionBalance)}
               </p>
               <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-white/50 mt-1.5 flex items-center justify-center gap-0.5">
-                Wallet
+                Commission
                 <ChevronRight className="h-2.5 w-2.5" />
               </p>
             </button>

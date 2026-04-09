@@ -266,7 +266,7 @@ export function useFinancialStatements() {
       const requestFees = sumWithDirectionFallback(platformIn, platformOut, ['tenant_request_fee', 'request_fee', 'registration_fee_collected']);
       const otherServiceIncome = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
       const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout']);
-      const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
+      const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_commission_earned', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
       const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
       const generalOperating = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
       const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance']);
@@ -302,7 +302,7 @@ export function useFinancialStatements() {
 
       // Custodial (wallet scope — user money in/out of platform custody)
       // Fix #3: Only count actual user deposits/withdrawals, not internal flows
-      const userDeposits = sumBy(walletIn, ['deposit', 'wallet_deposit', 'pending_portfolio_topup']);
+      const userDeposits = sumBy(walletIn, ['deposit', 'wallet_deposit', 'agent_float_deposit', 'pending_portfolio_topup']);
       const userWithdrawals = sumBy(walletOut, ['wallet_withdrawal']);
       const userTransfers = 0; // internal wallet-to-wallet are net zero
       const netCustodial = userDeposits - userWithdrawals;
@@ -326,7 +326,7 @@ export function useFinancialStatements() {
       // Platform Cash = All-time cumulative retained earnings (Balance Sheet is a point-in-time snapshot)
       // Uses the SAME direction-fallback logic as the Income Statement for consistency
       const revenueCategories = ['tenant_access_fee', 'access_fee', 'access_fee_collected', 'tenant_request_fee', 'request_fee', 'registration_fee_collected', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
-      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense', 'salary_payment', 'employee_advance', 'agent_requisition', 'platform_expense_disbursement'];
+      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_commission_earned', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense', 'salary_payment', 'employee_advance', 'agent_requisition', 'platform_expense_disbursement'];
       const allTimePlatformIn = allTimePlatform.filter(e => e.direction === 'cash_in');
       const allTimePlatformOut = allTimePlatform.filter(e => e.direction === 'cash_out');
       const allTimeRevenue = sumWithDirectionFallback(allTimePlatformIn, allTimePlatformOut, revenueCategories);
