@@ -17,7 +17,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Verify caller
     const authHeader = req.headers.get('Authorization');
     const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(
@@ -31,14 +30,12 @@ Deno.serve(async (req) => {
 
     const { amount, duration_months, agent_id } = await req.json();
 
-    // Validate inputs
     if (!amount || amount < 10000 || !duration_months || duration_months < 1 || duration_months > 12) {
       return new Response(JSON.stringify({ error: 'Invalid amount or duration (1-12 months)' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Check credit limit
     const { data: limitData } = await supabase
       .from('credit_access_limits')
       .select('total_limit')
@@ -52,7 +49,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check no existing active draw
     const { data: existingDraw } = await supabase
       .from('credit_access_draws')
       .select('id')
@@ -66,7 +62,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Calculate fees
     const durationDays = duration_months * 30;
     const accessFee = Math.round(amount * (Math.pow(1 + MONTHLY_RATE, duration_months) - 1));
     const totalPayable = amount + accessFee;
@@ -74,7 +69,6 @@ Deno.serve(async (req) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + durationDays);
 
-    // Create the draw record
     const { data: draw, error: drawError } = await supabase
       .from('credit_access_draws')
       .insert({
@@ -95,38 +89,34 @@ Deno.serve(async (req) => {
 
     if (drawError) throw drawError;
 
-    // Credit user's wallet via ledger
-    const today = new Date().toISOString().split('T')[0];
-    const groupId = crypto.randomUUID();
+    // Credit user's wallet via balanced RPC: platform cash_out + wallet cash_in
+    const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          ledger_scope: 'platform',
+          direction: 'cash_out',
+          amount,
+          category: 'wallet_deposit',
+          source_table: 'credit_access_draws',
+          source_id: draw.id,
+          description: `Credit access disbursement: UGX ${amount.toLocaleString()} for ${duration_months} month(s)`,
+          currency: 'UGX',
+        },
+        {
+          user_id: user.id,
+          ledger_scope: 'wallet',
+          direction: 'cash_in',
+          amount,
+          category: 'wallet_deposit',
+          source_table: 'credit_access_draws',
+          source_id: draw.id,
+          description: `Credit access: UGX ${amount.toLocaleString()} for ${duration_months} month(s)`,
+          currency: 'UGX',
+        },
+      ]),
+    });
 
-    await supabase.from('general_ledger').insert([
-      {
-        user_id: user.id,
-        amount,
-        direction: 'credit',
-        category: 'credit_access_disbursement',
-        source_table: 'credit_access_draws',
-        source_id: draw.id,
-        description: `Credit access: UGX ${amount.toLocaleString()} for ${duration_months} month(s)`,
-      currency: 'UGX',
-        transaction_date: today,
-        transaction_group_id: groupId,
-      },
-      {
-        user_id: null,
-        amount,
-        direction: 'debit',
-        category: 'credit_access_obligation',
-        source_table: 'credit_access_draws',
-        source_id: draw.id,
-        description: `Credit obligation created for user`,
-      currency: 'UGX',
-        transaction_date: today,
-        transaction_group_id: groupId,
-        ledger_scope: 'platform',
-      },
-    ]);
-
+    if (rpcErr) console.error('[process-credit-draw] RPC error:', rpcErr);
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
@@ -135,7 +125,6 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title: "📋 Credit Draw", body: "Activity: credit draw", url: "/manager" }),
     }).catch(() => {});
 
-    // Push notification to user (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
@@ -144,7 +133,6 @@ Deno.serve(async (req) => {
         payload: { title: "✅ Credit Draw Processed", body: `UGX ${amount.toLocaleString()} credit draw approved`, url: "/dashboard", type: "success" },
       }),
     }).catch(() => {});
-
 
     return new Response(JSON.stringify({
       success: true,

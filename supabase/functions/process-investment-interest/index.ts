@@ -18,30 +18,22 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get current month in YYYY-MM format
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     console.log(`Processing interest for month: ${currentMonth}`);
 
-    // Get all approved investment accounts with balance > 0
     const { data: accounts, error: accountsError } = await supabase
       .from("investment_accounts")
       .select("id, user_id, name, balance")
       .eq("status", "approved")
       .gt("balance", 0);
 
-    if (accountsError) {
-      throw accountsError;
-    }
+    if (accountsError) throw accountsError;
 
     if (!accounts || accounts.length === 0) {
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "No eligible accounts found",
-          processed: 0 
-        }),
+        JSON.stringify({ success: true, message: "No eligible accounts found", processed: 0 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -51,7 +43,6 @@ serve(async (req) => {
     const results = [];
 
     for (const account of accounts) {
-      // Check if interest was already paid for this month
       const { data: existingPayment } = await supabase
         .from("investment_interest_payments")
         .select("id")
@@ -68,7 +59,6 @@ serve(async (req) => {
       const principalAmount = Number(account.balance);
       const interestAmount = principalAmount * INTEREST_RATE;
 
-      // Record the interest payment
       const { error: paymentError } = await supabase
         .from("investment_interest_payments")
         .insert({
@@ -85,30 +75,43 @@ serve(async (req) => {
         continue;
       }
 
-      // Ensure wallet exists (trigger handles balance updates)
+      // Ensure wallet exists
       await supabase
         .from("wallets")
         .upsert({ user_id: account.user_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
-      // Credit interest via ledger (trigger updates wallet balance)
-      const { error: ledgerError } = await supabase.from("general_ledger").insert({
-        user_id: account.user_id,
-        amount: interestAmount,
-        direction: "cash_in",
-        category: "investment_interest",
-        source_table: "investment_interest_payments",
-        source_id: account.id,
-        description: `Monthly interest (15%) on investment account "${account.name}"`,
-        currency: 'UGX',
-        ledger_scope: "wallet",
+      // Credit interest via balanced RPC: platform cash_out (roi_expense) + wallet cash_in (roi_wallet_credit)
+      const { error: rpcError } = await supabase.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            ledger_scope: 'platform',
+            direction: 'cash_out',
+            amount: interestAmount,
+            category: 'roi_expense',
+            source_table: 'investment_interest_payments',
+            source_id: account.id,
+            description: `Monthly ROI expense (15%) for investment account "${account.name}"`,
+            currency: 'UGX',
+          },
+          {
+            user_id: account.user_id,
+            ledger_scope: 'wallet',
+            direction: 'cash_in',
+            amount: interestAmount,
+            category: 'roi_wallet_credit',
+            source_table: 'investment_interest_payments',
+            source_id: account.id,
+            description: `Monthly interest (15%) on investment account "${account.name}"`,
+            currency: 'UGX',
+          },
+        ]),
       });
 
-      if (ledgerError) {
-        console.error(`Error posting ledger for user ${account.user_id}:`, ledgerError);
+      if (rpcError) {
+        console.error(`Error posting ledger for user ${account.user_id}:`, rpcError);
         continue;
       }
 
-      // Send notification to user
       await supabase.from("notifications").insert({
         user_id: account.user_id,
         title: "💰 Monthly Interest Credited!",
