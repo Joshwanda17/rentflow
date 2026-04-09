@@ -42,6 +42,18 @@ export function ProxyAgentManager() {
     },
   });
 
+  const filteredAssignments = useMemo(() => {
+    if (!searchTerm.trim()) return assignments;
+    const q = searchTerm.toLowerCase();
+    return assignments.filter((a: any) =>
+      a.agent?.full_name?.toLowerCase().includes(q) ||
+      a.agent?.phone?.toLowerCase().includes(q) ||
+      a.beneficiary?.full_name?.toLowerCase().includes(q) ||
+      a.beneficiary?.phone?.toLowerCase().includes(q) ||
+      a.reason?.toLowerCase().includes(q)
+    );
+  }, [assignments, searchTerm]);
+
   const uniqueAgents = new Set(assignments.map((a: any) => a.agent_id)).size;
   const uniquePartners = new Set(assignments.map((a: any) => a.beneficiary_id)).size;
   const managedCount = assignments.filter((a: any) => a.is_managed_account).length;
