@@ -315,6 +315,16 @@ export function ApprovalQueue() {
 
   const getItemDisplayLabel = (item: QueueItem) => {
     if (item.rawData?.operation_type === 'portfolio_topup') return '💰 Portfolio Deposit';
+    // Show portfolio reference for ROI payout items
+    if (item.type === 'wallet_ops' && item.rawData?.category === 'roi_payout') {
+      const sourceId = item.rawData?.source_id;
+      const meta = (item.rawData?.metadata || {}) as Record<string, any>;
+      const portfolioRef = meta.portfolio_code || (sourceId ? sourceId.slice(0, 8) : null);
+      if (portfolioRef) {
+        return `ROI Payout · Portfolio: ${portfolioRef}`;
+      }
+      return 'ROI Payout';
+    }
     return item.description;
   };
 

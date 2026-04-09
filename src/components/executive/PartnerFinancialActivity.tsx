@@ -71,7 +71,7 @@ export function PartnerFinancialActivity() {
     queryFn: async () => {
       const { data } = await supabase
         .from('pending_wallet_operations')
-        .select('id, operation_type, amount, status, created_at, target_wallet_user_id, metadata, category')
+        .select('id, operation_type, amount, status, created_at, target_wallet_user_id, metadata, category, source_id')
         .order('created_at', { ascending: false })
         .limit(500);
       return data || [];
@@ -146,6 +146,15 @@ export function PartnerFinancialActivity() {
         || op.operation_type?.replace(/_/g, ' ')
         || '—';
 
+      // Build description with portfolio ref for ROI payouts
+      let description = meta.reason || meta.pay_mode || op.operation_type?.replace(/_/g, ' ') || '—';
+      if (type === 'Payout' && (op as any).source_id) {
+        const portfolioRef = meta.portfolio_code || (op as any).source_id?.slice(0, 8);
+        if (portfolioRef) {
+          description = `ROI payout · Portfolio: ${portfolioRef}`;
+        }
+      }
+
       result.push({
         type,
         partner_name: partnerName,
@@ -153,7 +162,7 @@ export function PartnerFinancialActivity() {
         status: op.status || 'pending',
         date: op.created_at,
         reference: op.id?.slice(0, 8) || '—',
-        description: meta.reason || meta.pay_mode || op.operation_type?.replace(/_/g, ' ') || '—',
+        description,
       });
     });
 
