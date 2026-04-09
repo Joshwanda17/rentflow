@@ -1,44 +1,42 @@
 
 
-# Fix: Agent Commission Balance Undercount Blocks Withdrawals
+# Fix: Negative Float Balances for All Agents
 
 ## Root Cause
 
-The `get_agent_split_balances` RPC function drastically undercounts agent commission because it only recognizes 3 credit categories (`agent_commission_earned`, `agent_commission`, `agent_bonus`) but ignores the biggest income source: **`referral_bonus`** (5,289 entries system-wide). It also misses `agent_commission_payout` and several other credit categories.
+The `get_agent_split_balances` RPC classifies `rent_payment_for_tenant` as a **float debit**, but there are **zero `agent_float_deposit` entries in the entire database**. No agent has ever received a formal float deposit.
 
-**Result**: Agents see a tiny "Commission Balance" (e.g., USh 97,951) while their actual wallet balance is much higher. Since the withdrawal dialog caps withdrawals at `commissionBalance`, agents effectively can't withdraw most of their money.
+When agents use the "I Collected Cash" flow, the system creates `rent_payment_for_tenant` (cash_out) entries against their wallet — but the money actually came from **commission earnings** (referral_bonus, agent_commission, etc.), not from float deposits.
 
-**Data proof**: Agent ATUHAIRE CAROLYNE has wallet balance 20,109,233 but the RPC returns only 40,903 commission. Agent LUKODDA JOSEPH has 28,104,740 in wallet but RPC returns 0 commission.
+**Result**: Every agent who paid rent for a tenant shows a negative float balance (e.g., LOLEM FIRICILA: -USh 115,000) because the formula subtracts rent payments from a float pool that was never funded.
+
+**Data proof**:
+- `agent_float_deposit` entries system-wide: **0**
+- `rent_payment_for_tenant` entries system-wide: **50** (totaling UGX 2,070,042)
+- 6 agents affected with negative float balances
 
 ## Fix
 
-### 1. Update `get_agent_split_balances` RPC (Database Migration)
+### Database Migration: Update `get_agent_split_balances` RPC
 
-Add missing categories to the commission calculation:
+Move `rent_payment_for_tenant` from the **float debit** bucket to the **commission debit** bucket, since the funds are sourced from commission earnings (not float capital).
 
-**Credits (add)**:
-- `referral_bonus` — the #1 agent income source
-- `agent_commission_payout` — 51 entries
-- `proxy_investment_commission` — 6 entries
-
-**Debits (add)**:
-- `withdrawal_pending` — category used by the withdrawal dialog (line 184 of WithdrawRequestDialog.tsx)
-
-Updated SQL:
 ```sql
 CREATE OR REPLACE FUNCTION public.get_agent_split_balances(p_agent_id UUID)
 RETURNS TABLE(float_balance NUMERIC, commission_balance NUMERIC)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
   SELECT
+    -- Float: only actual float deposits minus float-specific usage
     COALESCE(SUM(CASE
       WHEN category IN ('agent_float_deposit', 'wallet_deposit') AND direction IN ('cash_in', 'credit') THEN amount
-      WHEN category IN ('agent_float_used_for_rent', 'rent_payment_for_tenant') AND direction IN ('cash_out', 'debit') THEN -amount
+      WHEN category = 'agent_float_used_for_rent' AND direction IN ('cash_out', 'debit') THEN -amount
       ELSE 0
     END), 0) AS float_balance,
+    -- Commission: all earned income minus all outflows (including rent payments for tenants)
     COALESCE(SUM(CASE
       WHEN category IN ('agent_commission_earned', 'agent_commission', 'agent_bonus', 'referral_bonus', 'agent_commission_payout', 'proxy_investment_commission') AND direction IN ('cash_in', 'credit') THEN amount
-      WHEN category IN ('agent_commission_withdrawal', 'agent_commission_used_for_rent', 'tenant_default_charge', 'withdrawal_pending') AND direction IN ('cash_out', 'debit') THEN -amount
+      WHEN category IN ('agent_commission_withdrawal', 'agent_commission_used_for_rent', 'tenant_default_charge', 'withdrawal_pending', 'rent_payment_for_tenant') AND direction IN ('cash_out', 'debit') THEN -amount
       ELSE 0
     END), 0) AS commission_balance
   FROM general_ledger
@@ -46,13 +44,9 @@ AS $$
 $$;
 ```
 
-### 2. No frontend changes needed
+**Key change**: `rent_payment_for_tenant` moved from float debits → commission debits.
 
-The wallet sheet and withdrawal dialog already correctly pass `commissionBalance` — once the RPC returns accurate numbers, withdrawals will work.
+### No frontend changes needed
 
-## Risk Assessment
-
-- Low risk — read-only function, no data mutation
-- Fixes a critical revenue-blocking bug for agents
-- Should be verified by comparing updated commission balances against wallet balances for top agents
+The wallet card and withdrawal dialog already read from the RPC correctly. Once the RPC categorizes properly, float will show 0 (no deposits) and commission will accurately reflect earnings minus all outflows.
 
