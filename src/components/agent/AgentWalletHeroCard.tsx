@@ -5,14 +5,16 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 
 interface AgentWalletHeroCardProps {
-  walletBalance: number;
+  floatBalance: number;
+  commissionBalance: number;
   tenantsCount: number;
   totalEarnings: number;
   territory?: string;
 }
 
 export function AgentWalletHeroCard({
-  walletBalance,
+  floatBalance,
+  commissionBalance,
   tenantsCount,
   totalEarnings,
   territory,
