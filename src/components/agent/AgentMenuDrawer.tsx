@@ -72,6 +72,7 @@ interface AgentMenuDrawerProps {
   onInviteAngelInvestor?: () => void;
   onOpenRequisition?: () => void;
   onAngelPoolInvest?: () => void;
+  onShareTenantForm?: () => void;
   isFinancialAgent?: boolean;
 }
 
@@ -120,6 +121,7 @@ export function AgentMenuDrawer({
   onInviteAngelInvestor,
   onOpenRequisition,
   onAngelPoolInvest,
+  onShareTenantForm,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
@@ -159,6 +161,7 @@ export function AgentMenuDrawer({
         { icon: Share2, label: 'Invite & Refer', description: 'Grow your network', path: '/referrals', accent: 'pink-500' },
         { icon: Heart, label: 'Invite Funder', description: 'Share signup link for funders', onClick: onInviteFunder, accent: 'primary', badge: '💜' },
         { icon: Briefcase, label: 'Invite Investor', description: 'Share Angel Pool signup', onClick: onInviteAngelInvestor, accent: 'purple-500', badge: '🦄' },
+        { icon: Share2, label: 'Share Tenant Form', description: 'Shareable registration link', onClick: onShareTenantForm, accent: 'teal-500', badge: '🔗' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
