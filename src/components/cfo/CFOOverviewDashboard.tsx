@@ -144,7 +144,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           </div>
           <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
             <p className="text-xs text-muted-foreground">Restricted (User Funds)</p>
-            <p className="text-lg font-bold font-mono text-yellow-600">{fmt(Math.min(totalCash, totalLiabilities))}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-yellow-600">{fmt(Math.min(totalCash, totalLiabilities))}</p>
           </div>
         </div>
       </SectionCard>
