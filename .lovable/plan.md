@@ -1,59 +1,47 @@
 
 
-# Unified Wallet Balance — Dashboard Hero Cards
+# Batch Negative Balance Correction — Execution Plan
 
-## The Problem
+## Confirmed State
+- **442 users** with negative wallet ledger balances
+- **Total deficit**: UGX 130,209,864
+- Top offender: `99890a2e...` at -83.6M (64% of total)
+- `create_ledger_transaction` function exists and available
 
-The previous changes updated the wrong components. The cards visible on each role's dashboard are:
+## Execution (4 Migrations)
 
-| Role | Component | Current Label | Shows |
-|------|-----------|---------------|-------|
-| Agent | `AgentWalletHeroCard.tsx` | "Float Balance" | `floatBalance` as primary |
-| Supporter | `PortfolioSummaryCards.tsx` | "Available Balance" | `walletBalance` |
-| Tenant | `TenantWalletHeroCard.tsx` | "Available Balance" | `walletBalance` |
-| Landlord | `LandlordWalletHeroCard.tsx` | "Available Balance" | `walletBalance` |
+### Migration 1 — Correction Entries
+Run the DO block that loops through all 442 negative-balance users, calling `create_ledger_transaction` for each with:
+- Wallet `cash_in` for the user (brings balance to zero)
+- Platform `cash_out` offset (platform absorbs the error)
+- Category: `system_balance_correction`
+- Wrapped in BEGIN/EXCEPTION for fault tolerance
 
-These are the purple gradient hero cards on each dashboard. None were modified.
+### Migration 2 — Wallet Reconciliation
+Force `wallets.balance` to match ledger truth using the UPDATE statement, catching any rows where the trigger's `GREATEST(0)` clamping caused drift.
 
-## Changes
+### Migration 3 — Validation
+Run the three validation queries:
+1. Remaining negatives = 0
+2. Total correction ≈ 130M
+3. Wallet-ledger drift rows = 0
 
-### 1. `src/components/agent/AgentWalletHeroCard.tsx`
+### Migration 4 — (If needed) Fix any stragglers from validation
 
-- **Line 57**: Change label from `"Float Balance"` → `"Total Balance"`
-- **Line 60**: Change displayed value from `formatAmount(floatBalance)` → `formatAmount(floatBalance + commissionBalance)` (i.e. total wallet)
-- **Lines 64-68**: Replace the Commission row with unified secondary text:
-  `"Withdrawable: {commissionBalance} · Locked: {floatBalance}"`
+## Expected Impact
+- Platform cash decreases by ~130.2M (correct — absorbing historical errors)
+- All 442 users' wallet balances become non-negative
+- Full audit trail via `system_balance_correction` category
+- No data deleted, append-only
 
-### 2. `src/components/supporter/PortfolioSummaryCards.tsx`
+## Pre-requisites (Your Responsibility)
+1. Disable withdrawals, ROI payouts, auto jobs
+2. Ensure no active financial transactions
+3. Database backup taken
 
-- **Line 57**: Change label from `"Available Balance"` → `"Total Balance"`
-- **Lines 64-73**: Below the balance, add secondary text:
-  `"Withdrawable: {walletBalance} · Invested: {rentSecured}"`
+## Post-Run
+1. Re-enable withdrawals, ROI payouts, automation
+2. Monitor CFO dashboard Golden Rule section
 
-### 3. `src/components/tenant/TenantWalletHeroCard.tsx`
-
-- **Line 61**: Change label from `"Available Balance"` → `"Total Balance"`
-- **After line 67** (after the balance display, before the "Ready to pay" badge): Add secondary text:
-  `"Used for Rent: {rentDue}"`
-
-### 4. `src/components/landlord/LandlordWalletHeroCard.tsx`
-
-- **Line 59**: Change label from `"Available Balance"` → `"Total Balance"`
-- **After line 65** (after balance display): Add secondary text:
-  `"Withdrawable: {walletBalance}"`
-
-## What Does NOT Change
-- The 3-column stat grids at the bottom of each card stay as-is
-- The trust strips stay as-is
-- The FullScreenWalletSheet (already updated correctly)
-- All backend logic, ledger, withdrawal enforcement
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `AgentWalletHeroCard.tsx` | Label → "Total Balance", show total, add Withdrawable/Locked row |
-| `PortfolioSummaryCards.tsx` | Label → "Total Balance", add Withdrawable/Invested row |
-| `TenantWalletHeroCard.tsx` | Label → "Total Balance", add "Used for Rent" row |
-| `LandlordWalletHeroCard.tsx` | Label → "Total Balance", add "Withdrawable" row |
+Shall I proceed with executing the migrations?
 
