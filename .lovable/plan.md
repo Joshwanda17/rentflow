@@ -1,29 +1,88 @@
+# Partner Registration Form (Shared Link)
 
+## Overview
 
-# Marketing Insight Popup (Annual Rent)
+Build a public partner registration form accessible via agent-shared links (e.g., `/register-partner?agent={id}&token={token}`), mirroring the existing tenant registration pattern. Partners fill in personal details, investment amount (with auto-calculated 15% monthly ROI), and payout preferences. Submissions land in the Partner Operations dashboard for review.
 
-## What We're Building
-A non-intrusive popup that appears once when the tenant enters their rent amount, showing the annual cost and positioning the platform's repayment system as a solution.
+## Architecture
 
-## Trigger
-- Fires on `onBlur` of the rent input OR after ~1 second pause in typing
-- Only shown **once per session** (tracked via `useState` flag)
-- Only shown when rent amount is valid (> 0)
+```text
+Agent Dashboard → Generate Token → Share Link
+                                      ↓
+                         /register-partner?agent=X&token=Y
+                                      ↓
+                         RegisterPartnerPublic.tsx (form)
+                                      ↓
+                         submit-partner-form (Edge Function)
+                                      ↓
+                      Validates token → Creates supporter_invites row
+                                      (status: pending_review, role: supporter)
+                                      ↓
+                         Partner Operations Dashboard (existing queue)
+```
 
-## UI
-A dismissible toast-style card that slides in below the rent input (not a modal — won't block form progress). Contains:
-- "💡 Did You Know?" header
-- Monthly rent × 12 = annual figure
-- "We help you spread this into manageable payments based on your income."
-- Close button (X)
+## Changes
 
-## Technical Details
+### 1. New Page: `src/pages/RegisterPartnerPublic.tsx`
 
-### File: `src/pages/RegisterTenantPublic.tsx`
+Modeled on `RegisterTenantPublic.tsx` but simpler — single-step form with:
 
-1. **Add state**: `shownInsight` (boolean), `insightVisible` (boolean), `typingTimer` (ref)
-2. **Add debounced handler** on the rent input: on `onChange`, clear/reset a 1-second timer; on `onBlur`, trigger immediately. When triggered (and `!shownInsight` and rent > 0), set `insightVisible = true` and `shownInsight = true`.
-3. **Render insight card** directly below the rent `<Input>` — a styled div with annual calculation, message text, and X close button. Animate in with a simple transition.
+**A. Personal Details:**
 
-No new files or components needed — self-contained within the page.
+- Full Name, Phone Number, Email Address, Residence/Location
 
+**B. Investment Details:**
+
+- Amount to Invest (UGX) input
+- Auto-calculated read-only display: `Monthly ROI (15%): UGX {amount * 0.15}`
+- Subtext: "You will earn this amount every 30 days."
+- Optional: "Estimated Annual Earnings: UGX {amount * 0.15 * 12}"
+
+**C. Payment Preferences:**
+
+- Select: Mobile Money / Bank Transfer / Airtel Money
+- Conditional fields: Mobile Money Number (for MTN/Airtel) or Bank Name + Account Name + Account Number (for bank)
+
+**D. Footer:** Persistent agent name & phone (same `AgentFooter` pattern)
+
+**E. Marketing Insight:** After entering investment amount (debounced 1s / onBlur, once per session), show annual earnings popup similar to the tenant rent insight.
+
+### 2. New Edge Function: `supabase/functions/submit-partner-form/index.ts`
+
+- Validates token via `agent_form_tokens` (expiry, usage count)
+- Increments token `uses_count`
+- Server-side recalculates ROI (never trusts frontend)
+- Inserts into `supporter_invites` with:
+  - `created_by`: agent_id from token
+  - `role`: 'supporter'
+  - `status`: 'pending'
+  - `full_name`, `phone`, `email`
+  - `property_address` (used for residence/location)
+  - `payment_method`, `mobile_network`, `mobile_money_number`, `bank_name`, `account_name`, `account_number`
+  - Generates `activation_token` and `temp_password`
+- Returns success response
+
+### 3. Route Registration: `src/App.tsx`
+
+- Add: `<Route path="/register-partner" element={<RegisterPartnerPublic />} />`
+
+### 4. Agent Menu Integration
+
+- `**AgentMenuDrawer.tsx**`: Add `onSharePartnerForm` prop and menu item (icon: `UserPlus`, label: "Share Partner Form", badge: "🤝")
+- `**AgentDashboard.tsx**`: Wire `onSharePartnerForm` handler that reuses `generate-tenant-form-token` to create a token, then builds URL `/register-partner?agent={id}&token={token}` and shares/copies it
+
+### 5. No Database Migration Needed
+
+- Reuses existing `agent_form_tokens` table for token validation
+- Reuses existing `supporter_invites` table for storing the registration
+- All required columns already exist in the schema
+
+## Validation Rules
+
+- Full Name: required, 2-100 chars
+- Phone: required, trimmed
+- Email: required, valid format
+- Residence: required
+- Investment Amount: required, minimum UGX 100,000
+- Payment Method: required, with conditional sub-fields
+- ROI: server-calculated only (15% flat monthly)
