@@ -156,39 +156,36 @@ serve(async (req) => {
       .from('wallets')
       .upsert({ user_id: resolvedRecipientId, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
 
-    // === SINGLE-WRITER: Insert two ledger entries with shared transaction_group_id ===
-    // The sync_wallet_from_ledger trigger will atomically adjust both wallets
-    const txGroupId = crypto.randomUUID();
-
-    const { error: ledgerError } = await adminClient.from('general_ledger').insert([
-      {
-        user_id: senderId,
-        amount,
-        direction: 'cash_out',
-        category: 'wallet_transfer',
-        source_table: 'wallet_transactions',
-        description: `Transfer to user: ${safeDescription}`,
-      currency: 'UGX',
-        reference_id: txGroupId,
-        transaction_group_id: txGroupId,
-        transaction_date: new Date().toISOString(),
-      },
-      {
-        user_id: resolvedRecipientId,
-        amount,
-        direction: 'cash_in',
-        category: 'wallet_transfer',
-        source_table: 'wallet_transactions',
-        description: `Transfer from user: ${safeDescription}`,
-      currency: 'UGX',
-        reference_id: txGroupId,
-        transaction_group_id: txGroupId,
-        transaction_date: new Date().toISOString(),
-      },
-    ]);
+    // === SINGLE-WRITER: Route through create_ledger_transaction RPC ===
+    const { data: txGroupId, error: ledgerError } = await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: senderId,
+          amount,
+          direction: 'cash_out',
+          category: 'wallet_transfer',
+          ledger_scope: 'wallet',
+          source_table: 'wallet_transactions',
+          description: `Transfer to user: ${safeDescription}`,
+          currency: 'UGX',
+          transaction_date: new Date().toISOString(),
+        },
+        {
+          user_id: resolvedRecipientId,
+          amount,
+          direction: 'cash_in',
+          category: 'wallet_transfer',
+          ledger_scope: 'wallet',
+          source_table: 'wallet_transactions',
+          description: `Transfer from user: ${safeDescription}`,
+          currency: 'UGX',
+          transaction_date: new Date().toISOString(),
+        },
+      ]),
+    });
 
     if (ledgerError) {
-      console.error('Ledger insert error:', ledgerError);
+      console.error('Ledger RPC error:', ledgerError);
       return new Response(
         JSON.stringify({ error: 'Transfer failed. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
