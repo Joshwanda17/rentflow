@@ -1,93 +1,94 @@
 
 
-# Final Batch — Migrate Remaining 9 Edge Functions to RPC
+# Fix auto-charge-wallets: Revenue Split + Receivable Reduction
 
-## Summary
+## Problem Identified
 
-Replace all remaining direct `.from('general_ledger').insert(...)` calls and remove direct `wallets.balance` mutations across 9 functions. No new locked categories needed — all user-specified categories map to existing ones.
+**Double-counting bug:** When a charge succeeds:
+1. The RPC inserts `platform/cash_in/tenant_repayment = totalAmount`
+2. `logAndUpdateCharge` inserts into `subscription_charge_logs`
+3. The `sync_collection_to_ledger` trigger fires and inserts MORE `platform/cash_in` entries (rent_principal_collected + access_fee_collected + registration_fee_collected = totalAmount)
 
-## Category Corrections (User Spec → Locked Categories)
+Result: Platform receives **2x totalAmount** in the ledger. Revenue is inflated. Additionally, no `bridge/cash_out` entry is created, so receivables never reduce.
 
-The user's spec used some categories not in the locked list. Mapping to existing locked categories:
+## Fix (3 Parts)
 
-```text
-User said "operations_expense"  → partner_funding (money going to user wallet)
-User said "operations_funding"  → partner_funding (wallet → platform)
-User said "wallet_transfer"     → partner_funding (portfolio context, not peer transfer)
+### Part 1: Modify auto-charge-wallets RPC calls to use proportional split
+
+Replace the flat `platform/cash_in/tenant_repayment` with proportional entries. This requires fetching the rent_request fee breakdown (rent_amount, access_fee, request_fee, total_repayment) for each charge.
+
+**Full payment RPC (lines 291-316):**
+```
+wallet/cash_out = totalAmount (tenant_repayment)
+platform/cash_in = principalShare (rent_principal_collected)
+platform/cash_in = accessShare (access_fee_collected)  
+platform/cash_in = registrationShare (registration_fee_collected)
+```
+Where shares are calculated proportionally: `share = chargeAmount * (component / total_repayment)`
+
+Same pattern for partial payments (lines 428-453) and the chargeAgent function.
+
+**Agent fallback (chargeAgent function):** Use `agent_repayment` for float-first deduction per the 72h rule. Only use `agent_commission_used_for_rent` when explicitly deducting from commission balance.
+
+### Part 2: Update sync_collection_to_ledger trigger
+
+Two changes:
+1. **Add idempotency guard:** Check if platform-scope ledger entries already exist for this `subscription_charge_logs` record. If so, skip the revenue split (the edge function already handled it).
+2. **Add bridge/cash_out receivable reduction:** Insert a `bridge/cash_out/rent_principal_collected` entry for the principal share. This is a direct insert (not via RPC), which is acceptable for the trigger since it's an accounting adjustment, not a cash movement.
+
+```sql
+-- Idempotency guard (add at top of trigger)
+IF EXISTS (
+  SELECT 1 FROM general_ledger 
+  WHERE source_table = 'subscription_charge_logs' 
+  AND source_id = NEW.id::TEXT
+) THEN
+  RETURN NEW;
+END IF;
+
+-- Add after existing revenue entries:
+IF v_rent_share > 0 THEN
+  INSERT INTO general_ledger (...) VALUES (
+    ..., v_rent_share, 'cash_out', 'rent_principal_collected',
+    ..., 'bridge', v_group_id
+  );
+END IF;
 ```
 
-All portfolio-related flows use `partner_funding` as the locked category since that's what these are — capital movements between wallet and platform for investment purposes.
+### Part 3: Fetch rent_request data in auto-charge-wallets
 
-## Function-by-Function Changes
+At the start of each charge loop iteration, if `charge.rent_request_id` exists, fetch the fee breakdown to calculate proportional shares. If no rent_request (edge case), fall back to the flat `tenant_repayment` category.
 
-### 1. `fund-tenants` (lines 262-274)
-- **Current:** 1 direct insert (`rent_obligation`, `cash_out`)
-- **Replace with RPC:** `platform/cash_out/rent_disbursement` + `bridge/cash_in/rent_receivable_created`
-- Tenant obligation is a receivable, not a wallet operation
+```typescript
+let principalShare = chargeAmount;
+let accessShare = 0;
+let registrationShare = 0;
 
-### 2. `fund-tenant-from-pool` (lines 206-234)
-- **Current:** 2 direct inserts (`pool_rent_deployment` + `rent_obligation`) + direct `wallets.update` (lines 174-186 landlord, lines 309-317 agent bonus)
-- **Replace with:** 1 RPC: `platform/cash_out/rent_disbursement` + `bridge/cash_in/rent_receivable_created`
-- **Landlord credit:** Separate RPC: `platform/cash_out/wallet_deposit` + `wallet/cash_in/wallet_deposit` (replaces direct wallet mutation)
-- **Agent bonus (lines 309-317):** Separate RPC: `platform/cash_out/agent_commission_earned` + `wallet/cash_in/agent_commission_earned` (replaces direct wallet mutation)
-- **Remove:** Direct `wallets.update` at lines 174-186 and 309-317
-
-### 3. `auto-charge-wallets` (lines 670-705)
-- **Current:** 2 direct inserts (`agent_liability` + `agent_commission_used_for_rent`) + direct `wallets.update` (lines 291-294, 404-406)
-- **Agent liability (line 670):** Replace with RPC: `wallet/cash_out/system_balance_correction` + `platform/cash_in/system_balance_correction`
-- **Commission charge (line 693):** Replace with RPC: `wallet/cash_out/agent_commission_used_for_rent` + `platform/cash_in/agent_commission_used_for_rent`
-- **Remove:** Direct `wallets.update` at lines 291-294 and 404-406. Wallet deductions will be driven by `subscription_charge_logs` trigger + RPC ledger entries
-
-### 4. `fund-rent-pool` (lines 135-147)
-- **Current:** 1 direct insert (`supporter_rent_fund`, `cash_out`)
-- **Replace with RPC:** `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`
-
-### 5. `agent-invest-for-partner` (lines 102-235)
-- **Current:** 3 direct inserts + `general_ledger.delete()` rollback calls
-- **Agent deduction (line 102):** RPC: `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`
-- **Partner credit (line 195):** RPC: `platform/cash_out/partner_funding` + `wallet/cash_in/partner_funding`
-- **Partner debit to portfolio (line 217):** RPC: `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`
-- **Remove:** All `general_ledger.delete()` rollback calls (lines 185, 212) — RPC handles atomicity
-
-### 6. `manager-portfolio-topup` (lines 147-278)
-- **Wallet path (line 147):** RPC: `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`
-- **Reversal (line 190):** RPC: `platform/cash_out/system_balance_correction` + `wallet/cash_in/system_balance_correction`
-- **Non-wallet path (line 251):** RPC: `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`
-
-### 7. `coo-wallet-to-portfolio` (lines 130-157)
-- **Current:** 1 array insert of 2 entries (wallet `cash_out` + platform `credit`)
-- **Replace with RPC:** `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`
-
-### 8. `portfolio-topup` (lines 131-158, 176-188)
-- **Main (line 131):** RPC: `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`
-- **Reversal (line 176):** RPC: `platform/cash_out/system_balance_correction` + `wallet/cash_in/system_balance_correction`
-
-### 9. `apply-pending-topups` (lines 138-152)
-- **Current:** 1 insert with `credit` direction (will be normalized by RPC guard)
-- **Replace with RPC:** `platform/cash_out/partner_funding` + `wallet/cash_in/partner_funding`
-
-## Direct Wallet Mutations to Remove
-
-| Function | Lines | Current Code |
-|----------|-------|-------------|
-| `fund-tenant-from-pool` | 174-186 | `wallets.update/insert` for landlord credit |
-| `fund-tenant-from-pool` | 309-317 | `wallets.update` for agent bonus |
-| `auto-charge-wallets` | 291-294 | `wallets.update({ balance: newBalance })` tenant deduction |
-| `auto-charge-wallets` | 404-406 | `wallets.update({ balance: newBalance })` partial deduction |
-
-Note: `auto-charge-wallets` tenant deductions at lines 291-294 and 404-406 are tricky — they feed into `subscription_charge_logs` which has its own trigger (`sync_collection_to_ledger`). The wallet deduction there IS the source event. We need to replace it with a ledger insert via RPC, then let the trigger sync the wallet.
+if (charge.rent_request_id) {
+  const { data: rr } = await supabase.from('rent_requests')
+    .select('rent_amount, access_fee, request_fee, total_repayment')
+    .eq('id', charge.rent_request_id).single();
+  
+  if (rr && rr.total_repayment > 0) {
+    principalShare = Math.round(chargeAmount * (rr.rent_amount / rr.total_repayment));
+    accessShare = Math.round(chargeAmount * (rr.access_fee / rr.total_repayment));
+    registrationShare = chargeAmount - principalShare - accessShare;
+  }
+}
+```
 
 ## Files Changed
 
-| Asset | Count |
-|-------|-------|
-| 9 edge functions | Replace direct inserts + remove wallet mutations |
-| 0 migrations | No new categories needed |
-| 0 frontend changes | None |
+| File | Change |
+|------|--------|
+| `supabase/functions/auto-charge-wallets/index.ts` | Replace flat tenant_repayment with proportional split in all RPC calls (full, partial, agent). Fetch rent_request breakdown. Fix agent fallback to use agent_repayment. |
+| 1 database migration | Update `sync_collection_to_ledger` trigger: add idempotency guard + bridge/cash_out receivable reduction |
 
-## Safety
-- `strict_mode` stays `false`
-- Direction normalization in RPC catches any remaining `credit`/`debit`
-- Wallet overdraft guard blocks negative balances at DB level
-- All `general_ledger.delete()` calls removed — RPC is atomic
+## Verification
+
+After deployment:
+- No duplicate platform/cash_in entries per collection
+- Bridge receivables reduce proportionally with each payment
+- Revenue categories (access_fee_collected, registration_fee_collected) reflect actual proportional amounts
+- Partial payments split proportionally (no full fee on partial)
 
