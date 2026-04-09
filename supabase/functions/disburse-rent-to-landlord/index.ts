@@ -110,23 +110,37 @@ Deno.serve(async (req) => {
       notes: notes || null,
     })
 
-    // Record in general ledger — landlord payout
-    const transactionGroupId = crypto.randomUUID()
-    
-    await serviceClient.from('general_ledger').insert({
-      source_table: 'rent_requests',
-      source_id: rent_request_id,
-      category: 'rent_disbursement',
-      direction: 'cash_out',
-      amount: request.rent_amount,
-      description: `Rent paid to landlord ${landlord?.name || 'Unknown'} (${method}). Ref: ${transaction_reference}`,
-      currency: 'UGX',
-      user_id: request.tenant_id,
-      linked_party: request.landlord_id,
-      ledger_scope: 'platform',
-      transaction_group_id: transactionGroupId,
-      transaction_date: now,
-    })
+    // Record in general ledger — landlord payout via RPC
+    const { data: transactionGroupId, error: disburseLedgerErr } = await serviceClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          direction: 'cash_out',
+          amount: request.rent_amount,
+          category: 'rent_disbursement',
+          ledger_scope: 'platform',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `Rent paid to landlord ${landlord?.name || 'Unknown'} (${method}). Ref: ${transaction_reference}`,
+          currency: 'UGX',
+          user_id: request.tenant_id,
+          linked_party: request.landlord_id,
+          transaction_date: now,
+        },
+        {
+          direction: 'cash_in',
+          amount: request.rent_amount,
+          category: 'rent_receivable_created',
+          ledger_scope: 'bridge',
+          source_table: 'rent_requests',
+          source_id: rent_request_id,
+          description: `Rent receivable created for tenant – landlord ${landlord?.name || 'Unknown'}`,
+          currency: 'UGX',
+          user_id: request.tenant_id,
+          linked_party: request.landlord_id,
+          transaction_date: now,
+        },
+      ]),
+    });
 
     // Update landlord rent tracking
     if (landlord) {
@@ -157,21 +171,34 @@ Deno.serve(async (req) => {
 
       const agentName = agentProfile?.full_name || 'Agent'
 
-      // Credit UGX 5,000 flat bonus directly to agent wallet
-      const bonusTxGroupId = crypto.randomUUID()
-      const { error: ledgerErr } = await serviceClient.from('general_ledger').insert({
-        user_id: bonusAgentId,
-        amount: RENT_FUNDED_BONUS,
-        direction: 'cash_in',
-        category: 'agent_bonus',
-        source_table: 'rent_requests',
-        source_id: rent_request_id,
-        description: `UGX 5,000 rent funded bonus – landlord ${landlord?.name || 'Unknown'} paid via ${method}. Ref: ${transaction_reference}`,
-      currency: 'UGX',
-        linked_party: request.tenant_id,
-        ledger_scope: 'wallet',
-        transaction_group_id: bonusTxGroupId,
-        transaction_date: now,
+      // Credit UGX 5,000 flat bonus directly to agent wallet via RPC
+      const { error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: bonusAgentId,
+            amount: RENT_FUNDED_BONUS,
+            direction: 'cash_in',
+            category: 'agent_commission_earned',
+            ledger_scope: 'wallet',
+            source_table: 'rent_requests',
+            source_id: rent_request_id,
+            description: `UGX 5,000 rent funded bonus – landlord ${landlord?.name || 'Unknown'} paid via ${method}. Ref: ${transaction_reference}`,
+            currency: 'UGX',
+            linked_party: request.tenant_id,
+            transaction_date: now,
+          },
+          {
+            direction: 'cash_out',
+            amount: RENT_FUNDED_BONUS,
+            category: 'agent_commission_earned',
+            ledger_scope: 'platform',
+            source_table: 'rent_requests',
+            source_id: rent_request_id,
+            description: `Platform expense: rent funded bonus for agent`,
+            currency: 'UGX',
+            transaction_date: now,
+          },
+        ]),
       })
 
       if (!ledgerErr) {
