@@ -360,7 +360,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           </div>
           <div className={`rounded-xl border p-3 ${solvencyBg}`}>
             <p className="text-xs text-muted-foreground">Coverage</p>
-            <p className={`text-lg font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
+            <p className={`text-base sm:text-lg font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
           </div>
         </div>
         <div className={`rounded-xl border p-4 ${solvencyBg}`}>
