@@ -271,7 +271,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Wallet Hero Card */}
         <AgentWalletHeroCard
-          walletBalance={wallet?.balance ?? 0}
+          floatBalance={floatBalance}
+          commissionBalance={commissionBalance}
           tenantsCount={tenantsCount}
           totalEarnings={totalEarnings}
           territory={profile?.territory}
