@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { CompactAmount } from '@/components/ui/CompactAmount';
 import { useCurrency } from '@/hooks/useCurrency';
 import { getDynamicCurrencyName } from '@/lib/currencyFormat';
 import { useNavigate } from 'react-router-dom';
@@ -50,9 +51,9 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const { user, role } = useAuth();
   const { profile } = useProfile();
   const isAgent = role === 'agent';
-  const { commissionBalance } = useAgentBalances();
-  const displayBalance = isAgent ? commissionBalance : (wallet?.balance || 0);
-  const balanceLabel = isAgent ? 'Commission Balance' : 'Available Balance';
+  const { commissionBalance, floatBalance } = useAgentBalances();
+  const displayBalance = wallet?.balance || 0;
+  const balanceLabel = 'Total Balance';
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -185,6 +186,11 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                     {getDynamicCurrencyName()}
                   </p>
                   <WalletDisclaimer variant="dark" />
+                  {isAgent && (
+                    <p className="text-[11px] text-white/60 mt-2">
+                      Withdrawable: <CompactAmount value={commissionBalance} className="text-white/80 border-0" /> · Locked: <CompactAmount value={floatBalance} className="text-white/80 border-0" />
+                    </p>
+                  )}
                 </div>
               </Card>
 
