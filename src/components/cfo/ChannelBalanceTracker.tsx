@@ -1,15 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
 import { useMemo } from 'react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { FINAL_WITHDRAWAL_STATUSES } from '@/lib/ledgerConstants';
 
 const CHANNELS = [
   { key: 'mtn', label: 'MTN', color: 'bg-amber-500', emoji: '📱' },
   { key: 'airtel', label: 'Airtel', color: 'bg-red-500', emoji: '📲' },
   { key: 'bank', label: 'Bank', color: 'bg-blue-500', emoji: '🏦' },
   { key: 'cash', label: 'Cash', color: 'bg-emerald-500', emoji: '💵' },
+  { key: 'unassigned', label: 'Unassigned Channel', color: 'bg-orange-400', emoji: '⚠️' },
 ];
 
 export function ChannelBalanceTracker() {
@@ -35,7 +37,7 @@ export function ChannelBalanceTracker() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('amount, payout_method, status, created_at')
-        .eq('status', 'completed')
+        .in('status', FINAL_WITHDRAWAL_STATUSES)
         .limit(200);
       if (error) throw error;
       return data || [];
@@ -56,6 +58,7 @@ export function ChannelBalanceTracker() {
         if (ch.key === 'airtel') return p.includes('airtel');
         if (ch.key === 'bank') return p.includes('bank');
         if (ch.key === 'cash') return p.includes('cash') || p.includes('agent') || p.includes('receipt');
+        if (ch.key === 'unassigned') return !p || (!p.includes('mtn') && !p.includes('airtel') && !p.includes('bank') && !p.includes('cash') && !p.includes('agent') && !p.includes('receipt'));
         return false;
       });
 
@@ -65,6 +68,7 @@ export function ChannelBalanceTracker() {
         if (ch.key === 'airtel') return m.includes('airtel');
         if (ch.key === 'bank') return m.includes('bank');
         if (ch.key === 'cash') return m.includes('cash') || m.includes('agent');
+        if (ch.key === 'unassigned') return !m || (!m.includes('mtn') && !m.includes('airtel') && !m.includes('bank') && !m.includes('cash') && !m.includes('agent'));
         return false;
       });
 
@@ -95,6 +99,8 @@ export function ChannelBalanceTracker() {
   }, [deposits, withdrawals]);
 
   const grandTotal = channelData.reduce((s, c) => s + c.netBalance, 0);
+  const unassignedChannel = channelData.find(c => c.key === 'unassigned');
+  const hasUnassignedFunds = unassignedChannel && (unassignedChannel.netBalance !== 0 || unassignedChannel.txCount > 0);
 
   if (isLoading) {
     return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
@@ -110,9 +116,22 @@ export function ChannelBalanceTracker() {
         </span>
       </div>
 
+      {/* Unassigned channel alert */}
+      {hasUnassignedFunds && (
+        <div className="flex items-center gap-2 rounded-lg border border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-800 px-3 py-2">
+          <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+          <span className="text-[11px] text-orange-700 dark:text-orange-400">
+            {formatUGX(Math.abs(unassignedChannel!.netBalance))} in unassigned channel — needs provider attribution
+          </span>
+        </div>
+      )}
+
       {/* Channel rows — single column, clean list */}
       <div className="rounded-xl border border-border bg-card divide-y divide-border">
         {channelData.map(ch => {
+          // Hide unassigned row if it has no activity
+          if (ch.key === 'unassigned' && ch.netBalance === 0 && ch.txCount === 0) return null;
+
           const TrendIcon = ch.trend > 5 ? TrendingUp : ch.trend < -5 ? TrendingDown : Minus;
           const trendColor = ch.trend > 5 ? 'text-emerald-500' : ch.trend < -5 ? 'text-destructive' : 'text-muted-foreground';
 

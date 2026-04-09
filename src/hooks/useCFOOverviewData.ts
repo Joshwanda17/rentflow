@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { LEDGER_SCOPE, FINAL_WITHDRAWAL_STATUSES } from '@/lib/ledgerConstants';
 
 const STALE_TIME = 300_000; // 5 minutes
 
@@ -16,13 +17,14 @@ export function useCFOOverviewData() {
       const { data: withdrawals } = await supabase
         .from('withdrawal_requests')
         .select('amount, mobile_money_provider')
-        .eq('status', 'approved');
+        .in('status', FINAL_WITHDRAWAL_STATUSES);
 
       const channels: Record<string, { deposits: number; withdrawals: number }> = {
         MTN: { deposits: 0, withdrawals: 0 },
         Airtel: { deposits: 0, withdrawals: 0 },
         Bank: { deposits: 0, withdrawals: 0 },
         Cash: { deposits: 0, withdrawals: 0 },
+        Unassigned: { deposits: 0, withdrawals: 0 },
       };
 
       (deposits || []).forEach((d) => {
@@ -142,15 +144,15 @@ export function useCFOOverviewData() {
   const revenue = useQuery({
     queryKey: ['cfo-overview-revenue'],
     queryFn: async () => {
-      const { data: entries } = (await supabase
-        .from('general_ledger' as any)
+      const { data: entries } = await supabase
+        .from('general_ledger')
         .select('amount, direction, category, created_at')
-        .eq('scope', 'platform')) as { data: { amount: number; direction: string; category: string; created_at: string }[] | null };
+        .eq('ledger_scope', LEDGER_SCOPE.PLATFORM);
 
       let totalRevenue = 0;
       let totalExpenses = 0;
 
-      (entries || []).forEach((e) => {
+      ((entries as any[]) || []).forEach((e) => {
         if (e.category === 'opening_balance') return;
         const amt = Number(e.amount);
         if (e.direction === 'cash_in') totalRevenue += amt;
@@ -164,14 +166,14 @@ export function useCFOOverviewData() {
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 86400000);
         const dateStr = d.toISOString().split('T')[0];
-        const dayTotal = (entries || [])
+        const dayTotal = ((entries as any[]) || [])
           .filter(
             (e) =>
               e.direction === 'cash_in' &&
               e.category !== 'opening_balance' &&
               e.created_at.startsWith(dateStr)
           )
-          .reduce((s, e) => s + Number(e.amount), 0);
+          .reduce((s: number, e: any) => s + Number(e.amount), 0);
         dailyRevenue.push({ date: dateStr, amount: dayTotal });
       }
 
@@ -200,7 +202,7 @@ export function useCFOOverviewData() {
       const { data: withdrawals } = await supabase
         .from('withdrawal_requests')
         .select('amount, created_at')
-        .eq('status', 'approved')
+        .in('status', FINAL_WITHDRAWAL_STATUSES)
         .gte('created_at', thirtyDaysAgo);
 
       let totalInflows = 0;
@@ -242,15 +244,15 @@ export function useCFOOverviewData() {
   const cashFlowByPurpose = useQuery({
     queryKey: ['cfo-overview-cashflow-purpose'],
     queryFn: async () => {
-      const { data: entries } = (await supabase
-        .from('general_ledger' as any)
+      const { data: entries } = await supabase
+        .from('general_ledger')
         .select('amount, direction, category, created_at')
-        .eq('scope', 'platform')) as { data: { amount: number; direction: string; category: string; created_at: string }[] | null };
+        .eq('ledger_scope', LEDGER_SCOPE.PLATFORM);
 
       const cashIn = { partnerFunding: 0, tenantRepayments: 0, other: 0 };
       const cashOut = { rentPayments: 0, roiPayouts: 0, advances: 0, other: 0 };
 
-      (entries || []).forEach((e) => {
+      ((entries as any[]) || []).forEach((e) => {
         if (e.category === 'opening_balance') return;
         const amt = Number(e.amount);
         if (e.direction === 'cash_in') {
@@ -303,10 +305,11 @@ export function useCFOOverviewData() {
 }
 
 function mapProvider(provider: string | null): string {
-  if (!provider) return 'Cash';
+  if (!provider) return 'Unassigned';
   const p = provider.toLowerCase();
   if (p.includes('mtn')) return 'MTN';
   if (p.includes('airtel')) return 'Airtel';
   if (p.includes('bank') || p.includes('stanbic') || p.includes('centenary')) return 'Bank';
-  return 'Cash';
+  if (p.includes('cash')) return 'Cash';
+  return 'Unassigned';
 }
