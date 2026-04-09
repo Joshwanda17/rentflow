@@ -175,10 +175,10 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
               <Card className="overflow-hidden border-0 shadow-lg">
                 <div className="bg-gradient-to-br from-[hsl(270,80%,55%)] via-[hsl(265,75%,50%)] to-[hsl(280,70%,40%)] p-6 text-center">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
-                    Available Balance
+                    {balanceLabel}
                   </p>
                   <AnimatedBalance 
-                    value={wallet?.balance || 0} 
+                    value={displayBalance} 
                     className="text-[clamp(2rem,9vw,3rem)] font-black text-white tracking-tight block leading-none"
                   />
                   <p className="text-[11px] text-white/50 mt-2 uppercase tracking-widest font-medium">
