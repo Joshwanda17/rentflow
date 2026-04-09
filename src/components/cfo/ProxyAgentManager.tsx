@@ -21,6 +21,7 @@ export function ProxyAgentManager() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showAssign, setShowAssign] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [pickedAgent, setPickedAgent] = useState<any>(null);
   const [pickedBeneficiary, setPickedBeneficiary] = useState<any>(null);
   const [beneficiaryRole, setBeneficiaryRole] = useState('landlord');
