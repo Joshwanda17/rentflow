@@ -85,7 +85,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               Withdrawals & Payouts
             </h2>
             <FinOpsWithdrawalVerification />
-            <PendingWalletOperationsWidget />
+            <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
             <FloatPayoutVerification />
           </>
         )}

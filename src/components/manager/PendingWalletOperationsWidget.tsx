@@ -430,7 +430,7 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
               </Select>
             </div>
 
-            {approvePaymentMethod && selectedMethodMeta && (
+            {requirePaymentRef && approvePaymentMethod && selectedMethodMeta && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">{selectedMethodMeta.refLabel}</label>
                 <Input
