@@ -1,10 +1,52 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
-import { UserPlus, CheckCircle2, AlertCircle, Phone, User, CreditCard, Home, Banknote, Loader2 } from 'lucide-react';
+import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
+import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
+import { addDays, format } from 'date-fns';
+import {
+  UserPlus, CheckCircle2, AlertCircle, Phone, User, Home, Banknote,
+  Loader2, Navigation, Camera, X, MapPin, Calendar, Calculator, Building2, Users
+} from 'lucide-react';
+
+type IncomeType = 'daily' | 'weekly-monthly';
+type RepaymentPeriod = '7' | '14' | '21' | '30' | '120';
+
+const HOUSE_CATEGORIES = [
+  { value: 'single-room', label: 'Single Room', emoji: '🚪' },
+  { value: 'double-room', label: 'Double Room', emoji: '🛏️' },
+  { value: '1-bed', label: '1 Bed House', emoji: '🏠' },
+  { value: '2-bed', label: '2 Bedroom House', emoji: '🏡' },
+  { value: '2-bed-full', label: '2 Bed + Sitting Room, Kitchen & 2 Toilets', emoji: '🏘️' },
+  { value: '3-bed', label: '3 Bedroom Apartment', emoji: '🏢' },
+  { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter', emoji: '🏰' },
+  { value: '4-bed', label: '4+ Bedroom Villa', emoji: '🏛️' },
+  { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
+];
+
+function AgentFooter({ agentInfo }: { agentInfo: { name: string; phone: string } | null }) {
+  if (!agentInfo) return null;
+  return (
+    <div className="mt-6 pt-4 border-t border-border/40 text-center space-y-1">
+      <p className="text-xs text-muted-foreground">This form was shared by:</p>
+      <p className="text-sm font-semibold">{agentInfo.name}</p>
+      {agentInfo.phone && <p className="text-xs text-muted-foreground">{agentInfo.phone}</p>}
+    </div>
+  );
+}
+
+function Branding() {
+  return (
+    <div className="text-center pt-4">
+      <p className="text-xs text-muted-foreground">Powered by <span className="font-semibold text-primary">Welile</span></p>
+    </div>
+  );
+}
 
 export default function RegisterTenantPublic() {
   const [searchParams] = useSearchParams();
@@ -17,62 +59,139 @@ export default function RegisterTenantPublic() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Step: 'income' | 'form'
+  const [step, setStep] = useState<'income' | 'form'>('income');
+  const [incomeType, setIncomeType] = useState<IncomeType | null>(null);
+
+  // Form fields
+  const [rentAmount, setRentAmount] = useState('');
+  const [duration, setDuration] = useState<'30' | '60' | '90'>('30');
+  const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [nationalId, setNationalId] = useState('');
-  const [rentAmount, setRentAmount] = useState('');
+  const [noSmartphone, setNoSmartphone] = useState(false);
+  const [houseCategory, setHouseCategory] = useState('');
+  const [landlordName, setLandlordName] = useState('');
+  const [landlordPhone, setLandlordPhone] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
+  const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
+  const [lc1Name, setLc1Name] = useState('');
+  const [lc1Phone, setLc1Phone] = useState('');
+  const [lc1Village, setLc1Village] = useState('');
+  const [guarantorConsent, setGuarantorConsent] = useState(false);
 
-  // Fetch agent info on mount
   useEffect(() => {
     async function fetchAgent() {
-      if (!agentId || !token) {
-        setError('Invalid link — missing agent or token.');
-        setLoading(false);
-        return;
-      }
-
+      if (!agentId || !token) { setError('Invalid link — missing agent or token.'); setLoading(false); return; }
       try {
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, phone')
-          .eq('id', agentId)
-          .maybeSingle();
-
-        if (profile) {
-          setAgentInfo({ name: profile.full_name || 'Welile Agent', phone: profile.phone || '' });
-        }
-      } catch {
-        // Non-critical — just won't show agent info
-      }
+          .from('profiles').select('full_name, phone').eq('id', agentId).maybeSingle();
+        if (profile) setAgentInfo({ name: profile.full_name || 'Welile Agent', phone: profile.phone || '' });
+      } catch {}
       setLoading(false);
     }
     fetchAgent();
   }, [agentId, token]);
 
+  const captureGPS = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setGpsLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGpsLoading(false); },
+      () => { setGpsLoading(false); },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  }, []);
+
+  const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = 3 - housePhotos.length;
+    if (remaining <= 0) return;
+    const toAdd = files.slice(0, remaining);
+    setHousePhotos(prev => [...prev, ...toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }))]);
+    if (e.target) e.target.value = '';
+  }, [housePhotos.length]);
+
+  const removePhoto = useCallback((index: number) => {
+    setHousePhotos(prev => { URL.revokeObjectURL(prev[index].preview); return prev.filter((_, i) => i !== index); });
+  }, []);
+
+  const amount = parseInt(rentAmount.replace(/,/g, '')) || 0;
+
+  const fees = useMemo(() => {
+    if (!amount || !incomeType) return null;
+    if (incomeType === 'daily') {
+      return calculateRentRepayment(amount, parseInt(duration) as 30 | 60 | 90);
+    } else {
+      const DAILY_ACCESS_FEE_RATE = 0.011;
+      const PLATFORM_FEE = 10000;
+      const days = parseInt(repaymentPeriod);
+      const accessFee = Math.round(amount * DAILY_ACCESS_FEE_RATE * days);
+      const totalRepayment = amount + accessFee + PLATFORM_FEE;
+      return {
+        rentAmount: amount,
+        durationDays: days,
+        accessFee,
+        requestFee: PLATFORM_FEE,
+        totalRepayment,
+        dailyRepayment: Math.round(totalRepayment / days),
+      };
+    }
+  }, [amount, incomeType, duration, repaymentPeriod]);
+
+  const canSubmit = !!(
+    fullName.trim() && phone.trim() && amount > 0 && houseCategory &&
+    landlordName.trim() && landlordPhone.trim() && propertyAddress.trim() &&
+    lc1Name.trim() && lc1Phone.trim() && lc1Village.trim() && guarantorConsent
+  );
+
+  const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agentId || !token) return;
-
+    if (!agentId || !token || !canSubmit || !fees) return;
     setSubmitting(true);
     setError(null);
 
     try {
+      const photosBase64 = await Promise.all(housePhotos.map(p => fileToBase64(p.file)));
+
       const { data, error: fnError } = await supabase.functions.invoke('submit-tenant-form', {
         body: {
           token,
           agent_id: agentId,
           full_name: fullName,
           phone,
-          national_id: nationalId || undefined,
-          rent_amount: rentAmount ? Number(rentAmount) : undefined,
-          property_address: propertyAddress || undefined,
+          income_type: incomeType,
+          rent_amount: fees.rentAmount,
+          duration_days: fees.durationDays,
+          access_fee: fees.accessFee,
+          request_fee: fees.requestFee,
+          total_repayment: fees.totalRepayment,
+          daily_repayment: fees.dailyRepayment,
+          no_smartphone: noSmartphone,
+          house_category: houseCategory,
+          landlord_name: landlordName,
+          landlord_phone: landlordPhone,
+          property_address: propertyAddress,
+          gps_lat: gpsLocation?.lat ?? null,
+          gps_lng: gpsLocation?.lng ?? null,
+          lc1_name: lc1Name,
+          lc1_phone: lc1Phone,
+          lc1_village: lc1Village,
+          house_photos: photosBase64,
         },
       });
 
       if (fnError) throw new Error(fnError.message);
       if (data?.error) throw new Error(data.error);
-
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -108,31 +227,83 @@ export default function RegisterTenantPublic() {
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
             <CheckCircle2 className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Registration Submitted!</h1>
+          <h1 className="text-2xl font-bold">Request Submitted!</h1>
           <p className="text-muted-foreground text-sm">
-            Your details have been received. {agentInfo?.name ? `${agentInfo.name} will` : 'Your agent will'} follow up with you shortly.
+            Your rent request has been received. {agentInfo?.name ? `${agentInfo.name} will` : 'Your agent will'} follow up with you shortly.
           </p>
-          <div className="pt-4">
-            <p className="text-xs text-muted-foreground">Powered by <span className="font-semibold text-primary">Welile</span></p>
-          </div>
+          <Branding />
         </div>
       </div>
     );
   }
 
+  // Step 1: Income Type Selection
+  if (step === 'income') {
+    return (
+      <div className="min-h-[100dvh] bg-background">
+        <div className="bg-primary text-primary-foreground px-4 py-6 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <UserPlus className="h-6 w-6" />
+            <h1 className="text-xl font-bold">Tenant Registration</h1>
+          </div>
+          <p className="text-sm opacity-90">Select your income type to get started</p>
+        </div>
+
+        <div className="max-w-md mx-auto px-4 py-8 space-y-4">
+          <p className="text-sm text-muted-foreground text-center">How does this tenant earn income?</p>
+
+          <button
+            onClick={() => { setIncomeType('daily'); setStep('form'); }}
+            className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/60 text-left transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">☀️</span>
+              <div>
+                <p className="font-semibold">Daily Income Earner</p>
+                <p className="text-xs text-muted-foreground">Market vendors, boda riders, casual workers</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => { setIncomeType('weekly-monthly'); setStep('form'); }}
+            className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/60 text-left transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📅</span>
+              <div>
+                <p className="font-semibold">Weekly / Monthly Earner</p>
+                <p className="text-xs text-muted-foreground">Salaried, weekly wage, small business</p>
+              </div>
+            </div>
+          </button>
+
+          <AgentFooter agentInfo={agentInfo} />
+          <Branding />
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Full form
+  const getPeriodLabel = (p: RepaymentPeriod) => {
+    switch (p) {
+      case '7': return '7 Days (1 Week)';
+      case '14': return '14 Days (2 Weeks)';
+      case '21': return '21 Days (3 Weeks)';
+      case '30': return '30 Days (1 Month)';
+      case '120': return '120 Days (4 Months)';
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground px-4 py-6 text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <UserPlus className="h-6 w-6" />
-          <h1 className="text-xl font-bold">Tenant Registration</h1>
-        </div>
-        <p className="text-sm opacity-90">Fill in your details to get started with Welile</p>
+      <div className="bg-primary text-primary-foreground px-4 py-5 text-center">
+        <h1 className="text-lg font-bold">Tenant Registration</h1>
+        <p className="text-xs opacity-90">{incomeType === 'daily' ? '☀️ Daily Income' : '📅 Weekly/Monthly Income'}</p>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-6 space-y-5">
+      <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-5 space-y-6">
         {error && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
             <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
@@ -140,101 +311,164 @@ export default function RegisterTenantPublic() {
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="fullName" className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" /> Full Name <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="fullName"
-            value={fullName}
-            onChange={e => setFullName(e.target.value)}
-            placeholder="e.g. Alice Namono"
-            required
-            autoComplete="name"
-            autoCapitalize="words"
-            autoCorrect="on"
-          />
-        </div>
+        {/* A. Rent Details */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5"><Banknote className="h-4 w-4" /> Rent Details</h2>
+          <div className="space-y-2">
+            <Label>Rent Amount (UGX) <span className="text-destructive">*</span></Label>
+            <Input type="number" value={rentAmount} onChange={e => setRentAmount(e.target.value)} placeholder="e.g. 350000" min="0" required />
+          </div>
+          {incomeType === 'daily' ? (
+            <div className="space-y-2">
+              <Label>Duration</Label>
+              <Select value={duration} onValueChange={(v) => setDuration(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 Days</SelectItem>
+                  <SelectItem value="60">60 Days</SelectItem>
+                  <SelectItem value="90">90 Days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Repayment Period</Label>
+              <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['7','14','21','30','120'] as RepaymentPeriod[]).map(p => (
+                    <SelectItem key={p} value={p}>{getPeriodLabel(p)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {fees && (
+            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-1 text-xs">
+              <div className="flex justify-between"><span className="text-muted-foreground">Rent Amount</span><span className="font-medium">{formatUGX(fees.rentAmount)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Access Fee</span><span>{formatUGX(fees.accessFee)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Platform Fee</span><span>{formatUGX(fees.requestFee)}</span></div>
+              <div className="flex justify-between font-semibold border-t border-primary/20 pt-1 mt-1"><span>Total Repayment</span><span>{formatUGX(fees.totalRepayment)}</span></div>
+              <div className="flex justify-between text-primary font-semibold"><span>Daily Amount</span><span>{formatUGX(fees.dailyRepayment)}/day</span></div>
+              <p className="text-muted-foreground pt-1">Starts: {format(addDays(new Date(), 1), 'MMM d, yyyy')}</p>
+            </div>
+          )}
+        </section>
 
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="flex items-center gap-1.5">
-            <Phone className="h-3.5 w-3.5" /> Phone Number <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="phone"
-            type="tel"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="e.g. 0770 123 456"
-            required
-            autoComplete="tel"
-          />
-        </div>
+        {/* B. Tenant Details */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5"><User className="h-4 w-4" /> Tenant Details</h2>
+          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+            <Label className="text-xs">Tenant has no smartphone</Label>
+            <Switch checked={noSmartphone} onCheckedChange={setNoSmartphone} />
+          </div>
+          <div className="space-y-2">
+            <Label>Full Name <span className="text-destructive">*</span></Label>
+            <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Alice Namono" required autoCapitalize="words" />
+          </div>
+          <div className="space-y-2">
+            <Label>Phone Number <span className="text-destructive">*</span></Label>
+            <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 0770 123 456" required />
+          </div>
+        </section>
 
-        <div className="space-y-2">
-          <Label htmlFor="nationalId" className="flex items-center gap-1.5">
-            <CreditCard className="h-3.5 w-3.5" /> National ID
-          </Label>
-          <Input
-            id="nationalId"
-            value={nationalId}
-            onChange={e => setNationalId(e.target.value)}
-            placeholder="e.g. CM12345678ABCD"
-            autoComplete="off"
-          />
-        </div>
+        {/* C. House Category */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5"><Building2 className="h-4 w-4" /> House Category</h2>
+          <Select value={houseCategory} onValueChange={setHouseCategory}>
+            <SelectTrigger><SelectValue placeholder="Select house type" /></SelectTrigger>
+            <SelectContent>
+              {HOUSE_CATEGORIES.map(cat => (
+                <SelectItem key={cat.value} value={cat.value}>{cat.emoji} {cat.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </section>
 
-        <div className="space-y-2">
-          <Label htmlFor="rentAmount" className="flex items-center gap-1.5">
-            <Banknote className="h-3.5 w-3.5" /> Monthly Rent (UGX)
-          </Label>
-          <Input
-            id="rentAmount"
-            type="number"
-            value={rentAmount}
-            onChange={e => setRentAmount(e.target.value)}
-            placeholder="e.g. 350000"
-            min="0"
-            autoComplete="off"
-          />
-        </div>
+        {/* D. Landlord Details */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5"><Home className="h-4 w-4" /> Landlord Details</h2>
+          <div className="space-y-2">
+            <Label>Landlord Name <span className="text-destructive">*</span></Label>
+            <Input value={landlordName} onChange={e => setLandlordName(e.target.value)} placeholder="e.g. Mr. Mukasa" required />
+          </div>
+          <div className="space-y-2">
+            <Label>Landlord Phone <span className="text-destructive">*</span></Label>
+            <Input type="tel" value={landlordPhone} onChange={e => setLandlordPhone(e.target.value)} placeholder="e.g. 0700 000 000" required />
+          </div>
+        </section>
 
-        <div className="space-y-2">
-          <Label htmlFor="propertyAddress" className="flex items-center gap-1.5">
-            <Home className="h-3.5 w-3.5" /> Property / Unit Address
-          </Label>
-          <Input
-            id="propertyAddress"
-            value={propertyAddress}
-            onChange={e => setPropertyAddress(e.target.value)}
-            placeholder="e.g. Plot 12, Bukoto Street"
-            autoComplete="street-address"
-          />
-        </div>
+        {/* E. Property Details */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5"><MapPin className="h-4 w-4" /> Property Details</h2>
+          <div className="space-y-2">
+            <Label>Property Address <span className="text-destructive">*</span></Label>
+            <Input value={propertyAddress} onChange={e => setPropertyAddress(e.target.value)} placeholder="e.g. Plot 12, Bukoto Street" required />
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={captureGPS} disabled={gpsLoading} className="gap-1.5">
+            {gpsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Navigation className="h-3.5 w-3.5" />}
+            {gpsLocation ? '📍 GPS Captured' : 'Capture GPS Location'}
+          </Button>
+          {gpsLocation && <p className="text-xs text-muted-foreground">Lat: {gpsLocation.lat.toFixed(5)}, Lng: {gpsLocation.lng.toFixed(5)}</p>}
 
-        <Button type="submit" className="w-full" size="lg" disabled={submitting || !fullName || !phone}>
+          {/* House Photos */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5"><Camera className="h-3.5 w-3.5" /> House Photos (max 3)</Label>
+            <div className="flex gap-2 flex-wrap">
+              {housePhotos.map((p, i) => (
+                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border">
+                  <img src={p.preview} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => removePhoto(i)} className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
+                    <X className="h-3 w-3 text-white" />
+                  </button>
+                </div>
+              ))}
+              {housePhotos.length < 3 && (
+                <label className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors">
+                  <Camera className="h-5 w-5 text-muted-foreground" />
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoAdd} />
+                </label>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* F. LC1 Chairperson */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-1.5"><Users className="h-4 w-4" /> LC1 Chairperson</h2>
+          <div className="space-y-2">
+            <Label>Name <span className="text-destructive">*</span></Label>
+            <Input value={lc1Name} onChange={e => setLc1Name(e.target.value)} placeholder="LC1 Chairperson name" required />
+          </div>
+          <div className="space-y-2">
+            <Label>Phone <span className="text-destructive">*</span></Label>
+            <Input type="tel" value={lc1Phone} onChange={e => setLc1Phone(e.target.value)} placeholder="e.g. 0700 000 000" required />
+          </div>
+          <div className="space-y-2">
+            <Label>Village <span className="text-destructive">*</span></Label>
+            <Input value={lc1Village} onChange={e => setLc1Village(e.target.value)} placeholder="e.g. Bukoto Village" required />
+          </div>
+        </section>
+
+        {/* G. Guarantor Consent */}
+        <section>
+          <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
+        </section>
+
+        <Button type="submit" className="w-full" size="lg" disabled={submitting || !canSubmit}>
           {submitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
           ) : (
-            <><UserPlus className="h-4 w-4" /> Submit Registration</>
+            <><UserPlus className="h-4 w-4" /> Submit Rent Request</>
           )}
         </Button>
 
-        {/* Agent Footer */}
-        {agentInfo && (
-          <div className="mt-6 pt-4 border-t border-border/40 text-center space-y-1">
-            <p className="text-xs text-muted-foreground">This form was shared by:</p>
-            <p className="text-sm font-semibold">{agentInfo.name}</p>
-            {agentInfo.phone && (
-              <p className="text-xs text-muted-foreground">{agentInfo.phone}</p>
-            )}
-          </div>
-        )}
+        <button type="button" onClick={() => setStep('income')} className="w-full text-xs text-muted-foreground underline">
+          ← Change income type
+        </button>
 
-        {/* Branding */}
-        <div className="text-center pt-4">
-          <p className="text-xs text-muted-foreground">Powered by <span className="font-semibold text-primary">Welile</span></p>
-        </div>
+        <AgentFooter agentInfo={agentInfo} />
+        <Branding />
       </form>
     </div>
   );

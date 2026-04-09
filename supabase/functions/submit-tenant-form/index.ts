@@ -5,218 +5,205 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function validateFullName(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const cleaned = value.trim();
-  if (cleaned.length < 2 || cleaned.length > 100) return null;
-  if (!/^[\p{L}\p{M}\s'.-]+$/u.test(cleaned)) return null;
-  return cleaned;
+function ok(data: unknown) {
+  return new Response(JSON.stringify(data), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+function err(msg: string, status = 400) {
+  return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-function validatePhone(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const cleaned = value.trim();
-  if (cleaned.length < 7 || cleaned.length > 20) return null;
-  if (!/^[0-9+\-\s()]+$/.test(cleaned)) return null;
-  const digits = cleaned.replace(/\D/g, '');
+function validateFullName(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const c = v.trim();
+  if (c.length < 2 || c.length > 100) return null;
+  if (!/^[\p{L}\p{M}\s'.-]+$/u.test(c)) return null;
+  return c;
+}
+
+function validatePhone(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const c = v.trim();
+  if (c.length < 7 || c.length > 20) return null;
+  if (!/^[0-9+\-\s()]+$/.test(c)) return null;
+  const digits = c.replace(/\D/g, '');
   if (digits.length < 9 || digits.length > 15) return null;
-  return cleaned;
+  return c;
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  console.log("[submit-tenant-form] Function invoked");
+  console.log("[submit-tenant-form] Invoked");
 
   try {
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     let body: Record<string, unknown>;
-    try {
-      body = await req.json();
-    } catch {
-      return new Response(JSON.stringify({ error: "Invalid request body" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    try { body = await req.json(); } catch { return err("Invalid request body"); }
 
-    const { token, agent_id, full_name: rawName, phone: rawPhone, national_id, rent_amount, property_address } = body;
-
-    // Validate required fields
-    if (!token || typeof token !== 'string') {
-      return new Response(JSON.stringify({ error: "Missing or invalid token" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!agent_id || typeof agent_id !== 'string') {
-      return new Response(JSON.stringify({ error: "Missing agent ID" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const { token, agent_id } = body;
+    if (!token || typeof token !== 'string') return err("Missing or invalid token");
+    if (!agent_id || typeof agent_id !== 'string') return err("Missing agent ID");
 
     // Validate token
     const { data: tokenData, error: tokenErr } = await supabaseAdmin
-      .from("agent_form_tokens")
-      .select("*")
-      .eq("token", token)
-      .eq("agent_id", agent_id)
-      .eq("is_active", true)
-      .maybeSingle();
+      .from("agent_form_tokens").select("*")
+      .eq("token", token).eq("agent_id", agent_id).eq("is_active", true).maybeSingle();
 
-    if (tokenErr || !tokenData) {
-      console.log("[submit-tenant-form] Invalid token");
-      return new Response(JSON.stringify({ error: "Invalid or expired link" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (tokenErr || !tokenData) return err("Invalid or expired link");
+    if (new Date(tokenData.expires_at) < new Date()) return err("This link has expired");
+    if (tokenData.uses_count >= tokenData.max_uses) return err("This link has reached its usage limit");
 
-    // Check expiry
-    if (new Date(tokenData.expires_at) < new Date()) {
-      return new Response(JSON.stringify({ error: "This link has expired" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Validate required fields
+    const full_name = validateFullName(body.full_name);
+    const phone = validatePhone(body.phone);
+    if (!full_name) return err("Invalid name. Must be 2-100 characters, letters only.");
+    if (!phone) return err("Invalid phone number format.");
 
-    // Check usage limit
-    if (tokenData.uses_count >= tokenData.max_uses) {
-      return new Response(JSON.stringify({ error: "This link has reached its usage limit" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const income_type = body.income_type as string;
+    const rent_amount = Number(body.rent_amount) || 0;
+    const duration_days = Number(body.duration_days) || 30;
+    const access_fee = Number(body.access_fee) || 0;
+    const request_fee = Number(body.request_fee) || 0;
+    const total_repayment = Number(body.total_repayment) || 0;
+    const daily_repayment = Number(body.daily_repayment) || 0;
+    const no_smartphone = body.no_smartphone === true;
+    const house_category = (body.house_category as string) || 'single-room';
+    const landlord_name = validateFullName(body.landlord_name);
+    const landlord_phone = validatePhone(body.landlord_phone);
+    const property_address = typeof body.property_address === 'string' ? body.property_address.trim() : '';
+    const gps_lat = typeof body.gps_lat === 'number' ? body.gps_lat : null;
+    const gps_lng = typeof body.gps_lng === 'number' ? body.gps_lng : null;
+    const lc1_name = typeof body.lc1_name === 'string' ? body.lc1_name.trim() : '';
+    const lc1_phone = typeof body.lc1_phone === 'string' ? body.lc1_phone.trim() : '';
+    const lc1_village = typeof body.lc1_village === 'string' ? body.lc1_village.trim() : '';
+    const house_photos = Array.isArray(body.house_photos) ? body.house_photos as string[] : [];
 
-    // Validate form fields
-    const full_name = validateFullName(rawName);
-    const phone = validatePhone(rawPhone);
+    if (!rent_amount || rent_amount <= 0) return err("Rent amount is required");
+    if (!landlord_name) return err("Invalid landlord name");
+    if (!landlord_phone) return err("Invalid landlord phone");
+    if (!property_address) return err("Property address is required");
+    if (!lc1_name || !lc1_phone || !lc1_village) return err("LC1 Chairperson details are required");
 
-    if (!full_name) {
-      return new Response(JSON.stringify({ error: "Invalid name. Must be 2-100 characters, letters only." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!phone) {
-      return new Response(JSON.stringify({ error: "Invalid phone number format." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // --- Create or find tenant ---
     const cleanPhone = phone.trim();
     const digits = cleanPhone.replace(/[^0-9]/g, '');
     const virtualEmail = `${digits}@noapp.welile.user`;
-
-    // Check if tenant already exists by phone
     const last9 = digits.slice(-9);
+
     const { data: existingByPhone } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .ilike("phone", `%${last9}`);
+      .from("profiles").select("id").ilike("phone", `%${last9}`);
 
     let userId: string;
     let isExisting = false;
+    let activationToken: string | null = null;
 
     if (existingByPhone && existingByPhone.length > 0) {
       userId = existingByPhone[0].id;
       isExisting = true;
-      console.log("[submit-tenant-form] Existing tenant found:", userId);
     } else {
-      // Create auth user
       const tempPassword = crypto.randomUUID().slice(0, 12) + "Aa1!";
       const { data: authData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email: virtualEmail,
-        password: tempPassword,
-        email_confirm: true,
+        email: virtualEmail, password: tempPassword, email_confirm: true,
         user_metadata: { full_name, phone: cleanPhone },
       });
 
       if (createErr) {
-        // May already exist by email
         const { data: existingAuthUsers } = await supabaseAdmin.auth.admin.listUsers();
-        const existingAuth = existingAuthUsers?.users?.find(u => u.email === virtualEmail);
-        if (existingAuth) {
-          userId = existingAuth.id;
-          isExisting = true;
-        } else {
-          console.error("[submit-tenant-form] Auth create error:", createErr.message);
-          return new Response(JSON.stringify({ error: `Failed to create tenant: ${createErr.message}` }), {
-            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        const existingAuth = existingAuthUsers?.users?.find((u: any) => u.email === virtualEmail);
+        if (existingAuth) { userId = existingAuth.id; isExisting = true; }
+        else return err(`Failed to create tenant: ${createErr.message}`, 500);
       } else {
         userId = authData.user.id;
+        await supabaseAdmin.from("profiles").update({ full_name, phone: cleanPhone }).eq("id", userId);
+        await supabaseAdmin.from("user_roles").upsert({ user_id: userId, role: "tenant", enabled: true }, { onConflict: "user_id,role" });
+        await supabaseAdmin.from("referrals").upsert({ referrer_id: agent_id, referred_id: userId }, { onConflict: "referrer_id,referred_id" });
 
-        // Update profile
-        await supabaseAdmin
-          .from("profiles")
-          .update({ full_name, phone: cleanPhone })
-          .eq("id", userId);
-
-        // Assign tenant role
-        await supabaseAdmin
-          .from("user_roles")
-          .upsert({ user_id: userId, role: "tenant", enabled: true }, { onConflict: "user_id,role" });
-
-        // Create referral link
-        await supabaseAdmin
-          .from("referrals")
-          .upsert({ referrer_id: agent_id, referred_id: userId }, { onConflict: "referrer_id,referred_id" })
-          .then(({ error }) => {
-            if (error) console.log("[submit-tenant-form] Referral upsert (non-critical):", error.message);
-          });
-
-        // Create activation invite
-        const activationToken = crypto.randomUUID();
-        await supabaseAdmin
-          .from("supporter_invites")
-          .insert({
-            full_name,
-            phone: cleanPhone,
-            email: virtualEmail,
-            temp_password: tempPassword,
-            activation_token: activationToken,
-            created_by: agent_id,
-            role: "tenant",
-            status: "pending",
-          });
+        activationToken = crypto.randomUUID();
+        await supabaseAdmin.from("supporter_invites").insert({
+          full_name, phone: cleanPhone, email: virtualEmail, temp_password: tempPassword,
+          activation_token: activationToken, created_by: agent_id, role: "tenant", status: "pending",
+        });
       }
     }
 
-    // Store additional form data as metadata in profiles if provided
-    if (!isExisting) {
-      const updates: Record<string, unknown> = {};
-      if (national_id && typeof national_id === 'string') {
-        updates.national_id = national_id.trim();
+    // --- Create landlord ---
+    const { data: landlord, error: landlordErr } = await supabaseAdmin
+      .from("landlords").insert({
+        name: landlord_name, phone: landlord_phone, property_address, registered_by: agent_id,
+      }).select("id").single();
+
+    if (landlordErr) { console.error("Landlord create error:", landlordErr); return err("Failed to save landlord details", 500); }
+
+    // --- Create LC1 ---
+    const { data: lc1, error: lc1Err } = await supabaseAdmin
+      .from("lc1_chairpersons").insert({ name: lc1_name, phone: lc1_phone, village: lc1_village }).select("id").single();
+
+    if (lc1Err) { console.error("LC1 create error:", lc1Err); return err("Failed to save LC1 details", 500); }
+
+    // --- Create rent request ---
+    const { data: rentReq, error: rentErr } = await supabaseAdmin
+      .from("rent_requests").insert({
+        tenant_id: userId!,
+        agent_id,
+        landlord_id: landlord.id,
+        lc1_id: lc1.id,
+        rent_amount,
+        duration_days,
+        access_fee,
+        request_fee,
+        total_repayment,
+        daily_repayment,
+        status: "pending",
+        house_category,
+        tenant_no_smartphone: no_smartphone,
+        request_latitude: gps_lat,
+        request_longitude: gps_lng,
+      } as any).select("id").single();
+
+    if (rentErr) { console.error("Rent request error:", rentErr); return err("Failed to create rent request", 500); }
+
+    // --- Upload house photos ---
+    if (house_photos.length > 0 && rentReq?.id) {
+      const urls: string[] = [];
+      for (let i = 0; i < Math.min(house_photos.length, 3); i++) {
+        try {
+          const base64 = house_photos[i] as string;
+          const match = base64.match(/^data:image\/(\w+);base64,(.+)$/);
+          if (!match) continue;
+          const ext = match[1];
+          const raw = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+          const path = `${agent_id}/${rentReq.id}/photo_${i}.${ext}`;
+          const { error: upErr } = await supabaseAdmin.storage.from("house-images").upload(path, raw, {
+            contentType: `image/${ext}`, cacheControl: "86400", upsert: false,
+          });
+          if (upErr) { console.warn(`Photo ${i} upload failed:`, upErr.message); continue; }
+          const { data: urlData } = supabaseAdmin.storage.from("house-images").getPublicUrl(path);
+          urls.push(urlData.publicUrl);
+        } catch (e) { console.warn(`Photo ${i} error:`, e); }
       }
-      if (Object.keys(updates).length > 0) {
-        await supabaseAdmin.from("profiles").update(updates).eq("id", userId!);
+      if (urls.length > 0) {
+        await supabaseAdmin.from("rent_requests").update({ house_image_urls: urls }).eq("id", rentReq.id);
       }
     }
 
     // Increment token usage
-    await supabaseAdmin
-      .from("agent_form_tokens")
-      .update({ uses_count: tokenData.uses_count + 1 })
-      .eq("id", tokenData.id);
+    await supabaseAdmin.from("agent_form_tokens").update({ uses_count: tokenData.uses_count + 1 }).eq("id", tokenData.id);
 
-    console.log(`[submit-tenant-form] Success: tenant=${userId}, existing=${isExisting}`);
+    console.log(`[submit-tenant-form] Success: tenant=${userId}, rent_request=${rentReq?.id}`);
 
-    return new Response(JSON.stringify({
+    return ok({
       success: true,
       tenant_id: userId!,
+      rent_request_id: rentReq?.id,
       existing: isExisting,
-    }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
-    console.error("[submit-tenant-form] Unhandled error:", error?.message || error);
-    return new Response(JSON.stringify({ error: `Service error: ${error?.message || 'Unknown'}` }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch (error: any) {
+    console.error("[submit-tenant-form] Unhandled:", error?.message || error);
+    return err(`Service error: ${error?.message || 'Unknown'}`, 500);
   }
 });
