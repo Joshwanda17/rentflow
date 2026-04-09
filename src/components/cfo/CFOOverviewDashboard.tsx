@@ -457,7 +457,7 @@ function MiniKPI({ label, value, highlight, muted: isMuted }: { label: string; v
   return (
     <div className="rounded-xl border bg-muted/30 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-lg font-bold font-mono ${highlight ? 'text-emerald-600' : isMuted ? 'text-muted-foreground' : ''}`}>{value}</p>
+      <p className={`text-base sm:text-lg font-bold font-mono truncate ${highlight ? 'text-emerald-600' : isMuted ? 'text-muted-foreground' : ''}`}>{value}</p>
     </div>
   );
 }
