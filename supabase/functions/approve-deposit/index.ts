@@ -175,22 +175,39 @@ Deno.serve(async (req) => {
                 repaymentApplied = 0;
                 newOutstanding = outstanding;
               } else {
-                // Insert cash_out ledger entry with transaction_group_id → trigger auto-deducts from wallet
-                const txGroupId = crypto.randomUUID();
-                await supabaseAdmin.from("general_ledger").insert({
-                  user_id: depositRequest.user_id,
-                  amount: repaymentApplied,
-                  direction: "cash_out",
-                  category: "rent_repayment",
-                  source_table: "deposit_requests",
-                  source_id: depositRequest.id,
-                  reference_id: depositRequest.transaction_id || depositRequest.id,
-                  transaction_group_id: txGroupId,
-                  description: `Auto rent deduction from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
-      currency: 'UGX',
-                  linked_party: rentRequestId,
-                  transaction_date: new Date().toISOString(),
+                // Balanced RPC: wallet cash_out + platform cash_in
+                const { data: txGroupId, error: rentLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+                  entries: JSON.stringify([
+                    {
+                      user_id: depositRequest.user_id,
+                      amount: repaymentApplied,
+                      direction: 'cash_out',
+                      category: 'tenant_repayment',
+                      ledger_scope: 'wallet',
+                      source_table: 'deposit_requests',
+                      source_id: depositRequest.id,
+                      reference_id: depositRequest.transaction_id || depositRequest.id,
+                      description: `Auto rent deduction from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
+                      currency: 'UGX',
+                      linked_party: rentRequestId,
+                      transaction_date: new Date().toISOString(),
+                    },
+                    {
+                      direction: 'cash_in',
+                      amount: repaymentApplied,
+                      category: 'tenant_repayment',
+                      ledger_scope: 'platform',
+                      source_table: 'deposit_requests',
+                      source_id: depositRequest.id,
+                      description: `Platform receives rent repayment from deposit`,
+                      currency: 'UGX',
+                      transaction_date: new Date().toISOString(),
+                    },
+                  ]),
                 });
+                if (rentLedgerErr) {
+                  console.error(`[approve-deposit] Rent ledger RPC failed:`, rentLedgerErr);
+                }
 
                 availableBalance -= repaymentApplied;
 
@@ -242,21 +259,37 @@ Deno.serve(async (req) => {
                 .update({ accumulated_debt: debt - debtCleared, updated_at: new Date().toISOString() })
                 .eq("id", activeSub.id);
 
-              // Insert ledger entry → trigger auto-deducts from wallet
-              await supabaseAdmin.from("general_ledger").insert({
-                user_id: depositRequest.user_id,
-                amount: debtCleared,
-                direction: "cash_out",
-                category: "debt_clearance",
-                source_table: "subscription_charges",
-                source_id: activeSub.id,
-                reference_id: depositRequest.transaction_id || depositRequest.id,
-                transaction_group_id: subTxGroupId,
-                description: `Auto debt clearance from deposit (UGX ${debtCleared.toLocaleString()})`,
-      currency: 'UGX',
-                linked_party: activeSub.rent_request_id,
-                transaction_date: new Date().toISOString(),
+              // Balanced RPC: wallet cash_out + platform cash_in for debt clearance
+              const { error: debtLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+                entries: JSON.stringify([
+                  {
+                    user_id: depositRequest.user_id,
+                    amount: debtCleared,
+                    direction: 'cash_out',
+                    category: 'tenant_repayment',
+                    ledger_scope: 'wallet',
+                    source_table: 'subscription_charges',
+                    source_id: activeSub.id,
+                    reference_id: depositRequest.transaction_id || depositRequest.id,
+                    description: `Auto debt clearance from deposit (UGX ${debtCleared.toLocaleString()})`,
+                    currency: 'UGX',
+                    linked_party: activeSub.rent_request_id,
+                    transaction_date: new Date().toISOString(),
+                  },
+                  {
+                    direction: 'cash_in',
+                    amount: debtCleared,
+                    category: 'tenant_repayment',
+                    ledger_scope: 'platform',
+                    source_table: 'subscription_charges',
+                    source_id: activeSub.id,
+                    description: `Platform receives debt clearance from deposit`,
+                    currency: 'UGX',
+                    transaction_date: new Date().toISOString(),
+                  },
+                ]),
               });
+              if (debtLedgerErr) console.error(`[approve-deposit] Debt ledger RPC failed:`, debtLedgerErr);
 
               availableBalance -= debtCleared;
 
@@ -310,22 +343,37 @@ Deno.serve(async (req) => {
                 })
                 .eq("id", activeSub.id);
 
-              // Insert ledger entry → trigger auto-deducts from wallet
-              await supabaseAdmin.from("general_ledger").insert({
-                user_id: depositRequest.user_id,
-                amount: prepaidAmount,
-                direction: "cash_in",
-                category: "tenant_access_fee",
-                source_table: "subscription_charges",
-                source_id: activeSub.id,
-                reference_id: depositRequest.transaction_id || depositRequest.id,
-                transaction_group_id: subTxGroupId,
-                description: `Pre-paid ${daysPrepaid} days access fee (UGX ${prepaidAmount.toLocaleString()})`,
-      currency: 'UGX',
-                linked_party: activeSub.rent_request_id,
-                transaction_date: new Date().toISOString(),
-                ledger_scope: "platform",
+              // Balanced RPC: wallet cash_out + platform cash_in for prepaid fees
+              const { error: prepayLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+                entries: JSON.stringify([
+                  {
+                    user_id: depositRequest.user_id,
+                    amount: prepaidAmount,
+                    direction: 'cash_out',
+                    category: 'tenant_repayment',
+                    ledger_scope: 'wallet',
+                    source_table: 'subscription_charges',
+                    source_id: activeSub.id,
+                    reference_id: depositRequest.transaction_id || depositRequest.id,
+                    description: `Pre-paid ${daysPrepaid} days (UGX ${prepaidAmount.toLocaleString()})`,
+                    currency: 'UGX',
+                    linked_party: activeSub.rent_request_id,
+                    transaction_date: new Date().toISOString(),
+                  },
+                  {
+                    direction: 'cash_in',
+                    amount: prepaidAmount,
+                    category: 'access_fee_collected',
+                    ledger_scope: 'platform',
+                    source_table: 'subscription_charges',
+                    source_id: activeSub.id,
+                    description: `Pre-paid ${daysPrepaid} days access fee`,
+                    currency: 'UGX',
+                    transaction_date: new Date().toISOString(),
+                  },
+                ]),
               });
+              if (prepayLedgerErr) console.error(`[approve-deposit] Prepay ledger RPC failed:`, prepayLedgerErr);
 
               availableBalance -= prepaidAmount;
 

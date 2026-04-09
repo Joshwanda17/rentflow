@@ -109,7 +109,8 @@ Deno.serve(async (req) => {
     const partnerProfileRes = await adminClient.from("profiles").select("full_name").eq("id", partner_id).single();
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
 
-    // Record balanced ledger entries via RPC
+    // Record balanced ledger entries via RPC — partner funding is BOTH cash_in
+    // Platform receives capital, partner wallet gets credited (external money model)
     const { data: txGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
       entries: JSON.stringify([
         {

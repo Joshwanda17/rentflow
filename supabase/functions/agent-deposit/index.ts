@@ -78,20 +78,35 @@ async function applyRepaymentForRepayingRequest(
     if (landlordUpdateError) throw landlordUpdateError;
   }
 
-  const { error: ledgerError } = await adminClient
-    .from('general_ledger')
-    .insert({
-      user_id: tenantId,
-      amount: appliedAmount,
-      direction: 'cash_in',
-      category: 'rent_repayment',
-      source_table: 'repayments',
-      source_id: rentRequest.id,
-      description: `Rent repayment - ${rentRequest.landlords?.name || 'landlord'}`,
-      currency: 'UGX',
-      linked_party: rentRequest.landlord_id || null,
-      reference_id: rentRequest.id,
-    });
+  const { error: ledgerError } = await adminClient.rpc('create_ledger_transaction', {
+    entries: JSON.stringify([
+      {
+        user_id: tenantId,
+        amount: appliedAmount,
+        direction: 'cash_out',
+        category: 'tenant_repayment',
+        ledger_scope: 'wallet',
+        source_table: 'repayments',
+        source_id: rentRequest.id,
+        description: `Rent repayment - ${rentRequest.landlords?.name || 'landlord'}`,
+        currency: 'UGX',
+        linked_party: rentRequest.landlord_id || null,
+        reference_id: rentRequest.id,
+        transaction_date: new Date().toISOString(),
+      },
+      {
+        direction: 'cash_in',
+        amount: appliedAmount,
+        category: 'tenant_repayment',
+        ledger_scope: 'platform',
+        source_table: 'repayments',
+        source_id: rentRequest.id,
+        description: `Platform receives rent repayment`,
+        currency: 'UGX',
+        transaction_date: new Date().toISOString(),
+      },
+    ]),
+  });
 
   if (ledgerError) throw ledgerError;
 
@@ -376,18 +391,32 @@ Deno.serve(async (req) => {
         }
 
         // Agent wallet deduction is handled by sync_wallet_from_ledger trigger on ledger insert below
-        const { error: agentLedgerError } = await adminClient
-          .from('general_ledger')
-          .insert({
-            user_id: agentId,
-            amount: amount,
-            direction: 'cash_out',
-            category: 'agent_float_used_for_rent',
-            description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
-      currency: 'UGX',
-            source_table: 'wallet_deposits',
-            linked_party: targetUserId,
-          });
+        const { error: agentLedgerError } = await adminClient.rpc('create_ledger_transaction', {
+          entries: JSON.stringify([
+            {
+              user_id: agentId,
+              amount: amount,
+              direction: 'cash_out',
+              category: 'agent_float_used_for_rent',
+              ledger_scope: 'wallet',
+              description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
+              currency: 'UGX',
+              source_table: 'wallet_deposits',
+              linked_party: targetUserId,
+              transaction_date: new Date().toISOString(),
+            },
+            {
+              direction: 'cash_in',
+              amount: amount,
+              category: 'agent_float_used_for_rent',
+              ledger_scope: 'platform',
+              description: `Platform receives agent float used for rent`,
+              currency: 'UGX',
+              source_table: 'wallet_deposits',
+              transaction_date: new Date().toISOString(),
+            },
+          ]),
+        });
 
         if (agentLedgerError) {
           console.error('[agent-deposit] Agent ledger insert failed:', agentLedgerError);
@@ -421,20 +450,35 @@ Deno.serve(async (req) => {
         if (landlordUserId && landlordPayment > 0) {
           await ensureWalletExists(adminClient, landlordUserId);
 
-          const { error: landlordLedgerError } = await adminClient
-            .from('general_ledger')
-            .insert({
-              user_id: landlordUserId,
-              amount: landlordPayment,
-              direction: 'cash_in',
-              category: 'landlord_rent_payment',
-              description: `Landlord credit from agent rent payment for UGX ${repaymentAmount.toLocaleString()}`,
-      currency: 'UGX',
-              source_table: 'rent_requests',
-              source_id: activeRentRequest.id,
-              linked_party: targetUserId,
-              reference_id: activeRentRequest.id,
-            });
+          const { error: landlordLedgerError } = await adminClient.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                direction: 'cash_out',
+                amount: landlordPayment,
+                category: 'wallet_deposit',
+                ledger_scope: 'platform',
+                description: `Platform pays landlord rent`,
+                currency: 'UGX',
+                source_table: 'rent_requests',
+                source_id: activeRentRequest.id,
+                transaction_date: new Date().toISOString(),
+              },
+              {
+                user_id: landlordUserId,
+                amount: landlordPayment,
+                direction: 'cash_in',
+                category: 'wallet_deposit',
+                ledger_scope: 'wallet',
+                description: `Landlord credit from agent rent payment for UGX ${repaymentAmount.toLocaleString()}`,
+                currency: 'UGX',
+                source_table: 'rent_requests',
+                source_id: activeRentRequest.id,
+                linked_party: targetUserId,
+                reference_id: activeRentRequest.id,
+                transaction_date: new Date().toISOString(),
+              },
+            ]),
+          });
 
           if (landlordLedgerError) {
             console.error('[agent-deposit] Landlord ledger insert failed:', landlordLedgerError);
@@ -460,18 +504,32 @@ Deno.serve(async (req) => {
 
     if (repaymentAmount === 0) {
       // Agent wallet deduction is handled by sync_wallet_from_ledger trigger on ledger insert below
-      const { error: agentLedgerError } = await adminClient
-        .from('general_ledger')
-        .insert({
-          user_id: agentId,
-          amount: amount,
-          direction: 'cash_out',
-          category: 'rent_payment_for_tenant',
-          description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
-      currency: 'UGX',
-          source_table: 'wallet_deposits',
-          linked_party: targetUserId,
-        });
+      const { error: agentLedgerError } = await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: agentId,
+            amount: amount,
+            direction: 'cash_out',
+            category: 'agent_float_used_for_rent',
+            ledger_scope: 'wallet',
+            description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
+            currency: 'UGX',
+            source_table: 'wallet_deposits',
+            linked_party: targetUserId,
+            transaction_date: new Date().toISOString(),
+          },
+          {
+            direction: 'cash_in',
+            amount: amount,
+            category: 'agent_float_used_for_rent',
+            ledger_scope: 'platform',
+            description: `Platform receives agent float used for rent`,
+            currency: 'UGX',
+            source_table: 'wallet_deposits',
+            transaction_date: new Date().toISOString(),
+          },
+        ]),
+      });
 
       if (agentLedgerError) {
         console.error('[agent-deposit] Agent ledger insert failed:', agentLedgerError);
@@ -486,19 +544,34 @@ Deno.serve(async (req) => {
     if (depositAmount > 0) {
       await ensureWalletExists(adminClient, targetUserId!);
 
-      const { error: tenantLedgerError } = await adminClient
-        .from('general_ledger')
-        .insert({
-          user_id: targetUserId,
-          amount: depositAmount,
-          direction: 'cash_in',
-          category: 'wallet_deposit',
-          description: `Agent deposited UGX ${depositAmount.toLocaleString()} to tenant wallet`,
-      currency: 'UGX',
-          source_table: 'wallet_deposits',
-          source_id: activeRentRequest?.id,
-          linked_party: agentId,
-        });
+      const { error: tenantLedgerError } = await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            direction: 'cash_out',
+            amount: depositAmount,
+            category: 'wallet_deposit',
+            ledger_scope: 'platform',
+            description: `Platform credits tenant wallet`,
+            currency: 'UGX',
+            source_table: 'wallet_deposits',
+            source_id: activeRentRequest?.id,
+            transaction_date: new Date().toISOString(),
+          },
+          {
+            user_id: targetUserId,
+            amount: depositAmount,
+            direction: 'cash_in',
+            category: 'wallet_deposit',
+            ledger_scope: 'wallet',
+            description: `Agent deposited UGX ${depositAmount.toLocaleString()} to tenant wallet`,
+            currency: 'UGX',
+            source_table: 'wallet_deposits',
+            source_id: activeRentRequest?.id,
+            linked_party: agentId,
+            transaction_date: new Date().toISOString(),
+          },
+        ]),
+      });
 
       if (tenantLedgerError) {
         console.error('[agent-deposit] Tenant wallet ledger insert failed:', tenantLedgerError);
