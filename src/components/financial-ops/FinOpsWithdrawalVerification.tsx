@@ -208,6 +208,12 @@ export function FinOpsWithdrawalVerification() {
 
         {bankLabel && <p className="text-xs text-muted-foreground">{bankLabel}</p>}
 
+        {req.reason?.includes('[Agent proxy:') && (
+          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary text-[10px] font-semibold uppercase tracking-wider">
+            👤 Proxy Agent Request
+          </div>
+        )}
+
         {req.reason && (
           <div className="px-2 py-1.5 rounded-lg bg-muted/50 border border-border/50">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Reason</p>
