@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building } from 'lucide-react';
+import { Handshake, UserPlus, Loader2, Smartphone, ShieldCheck, Pencil, Trash2, Users, UserCheck, Building, Search } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { format } from 'date-fns';
 
@@ -21,6 +21,7 @@ export function ProxyAgentManager() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [showAssign, setShowAssign] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [pickedAgent, setPickedAgent] = useState<any>(null);
   const [pickedBeneficiary, setPickedBeneficiary] = useState<any>(null);
   const [beneficiaryRole, setBeneficiaryRole] = useState('landlord');
@@ -40,6 +41,18 @@ export function ProxyAgentManager() {
       return data || [];
     },
   });
+
+  const filteredAssignments = useMemo(() => {
+    if (!searchTerm.trim()) return assignments;
+    const q = searchTerm.toLowerCase();
+    return assignments.filter((a: any) =>
+      a.agent?.full_name?.toLowerCase().includes(q) ||
+      a.agent?.phone?.toLowerCase().includes(q) ||
+      a.beneficiary?.full_name?.toLowerCase().includes(q) ||
+      a.beneficiary?.phone?.toLowerCase().includes(q) ||
+      a.reason?.toLowerCase().includes(q)
+    );
+  }, [assignments, searchTerm]);
 
   const uniqueAgents = new Set(assignments.map((a: any) => a.agent_id)).size;
   const uniquePartners = new Set(assignments.map((a: any) => a.beneficiary_id)).size;
@@ -216,6 +229,19 @@ export function ProxyAgentManager() {
         ))}
       </div>
 
+      {/* Search */}
+      {assignments.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search agent, partner, phone..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+      )}
+
       {/* Table */}
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -223,6 +249,10 @@ export function ProxyAgentManager() {
         <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">
           <Smartphone className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
           No proxy agents assigned. Link agents for landlords/partners without smartphones.
+        </CardContent></Card>
+      ) : filteredAssignments.length === 0 ? (
+        <Card><CardContent className="py-6 text-center text-muted-foreground text-sm">
+          No results for "{searchTerm}"
         </CardContent></Card>
       ) : (
         <Card>
@@ -241,7 +271,7 @@ export function ProxyAgentManager() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {assignments.map((a: any, idx: number) => (
+                {filteredAssignments.map((a: any, idx: number) => (
                   <TableRow key={a.id}>
                     <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
                     <TableCell>

@@ -336,6 +336,17 @@ Deno.serve(async (req) => {
         if (authError) {
           console.error("Auto-activate auth error:", authError);
         } else if (authData?.user) {
+          // Ensure profile exists (handle_new_user trigger may not fire for admin.createUser)
+          await adminClient
+            .from("profiles")
+            .upsert({
+              id: authData.user.id,
+              full_name: fullName,
+              email,
+              phone,
+              verified: true,
+            }, { onConflict: 'id' });
+
           // Add user role
           await adminClient
             .from("user_roles")
