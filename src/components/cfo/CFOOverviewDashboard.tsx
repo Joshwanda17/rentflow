@@ -348,7 +348,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
             <p className="text-xs text-muted-foreground">Cash</p>
-            <p className="text-lg font-bold font-mono text-blue-600">{fmt(totalCash)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-blue-600">{fmt(totalCash)}</p>
           </div>
           <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
             <p className="text-xs text-muted-foreground">Receivables</p>
