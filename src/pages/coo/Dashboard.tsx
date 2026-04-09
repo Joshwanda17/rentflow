@@ -106,13 +106,6 @@ export default function COODashboardPage() {
             <AgentCollectionsOverview />
           </div>
         );
-      case 'wallets':
-        return (
-          <div className="space-y-3">
-            {isMobile && renderBackButton('Overview')}
-            <FinancialOpsCommandCenter />
-          </div>
-        );
       case 'agent-activity':
         return (
           <div className="space-y-3">
