@@ -90,19 +90,41 @@ serve(async (req) => {
       description: `Landlord registration bonus: ${landlord.name}`,
     });
 
-    // Record in general ledger
-    await adminClient.from("general_ledger").insert({
-      user_id: user.id,
-      amount: REGISTRATION_BONUS,
-      direction: "credit",
-      category: "agent_bonus",
-      source_table: "agent_earnings",
-      source_id: landlord_id,
-      description: `UGX 5,000 landlord registration bonus for ${landlord.name}`,
-      currency: 'UGX',
-      ledger_scope: "wallet",
-      transaction_date: now,
+    // Record in general ledger via RPC
+    const { error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: user.id,
+          amount: REGISTRATION_BONUS,
+          direction: 'cash_in',
+          category: 'agent_commission_earned',
+          ledger_scope: 'wallet',
+          source_table: 'agent_earnings',
+          source_id: landlord_id,
+          description: `UGX 5,000 landlord registration bonus for ${landlord.name}`,
+          currency: 'UGX',
+          transaction_date: now,
+        },
+        {
+          direction: 'cash_out',
+          amount: REGISTRATION_BONUS,
+          category: 'agent_commission_earned',
+          ledger_scope: 'platform',
+          source_table: 'agent_earnings',
+          source_id: landlord_id,
+          description: `Platform expense: landlord registration bonus for ${landlord.name}`,
+          currency: 'UGX',
+          transaction_date: now,
+        },
+      ]),
     });
+
+    if (ledgerErr) {
+      console.error("[credit-landlord-bonus] Ledger RPC error:", ledgerErr);
+      return new Response(JSON.stringify({ error: "Failed to record bonus" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Record wallet transaction for visibility
     await adminClient.from("wallet_transactions").insert({
