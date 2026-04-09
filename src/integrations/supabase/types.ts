@@ -9629,6 +9629,13 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_agent_split_balances: {
+        Args: { p_agent_id: string }
+        Returns: {
+          commission_balance: number
+          float_balance: number
+        }[]
+      }
       get_agent_workload_summary: { Args: never; Returns: Json }
       get_approximate_user_count: { Args: never; Returns: number }
       get_buffer_metrics: { Args: never; Returns: Json }
