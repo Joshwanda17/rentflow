@@ -453,22 +453,38 @@ Deno.serve(async (req) => {
                 if (commErr) {
                   console.error(`[approve-wallet-op] Failed to record investment commission:`, commErr);
                 } else {
-                  // Credit agent wallet via ledger
-                  const commTxGroupId = crypto.randomUUID();
-                  await adminClient.from("general_ledger").insert({
-                    user_id: portfolioData.agent_id,
-                    amount: commissionAmount,
-                    direction: "cash_in",
-                    category: "agent_investment_commission",
-                    description: `2% commission on investment activation ${portfolioData.portfolio_code || ''}`,
-      currency: 'UGX',
-                    source_table: "agent_earnings",
-                    source_id: op.source_id,
-                    transaction_group_id: commTxGroupId,
-                    linked_party: portfolioInvestorId || "Partner",
-                    reference_id: op.reference_id,
+                  // Credit agent wallet via balanced RPC
+                  const { error: commLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
+                    entries: JSON.stringify([
+                      {
+                        direction: 'cash_out',
+                        amount: commissionAmount,
+                        category: 'agent_commission_earned',
+                        ledger_scope: 'platform',
+                        description: `Platform pays 2% commission on investment activation ${portfolioData.portfolio_code || ''}`,
+                        currency: 'UGX',
+                        source_table: 'agent_earnings',
+                        source_id: op.source_id,
+                        transaction_date: new Date().toISOString(),
+                      },
+                      {
+                        user_id: portfolioData.agent_id,
+                        amount: commissionAmount,
+                        direction: 'cash_in',
+                        category: 'agent_commission_earned',
+                        ledger_scope: 'wallet',
+                        description: `2% commission on investment activation ${portfolioData.portfolio_code || ''}`,
+                        currency: 'UGX',
+                        source_table: 'agent_earnings',
+                        source_id: op.source_id,
+                        linked_party: portfolioInvestorId || 'Partner',
+                        reference_id: op.reference_id,
+                        transaction_date: new Date().toISOString(),
+                      },
+                    ]),
                   });
-                  console.log(`[approve-wallet-op] Credited agent ${portfolioData.agent_id} with ${commissionAmount} investment commission`);
+                  if (commLedgerErr) console.error(`[approve-wallet-op] Commission ledger RPC failed:`, commLedgerErr);
+                  else console.log(`[approve-wallet-op] Credited agent ${portfolioData.agent_id} with ${commissionAmount} investment commission`);
                 }
               }
             }
@@ -479,20 +495,35 @@ Deno.serve(async (req) => {
 
           // Immediately debit wallet → investment (net zero wallet impact)
           const investTxGroupId = crypto.randomUUID();
-          const { error: investDebitErr } = await adminClient
-            .from("general_ledger")
-            .insert({
-              user_id: funderId,
-              amount: op.amount,
-              direction: "cash_out",
-              category: "wallet_to_investment",
-              description: `Capital invested into portfolio ${portfolioData?.portfolio_code || ''}. Ref: ${op.reference_id}`,
-              source_table: "investor_portfolios",
-              source_id: op.source_id,
-              transaction_group_id: investTxGroupId,
-              linked_party: "Rent Management Pool",
-              reference_id: op.reference_id,
-            });
+          const { error: investDebitErr } = await adminClient.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                user_id: funderId,
+                amount: op.amount,
+                direction: 'cash_out',
+                category: 'partner_funding',
+                ledger_scope: 'wallet',
+                description: `Capital invested into portfolio ${portfolioData?.portfolio_code || ''}. Ref: ${op.reference_id}`,
+                source_table: 'investor_portfolios',
+                source_id: op.source_id,
+                linked_party: 'Rent Management Pool',
+                reference_id: op.reference_id,
+                currency: 'UGX',
+                transaction_date: new Date().toISOString(),
+              },
+              {
+                direction: 'cash_in',
+                amount: op.amount,
+                category: 'partner_funding',
+                ledger_scope: 'platform',
+                description: `Platform receives investment capital`,
+                source_table: 'investor_portfolios',
+                source_id: op.source_id,
+                currency: 'UGX',
+                transaction_date: new Date().toISOString(),
+              },
+            ]),
+          });
           if (investDebitErr) {
             console.error(`[approve-wallet-op] Failed to debit wallet for investment ${op.id}:`, investDebitErr);
           } else {
