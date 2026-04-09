@@ -199,28 +199,40 @@ export function ProxyPartnerFunds() {
       withdrawalsByPartner[w.linked_party] = (withdrawalsByPartner[w.linked_party] || 0) + (Number(w.amount) || 0);
     });
 
-    // Distribute withdrawals across portfolios proportionally
-    const partnerTotals: Record<string, number> = {};
+    // STEP 1: Compute partner-level net balance (source of truth)
+    // Sum ALL entries per partner — no grouping by source_id, no clamping
+    const partnerNet: Record<string, number> = {};
     Object.values(groupMap).forEach(g => {
-      const returns = g.entries.reduce((s, e) => s + (e.direction === 'cash_out' ? -Number(e.amount) : Number(e.amount)), 0);
-      partnerTotals[g.partnerId] = (partnerTotals[g.partnerId] || 0) + Math.max(0, returns);
+      const groupNet = g.entries.reduce((s, e) => s + (e.direction === 'cash_out' ? -Number(e.amount) : Number(e.amount)), 0);
+      partnerNet[g.partnerId] = (partnerNet[g.partnerId] || 0) + groupNet;
     });
 
-    return Object.values(groupMap)
-      .map((group) => {
-        const totalReturns = group.entries.reduce(
-          (sum, entry) => {
-            const amt = Number(entry.amount) || 0;
-            return entry.direction === 'cash_out' ? sum - amt : sum + amt;
-          },
-          0
-        );
+    // Single clamp at partner level AFTER subtracting withdrawals
+    const partnerAvailable: Record<string, number> = {};
+    Object.keys(partnerNet).forEach(partnerId => {
+      const totalWithdrawn = withdrawalsByPartner[partnerId] || 0;
+      partnerAvailable[partnerId] = Math.max(0, partnerNet[partnerId] - totalWithdrawn);
+    });
 
-        // Proportionally distribute partner-level withdrawals across portfolios
-        const partnerTotal = partnerTotals[group.partnerId] || 0;
-        const proportion = partnerTotal > 0 ? Math.max(0, totalReturns) / partnerTotal : 0;
+    // STEP 2: Compute per-group net for proportional display
+    const groupNets: Record<string, number> = {};
+    const positiveGroupSumByPartner: Record<string, number> = {};
+    Object.entries(groupMap).forEach(([key, g]) => {
+      const groupNet = g.entries.reduce((s, e) => s + (e.direction === 'cash_out' ? -Number(e.amount) : Number(e.amount)), 0);
+      groupNets[key] = groupNet;
+      if (groupNet > 0) {
+        positiveGroupSumByPartner[g.partnerId] = (positiveGroupSumByPartner[g.partnerId] || 0) + groupNet;
+      }
+    });
+
+    // STEP 3: Build display entries — distribute partnerAvailable proportionally across positive groups
+    return Object.entries(groupMap)
+      .filter(([key]) => groupNets[key] > 0) // Only show positive-net groups
+      .map(([key, group]) => {
+        const positiveSum = positiveGroupSumByPartner[group.partnerId] || 1;
+        const proportion = groupNets[key] / positiveSum;
+        const available = Math.round(partnerAvailable[group.partnerId] * proportion);
         const totalWithdrawn = Math.round((withdrawalsByPartner[group.partnerId] || 0) * proportion);
-        const available = Math.max(0, totalReturns - totalWithdrawn);
 
         const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
 
@@ -231,7 +243,7 @@ export function ProxyPartnerFunds() {
           portfolioId: group.portfolioId,
           portfolioCode: pInfo?.portfolio_code || null,
           accountName: pInfo?.account_name || null,
-          totalReturns,
+          totalReturns: groupNets[key],
           totalWithdrawn,
           available,
         };
