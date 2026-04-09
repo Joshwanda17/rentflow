@@ -114,6 +114,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { profile } = useProfile();
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
+  const { floatBalance, commissionBalance, refetch: refreshBalances } = useAgentBalances();
   const { isOnline } = useOffline();
   
   const { 
