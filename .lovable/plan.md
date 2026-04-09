@@ -1,12 +1,10 @@
 
 
-# Text Change: Income Selection Header
+# Text Change: Rent Amount Label
 
 ## Change
-Update the income selection heading in `RegisterTenantPublic.tsx` from "How does this tenant earn income?" to "How do you earn?" — since this is the public-facing form where the tenant themselves fills it out, the language should address them directly.
+Update the rent amount label in `RegisterTenantPublic.tsx` line 318 from `"Rent Amount (UGX)"` to `"How much is your rent amount?"` — keeping the tenant-facing second-person tone consistent with the earlier "How do you earn?" change.
 
 ## File
-- `src/pages/RegisterTenantPublic.tsx` line 253: change text from `"How does this tenant earn income?"` to `"How do you earn?"`
-
-Note: The same text in `AgentRentRequestDialog.tsx` (line 494) is kept as-is since that form is used by agents referring to a tenant in third person.
+- `src/pages/RegisterTenantPublic.tsx` line 318: change label text
 
