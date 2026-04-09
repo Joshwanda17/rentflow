@@ -95,6 +95,20 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `WCI${yy}${mm}${dd}${seq}`;
 
+    // Calculate first payout date: strict 30-day cycle from investment date
+    const firstPayoutMs = now.getTime() + 30 * 24 * 60 * 60 * 1000;
+    const candidate = new Date(firstPayoutMs);
+    const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
+
+    // Calculate maturity date: 12 months from investment date
+    const maturityDate = new Date(now);
+    maturityDate.setMonth(maturityDate.getMonth() + 12);
+    const maturityDateStr = `${maturityDate.getFullYear()}-${String(maturityDate.getMonth() + 1).padStart(2, "0")}-${String(maturityDate.getDate()).padStart(2, "0")}`;
+
+    // Get names
+    const partnerProfileRes = await adminClient.from("profiles").select("full_name").eq("id", partner_id).single();
+    const partnerName = partnerProfileRes.data?.full_name || "Partner";
+
     // Record balanced ledger entries via RPC
     const { data: txGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
       entries: JSON.stringify([
