@@ -424,7 +424,7 @@ function KPICard({ label, value, subtitle, accent, icon, onClick }: {
 }) {
   return (
     <div
-      className={`rounded-2xl border border-border/60 bg-card p-4 border-l-4 ${accent} cursor-pointer hover:shadow-md transition-shadow`}
+      className={`rounded-2xl border border-border/60 bg-card p-3 sm:p-4 border-l-4 ${accent} cursor-pointer hover:shadow-md transition-shadow`}
       onClick={onClick}
     >
       <div className="flex items-center gap-2 mb-1">
