@@ -20,44 +20,25 @@ interface AgentProxyWithdrawalDialogProps {
   onSuccess?: () => void;
 }
 
-type PayoutMode = 'mtn' | 'airtel' | 'cash';
-
-const PAYOUT_OPTIONS: { value: PayoutMode; label: string; icon: string }[] = [
-  { value: 'mtn', label: 'MTN MoMo', icon: '📱' },
-  { value: 'airtel', label: 'Airtel Money', icon: '📱' },
-  { value: 'cash', label: 'Cash (Agent)', icon: '💵' },
-];
-
 export function AgentProxyWithdrawalDialog({
   open, onOpenChange, funderId, funderName, funderPhone, walletBalance, onSuccess,
 }: AgentProxyWithdrawalDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
-  const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
-  const [momoNumber, setMomoNumber] = useState('');
-  const [momoName, setMomoName] = useState('');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
       setAmount(0);
-      setPayoutMode(null);
-      setMomoNumber(funderPhone || '');
-      setMomoName(funderName || '');
       setReason('');
     }
-  }, [open, funderPhone, funderName]);
-
-  const isMomo = payoutMode === 'mtn' || payoutMode === 'airtel';
-  const ugandaPhoneRegex = /^(0[0-9]{9}|\+256[0-9]{9})$/;
+  }, [open]);
 
   const isValid =
     amount >= 500 &&
     amount <= walletBalance &&
-    !!payoutMode &&
-    reason.trim().length >= 10 &&
-    (isMomo ? ugandaPhoneRegex.test(momoNumber.trim()) && momoName.trim().length >= 2 : true);
+    reason.trim().length >= 10;
 
   const handleSubmit = async () => {
     if (!user || !isValid) return;
@@ -67,11 +48,6 @@ export function AgentProxyWithdrawalDialog({
         user_id: funderId,
         amount,
         status: 'pending' as const,
-        mobile_money_number: isMomo ? momoNumber.trim() : null,
-        mobile_money_provider: isMomo ? payoutMode : null,
-        mobile_money_name: isMomo ? momoName.trim() : null,
-        payout_method: payoutMode === 'cash' ? 'cash' : 'mobile_money',
-        agent_location: payoutMode === 'cash' ? 'Via proxy agent' : null,
         reason: `[Agent proxy: ${user.id}] ${reason.trim()}`,
       } as any);
       if (error) throw error;
@@ -111,13 +87,12 @@ export function AgentProxyWithdrawalDialog({
           funder_id: funderId,
           funder_name: funderName,
           amount,
-          payout_method: payoutMode,
           reason: reason.trim(),
         },
       } as any);
 
       toast.success('Withdrawal request submitted', {
-        description: `${formatUGX(amount)} withdrawal for ${funderName} is pending approval`,
+        description: `${formatUGX(amount)} withdrawal for ${funderName} is pending Financial Ops approval`,
       });
       onOpenChange(false);
       onSuccess?.();
@@ -168,56 +143,6 @@ export function AgentProxyWithdrawalDialog({
             )}
           </div>
 
-          {/* Payout method */}
-          <div>
-            <Label className="text-xs">Payout Method *</Label>
-            <div className="grid grid-cols-3 gap-2 mt-1.5">
-              {PAYOUT_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setPayoutMode(opt.value)}
-                  className={`rounded-lg border p-2.5 text-center text-xs transition-all ${
-                    payoutMode === opt.value
-                      ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                      : 'border-border hover:bg-muted/50'
-                  }`}
-                >
-                  <span className="text-lg block">{opt.icon}</span>
-                  <span className="font-medium">{opt.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* MoMo details */}
-          {isMomo && (
-            <div className="space-y-2">
-              <div>
-                <Label className="text-xs">Recipient Name *</Label>
-                <Input
-                  placeholder="e.g. John Mukasa"
-                  value={momoName}
-                  onChange={e => setMomoName(e.target.value)}
-                  maxLength={100}
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Phone Number *</Label>
-                <Input
-                  placeholder="e.g. 0772123456"
-                  value={momoNumber}
-                  onChange={e => setMomoNumber(e.target.value)}
-                  type="tel"
-                  maxLength={15}
-                />
-                {momoNumber && !ugandaPhoneRegex.test(momoNumber.trim()) && (
-                  <p className="text-[10px] text-destructive mt-1">Invalid Uganda phone format</p>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Reason */}
           <div>
             <Label className="text-xs">Reason (min 10 chars) *</Label>
@@ -233,7 +158,7 @@ export function AgentProxyWithdrawalDialog({
 
           <div className="rounded-lg bg-warning/10 p-2.5 text-[10px] text-warning">
             ⚠️ This withdrawal is submitted on behalf of <strong>{funderName}</strong> and will be audited.
-            It requires approval before processing.
+            Financial Ops will select the payout method and confirm the transaction.
           </div>
 
           <Button
