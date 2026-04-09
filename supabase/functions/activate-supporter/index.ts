@@ -381,10 +381,10 @@ Deno.serve(async (req) => {
         .from("referrals")
         .upsert({
           referrer_id: invite.created_by,
-          referred_user_id: userId,
+          referred_id: userId,
           bonus_amount: referralBonus,
           credited: referralBonus > 0,
-        }, { onConflict: 'referred_user_id' });
+        }, { onConflict: 'referred_id' });
 
       if (referralError) {
         console.error("[activate-supporter] Referral upsert error:", referralError);
