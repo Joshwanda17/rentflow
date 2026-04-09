@@ -195,7 +195,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
                 {item.icon}
                 <span className="text-xs text-muted-foreground">{item.label}</span>
               </div>
-              <p className="text-lg font-bold font-mono">{fmt(item.value)}</p>
+              <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(item.value)}</p>
               <p className="text-xs text-muted-foreground">{pct(item.value, totalLiabilities)}% of total</p>
             </div>
           ))}
