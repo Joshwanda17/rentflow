@@ -120,7 +120,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         )}
         <div className="mb-4">
           <p className="text-sm text-muted-foreground">Total Cash</p>
-          <p className="text-3xl font-bold font-mono">{fmt(totalCash)}</p>
+          <p className="text-xl sm:text-3xl font-bold font-mono truncate">{fmt(totalCash)}</p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           {Object.entries(channels).map(([name, vals]) => {
