@@ -382,7 +382,7 @@ Deno.serve(async (req) => {
             user_id: agentId,
             amount: amount,
             direction: 'cash_out',
-            category: 'rent_payment_for_tenant',
+            category: 'agent_float_used_for_rent',
             description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
       currency: 'UGX',
             source_table: 'wallet_deposits',
