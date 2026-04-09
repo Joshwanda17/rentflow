@@ -282,7 +282,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         {/* Net Cash Movement */}
         <div className="rounded-xl border bg-indigo-50/50 dark:bg-indigo-950/20 p-4 mb-4">
           <p className="text-xs text-muted-foreground">Net Cash Movement</p>
-          <p className={`text-2xl font-bold font-mono ${(cashFlowByPurpose?.netMovement ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          <p className={`text-xl sm:text-2xl font-bold font-mono truncate ${(cashFlowByPurpose?.netMovement ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {fmt(cashFlowByPurpose?.netMovement ?? 0)}
           </p>
         </div>
