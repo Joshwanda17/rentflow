@@ -40,8 +40,6 @@ export function COOWithdrawalApprovals() {
   const [approveOpen, setApproveOpen] = useState(false);
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [transactionId, setTransactionId] = useState('');
-  const [transactionTime, setTransactionTime] = useState('');
 
   const { formatAmount: formatCurrency } = useCurrency();
 
