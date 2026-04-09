@@ -259,18 +259,35 @@ Deno.serve(async (req) => {
       // === POST TENANT OBLIGATION LEDGER ENTRY ===
       // This creates the audit trail showing the tenant owes this amount
       const totalRepaymentForLedger = Number(rr.total_repayment) || fundAmount;
-      await adminClient.from("general_ledger").insert({
-        user_id: rr.tenant_id,
-        amount: totalRepaymentForLedger,
-        direction: "cash_out",
-        category: "rent_obligation",
-        source_table: "rent_requests",
-        source_id: rr.id,
-        transaction_group_id: txGroupId,
-        description: `Rent obligation - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
-      currency: 'UGX',
-        linked_party: user.id,
-        reference_id: rr.id,
+      await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: null,
+            amount: totalRepaymentForLedger,
+            direction: "cash_out",
+            category: "rent_disbursement",
+            source_table: "rent_requests",
+            source_id: rr.id,
+            description: `Rent disbursement - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
+            currency: 'UGX',
+            ledger_scope: "platform",
+            linked_party: user.id,
+            reference_id: rr.id,
+          },
+          {
+            user_id: rr.tenant_id,
+            amount: totalRepaymentForLedger,
+            direction: "cash_in",
+            category: "rent_receivable_created",
+            source_table: "rent_requests",
+            source_id: rr.id,
+            description: `Rent receivable created - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
+            currency: 'UGX',
+            ledger_scope: "bridge",
+            linked_party: user.id,
+            reference_id: rr.id,
+          },
+        ]),
       });
       console.log(`[fund-tenants] Posted rent obligation of ${totalRepaymentForLedger} for tenant ${rr.tenant_id}`);
 

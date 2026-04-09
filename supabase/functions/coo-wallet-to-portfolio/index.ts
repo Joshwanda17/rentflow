@@ -126,35 +126,33 @@ Deno.serve(async (req) => {
       return jsonRes({ error: "Failed to record pending top-up." }, 500);
     }
 
-    // 3. Double-entry ledger (trigger handles wallet balance)
-    await supabase.from("general_ledger").insert([
-      {
-        user_id: partnerId,
-        amount: topupAmount,
-        direction: "cash_out",
-        category: "pending_portfolio_topup",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `Wallet deduction for ${accountLabel} — Tenant Partnership Operations`,
-        currency: 'UGX',
-        ledger_scope: "wallet",
-        transaction_date: now,
-      },
-      {
-        user_id: partnerId,
-        amount: topupAmount,
-        direction: "credit",
-        category: "pending_portfolio_topup",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `Pending capital for ${accountLabel} — applied at maturity`,
-        currency: 'UGX',
-        ledger_scope: "platform",
-        transaction_date: now,
-      },
-    ]);
+    // 3. Double-entry ledger via RPC (trigger handles wallet balance)
+    await supabase.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: partnerId,
+          amount: topupAmount,
+          direction: "cash_out",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          description: `Wallet deduction for ${accountLabel} — Tenant Partnership Operations`,
+          currency: 'UGX',
+          ledger_scope: "wallet",
+        },
+        {
+          user_id: null,
+          amount: topupAmount,
+          direction: "cash_in",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          description: `Pending capital for ${accountLabel} — applied at maturity`,
+          currency: 'UGX',
+          ledger_scope: "platform",
+        },
+      ]),
+    });
 
     // 4. Audit trail
     await supabase.from("audit_logs").insert({

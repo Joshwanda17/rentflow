@@ -132,18 +132,35 @@ Deno.serve(async (req) => {
 
     // Record in general_ledger
     const txGroupId = crypto.randomUUID();
-    const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
-      user_id: user.id,
-      amount,
-      direction: "cash_out",
-      category: "supporter_rent_fund",
-      source_table: "opportunity_summaries",
-      source_id: summary_id,
-      description: `Supporter rent funding: UGX ${amount.toLocaleString()} to Rent Management Pool. Payout day: ${payout_day}th. First payout: ${firstPayoutDate}`,
-      currency: 'UGX',
-      reference_id: referenceId,
-      linked_party: "Rent Management Pool",
-      transaction_group_id: txGroupId,
+    const { error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: user.id,
+          amount,
+          direction: "cash_out",
+          category: "partner_funding",
+          source_table: "opportunity_summaries",
+          source_id: summary_id,
+          description: `Supporter rent funding: UGX ${amount.toLocaleString()} to Rent Management Pool. Payout day: ${payout_day}th. First payout: ${firstPayoutDate}`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: "Rent Management Pool",
+          ledger_scope: "wallet",
+        },
+        {
+          user_id: null,
+          amount,
+          direction: "cash_in",
+          category: "partner_funding",
+          source_table: "opportunity_summaries",
+          source_id: summary_id,
+          description: `Supporter capital received: UGX ${amount.toLocaleString()} into Rent Management Pool`,
+          currency: 'UGX',
+          reference_id: referenceId,
+          linked_party: user.id,
+          ledger_scope: "platform",
+        },
+      ]),
     });
 
     if (ledgerErr) {

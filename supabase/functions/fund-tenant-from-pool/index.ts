@@ -162,28 +162,39 @@ Deno.serve(async (req) => {
       landlordUserId = landlordProfile?.id || null;
     }
 
-    // Credit landlord wallet
+    // Credit landlord wallet via RPC (trigger handles wallet balance)
     if (landlordUserId) {
-      const { data: lWallet } = await adminClient
+      // Ensure wallet exists
+      await adminClient
         .from("wallets")
-        .select("balance")
-        .eq("user_id", landlordUserId)
-        .maybeSingle();
+        .upsert({ user_id: landlordUserId, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
-      if (lWallet) {
-        await adminClient
-          .from("wallets")
-          .update({
-            balance: lWallet.balance + fundAmount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", landlordUserId)
-          .eq("balance", lWallet.balance);
-      } else {
-        await adminClient
-          .from("wallets")
-          .insert({ user_id: landlordUserId, balance: fundAmount });
-      }
+      await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: landlordUserId,
+            amount: fundAmount,
+            direction: "cash_in",
+            category: "wallet_deposit",
+            source_table: "rent_requests",
+            source_id: rr.id,
+            description: `Rent payment credited to landlord wallet`,
+            currency: 'UGX',
+            ledger_scope: "wallet",
+          },
+          {
+            user_id: null,
+            amount: fundAmount,
+            direction: "cash_out",
+            category: "wallet_deposit",
+            source_table: "rent_requests",
+            source_id: rr.id,
+            description: `Platform disbursement to landlord wallet`,
+            currency: 'UGX',
+            ledger_scope: "platform",
+          },
+        ]),
+      });
 
       // Notify landlord
       await adminClient.from("notifications").insert({
@@ -195,7 +206,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Record pool deployment in general_ledger
+    // Record pool deployment + receivable via RPC
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
     const mm = String(now.getMonth() + 1).padStart(2, "0");
@@ -203,34 +214,36 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `WPD${yy}${mm}${dd}${seq}`;
 
-    await adminClient.from("general_ledger").insert({
-      user_id: user.id,
-      amount: fundAmount,
-      direction: "cash_out",
-      category: "pool_rent_deployment",
-      source_table: "rent_requests",
-      source_id: rr.id,
-      transaction_group_id: txGroupId,
-      description: `Pool deployment: UGX ${fundAmount.toLocaleString()} to landlord ${landlordRecord?.name || "Unknown"} for tenant rent (Transaction ID: ${transactionId})`,
-      currency: 'UGX',
-      linked_party: landlordUserId || landlordRecord?.name || "Unknown Landlord",
-      reference_id: transactionId,
-    });
-
-    // Record rent obligation for tenant
     const totalRepayment = Number(rr.total_repayment) || fundAmount;
-    await adminClient.from("general_ledger").insert({
-      user_id: rr.tenant_id,
-      amount: totalRepayment,
-      direction: "cash_out",
-      category: "rent_obligation",
-      source_table: "rent_requests",
-      source_id: rr.id,
-      transaction_group_id: txGroupId,
-      description: `Rent obligation - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
-      currency: 'UGX',
-      linked_party: landlordUserId,
-      reference_id: rr.id,
+    await adminClient.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: null,
+          amount: fundAmount,
+          direction: "cash_out",
+          category: "rent_disbursement",
+          source_table: "rent_requests",
+          source_id: rr.id,
+          description: `Pool deployment: UGX ${fundAmount.toLocaleString()} to landlord ${landlordRecord?.name || "Unknown"} (TxID: ${transactionId})`,
+          currency: 'UGX',
+          ledger_scope: "platform",
+          linked_party: landlordUserId || landlordRecord?.name || "Unknown Landlord",
+          reference_id: transactionId,
+        },
+        {
+          user_id: rr.tenant_id,
+          amount: totalRepayment,
+          direction: "cash_in",
+          category: "rent_receivable_created",
+          source_table: "rent_requests",
+          source_id: rr.id,
+          description: `Rent receivable - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
+          currency: 'UGX',
+          ledger_scope: "bridge",
+          linked_party: landlordUserId,
+          reference_id: rr.id,
+        },
+      ]),
     });
 
     // Update rent request to funded
@@ -297,24 +310,39 @@ Deno.serve(async (req) => {
       metadata: { rent_request_id: rr.id, amount: fundAmount },
     });
 
-    // Pay agent approval bonus (UGX 5,000)
+    // Pay agent approval bonus (UGX 5,000) via RPC
     if (rr.agent_id) {
-      const { data: agentWallet } = await adminClient
+      // Ensure agent wallet exists
+      await adminClient
         .from("wallets")
-        .select("balance")
-        .eq("user_id", rr.agent_id)
-        .maybeSingle();
+        .upsert({ user_id: rr.agent_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
-      if (agentWallet) {
-        await adminClient
-          .from("wallets")
-          .update({
-            balance: agentWallet.balance + 5000,
-            updated_at: now.toISOString(),
-          })
-          .eq("user_id", rr.agent_id)
-          .eq("balance", agentWallet.balance);
-      }
+      await adminClient.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: rr.agent_id,
+            amount: 5000,
+            direction: "cash_in",
+            category: "agent_commission_earned",
+            source_table: "rent_requests",
+            source_id: rr.id,
+            description: "Agent approval bonus for funded rent request",
+            currency: 'UGX',
+            ledger_scope: "wallet",
+          },
+          {
+            user_id: null,
+            amount: 5000,
+            direction: "cash_out",
+            category: "agent_commission_earned",
+            source_table: "rent_requests",
+            source_id: rr.id,
+            description: "Platform payout: agent approval bonus",
+            currency: 'UGX',
+            ledger_scope: "platform",
+          },
+        ]),
+      });
 
       await adminClient.from("agent_earnings").insert({
         agent_id: rr.agent_id,
