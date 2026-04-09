@@ -250,7 +250,7 @@ export default function RegisterTenantPublic() {
         </div>
 
         <div className="max-w-md mx-auto px-4 py-8 space-y-4">
-          <p className="text-sm text-muted-foreground text-center">How does this tenant earn income?</p>
+          <p className="text-sm text-muted-foreground text-center">How do you earn?</p>
 
           <button
             onClick={() => { setIncomeType('daily'); setStep('form'); }}
