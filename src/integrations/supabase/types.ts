@@ -1140,6 +1140,68 @@ export type Database = {
           },
         ]
       }
+      agent_form_tokens: {
+        Row: {
+          agent_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          max_uses: number
+          token: string
+          uses_count: number
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          token: string
+          uses_count?: number
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          token?: string
+          uses_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_form_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_form_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_form_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_form_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_goals: {
         Row: {
           agent_id: string
