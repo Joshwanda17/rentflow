@@ -356,7 +356,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           </div>
           <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
             <p className="text-xs text-muted-foreground">Liabilities</p>
-            <p className="text-lg font-bold font-mono text-yellow-600">{fmt(totalLiabilities)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate text-yellow-600">{fmt(totalLiabilities)}</p>
           </div>
           <div className={`rounded-xl border p-3 ${solvencyBg}`}>
             <p className="text-xs text-muted-foreground">Coverage</p>
