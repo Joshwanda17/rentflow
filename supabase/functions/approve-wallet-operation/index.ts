@@ -624,23 +624,40 @@ Deno.serve(async (req) => {
             .single();
 
           if (portfolio) {
-            // Restore agent wallet balance
-            const { data: agentWallet } = await adminClient
-              .from("wallets")
-              .select("balance")
-              .eq("user_id", portfolio.agent_id)
-              .single();
+            // Restore agent wallet via ledger reversal (NOT direct wallet update)
+            const { error: reversalErr } = await adminClient.rpc('create_ledger_transaction', {
+              entries: JSON.stringify([
+                {
+                  user_id: portfolio.agent_id,
+                  amount: portfolio.investment_amount,
+                  direction: 'cash_in',
+                  category: 'system_balance_correction',
+                  ledger_scope: 'wallet',
+                  description: `Investment rejected — funds restored. Reason: ${rejection_reason}`,
+                  source_table: 'investor_portfolios',
+                  source_id: op.source_id,
+                  currency: 'UGX',
+                  transaction_date: new Date().toISOString(),
+                },
+                {
+                  direction: 'cash_out',
+                  amount: portfolio.investment_amount,
+                  category: 'system_balance_correction',
+                  ledger_scope: 'platform',
+                  description: `Platform returns rejected investment capital`,
+                  source_table: 'investor_portfolios',
+                  source_id: op.source_id,
+                  currency: 'UGX',
+                  transaction_date: new Date().toISOString(),
+                },
+              ]),
+            });
 
-            if (agentWallet) {
-              await adminClient
-                .from("wallets")
-                .update({
-                  balance: agentWallet.balance + portfolio.investment_amount,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("user_id", portfolio.agent_id);
-
-              console.log(`[approve-wallet-op] Restored UGX ${portfolio.investment_amount} to agent ${portfolio.agent_id}`);
+            if (!reversalErr) {
+              console.log(`[approve-wallet-op] Restored UGX ${portfolio.investment_amount} to agent ${portfolio.agent_id} via ledger`);
+            } else {
+              console.error(`[approve-wallet-op] Reversal ledger RPC failed:`, reversalErr);
+            }
 
               // Notify agent of refund
               await adminClient.from("notifications").insert({
@@ -650,7 +667,6 @@ Deno.serve(async (req) => {
                 type: "warning",
                 metadata: { operation_id: op.id, amount: portfolio.investment_amount, reason: rejection_reason },
               });
-            }
           }
         }
 
