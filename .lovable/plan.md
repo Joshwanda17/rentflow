@@ -1,39 +1,25 @@
+# Allow Proxy Agents to Withdraw Without TID/Payout Details
 
+## Problem
 
-# Fix CFO Dashboard Mobile Layout
+Proxy agents are currently required to select a payout method (MTN, Airtel, Cash) and enter MoMo recipient details before submitting a withdrawal. This is unnecessary friction — Financial Ops should handle payout method selection and TID confirmation during approval.
 
-## Problems Identified (from screenshot at 390px)
+## What Changes
 
-1. KPI header cards: `text-2xl` values overflow on mobile — currency strings like "USh 96,843,218" don't fit in a 2-column grid
-2. Channel balance cards: Same overflow issue with large numbers
-3. Solvency ratio card uses same oversized text
-4. Various `font-mono text-lg`/`text-2xl`/`text-3xl` values throughout sections clip on small screens
+### 1. Simplify `AgentProxyWithdrawalDialog.tsx`
 
-## Fix Strategy
+- **Should select**  the payout method selector (MTN / Airtel / Cash buttons)
+- **Put**  the MoMo recipient name and phone number fields
+- **Keep** only: Amount, Reason, and the audit warning
+- Submit the withdrawal request with `payout_method: null` (Financial Ops decides how to pay)
+- Update validation: only require `amount >= 500`, `amount <= walletBalance`, and `reason >= 10 chars`
 
-All changes in **one file**: `src/components/cfo/CFOOverviewDashboard.tsx`
+### 2. Update `FinOpsWithdrawalVerification.tsx` — Add Proxy Agent Badge
 
-### 1. KPICard component — responsive text sizing
-- Change value from `text-2xl` to `text-base sm:text-2xl`
-- Add `truncate` to prevent overflow
-- Reduce padding on mobile: `p-3 sm:p-4`
+- When a withdrawal's `reason` contains `[Agent proxy:]`, show a "Proxy Agent" badge on the card so Financial Ops knows this was submitted by an agent on behalf of a funder
+- The approval dialog already requires payment method + TID/reference — no changes needed there
 
-### 2. Solvency ratio card (line 97-108) — same responsive sizing
-- Value: `text-base sm:text-2xl`
-- Reduce padding on mobile
+### Files Changed
 
-### 3. Section content — responsive number sizing
-- "Total Cash" hero number (line 123): `text-xl sm:text-3xl`
-- Channel cards values (line 134): `text-base sm:text-lg`
-- Channel card In/Out text: add `truncate`
-- All section hero numbers (Total Receivables, etc.): `text-xl sm:text-3xl`
-- MiniKPI values: `text-base sm:text-lg`
-
-### 4. Liability grid (line 191)
-- Change from `grid-cols-2 lg:grid-cols-5` to `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5` so items stack on very small screens
-
-### 5. Cash Flow section Net Cash Movement (line 285)
-- `text-xl sm:text-2xl`
-
-No structural changes — purely responsive text sizing and overflow prevention.
-
+1. `src/components/agent/AgentProxyWithdrawalDialog.tsx` — Remove payout method, MoMo fields, simplify validation
+2. `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — Add proxy agent indicator badge
