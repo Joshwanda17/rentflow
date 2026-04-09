@@ -8678,6 +8678,30 @@ export type Database = {
           },
         ]
       }
+      treasury_controls: {
+        Row: {
+          control_key: string
+          enabled: boolean
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          control_key: string
+          enabled?: boolean
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          control_key?: string
+          enabled?: boolean
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       user_activity_log: {
         Row: {
           activity_type: string
@@ -9590,6 +9614,7 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
+      create_ledger_transaction: { Args: { entries: Json }; Returns: string }
       credit_agent_event_bonus: {
         Args: {
           p_agent_id: string
@@ -10072,6 +10097,10 @@ export type Database = {
           p_token_code: string
         }
         Returns: Json
+      }
+      validate_treasury_action: {
+        Args: { action_type: string; p_amount: number; p_user_id?: string }
+        Returns: boolean
       }
       verify_staff_access_password: {
         Args: { p_password: string; p_user_id: string }

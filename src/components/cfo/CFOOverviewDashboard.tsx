@@ -1,12 +1,16 @@
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Banknote, Wallet, TrendingUp, ArrowUpDown, ShieldAlert, Users, Smartphone, Building2, HandCoins, ArrowDownToLine, PiggyBank, ReceiptText, AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Banknote, Wallet, TrendingUp, ArrowUpDown, ShieldAlert, Users, Smartphone, Building2, HandCoins, ArrowDownToLine, PiggyBank, ReceiptText, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, XCircle, Scale, Clock } from 'lucide-react';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useCallback } from 'react';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -24,7 +28,25 @@ const fmtShort = (n: number) => {
 const pct = (part: number, total: number) => (total === 0 ? 0 : Math.round((part / total) * 100));
 
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
-  const { channelBalances, liabilities, revenue, moneyFlow, receivables, cashFlowByPurpose, isLoading } = useCFOOverviewData();
+  const {
+    channelBalances, liabilities, revenue, moneyFlow, receivables, cashFlowByPurpose,
+    todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
+    isLoading
+  } = useCFOOverviewData();
+
+  const handleToggleControl = useCallback(async (controlKey: string, newValue: boolean) => {
+    const { error } = await supabase
+      .from('treasury_controls' as any)
+      .update({ enabled: newValue, updated_at: new Date().toISOString() } as any)
+      .eq('control_key', controlKey);
+
+    if (error) {
+      toast.error(`Failed to update ${controlKey}`);
+    } else {
+      toast.success(`${controlKey.replace(/_/g, ' ')} ${newValue ? 'enabled' : 'disabled'}`);
+      refetchControls();
+    }
+  }, [refetchControls]);
 
   if (isLoading) {
     return (
@@ -37,6 +59,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const totalCash = channelBalances?.totalCash ?? 0;
   const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
+  const platformEarnings = revenue?.netProfit ?? 0;
   const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
 
   const solvencyColor =
@@ -66,47 +89,174 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     { label: 'Pending Withdrawals', value: liabilities?.pendingWithdrawals ?? 0, icon: <ArrowDownToLine className="h-4 w-4" /> },
   ];
 
+  // Golden Rule calculation
+  const walletTotal = liabilities?.tenantFunds ?? 0;
+  const timingDifference = totalCash - walletTotal - platformEarnings;
+  const timingPct = totalCash > 0 ? Math.abs(timingDifference / totalCash) * 100 : 0;
+  const timingColor = timingPct < 1 ? 'text-emerald-600' : timingPct < 5 ? 'text-yellow-600' : 'text-red-600';
+  const timingBg = timingPct < 1
+    ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/20'
+    : timingPct < 5
+      ? 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950/20'
+      : 'bg-red-50 border-red-300 dark:bg-red-950/20';
+
   return (
     <div className="space-y-6">
-      {/* SECTION 0: KPI Header Bar */}
+      {/* SECTION 0: Treasury KPI Header */}
       <div className="pb-3 pt-1">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           <KPICard
-            label="Total Cash"
+            label="Platform Cash"
             value={fmt(totalCash)}
-            subtitle="Across all channels"
+            subtitle="Treasury Balance"
             accent="border-l-blue-500"
             icon={<Banknote className="h-5 w-5 text-blue-500" />}
             onClick={() => onTabChange?.('reconciliation')}
           />
           <KPICard
-            label="Total Receivables"
-            value={fmt(totalReceivables)}
-            subtitle="Money expected back"
-            accent="border-l-purple-500"
-            icon={<ReceiptText className="h-5 w-5 text-purple-500" />}
-          />
-          <KPICard
-            label="Total Liabilities"
-            value={fmt(totalLiabilities)}
-            subtitle="User funds owed"
+            label="User Wallets"
+            value={fmt(walletTotal)}
+            subtitle="Liabilities"
             accent="border-l-yellow-500"
             icon={<Wallet className="h-5 w-5 text-yellow-500" />}
             onClick={() => onTabChange?.('solvency')}
           />
-          <div
-            className={`rounded-2xl border-l-4 border ${solvencyBg} p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow`}
-            onClick={() => onTabChange?.('solvency')}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldAlert className={`h-5 w-5 ${solvencyColor}`} />
-              <span className="text-sm font-medium text-muted-foreground">Solvency Ratio</span>
-            </div>
-            <p className={`text-base sm:text-2xl font-bold font-mono truncate ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground mt-0.5">(Cash + Receivables) / Liabilities</p>
-          </div>
+          <KPICard
+            label="Platform Earnings"
+            value={fmt(platformEarnings)}
+            subtitle="Revenue - Expenses"
+            accent="border-l-emerald-500"
+            icon={<PiggyBank className="h-5 w-5 text-emerald-500" />}
+          />
+          <KPICard
+            label="Cash In Today"
+            value={fmt(todayCashFlow?.cashInToday ?? 0)}
+            subtitle="Total inflows"
+            accent="border-l-green-500"
+            icon={<ArrowDownRight className="h-5 w-5 text-green-500" />}
+          />
+          <KPICard
+            label="Cash Out Today"
+            value={fmt(todayCashFlow?.cashOutToday ?? 0)}
+            subtitle="Total outflows"
+            accent="border-l-red-500"
+            icon={<ArrowUpRight className="h-5 w-5 text-red-500" />}
+          />
+          <KPICard
+            label="Net Cash Today"
+            value={fmt(todayCashFlow?.netToday ?? 0)}
+            subtitle="In - Out"
+            accent={(todayCashFlow?.netToday ?? 0) >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}
+            icon={<ArrowUpDown className="h-5 w-5 text-indigo-500" />}
+          />
         </div>
       </div>
+
+      {/* GOLDEN RULE EQUATION */}
+      <Card className={`border-2 ${timingBg}`}>
+        <CardContent className="py-4 px-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Scale className="h-5 w-5 text-indigo-600" />
+            <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Golden Rule</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-center">
+            <div className="rounded-xl border bg-blue-50 dark:bg-blue-950/30 p-3 flex-1 min-w-[120px]">
+              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Cash</p>
+              <p className="text-lg font-bold font-mono text-blue-600">{fmtShort(totalCash)}</p>
+            </div>
+            <span className="text-xl font-bold text-muted-foreground">=</span>
+            <div className="rounded-xl border bg-yellow-50 dark:bg-yellow-950/30 p-3 flex-1 min-w-[120px]">
+              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Wallets</p>
+              <p className="text-lg font-bold font-mono text-yellow-600">{fmtShort(walletTotal)}</p>
+            </div>
+            <span className="text-xl font-bold text-muted-foreground">+</span>
+            <div className="rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 p-3 flex-1 min-w-[120px]">
+              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Platform</p>
+              <p className="text-lg font-bold font-mono text-emerald-600">{fmtShort(platformEarnings)}</p>
+            </div>
+            <span className="text-xl font-bold text-muted-foreground">±</span>
+            <div className={`rounded-xl border p-3 flex-1 min-w-[120px] ${timingBg}`}>
+              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Timing Diff</p>
+              <p className={`text-lg font-bold font-mono ${timingColor}`}>{fmtShort(timingDifference)}</p>
+              <p className={`text-[10px] ${timingColor}`}>{timingPct.toFixed(1)}% variance</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* PENDING APPROVAL QUEUE */}
+      {(pendingApprovals?.count ?? 0) > 0 && (
+        <Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/10">
+          <CardContent className="py-4 px-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="text-sm font-bold">Pending Approval Queue</p>
+                  <p className="text-xs text-muted-foreground">
+                    {pendingApprovals?.count} requests totalling {fmt(pendingApprovals?.totalAmount ?? 0)}
+                  </p>
+                </div>
+              </div>
+              <Badge
+                variant="secondary"
+                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                onClick={() => onTabChange?.('withdrawals')}
+              >
+                View All →
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* LEDGER INTEGRITY ALERTS */}
+      <SectionCard title="Ledger Integrity" icon={<ShieldAlert className="h-5 w-5 text-indigo-600" />} accent="border-l-indigo-500">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <IntegrityAlert
+            label="Wallet / Ledger Drift"
+            count={integrityChecks?.walletDriftCount ?? 0}
+            description="Users with balance mismatch > UGX 100"
+            onClick={() => onTabChange?.('reconciliation')}
+          />
+          <IntegrityAlert
+            label="Missing Group IDs"
+            count={integrityChecks?.missingGroupCount ?? 0}
+            description="Entries without transaction_group_id (7d)"
+          />
+          <IntegrityAlert
+            label="Negative Balances"
+            count={integrityChecks?.negativeLedgerCount ?? 0}
+            description="Users with negative ledger balance"
+          />
+        </div>
+      </SectionCard>
+
+      {/* AUTO-PAYOUT CONTROLS */}
+      <SectionCard title="Auto-Payout Controls" icon={<Wrench className="h-5 w-5 text-slate-600" />} accent="border-l-slate-400">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { key: 'auto_roi', label: 'Auto ROI Payouts', icon: <HandCoins className="h-4 w-4" /> },
+            { key: 'auto_salaries', label: 'Auto Salaries', icon: <Users className="h-4 w-4" /> },
+            { key: 'auto_commissions', label: 'Auto Commissions', icon: <Banknote className="h-4 w-4" /> },
+            { key: 'auto_advances', label: 'Auto Advances', icon: <TrendingUp className="h-4 w-4" /> },
+          ].map((ctrl) => (
+            <div key={ctrl.key} className="rounded-xl border bg-muted/30 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {ctrl.icon}
+                <span className="text-sm font-medium">{ctrl.label}</span>
+              </div>
+              <Switch
+                checked={treasuryControls?.[ctrl.key] ?? false}
+                onCheckedChange={(val) => handleToggleControl(ctrl.key, val)}
+              />
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2">
+          ⚠️ Even when auto-payouts are ON, each transaction is validated against cash availability and ledger balance before release.
+        </p>
+      </SectionCard>
 
       {/* SECTION 1: Cash & Liquidity */}
       <SectionCard title="Cash & Liquidity" icon={<Banknote className="h-5 w-5 text-blue-500" />} accent="border-l-blue-500">
@@ -251,7 +401,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* SECTION 5: Cash Flow Engine */}
       <SectionCard title="Cash Flow by Purpose" icon={<ArrowUpDown className="h-5 w-5 text-indigo-500" />} accent="border-l-indigo-500">
         <div className="grid lg:grid-cols-2 gap-4 mb-4">
-          {/* Cash In */}
           <div className="rounded-xl border bg-emerald-50/50 dark:bg-emerald-950/10 p-4">
             <div className="flex items-center gap-2 mb-3">
               <ArrowDownRight className="h-4 w-4 text-emerald-600" />
@@ -264,7 +413,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               <FlowRow label="Other Income" value={cashFlowByPurpose?.cashIn.other ?? 0} />
             </div>
           </div>
-          {/* Cash Out */}
           <div className="rounded-xl border bg-red-50/50 dark:bg-red-950/10 p-4">
             <div className="flex items-center gap-2 mb-3">
               <ArrowUpRight className="h-4 w-4 text-red-600" />
@@ -279,14 +427,12 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             </div>
           </div>
         </div>
-        {/* Net Cash Movement */}
         <div className="rounded-xl border bg-indigo-50/50 dark:bg-indigo-950/20 p-4 mb-4">
           <p className="text-xs text-muted-foreground">Net Cash Movement</p>
           <p className={`text-xl sm:text-2xl font-bold font-mono truncate ${(cashFlowByPurpose?.netMovement ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
             {fmt(cashFlowByPurpose?.netMovement ?? 0)}
           </p>
         </div>
-        {/* 30-day trend */}
         {moneyFlow?.trend && moneyFlow.trend.length > 0 && (
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
@@ -314,7 +460,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
       {/* SECTION 6: Risk & Control */}
       <SectionCard title="Risk & Control" icon={<ShieldAlert className="h-5 w-5 text-red-500" />} accent="border-l-red-500">
-        {/* Section A: Channel Reconciliation */}
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Channel Reconciliation</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {Object.entries(channels).map(([name, vals]) => {
@@ -343,7 +488,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           })}
         </div>
 
-        {/* Section B: Solvency Breakdown */}
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Solvency Breakdown</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
@@ -374,7 +518,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           </p>
         </div>
 
-        {/* Section C: Alerts */}
         {(negativeChannels.length > 0 || solvencyRatio < 80) && (
           <div className="mt-4 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Alerts</p>
@@ -418,6 +561,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 }
 
 // --- Sub-components ---
+
+import { Wrench } from 'lucide-react';
 
 function KPICard({ label, value, subtitle, accent, icon, onClick }: {
   label: string; value: string; subtitle: string; accent: string; icon: React.ReactNode; onClick?: () => void;
@@ -467,6 +612,25 @@ function FlowRow({ label, value }: { label: string; value: number }) {
     <div className="flex justify-between items-center text-sm">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-mono font-medium">{fmt(value)}</span>
+    </div>
+  );
+}
+
+function IntegrityAlert({ label, count, description, onClick }: {
+  label: string; count: number; description: string; onClick?: () => void;
+}) {
+  const isOk = count === 0;
+  return (
+    <div
+      className={`rounded-xl border p-4 cursor-pointer hover:shadow-sm transition-shadow ${isOk ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200' : 'bg-red-50/50 dark:bg-red-950/10 border-red-300'}`}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        {isOk ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
+        <span className="text-sm font-semibold">{label}</span>
+      </div>
+      <p className={`text-2xl font-bold font-mono ${isOk ? 'text-emerald-600' : 'text-red-600'}`}>{count}</p>
+      <p className="text-[10px] text-muted-foreground mt-1">{description}</p>
     </div>
   );
 }
