@@ -713,7 +713,7 @@ async function chargeAgent(
     user_id: charge.agent_id,
     amount: shortfall,
     direction: "cash_out",
-    category: "tenant_default_charge",
+    category: "agent_commission_used_for_rent",
     source_table: "subscription_charges",
     source_id: charge.id,
     description,
