@@ -1,87 +1,39 @@
 
 
-# CFO Dashboard — Complete Redesign with Assets Section
+# Fix CFO Dashboard Mobile Layout
 
-## Summary
-Rebuild the CFO Overview Dashboard to match the 8-section financial command center layout. The key addition is a new **Section 2: Assets (Receivables)** between Cash & Liquidity and Liabilities, and a restructured **Section 5: Cash Flow Engine** broken down by purpose.
+## Problems Identified (from screenshot at 390px)
 
-## Changes
+1. KPI header cards: `text-2xl` values overflow on mobile — currency strings like "USh 96,843,218" don't fit in a 2-column grid
+2. Channel balance cards: Same overflow issue with large numbers
+3. Solvency ratio card uses same oversized text
+4. Various `font-mono text-lg`/`text-2xl`/`text-3xl` values throughout sections clip on small screens
 
-### 1. `src/hooks/useCFOOverviewData.ts` — Add receivables + cash flow by purpose
+## Fix Strategy
 
-**New query: `receivables`**
-- Tenant outstanding: sum of `accumulated_debt` from `subscription_charges` where `status = 'active'`
-- Advances outstanding: sum of `outstanding_balance` from `agent_advances` where `status = 'active'`
-- Returns `tenantOutstanding`, `advancesOutstanding`, `totalReceivables`
+All changes in **one file**: `src/components/cfo/CFOOverviewDashboard.tsx`
 
-**Update `revenue` query:**
-- Add `totalExpenses` (rename from `totalCosts` for clarity)
-- Separate fees earned from gross revenue if categories allow
+### 1. KPICard component — responsive text sizing
+- Change value from `text-2xl` to `text-base sm:text-2xl`
+- Add `truncate` to prevent overflow
+- Reduce padding on mobile: `p-3 sm:p-4`
 
-**New query: `cashFlowByPurpose`**
-- Query `general_ledger` (platform scope) grouped by category to produce:
-  - Cash In: Partner Funding, Tenant Repayments
-  - Cash Out: Rent Payments, ROI Payouts, Advances
-  - Net Cash Movement
-- Reuse the existing 30-day trend from `moneyFlow`
+### 2. Solvency ratio card (line 97-108) — same responsive sizing
+- Value: `text-base sm:text-2xl`
+- Reduce padding on mobile
 
-**Update solvency formula:**
-- Return `totalReceivables` so the dashboard can compute `(Cash + Receivables) / Liabilities`
+### 3. Section content — responsive number sizing
+- "Total Cash" hero number (line 123): `text-xl sm:text-3xl`
+- Channel cards values (line 134): `text-base sm:text-lg`
+- Channel card In/Out text: add `truncate`
+- All section hero numbers (Total Receivables, etc.): `text-xl sm:text-3xl`
+- MiniKPI values: `text-base sm:text-lg`
 
-### 2. `src/components/cfo/CFOOverviewDashboard.tsx` — Full rebuild
+### 4. Liability grid (line 191)
+- Change from `grid-cols-2 lg:grid-cols-5` to `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5` so items stack on very small screens
 
-**Section 0 — KPI Bar (4 cards):**
-- Total Cash (blue)
-- Total Receivables (purple) — NEW
-- Total Liabilities (yellow)
-- Solvency Ratio: `(Cash + Receivables) / Liabilities` — updated formula
+### 5. Cash Flow section Net Cash Movement (line 285)
+- `text-xl sm:text-2xl`
 
-**Section 1 — Cash & Liquidity (blue):**
-- Keep as-is: Total Cash hero, channel grid (MTN/Airtel/Bank/Cash), Available vs Restricted
-- Add red alert if any channel balance is negative
-
-**Section 2 — Assets / Receivables (purple) — NEW:**
-- Two cards: Tenant Outstanding, Advances Outstanding
-- Total Receivables hero number
-- Optional aging placeholder (0-30, 30-60, 60+ days) shown as muted text for future implementation
-
-**Section 3 — Liabilities (yellow):**
-- Keep existing: 5-card grid + breakdown bar
-- No changes
-
-**Section 4 — Platform Earnings (green):**
-- 4 cards: Revenue, Fees, Expenses, Net Profit
-- Keep 7-day trend chart
-
-**Section 5 — Cash Flow Engine (indigo) — RESTRUCTURED:**
-- Two sub-sections: Cash In (Partner Funding, Tenant Repayments) and Cash Out (Rent Payments, ROI Payouts, Advances)
-- Net Cash Movement hero number
-- Keep the existing 30-day area chart (inflows vs outflows)
-
-**Section 6 — Risk & Control (red):**
-- Section A: Channel reconciliation cards (keep existing)
-- Section B: Solvency Breakdown — Cash, Receivables, Liabilities, Coverage %
-- Section C: Alerts — negative balances, low liquidity warnings
-
-**Section 7 — Operations (grey):**
-- Keep existing: Top Agents left, Recent Activity right
-
-### 3. Color system update
-| Section | Border accent | Icon color |
-|---------|--------------|------------|
-| Cash | blue-500 | blue-500 |
-| Assets | purple-500 | purple-500 |
-| Liabilities | yellow-500 | yellow-500 |
-| Revenue | emerald-500 | emerald-500 |
-| Cash Flow | indigo-500 | indigo-500 |
-| Risk | red-500 | red-500 |
-| Operations | muted | muted |
-
-### Files Modified
-| File | Action |
-|------|--------|
-| `src/hooks/useCFOOverviewData.ts` | Add receivables query, cash flow by purpose, update returns |
-| `src/components/cfo/CFOOverviewDashboard.tsx` | Full rebuild with 8 sections |
-
-No database changes needed — all data comes from existing tables (`subscription_charges`, `agent_advances`, `general_ledger`, `deposit_requests`, `withdrawal_requests`, `wallets`, `investor_portfolios`, `agent_commission_payouts`).
+No structural changes — purely responsive text sizing and overflow prevention.
 
