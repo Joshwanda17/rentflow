@@ -1,19 +1,35 @@
 
 
-# Fix: Rename Pending Invite "User 1224" to "GINA"
+# Hide Fee Breakdown Details from Tenant-Facing Summaries
 
 ## Problem
-Phone `0750521224` has a pending invite record in `supporter_invites` with `full_name = 'User 1224'` instead of **GINA**.
+The repayment summary cards currently show Access Fee, Platform Fee, and Total Repayment to users. These should be hidden — only **Rent Amount**, **Daily Amount**, and **Start Date** should remain visible.
 
-## Fix
-Single database migration to update the name:
+## Files to Update
 
-```sql
-UPDATE supporter_invites
-SET full_name = 'GINA'
-WHERE id = '508696e0-6bca-47bf-bc24-d5c72f1f8ca7';
-```
+### 1. `src/pages/RegisterTenantPublic.tsx` (lines 395-397)
+Remove three lines:
+- `Access Fee` row
+- `Platform Fee` row  
+- `Total Repayment` row (with its border/separator styling)
 
-## No frontend changes needed
-The invite list already reads `full_name` from `supporter_invites` — it will display "GINA" immediately after the update.
+Keep: Rent Amount, Daily Amount, Starts date.
+
+### 2. `src/components/tenant/RentRequestForm.tsx` (lines 426-438)
+Remove:
+- `Access Fee` row
+- `Request Fee` row
+- `Total to Repay` block (the bordered highlight card)
+
+Keep: Rent Amount, Daily Amount hero card, Start Date, Per-Payment info.
+
+### 3. `src/components/agent/ListEmptyHouseDialog.tsx` (lines 390-396)
+Remove:
+- `Access fee (33%)` row
+- `Platform fee` row
+
+Keep: Rent Amount and any daily/total display that remains.
+
+## No backend changes needed
+The fees are still calculated and stored — they're just hidden from the user-facing summary display.
 
