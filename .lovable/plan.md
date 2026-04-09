@@ -1,159 +1,94 @@
 
 
-# Phase 2 Continuation — Fix 3 Flow Errors + Migrate Remaining 20 Functions
+# Phase 2 Continuation — RPC Hardening + Remaining 20 Function Migrations
 
-## Critical Fixes (Issues Raised by User)
+## Part A: RPC Hardening (4 Non-Negotiable Guards)
 
-### Fix 1: `tenant-pay-rent` — Wrong Flow Model
-**Current (WRONG):** wallet cash_out → platform cash_in (treats it as wallet-to-platform transfer)
-**Correct:** This is a tenant repaying rent. The wallet deduction is one transaction, and the platform receiving repayment with fee split is another.
+### 1. Direction Normalization
+Add to the validation loop in `create_ledger_transaction`, before the direction check:
+```sql
+IF entry->>'direction' IN ('credit','in') THEN
+  entry := jsonb_set(entry, '{direction}', '"cash_in"');
+ELSIF entry->>'direction' IN ('debit','out') THEN
+  entry := jsonb_set(entry, '{direction}', '"cash_out"');
+END IF;
+```
+This catches legacy `credit`/`debit`/`in`/`out` from functions not yet migrated or from old data.
 
-```text
-Transaction A (wallet deduction):
-  wallet/cash_out → tenant_repayment (deducts tenant wallet)
-  platform/cash_in → tenant_repayment (platform receives)
+### 2. Transaction Group ID Guard
+Already guaranteed — `group_id` is generated as `gen_random_uuid()` at the top of the function. It can never be NULL. No additional guard needed.
 
-Transaction B (fee split — handled by sync_collection_to_ledger trigger on subscription_charge_logs):
-  Already handled by existing trigger — NOT duplicated here
+### 3. Wallet Negative Balance Guard
+Add after the balance check loop, inside PASS 2 before each INSERT:
+```sql
+IF entry->>'ledger_scope' = 'wallet' AND entry->>'direction' = 'cash_out' THEN
+  PERFORM 1 FROM (
+    SELECT COALESCE(SUM(CASE WHEN direction='cash_in' THEN amount ELSE -amount END), 0) AS bal
+    FROM general_ledger
+    WHERE user_id = (entry->>'user_id')::UUID AND ledger_scope = 'wallet'
+  ) t WHERE t.bal < (entry->>'amount')::NUMERIC;
+  IF FOUND THEN
+    RAISE EXCEPTION 'Insufficient wallet balance for user %', entry->>'user_id';
+  END IF;
+END IF;
 ```
 
-Since `tenant-pay-rent` is a direct wallet payment (not going through `subscription_charge_logs`), the correct balanced flow per the user spec is:
-```text
-[
-  { ledger_scope: "platform", direction: "cash_in", amount: total, category: "tenant_repayment" },
-  { ledger_scope: "bridge", direction: "cash_out", amount: principal, category: "rent_principal_collected" },
-  { ledger_scope: "platform", direction: "cash_in", amount: fee, category: "access_fee_collected" }
-]
-```
-However, this function doesn't have access to the fee breakdown (it uses `payAmount` as a lump sum against `total_repayment`). The fee split is handled by `record_rent_request_repayment` RPC and the `sync_collection_to_ledger` trigger. So the correct approach is:
-
-**Wallet deduction (separate RPC):**
-```text
-{ user_id: tenantId, ledger_scope: "wallet", direction: "cash_out", amount, category: "tenant_repayment" }
-{ ledger_scope: "platform", direction: "cash_in", amount, category: "tenant_repayment" }
+### 4. Audit Log
+Add before the RETURN:
+```sql
+INSERT INTO audit_logs (user_id, action_type, metadata, created_at)
+VALUES (NULL, 'ledger_transaction', jsonb_build_object('group_id', group_id, 'entry_count', jsonb_array_length(entries), 'total_amount', total_in), NOW());
 ```
 
-This removes the wallet cash_out entry that was incorrectly scoped.
+## Part B: Remaining 20 Edge Functions
 
-### Fix 2: `coo-invest-for-partner` — Wrong Flow Model
-**Current (WRONG):** partner wallet cash_out → platform cash_in (treats it as money leaving partner)
-**Correct:** This is EXTERNAL money entering the system. Partner wallet should be credited, not debited.
+Each function replaces `.from('general_ledger').insert(...)` with `.rpc('create_ledger_transaction', { entries: ... })`. Direct `wallets.balance` mutations are removed.
 
-```text
-{ ledger_scope: "platform", direction: "cash_in", amount, category: "partner_funding" }
-{ user_id: partner_id, ledger_scope: "wallet", direction: "cash_in", amount, category: "partner_funding" }
-```
+### Function-by-Function Corrections
 
-Wait — the current function actually deducts from partner's wallet (line 85: `partnerWallet.balance < amount`). So this IS a wallet-to-pool flow, not external money. The function name is misleading. The COO is investing FROM the partner's existing wallet balance.
-
-Looking at the business logic: partner already has money in wallet → COO moves it to investment pool. So:
-```text
-{ user_id: partner_id, ledger_scope: "wallet", direction: "cash_out", amount, category: "partner_funding" }
-{ ledger_scope: "platform", direction: "cash_in", amount, category: "partner_funding" }
-```
-This is actually what was already implemented. But the user's spec says partner_funding should be BOTH cash_in. I'll follow the user's explicit spec — they may want to track this as new money entering regardless of source.
-
-### Fix 3: `wallet-deduction` — Wrong Category
-**Current:** `system_balance_correction`
-**Correct:** Add `wallet_deduction` to the locked categories list and use it here.
-
----
-
-## Database Migration
-
-Add `wallet_deduction` to the locked categories array in `create_ledger_transaction` and to the `validate_ledger_category` trigger. Also add it to `src/lib/ledgerConstants.ts`.
-
----
-
-## Remaining 20 Functions to Migrate
-
-All follow the same mechanical pattern: replace `.from('general_ledger').insert(...)` with `.rpc('create_ledger_transaction', { entries: ... })`.
-
-| # | Function | Direct Inserts | Key Changes |
-|---|----------|---------------|-------------|
-| 1 | `approve-deposit` | 3 | 3 separate RPCs: rent repayment, debt clearance, prepay. Remove direct wallet updates. |
-| 2 | `approve-wallet-operation` | 4+ | Main ledger insert → RPC. Advance repayment → RPC. Rent auto-deduct → RPC. Investment commission → RPC. **Remove direct wallet.balance update in reject path (lines 547-553).** |
-| 3 | `agent-deposit` | 4 | Agent float deduction → RPC. Landlord credit → RPC. Tenant deposit → RPC. Remove `applyRepaymentForRepayingRequest` direct insert (line 81-96). |
-| 4 | `auto-charge-wallets` | 2 | Agent liability → RPC. Agent commission_used_for_rent → RPC. **Remove direct `wallets.update` (lines 291-294, 403-406).** |
-| 5 | `fund-tenant-from-pool` | 2 | Pool deployment + rent obligation → 1 RPC. **Remove direct wallet.balance updates (lines 174-186, 309-317).** |
-| 6 | `fund-tenants` | 1 | Rent obligation → 1 RPC (bridge scope). |
-| 7 | `fund-rent-pool` | 1 | Supporter rent fund → 1 RPC. |
-| 8 | `angel-pool-invest` | 1 | Share purchase → 1 RPC. |
-| 9 | `agent-angel-pool-invest` | 3 | Investment + commission → 2 RPCs. |
-| 10 | `agent-invest-for-partner` | 3 | Agent deduction + partner credit/debit → 2 RPCs. |
-| 11 | `manager-portfolio-topup` | 3 | Wallet deduction + platform credit + reversal → RPCs. |
-| 12 | `coo-wallet-to-portfolio` | 1 (array of 2) | Wallet → portfolio → 1 RPC. |
-| 13 | `manual-collect-rent` | 2 | Tenant + agent deductions → 1 RPC per source. |
-| 14 | `reject-withdrawal` | 2 | Float reversal + wallet reversal → 1 RPC each. |
-| 15 | `process-agent-advance-deductions` | 1 | Advance deduction → 1 RPC. |
-| 16 | `process-credit-draw` | 1 (array of 2) | Credit disbursement → 1 RPC. |
-| 17 | `process-credit-daily-charges` | 2 | User deduction + agent fallback → 1 RPC each. |
-| 18 | `platform-expense-transfer` | 2 | Expense transfer + payroll → RPCs. **Remove direct wallet.balance updates (lines 76-82, 163-169).** |
-| 19 | `apply-pending-topups` | 1 | Activation entries → 1 RPC. |
-| 20 | `retry-no-smartphone-charges` | 1 | Agent charge → 1 RPC. |
-| 21 | `portfolio-topup` | 2 | Wallet deduction + reversal → RPCs. |
-
-### Category Mapping for Remaining Functions
-
-```text
-rent_repayment → tenant_repayment
-debt_clearance → tenant_repayment  
-tenant_access_fee → access_fee_collected
-advance_repayment → agent_repayment
-agent_liability → system_balance_correction
-withdrawal_reversal → system_balance_correction
-pool_rent_deployment → rent_disbursement
-rent_obligation → rent_receivable_created
-angel_pool_investment → share_capital
-angel_pool_commission → agent_commission_earned
-marketing_expense → system_balance_correction
-agent_proxy_investment → partner_funding
-supporter_facilitation_capital → partner_funding
-wallet_to_investment → partner_funding
-pending_portfolio_topup → partner_funding
-portfolio_topup_reversal → system_balance_correction
-credit_access_disbursement → wallet_deposit
-credit_access_obligation → system_balance_correction
-credit_access_repayment → agent_repayment
-credit_access_agent_fallback → agent_repayment
-supporter_rent_fund → partner_funding
-rent_payment_for_tenant → agent_float_used_for_rent
-landlord_rent_payment → wallet_deposit
-agent_investment_commission → agent_commission_earned
-platform_expense_disbursement → system_balance_correction
-salary_payment → system_balance_correction
-employee_advance → system_balance_correction
-```
+| # | Function | Direct Inserts | Correct Flow | Key Notes |
+|---|----------|---------------|-------------|-----------|
+| 1 | `auto-charge-wallets` | 2 (lines 670-682, 693-705) | **chargeAgent**: liability entry → RPC balanced pair (wallet cash_out + platform cash_in as `agent_commission_used_for_rent`). **Remove direct `wallets.update`** at lines 291-294, 404-406. Tenant wallet deduction handled by `subscription_charge_logs` trigger — no ledger insert needed. |
+| 2 | `fund-tenants` | 1 (line 262-274) | Replace with RPC: `bridge/cash_in/rent_receivable_created` + `platform/cash_out/rent_disbursement`. This is a receivable creation, not a wallet operation. |
+| 3 | `fund-tenant-from-pool` | 2 (lines 206-218, 222-234) | Replace with RPC: `platform/cash_out/rent_disbursement` + `bridge/cash_in/rent_receivable_created`. **Remove direct `wallets.update`** at lines 174-186 (landlord) and 309-317 (agent bonus). Agent bonus → separate RPC: `platform/cash_out + wallet/cash_in` as `agent_commission_earned`. |
+| 4 | `manual-collect-rent` | 2 (lines 160-172, 207-220) | Replace with RPC per source. Tenant: `wallet/cash_out/tenant_repayment` + `platform/cash_in/tenant_repayment`. Agent: same pattern. Each source = separate balanced RPC call. |
+| 5 | `process-credit-daily-charges` | 2 (lines 103-114, 120-131) | Per user's correction: this is accrual, NOT cash. Replace with RPC: `bridge/cash_in/rent_receivable_created` as a single balanced entry pair. User deduction = `wallet/cash_out` + `platform/cash_in` as `agent_repayment`. Agent fallback = same. |
+| 6 | `reject-withdrawal` | 2 (lines 106-116, 134-147) | Per user's correction: **NO ledger entry**. Rejection means nothing moved financially. Remove all `general_ledger.insert` calls. The original withdrawal request's ledger entry (if any) should NOT be reversed — the withdrawal was never approved. |
+| 7 | `process-investment-interest` | 1 (lines 94-104) | Replace with RPC: `platform/cash_out/roi_expense` + `wallet/cash_in/roi_wallet_credit`. Must enforce ROI flow rules. |
+| 8 | `process-agent-advance-deductions` | 1 (lines 112-123) | Replace with RPC: `wallet/cash_out/agent_repayment` + `platform/cash_in/agent_repayment`. |
+| 9 | `fund-rent-pool` | 1 (lines 135-147) | Replace with RPC: `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`. Supporter sends money to pool. |
+| 10 | `angel-pool-invest` | 1 (lines 102-114) | Replace with RPC: `wallet/cash_out/share_capital` + `platform/cash_in/share_capital`. |
+| 11 | `agent-angel-pool-invest` | 3 (lines 129-141, 169-181, 186-201) | Investment: RPC `wallet/cash_out/share_capital` + `platform/cash_in/share_capital`. Commission: separate RPC `platform/cash_out/agent_commission_earned` + `wallet/cash_in/agent_commission_earned`. |
+| 12 | `agent-invest-for-partner` | 3 (lines 102-113, 195-207, 217-235) | Agent deduction: RPC `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`. Partner credit+debit (net-zero pass-through): RPC `platform/cash_out/partner_funding` + `wallet/cash_in/partner_funding`, then `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`. |
+| 13 | `manager-portfolio-topup` | 3 (lines 147-174, 190-202, 251-278) | Wallet path: RPC `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`. Reversal: RPC `wallet/cash_in/system_balance_correction` + `platform/cash_out/system_balance_correction`. Non-wallet path: same pattern. |
+| 14 | `coo-wallet-to-portfolio` | 1 array of 2 (lines 130-157) | Replace with RPC: `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`. |
+| 15 | `portfolio-topup` | 2 (lines 131-158, 176-188) | Main: RPC `wallet/cash_out/partner_funding` + `platform/cash_in/partner_funding`. Reversal: RPC `wallet/cash_in/system_balance_correction` + `platform/cash_out/system_balance_correction`. |
+| 16 | `process-credit-draw` | 1 array of 2 (lines 102-128) | Replace with RPC: `platform/cash_out/wallet_deposit` + `wallet/cash_in/wallet_deposit`. Credit disbursement = platform gives money to user. |
+| 17 | `platform-expense-transfer` | 2 (transfer + payroll) | Replace with RPC per transfer/payroll item. **Remove direct `wallets.update`** at lines 76-82 and 163-169. Transfer: `platform/cash_out/system_balance_correction` + `wallet/cash_in/system_balance_correction`. Payroll: same. |
+| 18 | `apply-pending-topups` | 1 (lines 138-152) | Replace with RPC: `platform/cash_out/partner_funding` + `wallet/cash_in/partner_funding`. Uses `credit` direction currently — will be normalized by the RPC guard. |
+| 19 | `retry-no-smartphone-charges` | 1 (lines 111-123) | Replace with RPC: `wallet/cash_out/agent_float_used_for_rent` + `platform/cash_in/agent_repayment`. |
+| 20 | `approve-rent-request` | 1 (lines 225-228) | Per user's correction: this is contract creation. Replace with RPC: `bridge/cash_in/rent_receivable_created` + `platform/cash_out/rent_disbursement` (only if money actually moves; otherwise skip ledger). |
 
 ### Direct Wallet Mutations to Remove
+1. `auto-charge-wallets` lines 291-294, 404-406
+2. `fund-tenant-from-pool` lines 174-186, 309-317
+3. `platform-expense-transfer` lines 76-82, 163-169
 
-These violate the trigger-only-wallet policy:
-
-1. `auto-charge-wallets` lines 291-294: `wallets.update({ balance: newBalance })`
-2. `auto-charge-wallets` lines 403-406: `wallets.update({ balance: ... })`
-3. `fund-tenant-from-pool` lines 174-186: `wallets.update/insert` for landlord
-4. `fund-tenant-from-pool` lines 309-317: `wallets.update` for agent bonus
-5. `platform-expense-transfer` lines 76-82: `wallets.update({ balance: wallet.balance + amount })`
-6. `platform-expense-transfer` lines 163-169: `wallets.update({ balance: w.balance + item.amount })`
-7. `approve-wallet-operation` lines 547-553: `wallets.update({ balance: ... })` in reject path
-
-These will all be removed — the RPC ledger entries trigger `sync_wallet_from_ledger` automatically.
-
----
+### New Locked Categories Needed
+- `share_capital` — already in the list
+- All others already present
 
 ## Files Changed
 
-| Asset | Type |
-|-------|------|
-| 1 database migration | Add `wallet_deduction` to locked categories in RPC + trigger |
-| `src/lib/ledgerConstants.ts` | Add `wallet_deduction` to LOCKED_CATEGORIES |
-| 3 edge functions (fixes) | `tenant-pay-rent`, `coo-invest-for-partner`, `wallet-deduction` |
-| 20 edge functions (new migrations) | All remaining direct insert functions |
+| Asset | Count |
+|-------|-------|
+| 1 database migration | RPC hardening (direction normalization, wallet guard, audit log) |
+| 20 edge functions | Replace direct inserts with RPC calls |
+| 0 frontend changes | None |
 
 ## Safety
-
 - `strict_mode` stays `false`
-- Soft mode logs any unmapped categories as NOTICE
-- Balance enforcement catches unbalanced entries immediately
-- No data migration needed
+- Direction normalization catches legacy `credit`/`debit`/`in`/`out`
+- Wallet negative guard prevents overdrafts at the database level
+- Each function deployed atomically
 
