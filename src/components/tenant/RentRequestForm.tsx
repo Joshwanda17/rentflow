@@ -423,20 +423,6 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
                     <span className="text-muted-foreground">Rent Amount:</span>
                     <span className="font-mono font-medium">{formatUGX(calc.rentAmount)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Access Fee:</span>
-                    <span className="font-mono font-medium text-warning">{formatUGX(calc.accessFee)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Request Fee:</span>
-                    <span className="font-mono font-medium">{formatUGX(calc.requestFee)}</span>
-                  </div>
-                  <div className="border-t pt-2">
-                    <div className="p-2 rounded-lg bg-primary/10 text-center">
-                      <p className="text-xs text-muted-foreground">Total to Repay</p>
-                      <p className="text-xl font-bold text-primary font-mono">{formatUGX(calc.totalRepayment)}</p>
-                    </div>
-                  </div>
                   {/* Per Payment */}
                   <div className="p-2 rounded-lg bg-accent/20 border border-accent/30 text-center">
                     <p className="text-xs text-muted-foreground">

@@ -392,9 +392,6 @@ export default function RegisterTenantPublic() {
           {fees && (
             <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-1 text-xs">
               <div className="flex justify-between"><span className="text-muted-foreground">Rent Amount</span><span className="font-medium">{formatUGX(fees.rentAmount)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Access Fee</span><span>{formatUGX(fees.accessFee)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Platform Fee</span><span>{formatUGX(fees.requestFee)}</span></div>
-              <div className="flex justify-between font-semibold border-t border-primary/20 pt-1 mt-1"><span>Total Repayment</span><span>{formatUGX(fees.totalRepayment)}</span></div>
               <div className="flex justify-between text-primary font-semibold"><span>Daily Amount</span><span>{formatUGX(fees.dailyRepayment)}/day</span></div>
               <p className="text-muted-foreground pt-1">Starts: {format(addDays(new Date(), 1), 'MMM d, yyyy')}</p>
             </div>
