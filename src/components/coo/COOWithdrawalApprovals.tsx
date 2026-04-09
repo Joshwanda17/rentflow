@@ -83,17 +83,8 @@ export function COOWithdrawalApprovals() {
 
   const handleApprove = async () => {
     if (!user || !selected) return;
-    if (!transactionId.trim()) {
-      toast.error('Please enter the transaction ID');
-      return;
-    }
-    if (!transactionTime.trim()) {
-      toast.error('Please enter the transaction time');
-      return;
-    }
     setProcessing(selected.id);
     try {
-      // COO final approval — sets status to 'approved' which triggers wallet deduction
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({
@@ -102,16 +93,12 @@ export function COOWithdrawalApprovals() {
           coo_approved_by: user.id,
           processed_by: user.id,
           processed_at: new Date().toISOString(),
-          transaction_id: transactionId.trim(),
-          transaction_time: transactionTime.trim(),
         } as any)
         .eq('id', selected.id);
       if (error) throw error;
-      toast.success('Withdrawal approved & payment confirmed!');
+      toast.success('Withdrawal approved — forwarded to Financial Ops for payment');
       setRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
-      setTransactionId('');
-      setTransactionTime('');
       setSelected(null);
     } catch (e: any) {
       toast.error(e.message || 'Failed to approve');
