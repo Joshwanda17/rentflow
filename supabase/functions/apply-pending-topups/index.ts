@@ -134,22 +134,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Record activation ledger entries
-    await supabase.from("general_ledger").insert([
-      {
-        user_id: partnerId,
-        amount: totalPending,
-        direction: "credit",
-        category: "portfolio_topup_applied",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel}`,
-      currency: 'UGX',
-        ledger_scope: "platform",
-        transaction_date: now,
-      },
-    ]);
+    // 3. Record activation ledger entries via RPC
+    await supabase.rpc('create_ledger_transaction', {
+      entries: JSON.stringify([
+        {
+          user_id: null,
+          amount: totalPending,
+          direction: "cash_out",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel} — platform disbursal`,
+          currency: 'UGX',
+          ledger_scope: "platform",
+        },
+        {
+          user_id: partnerId,
+          amount: totalPending,
+          direction: "cash_in",
+          category: "partner_funding",
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel}`,
+          currency: 'UGX',
+          ledger_scope: "wallet",
+        },
+      ]),
+    });
 
     // 4. Audit log
     await supabase.from("audit_logs").insert({
