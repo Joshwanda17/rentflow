@@ -412,7 +412,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
       <WithdrawRequestDialog 
         open={withdrawOpen} 
         onOpenChange={setWithdrawOpen} 
-        walletBalance={wallet?.balance || 0}
+        walletBalance={isAgent ? commissionBalance : (wallet?.balance || 0)}
         onSuccess={refreshWallet}
       />
       <TransactionReceipt 
