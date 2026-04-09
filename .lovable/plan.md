@@ -1,52 +1,56 @@
 
 
-# Fix: Negative Float Balances for All Agents
+# Fix: Proxy Partner Balance — Remove Per-Group Clamping, Aggregate at Partner Level
 
-## Root Cause
+## Problem
 
-The `get_agent_split_balances` RPC classifies `rent_payment_for_tenant` as a **float debit**, but there are **zero `agent_float_deposit` entries in the entire database**. No agent has ever received a formal float deposit.
+Line 206 does `Math.max(0, returns)` per `source_id` group, which silently zeroes out correction entries that landed in different groups than the entries they correct. This inflates balances (e.g., 49M instead of 750K).
 
-When agents use the "I Collected Cash" flow, the system creates `rent_payment_for_tenant` (cash_out) entries against their wallet — but the money actually came from **commission earnings** (referral_bonus, agent_commission, etc.), not from float deposits.
+## Fix (Frontend — `src/components/agent/ProxyPartnerFunds.tsx`)
 
-**Result**: Every agent who paid rent for a tenant shows a negative float balance (e.g., LOLEM FIRICILA: -USh 115,000) because the formula subtracts rent payments from a float pool that was never funded.
+### Step 1: Compute partner-level net balance (source of truth)
 
-**Data proof**:
-- `agent_float_deposit` entries system-wide: **0**
-- `rent_payment_for_tenant` entries system-wide: **50** (totaling UGX 2,070,042)
-- 6 agents affected with negative float balances
+Replace the current `partnerTotals` calculation (lines 203-207) with a simple sum of ALL entries per `linked_party` — no grouping by `source_id`, no clamping:
 
-## Fix
-
-### Database Migration: Update `get_agent_split_balances` RPC
-
-Move `rent_payment_for_tenant` from the **float debit** bucket to the **commission debit** bucket, since the funds are sourced from commission earnings (not float capital).
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_agent_split_balances(p_agent_id UUID)
-RETURNS TABLE(float_balance NUMERIC, commission_balance NUMERIC)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT
-    -- Float: only actual float deposits minus float-specific usage
-    COALESCE(SUM(CASE
-      WHEN category IN ('agent_float_deposit', 'wallet_deposit') AND direction IN ('cash_in', 'credit') THEN amount
-      WHEN category = 'agent_float_used_for_rent' AND direction IN ('cash_out', 'debit') THEN -amount
-      ELSE 0
-    END), 0) AS float_balance,
-    -- Commission: all earned income minus all outflows (including rent payments for tenants)
-    COALESCE(SUM(CASE
-      WHEN category IN ('agent_commission_earned', 'agent_commission', 'agent_bonus', 'referral_bonus', 'agent_commission_payout', 'proxy_investment_commission') AND direction IN ('cash_in', 'credit') THEN amount
-      WHEN category IN ('agent_commission_withdrawal', 'agent_commission_used_for_rent', 'tenant_default_charge', 'withdrawal_pending', 'rent_payment_for_tenant') AND direction IN ('cash_out', 'debit') THEN -amount
-      ELSE 0
-    END), 0) AS commission_balance
-  FROM general_ledger
-  WHERE user_id = p_agent_id;
-$$;
+```
+partnerNet[partnerId] = SUM(credits) - SUM(debits)  // all categories, all source_ids
 ```
 
-**Key change**: `rent_payment_for_tenant` moved from float debits → commission debits.
+Then subtract completed withdrawals:
 
-### No frontend changes needed
+```
+partnerAvailable[partnerId] = Math.max(0, partnerNet - totalWithdrawn)
+```
 
-The wallet card and withdrawal dialog already read from the RPC correctly. Once the RPC categorizes properly, float will show 0 (no deposits) and commission will accurately reflect earnings minus all outflows.
+Single clamp, at the final partner total only.
+
+### Step 2: Portfolio display is cosmetic only
+
+For positive-net portfolio groups, distribute the capped `partnerAvailable` proportionally for display:
+
+```
+proportion = max(0, groupNet) / sumOfPositiveGroups
+displayAmount = partnerAvailable * proportion
+```
+
+Negative or zero groups are simply not displayed — they don't contribute to the total but they also don't get clamped to zero and added.
+
+### Step 3: Remove all per-group `Math.max(0, ...)` calls
+
+- Line 206: `Math.max(0, returns)` → remove
+- Line 221: `Math.max(0, totalReturns)` → remove  
+- Line 223: `Math.max(0, totalReturns - totalWithdrawn)` → replaced by partner-level available distributed proportionally
+
+### What changes
+
+| Before | After |
+|--------|-------|
+| Each group clamped to 0 independently | Partner-level sum, single clamp at end |
+| Corrections in wrong group = invisible | All corrections always counted |
+| 49M + 0 + 0 + 1.5M = 50.5M | 49M - 48M - 1.7M + 1.5M = 750K |
+
+### File changed
+- `src/components/agent/ProxyPartnerFunds.tsx` — rewrite `partnerBalances` useMemo (lines 183-245)
+
+No database migration needed.
 
