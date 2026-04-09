@@ -432,6 +432,27 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             toast.error(err.message || 'Failed to generate link');
           }
         }}
+        onSharePartnerForm={async () => {
+          setMenuOpen(false);
+          try {
+            const { toast } = await import('sonner');
+            toast.info('Generating partner form link...');
+            const { supabase } = await import('@/integrations/supabase/client');
+            const { data, error } = await supabase.functions.invoke('generate-tenant-form-token', {});
+            if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to generate link');
+            const partnerFormLink = `${getPublicOrigin()}/register-partner?agent=${user.id}&token=${data.token}`;
+            const shareText = `🤝 Invest with Welile and earn 15% monthly ROI! Register here: ${partnerFormLink}`;
+            if (navigator.share) {
+              navigator.share({ title: 'Partner Registration', text: shareText, url: partnerFormLink }).catch(() => {});
+            } else {
+              await navigator.clipboard.writeText(partnerFormLink);
+              toast.success('Partner registration link copied!');
+            }
+          } catch (err: any) {
+            const { toast } = await import('sonner');
+            toast.error(err.message || 'Failed to generate link');
+          }
+        }}
       />
 
       {/* Existing Dialogs */}
