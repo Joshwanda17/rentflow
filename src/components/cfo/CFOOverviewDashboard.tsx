@@ -158,7 +158,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
             <p className="text-xs text-muted-foreground">Tenant Outstanding</p>
-            <p className="text-lg font-bold font-mono">{fmt(receivables?.tenantOutstanding ?? 0)}</p>
+            <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(receivables?.tenantOutstanding ?? 0)}</p>
             <p className="text-xs text-muted-foreground">{pct(receivables?.tenantOutstanding ?? 0, totalReceivables)}% of total</p>
           </div>
           <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
