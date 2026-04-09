@@ -1,30 +1,30 @@
 
 
-# Add UNIQUE Constraint on reference_id — Close Race Condition
+# Harden RPC Idempotency — Final Tightening
 
-## Problem
-
-The RPC idempotency check uses a SELECT before INSERT. Two parallel requests can both pass the SELECT and both insert, creating duplicate transactions. Application-level checks are necessary but insufficient — a database-level constraint makes it physically impossible.
-
-## Change
+## Changes
 
 ### 1 database migration
 
-Add a partial unique index on `general_ledger.reference_id` where it is not null:
+Update `create_ledger_transaction` with two small fixes:
+
+**a) NULL key guard** — already present (`IF idempotency_key IS NOT NULL`), no change needed.
+
+**b) Deterministic lookup** — add `ORDER BY created_at ASC` to the existing idempotency SELECT:
 
 ```sql
-CREATE UNIQUE INDEX IF NOT EXISTS unique_reference_id
-ON public.general_ledger(reference_id)
-WHERE reference_id IS NOT NULL;
+-- Line 36-39 becomes:
+SELECT transaction_group_id INTO group_id
+FROM public.general_ledger
+WHERE reference_id = idempotency_key
+ORDER BY created_at ASC
+LIMIT 1;
 ```
 
-This ensures that even under concurrent execution, only one transaction with a given `reference_id` can ever be committed. The second parallel request will hit a unique violation, which the RPC can catch gracefully.
+This guarantees a consistent `group_id` is returned even in edge cases where multiple rows share a `reference_id`.
 
-No edge function or trigger changes needed — the existing RPC logic already sets `reference_id = idempotency_key`, so this index enforces what the code already intends.
+## Scope
 
-## Result
-
-- Race condition eliminated at the database level
-- Duplicate money creation becomes physically impossible
-- System reaches 100% deterministic financial integrity
+- Single migration, single function change (one line added)
+- No edge function or trigger changes
 
