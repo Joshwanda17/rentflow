@@ -73,7 +73,7 @@ export function FinOpsWithdrawalVerification() {
         .from('withdrawal_requests')
         .select('*')
         .in('status', ['pending', 'requested', 'approved', 'manager_approved'])
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
