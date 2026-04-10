@@ -1,76 +1,47 @@
-
-
-# Split ROI Payout Feature
+# Reinvestment History View for Supporter Dashboard
 
 ## What it does
-Adds a **"Split Payout"** option to the Nearing Payouts dialog, allowing an operator to split a partner's ROI return into two parts: one portion paid to the wallet (or agent wallet / cash), and the remainder compounded back into the portfolio principal.
 
-Example: John Doe has UGX 2,000,000 returns due. Operator enters UGX 1,000,000 as cash payout → the other UGX 1,000,000 is automatically added to his principal.
+A new component showing the supporter their compounding history — every cycle where ROI was reinvested back into principal — with a visual timeline of principal growth over time.
 
-## How it works today
+## Data source
 
-The `NearingPayoutsDialog` in `COOPartnersPage.tsx` currently offers two buttons per portfolio:
-- **Compound** — full ROI added to principal (direct DB writes, no CFO approval)
-- **Pay** — full ROI submitted to `pending_wallet_operations` for CFO approval
+The `audit_logs` table already contains all reinvestment events:
 
-Both are all-or-nothing. No partial amounts are supported.
+- `action_type = 'roi_compounded'` (full compound)
+- `action_type = 'roi_split_compound'` (split reinvestment, future)
+- `metadata` includes: `roi_amount`, `new_principal`, `partner_id`, `reason`, `reference`, and for splits: `cash_amount`, `reinvest_amount`
 
-## Implementation plan
+Query: `audit_logs WHERE action_type IN ('roi_compounded', 'roi_split_compound') AND metadata->>'partner_id' = user.id ORDER BY created_at DESC`
 
-### 1. Add "Split" button and step to NearingPayoutsDialog (~80 lines)
+## Implementation
 
-**File**: `src/components/coo/COOPartnersPage.tsx`
+### 1. Create `src/components/supporter/ReinvestmentHistory.tsx`
 
-- Add a third button **"Split"** alongside Compound and Pay in each portfolio card (line ~2896)
-- When clicked, transition to a new `paymentStep: 'split-config'` that shows:
-  - A slider or numeric input for "Cash amount" (min 1, max ROI - 1)
-  - Auto-calculated "Reinvest amount" = ROI - cash amount
-  - Visual breakdown: "UGX X to wallet · UGX Y to principal"
-  - Payment method selector (wallet / agent wallet / cash) for the cash portion
-  - Confirm button
+- Fetches audit_logs for the current user's reinvestment events
+- Displays a **timeline view** with each entry showing:
+  - Date of reinvestment
+  - Amount reinvested (full ROI or split reinvest portion)
+  - New principal after reinvestment
+  - Type badge: "Full Compound" or "Split Reinvest"
+  - Reference code
+- **Principal growth chart** at the top: a simple line/area chart using existing data points (`new_principal` over time), grouped by portfolio
+- Empty state when no reinvestments exist yet
 
-### 2. Add `handleSplitPayout` function
+### 2. Add to Supporter Menu Drawer
 
-**File**: `src/components/coo/COOPartnersPage.tsx`
+- Add a "Reinvestment History" menu item in `SupporterMenuDrawer.tsx`
+- Routes to `/reinvestment-history`
 
-This function receives `(portfolio, cashAmount, reinvestAmount, reason, payMode)` and does two atomic operations:
+### 3. Create route page `src/pages/ReinvestmentHistory.tsx`
 
-**Operation A — Cash portion**: Insert into `pending_wallet_operations` with `operation_type: 'roi_split_cash'`, amount = cashAmount. This goes through the existing CFO approval pipeline. The description clearly states it's a split payout.
+- Simple page wrapper that renders the `ReinvestmentHistory` component
+- Back navigation to dashboard
+- add the page as a menu item in the coo dashboard and card button in the partner Ops
 
-**Operation B — Reinvest portion**: Directly update `investor_portfolios.investment_amount += reinvestAmount` (same pattern as existing `handleCompound`). Insert an audit log entry with `action_type: 'roi_split_compound'`.
+### Files changed
 
-**Shared**: Advance `next_roi_date` by 1 month. Insert notifications to partner and CFO. Insert audit log with full split metadata (cash amount, reinvest amount, pay mode).
-
-### 3. No new edge function needed
-
-The split payout reuses the existing `pending_wallet_operations` → CFO approval pipeline for the cash portion, and the existing direct portfolio update pattern for the reinvest portion. Both patterns are already battle-tested in the codebase. No new ledger categories are needed — the cash portion uses `roi_payout` and the reinvest portion uses `roi_compounding`.
-
-### 4. No database migration needed
-
-The `pending_wallet_operations` table already has a `metadata` JSONB column where we store the split details. The `operation_type` field accepts text values. We'll use `roi_split_cash` to distinguish split payouts from full payouts in the CFO approval queue.
-
-## Files changed
-
-- **Edit**: `src/components/coo/COOPartnersPage.tsx` — Add Split button, split-config step, and `handleSplitPayout` function
-
-## Ledger flow for a UGX 2M return split 1M/1M
-
-```text
-┌─────────────────────────────────────────────────┐
-│ CASH PORTION (UGX 1,000,000)                    │
-│ → pending_wallet_operations (roi_split_cash)    │
-│ → CFO approves → ledger: roi_expense + wallet   │
-│   credit via existing approval pipeline         │
-└─────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────┐
-│ REINVEST PORTION (UGX 1,000,000)                │
-│ → investor_portfolios.investment_amount += 1M   │
-│ → audit_log: roi_split_compound                 │
-│ → notification to partner                       │
-└─────────────────────────────────────────────────┘
-
-next_roi_date advanced by 30 days
-Next cycle ROI = 15% × 21,000,000 = 3,150,000
-```
-
+- **Create**: `src/components/supporter/ReinvestmentHistory.tsx`
+- **Create**: `src/pages/ReinvestmentHistory.tsx`
+- **Edit**: `src/components/supporter/SupporterMenuDrawer.tsx` — add menu item
+- **Edit**: `src/App.tsx` — add route
