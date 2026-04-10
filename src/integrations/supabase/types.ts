@@ -9803,6 +9803,7 @@ export type Database = {
         }[]
       }
       get_ledger_balance: { Args: { p_user_id: string }; Returns: number }
+      get_ledger_integrity_checks: { Args: never; Returns: Json }
       get_ledger_summary: {
         Args: {
           p_category?: string
