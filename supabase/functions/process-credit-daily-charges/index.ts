@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       // Debit user wallet via RPC (balanced: wallet cash_out + platform cash_in)
       if (userDeducted > 0) {
         const { error: userRpcErr } = await supabase.rpc('create_ledger_transaction', {
-          entries: JSON.stringify([
+          entries: [
             {
               user_id: draw.user_id,
               ledger_scope: 'wallet',
@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
               currency: 'UGX',
               transaction_date: today,
             },
-          ]),
+          ],
         });
         if (userRpcErr) console.error(`[process-credit-daily-charges] User RPC error for draw ${draw.id}:`, userRpcErr);
       }
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       // Debit agent wallet via RPC (balanced: wallet cash_out + platform cash_in)
       if (agentDeducted > 0 && draw.agent_id) {
         const { error: agentRpcErr } = await supabase.rpc('create_ledger_transaction', {
-          entries: JSON.stringify([
+          entries: [
             {
               user_id: draw.agent_id,
               ledger_scope: 'wallet',
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
               currency: 'UGX',
               transaction_date: today,
             },
-          ]),
+          ],
         });
         if (agentRpcErr) console.error(`[process-credit-daily-charges] Agent RPC error for draw ${draw.id}:`, agentRpcErr);
       }

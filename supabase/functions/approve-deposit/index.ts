@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
 
           // ── Ledger-first deposit credit (balanced double-entry) ──
           const { error: depositLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 user_id: depositRequest.user_id,
                 amount: depositRequest.amount,
@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
                 currency: 'UGX',
                 transaction_date: new Date().toISOString(),
               },
-            ]),
+            ],
           });
 
           if (depositLedgerErr) {
@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
               } else {
                 // Balanced RPC: wallet cash_out + platform cash_in
                 const { data: txGroupId, error: rentLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
-                  entries: JSON.stringify([
+                  entries: [
                     {
                       user_id: depositRequest.user_id,
                       amount: repaymentApplied,
@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
                       currency: 'UGX',
                       transaction_date: new Date().toISOString(),
                     },
-                  ]),
+                  ],
                 });
                 if (rentLedgerErr) {
                   console.error(`[approve-deposit] Rent ledger RPC failed:`, rentLedgerErr);
@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
 
               // Balanced RPC: wallet cash_out + platform cash_in for debt clearance
               const { error: debtLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
-                entries: JSON.stringify([
+                entries: [
                   {
                     user_id: depositRequest.user_id,
                     amount: debtCleared,
@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
                     currency: 'UGX',
                     transaction_date: new Date().toISOString(),
                   },
-                ]),
+                ],
               });
               if (debtLedgerErr) console.error(`[approve-deposit] Debt ledger RPC failed:`, debtLedgerErr);
 
@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
 
               // Balanced RPC: wallet cash_out + platform cash_in for prepaid fees
               const { error: prepayLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
-                entries: JSON.stringify([
+                entries: [
                   {
                     user_id: depositRequest.user_id,
                     amount: prepaidAmount,
@@ -404,7 +404,7 @@ Deno.serve(async (req) => {
                     currency: 'UGX',
                     transaction_date: new Date().toISOString(),
                   },
-                ]),
+                ],
               });
               if (prepayLedgerErr) console.error(`[approve-deposit] Prepay ledger RPC failed:`, prepayLedgerErr);
 

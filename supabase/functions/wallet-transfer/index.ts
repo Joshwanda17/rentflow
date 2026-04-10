@@ -158,7 +158,7 @@ serve(async (req) => {
 
     // === SINGLE-WRITER: Route through create_ledger_transaction RPC ===
     const { data: txGroupId, error: ledgerError } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: senderId,
           amount,
@@ -181,7 +181,7 @@ serve(async (req) => {
           currency: 'UGX',
           transaction_date: new Date().toISOString(),
         },
-      ]),
+      ],
     });
 
     if (ledgerError) {

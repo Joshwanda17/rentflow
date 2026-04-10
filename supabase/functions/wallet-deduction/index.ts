@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
 
     // Insert balanced ledger entry via RPC (cash_out from wallet, cash_in to platform)
     const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: target_user_id,
           amount: amount,
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
           source_table: 'wallet_deductions',
           transaction_date: new Date().toISOString(),
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {

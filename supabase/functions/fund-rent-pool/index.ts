@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     // Record in general_ledger
     const txGroupId = crypto.randomUUID();
     const { error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: user.id,
           amount,
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
           linked_party: user.id,
           ledger_scope: "platform",
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {

@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       tenantDeducted = Math.min(tenantBalance, shortfall);
 
       const { error: tenantRpcErr } = await supabase.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: rr.tenant_id, ledger_scope: 'wallet', direction: 'cash_out',
             amount: tenantDeducted, category: 'tenant_repayment',
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
             source_table: 'rent_requests', source_id: rr.id,
             description: `Manual collection received from tenant`, currency: 'UGX',
           },
-        ]),
+        ],
       });
 
       if (tenantRpcErr) {
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
         agentDeducted = Math.min(agentBalance, shortfall);
 
         const { error: agentRpcErr } = await supabase.rpc('create_ledger_transaction', {
-          entries: JSON.stringify([
+          entries: [
             {
               user_id: rr.agent_id, ledger_scope: 'wallet', direction: 'cash_out',
               amount: agentDeducted, category: 'tenant_repayment',
@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
               source_table: 'rent_requests', source_id: rr.id,
               description: `Manual collection received from agent for ${tenantName}`, currency: 'UGX',
             },
-          ]),
+          ],
         });
 
         if (!agentRpcErr) {

@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
 
     // --- Record agent cash_out via RPC ---
     const { error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: agent.id,
           amount,
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
           linked_party: agent.id,
           ledger_scope: "platform",
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
 
     // Step 1: Credit partner wallet
     await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: null,
           amount,
@@ -236,12 +236,12 @@ Deno.serve(async (req) => {
           linked_party: agentName,
           ledger_scope: "wallet",
         },
-      ]),
+      ],
     });
 
     // Step 2: Debit partner wallet into portfolio
     await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: partner_id,
           amount,
@@ -268,7 +268,7 @@ Deno.serve(async (req) => {
           linked_party: partner_id,
           ledger_scope: "platform",
         },
-      ]),
+      ],
     });
 
     // --- Agent 2% commission — queue for approval ---

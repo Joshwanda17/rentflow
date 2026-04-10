@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
         if (hasPriorDeduction && (!existing || existing.length === 0)) {
           // Old-flow request: wallet was deducted at request time, so restore via balanced RPC
           const { error: rpcErr } = await admin.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 user_id: userId,
                 ledger_scope: 'wallet',
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
                 source_table: 'withdrawal_requests',
                 source_id: wId,
               },
-            ]),
+            ],
           });
           if (rpcErr) console.error(`[reject-withdrawal] RPC error for ${wId}:`, rpcErr);
         }

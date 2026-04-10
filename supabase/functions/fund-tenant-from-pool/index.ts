@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
         .upsert({ user_id: landlordUserId, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
       await adminClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: landlordUserId,
             amount: fundAmount,
@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
             currency: 'UGX',
             ledger_scope: "platform",
           },
-        ]),
+        ],
       });
 
       // Notify landlord
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
 
     const totalRepayment = Number(rr.total_repayment) || fundAmount;
     await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: null,
           amount: fundAmount,
@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
           linked_party: landlordUserId,
           reference_id: rr.id,
         },
-      ]),
+      ],
     });
 
     // Update rent request to funded
@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
         .upsert({ user_id: rr.agent_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
       await adminClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: rr.agent_id,
             amount: 5000,
@@ -341,7 +341,7 @@ Deno.serve(async (req) => {
             currency: 'UGX',
             ledger_scope: "platform",
           },
-        ]),
+        ],
       });
 
       await adminClient.from("agent_earnings").insert({

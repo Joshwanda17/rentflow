@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
 
           // Balanced ledger via RPC: roi_expense → roi_reinvestment
           const { error: reinvestLedgerErr } = await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 direction: 'cash_out',
                 amount: roiAmount,
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
                 linked_party: 'platform',
                 transaction_date: now.toISOString(),
               },
-            ]),
+            ],
           });
 
           if (reinvestLedgerErr) throw reinvestLedgerErr;
@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
         } else {
           // ═══ STANDARD WALLET CREDIT via RPC ═══
           const { error: walletLedgerErr } = await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 direction: 'cash_out',
                 amount: roiAmount,
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
                 linked_party: 'platform',
                 transaction_date: now.toISOString(),
               },
-            ]),
+            ],
           });
 
           if (walletLedgerErr) throw walletLedgerErr;
@@ -321,7 +321,7 @@ Deno.serve(async (req) => {
 
           // 3. Ledger entry: pending capital now activates into portfolio (platform scope)
           await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 user_id: null,
                 amount: totalPending,
@@ -344,7 +344,7 @@ Deno.serve(async (req) => {
                 currency: 'UGX',
                 ledger_scope: 'platform',
               },
-            ]),
+            ],
           });
 
           // 4. Audit log

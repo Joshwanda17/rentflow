@@ -92,7 +92,7 @@ serve(async (req) => {
 
     // Record in general ledger via RPC
     const { error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: user.id,
           amount: REGISTRATION_BONUS,
@@ -116,7 +116,7 @@ serve(async (req) => {
           currency: 'UGX',
           transaction_date: now,
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {

@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     // Record balanced ledger entries via RPC — partner funding is BOTH cash_in
     // Platform receives capital, partner wallet gets credited (external money model)
     const { data: txGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: partner_id,
           amount,
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
           linked_party: partnerName,
           transaction_date: new Date().toISOString(),
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {

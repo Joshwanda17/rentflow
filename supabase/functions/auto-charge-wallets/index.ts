@@ -397,13 +397,13 @@ Deno.serve(async (req) => {
           const split = await getFeeSplit(supabase, charge.rent_request_id, chargeAmount);
 
           const { error: deductErr } = await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify(
+            entries: 
               buildTenantRepaymentEntries(
                 charge.tenant_id, chargeAmount, split, charge.id,
                 `Auto-charge: ${charge.frequency} rent instalment for ${tenantName}`,
                 now,
               )
-            ),
+            ,
           });
 
           if (deductErr) {
@@ -513,13 +513,13 @@ Deno.serve(async (req) => {
           const partialSplit = await getFeeSplit(supabase, charge.rent_request_id, tenantPartial);
 
           await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify(
+            entries: 
               buildTenantRepaymentEntries(
                 charge.tenant_id, tenantPartial, partialSplit, charge.id,
                 `Partial auto-charge: ${tenantName} (${tenantPartial} of ${chargeAmount})`,
                 now,
               )
-            ),
+            ,
           });
         }
         const newBalance = walletBalance - amountDeducted;
@@ -767,7 +767,7 @@ async function chargeAgent(
 
     // Record liability via RPC
     await supabase.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: charge.agent_id,
           amount: shortfall,
@@ -792,7 +792,7 @@ async function chargeAgent(
           ledger_scope: "platform",
           transaction_date: now.toISOString(),
         },
-      ]),
+      ],
     });
 
     return false;

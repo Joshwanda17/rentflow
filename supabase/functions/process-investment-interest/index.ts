@@ -82,7 +82,7 @@ serve(async (req) => {
 
       // Credit interest via balanced RPC: platform cash_out (roi_expense) + wallet cash_in (roi_wallet_credit)
       const { error: rpcError } = await supabase.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             ledger_scope: 'platform',
             direction: 'cash_out',
@@ -104,7 +104,7 @@ serve(async (req) => {
             description: `Monthly interest (15%) on investment account "${account.name}"`,
             currency: 'UGX',
           },
-        ]),
+        ],
       });
 
       if (rpcError) {

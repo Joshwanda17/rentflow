@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
 
     // Balanced RPC: wallet cash_out + platform cash_in (share_capital)
     const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: user.id,
           ledger_scope: 'wallet',
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
           currency: 'UGX',
           reference_id: referenceId,
         },
-      ]),
+      ],
     });
 
     if (rpcErr) throw rpcErr;

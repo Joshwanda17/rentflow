@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
 
     // Credit user's wallet via balanced RPC: platform cash_out + wallet cash_in
     const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           ledger_scope: 'platform',
           direction: 'cash_out',
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
           description: `Credit access: UGX ${amount.toLocaleString()} for ${duration_months} month(s)`,
           currency: 'UGX',
         },
-      ]),
+      ],
     });
 
     if (rpcErr) console.error('[process-credit-draw] RPC error:', rpcErr);
