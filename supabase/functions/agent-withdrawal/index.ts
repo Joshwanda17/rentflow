@@ -156,34 +156,37 @@ Deno.serve(async (req) => {
     }
 
     // ── Execute atomic ledger transaction (double-entry withdrawal) ──
-    const transactionGroupId = crypto.randomUUID();
+    const now = new Date().toISOString();
 
     const { error: ledgerError } = await adminClient.rpc(
       'create_ledger_transaction',
       {
-        p_entries: [
+        entries: [
           {
             user_id: targetUserId,
-            scope: 'wallet',
+            ledger_scope: 'wallet',
             direction: 'cash_out',
             category: 'wallet_withdrawal',
             amount: amount,
+            currency: 'UGX',
             description: `Agent-processed withdrawal by ${agentId}`,
             source_table: 'wallet_withdrawals',
             source_id: targetUserId,
+            transaction_date: now,
           },
           {
             user_id: targetUserId,
-            scope: 'platform',
-            direction: 'cash_out',
+            ledger_scope: 'platform',
+            direction: 'cash_in',
             category: 'wallet_withdrawal',
             amount: amount,
-            description: `Platform cash-out for agent withdrawal`,
+            currency: 'UGX',
+            description: `Platform cash-in for agent withdrawal`,
             source_table: 'wallet_withdrawals',
             source_id: targetUserId,
+            transaction_date: now,
           },
         ],
-        p_transaction_group_id: transactionGroupId,
       }
     );
 
@@ -195,7 +198,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[agent-withdrawal] Ledger OK, group=${transactionGroupId}`);
+    console.log(`[agent-withdrawal] Ledger OK`);
 
     // ── Record withdrawal ──
     const { error: withdrawalRecordError } = await adminClient

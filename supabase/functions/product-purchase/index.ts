@@ -100,61 +100,71 @@ Deno.serve(async (req) => {
     const cashbackAmount = agentRoleData ? Math.round(totalPrice * 0.04) : 0;
 
     // ── Build ledger entries (single atomic transaction) ──
-    const transactionGroupId = crypto.randomUUID();
+    const now = new Date().toISOString();
 
     const entries: Array<{
       user_id: string;
-      scope: string;
+      ledger_scope: string;
       direction: string;
       category: string;
       amount: number;
+      currency: string;
       description: string;
       source_table: string;
       source_id: string;
+      transaction_date: string;
     }> = [
       // Leg 1: Buyer pays (wallet debit)
       {
         user_id: user.id,
-        scope: 'wallet',
+        ledger_scope: 'wallet',
         direction: 'cash_out',
         category: 'wallet_deduction',
         amount: totalPrice,
+        currency: 'UGX',
         description: `Purchase ${quantity}x ${product.name}`,
         source_table: 'product_orders',
         source_id: productId,
+        transaction_date: now,
       },
       // Leg 2: Agent receives full sale amount (wallet credit)
       {
         user_id: product.agent_id,
-        scope: 'wallet',
+        ledger_scope: 'wallet',
         direction: 'cash_in',
         category: 'agent_commission_earned',
         amount: totalPrice,
+        currency: 'UGX',
         description: `Sale of ${quantity}x ${product.name}`,
         source_table: 'product_orders',
         source_id: productId,
+        transaction_date: now,
       },
       // Leg 3: Platform records 1% revenue
       {
         user_id: product.agent_id,
-        scope: 'platform',
+        ledger_scope: 'platform',
         direction: 'cash_in',
         category: 'access_fee_collected',
         amount: agentCommission,
+        currency: 'UGX',
         description: `1% marketplace fee on ${product.name}`,
         source_table: 'product_orders',
         source_id: productId,
+        transaction_date: now,
       },
       // Leg 4: Platform balancing entry (net-zero offset)
       {
         user_id: product.agent_id,
-        scope: 'platform',
+        ledger_scope: 'platform',
         direction: 'cash_out',
         category: 'access_fee_collected',
         amount: agentCommission,
+        currency: 'UGX',
         description: `1% marketplace fee offset for ${product.name}`,
         source_table: 'product_orders',
         source_id: productId,
+        transaction_date: now,
       },
     ];
 
@@ -163,23 +173,27 @@ Deno.serve(async (req) => {
       entries.push(
         {
           user_id: user.id,
-          scope: 'wallet',
+          ledger_scope: 'wallet',
           direction: 'cash_in',
           category: 'wallet_transfer',
           amount: cashbackAmount,
+          currency: 'UGX',
           description: `4% cashback on ${product.name} purchase`,
           source_table: 'product_orders',
           source_id: productId,
+          transaction_date: now,
         },
         {
           user_id: user.id,
-          scope: 'platform',
+          ledger_scope: 'platform',
           direction: 'cash_out',
           category: 'wallet_transfer',
           amount: cashbackAmount,
+          currency: 'UGX',
           description: `4% cashback expense for ${product.name}`,
           source_table: 'product_orders',
           source_id: productId,
+          transaction_date: now,
         },
       );
     }
@@ -188,8 +202,7 @@ Deno.serve(async (req) => {
     const { data: ledgerResult, error: ledgerError } = await supabaseAdmin.rpc(
       'create_ledger_transaction',
       {
-        p_entries: entries,
-        p_transaction_group_id: transactionGroupId,
+        entries: entries,
       }
     );
 
@@ -198,7 +211,7 @@ Deno.serve(async (req) => {
       throw new Error(ledgerError.message || 'Financial transaction failed');
     }
 
-    console.log(`[product-purchase] Ledger OK, group=${transactionGroupId}`);
+    console.log(`[product-purchase] Ledger OK`);
 
     // ── Update stock ──
     const { error: stockError } = await supabaseAdmin
