@@ -15,6 +15,8 @@ import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receipt
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useToast } from '@/hooks/use-toast';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import AgentRentRequestDialog from './AgentRentRequestDialog';
+import { RefreshCw } from 'lucide-react';
 
 interface Tenant {
   id: string;
@@ -79,6 +81,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [agentPayments, setAgentPayments] = useState<Record<string, AgentPaymentSummary>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
+  const [renewDialogOpen, setRenewDialogOpen] = useState(false);
+  const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -762,7 +766,26 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                   </div>
 
                                   {/* Actions */}
-                                  <div className="grid grid-cols-2 gap-1.5">
+                                  <div className={`grid ${req.status === 'completed' ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5`}>
+                                    {req.status === 'completed' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-[10px] h-7 rounded-lg border-primary/30 text-primary col-span-3 font-semibold"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setRenewPrefill({
+                                            name: tenant.full_name,
+                                            phone: tenant.phone,
+                                            amount: String(req.rent_amount),
+                                          });
+                                          setRenewDialogOpen(true);
+                                        }}
+                                      >
+                                        <RefreshCw className="h-3 w-3 mr-1" />
+                                        🔄 Renew Rent
+                                      </Button>
+                                    )}
                                     <Button size="sm" variant="outline" className="text-[10px] h-7 rounded-lg" onClick={() => handleDownloadPdf(tenant, req)}>
                                       <FileDown className="h-3 w-3 mr-1" />PDF
                                     </Button>
@@ -809,6 +832,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           )}
         </div>
       </SheetContent>
+
+      {/* Renew Rent Dialog */}
+      <AgentRentRequestDialog
+        open={renewDialogOpen}
+        onOpenChange={(open) => {
+          setRenewDialogOpen(open);
+          if (!open) setRenewPrefill(null);
+        }}
+        onSuccess={() => {
+          setRenewDialogOpen(false);
+          setRenewPrefill(null);
+          fetchTenants();
+        }}
+        prefillTenantName={renewPrefill?.name}
+        prefillTenantPhone={renewPrefill?.phone}
+        prefillRentAmount={renewPrefill?.amount}
+      />
     </Sheet>
   );
 }
