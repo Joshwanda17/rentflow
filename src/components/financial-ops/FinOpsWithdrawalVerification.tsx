@@ -211,9 +211,12 @@ export function FinOpsWithdrawalVerification() {
         )}
 
         <div className="flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground">
-            Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[10px] text-muted-foreground">
+              Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+            </p>
+            {ageBadge}
+          </div>
           <div className="flex gap-2">
             <Button
               size="sm"
