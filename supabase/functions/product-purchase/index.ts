@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
       throw new Error(ledgerError.message || 'Financial transaction failed');
     }
 
-    console.log(`[product-purchase] Ledger OK, group=${transactionGroupId}`);
+    console.log(`[product-purchase] Ledger OK`);
 
     // ── Update stock ──
     const { error: stockError } = await supabaseAdmin
