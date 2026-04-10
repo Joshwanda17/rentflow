@@ -15,7 +15,7 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
-  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake
+  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -42,6 +42,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import PartnerImportDialog from './PartnerImportDialog';
 import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
 
@@ -2526,15 +2527,19 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [rangeFilter, setRangeFilter] = useState<string>('7');
-  const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
-  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed'>>({});
+  const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | 'split' | null>>({});
+  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed' | 'split'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [managedInfo, setManagedInfo] = useState<Record<string, { isManaged: boolean; agentName: string; agentId: string; hasProxy: boolean } | null>>({});
   
   // Step 2 state
   const [selectedPayout, setSelectedPayout] = useState<NearingPayoutPortfolio | null>(null);
-  const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options'>('list');
+  const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options' | 'split-config'>('list');
   const [checkingManagedStep2, setCheckingManagedStep2] = useState(false);
+
+  // Split payout state
+  const [splitCashAmount, setSplitCashAmount] = useState(0);
+  const [splitPayMode, setSplitPayMode] = useState<'wallet' | 'agent_wallet' | 'already_paid'>('wallet');
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
@@ -2763,6 +2768,171 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
+  // Handle Split click — transition to split-config step
+  const handleSplitClick = async (p: NearingPayoutPortfolio) => {
+    const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
+    setSelectedPayout(p);
+    setSplitCashAmount(Math.round(roiAmount / 2)); // Default 50/50
+    setSplitPayMode('wallet');
+    setPaymentStep('split-config');
+
+    // Check managed status
+    if (managedInfo[p.portfolioId] === undefined) {
+      setCheckingManagedStep2(true);
+      try {
+        const { data: proxyData } = await supabase
+          .from('proxy_agent_assignments')
+          .select('agent_id, is_managed_account, agent:agent_id(full_name)')
+          .eq('beneficiary_id', p.investorId)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+        if (proxyData) {
+          const agentName = (proxyData.agent as any)?.full_name || 'Agent';
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
+          if (proxyData.is_managed_account) setSplitPayMode('agent_wallet');
+        } else {
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+        }
+      } catch {
+        setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+      } finally {
+        setCheckingManagedStep2(false);
+      }
+    } else if (managedInfo[p.portfolioId]?.isManaged) {
+      setSplitPayMode('agent_wallet');
+    }
+  };
+
+  // Handle Split Payout — cash portion to pending_wallet_operations, reinvest portion to portfolio
+  const handleSplitPayout = async (p: NearingPayoutPortfolio, cashAmount: number, reason: string, payMode: 'wallet' | 'agent_wallet' | 'already_paid') => {
+    setProcessing(prev => ({ ...prev, [p.portfolioId]: 'split' }));
+    try {
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
+      const reinvestAmount = roiAmount - cashAmount;
+      if (cashAmount < 1 || reinvestAmount < 1) throw new Error('Both cash and reinvest amounts must be at least 1');
+
+      const refId = generateRef('SPL');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const managed = managedInfo[p.portfolioId];
+      const isProxyAgent = payMode === 'agent_wallet' && managed;
+      const modeLabel = payMode === 'agent_wallet' ? 'Agent Wallet' : payMode === 'wallet' ? 'Wallet' : 'Cash';
+      const txnGroupId = crypto.randomUUID();
+
+      // ── Advance next_roi_date ──
+      const nextDate = new Date();
+      nextDate.setMonth(nextDate.getMonth() + 1);
+
+      // ── Reinvest portion: add to principal ──
+      const newPrincipal = p.investmentAmount + reinvestAmount;
+      const { error: upErr } = await supabase
+        .from('investor_portfolios')
+        .update({ investment_amount: newPrincipal, next_roi_date: nextDate.toISOString().split('T')[0] })
+        .eq('id', p.portfolioId);
+      if (upErr) throw upErr;
+
+      // Reinvest ledger entry
+      await supabase.from('general_ledger').insert({
+        user_id: p.investorId,
+        amount: reinvestAmount,
+        direction: 'cash_in',
+        category: 'roi_compounding',
+        source_table: 'investor_portfolios',
+        source_id: p.portfolioId,
+        reference_id: refId,
+        description: `[Split ROI] ${formatUGX(reinvestAmount)} reinvested into principal. New principal: ${formatUGX(newPrincipal)}. Cash portion: ${formatUGX(cashAmount)} via ${modeLabel}. Reason: ${reason}`,
+        currency: 'UGX',
+        linked_party: user.id,
+      });
+
+      // ── Cash portion: submit to pending_wallet_operations for CFO approval ──
+      const operationType = payMode === 'agent_wallet' ? 'roi_split_agent_wallet' : payMode === 'wallet' ? 'roi_split_cash' : 'roi_split_already_paid';
+      const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
+        user_id: p.investorId,
+        amount: cashAmount,
+        direction: 'cash_in',
+        category: 'roi_payout',
+        source_table: 'investor_portfolios',
+        source_id: p.portfolioId,
+        reference_id: refId,
+        operation_type: operationType,
+        transaction_group_id: txnGroupId,
+        target_wallet_user_id: isProxyAgent ? managed.agentId : null,
+        description: isProxyAgent
+          ? `[Split ROI → Agent Wallet] Cash portion ${formatUGX(cashAmount)} to ${managed.agentName}'s agent wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`
+          : `[Split ROI → ${modeLabel}] Cash portion ${formatUGX(cashAmount)} to ${p.name}'s wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`,
+        linked_party: user.id,
+        status: 'pending',
+        metadata: {
+          partner_name: p.name,
+          roi_percentage: p.roiPercentage,
+          investment_amount: p.investmentAmount,
+          initiated_by: user.id,
+          reason,
+          pay_mode: payMode,
+          split_payout: true,
+          cash_amount: cashAmount,
+          reinvest_amount: reinvestAmount,
+          total_roi: roiAmount,
+          new_principal: newPrincipal,
+          ...(isProxyAgent ? { target_agent_name: managed.agentName, target_agent_id: managed.agentId } : {}),
+        },
+      });
+      if (pendErr) throw pendErr;
+
+      // ── Audit log ──
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'roi_split_payout',
+        table_name: 'investor_portfolios',
+        record_id: p.portfolioId,
+        metadata: {
+          roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount,
+          new_principal: newPrincipal, reference: refId, partner_id: p.investorId, partner_name: p.name,
+          reason, pay_mode: payMode,
+          ...(isProxyAgent ? { target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+        },
+      });
+
+      // ── Notifications ──
+      await supabase.from('notifications').insert({
+        user_id: p.investorId,
+        title: '✂️ Split ROI Processed',
+        message: `Your ROI of ${formatUGX(roiAmount)} has been split: ${formatUGX(cashAmount)} ${payMode === 'already_paid' ? 'paid via cash' : 'sent to your wallet (pending approval)'}, and ${formatUGX(reinvestAmount)} reinvested into your portfolio. New principal: ${formatUGX(newPrincipal)}. Ref: ${refId}`,
+        type: 'payout_initiated',
+        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount, reference: refId },
+      });
+
+      // Notify CFO
+      const { data: cfoUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'cfo');
+      if (cfoUsers?.length) {
+        await supabase.from('notifications').insert(
+          cfoUsers.map((c: any) => ({
+            user_id: c.user_id,
+            title: '✂️ Split ROI Payout Pending',
+            message: `${p.name}: ${formatUGX(cashAmount)} cash (${modeLabel}) + ${formatUGX(reinvestAmount)} reinvested. Awaiting approval. Ref: ${refId}`,
+            type: 'approval_needed',
+            metadata: { portfolio_id: p.portfolioId, reference: refId, cash_amount: cashAmount, reinvest_amount: reinvestAmount },
+          }))
+        );
+      }
+
+      toast.success(`Split payout for ${p.name}`, {
+        description: `${formatUGX(cashAmount)} to ${modeLabel} · ${formatUGX(reinvestAmount)} reinvested · Ref: ${refId}`,
+      });
+      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'split' }));
+      setPaymentStep('list');
+      setSelectedPayout(null);
+      onActionComplete?.();
+    } catch (err: any) {
+      toast.error('Split payout failed', { description: err.message });
+    } finally {
+      setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+    }
+  };
+
   const selectedRoiAmount = selectedPayout ? Math.round(selectedPayout.investmentAmount * selectedPayout.roiPercentage / 100) : 0;
   const selectedManaged = selectedPayout ? managedInfo[selectedPayout.portfolioId] : null;
   const selectedReason = selectedPayout ? (reasons[selectedPayout.portfolioId] || '') : '';
@@ -2827,7 +2997,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   const isDone = completed[p.portfolioId];
                   const refPreview = `${p.portfolioId.slice(0, 8)}`;
                   return (
-                    <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5")}>
+                    <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5", isDone === 'split' && "opacity-70 border-violet-500/40 bg-violet-500/5")}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{p.name}</p>
@@ -2840,6 +3010,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         ) : isDone === 'compounded' ? (
                           <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
                             ✓ Compounded
+                          </Badge>
+                        ) : isDone === 'split' ? (
+                          <Badge className="shrink-0 text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30">
+                            ✂️ Split Processed
                           </Badge>
                         ) : p.daysUntil < 0 ? (
                           <Badge variant="destructive" className="shrink-0 text-[10px]">
@@ -2906,6 +3080,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                             </Button>
                             <Button
                               size="sm"
+                              variant="secondary"
+                              className="flex-1 text-xs gap-1.5"
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                              onClick={() => handleSplitClick(p)}
+                            >
+                              {isProcessing === 'split' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Scissors className="h-3 w-3" />}
+                              Split
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="default"
                               className="flex-1 text-xs gap-1.5"
                               disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
@@ -2923,7 +3107,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               )}
             </div>
           </>
-        ) : selectedPayout && (
+        ) : paymentStep === 'payment-options' && selectedPayout ? (
           /* ═══ Step 2: Payment Options ═══ */
           <>
             <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
@@ -3049,7 +3233,135 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               )}
             </div>
           </>
-        )}
+        ) : paymentStep === 'split-config' && selectedPayout ? (
+          /* ═══ Step 3: Split Configuration ═══ */
+          <>
+            <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <button
+                  onClick={() => { setPaymentStep('list'); setSelectedPayout(null); }}
+                  className="p-1 -ml-1 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <ArrowUpRight className="h-4 w-4 rotate-[225deg]" />
+                </button>
+                <Scissors className="h-4 w-4" />
+                Split Payout
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Split {selectedPayout.name}'s returns between cash and reinvestment
+              </DialogDescription>
+            </DialogHeader>
+            <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
+              {/* Summary */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm">{selectedPayout.name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedPayout.phone || selectedPayout.email || 'No contact'}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                    {selectedPayout.roiPercentage}% ROI
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-background p-2">
+                    <p className="text-[10px] text-muted-foreground">Principal</p>
+                    <p className="text-xs font-bold tabular-nums">{formatUGX(selectedPayout.investmentAmount)}</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <p className="text-[10px] text-muted-foreground">Total Returns</p>
+                    <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(selectedRoiAmount)}</p>
+                  </div>
+                  <div className="rounded-lg bg-background p-2">
+                    <p className="text-[10px] text-muted-foreground">New Principal</p>
+                    <p className="text-xs font-bold tabular-nums">{formatUGX(selectedPayout.investmentAmount + (selectedRoiAmount - splitCashAmount))}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Split Controls */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium">Cash Amount</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={selectedRoiAmount - 1}
+                    value={splitCashAmount}
+                    onChange={e => {
+                      const val = Math.max(1, Math.min(selectedRoiAmount - 1, Number(e.target.value) || 0));
+                      setSplitCashAmount(val);
+                    }}
+                    className="text-sm tabular-nums"
+                  />
+                </div>
+                <Slider
+                  min={1}
+                  max={selectedRoiAmount - 1}
+                  step={1000}
+                  value={[splitCashAmount]}
+                  onValueChange={([v]) => setSplitCashAmount(v)}
+                  className="py-1"
+                />
+
+                {/* Visual breakdown */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3 text-center">
+                    <Wallet className="h-4 w-4 mx-auto mb-1 text-primary" />
+                    <p className="text-[10px] text-muted-foreground">Cash Payout</p>
+                    <p className="text-sm font-bold tabular-nums text-primary">{formatUGX(splitCashAmount)}</p>
+                  </div>
+                  <div className="rounded-xl border-2 border-green-500/30 bg-green-500/5 p-3 text-center">
+                    <TrendingUp className="h-4 w-4 mx-auto mb-1 text-green-600" />
+                    <p className="text-[10px] text-muted-foreground">Reinvested</p>
+                    <p className="text-sm font-bold tabular-nums text-green-600">{formatUGX(selectedRoiAmount - splitCashAmount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment method for cash portion */}
+              {checkingManagedStep2 ? (
+                <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-xs">Checking account status...</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Cash portion payment method</Label>
+                  <Select value={splitPayMode} onValueChange={(v: any) => setSplitPayMode(v)}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedManaged?.isManaged || selectedManaged?.hasProxy ? (
+                        <SelectItem value="agent_wallet">Agent Wallet ({selectedManaged?.agentName})</SelectItem>
+                      ) : (
+                        <SelectItem value="wallet">Pay to Wallet</SelectItem>
+                      )}
+                      <SelectItem value="already_paid">Cash (already/to be paid externally)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Audit reason */}
+              <div className="rounded-lg bg-background border border-border/40 p-2.5">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Audit Reason</p>
+                <p className="text-xs leading-relaxed">{selectedReason}</p>
+              </div>
+
+              {/* Confirm */}
+              <Button
+                className="w-full gap-2"
+                disabled={!!selectedProcessing || splitCashAmount < 1 || splitCashAmount >= selectedRoiAmount}
+                onClick={() => handleSplitPayout(selectedPayout, splitCashAmount, selectedReason, splitPayMode)}
+              >
+                {selectedProcessing === 'split' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
+                Confirm Split Payout
+              </Button>
+            </div>
+          </>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
