@@ -37,6 +37,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const { formatAmount } = useCurrency();
   const { wallet, refreshWallet } = useWallet();
   const [entries, setEntries] = useState<InvestmentEntry[]>([]);
+  const [pendingByPortfolio, setPendingByPortfolio] = useState<Record<string, { count: number; total: number }>>({});
   const [loading, setLoading] = useState(true);
   const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
   const [payoutTarget, setPayoutTarget] = useState<{ id: string; name: string } | null>(null);
