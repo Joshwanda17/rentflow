@@ -103,9 +103,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
       if (e1 || e2) { console.error(e1 || e2); setEntries([]); return; }
       const seen = new Set<string>();
       const result: InvestmentEntry[] = [];
+      const portfolioIds: string[] = [];
       for (const p of [...(byInvestor || []), ...(byAgent || [])]) {
         if (seen.has(p.id)) continue;
         seen.add(p.id);
+        portfolioIds.push(p.id);
         result.push({
           id: p.id, code: p.portfolio_code, account_name: (p as any).account_name || null, amount: Number(p.investment_amount),
           roi_percentage: Number(p.roi_percentage), roi_mode: p.roi_mode,
@@ -116,6 +118,28 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
         });
       }
       setEntries(result);
+
+      // Fetch pending top-ups for all portfolios
+      if (portfolioIds.length > 0) {
+        const { data: pendingOps } = await supabase
+          .from('pending_wallet_operations')
+          .select('source_id, amount')
+          .in('source_id', portfolioIds)
+          .eq('source_table', 'investor_portfolios')
+          .eq('operation_type', 'portfolio_topup')
+          .eq('status', 'pending');
+
+        const pending: Record<string, { count: number; total: number }> = {};
+        (pendingOps || []).forEach((op: any) => {
+          const key = op.source_id;
+          if (!pending[key]) pending[key] = { count: 0, total: 0 };
+          pending[key].count++;
+          pending[key].total += Number(op.amount);
+        });
+        setPendingByPortfolio(pending);
+      } else {
+        setPendingByPortfolio({});
+      }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
