@@ -73,7 +73,7 @@ export function FinOpsWithdrawalVerification() {
         .from('withdrawal_requests')
         .select('*')
         .in('status', ['pending', 'requested', 'approved', 'manager_approved'])
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
@@ -152,8 +152,16 @@ export function FinOpsWithdrawalVerification() {
     return null;
   };
 
+  const getAgeBadge = (createdAt: string) => {
+    const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+    if (days >= 30) return <Badge variant="destructive" size="sm">{Math.floor(days / 30)}mo old</Badge>;
+    if (days >= 7) return <Badge variant="warning" size="sm">{Math.floor(days / 7)}w old</Badge>;
+    return null;
+  };
+
   const renderRequestCard = (req: WithdrawalRequest) => {
     const bankLabel = getPayoutLabel(req);
+    const ageBadge = getAgeBadge(req.created_at);
     return (
       <div key={req.id} className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
         <div className="flex items-start justify-between gap-2">
@@ -203,9 +211,12 @@ export function FinOpsWithdrawalVerification() {
         )}
 
         <div className="flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground">
-            Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-[10px] text-muted-foreground">
+              Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+            </p>
+            {ageBadge}
+          </div>
           <div className="flex gap-2">
             <Button
               size="sm"
