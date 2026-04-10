@@ -563,6 +563,66 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           </div>
         </div>
       </SectionCard>
+
+      {/* KPI Breakdown Sheets */}
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'cash'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Platform Cash Breakdown"
+        total={totalCash}
+        items={Object.entries(channels).map(([name, vals]) => ({
+          label: name,
+          value: vals.deposits - vals.withdrawals,
+          icon: channelIcons[name],
+        }))}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'wallets'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="User Wallets Breakdown"
+        total={totalLiabilities}
+        items={liabilityItems}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'earnings'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Platform Earnings Breakdown"
+        total={platformEarnings}
+        items={[
+          { label: 'Total Revenue', value: revenue?.totalRevenue ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-green-500" /> },
+          { label: 'Total Expenses', value: -(revenue?.totalExpenses ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-red-500" /> },
+        ]}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'cashIn'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Cash In Today — By Category"
+        total={todayCashFlow?.cashInToday ?? 0}
+        items={Object.entries(todayCashFlow?.inflowCategories ?? {}).map(([cat, val]) => ({
+          label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          value: val,
+        }))}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'cashOut'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Cash Out Today — By Category"
+        total={todayCashFlow?.cashOutToday ?? 0}
+        items={Object.entries(todayCashFlow?.outflowCategories ?? {}).map(([cat, val]) => ({
+          label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          value: val,
+        }))}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'netCash'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Net Cash Today"
+        total={todayCashFlow?.netToday ?? 0}
+        items={[
+          { label: 'Cash In', value: todayCashFlow?.cashInToday ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-green-500" /> },
+          { label: 'Cash Out', value: -(todayCashFlow?.cashOutToday ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-red-500" /> },
+        ]}
+      />
     </div>
   );
 }
