@@ -225,12 +225,20 @@ export function ApprovalQueue() {
 
       if (activeQueue === 'wallet_ops') {
         const response = await supabase.functions.invoke('approve-wallet-operation', {
-          body: { ids, action: bulkAction, reason: bulkAction === 'reject' ? reason : undefined },
+          body: { bulk_ids: ids, action: bulkAction, rejection_reason: bulkAction === 'reject' ? reason : undefined },
         });
         if (response.error) {
           const msg = await extractFromErrorObject(response.error, 'Wallet operation failed');
           throw new Error(msg);
         }
+        // Only keep IDs that were actually processed
+        const successIds = [...(response.data?.approved_ids || []), ...(response.data?.rejected_ids || [])];
+        const failedCount = ids.length - successIds.length;
+        if (failedCount > 0) {
+          toast.warning(`${failedCount} item(s) could not be processed`);
+        }
+        ids.length = 0;
+        ids.push(...successIds);
       } else if (activeQueue === 'wallet_withdrawals') {
         if (bulkAction === 'reject') {
           const { data: rejectData, error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
@@ -316,6 +324,9 @@ export function ApprovalQueue() {
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
     } catch (err: any) {
       toast.error(err.message || 'Action failed');
+      // Invalidate on error to refresh stale items
+      const cacheKey = `approval-queue-${activeQueue}`;
+      queryClient.invalidateQueries({ queryKey: [cacheKey] });
     } finally {
       setProcessing(false);
     }
