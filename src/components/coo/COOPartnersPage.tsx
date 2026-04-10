@@ -15,7 +15,7 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
-  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake
+  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -2526,15 +2526,19 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 }) {
   const [search, setSearch] = useState('');
   const [rangeFilter, setRangeFilter] = useState<string>('7');
-  const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | null>>({});
-  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed'>>({});
+  const [processing, setProcessing] = useState<Record<string, 'compound' | 'pay' | 'split' | null>>({});
+  const [completed, setCompleted] = useState<Record<string, 'compounded' | 'pending' | 'completed' | 'split'>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [managedInfo, setManagedInfo] = useState<Record<string, { isManaged: boolean; agentName: string; agentId: string; hasProxy: boolean } | null>>({});
   
   // Step 2 state
   const [selectedPayout, setSelectedPayout] = useState<NearingPayoutPortfolio | null>(null);
-  const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options'>('list');
+  const [paymentStep, setPaymentStep] = useState<'list' | 'payment-options' | 'split-config'>('list');
   const [checkingManagedStep2, setCheckingManagedStep2] = useState(false);
+
+  // Split payout state
+  const [splitCashAmount, setSplitCashAmount] = useState(0);
+  const [splitPayMode, setSplitPayMode] = useState<'wallet' | 'agent_wallet' | 'already_paid'>('wallet');
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
