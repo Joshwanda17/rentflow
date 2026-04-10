@@ -832,6 +832,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           )}
         </div>
       </SheetContent>
+
+      {/* Renew Rent Dialog */}
+      <AgentRentRequestDialog
+        open={renewDialogOpen}
+        onOpenChange={(open) => {
+          setRenewDialogOpen(open);
+          if (!open) setRenewPrefill(null);
+        }}
+        onSuccess={() => {
+          setRenewDialogOpen(false);
+          setRenewPrefill(null);
+          fetchTenants();
+        }}
+        prefillTenantName={renewPrefill?.name}
+        prefillTenantPhone={renewPrefill?.phone}
+        prefillRentAmount={renewPrefill?.amount}
+      />
     </Sheet>
   );
 }
