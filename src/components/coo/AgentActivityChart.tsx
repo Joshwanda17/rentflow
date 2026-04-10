@@ -157,8 +157,8 @@ export function AgentActivityChart() {
                 <Tooltip
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))' }}
                   formatter={(value: number, name: string) => {
-                    if (name === 'registrations') return [value, 'New Agents'];
-                    return [`UGX ${value.toLocaleString()}`, name === 'earnings' ? 'Earnings' : 'Collections'];
+                    if (name === 'New Agents') return [value, 'New Agents'];
+                    return [`UGX ${value.toLocaleString()}`, name];
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
