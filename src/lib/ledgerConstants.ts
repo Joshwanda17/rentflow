@@ -57,6 +57,8 @@ export const LOCKED_CATEGORIES = [
   // Agent float
   'agent_float_deposit',
   'agent_float_used_for_rent',
+  // Portfolio
+  'pending_portfolio_topup',
 ] as const;
 
 export type LockedCategory = typeof LOCKED_CATEGORIES[number];

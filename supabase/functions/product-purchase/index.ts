@@ -6,7 +6,6 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -14,20 +13,18 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Get the authorization header
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
-    // Verify the user
     const supabaseClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: authHeader } }
     });
-    
+
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
       throw new Error('Unauthorized');
@@ -36,21 +33,19 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { productId, quantity: rawQuantity = 1 } = body as { productId?: string; quantity?: number };
 
-    // Validate productId
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!productId || typeof productId !== 'string' || !UUID_REGEX.test(productId)) {
       throw new Error('Valid Product ID is required');
     }
 
-    // Validate quantity
     const quantity = Number(rawQuantity);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) {
       throw new Error('Quantity must be an integer between 1 and 1000');
     }
 
-    console.log(`Processing purchase: user ${user.id}, product ${productId}, quantity ${quantity}`);
+    console.log(`[product-purchase] user ${user.id}, product ${productId}, qty ${quantity}`);
 
-    // Get product details
+    // ── Fetch product ──
     const { data: product, error: productError } = await supabaseAdmin
       .from('products')
       .select('*')
@@ -62,12 +57,11 @@ Deno.serve(async (req) => {
       throw new Error('Product not found or not available');
     }
 
-    // Check stock
     if (product.stock < quantity) {
       throw new Error('Insufficient stock');
     }
 
-    // Check if discount is active
+    // ── Price calculation ──
     let effectivePrice = product.price;
     if (product.discount_percentage && product.discount_percentage > 0) {
       const discountActive = !product.discount_ends_at || new Date(product.discount_ends_at) > new Date();
@@ -76,76 +70,147 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Calculate prices
     const totalPrice = effectivePrice * quantity;
-    const agentCommission = Math.round(totalPrice * 0.01); // 1% commission
+    const agentCommission = Math.round(totalPrice * 0.01); // 1% platform fee
 
-    console.log(`Effective price: ${effectivePrice}, Total price: ${totalPrice}, Agent commission: ${agentCommission}`);
+    console.log(`[product-purchase] effectivePrice=${effectivePrice}, total=${totalPrice}, commission=${agentCommission}`);
 
-    // Get buyer's wallet
-    const { data: buyerWallet, error: buyerWalletError } = await supabaseAdmin
+    // ── Balance check (ledger-derived via sync trigger) ──
+    const { data: buyerWallet } = await supabaseAdmin
       .from('wallets')
-      .select('*')
+      .select('balance')
       .eq('user_id', user.id)
       .single();
 
-    if (buyerWalletError || !buyerWallet) {
+    if (!buyerWallet) {
       throw new Error('Buyer wallet not found');
     }
-
     if (buyerWallet.balance < totalPrice) {
       throw new Error('Insufficient wallet balance');
     }
 
-    // Get agent's wallet
-    const { data: agentWallet, error: agentWalletError } = await supabaseAdmin
-      .from('wallets')
-      .select('*')
+    // ── Check if agent is verified (for cashback) ──
+    const { data: agentRoleData } = await supabaseAdmin
+      .from('user_roles')
+      .select('id')
       .eq('user_id', product.agent_id)
-      .single();
+      .eq('role', 'agent')
+      .maybeSingle();
 
-    if (agentWalletError || !agentWallet) {
-      throw new Error('Agent wallet not found');
+    const cashbackAmount = agentRoleData ? Math.round(totalPrice * 0.04) : 0;
+
+    // ── Build ledger entries (single atomic transaction) ──
+    const transactionGroupId = crypto.randomUUID();
+
+    const entries: Array<{
+      user_id: string;
+      scope: string;
+      direction: string;
+      category: string;
+      amount: number;
+      description: string;
+      source_table: string;
+      source_id: string;
+    }> = [
+      // Leg 1: Buyer pays (wallet debit)
+      {
+        user_id: user.id,
+        scope: 'wallet',
+        direction: 'cash_out',
+        category: 'wallet_deduction',
+        amount: totalPrice,
+        description: `Purchase ${quantity}x ${product.name}`,
+        source_table: 'product_orders',
+        source_id: productId,
+      },
+      // Leg 2: Agent receives full sale amount (wallet credit)
+      {
+        user_id: product.agent_id,
+        scope: 'wallet',
+        direction: 'cash_in',
+        category: 'agent_commission_earned',
+        amount: totalPrice,
+        description: `Sale of ${quantity}x ${product.name}`,
+        source_table: 'product_orders',
+        source_id: productId,
+      },
+      // Leg 3: Platform records 1% revenue
+      {
+        user_id: product.agent_id,
+        scope: 'platform',
+        direction: 'cash_in',
+        category: 'access_fee_collected',
+        amount: agentCommission,
+        description: `1% marketplace fee on ${product.name}`,
+        source_table: 'product_orders',
+        source_id: productId,
+      },
+      // Leg 4: Platform balancing entry (net-zero offset)
+      {
+        user_id: product.agent_id,
+        scope: 'platform',
+        direction: 'cash_out',
+        category: 'access_fee_collected',
+        amount: agentCommission,
+        description: `1% marketplace fee offset for ${product.name}`,
+        source_table: 'product_orders',
+        source_id: productId,
+      },
+    ];
+
+    // Legs 5-6: Cashback if verified agent
+    if (cashbackAmount > 0) {
+      entries.push(
+        {
+          user_id: user.id,
+          scope: 'wallet',
+          direction: 'cash_in',
+          category: 'wallet_transfer',
+          amount: cashbackAmount,
+          description: `4% cashback on ${product.name} purchase`,
+          source_table: 'product_orders',
+          source_id: productId,
+        },
+        {
+          user_id: user.id,
+          scope: 'platform',
+          direction: 'cash_out',
+          category: 'wallet_transfer',
+          amount: cashbackAmount,
+          description: `4% cashback expense for ${product.name}`,
+          source_table: 'product_orders',
+          source_id: productId,
+        },
+      );
     }
 
-    // Perform the transaction
-    // 1. Deduct from buyer's wallet
-    const { error: deductError } = await supabaseAdmin
-      .from('wallets')
-      .update({ balance: buyerWallet.balance - totalPrice })
-      .eq('user_id', user.id);
+    // ── Execute atomic ledger transaction ──
+    const { data: ledgerResult, error: ledgerError } = await supabaseAdmin.rpc(
+      'create_ledger_transaction',
+      {
+        p_entries: entries,
+        p_transaction_group_id: transactionGroupId,
+      }
+    );
 
-    if (deductError) {
-      throw new Error('Failed to deduct from buyer wallet');
+    if (ledgerError) {
+      console.error('[product-purchase] Ledger RPC error:', ledgerError);
+      throw new Error(ledgerError.message || 'Financial transaction failed');
     }
 
-    // 2. Credit agent's wallet with product price (minus commission kept by platform for income statement tracking)
-    const agentReceives = totalPrice - agentCommission;
-    const { error: creditAgentError } = await supabaseAdmin
-      .from('wallets')
-      .update({ balance: agentWallet.balance + agentReceives + agentCommission })
-      .eq('user_id', product.agent_id);
+    console.log(`[product-purchase] Ledger OK, group=${transactionGroupId}`);
 
-    if (creditAgentError) {
-      // Rollback buyer deduction
-      await supabaseAdmin
-        .from('wallets')
-        .update({ balance: buyerWallet.balance })
-        .eq('user_id', user.id);
-      throw new Error('Failed to credit agent wallet');
-    }
-
-    // 3. Update product stock
+    // ── Update stock ──
     const { error: stockError } = await supabaseAdmin
       .from('products')
       .update({ stock: product.stock - quantity })
       .eq('id', productId);
 
     if (stockError) {
-      console.error('Failed to update stock:', stockError);
+      console.error('[product-purchase] Stock update error:', stockError);
     }
 
-    // 4. Create order record
+    // ── Create order record ──
     const { data: order, error: orderError } = await supabaseAdmin
       .from('product_orders')
       .insert({
@@ -162,11 +227,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (orderError) {
-      console.error('Failed to create order record:', orderError);
+      console.error('[product-purchase] Order record error:', orderError);
     }
 
-    // 5. Record agent earning (1% commission)
-    const { error: earningError } = await supabaseAdmin
+    // ── Record agent earning (1% commission) ──
+    await supabaseAdmin
       .from('agent_earnings')
       .insert({
         agent_id: product.agent_id,
@@ -176,118 +241,51 @@ Deno.serve(async (req) => {
         source_user_id: user.id
       });
 
-    if (earningError) {
-      console.error('Failed to record agent earning:', earningError);
+    // ── Record cashback earning if applicable ──
+    if (cashbackAmount > 0) {
+      await supabaseAdmin
+        .from('agent_earnings')
+        .insert({
+          agent_id: user.id,
+          amount: cashbackAmount,
+          earning_type: 'cashback',
+          description: `4% cashback on ${product.name} purchase (UGX ${totalPrice.toLocaleString()})`,
+          source_user_id: product.agent_id
+        });
+
+      console.log(`[product-purchase] Cashback ${cashbackAmount} to buyer ${user.id}`);
     }
 
-    // 6. Record platform transaction (marketplace expense)
-    const { error: transactionError } = await supabaseAdmin
-      .from('platform_transactions')
-      .insert({
-        user_id: product.agent_id,
-        amount: agentCommission,
-        direction: 'cash_out',
-        transaction_type: 'marketplace_commission',
-        description: `Marketplace commission to agent for ${product.name} sale`
-      });
-
-    if (transactionError) {
-      console.error('Failed to record platform transaction:', transactionError);
-    }
-
-    // 7. Check if agent is verified and award 4% cashback to buyer
-    let cashbackAmount = 0;
-    const { data: agentRoleData } = await supabaseAdmin
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', product.agent_id)
-      .eq('role', 'agent')
-      .maybeSingle();
-
-    if (agentRoleData) {
-      cashbackAmount = Math.round(totalPrice * 0.04); // 4% cashback
-      
-      if (cashbackAmount > 0) {
-        // Credit cashback to buyer's wallet
-        const { data: updatedBuyerWallet } = await supabaseAdmin
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', user.id)
-          .single();
-
-        if (updatedBuyerWallet) {
-          await supabaseAdmin
-            .from('wallets')
-            .update({ balance: updatedBuyerWallet.balance + cashbackAmount })
-            .eq('user_id', user.id);
-        }
-
-        // Record cashback as platform expense
-        await supabaseAdmin
-          .from('platform_transactions')
-          .insert({
-            user_id: user.id,
-            amount: cashbackAmount,
-            direction: 'cash_out',
-            transaction_type: 'cashback_reward',
-            description: `4% cashback on purchase of ${product.name} from verified agent`
-          });
-
-        // Record in agent_earnings for buyer visibility (as a reward)
-        await supabaseAdmin
-          .from('agent_earnings')
-          .insert({
-            agent_id: user.id,
-            amount: cashbackAmount,
-            earning_type: 'cashback',
-            description: `4% cashback on ${product.name} purchase (UGX ${totalPrice.toLocaleString()})`,
-            source_user_id: product.agent_id
-          });
-
-        console.log(`Cashback of ${cashbackAmount} credited to buyer ${user.id}`);
-      }
-    }
-
-    // 8. Create notifications
-    const cashbackMsg = cashbackAmount > 0 
-      ? ` You earned UGX ${cashbackAmount.toLocaleString()} cashback!` 
+    // ── Notifications (fire-and-forget, suppressed by DB trigger) ──
+    const cashbackMsg = cashbackAmount > 0
+      ? ` You earned UGX ${cashbackAmount.toLocaleString()} cashback!`
       : '';
 
-    // Notify buyer
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: user.id,
-        title: cashbackAmount > 0 ? '🎉 Purchase + Cashback!' : 'Purchase Successful',
-        message: `You purchased ${quantity}x ${product.name} for UGX ${totalPrice.toLocaleString()}.${cashbackMsg}`,
-        type: 'success',
-        metadata: { order_id: order?.id, product_id: productId, cashback: cashbackAmount }
-      });
+    await supabaseAdmin.from('notifications').insert({
+      user_id: user.id,
+      title: cashbackAmount > 0 ? '🎉 Purchase + Cashback!' : 'Purchase Successful',
+      message: `You purchased ${quantity}x ${product.name} for UGX ${totalPrice.toLocaleString()}.${cashbackMsg}`,
+      type: 'success',
+      metadata: { order_id: order?.id, product_id: productId, cashback: cashbackAmount }
+    });
 
-    // Notify agent
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: product.agent_id,
-        title: 'New Sale!',
-        message: `You sold ${quantity}x ${product.name} and earned UGX ${agentCommission.toLocaleString()} commission`,
-        type: 'success',
-        metadata: { order_id: order?.id, product_id: productId }
-      });
+    await supabaseAdmin.from('notifications').insert({
+      user_id: product.agent_id,
+      title: 'New Sale!',
+      message: `You sold ${quantity}x ${product.name} and earned UGX ${agentCommission.toLocaleString()} commission`,
+      type: 'success',
+      metadata: { order_id: order?.id, product_id: productId }
+    });
 
-    console.log('Purchase completed successfully');
+    console.log('[product-purchase] Complete');
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        order: order,
-        message: 'Purchase completed successfully'
-      }),
+      JSON.stringify({ success: true, order, message: 'Purchase completed successfully' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Product purchase error:', error);
+    console.error('[product-purchase] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'An error occurred';
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
