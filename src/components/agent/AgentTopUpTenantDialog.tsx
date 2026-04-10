@@ -94,7 +94,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
       .from('rent_requests')
       .select('total_repayment, amount_repaid')
       .eq('tenant_id', tenant.id)
-      .in('status', ['approved', 'disbursed', 'active'])
+      .in('status', ['approved', 'funded', 'disbursed', 'repaying'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -165,7 +165,6 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
             Pay Rent for Tenant
-            Top Up Tenant Wallet
           </DialogTitle>
         </DialogHeader>
 

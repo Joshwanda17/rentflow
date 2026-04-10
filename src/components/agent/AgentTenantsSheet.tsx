@@ -89,14 +89,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch tenants linked via referrer_id
+      const { data: referredData, error: refErr } = await supabase
         .from('profiles')
         .select('id, full_name, phone, email, created_at, monthly_rent, verified')
         .eq('referrer_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      const tenantList = data || [];
+      if (refErr) throw refErr;
+      const referredTenants = referredData || [];
+
+      // Also fetch tenants linked via rent_requests.agent_id
+      const { data: agentRequests } = await supabase
+        .from('rent_requests')
+        .select('tenant_id')
+        .eq('agent_id', user.id);
+
+      const referredIds = new Set(referredTenants.map(t => t.id));
+      const extraTenantIds = (agentRequests || [])
+        .map(r => r.tenant_id)
+        .filter(id => !referredIds.has(id));
+
+      let extraTenants: Tenant[] = [];
+      if (extraTenantIds.length > 0) {
+        const uniqueIds = [...new Set(extraTenantIds)];
+        const { data: extraData } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, email, created_at, monthly_rent, verified')
+          .in('id', uniqueIds);
+        extraTenants = extraData || [];
+      }
+
+      const tenantList = [...referredTenants, ...extraTenants];
       setTenants(tenantList);
 
       if (tenantList.length > 0) {

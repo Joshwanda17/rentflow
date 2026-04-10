@@ -904,7 +904,7 @@ async function chargeAgent(
   }
 
   const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
-    entries: JSON.stringify(entries),
+    entries: entries,
   });
 
   if (ledgerErr) {
