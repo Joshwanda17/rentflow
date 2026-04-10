@@ -2607,17 +2607,36 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
-      await supabase.from('general_ledger').insert({
-        user_id: p.investorId,
-        amount: roiAmount,
-        direction: 'cash_in',
-        category: 'roi_compounding',
-        source_table: 'investor_portfolios',
-        source_id: p.portfolioId,
-        reference_id: refId,
-        description: `ROI compounded: ${formatUGX(roiAmount)} added to portfolio. New principal: ${formatUGX(newAmount)}. Reason: ${reason}`,
-          currency: 'UGX',
-        linked_party: user.id,
+      // Reinvest ledger via RPC (double-entry: roi_expense + roi_reinvestment)
+      await supabase.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: p.investorId,
+            ledger_scope: 'platform',
+            direction: 'cash_out',
+            amount: roiAmount,
+            category: 'roi_expense',
+            description: `ROI compounded: ${formatUGX(roiAmount)} reinvested into portfolio. New principal: ${formatUGX(newAmount)}. Reason: ${reason}`,
+            reference_id: refId,
+            source_table: 'investor_portfolios',
+            source_id: p.portfolioId,
+            linked_party: user.id,
+            currency: 'UGX',
+          },
+          {
+            user_id: p.investorId,
+            ledger_scope: 'platform',
+            direction: 'cash_in',
+            amount: roiAmount,
+            category: 'roi_reinvestment',
+            description: `ROI reinvestment: ${formatUGX(roiAmount)} added to principal. New principal: ${formatUGX(newAmount)}. Ref: ${refId}`,
+            reference_id: refId,
+            source_table: 'investor_portfolios',
+            source_id: p.portfolioId,
+            linked_party: user.id,
+            currency: 'UGX',
+          },
+        ]),
       });
 
       await supabase.from('audit_logs').insert({
@@ -2837,19 +2856,38 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
-      // Reinvest ledger entry
-      await supabase.from('general_ledger').insert({
-        user_id: p.investorId,
-        amount: reinvestAmount,
-        direction: 'cash_in',
-        category: 'roi_compounding',
-        source_table: 'investor_portfolios',
-        source_id: p.portfolioId,
-        reference_id: refId,
-        description: `[Split ROI] ${formatUGX(reinvestAmount)} reinvested into principal. New principal: ${formatUGX(newPrincipal)}. Cash portion: ${formatUGX(cashAmount)} via ${modeLabel}. Reason: ${reason}`,
-        currency: 'UGX',
-        linked_party: user.id,
+      // Reinvest ledger via RPC (double-entry: roi_expense + roi_reinvestment)
+      const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
+        entries: JSON.stringify([
+          {
+            user_id: p.investorId,
+            ledger_scope: 'platform',
+            direction: 'cash_out',
+            amount: reinvestAmount,
+            category: 'roi_expense',
+            description: `[Split ROI] ${formatUGX(reinvestAmount)} reinvested into principal. New principal: ${formatUGX(newPrincipal)}. Cash portion: ${formatUGX(cashAmount)} via ${modeLabel}. Reason: ${reason}`,
+            reference_id: refId,
+            source_table: 'investor_portfolios',
+            source_id: p.portfolioId,
+            linked_party: user.id,
+            currency: 'UGX',
+          },
+          {
+            user_id: p.investorId,
+            ledger_scope: 'platform',
+            direction: 'cash_in',
+            amount: reinvestAmount,
+            category: 'roi_reinvestment',
+            description: `[Split ROI] ${formatUGX(reinvestAmount)} reinvestment into portfolio principal. Ref: ${refId}`,
+            reference_id: refId,
+            source_table: 'investor_portfolios',
+            source_id: p.portfolioId,
+            linked_party: user.id,
+            currency: 'UGX',
+          },
+        ]),
       });
+      if (ledgerErr) throw ledgerErr;
 
       // ── Cash portion: submit to pending_wallet_operations for CFO approval ──
       const operationType = payMode === 'agent_wallet' ? 'roi_split_agent_wallet' : payMode === 'wallet' ? 'roi_split_cash' : 'roi_split_already_paid';
