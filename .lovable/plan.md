@@ -1,59 +1,36 @@
 
 
-# One-Tap USSD Deposit Buttons for MTN MoMo & Airtel Money
+# Replace DiceBear Robots with Boring Avatars Marble Style
 
-## What We're Building
+## What Changes
 
-Add "Pay Now" buttons to the deposit dialogs that open the phone dialer with the correct USSD code pre-filled — one tap to start the payment flow, no manual dialing.
+Replace the current DiceBear "bottts" robot avatars with [Boring Avatars](https://boringavatars.com/) marble-style SVGs that use the system's purple/violet color palette — giving every user a unique, aesthetic, fintech-appropriate default avatar.
 
-## Where to Add
+## How It Works
 
-Two dialogs need USSD buttons:
+Boring Avatars is a lightweight library (`boring-avatars` npm package) that generates deterministic SVG avatars from a name string. The "marble" variant creates smooth, organic gradient patterns — no cartoonish shapes.
 
-1. **`src/components/wallet/DepositDialog.tsx`** — the main user deposit dialog (shown in screenshot)
-2. **`src/components/agent/AgentDepositCashDialog.tsx`** — agent deposit dialog
+We'll pass in 5 colors derived from the system's purple palette:
+- `#7C3AED` (primary purple)
+- `#A78BFA` (lighter purple)
+- `#4C1D95` (deep purple)
+- `#DDD6FE` (lavender)
+- `#1E1B4B` (dark navy)
 
-## Changes
-
-### 1. DepositDialog.tsx — Add "Pay Now" button below the merchant code display (after line 319)
-
-Replace the static "How to deposit" instructions block with a streamlined version, and add a prominent "Pay Now" button below the merchant code card:
-
-- **MTN**: `tel:*165*4%23` (dials `*165*4#`)
-- **Airtel**: `tel:*185*9%23` (dials `*185*9#`)
-
-The button will be provider-aware (yellow for MTN, red for Airtel), appear right below the merchant code, and use an `<a href="tel:...">` wrapped in a styled Button. Helper text below: "Tap to open your phone dialer and complete payment instantly."
-
-After tapping, show a subtle info banner: "If payment is complete, scroll down to enter your transaction details."
-
-### 2. AgentDepositCashDialog.tsx — Add USSD quick-dial buttons
-
-Same pattern — when MTN or Airtel is selected as the deposit method, show a "Dial Now" button with the appropriate `tel:` link.
-
-### 3. USSD config constant
-
-Add a shared config object (in `DepositDialog.tsx` or a small util):
-
-```typescript
-const USSD_DIAL = {
-  mtn: 'tel:*165*4%23',    // *165*4#
-  airtel: 'tel:*185*9%23', // *185*9#
-};
-```
-
-## UX Flow
-
-1. User selects provider (MTN/Airtel)
-2. Merchant code + "Pay Now" button displayed
-3. User taps "Pay Now" → phone dialer opens with USSD code
-4. User completes USSD payment on their phone
-5. User returns to app → fills in TID, amount, date/time, reason
-6. Submits deposit request
+These ensure every marble avatar feels cohesive with the fintech brand regardless of light/dark mode.
 
 ## Files Changed
 
-- `src/components/wallet/DepositDialog.tsx` — add Pay Now button below merchant code
-- `src/components/agent/AgentDepositCashDialog.tsx` — add Dial Now button for MTN/Airtel methods
+### 1. Install `boring-avatars` package
 
-No database or backend changes needed.
+### 2. `src/components/UserAvatar.tsx`
+- Remove `getRandomAvatarUrl` function (DiceBear)
+- Import `Avatar as BoringAvatar` from `boring-avatars`
+- When no custom `avatarUrl` exists, render a `<BoringAvatar>` component with `variant="marble"`, the user's name as seed, and the 5-color palette
+- When a custom `avatarUrl` exists, render the existing Radix avatar as before
+
+### 3. `src/components/manager/ActiveUsersCard.tsx` and `SimpleUserCard.tsx`
+- These use raw `<Avatar>` + `<AvatarImage>` with `user.avatar_url`. Update fallbacks to use a Boring Avatars marble SVG instead of initials text, using the same color palette.
+
+## No database or backend changes needed.
 
