@@ -19,7 +19,7 @@ interface CollectionItem {
   priority_score: number;
   latitude?: number | null;
   longitude?: number | null;
-  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  risk_level: 'low' | 'medium' | 'high' | 'critical' | 'completed';
 }
 
 interface Props {
@@ -36,7 +36,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
         .from('rent_requests')
         .select('tenant_id, rent_amount, daily_repayment, amount_repaid, total_repayment, disbursed_at, status, request_latitude, request_longitude')
         .eq('agent_id', agentId)
-        .in('status', ['approved', 'disbursed', 'active', 'funded', 'repaying']);
+        .neq('status', 'rejected');
 
       if (!requests?.length) return [];
 
@@ -55,7 +55,9 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
           ? Math.max(0, differenceInDays(new Date(), new Date(r.disbursed_at)) - Math.floor((r.amount_repaid || 0) / (r.daily_repayment || 1)))
           : 0;
         const priorityScore = daysOverdue * outstanding;
-        const risk: CollectionItem['risk_level'] = daysOverdue >= 10 ? 'critical' : daysOverdue >= 5 ? 'high' : daysOverdue >= 2 ? 'medium' : 'low';
+        const actualOutstanding = Math.max(0, outstanding);
+        const isCompleted = actualOutstanding === 0;
+        const risk: CollectionItem['risk_level'] = isCompleted ? 'completed' : daysOverdue >= 10 ? 'critical' : daysOverdue >= 5 ? 'high' : daysOverdue >= 2 ? 'medium' : 'low';
 
         return {
           tenant_id: r.tenant_id,
@@ -64,14 +66,18 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
           rent_amount: r.rent_amount,
           daily_repayment: r.daily_repayment,
           amount_repaid: r.amount_repaid || 0,
-          outstanding: Math.max(0, outstanding),
+          outstanding: actualOutstanding,
           days_overdue: daysOverdue,
           priority_score: priorityScore,
           latitude: r.request_latitude,
           longitude: r.request_longitude,
           risk_level: risk,
         };
-      }).filter(i => i.outstanding > 0).sort((a, b) => b.priority_score - a.priority_score);
+      }).sort((a, b) => {
+        if (a.risk_level === 'completed' && b.risk_level !== 'completed') return 1;
+        if (a.risk_level !== 'completed' && b.risk_level === 'completed') return -1;
+        return b.priority_score - a.priority_score;
+      });
 
       return items;
     },
@@ -84,6 +90,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
     medium: 'border-warning/30 bg-warning/5',
     high: 'border-destructive/30 bg-destructive/5',
     critical: 'border-destructive/50 bg-destructive/10 ring-1 ring-destructive/20',
+    completed: 'border-success/20 bg-success/5 opacity-75',
   };
 
   const riskLabels = {
@@ -91,6 +98,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
     medium: { text: 'Slipping', color: 'text-warning' },
     high: { text: 'Overdue', color: 'text-destructive' },
     critical: { text: '🚨 Critical', color: 'text-destructive font-bold' },
+    completed: { text: '✅ Paid Up', color: 'text-success' },
   };
 
   const totalOwed = queue.reduce((s, i) => s + i.outstanding, 0);
@@ -104,7 +112,7 @@ export function PriorityCollectionQueue({ open, onOpenChange, agentId }: Props) 
             Priority Collections
           </SheetTitle>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{queue.length} tenants need collection</span>
+            <span className="text-muted-foreground">{queue.length} tenants total</span>
             <span className="font-bold text-destructive">{formatUGX(totalOwed)} owed</span>
           </div>
         </SheetHeader>
