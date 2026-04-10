@@ -13,7 +13,7 @@ import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePa
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
-import { COOAgentTracker } from '@/components/coo/COOAgentTracker';
+import { COOAgentHub } from '@/components/coo/COOAgentHub';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -118,7 +118,7 @@ export default function COODashboardPage() {
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Agent Activity', Activity)}
-            <COOAgentTracker />
+            <COOAgentHub />
           </div>
         );
       case 'analytics':
