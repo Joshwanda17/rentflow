@@ -188,10 +188,10 @@ Deno.serve(async (req) => {
     }
 
     // 4. Get updated wallet balance
-    const { data: updatedProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("wallet_balance")
-      .eq("id", tenantId)
+    const { data: updatedWallet } = await supabaseAdmin
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", tenantId)
       .single();
 
     // 4. Get updated rent request
@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
         success: true,
         amount_paid: payAmount,
         remaining_balance: remainingBalance,
-        new_wallet_balance: updatedProfile?.wallet_balance ?? walletBalance - payAmount,
+        new_wallet_balance: updatedWallet?.balance ?? walletBalance - payAmount,
         rent_status: updatedRent?.status ?? rentRequest.status,
         reference: `PAY-${txnGroupId.slice(0, 8).toUpperCase()}`,
       }),
