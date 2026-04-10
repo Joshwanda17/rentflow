@@ -72,60 +72,16 @@ export default function CFOReconciliationPanel() {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['cfo-reconciliation'],
     queryFn: async () => {
-      const { data: wallets, error: wErr } = await supabase
-        .from('wallets')
-        .select('user_id, balance')
-        .gt('balance', 0)
-        .limit(500);
-      if (wErr) throw wErr;
+      const { data: rpcData, error } = await supabase.rpc('get_wallet_reconciliation');
+      if (error) throw error;
 
-      const { data: ledgerIn, error: lInErr } = await supabase
-        .from('general_ledger')
-        .select('user_id, amount')
-        .not('user_id', 'is', null)
-        .eq('direction', 'cash_in');
-
-      const { data: ledgerOut, error: lOutErr } = await supabase
-        .from('general_ledger')
-        .select('user_id, amount')
-        .not('user_id', 'is', null)
-        .eq('direction', 'cash_out');
-
-      if (lInErr || lOutErr) throw lInErr || lOutErr;
-
-      const ledgerBalances = new Map<string, number>();
-      for (const e of ledgerIn || []) {
-        if (e.user_id) ledgerBalances.set(e.user_id, (ledgerBalances.get(e.user_id) || 0) + e.amount);
-      }
-      for (const e of ledgerOut || []) {
-        if (e.user_id) ledgerBalances.set(e.user_id, (ledgerBalances.get(e.user_id) || 0) - e.amount);
-      }
-
-      const walletBalances = new Map<string, number>();
-      for (const w of wallets || []) walletBalances.set(w.user_id, w.balance);
-
-      const allUserIds = new Set([...walletBalances.keys(), ...ledgerBalances.keys()]);
-      const userIdsArray = Array.from(allUserIds);
-      const profileMap = new Map<string, string>();
-
-      for (let i = 0; i < userIdsArray.length; i += 200) {
-        const chunk = userIdsArray.slice(i, i + 200);
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', chunk);
-        for (const p of profiles || []) profileMap.set(p.id, p.full_name);
-      }
-
-      const rows: ReconciliationRow[] = [];
-      for (const userId of allUserIds) {
-        const walletBal = walletBalances.get(userId) || 0;
-        const ledgerBal = ledgerBalances.get(userId) || 0;
-        const disc = ledgerBal - walletBal;
-        if (walletBal > 0 || ledgerBal > 0 || Math.abs(disc) > 0) {
-          rows.push({ userId, userName: profileMap.get(userId) || 'Unknown', walletBalance: walletBal, ledgerBalance: ledgerBal, discrepancy: disc });
-        }
-      }
-
-      rows.sort((a, b) => Math.abs(b.discrepancy) - Math.abs(a.discrepancy));
-      return rows;
+      return (rpcData || []).map((r: any) => ({
+        userId: r.user_id,
+        userName: r.user_name || 'Unknown',
+        walletBalance: Number(r.wallet_balance) || 0,
+        ledgerBalance: Number(r.ledger_balance) || 0,
+        discrepancy: Number(r.discrepancy) || 0,
+      })) as ReconciliationRow[];
     },
     staleTime: 60_000,
   });
