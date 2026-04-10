@@ -125,20 +125,53 @@ Deno.serve(async (req) => {
             .update({ status: "approved", approved_at: new Date().toISOString(), processed_by: user.id })
             .eq("id", depositRequest.id);
 
-          // Ensure wallet row exists (trigger chain handles the actual credit)
+          // Ensure wallet row exists (sync_wallet_from_ledger handles actual balance)
           await supabaseAdmin
             .from("wallets")
             .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
 
+          // ── Ledger-first deposit credit (balanced double-entry) ──
+          const { error: depositLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                user_id: depositRequest.user_id,
+                amount: depositRequest.amount,
+                direction: 'cash_in',
+                category: 'wallet_deposit',
+                ledger_scope: 'wallet',
+                source_table: 'deposit_requests',
+                source_id: depositRequest.id,
+                reference_id: depositRequest.transaction_id || depositRequest.id,
+                description: `Wallet deposit via ${depositRequest.provider || 'mobile money'}`,
+                currency: 'UGX',
+                transaction_date: new Date().toISOString(),
+              },
+              {
+                direction: 'cash_in',
+                amount: depositRequest.amount,
+                category: 'wallet_deposit',
+                ledger_scope: 'platform',
+                source_table: 'deposit_requests',
+                source_id: depositRequest.id,
+                description: 'Platform records deposit inflow',
+                currency: 'UGX',
+                transaction_date: new Date().toISOString(),
+              },
+            ]),
+          });
+
+          if (depositLedgerErr) {
+            console.error(`[approve-deposit] Deposit ledger entry failed for ${depositRequest.id}:`, depositLedgerErr.message);
+            throw new Error(`Deposit ledger entry failed: ${depositLedgerErr.message}`);
+          }
+
           // ── Step 1: Auto-deduct rent repayment ──
-          // NOTE: We do NOT manually deduct from wallets for cash_out operations.
-          // The sync_wallet_from_ledger trigger automatically adjusts wallet balance
-          // when a ledger entry with transaction_group_id is inserted.
+          // The sync_wallet_from_ledger trigger has now credited the wallet.
           let repaymentApplied = 0;
           let rentRequestId: string | null = null;
           let newOutstanding = 0;
 
-          // Re-read wallet after credit to know available balance
+          // Re-read wallet after ledger credit to know available balance
           const { data: walletAfterCredit } = await supabaseAdmin
             .from("wallets")
             .select("balance")
