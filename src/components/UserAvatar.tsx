@@ -1,5 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User } from 'lucide-react';
+import BoringAvatar from 'boring-avatars';
+
+const MARBLE_COLORS = ['#7C3AED', '#A78BFA', '#4C1D95', '#DDD6FE', '#1E1B4B'];
 
 interface UserAvatarProps {
   avatarUrl?: string | null;
@@ -8,37 +10,26 @@ interface UserAvatarProps {
   className?: string;
 }
 
-/**
- * Generates a deterministic DiceBear "bottts" avatar URL based on a seed string.
- * These are robot/fintech-themed avatars that look finance-related.
- */
-function getRandomAvatarUrl(seed: string): string {
-  const encoded = encodeURIComponent(seed.trim().toLowerCase());
-  return `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encoded}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
-}
+const sizeMap = { sm: 32, md: 40, lg: 64 };
+const sizeClasses = { sm: 'h-8 w-8', md: 'h-10 w-10', lg: 'h-16 w-16' };
 
 export function UserAvatar({ avatarUrl, fullName, size = 'md', className = '' }: UserAvatarProps) {
-  const sizeClasses = {
-    sm: 'h-8 w-8',
-    md: 'h-10 w-10',
-    lg: 'h-16 w-16'
-  };
-
-  const iconSizes = {
-    sm: 'h-4 w-4',
-    md: 'h-5 w-5',
-    lg: 'h-8 w-8'
-  };
-
-  // Use uploaded avatar, or generate a deterministic robot avatar from the name
-  const effectiveAvatarUrl = avatarUrl || (fullName ? getRandomAvatarUrl(fullName) : undefined);
+  if (avatarUrl) {
+    return (
+      <Avatar className={`${sizeClasses[size]} ${className}`}>
+        <AvatarImage src={avatarUrl} alt={fullName || 'User avatar'} />
+        <AvatarFallback className="bg-primary/10 text-primary">
+          <BoringAvatar size={sizeMap[size]} name={fullName || 'user'} variant="marble" colors={MARBLE_COLORS} />
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
 
   return (
-    <Avatar className={`${sizeClasses[size]} ${className}`}>
-      <AvatarImage src={effectiveAvatarUrl || undefined} alt={fullName || 'User avatar'} />
-      <AvatarFallback className="bg-primary/10 text-primary">
-        <User className={iconSizes[size]} />
-      </AvatarFallback>
-    </Avatar>
+    <div className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden shrink-0`}>
+      <BoringAvatar size={sizeMap[size]} name={fullName || 'user'} variant="marble" colors={MARBLE_COLORS} square />
+    </div>
   );
 }
+
+export { MARBLE_COLORS };

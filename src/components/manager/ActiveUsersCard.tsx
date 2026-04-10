@@ -5,6 +5,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Users, Wifi, WifiOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import OnlineIndicator from '@/components/chat/OnlineIndicator';
+import BoringAvatar from 'boring-avatars';
+import { MARBLE_COLORS } from '@/components/UserAvatar';
 
 interface ActiveUser {
   id: string;
@@ -84,7 +86,7 @@ export function ActiveUsersCard({ activeUsers, totalUsers, onUserClick }: Active
                     <Avatar className="h-10 w-10 border-2 border-background">
                       <AvatarImage src={user.avatar_url || undefined} />
                       <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
-                        {getInitials(user.full_name)}
+                        <BoringAvatar size={40} name={user.full_name} variant="marble" colors={MARBLE_COLORS} />
                       </AvatarFallback>
                     </Avatar>
                     <OnlineIndicator 
