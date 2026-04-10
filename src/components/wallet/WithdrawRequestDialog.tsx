@@ -66,6 +66,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
+  const [pendingAmount, setPendingAmount] = useState(0);
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');

@@ -248,23 +248,30 @@ export function ApprovalQueue() {
           ids.length = 0;
           ids.push(...rejectedIds);
         } else {
-          const updateFields: Record<string, unknown> = {
-            status: 'fin_ops_verified',
-            fin_ops_verified_by: user.id,
-            fin_ops_verified_at: new Date().toISOString(),
-            fin_ops_reference: payoutProof.trim().toUpperCase(),
-            updated_at: new Date().toISOString(),
-          };
+          // Ledger-first: approve each withdrawal via the edge function
           const selectedItem = items.find(i => selected.has(i.id));
           const method = selectedItem?.payoutDetails?.method || 'mobile_money';
-          updateFields.payout_proof_type = method === 'bank_transfer' ? 'bank_reference' : method === 'cash' ? 'payment_voucher' : 'momo_tid';
+          const paymentMethodLabel = method === 'bank_transfer' ? 'bank_transfer' : method === 'cash' ? 'cash' : (selectedItem?.payoutDetails?.provider || 'mobile_money');
 
-          const { error } = await supabase.from('withdrawal_requests')
-            .update(updateFields)
-            .in('id', ids);
-          if (error) throw error;
+          const approvalResults: string[] = [];
+          for (const id of ids) {
+            const { data: approveData, error: approveErr } = await supabase.functions.invoke('approve-withdrawal', {
+              body: {
+                withdrawal_id: id,
+                reference: payoutProof.trim().toUpperCase(),
+                payment_method: paymentMethodLabel,
+              },
+            });
+            if (approveErr || approveData?.error) {
+              console.error(`[ApprovalQueue] approve-withdrawal failed for ${id}:`, approveErr || approveData?.error);
+              toast.warning(`Failed to approve ${id.slice(0, 8)}: ${approveData?.error || 'unknown error'}`);
+            } else {
+              approvalResults.push(id);
+            }
+          }
 
-          const cashItems = items.filter(i => selected.has(i.id) && i.payoutDetails?.method === 'cash');
+          // Handle cash payout codes for cash withdrawals
+          const cashItems = items.filter(i => approvalResults.includes(i.id) && i.payoutDetails?.method === 'cash');
           if (cashItems.length > 0) {
             for (const ci of cashItems) {
               const code = 'WPO-' + Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -281,6 +288,10 @@ export function ApprovalQueue() {
                 .eq('id', ci.id);
             }
           }
+
+          // Override ids with only successful approvals
+          ids.length = 0;
+          ids.push(...approvalResults);
         }
       }
 

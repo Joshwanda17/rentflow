@@ -90,39 +90,20 @@ export function FinOpsWithdrawalVerification() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // Single-step: Approve with TID/Receipt/Bank Ref → approved (final)
+  // Single-step: Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
   const handleApprove = async () => {
     if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
     setProcessing(selected.id);
     try {
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'approved',
-          fin_ops_reference: reference.trim().toUpperCase(),
-          fin_ops_payment_method: paymentMethod,
-          fin_ops_approved_at: new Date().toISOString(),
-          fin_ops_approved_by: user.id,
-          fin_ops_verified_by: user.id,
-          fin_ops_verified_at: new Date().toISOString(),
-          processed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq('id', selected.id);
-      if (error) throw error;
-
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'fin_ops_complete_withdrawal',
-        record_id: selected.id,
-        table_name: 'withdrawal_requests',
-        metadata: {
-          amount: selected.amount,
-          target_user: selected.user_id,
+      const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
+        body: {
+          withdrawal_id: selected.id,
           reference: reference.trim().toUpperCase(),
           payment_method: paymentMethod,
         },
       });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success('Withdrawal approved & completed!');
       setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
