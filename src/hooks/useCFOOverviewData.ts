@@ -147,7 +147,8 @@ export function useCFOOverviewData() {
       const { data: entries } = await supabase
         .from('general_ledger')
         .select('amount, direction, category, created_at')
-        .eq('ledger_scope', LEDGER_SCOPE.PLATFORM);
+        .eq('ledger_scope', LEDGER_SCOPE.PLATFORM)
+        .in('classification', ['production', 'legacy_real']);
 
       let totalRevenue = 0;
       let totalExpenses = 0;
@@ -247,7 +248,8 @@ export function useCFOOverviewData() {
       const { data: entries } = await supabase
         .from('general_ledger')
         .select('amount, direction, category, created_at')
-        .eq('ledger_scope', LEDGER_SCOPE.PLATFORM);
+        .eq('ledger_scope', LEDGER_SCOPE.PLATFORM)
+        .in('classification', ['production', 'legacy_real']);
 
       const cashIn = { partnerFunding: 0, tenantRepayments: 0, other: 0 };
       const cashOut = { rentPayments: 0, roiPayouts: 0, advances: 0, other: 0 };
@@ -300,7 +302,8 @@ export function useCFOOverviewData() {
         .from('general_ledger')
         .select('amount, direction, category')
         .gte('created_at', `${todayStr}T00:00:00`)
-        .lt('created_at', `${todayStr}T23:59:59.999`);
+        .lt('created_at', `${todayStr}T23:59:59.999`)
+        .in('classification', ['production', 'legacy_real']);
 
       let cashInToday = 0;
       let cashOutToday = 0;
@@ -342,7 +345,8 @@ export function useCFOOverviewData() {
       const { data: ledgerEntries } = await supabase
         .from('general_ledger')
         .select('user_id, amount, direction')
-        .eq('ledger_scope', 'wallet');
+        .eq('ledger_scope', 'wallet')
+        .in('classification', ['production', 'legacy_real']);
 
       // Build ledger balances per user
       const ledgerBalances: Record<string, number> = {};
