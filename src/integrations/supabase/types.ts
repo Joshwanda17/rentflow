@@ -10023,6 +10023,17 @@ export type Database = {
             Returns: string
           }
       lookup_ai_id: { Args: { p_ai_id: string }; Returns: Json }
+      lookup_invite_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          activated_user_id: string
+          email: string
+          full_name: string
+          phone: string
+          role: string
+          status: string
+        }[]
+      }
       lookup_profile_by_phone_last9: {
         Args: { phone_last9: string }
         Returns: {

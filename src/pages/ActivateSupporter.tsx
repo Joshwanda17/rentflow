@@ -120,12 +120,9 @@ export default function ActivateSupporter() {
 
     const fetchInvite = async (attempt = 1) => {
       try {
-        const { data, error } = await supabase
-          .from('supporter_invites')
-          .select('full_name, status, role, email, phone, activated_user_id')
-          .eq('activation_token', normalizedToken)
-          .limit(1)
-          .maybeSingle();
+        const { data: rpcData, error } = await supabase
+          .rpc('lookup_invite_by_token', { p_token: normalizedToken });
+        const data = rpcData && rpcData.length > 0 ? rpcData[0] : null;
 
         if (cancelled) return;
 
