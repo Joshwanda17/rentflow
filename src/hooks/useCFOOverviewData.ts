@@ -298,23 +298,33 @@ export function useCFOOverviewData() {
 
       const { data: entries } = await supabase
         .from('general_ledger')
-        .select('amount, direction')
+        .select('amount, direction, category')
         .gte('created_at', `${todayStr}T00:00:00`)
         .lt('created_at', `${todayStr}T23:59:59.999`);
 
       let cashInToday = 0;
       let cashOutToday = 0;
+      const inflowCategories: Record<string, number> = {};
+      const outflowCategories: Record<string, number> = {};
 
       ((entries as any[]) || []).forEach((e) => {
         const amt = Number(e.amount);
-        if (e.direction === 'cash_in') cashInToday += amt;
-        else if (e.direction === 'cash_out') cashOutToday += amt;
+        const cat = (e.category as string) || 'uncategorized';
+        if (e.direction === 'cash_in') {
+          cashInToday += amt;
+          inflowCategories[cat] = (inflowCategories[cat] || 0) + amt;
+        } else if (e.direction === 'cash_out') {
+          cashOutToday += amt;
+          outflowCategories[cat] = (outflowCategories[cat] || 0) + amt;
+        }
       });
 
       return {
         cashInToday,
         cashOutToday,
         netToday: cashInToday - cashOutToday,
+        inflowCategories,
+        outflowCategories,
       };
     },
     staleTime: 60_000, // 1 minute for today's data
