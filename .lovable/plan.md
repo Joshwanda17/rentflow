@@ -1,67 +1,29 @@
 
 
-# Redesign COO Agent Activity Tab — Executive-Grade Agent Tracker
+# Fix COO Agent Hub — Data Not Loading
 
-## What Changes
-Replace the current `COOAgentTracker` component (used in the COO dashboard's "Agent Activity" tab) with a new two-panel, executive-grade agent management hub inspired by the reference image.
+## Root Cause
+The hub fetches all agent user IDs (5,772) then passes them into `.in('id', ids)` calls. This creates URLs with thousands of UUIDs that exceed HTTP URL length limits, returning **400 Bad Request**. All subsequent queries (wallets, earnings, rent_requests, landlord_assignments) fail the same way.
 
-## Layout
+## Solution
+Create a database function (RPC) that performs all joins server-side and returns paginated, pre-aggregated agent data. This eliminates the massive `.in()` calls entirely.
 
-```text
-┌──────────────────────┬──────────────────────────────────────────┐
-│  LEFT PANEL (280px)  │  RIGHT PANEL (flex-1)                   │
-│  Deep blue bg        │                                         │
-│                      │  [Search] [Status Filter] [Sort By]     │
-│  All Agents  (42)    │                                         │
-│  Active      (38)    │  ┌─ Agent Row ─────────────────────┐    │
-│  Inactive    (2)     │  │ Name  Tenants  Landlords  Comm  │    │
-│  Pending     (1)     │  │ Wallet  Status         Actions  │    │
-│  Top Perf.   (5)     │  └─────────────────────────────────┘    │
-│  At Risk     (3)     │  ┌─ Agent Row ─────────────────────┐    │
-│                      │  │ ...                              │    │
-│  ── KPI Summary ──   │  └─────────────────────────────────┘    │
-│  Total Commission    │                                         │
-│  Total Collections   │  ── Agent Detail Drawer (on click) ──   │
-│  Avg Wallet Bal.     │  Profile | Wallet | Commissions |       │
-│                      │  Linked Tenants & Landlords |           │
-│                      │  Recent Activity Timeline               │
-└──────────────────────┴──────────────────────────────────────────┘
-```
+### 1. Database Migration — Create `get_agents_hub` RPC
 
-On mobile, the left panel collapses to a horizontal scrollable chip bar.
+A PostgreSQL function that:
+- Joins `user_roles` (role='agent') → `profiles` → aggregates from `wallets`, `agent_earnings`, `rent_requests`, `agent_landlord_assignments`
+- Accepts parameters: `search_query text`, `sort_field text`, `sort_dir text`, `page_limit int`, `page_offset int`
+- Returns: `id, full_name, phone, territory, last_active_at, wallet_balance, total_commission, tenants_count, landlords_count`
+- All aggregation happens in SQL (COUNT DISTINCT for tenants/landlords, SUM for earnings)
 
-## Data Fetching
-- **Agents list**: Query `profiles` where role = `agent`, joined with:
-  - `rent_requests` count (grouped by `assigned_agent_id`) for tenants managed
-  - `properties` or `landlord_profiles` count for landlords onboarded
-  - `agent_earnings` sum for total commission
-  - `wallets` for wallet balance
-  - `last_active_at` from profiles for status classification
-- **Status classification**: Active (last_active < 7d), Inactive (7-30d), At Risk (30d+), Pending (no activity), Top Performers (commission > threshold)
-- **Realtime**: Subscribe to `profiles` changes for agent status updates
+### 2. Update `COOAgentHub.tsx`
 
-## Agent Detail Panel (slide-in on row click)
-- Profile card (name, phone, email, joined date)
-- Wallet balance with mini-chart
-- Commission history (last 10 entries from `agent_earnings`)
-- Linked tenants (from `rent_requests`)
-- Linked landlords (from properties/assignments)
-- Recent activity timeline (from `agent_visits`, `agent_collections`)
+- Replace the 6 separate Supabase queries with a single `supabase.rpc('get_agents_hub', { ... })` call
+- Pass search, sort, and pagination params directly to the RPC
+- Status classification (`classifyAgent`) stays client-side since it's lightweight
+- Add pagination (load more / infinite scroll) since 5,772 agents shouldn't render at once
 
-## Files Changed
-
-### New Files
-- **`src/components/coo/COOAgentHub.tsx`** — Main two-panel layout with left nav, right content, filters, search, sort, and agent detail drawer
-- **`src/components/coo/AgentDetailDrawer.tsx`** — Slide-in panel showing full agent profile, wallet, commissions, linked tenants/landlords, and activity timeline
-
-### Edited Files
-- **`src/pages/coo/Dashboard.tsx`** — Replace `<COOAgentTracker />` with `<COOAgentHub />` in the `agent-activity` case
-- **`src/components/layout/executiveSidebarConfig.ts`** — Rename "Agent Activity" to "Agents" for clarity
-
-## Visual Style
-- Left panel: `bg-[#1a1f3d]` (deep navy), white text, large bold category labels, counts in badges
-- Right panel: White/card background, clean table rows with subtle hover states
-- Status indicators: Green dot (Active), Gray (Inactive), Yellow (Pending), Red (At Risk), Gold star (Top Performer)
-- Bold typography, generous whitespace, strong visual hierarchy
-- Accessible contrast ratios, keyboard-navigable rows and filters
+### Files Changed
+- **Migration**: New RPC function `get_agents_hub`
+- **Edit**: `src/components/coo/COOAgentHub.tsx` — replace data fetching with single RPC call + pagination
 
