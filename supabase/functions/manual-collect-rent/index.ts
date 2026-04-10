@@ -177,11 +177,29 @@ Deno.serve(async (req) => {
 
     await supabase.rpc("record_rent_request_repayment", { p_tenant_id: rr.tenant_id, p_amount: totalCollected });
 
-    if (rr.id && totalCollected > 0) {
-      await supabase.rpc("credit_agent_rent_commission", {
-        p_rent_request_id: rr.id, p_repayment_amount: totalCollected,
-        p_tenant_id: rr.tenant_id, p_event_reference_id: `manual-collect-${crypto.randomUUID()}`,
+    const commission = Math.round(totalCollected * 0.10);
+    if (commission > 0 && rr.agent_id) {
+      const commissionTxDate = new Date().toISOString();
+      const { error: commErr } = await supabase.rpc('create_ledger_transaction', {
+        entries: [
+          {
+            user_id: rr.agent_id, ledger_scope: 'wallet', direction: 'cash_in',
+            amount: commission, category: 'agent_commission_earned',
+            source_table: 'rent_requests', source_id: rr.id,
+            description: `10% commission on manual rent collection for ${tenantName}`,
+            currency: 'UGX', transaction_date: commissionTxDate,
+          },
+          {
+            user_id: rr.agent_id, ledger_scope: 'platform', direction: 'cash_out',
+            amount: commission, category: 'agent_commission_earned',
+            source_table: 'rent_requests', source_id: rr.id,
+            description: `Commission expense: manual collection for ${tenantName}`,
+            currency: 'UGX', transaction_date: commissionTxDate,
+          },
+        ],
+        idempotency_key: `manual-collect-commission-${rr.id}-${commissionTxDate}`,
       });
+      if (commErr) console.error("[manual-collect-rent] Commission ledger error:", commErr);
     }
 
     const remainingBalance = outstanding - totalCollected;
@@ -198,7 +216,8 @@ Deno.serve(async (req) => {
     await supabase.from("audit_logs").insert({
       user_id: user.id, action_type: "manual_rent_collection", table_name: "rent_requests", record_id: rent_request_id,
       metadata: { reason: trimmedReason, tenant_id: rr.tenant_id, tenant_name: tenantName, agent_id: rr.agent_id,
-        total_collected: totalCollected, tenant_deducted: tenantDeducted, agent_deducted: agentDeducted },
+        total_collected: totalCollected, tenant_deducted: tenantDeducted, agent_deducted: agentDeducted,
+        commission_paid: commission },
     });
 
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
@@ -210,6 +229,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true, total_collected: totalCollected, tenant_deducted: tenantDeducted,
       agent_deducted: agentDeducted, remaining_shortfall: shortfall, tenant_name: tenantName,
+      commission_paid: commission,
     }), { status: 200, headers: corsContentType });
 
   } catch (error) {
