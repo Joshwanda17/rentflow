@@ -253,9 +253,14 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           >
             <div className="flex items-center gap-2">
               <Wallet className="h-4 w-4 text-white/80" />
-              <span className="text-white/70 text-xs font-medium">Withdrawable Balance</span>
+              <span className="text-white/70 text-xs font-medium">Available Balance</span>
             </div>
-            <span className="text-white text-xl font-black tracking-tight">{formatCurrency(walletBalance)}</span>
+            <div className="text-right">
+              <span className="text-white text-xl font-black tracking-tight">{formatCurrency(availableBalance)}</span>
+              {pendingAmount > 0 && (
+                <p className="text-white/50 text-[10px]">{formatCurrency(pendingAmount)} pending</p>
+              )}
+            </div>
           </motion.div>
         </div>
 

@@ -97,9 +97,9 @@ Deno.serve(async (req) => {
 
         if (!restoreErr) refunded = true;
       } else {
-        // For wallet withdrawals, the deduct_wallet_on_withdrawal_request trigger
-        // already deducted from the wallet at request time. On rejection, we need
-        // to restore via a balanced ledger reversal.
+        // For wallet withdrawals: In the new ledger-first flow, no deduction happens at
+        // request time — so there's nothing to refund. Check if a prior deduction exists
+        // before attempting a reversal (backwards compatibility with old-flow requests).
         const txGroupId = `wallet-reject-${wId}`;
         const { data: existing } = await admin
           .from('general_ledger')
@@ -107,8 +107,20 @@ Deno.serve(async (req) => {
           .eq('transaction_group_id', txGroupId)
           .limit(1);
 
-        if (!existing || existing.length === 0) {
-          // Restore wallet balance via balanced RPC
+        // Check if there was a prior deduction for this withdrawal (old flow)
+        const { data: priorDeduction } = await admin
+          .from('general_ledger')
+          .select('id')
+          .eq('source_id', wId)
+          .eq('source_table', 'withdrawal_requests')
+          .eq('direction', 'cash_out')
+          .eq('ledger_scope', 'wallet')
+          .limit(1);
+
+        const hasPriorDeduction = priorDeduction && priorDeduction.length > 0;
+
+        if (hasPriorDeduction && (!existing || existing.length === 0)) {
+          // Old-flow request: wallet was deducted at request time, so restore via balanced RPC
           const { error: rpcErr } = await admin.rpc('create_ledger_transaction', {
             entries: JSON.stringify([
               {
@@ -138,7 +150,8 @@ Deno.serve(async (req) => {
           });
           if (rpcErr) console.error(`[reject-withdrawal] RPC error for ${wId}:`, rpcErr);
         }
-        refunded = true;
+        // New-flow requests: no deduction happened, so no refund needed
+        refunded = hasPriorDeduction ? true : false;
       }
 
       // Update the withdrawal status
