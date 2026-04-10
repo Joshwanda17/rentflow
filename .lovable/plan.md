@@ -1,34 +1,71 @@
 
 
-# Fix: Pending Approval Queue Navigates to Wrong Tab
+# Fix: Reconciliation Panel Shows 0 Users (Missing RPC)
 
-## Problem
-The "Pending Approval Queue" on the CFO Overview counts **7 pending items from `pending_wallet_operations`** (wallet deposits, portfolio top-ups, etc.), but the "View All →" button navigates to the **Withdrawals tab**, which queries a completely different table (`withdrawal_requests`). That's why you only see 1 item there.
+## Root Cause
 
-### Current Database State
-The 7 pending items are:
-- 2 portfolio top-ups (2.6M + 100K)
-- 5 wallet deposits (40K, 19.5K, 19.2K, 21.2K, 21K)
+The **Wallet vs Ledger Reconciliation** panel calls `get_wallet_reconciliation` RPC — but that function **does not exist** in the database. The call silently fails (or returns null), so the panel renders "0 users, All Balanced."
 
-**None of these are withdrawals.** They belong in the CFO's pending wallet operations approval queue.
+Meanwhile, the **Ledger Integrity** widget uses `get_ledger_integrity_checks`, which correctly finds **4 users with wallet/ledger drift**.
 
-## Fix — Two Changes
+### The 4 Drifted Users
+| User ID | Wallet | Ledger | Drift |
+|---------|--------|--------|-------|
+| 9f1b35… | 1,100,000 | 0 | +1.1M |
+| 6b7d9e… | 600,000 | 0 | +600K |
+| 27d5a0… | 75,000 | 0 | +75K |
+| bd266f… | 0 | 5,000 | -5K |
 
-### 1. Route "View All →" to the Correct Tab
-In `CFOOverviewDashboard.tsx`, change `onTabChange?.('withdrawals')` to `onTabChange?.('approvals')` (or whichever tab hosts the `PendingWalletOperationsWidget`).
+## Fix — Two Steps
 
-### 2. Ensure FinOps Withdrawal Tab Also Shows `approved`/`manager_approved`
-Currently `FinOpsWithdrawalVerification.tsx` only queries `status IN ['pending', 'requested']`. There are ~18 withdrawal requests stuck at `approved` or `manager_approved` that FinOps should see and finalize. Update the filter to include those statuses so FinOps can complete them.
+### 1. Create the Missing `get_wallet_reconciliation` RPC (Migration)
 
-**Files changed:**
-- `src/components/cfo/CFOOverviewDashboard.tsx` — fix "View All" navigation target
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — expand status filter to include `approved`, `manager_approved`
-
-### Technical Detail
+```sql
+CREATE OR REPLACE FUNCTION public.get_wallet_reconciliation()
+RETURNS TABLE(
+  user_id uuid,
+  user_name text,
+  wallet_balance numeric,
+  ledger_balance numeric,
+  discrepancy numeric
+)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    w.user_id,
+    COALESCE(p.full_name, 'Unknown') AS user_name,
+    w.balance AS wallet_balance,
+    COALESCE(lb.ledger_balance, 0) AS ledger_balance,
+    ROUND((w.balance - COALESCE(lb.ledger_balance, 0))::numeric, 2) AS discrepancy
+  FROM wallets w
+  LEFT JOIN profiles p ON p.id = w.user_id
+  LEFT JOIN (
+    SELECT gl.user_id,
+           SUM(CASE WHEN gl.direction = 'cash_in' THEN gl.amount ELSE 0 END)
+           - SUM(CASE WHEN gl.direction = 'cash_out' THEN gl.amount ELSE 0 END) AS ledger_balance
+    FROM general_ledger gl
+    WHERE gl.ledger_scope = 'wallet' AND gl.user_id IS NOT NULL
+    GROUP BY gl.user_id
+  ) lb ON lb.user_id = w.user_id
+  ORDER BY ABS(w.balance - COALESCE(lb.ledger_balance, 0)) DESC;
+$$;
 ```
-pending_wallet_operations (7 pending) ← CFO approves these
-withdrawal_requests (1 pending, 18 approved) ← FinOps finalizes these
-```
 
-The Pending Approval Queue should route to wherever the CFO reviews `pending_wallet_operations`, not to the withdrawal verification tab.
+This returns all wallets with their ledger-computed balance and discrepancy, joined to profile names. The reconciliation panel's existing code already expects exactly these columns (`user_id`, `user_name`, `wallet_balance`, `ledger_balance`, `discrepancy`).
+
+### 2. No Code Changes Needed
+
+The `CFOReconciliationPanel.tsx` already correctly:
+- Calls `get_wallet_reconciliation`
+- Maps the result to `ReconciliationRow`
+- Filters by matched/mismatched
+- Shows summary stats (Total Users, Matched, Mismatched, Total Gap)
+
+Once the RPC exists, the panel will immediately show all users and highlight the 4 with drift.
+
+## Impact
+- Reconciliation panel will show real data instead of "0 users"
+- Both panels (Reconciliation + Ledger Integrity) will agree on drift count
+- No UI code changes required
 
