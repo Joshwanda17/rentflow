@@ -62,8 +62,8 @@ export function AgentWalletHeroCard({
               </p>
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-[10px] font-medium text-white/50">
-                Withdrawable: {formatAmountCompact(commissionBalance)} · Locked: {formatAmountCompact(floatBalance)}
+              <span className="text-[20px] font-bold text-white/80">
+                Withdrawable: {formatAmountCompact(commissionBalance)}
               </span>
             </div>
           </button>
