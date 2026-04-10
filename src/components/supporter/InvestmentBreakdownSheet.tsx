@@ -37,6 +37,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const { formatAmount } = useCurrency();
   const { wallet, refreshWallet } = useWallet();
   const [entries, setEntries] = useState<InvestmentEntry[]>([]);
+  const [pendingByPortfolio, setPendingByPortfolio] = useState<Record<string, { count: number; total: number }>>({});
   const [loading, setLoading] = useState(true);
   const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
   const [payoutTarget, setPayoutTarget] = useState<{ id: string; name: string } | null>(null);
@@ -102,9 +103,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
       if (e1 || e2) { console.error(e1 || e2); setEntries([]); return; }
       const seen = new Set<string>();
       const result: InvestmentEntry[] = [];
+      const portfolioIds: string[] = [];
       for (const p of [...(byInvestor || []), ...(byAgent || [])]) {
         if (seen.has(p.id)) continue;
         seen.add(p.id);
+        portfolioIds.push(p.id);
         result.push({
           id: p.id, code: p.portfolio_code, account_name: (p as any).account_name || null, amount: Number(p.investment_amount),
           roi_percentage: Number(p.roi_percentage), roi_mode: p.roi_mode,
@@ -115,10 +118,33 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
         });
       }
       setEntries(result);
+
+      // Fetch pending top-ups for all portfolios
+      if (portfolioIds.length > 0) {
+        const { data: pendingOps } = await supabase
+          .from('pending_wallet_operations')
+          .select('source_id, amount')
+          .in('source_id', portfolioIds)
+          .eq('source_table', 'investor_portfolios')
+          .eq('operation_type', 'portfolio_topup')
+          .eq('status', 'pending');
+
+        const pending: Record<string, { count: number; total: number }> = {};
+        (pendingOps || []).forEach((op: any) => {
+          const key = op.source_id;
+          if (!pending[key]) pending[key] = { count: 0, total: 0 };
+          pending[key].count++;
+          pending[key].total += Number(op.amount);
+        });
+        setPendingByPortfolio(pending);
+      } else {
+        setPendingByPortfolio({});
+      }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
   const totalInvested = entries.reduce((s, a) => s + a.amount, 0);
+  const totalPending = Object.values(pendingByPortfolio).reduce((s, p) => s + p.total, 0);
   const totalEarned = entries.reduce((s, a) => s + a.total_earned, 0);
   const expectedMonthly = entries.reduce((s, a) => s + a.amount * (a.roi_percentage / 100), 0);
 
@@ -164,8 +190,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
                   <CircleDollarSign className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
-                  <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Capital</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Active Capital</p>
                   <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate"><CompactAmount value={totalInvested} /></p>
+                  {totalPending > 0 && (
+                    <p className="text-[9px] font-semibold text-warning mt-0.5">+<CompactAmount value={totalPending} /> pending</p>
+                  )}
                 </div>
                 <div>
                   <ArrowUpRight className="h-3.5 w-3.5 text-success mx-auto mb-1 opacity-60" />
@@ -294,8 +323,15 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         {/* Balance row */}
                         <div className="px-4 pb-3 flex items-end justify-between">
                           <div>
-                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Active Capital</p>
                             <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight"><CompactAmount value={entry.amount} /></p>
+                            {pendingByPortfolio[entry.id] && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded-full">
+                                  ⏳ +<CompactAmount value={pendingByPortfolio[entry.id].total} /> pending
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">
