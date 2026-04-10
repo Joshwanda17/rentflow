@@ -36,7 +36,7 @@ export function ChannelBalanceTracker() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('amount, payout_method, status, created_at')
+        .select('amount, payout_method, mobile_money_provider, status, created_at')
         .in('status', FINAL_WITHDRAWAL_STATUSES)
         .limit(200);
       if (error) throw error;
