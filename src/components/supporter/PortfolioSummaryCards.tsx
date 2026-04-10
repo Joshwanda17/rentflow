@@ -62,7 +62,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
               </p>
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs font-bold text-white/70">
+              <span className="text-xs font-bold text-primary-foreground">
                 Withdrawable: {formatAmountCompact(walletBalance)}
               </span>
             </div>
