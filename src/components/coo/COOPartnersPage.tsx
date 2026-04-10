@@ -2767,6 +2767,171 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     }
   };
 
+  // Handle Split click — transition to split-config step
+  const handleSplitClick = async (p: NearingPayoutPortfolio) => {
+    const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
+    setSelectedPayout(p);
+    setSplitCashAmount(Math.round(roiAmount / 2)); // Default 50/50
+    setSplitPayMode('wallet');
+    setPaymentStep('split-config');
+
+    // Check managed status
+    if (managedInfo[p.portfolioId] === undefined) {
+      setCheckingManagedStep2(true);
+      try {
+        const { data: proxyData } = await supabase
+          .from('proxy_agent_assignments')
+          .select('agent_id, is_managed_account, agent:agent_id(full_name)')
+          .eq('beneficiary_id', p.investorId)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+        if (proxyData) {
+          const agentName = (proxyData.agent as any)?.full_name || 'Agent';
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: { isManaged: !!proxyData.is_managed_account, agentName, agentId: proxyData.agent_id, hasProxy: true } }));
+          if (proxyData.is_managed_account) setSplitPayMode('agent_wallet');
+        } else {
+          setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+        }
+      } catch {
+        setManagedInfo(prev => ({ ...prev, [p.portfolioId]: null }));
+      } finally {
+        setCheckingManagedStep2(false);
+      }
+    } else if (managedInfo[p.portfolioId]?.isManaged) {
+      setSplitPayMode('agent_wallet');
+    }
+  };
+
+  // Handle Split Payout — cash portion to pending_wallet_operations, reinvest portion to portfolio
+  const handleSplitPayout = async (p: NearingPayoutPortfolio, cashAmount: number, reason: string, payMode: 'wallet' | 'agent_wallet' | 'already_paid') => {
+    setProcessing(prev => ({ ...prev, [p.portfolioId]: 'split' }));
+    try {
+      const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
+      const reinvestAmount = roiAmount - cashAmount;
+      if (cashAmount < 1 || reinvestAmount < 1) throw new Error('Both cash and reinvest amounts must be at least 1');
+
+      const refId = generateRef('SPL');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const managed = managedInfo[p.portfolioId];
+      const isProxyAgent = payMode === 'agent_wallet' && managed;
+      const modeLabel = payMode === 'agent_wallet' ? 'Agent Wallet' : payMode === 'wallet' ? 'Wallet' : 'Cash';
+      const txnGroupId = crypto.randomUUID();
+
+      // ── Advance next_roi_date ──
+      const nextDate = new Date();
+      nextDate.setMonth(nextDate.getMonth() + 1);
+
+      // ── Reinvest portion: add to principal ──
+      const newPrincipal = p.investmentAmount + reinvestAmount;
+      const { error: upErr } = await supabase
+        .from('investor_portfolios')
+        .update({ investment_amount: newPrincipal, next_roi_date: nextDate.toISOString().split('T')[0] })
+        .eq('id', p.portfolioId);
+      if (upErr) throw upErr;
+
+      // Reinvest ledger entry
+      await supabase.from('general_ledger').insert({
+        user_id: p.investorId,
+        amount: reinvestAmount,
+        direction: 'cash_in',
+        category: 'roi_compounding',
+        source_table: 'investor_portfolios',
+        source_id: p.portfolioId,
+        reference_id: refId,
+        description: `[Split ROI] ${formatUGX(reinvestAmount)} reinvested into principal. New principal: ${formatUGX(newPrincipal)}. Cash portion: ${formatUGX(cashAmount)} via ${modeLabel}. Reason: ${reason}`,
+        currency: 'UGX',
+        linked_party: user.id,
+      });
+
+      // ── Cash portion: submit to pending_wallet_operations for CFO approval ──
+      const operationType = payMode === 'agent_wallet' ? 'roi_split_agent_wallet' : payMode === 'wallet' ? 'roi_split_cash' : 'roi_split_already_paid';
+      const { error: pendErr } = await supabase.from('pending_wallet_operations').insert({
+        user_id: p.investorId,
+        amount: cashAmount,
+        direction: 'cash_in',
+        category: 'roi_payout',
+        source_table: 'investor_portfolios',
+        source_id: p.portfolioId,
+        reference_id: refId,
+        operation_type: operationType,
+        transaction_group_id: txnGroupId,
+        target_wallet_user_id: isProxyAgent ? managed.agentId : null,
+        description: isProxyAgent
+          ? `[Split ROI → Agent Wallet] Cash portion ${formatUGX(cashAmount)} to ${managed.agentName}'s agent wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`
+          : `[Split ROI → ${modeLabel}] Cash portion ${formatUGX(cashAmount)} to ${p.name}'s wallet. Reinvested: ${formatUGX(reinvestAmount)}. Total ROI: ${formatUGX(roiAmount)}. Reason: ${reason}`,
+        linked_party: user.id,
+        status: 'pending',
+        metadata: {
+          partner_name: p.name,
+          roi_percentage: p.roiPercentage,
+          investment_amount: p.investmentAmount,
+          initiated_by: user.id,
+          reason,
+          pay_mode: payMode,
+          split_payout: true,
+          cash_amount: cashAmount,
+          reinvest_amount: reinvestAmount,
+          total_roi: roiAmount,
+          new_principal: newPrincipal,
+          ...(isProxyAgent ? { target_agent_name: managed.agentName, target_agent_id: managed.agentId } : {}),
+        },
+      });
+      if (pendErr) throw pendErr;
+
+      // ── Audit log ──
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'roi_split_payout',
+        table_name: 'investor_portfolios',
+        record_id: p.portfolioId,
+        metadata: {
+          roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount,
+          new_principal: newPrincipal, reference: refId, partner_id: p.investorId, partner_name: p.name,
+          reason, pay_mode: payMode,
+          ...(isProxyAgent ? { target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
+        },
+      });
+
+      // ── Notifications ──
+      await supabase.from('notifications').insert({
+        user_id: p.investorId,
+        title: '✂️ Split ROI Processed',
+        message: `Your ROI of ${formatUGX(roiAmount)} has been split: ${formatUGX(cashAmount)} ${payMode === 'already_paid' ? 'paid via cash' : 'sent to your wallet (pending approval)'}, and ${formatUGX(reinvestAmount)} reinvested into your portfolio. New principal: ${formatUGX(newPrincipal)}. Ref: ${refId}`,
+        type: 'payout_initiated',
+        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount, reference: refId },
+      });
+
+      // Notify CFO
+      const { data: cfoUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'cfo');
+      if (cfoUsers?.length) {
+        await supabase.from('notifications').insert(
+          cfoUsers.map((c: any) => ({
+            user_id: c.user_id,
+            title: '✂️ Split ROI Payout Pending',
+            message: `${p.name}: ${formatUGX(cashAmount)} cash (${modeLabel}) + ${formatUGX(reinvestAmount)} reinvested. Awaiting approval. Ref: ${refId}`,
+            type: 'approval_needed',
+            metadata: { portfolio_id: p.portfolioId, reference: refId, cash_amount: cashAmount, reinvest_amount: reinvestAmount },
+          }))
+        );
+      }
+
+      toast.success(`Split payout for ${p.name}`, {
+        description: `${formatUGX(cashAmount)} to ${modeLabel} · ${formatUGX(reinvestAmount)} reinvested · Ref: ${refId}`,
+      });
+      setCompleted(prev => ({ ...prev, [p.portfolioId]: 'split' }));
+      setPaymentStep('list');
+      setSelectedPayout(null);
+      onActionComplete?.();
+    } catch (err: any) {
+      toast.error('Split payout failed', { description: err.message });
+    } finally {
+      setProcessing(prev => ({ ...prev, [p.portfolioId]: null }));
+    }
+  };
+
   const selectedRoiAmount = selectedPayout ? Math.round(selectedPayout.investmentAmount * selectedPayout.roiPercentage / 100) : 0;
   const selectedManaged = selectedPayout ? managedInfo[selectedPayout.portfolioId] : null;
   const selectedReason = selectedPayout ? (reasons[selectedPayout.portfolioId] || '') : '';
