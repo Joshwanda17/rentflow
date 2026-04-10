@@ -1,48 +1,40 @@
 
 
-# Fix: Add 10% Agent Commission to Manual Rent Collection
-
-## Current State
-
-The function at `supabase/functions/manual-collect-rent/index.ts` already calls `credit_agent_rent_commission` RPC (line 181) after collection. However, per the request, the commission should be embedded as direct ledger entries with explicit `agent_commission_earned` and platform `commission_expense` categories — matching the locked production categories — instead of delegating to a separate RPC whose internal behavior may not align.
+# Add Collection History Log to TenantRentCollector
 
 ## What Changes
 
-**File:** `supabase/functions/manual-collect-rent/index.ts`
+Add a "Collection History" section below the active rent requests that queries the `general_ledger` for past rent collection entries for the selected tenant, showing a chronological log of all manual and auto collections.
 
-Replace the `credit_agent_rent_commission` RPC call (lines 180-185) with a direct `create_ledger_transaction` call containing 2 commission legs:
+## Data Source
 
-```
-const commission = Math.round(totalCollected * 0.10);
-if (commission > 0 && rr.agent_id) {
-  const commissionTxDate = new Date().toISOString();
-  const commissionIdempotencyKey = `manual-collect-commission-${rr.id}-${commissionTxDate}`;
+Query `general_ledger` where:
+- `user_id = selectedTenant.id`
+- `ledger_scope = 'wallet'`
+- `direction = 'cash_out'`
+- `source_table = 'rent_requests'`
+- Categories: `rent_repayment`, `rent_obligation`, etc.
 
-  await supabase.rpc('create_ledger_transaction', {
-    entries: [
-      // Leg 1: Credit agent wallet
-      { user_id: rr.agent_id, ledger_scope: 'wallet', direction: 'cash_in',
-        amount: commission, category: 'agent_commission_earned',
-        source_table: 'rent_requests', source_id: rr.id,
-        description: `10% commission on manual rent collection for ${tenantName}`,
-        currency: 'UGX', transaction_date: commissionTxDate },
-      // Leg 2: Platform expense
-      { user_id: rr.agent_id, ledger_scope: 'platform', direction: 'cash_out',
-        amount: commission, category: 'agent_commission_earned',
-        source_table: 'rent_requests', source_id: rr.id,
-        description: `Commission expense: manual collection for ${tenantName}`,
-        currency: 'UGX', transaction_date: commissionTxDate },
-    ],
-    idempotency_key: commissionIdempotencyKey,
-  });
-}
-```
+Order by `transaction_date DESC`, limit 20.
 
-Also update the audit log metadata and response JSON to include `commission_paid: commission`.
+## UI Design
 
-## Why Not Keep `credit_agent_rent_commission`
+A new card section titled "Collection History" with a compact table/list showing:
+- **Date** — formatted `transaction_date`
+- **Amount** — using `CompactAmount`
+- **Category** — human-readable badge (e.g. "Rent Repayment", "Rent Obligation")
+- **Description** — truncated ledger description
+- Empty state when no history exists
 
-The direct approach ensures: (1) the exact approved categories (`agent_commission_earned`) are used, (2) idempotency is deterministic per rent request + timestamp, (3) the commission amount and logic are visible and auditable in this function rather than hidden in an RPC.
+## Implementation
 
-## No database changes needed
+**File:** `src/components/executive/TenantRentCollector.tsx`
+
+1. Add a second `useQuery` for collection history, enabled when `selectedTenant` is set
+2. Query `general_ledger` as described above
+3. Render a "Collection History" section after the active requests block — a list of compact rows inside a Card, each showing date, amount, category badge, and description
+4. Invalidate this query alongside the existing ones after a successful collection
+5. Import `CompactAmount`, `History` icon, and date formatting utility
+
+No database or backend changes needed.
 
