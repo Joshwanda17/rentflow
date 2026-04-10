@@ -333,59 +333,17 @@ export function useCFOOverviewData() {
     staleTime: 60_000, // 1 minute for today's data
   });
 
-  // Ledger integrity diagnostics
+  // Ledger integrity diagnostics — server-side RPC for full-data accuracy
   const integrityChecks = useQuery({
     queryKey: ['cfo-overview-integrity'],
     queryFn: async () => {
-      // 1. Wallet vs Ledger drift: compare wallets.balance vs ledger net per user
-      const { data: wallets } = await supabase
-        .from('wallets')
-        .select('user_id, balance');
-
-      const { data: ledgerEntries } = await supabase
-        .from('general_ledger')
-        .select('user_id, amount, direction')
-        .eq('ledger_scope', 'wallet')
-        .in('classification', ['production', 'legacy_real']);
-
-      // Build ledger balances per user
-      const ledgerBalances: Record<string, number> = {};
-      ((ledgerEntries as any[]) || []).forEach((e) => {
-        if (!e.user_id) return;
-        if (!ledgerBalances[e.user_id]) ledgerBalances[e.user_id] = 0;
-        const amt = Number(e.amount);
-        if (e.direction === 'cash_in') ledgerBalances[e.user_id] += amt;
-        else if (e.direction === 'cash_out') ledgerBalances[e.user_id] -= amt;
-      });
-
-      let walletDriftCount = 0;
-      (wallets || []).forEach((w) => {
-        const ledgerBal = ledgerBalances[w.user_id] ?? 0;
-        const diff = Math.abs(Number(w.balance) - ledgerBal);
-        if (diff > 100) walletDriftCount++;
-      });
-
-      // 2. Missing transaction_group_id in last 7 days
-      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-      const { data: recentEntries } = await supabase
-        .from('general_ledger')
-        .select('id, transaction_group_id')
-        .gte('created_at', sevenDaysAgo);
-
-      const missingGroupCount = ((recentEntries as any[]) || []).filter(
-        (e) => !e.transaction_group_id
-      ).length;
-
-      // 3. Negative ledger balances per user (wallet scope)
-      let negativeLedgerCount = 0;
-      Object.values(ledgerBalances).forEach((bal) => {
-        if (bal < 0) negativeLedgerCount++;
-      });
-
+      const { data, error } = await supabase.rpc('get_ledger_integrity_checks' as any);
+      if (error) throw error;
+      const result = data as any;
       return {
-        walletDriftCount,
-        missingGroupCount,
-        negativeLedgerCount,
+        walletDriftCount: result?.wallet_drift_count ?? 0,
+        missingGroupCount: result?.missing_group_count ?? 0,
+        negativeLedgerCount: result?.negative_balance_count ?? 0,
       };
     },
     staleTime: STALE_TIME,
