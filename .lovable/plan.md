@@ -1,80 +1,50 @@
 
-Goal: fix the COO approval bug where an item disappears immediately after approval but comes back after refresh.
 
-What I found
+# Fix Plan: Agent Workflow — All 6 Flaws
 
-1. The COO screen at `/coo/dashboard` is using:
-   `COODashboardPage -> FinancialOpsCommandCenter -> PendingWalletOperationsWidget`
-   So the bug is coming from `PendingWalletOperationsWidget`, not the bulk `ApprovalQueue`.
+## Current State After Previous Fixes
+- **Flaws 1 & 2** (JSON.stringify in `agent-deposit` and `tenant-pay-rent`): **Already fixed.**
+- **One extra instance found**: `supabase/functions/auto-charge-wallets/index.ts` line 907 still uses `JSON.stringify(entries)` — must fix too.
+- **Flaws 3–6**: All still present and confirmed in the codebase.
 
-2. The COO widget removes the item from local state immediately after any successful edge-function response:
-   - `src/components/manager/PendingWalletOperationsWidget.tsx`
-   - `handleAction()` calls `setOperations(prev => prev.filter(op => op.id !== opId))`
+---
 
-3. The backend approval function can silently skip the actual approval:
-   - `supabase/functions/approve-wallet-operation/index.ts`
-   - if ledger creation fails, it does:
-     `continue;`
-   - then the function still returns HTTP 200 with `success: true`
+## Changes
 
-4. That creates this exact failure path:
+### 1. Fix `JSON.stringify` in `auto-charge-wallets` edge function
+Remove `JSON.stringify()` wrapper at line 907. Pass raw array to RPC. Redeploy the function.
 
-```text
-COO clicks Approve
--> widget gets 200 response
--> widget removes card locally
--> backend had skipped status update because ledger step failed
--> row stays status='pending' in database
--> refresh reloads from DB
--> item appears again
+### 2. Fix tenant list to include `agent_id`-linked tenants (Flaw 3)
+In `AgentTenantsSheet.tsx`, after fetching tenants via `referrer_id`, also query `rent_requests` for `agent_id = user.id` to get additional tenant IDs. Fetch those profiles and merge/deduplicate into the tenant list.
+
+### 3. Fix status filter in `AgentTopUpTenantDialog` (Flaw 4)
+Change line 97 from:
+```ts
+.in('status', ['approved', 'disbursed', 'active'])
+```
+to:
+```ts
+.in('status', ['approved', 'funded', 'disbursed', 'repaying'])
 ```
 
-5. There is also a secondary inconsistency in the shared bulk queue:
-   - `ApprovalQueue` sends `ids` / `reason`
-   - edge function expects `bulk_ids` / `rejection_reason`
-   This is not the main COO route bug, but it should be corrected while fixing this flow.
+### 4. Fix duplicate dialog title (Flaw 6)
+Change lines 167-168 to a single title: `"Pay Rent for Tenant"`.
 
-Implementation plan
+### 5. Add "Renew Rent" button for completed tenants (Flaw 5)
+In the tenant detail view within `AgentTenantsSheet.tsx`, when a tenant's latest rent request has status `completed`, show a "Renew Rent" button that opens the `AgentRentRequestDialog` pre-filled with the tenant's name, phone, and previous rent details.
 
-1. Fix backend truthfulness in `approve-wallet-operation`
-   - Remove the silent `continue` behavior for approval failures.
-   - If ledger creation fails for an operation, return that operation as failed instead of pretending success.
-   - If zero operations were actually approved/rejected, return a non-2xx error.
-   - Return explicit `results`, `approved_ids`, and `failed_ids` so the UI can trust the response.
-   - Verify/fix the ledger call shape used by this function so approvals complete instead of being skipped.
+### 6. Redeploy edge function
+Deploy `auto-charge-wallets` after fix.
 
-2. Fix the COO widget to use backend results, not optimistic removal
-   - In `PendingWalletOperationsWidget.tsx`, only remove the item if the response confirms that exact `opId` was approved/rejected.
-   - If the response contains no successful result for that row, keep it visible and show the backend error.
-   - After any action, re-fetch `get_pending_wallet_ops` instead of relying only on local state.
+---
 
-3. Harden the shared approval queue
-   - Update `src/components/financial-ops/ApprovalQueue.tsx` to send the correct request fields (`bulk_ids`, `rejection_reason`).
-   - Remove items from cache only for IDs actually returned as successful.
-   - Invalidate queue queries on both success and partial failure.
+## Files to Modify
 
-4. Validate safely
-   - Run background-only approval tests against test records, not real user rows.
-   - Scenarios:
-     - single COO approval succeeds and row stays gone after refresh
-     - ledger failure returns visible error and row remains in queue
-     - partial bulk approval removes only successful rows
-     - reject flow still works
-     - ROI payout approval path specifically works end-to-end
+| File | Change |
+|------|--------|
+| `supabase/functions/auto-charge-wallets/index.ts` | Remove `JSON.stringify` (1 site) |
+| `src/components/agent/AgentTenantsSheet.tsx` | Merge `agent_id` tenants; add Renew button |
+| `src/components/agent/AgentTopUpTenantDialog.tsx` | Fix status filter; fix duplicate title |
 
-Technical details
+No database migrations required.
 
-Files to update:
-- `supabase/functions/approve-wallet-operation/index.ts`
-- `src/components/manager/PendingWalletOperationsWidget.tsx`
-- `src/components/financial-ops/ApprovalQueue.tsx`
-
-No database migration is required unless the ledger RPC itself needs a signature-alignment fix beyond this function call pattern.
-
-Acceptance criteria
-
-- COO clicks Approve
-- item disappears
-- page refresh does not bring it back
-- if backend approval fails, the item stays visible and an error is shown
-- bulk approval removes only truly approved rows
