@@ -207,8 +207,14 @@ export function CFOAdvancesManager() {
       ) : (
         <div className="rounded-md border">
           <Table>
-             <TableHeader>
+           <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Recipient</TableHead>
                 <TableHead>Principal</TableHead>
                 <TableHead className="hidden sm:table-cell">Interest</TableHead>
@@ -234,16 +240,21 @@ export function CFOAdvancesManager() {
                 return (
                   <TableRow
                     key={adv.id}
-                    onClick={() => navigate(`/agent-advances/${adv.id}`)}
-                    className="cursor-pointer"
+                    className={`cursor-pointer ${selectedIds.has(adv.id) ? 'bg-primary/5' : ''}`}
                   >
-                    <TableCell className="font-medium">{adv.profiles?.full_name || 'Unknown'}</TableCell>
-                    <TableCell>{formatUGX(adv.principal)}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-amber-600">{formatUGX(interest)}</TableCell>
-                    <TableCell className="font-semibold">{formatUGX(adv.outstanding_balance)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{formatUGX(advFee)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{formatUGX(advFeeCollected)}</TableCell>
-                    <TableCell className="hidden lg:table-cell">
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(adv.id)}
+                        onCheckedChange={() => toggleSelect(adv.id)}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium" onClick={() => navigate(`/agent-advances/${adv.id}`)}>{adv.profiles?.full_name || 'Unknown'}</TableCell>
+                    <TableCell onClick={() => navigate(`/agent-advances/${adv.id}`)}>{formatUGX(adv.principal)}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-amber-600" onClick={() => navigate(`/agent-advances/${adv.id}`)}>{formatUGX(interest)}</TableCell>
+                    <TableCell className="font-semibold" onClick={() => navigate(`/agent-advances/${adv.id}`)}>{formatUGX(adv.outstanding_balance)}</TableCell>
+                    <TableCell className="hidden md:table-cell" onClick={() => navigate(`/agent-advances/${adv.id}`)}>{formatUGX(advFee)}</TableCell>
+                    <TableCell className="hidden md:table-cell" onClick={() => navigate(`/agent-advances/${adv.id}`)}>{formatUGX(advFeeCollected)}</TableCell>
+                    <TableCell className="hidden lg:table-cell" onClick={() => navigate(`/agent-advances/${adv.id}`)}>
                       <Badge variant="outline" className={
                         feeStatus === 'settled' ? 'border-emerald-500/30 text-emerald-600' :
                         feeStatus === 'partial' ? 'border-amber-500/30 text-amber-600' :
@@ -252,16 +263,16 @@ export function CFOAdvancesManager() {
                         {feeStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-muted-foreground" onClick={() => navigate(`/agent-advances/${adv.id}`)}>
                       {new Date(adv.issued_at).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>{daysLeft}d</TableCell>
-                    <TableCell>
+                    <TableCell onClick={() => navigate(`/agent-advances/${adv.id}`)}>{daysLeft}d</TableCell>
+                    <TableCell onClick={() => navigate(`/agent-advances/${adv.id}`)}>
                       <Badge variant={adv.status === 'active' ? 'default' : adv.status === 'completed' ? 'secondary' : 'destructive'}>
                         {adv.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={() => navigate(`/agent-advances/${adv.id}`)}>
                       <div className={`h-3 w-3 rounded-full ${risk === 'green' ? 'bg-green-500' : risk === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`} />
                     </TableCell>
                   </TableRow>
@@ -271,6 +282,23 @@ export function CFOAdvancesManager() {
           </Table>
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} advance(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the selected advance records. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteSelected} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <IssueAdvanceSheet open={issueOpen} onOpenChange={setIssueOpen} onSuccess={refetch} />
     </div>
