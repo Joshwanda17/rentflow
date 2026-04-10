@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
     // Credit UGX 5,000 landlord verification bonus via RPC
     const { data: txGroupId, error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: agentId,
           amount: LANDLORD_VERIFICATION_BONUS,
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
           currency: 'UGX',
           transaction_date: now,
         },
-      ]),
+      ],
     })
 
     if (ledgerErr) throw new Error(`Ledger error: ${ledgerErr.message}`)

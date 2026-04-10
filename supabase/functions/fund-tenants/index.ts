@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
       // This creates the audit trail showing the tenant owes this amount
       const totalRepaymentForLedger = Number(rr.total_repayment) || fundAmount;
       await adminClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: null,
             amount: totalRepaymentForLedger,
@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
             linked_party: user.id,
             reference_id: rr.id,
           },
-        ]),
+        ],
       });
       console.log(`[fund-tenants] Posted rent obligation of ${totalRepaymentForLedger} for tenant ${rr.tenant_id}`);
 

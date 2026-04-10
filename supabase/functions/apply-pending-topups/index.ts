@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
 
     // 3. Record activation ledger entries via RPC
     await supabase.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: null,
           amount: totalPending,
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
           currency: 'UGX',
           ledger_scope: "wallet",
         },
-      ]),
+      ],
     });
 
     // 4. Audit log

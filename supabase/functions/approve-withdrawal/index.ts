@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
     // Create balanced ledger entries via RPC
     const idempotencyKey = `approve-withdrawal-${withdrawal_id}`;
     const { data: txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: targetUserId,
           amount,
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
           source_id: withdrawal_id,
           transaction_date: new Date().toISOString(),
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {

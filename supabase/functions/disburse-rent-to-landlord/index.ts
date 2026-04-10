@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
 
     // Record in general ledger — landlord payout via RPC
     const { data: transactionGroupId, error: disburseLedgerErr } = await serviceClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           direction: 'cash_out',
           amount: request.rent_amount,
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
           linked_party: request.landlord_id,
           transaction_date: now,
         },
-      ]),
+      ],
     });
 
     // Update landlord rent tracking
@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
 
       // Credit UGX 5,000 flat bonus directly to agent wallet via RPC
       const { error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: bonusAgentId,
             amount: RENT_FUNDED_BONUS,
@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
             currency: 'UGX',
             transaction_date: now,
           },
-        ]),
+        ],
       })
 
       if (!ledgerErr) {

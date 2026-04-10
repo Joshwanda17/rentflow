@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       // Deduct from wallet via balanced RPC
       if (amountDeducted > 0) {
         const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
-          entries: JSON.stringify([
+          entries: [
             {
               user_id: advance.agent_id,
               ledger_scope: 'wallet',
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
               currency: 'UGX',
               transaction_date: today,
             },
-          ]),
+          ],
         });
         if (rpcErr) console.error(`[process-agent-advance-deductions] RPC error for advance ${advance.id}:`, rpcErr);
       }

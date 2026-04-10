@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
 
     // 1. Investment: wallet cash_out + platform cash_in (share_capital)
     const { error: investRpcErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: investor_id, ledger_scope: 'wallet', direction: 'cash_out',
           amount: actualAmount, category: 'share_capital',
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
           description: `Angel Pool share capital received via agent`,
           currency: 'UGX', reference_id: referenceId,
         },
-      ]),
+      ],
     });
     if (investRpcErr) throw investRpcErr;
 
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     const commission = Math.floor(actualAmount * AGENT_COMMISSION_RATE);
     if (commission > 0) {
       const { error: commErr } = await adminClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             ledger_scope: 'platform', direction: 'cash_out',
             amount: commission, category: 'agent_commission_earned',
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
             description: `Angel Pool agent commission (1%) for ${referenceId}`,
             currency: 'UGX', reference_id: referenceId,
           },
-        ]),
+        ],
       });
       if (commErr) console.error("Commission RPC error:", commErr);
     }

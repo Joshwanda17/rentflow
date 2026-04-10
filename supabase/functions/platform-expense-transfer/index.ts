@@ -68,7 +68,7 @@ serve(async (req) => {
       // Credit agent wallet via balanced RPC: platform cash_out + wallet cash_in
       const refId = crypto.randomUUID();
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             ledger_scope: 'platform', direction: 'cash_out',
             amount, category: 'system_balance_correction',
@@ -83,7 +83,7 @@ serve(async (req) => {
             description: `Platform expense credit: [${expense_category || fa.expense_category}] ${description}`,
             currency: 'UGX', reference_id: refId,
           },
-        ]),
+        ],
       });
 
       if (rpcErr) {
@@ -138,7 +138,7 @@ serve(async (req) => {
           // Credit via balanced RPC: platform cash_out + wallet cash_in
           const refId = crypto.randomUUID();
           const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 ledger_scope: 'platform', direction: 'cash_out',
                 amount: item.amount, category: 'system_balance_correction',
@@ -153,7 +153,7 @@ serve(async (req) => {
                 description: item.description || `${item.category} payment`,
                 currency: 'UGX', reference_id: refId,
               },
-            ]),
+            ],
           });
 
           if (rpcErr) {

@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
 
     // Record in general ledger via RPC — platform cash out to agent float
     const { data: transactionGroupId, error: floatLedgerErr } = await serviceClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           direction: 'cash_out',
           amount: request.rent_amount,
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
           linked_party: request.landlord_id,
           transaction_date: now,
         },
-      ]),
+      ],
     });
 
     // ============================================================
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
     const agentName = agentProfile?.full_name || 'Agent'
 
     const { error: ledgerErr } = await serviceClient.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: bonusAgentId,
           amount: RENT_FUNDED_BONUS,
@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
           currency: 'UGX',
           transaction_date: now,
         },
-      ]),
+      ],
     })
 
     if (!ledgerErr) {

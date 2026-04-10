@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
 
       // 3. Ledger entries via RPC — wallet debit + platform credit
       const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: partnerId,
             amount: topupAmount,
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
             currency: 'UGX',
             ledger_scope: "platform",
           },
-        ]),
+        ],
       });
 
       if (ledgerErr) {
@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
       if (postWallet && Number(postWallet.balance) < 0) {
         // Race condition: rollback via RPC
         await supabase.rpc('create_ledger_transaction', {
-          entries: JSON.stringify([
+          entries: [
             {
               user_id: partnerId,
               amount: topupAmount,
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
               currency: 'UGX',
               ledger_scope: "platform",
             },
-          ]),
+          ],
         });
 
         await supabase.from("pending_wallet_operations")

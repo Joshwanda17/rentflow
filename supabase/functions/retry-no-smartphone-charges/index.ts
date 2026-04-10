@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
         if (agentBalance >= chargeAmount) {
           // Balanced RPC: wallet cash_out + platform cash_in
           const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 user_id: charge.agent_id, ledger_scope: 'wallet', direction: 'cash_out',
                 amount: chargeAmount, category: 'agent_float_used_for_rent',
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
                 description: `Agent payment for no-smartphone tenant ${tenantName}`,
                 currency: 'UGX', transaction_date: now.toISOString(),
               },
-            ]),
+            ],
           });
 
           if (rpcErr) {
