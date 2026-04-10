@@ -30,6 +30,7 @@ const fmtShort = (n: number) => {
 const pct = (part: number, total: number) => (total === 0 ? 0 : Math.round((part / total) * 100));
 
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
+  const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
   const {
     channelBalances, liabilities, revenue, moneyFlow, receivables, cashFlowByPurpose,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
