@@ -43,10 +43,14 @@ export function AgentActivityChart() {
           .gte('created_at', iso)
           .order('created_at', { ascending: true }),
         supabase
-          .from('agent_collections')
-          .select('created_at, amount')
-          .gte('created_at', iso)
-          .order('created_at', { ascending: true }),
+          .from('general_ledger')
+          .select('transaction_date, amount')
+          .eq('category', 'tenant_repayment')
+          .eq('direction', 'cash_in')
+          .in('classification', ['production', 'legacy_real'])
+          .gte('transaction_date', iso)
+          .order('transaction_date', { ascending: true })
+          .limit(500),
       ]);
 
       return {
@@ -107,7 +111,7 @@ export function AgentActivityChart() {
       if (b) b.earnings += Number(r.amount) || 0;
     });
     rawData.collections.forEach((r) => {
-      const k = bucketFor(r.created_at);
+      const k = bucketFor(r.transaction_date);
       const b = buckets.get(k);
       if (b) b.collections += Number(r.amount) || 0;
     });
