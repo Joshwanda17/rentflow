@@ -1,52 +1,48 @@
 
 
-# Redesign COO Agent Hub: Remove Inner Sidemenu, Add KPI Cards + Advanced Table
+# Fix: Add 10% Agent Commission to Manual Rent Collection
 
 ## Current State
-The Agent Hub has a two-panel layout: a dark blue left sidebar (`w-[260px]`, lines 217-221) with status filter buttons and KPI summary, and a right panel with a simple agent list. On mobile, the sidebar collapses to horizontal chips.
+
+The function at `supabase/functions/manual-collect-rent/index.ts` already calls `credit_agent_rent_commission` RPC (line 181) after collection. However, per the request, the commission should be embedded as direct ledger entries with explicit `agent_commission_earned` and platform `commission_expense` categories — matching the locked production categories — instead of delegating to a separate RPC whose internal behavior may not align.
 
 ## What Changes
 
-Remove the inner dark sidemenu entirely. Replace the page with a clean single-column layout:
+**File:** `supabase/functions/manual-collect-rent/index.ts`
 
-1. **KPI Row** (top) — 6 metric cards in a responsive grid showing:
-   - Total Agents (count)
-   - Active Agents (count + percentage)
-   - Inactive Agents (count)
-   - Pending Agents (count)
-   - Total Commission (sum, formatted UGX)
-   - Avg Wallet Balance (formatted UGX)
+Replace the `credit_agent_rent_commission` RPC call (lines 180-185) with a direct `create_ledger_transaction` call containing 2 commission legs:
 
-   Use the existing `KPICard` component from `src/components/executive/KPICard.tsx` for visual consistency with other COO dashboard tabs.
+```
+const commission = Math.round(totalCollected * 0.10);
+if (commission > 0 && rr.agent_id) {
+  const commissionTxDate = new Date().toISOString();
+  const commissionIdempotencyKey = `manual-collect-commission-${rr.id}-${commissionTxDate}`;
 
-2. **Filter/Search Bar** — Below KPIs, a toolbar with:
-   - Search input (existing)
-   - Status filter dropdown (replaces sidebar buttons): All / Active / Inactive / Pending / Top Performers / At Risk
-   - Sort dropdown (existing)
-   - Top Performers and At Risk shown as colored badge-style filter chips
+  await supabase.rpc('create_ledger_transaction', {
+    entries: [
+      // Leg 1: Credit agent wallet
+      { user_id: rr.agent_id, ledger_scope: 'wallet', direction: 'cash_in',
+        amount: commission, category: 'agent_commission_earned',
+        source_table: 'rent_requests', source_id: rr.id,
+        description: `10% commission on manual rent collection for ${tenantName}`,
+        currency: 'UGX', transaction_date: commissionTxDate },
+      // Leg 2: Platform expense
+      { user_id: rr.agent_id, ledger_scope: 'platform', direction: 'cash_out',
+        amount: commission, category: 'agent_commission_earned',
+        source_table: 'rent_requests', source_id: rr.id,
+        description: `Commission expense: manual collection for ${tenantName}`,
+        currency: 'UGX', transaction_date: commissionTxDate },
+    ],
+    idempotency_key: commissionIdempotencyKey,
+  });
+}
+```
 
-3. **Agent Table** — Replace the current list-style layout with a proper `<Table>` using the existing shadcn table components. Columns:
-   - Agent Name (with marble avatar + status dot)
-   - Phone
-   - Territory
-   - Tenants (count)
-   - Landlords (count)
-   - Commission (formatted)
-   - Wallet Balance (formatted)
-   - Status (badge)
-   - Action (chevron → opens existing detail drawer)
+Also update the audit log metadata and response JSON to include `commission_paid: commission`.
 
-   Retains server-side pagination via `get_agents_hub` RPC + "Load more" button.
+## Why Not Keep `credit_agent_rent_commission`
 
-## Data Integrity
-- No data source changes — same `get_agents_hub` RPC, same `classifyAgent` logic, same counts computation
-- Status classification logic unchanged (lines 42-49)
-- KPI values computed identically from loaded agent data
-- Pagination and search debounce preserved exactly
+The direct approach ensures: (1) the exact approved categories (`agent_commission_earned`) are used, (2) idempotency is deterministic per rent request + timestamp, (3) the commission amount and logic are visible and auditable in this function rather than hidden in an RPC.
 
-## Files Changed
-- `src/components/coo/COOAgentHub.tsx` — full rewrite of the render output; all state/fetch logic stays the same
-
-## Runtime Error
-The `useContext` error from `next-themes` is unrelated to this component — it's a theme provider ordering issue. Will investigate and fix silently if possible during implementation.
+## No database changes needed
 
