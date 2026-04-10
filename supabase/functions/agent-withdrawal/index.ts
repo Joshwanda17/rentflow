@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[agent-withdrawal] Ledger OK, group=${transactionGroupId}`);
+    console.log(`[agent-withdrawal] Ledger OK`);
 
     // ── Record withdrawal ──
     const { error: withdrawalRecordError } = await adminClient
