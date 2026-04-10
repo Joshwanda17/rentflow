@@ -15,6 +15,8 @@ import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receipt
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useToast } from '@/hooks/use-toast';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import AgentRentRequestDialog from './AgentRentRequestDialog';
+import { RefreshCw } from 'lucide-react';
 
 interface Tenant {
   id: string;

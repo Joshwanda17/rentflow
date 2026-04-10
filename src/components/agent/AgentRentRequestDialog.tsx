@@ -99,6 +99,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
+  // Pre-fill fields when dialog opens with prefill props
+  useEffect(() => {
+    if (open) {
+      if (prefillTenantName) setTenantName(prefillTenantName);
+      if (prefillTenantPhone) setTenantPhone(prefillTenantPhone);
+      if (prefillRentAmount) setRentAmount(prefillRentAmount);
+    }
+  }, [open, prefillTenantName, prefillTenantPhone, prefillRentAmount]);
+
   const captureGPS = useCallback(() => {
     if (!navigator.geolocation) {
       toast.error('GPS not supported on this device');
