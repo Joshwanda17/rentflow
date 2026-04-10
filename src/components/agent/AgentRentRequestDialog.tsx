@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { addDays, format } from 'date-fns';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,6 +44,9 @@ interface AgentRentRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  prefillTenantName?: string;
+  prefillTenantPhone?: string;
+  prefillRentAmount?: string;
 }
 
 type IncomeType = 'daily' | 'weekly-monthly' | 'outstanding';
@@ -61,7 +64,7 @@ const HOUSE_CATEGORIES = [
   { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
 ];
 
-export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }: AgentRentRequestDialogProps) {
+export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
