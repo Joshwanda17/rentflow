@@ -3,14 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { KPICard } from '@/components/executive/KPICard';
 import { AgentDetailDrawer } from './AgentDetailDrawer';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { UserAvatar } from '@/components/UserAvatar';
+import { CompactAmount } from '@/components/ui/CompactAmount';
 import { cn } from '@/lib/utils';
 import {
   Search, Users, UserCheck, UserX, Clock, Star, AlertTriangle,
-  ChevronRight, Building2, Loader2
+  ChevronRight, Wallet, TrendingUp, Loader2
 } from 'lucide-react';
 
 type StatusFilter = 'all' | 'active' | 'inactive' | 'pending' | 'top' | 'at_risk';
@@ -30,13 +32,13 @@ interface AgentRow {
 
 const PAGE_SIZE = 50;
 
-const STATUS_META: Record<StatusFilter, { label: string; icon: typeof Users; dotClass: string }> = {
-  all: { label: 'All Agents', icon: Users, dotClass: '' },
-  active: { label: 'Active', icon: UserCheck, dotClass: 'bg-emerald-500' },
-  inactive: { label: 'Inactive', icon: UserX, dotClass: 'bg-muted-foreground' },
-  pending: { label: 'Pending', icon: Clock, dotClass: 'bg-amber-500' },
-  top: { label: 'Top Performers', icon: Star, dotClass: 'bg-yellow-500' },
-  at_risk: { label: 'At Risk', icon: AlertTriangle, dotClass: 'bg-destructive' },
+const STATUS_META: Record<StatusFilter, { label: string; icon: typeof Users; dotClass: string; badgeVariant: 'success' | 'destructive' | 'muted' | 'warning' }> = {
+  all: { label: 'All Agents', icon: Users, dotClass: '', badgeVariant: 'muted' },
+  active: { label: 'Active', icon: UserCheck, dotClass: 'bg-emerald-500', badgeVariant: 'success' },
+  inactive: { label: 'Inactive', icon: UserX, dotClass: 'bg-muted-foreground', badgeVariant: 'muted' },
+  pending: { label: 'Pending', icon: Clock, dotClass: 'bg-amber-500', badgeVariant: 'warning' },
+  top: { label: 'Top Performer', icon: Star, dotClass: 'bg-yellow-500', badgeVariant: 'success' },
+  at_risk: { label: 'At Risk', icon: AlertTriangle, dotClass: 'bg-destructive', badgeVariant: 'destructive' },
 };
 
 function classifyAgent(agent: { last_active_at: string | null; total_commission: number }): StatusFilter {
@@ -55,7 +57,6 @@ const SORT_MAP: Record<string, string> = {
 };
 
 export function COOAgentHub() {
-  const isMobile = useIsMobile();
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -124,7 +125,7 @@ export function COOAgentHub() {
     fetchAgents(0, false);
   }, [fetchAgents]);
 
-  // Counts per category (from loaded agents)
+  // Counts per category
   const counts = useMemo(() => {
     const c: Record<StatusFilter, number> = { all: agents.length, active: 0, inactive: 0, pending: 0, top: 0, at_risk: 0 };
     agents.forEach(a => { if (a.status !== 'all') c[a.status]++; });
@@ -135,189 +136,195 @@ export function COOAgentHub() {
   const totalCommission = useMemo(() => agents.reduce((s, a) => s + a.total_commission, 0), [agents]);
   const avgWallet = useMemo(() => agents.length ? Math.round(agents.reduce((s, a) => s + a.wallet_balance, 0) / agents.length) : 0, [agents]);
 
-  // Client-side status filter only
+  // Client-side status filter
   const visible = useMemo(() => {
     return filter === 'all' ? agents : agents.filter(a => a.status === filter);
   }, [agents, filter]);
 
   const hasMore = agents.length < totalCount;
 
-  const categories: StatusFilter[] = ['all', 'active', 'inactive', 'pending', 'top', 'at_risk'];
-
-  const NavPanel = () => (
-    <div className="space-y-1">
-      {categories.map(cat => {
-        const meta = STATUS_META[cat];
-        const Icon = meta.icon;
-        const isActive = filter === cat;
-        return (
-          <button
-            key={cat}
-            onClick={() => setFilter(cat)}
-            className={cn(
-              'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all',
-              isActive
-                ? 'bg-white/15 text-white font-semibold'
-                : 'text-white/60 hover:bg-white/8 hover:text-white/90'
-            )}
-          >
-            <Icon className="h-4.5 w-4.5 shrink-0" />
-            <span className="flex-1 text-sm">{meta.label}</span>
-            <Badge variant="outline" size="sm" className="border-white/20 text-white/80 bg-white/5">
-              {counts[cat]}
-            </Badge>
-          </button>
-        );
-      })}
-
-      <div className="mt-6 pt-4 border-t border-white/10 space-y-4 px-4">
-        <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">KPI Summary</p>
-        <div>
-          <p className="text-white/50 text-xs">Total Commission</p>
-          <p className="text-white font-bold text-lg">UGX {totalCommission.toLocaleString()}</p>
-        </div>
-        <div>
-          <p className="text-white/50 text-xs">Avg Wallet Balance</p>
-          <p className="text-white font-bold text-lg">UGX {avgWallet.toLocaleString()}</p>
-        </div>
-        <div>
-          <p className="text-white/50 text-xs">Total Agents</p>
-          <p className="text-white font-bold text-lg">{totalCount.toLocaleString()}</p>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="space-y-0">
-      {isMobile && (
-        <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 no-scrollbar">
-          {categories.map(cat => {
-            const meta = STATUS_META[cat];
-            return (
-              <button
-                key={cat}
-                onClick={() => setFilter(cat)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap border transition-all shrink-0',
-                  filter === cat
-                    ? 'bg-[#1a1f3d] text-white border-[#1a1f3d]'
-                    : 'bg-muted/50 text-muted-foreground border-border/50'
-                )}
-              >
-                {meta.label}
-                <span className="opacity-60">({counts[cat]})</span>
-              </button>
-            );
-          })}
+    <div className="space-y-5">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <KPICard
+          title="Total Agents"
+          value={totalCount.toLocaleString()}
+          icon={Users}
+          color="bg-primary/10 text-primary"
+          loading={loading}
+        />
+        <KPICard
+          title="Active"
+          value={counts.active}
+          icon={UserCheck}
+          color="bg-success/10 text-success"
+          loading={loading}
+          subtitle={agents.length ? `${Math.round((counts.active / agents.length) * 100)}% of loaded` : undefined}
+        />
+        <KPICard
+          title="Inactive"
+          value={counts.inactive}
+          icon={UserX}
+          color="bg-muted text-muted-foreground"
+          loading={loading}
+        />
+        <KPICard
+          title="Pending"
+          value={counts.pending}
+          icon={Clock}
+          color="bg-warning/10 text-warning"
+          loading={loading}
+        />
+        <KPICard
+          title="Total Commission"
+          value={`UGX ${totalCommission.toLocaleString()}`}
+          icon={TrendingUp}
+          color="bg-primary/10 text-primary"
+          loading={loading}
+        />
+        <KPICard
+          title="Avg Wallet"
+          value={`UGX ${avgWallet.toLocaleString()}`}
+          icon={Wallet}
+          color="bg-accent text-accent-foreground"
+          loading={loading}
+        />
+      </div>
+
+      {/* Filters + Search Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search agents by name, phone, territory..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-10"
+          />
         </div>
-      )}
 
-      <div className="flex gap-0 rounded-2xl overflow-hidden border border-border/60 bg-card min-h-[600px]">
-        {!isMobile && (
-          <div className="w-[260px] shrink-0 bg-[#1a1f3d] p-4 pt-5">
-            <h2 className="text-white font-bold text-lg mb-5 px-2">Agents</h2>
-            <NavPanel />
-          </div>
-        )}
+        <Select value={filter} onValueChange={v => setFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-full sm:w-[170px] h-10">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Agents ({counts.all})</SelectItem>
+            <SelectItem value="active">Active ({counts.active})</SelectItem>
+            <SelectItem value="inactive">Inactive ({counts.inactive})</SelectItem>
+            <SelectItem value="pending">Pending ({counts.pending})</SelectItem>
+            <SelectItem value="top">Top Performers ({counts.top})</SelectItem>
+            <SelectItem value="at_risk">At Risk ({counts.at_risk})</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5 p-4 border-b border-border/40 bg-muted/20">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search agents..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 h-10"
-              />
-            </div>
-            <Select value={sortBy} onValueChange={v => setSortBy(v as any)}>
-              <SelectTrigger className="w-[160px] h-10">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="commission">Commission</SelectItem>
-                <SelectItem value="tenants">Tenants</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <Select value={sortBy} onValueChange={v => setSortBy(v as any)}>
+          <SelectTrigger className="w-full sm:w-[150px] h-10">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">Sort: Name</SelectItem>
+            <SelectItem value="commission">Sort: Commission</SelectItem>
+            <SelectItem value="tenants">Sort: Tenants</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-          <ScrollArea className="flex-1">
-            {loading ? (
-              <div className="p-8 flex items-center justify-center gap-2 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" /> Loading agents…
-              </div>
-            ) : visible.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No agents found.</div>
-            ) : (
-              <div className="divide-y divide-border/30">
-                {visible.map(agent => {
+      {/* Agent Table */}
+      <div className="border border-border/60 rounded-2xl overflow-hidden bg-card">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="sticky left-0 bg-muted/40 z-10 min-w-[200px]">Agent</TableHead>
+                <TableHead className="min-w-[110px]">Phone</TableHead>
+                <TableHead className="min-w-[120px]">Territory</TableHead>
+                <TableHead className="text-center min-w-[80px]">Tenants</TableHead>
+                <TableHead className="text-center min-w-[90px]">Landlords</TableHead>
+                <TableHead className="text-right min-w-[120px]">Commission</TableHead>
+                <TableHead className="text-right min-w-[120px]">Wallet</TableHead>
+                <TableHead className="min-w-[110px]">Status</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 9 }).map((_, j) => (
+                      <TableCell key={j}>
+                        <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : visible.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                    No agents found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                visible.map(agent => {
                   const meta = STATUS_META[agent.status];
                   return (
-                    <button
+                    <TableRow
                       key={agent.id}
+                      className="cursor-pointer hover:bg-muted/30 transition-colors"
                       onClick={() => setSelectedId(agent.id)}
-                      className="w-full flex items-center gap-4 p-4 text-left hover:bg-muted/30 transition-colors group"
                     >
-                      <div className="relative">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                          {agent.full_name.charAt(0).toUpperCase()}
-                        </div>
-                        {meta.dotClass && (
-                          <span className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card', meta.dotClass)} />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0 space-y-0.5">
-                        <p className="font-semibold text-sm truncate">{agent.full_name}</p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{agent.tenants_count} tenants</span>
-                          <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{agent.landlords_count} landlords</span>
-                        </div>
-                      </div>
-
-                      {!isMobile && (
-                        <div className="flex items-center gap-6 text-sm shrink-0">
-                          <div className="text-right">
-                            <p className="text-[10px] text-muted-foreground uppercase">Commission</p>
-                            <p className="font-bold">{agent.total_commission.toLocaleString()}</p>
+                      <TableCell className="sticky left-0 bg-card z-10">
+                        <div className="flex items-center gap-3">
+                          <div className="relative shrink-0">
+                            <UserAvatar fullName={agent.full_name} size="md" />
+                            {meta.dotClass && (
+                              <span className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card', meta.dotClass)} />
+                            )}
                           </div>
-                          <div className="text-right">
-                            <p className="text-[10px] text-muted-foreground uppercase">Wallet</p>
-                            <p className="font-bold">{agent.wallet_balance.toLocaleString()}</p>
-                          </div>
-                          <Badge
-                            variant={agent.status === 'active' || agent.status === 'top' ? 'success' : agent.status === 'at_risk' ? 'destructive' : 'muted'}
-                            size="sm"
-                          >
-                            {meta.label}
-                          </Badge>
+                          <span className="font-semibold text-sm truncate max-w-[140px]">{agent.full_name}</span>
                         </div>
-                      )}
-
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0" />
-                    </button>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{agent.phone || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground truncate max-w-[140px]">{agent.territory || '—'}</TableCell>
+                      <TableCell className="text-center font-medium">{agent.tenants_count}</TableCell>
+                      <TableCell className="text-center font-medium">{agent.landlords_count}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        <CompactAmount value={agent.total_commission} />
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        <CompactAmount value={agent.wallet_balance} />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={meta.badgeVariant} size="sm">
+                          {meta.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
+                      </TableCell>
+                    </TableRow>
                   );
-                })}
-
-                {hasMore && (
-                  <div className="p-4 text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={loadingMore}
-                      onClick={() => fetchAgents(offset, true)}
-                    >
-                      {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Loading…</> : `Load more (${agents.length} of ${totalCount})`}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </ScrollArea>
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
+
+        {!loading && visible.length > 0 && (
+          <div className="px-4 py-3 bg-muted/20 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Showing {visible.length} of {totalCount} agents</span>
+            {hasMore && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={loadingMore}
+                onClick={() => fetchAgents(offset, true)}
+              >
+                {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Loading…</> : 'Load more'}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <AgentDetailDrawer agentId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
