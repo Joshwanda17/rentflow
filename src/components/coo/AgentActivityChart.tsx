@@ -111,7 +111,7 @@ export function AgentActivityChart() {
       if (b) b.earnings += Number(r.amount) || 0;
     });
     rawData.collections.forEach((r) => {
-      const k = bucketFor(r.created_at);
+      const k = bucketFor(r.transaction_date);
       const b = buckets.get(k);
       if (b) b.collections += Number(r.amount) || 0;
     });
