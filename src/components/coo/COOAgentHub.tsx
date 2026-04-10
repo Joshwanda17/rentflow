@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { KPICard } from '@/components/executive/KPICard';
 import { AgentDetailDrawer } from './AgentDetailDrawer';
+import { AgentActivityChart } from './AgentActivityChart';
 import { UserAvatar } from '@/components/UserAvatar';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 import { cn } from '@/lib/utils';
