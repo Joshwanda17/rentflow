@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
               amount: op.amount,
               direction: op.direction,
               category: op.category === 'supporter_platform_rewards' ? 'roi_wallet_credit'
+                : op.category === 'roi_payout' ? 'roi_wallet_credit'
                 : op.category === 'agent_commission_payout' ? 'agent_commission_earned'
                 : op.category === 'platform_expense_disbursement' ? 'system_balance_correction'
                 : op.category === 'salary_payment' ? 'system_balance_correction'
@@ -182,6 +183,7 @@ Deno.serve(async (req) => {
               direction: op.direction === 'cash_in' ? 'cash_out' : 'cash_in',
               amount: op.amount,
               category: op.category === 'supporter_platform_rewards' ? 'roi_expense'
+                : op.category === 'roi_payout' ? 'roi_expense'
                 : op.category === 'supporter_facilitation_capital' ? 'partner_funding'
                 : 'system_balance_correction',
               ledger_scope: 'platform',
