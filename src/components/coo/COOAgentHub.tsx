@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AgentDetailDrawer } from './AgentDetailDrawer';
@@ -11,7 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
   Search, Users, UserCheck, UserX, Clock, Star, AlertTriangle,
-  ChevronRight, Wallet, DollarSign, Building2, Eye
+  ChevronRight, Building2, Loader2
 } from 'lucide-react';
 
 type StatusFilter = 'all' | 'active' | 'inactive' | 'pending' | 'top' | 'at_risk';
@@ -28,6 +27,8 @@ interface AgentRow {
   wallet_balance: number;
   status: StatusFilter;
 }
+
+const PAGE_SIZE = 50;
 
 const STATUS_META: Record<StatusFilter, { label: string; icon: typeof Users; dotClass: string }> = {
   all: { label: 'All Agents', icon: Users, dotClass: '' },
@@ -47,78 +48,83 @@ function classifyAgent(agent: { last_active_at: string | null; total_commission:
   return 'active';
 }
 
+const SORT_MAP: Record<string, string> = {
+  name: 'full_name',
+  commission: 'total_commission',
+  tenants: 'tenants_count',
+};
+
 export function COOAgentHub() {
   const isMobile = useIsMobile();
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'commission' | 'tenants'>('name');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
 
+  // Debounce search
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      // 1. Get all agent user_ids
-      const { data: roles } = await supabase.from('user_roles').select('user_id').eq('role', 'agent' as any);
-      if (!roles?.length) { setLoading(false); return; }
-      const ids = roles.map(r => r.user_id);
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-      // 2. Profiles
-      const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone, territory, last_active_at').in('id', ids);
+  const fetchAgents = useCallback(async (pageOffset: number, append: boolean) => {
+    if (append) setLoadingMore(true); else setLoading(true);
 
-      // 3. Wallets
-      const { data: wallets } = await supabase.from('wallets').select('user_id, balance').in('user_id', ids);
+    const sortField = SORT_MAP[sortBy] || 'full_name';
+    const sortDir = sortBy === 'name' ? 'asc' : 'desc';
 
-      // 4. Earnings aggregate (per agent)
-      const { data: earnings } = await supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', ids);
+    const { data, error } = await supabase.rpc('get_agents_hub', {
+      search_query: debouncedSearch,
+      sort_field: sortField,
+      sort_dir: sortDir,
+      page_limit: PAGE_SIZE,
+      page_offset: pageOffset,
+    });
 
-      // 5. Tenants count (distinct tenant_id per agent from rent_requests)
-      const { data: rentLinks } = await supabase.from('rent_requests').select('agent_id, tenant_id').in('agent_id', ids);
+    if (error) {
+      console.error('get_agents_hub error:', error);
+      if (!append) setLoading(false); else setLoadingMore(false);
+      return;
+    }
 
-      // 6. Landlord assignments count
-      const { data: llLinks } = await supabase.from('agent_landlord_assignments').select('agent_id, landlord_id').in('agent_id', ids);
+    const rows: AgentRow[] = (data || []).map((r: any) => {
+      const row: AgentRow = {
+        id: r.id,
+        full_name: r.full_name || '—',
+        phone: r.phone || '',
+        territory: r.territory,
+        last_active_at: r.last_active_at,
+        tenants_count: Number(r.tenants_count) || 0,
+        landlords_count: Number(r.landlords_count) || 0,
+        total_commission: Number(r.total_commission) || 0,
+        wallet_balance: Number(r.wallet_balance) || 0,
+        status: 'active',
+      };
+      row.status = classifyAgent(row);
+      return row;
+    });
 
-      // Build maps
-      const walletMap = new Map((wallets || []).map(w => [w.user_id, w.balance]));
-      const earningMap = new Map<string, number>();
-      (earnings || []).forEach(e => earningMap.set(e.agent_id, (earningMap.get(e.agent_id) || 0) + e.amount));
-      const tenantMap = new Map<string, Set<string>>();
-      (rentLinks || []).forEach(r => {
-        if (!tenantMap.has(r.agent_id)) tenantMap.set(r.agent_id, new Set());
-        if (r.tenant_id) tenantMap.get(r.agent_id)!.add(r.tenant_id);
-      });
-      const llMap = new Map<string, Set<string>>();
-      (llLinks || []).forEach(l => {
-        if (!llMap.has(l.agent_id)) llMap.set(l.agent_id, new Set());
-        llMap.get(l.agent_id)!.add(l.landlord_id);
-      });
+    if (data?.length) setTotalCount(Number(data[0].total_count));
+    else if (!append) setTotalCount(0);
 
-      const rows: AgentRow[] = (profiles || []).map(p => {
-        const total_commission = earningMap.get(p.id) || 0;
-        const row: AgentRow = {
-          id: p.id,
-          full_name: p.full_name || '—',
-          phone: p.phone || '',
-          territory: p.territory,
-          last_active_at: p.last_active_at,
-          tenants_count: tenantMap.get(p.id)?.size || 0,
-          landlords_count: llMap.get(p.id)?.size || 0,
-          total_commission,
-          wallet_balance: walletMap.get(p.id) || 0,
-          status: 'active',
-        };
-        row.status = classifyAgent(row);
-        return row;
-      });
+    setAgents(prev => append ? [...prev, ...rows] : rows);
+    setOffset(pageOffset + PAGE_SIZE);
+    if (!append) setLoading(false); else setLoadingMore(false);
+  }, [debouncedSearch, sortBy]);
 
-      setAgents(rows);
-      setLoading(false);
-    };
-    load();
-  }, []);
+  // Re-fetch on search/sort change
+  useEffect(() => {
+    setOffset(0);
+    fetchAgents(0, false);
+  }, [fetchAgents]);
 
-  // counts per category
+  // Counts per category (from loaded agents)
   const counts = useMemo(() => {
     const c: Record<StatusFilter, number> = { all: agents.length, active: 0, inactive: 0, pending: 0, top: 0, at_risk: 0 };
     agents.forEach(a => { if (a.status !== 'all') c[a.status]++; });
@@ -129,24 +135,15 @@ export function COOAgentHub() {
   const totalCommission = useMemo(() => agents.reduce((s, a) => s + a.total_commission, 0), [agents]);
   const avgWallet = useMemo(() => agents.length ? Math.round(agents.reduce((s, a) => s + a.wallet_balance, 0) / agents.length) : 0, [agents]);
 
-  // Filtered + sorted
+  // Client-side status filter only
   const visible = useMemo(() => {
-    let list = filter === 'all' ? agents : agents.filter(a => a.status === filter);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(a => a.full_name.toLowerCase().includes(q) || a.phone.includes(q));
-    }
-    list.sort((a, b) => {
-      if (sortBy === 'commission') return b.total_commission - a.total_commission;
-      if (sortBy === 'tenants') return b.tenants_count - a.tenants_count;
-      return a.full_name.localeCompare(b.full_name);
-    });
-    return list;
-  }, [agents, filter, search, sortBy]);
+    return filter === 'all' ? agents : agents.filter(a => a.status === filter);
+  }, [agents, filter]);
+
+  const hasMore = agents.length < totalCount;
 
   const categories: StatusFilter[] = ['all', 'active', 'inactive', 'pending', 'top', 'at_risk'];
 
-  // Left panel content
   const NavPanel = () => (
     <div className="space-y-1">
       {categories.map(cat => {
@@ -185,7 +182,7 @@ export function COOAgentHub() {
         </div>
         <div>
           <p className="text-white/50 text-xs">Total Agents</p>
-          <p className="text-white font-bold text-lg">{agents.length}</p>
+          <p className="text-white font-bold text-lg">{totalCount.toLocaleString()}</p>
         </div>
       </div>
     </div>
@@ -193,7 +190,6 @@ export function COOAgentHub() {
 
   return (
     <div className="space-y-0">
-      {/* Mobile: horizontal chip bar */}
       {isMobile && (
         <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 no-scrollbar">
           {categories.map(cat => {
@@ -218,7 +214,6 @@ export function COOAgentHub() {
       )}
 
       <div className="flex gap-0 rounded-2xl overflow-hidden border border-border/60 bg-card min-h-[600px]">
-        {/* Left panel — desktop only */}
         {!isMobile && (
           <div className="w-[260px] shrink-0 bg-[#1a1f3d] p-4 pt-5">
             <h2 className="text-white font-bold text-lg mb-5 px-2">Agents</h2>
@@ -226,9 +221,7 @@ export function COOAgentHub() {
           </div>
         )}
 
-        {/* Right panel */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-2.5 p-4 border-b border-border/40 bg-muted/20">
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -251,10 +244,11 @@ export function COOAgentHub() {
             </Select>
           </div>
 
-          {/* Agent list */}
           <ScrollArea className="flex-1">
             {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading agents…</div>
+              <div className="p-8 flex items-center justify-center gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" /> Loading agents…
+              </div>
             ) : visible.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">No agents found.</div>
             ) : (
@@ -267,7 +261,6 @@ export function COOAgentHub() {
                       onClick={() => setSelectedId(agent.id)}
                       className="w-full flex items-center gap-4 p-4 text-left hover:bg-muted/30 transition-colors group"
                     >
-                      {/* Avatar / Status */}
                       <div className="relative">
                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                           {agent.full_name.charAt(0).toUpperCase()}
@@ -277,7 +270,6 @@ export function COOAgentHub() {
                         )}
                       </div>
 
-                      {/* Info */}
                       <div className="flex-1 min-w-0 space-y-0.5">
                         <p className="font-semibold text-sm truncate">{agent.full_name}</p>
                         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
@@ -286,7 +278,6 @@ export function COOAgentHub() {
                         </div>
                       </div>
 
-                      {/* Metrics — desktop */}
                       {!isMobile && (
                         <div className="flex items-center gap-6 text-sm shrink-0">
                           <div className="text-right">
@@ -310,13 +301,25 @@ export function COOAgentHub() {
                     </button>
                   );
                 })}
+
+                {hasMore && (
+                  <div className="p-4 text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingMore}
+                      onClick={() => fetchAgents(offset, true)}
+                    >
+                      {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Loading…</> : `Load more (${agents.length} of ${totalCount})`}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </ScrollArea>
         </div>
       </div>
 
-      {/* Detail Drawer */}
       <AgentDetailDrawer agentId={selectedId} open={!!selectedId} onClose={() => setSelectedId(null)} />
     </div>
   );
