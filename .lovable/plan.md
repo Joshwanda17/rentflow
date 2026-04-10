@@ -1,25 +1,41 @@
 
 
-# Fix: audit_logs Column Name Mismatch
+# Fix: Agent Directory Returns 0 Agents for Executive Users
 
 ## Problem
-The `audit_logs` table has a column called `action_type`, but the `create_ledger_transaction` RPC (and likely edge functions) insert into a column called `action` — which doesn't exist. This causes every approval to fail with a 422 error.
+The `user_roles` table has an RLS SELECT policy that only allows a user to see their own role OR users with the `manager` role. Executive roles (`super_admin`, `cto`, `ceo`, `coo`, `cfo`, `cmo`, `crm`) are blocked from querying other users' roles.
 
-## Fix — Database Migration (one line)
+Since the Agent Directory calls `fetchAllAgentIds()` which queries `user_roles WHERE role = 'agent'`, it returns 0 rows for any non-manager executive — causing the "Loading agents..." / empty state.
 
-Add the missing `action` column as an alias so both old and new code works:
+## Fix — One Database Migration
+
+Update the RLS SELECT policy on `user_roles` to also allow executive roles:
 
 ```sql
-ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS action text;
+DROP POLICY "Users can view own role" ON public.user_roles;
+
+CREATE POLICY "Users can view roles"
+ON public.user_roles
+FOR SELECT
+TO authenticated
+USING (
+  auth.uid() = user_id
+  OR has_role(auth.uid(), 'manager')
+  OR has_role(auth.uid(), 'super_admin')
+  OR has_role(auth.uid(), 'cto')
+  OR has_role(auth.uid(), 'ceo')
+  OR has_role(auth.uid(), 'coo')
+  OR has_role(auth.uid(), 'cfo')
+  OR has_role(auth.uid(), 'cmo')
+  OR has_role(auth.uid(), 'crm')
+);
 ```
 
-This is the safest approach since the `create_ledger_transaction` RPC we just deployed references `action`, and potentially many edge functions do too.
-
-## Alternative
-We could instead update the RPC to use `action_type` instead of `action`, but that risks missing other call sites across 35+ edge functions.
-
 ## Impact
-- Instantly unblocks all approval buttons
-- No edge function code changes needed
-- Zero risk to existing data using `action_type`
+- Instantly fixes Agent Directory for all executive users
+- No frontend code changes needed
+- Existing manager access is preserved
+
+## Risk
+Minimal — this only broadens read access for trusted executive roles that already have dashboard access gated by `useStaffPermissions`.
 
