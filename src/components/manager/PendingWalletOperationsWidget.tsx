@@ -149,14 +149,32 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
       if (error) {
         const msg = await extractFromErrorObject(error, `Failed to ${action} operation`);
         toast.error(msg);
+        await fetchOperations();
         return;
       }
 
-      toast.success(`Operation ${action}d successfully`);
-      setOperations(prev => prev.filter(op => op.id !== opId));
+      // Check if this specific operation was actually processed
+      const approvedIds: string[] = data?.approved_ids || [];
+      const rejectedIds: string[] = data?.rejected_ids || [];
+      const failedIds: string[] = data?.failed_ids || [];
+      const successIds = [...approvedIds, ...rejectedIds];
+
+      if (successIds.includes(opId)) {
+        toast.success(`Operation ${action}d successfully`);
+        setOperations(prev => prev.filter(op => op.id !== opId));
+      } else if (failedIds.includes(opId)) {
+        const failure = (data?.failures || []).find((f: any) => f.id === opId);
+        toast.error(failure?.error || `Failed to ${action} operation — please retry`);
+      } else {
+        toast.error(`Operation was not processed — please retry`);
+      }
+
       setRejectionReason('');
+      // Always refetch to stay in sync with DB
+      await fetchOperations();
     } catch (e: any) {
       toast.error(e.message || `Failed to ${action} operation`);
+      await fetchOperations();
     } finally {
       setProcessing(null);
     }
