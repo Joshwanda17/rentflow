@@ -26,8 +26,9 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer
 } from 'lucide-react';
+import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -50,6 +51,69 @@ export function TenantOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
   const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
+  const [printingPdf, setPrintingPdf] = useState(false);
+
+  const handlePrintReport = async () => {
+    setPrintingPdf(true);
+    try {
+      // Fetch rent requests with agent_id
+      const { data: requests } = await supabase
+        .from('rent_requests')
+        .select('tenant_id, agent_id, rent_amount, total_repayment, amount_repaid, duration_days, number_of_payments, status')
+        .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted']);
+
+      if (!requests || requests.length === 0) {
+        toast.error('No tenant rent data found');
+        return;
+      }
+
+      const tenantIds = [...new Set(requests.map(r => r.tenant_id).filter(Boolean))];
+      const agentIds = [...new Set(requests.map(r => r.agent_id).filter(Boolean))];
+
+      const [tenantRes, agentRes, chargeRes] = await Promise.all([
+        tenantIds.length > 0
+          ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
+          : { data: [] },
+        agentIds.length > 0
+          ? supabase.from('profiles').select('id, full_name').in('id', agentIds)
+          : { data: [] },
+        tenantIds.length > 0
+          ? supabase.from('subscription_charge_logs').select('tenant_id').in('tenant_id', tenantIds)
+          : { data: [] },
+      ]);
+
+      const tenantMap = new Map((tenantRes.data || []).map(p => [p.id, p]));
+      const agentMap = new Map((agentRes.data || []).map(p => [p.id, p]));
+      const paymentCounts = new Map<string, number>();
+      (chargeRes.data || []).forEach((c: any) => {
+        paymentCounts.set(c.tenant_id, (paymentCounts.get(c.tenant_id) || 0) + 1);
+      });
+
+      const rows = requests.map(r => ({
+        tenant_name: tenantMap.get(r.tenant_id)?.full_name || '—',
+        tenant_phone: tenantMap.get(r.tenant_id)?.phone || '—',
+        rent_given: Number(r.rent_amount || 0),
+        amount_paid: Number(r.amount_repaid || 0),
+        outstanding: Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
+        agent_name: agentMap.get(r.agent_id)?.full_name || '—',
+        duration_days: r.duration_days || 0,
+        payments_made: paymentCounts.get(r.tenant_id) || r.number_of_payments || 0,
+      }));
+
+      const blob = generateTenantOpsReportPdf(rows);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Tenant_Rent_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Report downloaded');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate report');
+    } finally {
+      setPrintingPdf(false);
+    }
+  };
 
   const handleDeleteTenant = async () => {
     if (!deleteDialog.tenantId) return;
@@ -359,6 +423,20 @@ export function TenantOpsDashboard() {
                   <p className="text-[10px] text-muted-foreground font-medium">Defaulted</p>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Print Report Button */}
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handlePrintReport}
+                disabled={printingPdf}
+              >
+                {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                Print Report
+              </Button>
             </div>
 
             {/* Navigation Cards */}
