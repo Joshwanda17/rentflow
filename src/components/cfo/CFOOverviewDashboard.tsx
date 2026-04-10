@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useCallback } from 'react';
+import { KPIBreakdownSheet, type BreakdownItem } from '@/components/cfo/KPIBreakdownSheet';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -28,6 +30,7 @@ const fmtShort = (n: number) => {
 const pct = (part: number, total: number) => (total === 0 ? 0 : Math.round((part / total) * 100));
 
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
+  const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
   const {
     channelBalances, liabilities, revenue, moneyFlow, receivables, cashFlowByPurpose,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
@@ -111,7 +114,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Treasury Balance"
             accent="border-l-blue-500"
             icon={<Banknote className="h-5 w-5 text-blue-500" />}
-            onClick={() => onTabChange?.('reconciliation')}
+            onClick={() => setActiveBreakdown('cash')}
           />
           <KPICard
             label="User Wallets"
@@ -119,7 +122,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Liabilities"
             accent="border-l-yellow-500"
             icon={<Wallet className="h-5 w-5 text-yellow-500" />}
-            onClick={() => onTabChange?.('solvency')}
+            onClick={() => setActiveBreakdown('wallets')}
           />
           <KPICard
             label="Platform Earnings"
@@ -127,6 +130,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Revenue - Expenses"
             accent="border-l-emerald-500"
             icon={<PiggyBank className="h-5 w-5 text-emerald-500" />}
+            onClick={() => setActiveBreakdown('earnings')}
           />
           <KPICard
             label="Cash In Today"
@@ -134,6 +138,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Total inflows"
             accent="border-l-green-500"
             icon={<ArrowDownRight className="h-5 w-5 text-green-500" />}
+            onClick={() => setActiveBreakdown('cashIn')}
           />
           <KPICard
             label="Cash Out Today"
@@ -141,6 +146,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Total outflows"
             accent="border-l-red-500"
             icon={<ArrowUpRight className="h-5 w-5 text-red-500" />}
+            onClick={() => setActiveBreakdown('cashOut')}
           />
           <KPICard
             label="Net Cash Today"
@@ -148,6 +154,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="In - Out"
             accent={(todayCashFlow?.netToday ?? 0) >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}
             icon={<ArrowUpDown className="h-5 w-5 text-indigo-500" />}
+            onClick={() => setActiveBreakdown('netCash')}
           />
         </div>
       </div>
@@ -556,6 +563,66 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           </div>
         </div>
       </SectionCard>
+
+      {/* KPI Breakdown Sheets */}
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'cash'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Platform Cash Breakdown"
+        total={totalCash}
+        items={Object.entries(channels).map(([name, vals]) => ({
+          label: name,
+          value: vals.deposits - vals.withdrawals,
+          icon: channelIcons[name],
+        }))}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'wallets'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="User Wallets Breakdown"
+        total={totalLiabilities}
+        items={liabilityItems}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'earnings'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Platform Earnings Breakdown"
+        total={platformEarnings}
+        items={[
+          { label: 'Total Revenue', value: revenue?.totalRevenue ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-green-500" /> },
+          { label: 'Total Expenses', value: -(revenue?.totalExpenses ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-red-500" /> },
+        ]}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'cashIn'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Cash In Today — By Category"
+        total={todayCashFlow?.cashInToday ?? 0}
+        items={Object.entries(todayCashFlow?.inflowCategories ?? {}).map(([cat, val]) => ({
+          label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          value: val,
+        }))}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'cashOut'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Cash Out Today — By Category"
+        total={todayCashFlow?.cashOutToday ?? 0}
+        items={Object.entries(todayCashFlow?.outflowCategories ?? {}).map(([cat, val]) => ({
+          label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          value: val,
+        }))}
+      />
+      <KPIBreakdownSheet
+        open={activeBreakdown === 'netCash'}
+        onOpenChange={(o) => !o && setActiveBreakdown(null)}
+        title="Net Cash Today"
+        total={todayCashFlow?.netToday ?? 0}
+        items={[
+          { label: 'Cash In', value: todayCashFlow?.cashInToday ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-green-500" /> },
+          { label: 'Cash Out', value: -(todayCashFlow?.cashOutToday ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-red-500" /> },
+        ]}
+      />
     </div>
   );
 }
