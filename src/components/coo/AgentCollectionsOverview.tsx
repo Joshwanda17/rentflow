@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CompactAmount } from '@/components/ui/CompactAmount';
-import { Loader2, Users, TrendingUp, Wallet, Banknote, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
-import { startOfDay, startOfWeek, startOfMonth, subDays, format, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, parseISO } from 'date-fns';
+import { Loader2, Users, TrendingUp, Wallet, Banknote, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Activity, Home, UserCheck } from 'lucide-react';
+import { startOfDay, startOfWeek, startOfMonth, subDays, format, eachDayOfInterval, eachWeekOfInterval } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, ComposedChart, Area } from 'recharts';
 
 interface AgentSummary {
@@ -20,14 +20,18 @@ interface AgentSummary {
   monthAmount: number;
   totalAmount: number;
   walletBalance: number;
-  paymentCount: number;
+  tenantCollections: number;
+  landlordPayouts: number;
+  tenantCount: number;
   landlordCount: number;
   lastCollection: string | null;
 }
 
 interface ChartDataPoint {
   label: string;
-  amount: number;
+  tenantAmount: number;
+  landlordAmount: number;
+  total: number;
   count: number;
 }
 
@@ -49,25 +53,40 @@ export default function AgentCollectionsOverview() {
   }, [period]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['coo-agent-collections-overview-v2', period],
+    queryKey: ['coo-agent-collections-all-v3', period],
     queryFn: async () => {
-      // 1. Get active agents (those with landlord assignments or collections)
-      const [collectionsRes, assignmentsRes] = await Promise.all([
+      // Fetch all sources in parallel
+      const [collectionsRes, landlordPayoutsRes, assignmentsRes, subagentsRes] = await Promise.all([
+        // Tenant rent collections by agents
         supabase.from('agent_collections').select('agent_id, amount, created_at, tenant_id'),
+        // Landlord payouts delivered by agents
+        supabase.from('agent_landlord_payouts').select('agent_id, amount, created_at, tenant_id, landlord_id, status')
+          .in('status', ['completed', 'delivered', 'approved', 'pending']),
+        // Active landlord assignments
         supabase.from('agent_landlord_assignments').select('agent_id, landlord_id').eq('status', 'active'),
+        // Sub-agent relationships
+        supabase.from('agent_subagents').select('parent_agent_id, sub_agent_id').eq('status', 'approved'),
       ]);
 
       const collections = collectionsRes.data || [];
+      const landlordPayouts = landlordPayoutsRes.data || [];
       const assignments = assignmentsRes.data || [];
+      const subagents = subagentsRes.data || [];
 
-      // Build set of active agent IDs (have landlords OR have collections)
-      const agentIdsWithLandlords = new Set(assignments.map(a => a.agent_id));
-      const agentIdsWithCollections = new Set(collections.map(c => c.agent_id));
-      const activeAgentIds = [...new Set([...agentIdsWithLandlords, ...agentIdsWithCollections])];
+      // Build set of ALL agent IDs from every source
+      const agentIdSet = new Set<string>();
+      collections.forEach(c => agentIdSet.add(c.agent_id));
+      landlordPayouts.forEach(p => { if (p.agent_id) agentIdSet.add(p.agent_id); });
+      assignments.forEach(a => agentIdSet.add(a.agent_id));
+      subagents.forEach(s => { agentIdSet.add(s.parent_agent_id); agentIdSet.add(s.sub_agent_id); });
 
-      if (activeAgentIds.length === 0) return { agents: [], chartData: [], kpis: { totalToday: 0, totalWeek: 0, totalMonth: 0, totalAll: 0, activeAgents: 0, avgPerAgent: 0, topAgent: '' } };
+      const activeAgentIds = [...agentIdSet];
 
-      // 2. Get profiles and wallets for active agents
+      if (activeAgentIds.length === 0) {
+        return { agents: [], chartData: [], kpis: { totalToday: 0, totalWeek: 0, totalMonth: 0, totalAll: 0, activeAgents: 0, avgPerAgent: 0, topAgent: '', tenantCollTotal: 0, landlordPayTotal: 0 } };
+      }
+
+      // Get profiles and wallets
       const [profilesRes, walletsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone').in('id', activeAgentIds),
         supabase.from('wallets').select('user_id, balance').in('user_id', activeAgentIds),
@@ -77,15 +96,27 @@ export default function AgentCollectionsOverview() {
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, Number(w.balance) || 0]));
 
       // Count landlords per agent
-      const landlordCountMap = new Map<string, number>();
+      const landlordCountMap = new Map<string, Set<string>>();
       for (const a of assignments) {
-        landlordCountMap.set(a.agent_id, (landlordCountMap.get(a.agent_id) || 0) + 1);
+        if (!landlordCountMap.has(a.agent_id)) landlordCountMap.set(a.agent_id, new Set());
+        landlordCountMap.get(a.agent_id)!.add(a.landlord_id);
+      }
+      for (const p of landlordPayouts) {
+        if (p.agent_id && p.landlord_id) {
+          if (!landlordCountMap.has(p.agent_id)) landlordCountMap.set(p.agent_id, new Set());
+          landlordCountMap.get(p.agent_id)!.add(p.landlord_id);
+        }
       }
 
-      // 3. Build agent summaries
-      const agentMap = new Map<string, AgentSummary>();
+      // Count tenants per agent
+      const tenantCountMap = new Map<string, Set<string>>();
+      for (const c of collections) {
+        if (!tenantCountMap.has(c.agent_id)) tenantCountMap.set(c.agent_id, new Set());
+        tenantCountMap.get(c.agent_id)!.add(c.tenant_id);
+      }
 
-      // Initialize all active agents
+      // Build agent summaries
+      const agentMap = new Map<string, AgentSummary>();
       for (const id of activeAgentIds) {
         const profile = profileMap.get(id);
         agentMap.set(id, {
@@ -97,31 +128,50 @@ export default function AgentCollectionsOverview() {
           monthAmount: 0,
           totalAmount: 0,
           walletBalance: walletMap.get(id) || 0,
-          paymentCount: 0,
-          landlordCount: landlordCountMap.get(id) || 0,
+          tenantCollections: 0,
+          landlordPayouts: 0,
+          tenantCount: tenantCountMap.get(id)?.size || 0,
+          landlordCount: landlordCountMap.get(id)?.size || 0,
           lastCollection: null,
         });
       }
 
-      // Aggregate collections
+      // Aggregate tenant collections
       for (const c of collections) {
         const agent = agentMap.get(c.agent_id);
         if (!agent) continue;
         const d = c.created_at;
         agent.totalAmount += c.amount;
+        agent.tenantCollections += c.amount;
         if (d >= monthISO) agent.monthAmount += c.amount;
         if (d >= weekISO) agent.weekAmount += c.amount;
         if (d >= todayISO) agent.todayAmount += c.amount;
-        agent.paymentCount++;
         if (!agent.lastCollection || d > agent.lastCollection) agent.lastCollection = d;
       }
 
-      // 4. Build chart data
-      const chartCollections = collections.filter(c => new Date(c.created_at) >= dateFrom);
+      // Aggregate landlord payouts
+      for (const p of landlordPayouts) {
+        if (!p.agent_id) continue;
+        const agent = agentMap.get(p.agent_id);
+        if (!agent) continue;
+        const d = p.created_at;
+        agent.totalAmount += p.amount;
+        agent.landlordPayouts += p.amount;
+        if (d >= monthISO) agent.monthAmount += p.amount;
+        if (d >= weekISO) agent.weekAmount += p.amount;
+        if (d >= todayISO) agent.todayAmount += p.amount;
+        if (!agent.lastCollection || d > agent.lastCollection) agent.lastCollection = d;
+      }
+
+      // Build chart data - combined
+      const allTxns = [
+        ...collections.map(c => ({ date: c.created_at, amount: c.amount, type: 'tenant' as const })),
+        ...landlordPayouts.filter(p => p.agent_id).map(p => ({ date: p.created_at, amount: p.amount, type: 'landlord' as const })),
+      ].filter(t => new Date(t.date) >= dateFrom);
+
       const now = new Date();
       let intervals: Date[];
       let formatStr: string;
-
       if (period === '7d') {
         intervals = eachDayOfInterval({ start: dateFrom, end: now });
         formatStr = 'EEE';
@@ -135,26 +185,31 @@ export default function AgentCollectionsOverview() {
 
       const chartData: ChartDataPoint[] = intervals.map((date, i) => {
         const nextDate = i < intervals.length - 1 ? intervals[i + 1] : new Date(now.getTime() + 86400000);
-        const dayCollections = chartCollections.filter(c => {
-          const cd = new Date(c.created_at);
-          return cd >= date && cd < nextDate;
+        const dayTxns = allTxns.filter(t => {
+          const td = new Date(t.date);
+          return td >= date && td < nextDate;
         });
+        const tenantAmount = dayTxns.filter(t => t.type === 'tenant').reduce((s, t) => s + t.amount, 0);
+        const landlordAmount = dayTxns.filter(t => t.type === 'landlord').reduce((s, t) => s + t.amount, 0);
         return {
           label: format(date, formatStr),
-          amount: dayCollections.reduce((s, c) => s + c.amount, 0),
-          count: dayCollections.length,
+          tenantAmount,
+          landlordAmount,
+          total: tenantAmount + landlordAmount,
+          count: dayTxns.length,
         };
       });
 
-      // 5. KPIs
-      const totalToday = [...agentMap.values()].reduce((s, a) => s + a.todayAmount, 0);
-      const totalWeek = [...agentMap.values()].reduce((s, a) => s + a.weekAmount, 0);
-      const totalMonth = [...agentMap.values()].reduce((s, a) => s + a.monthAmount, 0);
-      const totalAll = [...agentMap.values()].reduce((s, a) => s + a.totalAmount, 0);
-      const activeWithCollections = [...agentMap.values()].filter(a => a.paymentCount > 0).length;
-      const topAgent = [...agentMap.values()].sort((a, b) => b.monthAmount - a.monthAmount)[0]?.agentName || '—';
-
+      // KPIs
       const agents = [...agentMap.values()];
+      const totalToday = agents.reduce((s, a) => s + a.todayAmount, 0);
+      const totalWeek = agents.reduce((s, a) => s + a.weekAmount, 0);
+      const totalMonth = agents.reduce((s, a) => s + a.monthAmount, 0);
+      const totalAll = agents.reduce((s, a) => s + a.totalAmount, 0);
+      const tenantCollTotal = agents.reduce((s, a) => s + a.tenantCollections, 0);
+      const landlordPayTotal = agents.reduce((s, a) => s + a.landlordPayouts, 0);
+      const activeWithCollections = agents.filter(a => a.tenantCollections > 0 || a.landlordPayouts > 0).length;
+      const topAgent = [...agents].sort((a, b) => b.monthAmount - a.monthAmount)[0]?.agentName || '—';
 
       return {
         agents,
@@ -168,6 +223,8 @@ export default function AgentCollectionsOverview() {
           activeCollecting: activeWithCollections,
           avgPerAgent: activeWithCollections > 0 ? Math.round(totalMonth / activeWithCollections) : 0,
           topAgent,
+          tenantCollTotal,
+          landlordPayTotal,
         },
       };
     },
@@ -199,7 +256,7 @@ export default function AgentCollectionsOverview() {
 
   return (
     <div className="space-y-5">
-      {/* Period Selector */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold flex items-center gap-2">
           <Activity className="h-5 w-5 text-primary" />
@@ -217,8 +274,8 @@ export default function AgentCollectionsOverview() {
         </Select>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* KPI Cards - 6 cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="border-l-4 border-l-primary">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -242,6 +299,26 @@ export default function AgentCollectionsOverview() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <UserCheck className="h-3 w-3" /> Tenant Collections
+            </p>
+            <p className="text-xl font-bold mt-1">
+              <CompactAmount value={kpis?.tenantCollTotal || 0} />
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Home className="h-3 w-3" /> Landlord Payouts
+            </p>
+            <p className="text-xl font-bold mt-1">
+              <CompactAmount value={kpis?.landlordPayTotal || 0} />
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Users className="h-3 w-3" /> Active Agents
             </p>
             <p className="text-xl font-bold mt-1">{kpis?.activeAgents || 0}</p>
@@ -251,7 +328,7 @@ export default function AgentCollectionsOverview() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Wallet className="h-3 w-3" /> Avg/Agent (Month)
+              <Wallet className="h-3 w-3" /> Avg/Agent
             </p>
             <p className="text-xl font-bold mt-1">
               <CompactAmount value={kpis?.avgPerAgent || 0} />
@@ -261,12 +338,12 @@ export default function AgentCollectionsOverview() {
         </Card>
       </div>
 
-      {/* Collections Over Time Chart */}
+      {/* Chart - stacked tenant + landlord collections */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Collections Over Time</CardTitle>
+          <CardTitle className="text-sm">Collections Over Time (Tenant + Landlord)</CardTitle>
         </CardHeader>
-        <CardContent className="h-[220px]">
+        <CardContent className="h-[240px]">
           {chartData.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-12">No collection data for this period</p>
           ) : (
@@ -290,19 +367,23 @@ export default function AgentCollectionsOverview() {
                     fontSize: '12px',
                   }}
                   formatter={(value: number, name: string) => [
-                    name === 'amount' ? `UGX ${value.toLocaleString()}` : value,
-                    name === 'amount' ? 'Collections' : 'Txn Count',
+                    `UGX ${value.toLocaleString()}`,
+                    name === 'tenantAmount' ? 'Tenant Collections' : name === 'landlordAmount' ? 'Landlord Payouts' : 'Txn Count',
                   ]}
                 />
                 <defs>
-                  <linearGradient id="collectionsGradient" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="tenantGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
                   </linearGradient>
+                  <linearGradient id="landlordGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0.05} />
+                  </linearGradient>
                 </defs>
-                <Area type="monotone" dataKey="amount" fill="url(#collectionsGradient)" stroke="none" />
-                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                <Line type="monotone" dataKey="count" stroke="hsl(var(--accent-foreground))" strokeWidth={2} dot={false} yAxisId={0} />
+                <Bar dataKey="tenantAmount" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} maxBarSize={28} name="tenantAmount" />
+                <Bar dataKey="landlordAmount" stackId="a" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} maxBarSize={28} name="landlordAmount" />
+                <Line type="monotone" dataKey="count" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -331,7 +412,7 @@ export default function AgentCollectionsOverview() {
         </CardHeader>
         <CardContent className="p-0">
           {sortedAgents.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No active agents with collections found</p>
+            <p className="text-sm text-muted-foreground text-center py-8">No active agents found</p>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -340,11 +421,11 @@ export default function AgentCollectionsOverview() {
                     <TableRow>
                       <TableHead className="min-w-[140px]">Agent</TableHead>
                       <TableHead className="text-right min-w-[80px]">Today</TableHead>
-                      <TableHead className="text-right min-w-[90px]">This Week</TableHead>
                       <TableHead className="text-right min-w-[90px]">This Month</TableHead>
                       <TableHead className="text-right min-w-[80px]">Wallet</TableHead>
-                      <TableHead className="text-right min-w-[60px]">Landlords</TableHead>
-                      <TableHead className="text-right min-w-[50px]">Txns</TableHead>
+                      <TableHead className="text-right min-w-[70px]">Tenants</TableHead>
+                      <TableHead className="text-right min-w-[70px]">Landlords</TableHead>
+                      <TableHead className="text-right min-w-[90px]">Total All-Time</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -367,9 +448,6 @@ export default function AgentCollectionsOverview() {
                           <TableCell className="text-right text-sm whitespace-nowrap">
                             <CompactAmount value={a.todayAmount} />
                           </TableCell>
-                          <TableCell className="text-right text-sm whitespace-nowrap">
-                            <CompactAmount value={a.weekAmount} />
-                          </TableCell>
                           <TableCell className="text-right text-sm font-semibold whitespace-nowrap">
                             <CompactAmount value={a.monthAmount} />
                           </TableCell>
@@ -377,11 +455,18 @@ export default function AgentCollectionsOverview() {
                             <CompactAmount value={a.walletBalance} className={a.walletBalance > 0 ? 'text-primary' : ''} />
                           </TableCell>
                           <TableCell className="text-right text-sm">
-                            {a.landlordCount > 0 ? (
-                              <Badge variant="secondary" className="text-xs">{a.landlordCount}</Badge>
+                            {a.tenantCount > 0 ? (
+                              <Badge variant="secondary" className="text-xs">{a.tenantCount}</Badge>
                             ) : '—'}
                           </TableCell>
-                          <TableCell className="text-right text-sm text-muted-foreground">{a.paymentCount}</TableCell>
+                          <TableCell className="text-right text-sm">
+                            {a.landlordCount > 0 ? (
+                              <Badge variant="outline" className="text-xs">{a.landlordCount}</Badge>
+                            ) : '—'}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
+                            <CompactAmount value={a.totalAmount} />
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -389,7 +474,6 @@ export default function AgentCollectionsOverview() {
                 </Table>
               </div>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t">
                   <p className="text-xs text-muted-foreground">
