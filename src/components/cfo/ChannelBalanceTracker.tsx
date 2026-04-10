@@ -36,7 +36,7 @@ export function ChannelBalanceTracker() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('amount, payout_method, status, created_at')
+        .select('amount, payout_method, mobile_money_provider, status, created_at')
         .in('status', FINAL_WITHDRAWAL_STATUSES)
         .limit(200);
       if (error) throw error;
@@ -64,11 +64,15 @@ export function ChannelBalanceTracker() {
 
       const chWithdrawals = withdrawals.filter((w: any) => {
         const m = (w.payout_method || '').toLowerCase();
-        if (ch.key === 'mtn') return m.includes('mtn');
-        if (ch.key === 'airtel') return m.includes('airtel');
-        if (ch.key === 'bank') return m.includes('bank');
-        if (ch.key === 'cash') return m.includes('cash') || m.includes('agent');
-        if (ch.key === 'unassigned') return !m || (!m.includes('mtn') && !m.includes('airtel') && !m.includes('bank') && !m.includes('cash') && !m.includes('agent'));
+        const p = (w.mobile_money_provider || '').toLowerCase();
+        if (ch.key === 'mtn') return m.includes('mtn') || p.includes('mtn');
+        if (ch.key === 'airtel') return m.includes('airtel') || p.includes('airtel');
+        if (ch.key === 'bank') return m.includes('bank') || p.includes('bank');
+        if (ch.key === 'cash') return m.includes('cash') || m.includes('agent') || p.includes('cash');
+        if (ch.key === 'unassigned') {
+          const matched = m.includes('mtn') || p.includes('mtn') || m.includes('airtel') || p.includes('airtel') || m.includes('bank') || p.includes('bank') || m.includes('cash') || m.includes('agent') || p.includes('cash');
+          return !matched;
+        }
         return false;
       });
 
