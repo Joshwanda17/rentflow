@@ -169,6 +169,7 @@ Deno.serve(async (req) => {
         .from("wallets")
         .upsert({ user_id: landlordUserId, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
+      const txDate = new Date().toISOString();
       await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
@@ -181,9 +182,10 @@ Deno.serve(async (req) => {
             description: `Rent payment credited to landlord wallet`,
             currency: 'UGX',
             ledger_scope: "wallet",
+            transaction_date: txDate,
           },
           {
-            user_id: null,
+            user_id: landlordUserId,
             amount: fundAmount,
             direction: "cash_out",
             category: "wallet_deposit",
@@ -192,6 +194,7 @@ Deno.serve(async (req) => {
             description: `Platform disbursement to landlord wallet`,
             currency: 'UGX',
             ledger_scope: "platform",
+            transaction_date: txDate,
           },
         ],
       });
@@ -218,7 +221,7 @@ Deno.serve(async (req) => {
     await adminClient.rpc('create_ledger_transaction', {
       entries: [
         {
-          user_id: null,
+          user_id: user.id,
           amount: fundAmount,
           direction: "cash_out",
           category: "rent_disbursement",
@@ -229,6 +232,7 @@ Deno.serve(async (req) => {
           ledger_scope: "platform",
           linked_party: landlordUserId || landlordRecord?.name || "Unknown Landlord",
           reference_id: transactionId,
+          transaction_date: now.toISOString(),
         },
         {
           user_id: rr.tenant_id,
@@ -242,6 +246,7 @@ Deno.serve(async (req) => {
           ledger_scope: "bridge",
           linked_party: landlordUserId,
           reference_id: rr.id,
+          transaction_date: now.toISOString(),
         },
       ],
     });
@@ -317,6 +322,7 @@ Deno.serve(async (req) => {
         .from("wallets")
         .upsert({ user_id: rr.agent_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
+      const bonusTxDate = new Date().toISOString();
       await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
@@ -329,9 +335,10 @@ Deno.serve(async (req) => {
             description: "Agent approval bonus for funded rent request",
             currency: 'UGX',
             ledger_scope: "wallet",
+            transaction_date: bonusTxDate,
           },
           {
-            user_id: null,
+            user_id: rr.agent_id,
             amount: 5000,
             direction: "cash_out",
             category: "agent_commission_earned",
@@ -340,6 +347,7 @@ Deno.serve(async (req) => {
             description: "Platform payout: agent approval bonus",
             currency: 'UGX',
             ledger_scope: "platform",
+            transaction_date: bonusTxDate,
           },
         ],
       });

@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
     const referenceId = `ANG${yy}${mm}${dd}${seq}`;
 
     // Balanced RPC: wallet cash_out + platform cash_in (share_capital)
+    const txDate = new Date().toISOString();
     const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
       entries: [
         {
@@ -94,8 +95,10 @@ Deno.serve(async (req) => {
           description: `Angel Pool investment: ${shares} shares @ USh ${PRICE_PER_SHARE.toLocaleString()}/share`,
           currency: 'UGX',
           reference_id: referenceId,
+          transaction_date: txDate,
         },
         {
+          user_id: user.id,
           ledger_scope: 'platform',
           direction: 'cash_in',
           amount: actualAmount,
@@ -105,6 +108,7 @@ Deno.serve(async (req) => {
           description: `Angel Pool share capital received`,
           currency: 'UGX',
           reference_id: referenceId,
+          transaction_date: txDate,
         },
       ],
     });

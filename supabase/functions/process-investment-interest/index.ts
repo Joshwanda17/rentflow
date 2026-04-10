@@ -81,9 +81,11 @@ serve(async (req) => {
         .upsert({ user_id: account.user_id, balance: 0 }, { onConflict: "user_id", ignoreDuplicates: true });
 
       // Credit interest via balanced RPC: platform cash_out (roi_expense) + wallet cash_in (roi_wallet_credit)
+      const txDate = new Date().toISOString();
       const { error: rpcError } = await supabase.rpc('create_ledger_transaction', {
         entries: [
           {
+            user_id: account.user_id,
             ledger_scope: 'platform',
             direction: 'cash_out',
             amount: interestAmount,
@@ -92,6 +94,7 @@ serve(async (req) => {
             source_id: account.id,
             description: `Monthly ROI expense (15%) for investment account "${account.name}"`,
             currency: 'UGX',
+            transaction_date: txDate,
           },
           {
             user_id: account.user_id,
@@ -103,6 +106,7 @@ serve(async (req) => {
             source_id: account.id,
             description: `Monthly interest (15%) on investment account "${account.name}"`,
             currency: 'UGX',
+            transaction_date: txDate,
           },
         ],
       });

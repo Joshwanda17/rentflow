@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
     if (tenantBalance > 0) {
       tenantDeducted = Math.min(tenantBalance, shortfall);
 
+      const tenantTxDate = new Date().toISOString();
       const { error: tenantRpcErr } = await supabase.rpc('create_ledger_transaction', {
         entries: [
           {
@@ -102,12 +103,14 @@ Deno.serve(async (req) => {
             amount: tenantDeducted, category: 'tenant_repayment',
             source_table: 'rent_requests', source_id: rr.id,
             description: `Manual collection: ${trimmedReason}`, currency: 'UGX',
+            transaction_date: tenantTxDate,
           },
           {
-            ledger_scope: 'platform', direction: 'cash_in',
+            user_id: rr.tenant_id, ledger_scope: 'platform', direction: 'cash_in',
             amount: tenantDeducted, category: 'tenant_repayment',
             source_table: 'rent_requests', source_id: rr.id,
             description: `Manual collection received from tenant`, currency: 'UGX',
+            transaction_date: tenantTxDate,
           },
         ],
       });
@@ -134,6 +137,7 @@ Deno.serve(async (req) => {
       if (agentBalance > 0) {
         agentDeducted = Math.min(agentBalance, shortfall);
 
+        const agentTxDate = new Date().toISOString();
         const { error: agentRpcErr } = await supabase.rpc('create_ledger_transaction', {
           entries: [
             {
@@ -141,12 +145,14 @@ Deno.serve(async (req) => {
               amount: agentDeducted, category: 'tenant_repayment',
               source_table: 'rent_requests', source_id: rr.id,
               description: `Manual collection (agent share for ${tenantName}): ${trimmedReason}`, currency: 'UGX',
+              transaction_date: agentTxDate,
             },
             {
-              ledger_scope: 'platform', direction: 'cash_in',
+              user_id: rr.agent_id, ledger_scope: 'platform', direction: 'cash_in',
               amount: agentDeducted, category: 'tenant_repayment',
               source_table: 'rent_requests', source_id: rr.id,
               description: `Manual collection received from agent for ${tenantName}`, currency: 'UGX',
+              transaction_date: agentTxDate,
             },
           ],
         });

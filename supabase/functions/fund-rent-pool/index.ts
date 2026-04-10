@@ -146,9 +146,10 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: "Rent Management Pool",
           ledger_scope: "wallet",
+          transaction_date: new Date().toISOString(),
         },
         {
-          user_id: null,
+          user_id: user.id,
           amount,
           direction: "cash_in",
           category: "partner_funding",
@@ -159,6 +160,7 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: user.id,
           ledger_scope: "platform",
+          transaction_date: new Date().toISOString(),
         },
       ],
     });

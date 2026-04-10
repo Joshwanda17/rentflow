@@ -67,21 +67,22 @@ serve(async (req) => {
 
       // Credit agent wallet via balanced RPC: platform cash_out + wallet cash_in
       const refId = crypto.randomUUID();
+      const expTxDate = new Date().toISOString();
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
-            ledger_scope: 'platform', direction: 'cash_out',
+            user_id: agentId, ledger_scope: 'platform', direction: 'cash_out',
             amount, category: 'system_balance_correction',
             source_table: 'platform_expense_transfers',
             description: `[${expense_category || fa.expense_category}] ${description}`,
-            currency: 'UGX', reference_id: refId,
+            currency: 'UGX', reference_id: refId, transaction_date: expTxDate,
           },
           {
             user_id: agentId, ledger_scope: 'wallet', direction: 'cash_in',
             amount, category: 'system_balance_correction',
             source_table: 'platform_expense_transfers',
             description: `Platform expense credit: [${expense_category || fa.expense_category}] ${description}`,
-            currency: 'UGX', reference_id: refId,
+            currency: 'UGX', reference_id: refId, transaction_date: expTxDate,
           },
         ],
       });
@@ -137,21 +138,22 @@ serve(async (req) => {
 
           // Credit via balanced RPC: platform cash_out + wallet cash_in
           const refId = crypto.randomUUID();
+          const payTxDate = new Date().toISOString();
           const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
             entries: [
               {
-                ledger_scope: 'platform', direction: 'cash_out',
+                user_id: item.employee_id, ledger_scope: 'platform', direction: 'cash_out',
                 amount: item.amount, category: 'system_balance_correction',
                 source_table: 'payroll_items',
                 description: `${item.category === 'salary' ? 'Salary' : 'Employee advance'} payment`,
-                currency: 'UGX', reference_id: refId,
+                currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
               },
               {
                 user_id: item.employee_id, ledger_scope: 'wallet', direction: 'cash_in',
                 amount: item.amount, category: 'system_balance_correction',
                 source_table: 'payroll_items',
                 description: item.description || `${item.category} payment`,
-                currency: 'UGX', reference_id: refId,
+                currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
               },
             ],
           });

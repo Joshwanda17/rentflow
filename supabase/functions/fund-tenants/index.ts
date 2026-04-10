@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
       await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
-            user_id: null,
+            user_id: user.id,
             amount: totalRepaymentForLedger,
             direction: "cash_out",
             category: "rent_disbursement",
@@ -273,6 +273,7 @@ Deno.serve(async (req) => {
             ledger_scope: "platform",
             linked_party: user.id,
             reference_id: rr.id,
+            transaction_date: new Date().toISOString(),
           },
           {
             user_id: rr.tenant_id,
@@ -286,6 +287,7 @@ Deno.serve(async (req) => {
             ledger_scope: "bridge",
             linked_party: user.id,
             reference_id: rr.id,
+            transaction_date: new Date().toISOString(),
           },
         ],
       });
