@@ -1,34 +1,67 @@
 
 
-# Add PDF Print Button to Tenant Ops Dashboard
+# Redesign COO Agent Activity Tab — Executive-Grade Agent Tracker
 
-## What
-Add a "Print Report" button to the Tenant Ops overview that generates a professional PDF report showing all tenants with their rent details: amount given, amount paid, outstanding balance, responsible agent, days paid for, and number of payments made.
+## What Changes
+Replace the current `COOAgentTracker` component (used in the COO dashboard's "Agent Activity" tab) with a new two-panel, executive-grade agent management hub inspired by the reference image.
 
-## Data Source
-Query `rent_requests` joined with `profiles` (tenant names/phones), `profiles` again for agent names (via `agent_id`), plus `number_of_payments` and `duration_days` already on the rent_requests table. Payment count comes from `subscription_charge_logs` (count per tenant).
+## Layout
 
-## Implementation
+```text
+┌──────────────────────┬──────────────────────────────────────────┐
+│  LEFT PANEL (280px)  │  RIGHT PANEL (flex-1)                   │
+│  Deep blue bg        │                                         │
+│                      │  [Search] [Status Filter] [Sort By]     │
+│  All Agents  (42)    │                                         │
+│  Active      (38)    │  ┌─ Agent Row ─────────────────────┐    │
+│  Inactive    (2)     │  │ Name  Tenants  Landlords  Comm  │    │
+│  Pending     (1)     │  │ Wallet  Status         Actions  │    │
+│  Top Perf.   (5)     │  └─────────────────────────────────┘    │
+│  At Risk     (3)     │  ┌─ Agent Row ─────────────────────┐    │
+│                      │  │ ...                              │    │
+│  ── KPI Summary ──   │  └─────────────────────────────────┘    │
+│  Total Commission    │                                         │
+│  Total Collections   │  ── Agent Detail Drawer (on click) ──   │
+│  Avg Wallet Bal.     │  Profile | Wallet | Commissions |       │
+│                      │  Linked Tenants & Landlords |           │
+│                      │  Recent Activity Timeline               │
+└──────────────────────┴──────────────────────────────────────────┘
+```
 
-### 1. Create `src/lib/generateTenantOpsReportPdf.ts`
-A new PDF generator (following the existing `generateAgentTenantPdf.ts` pattern with jsPDF) that produces an A4 report with:
-- **Header**: "WELILE — Tenant Rent Report" + date
-- **Summary row**: Total tenants, total rent given, total repaid, total outstanding
-- **Table columns**: #, Tenant Name, Phone, Rent Given, Amount Paid, Outstanding, Agent Name, Duration (days), Payments Made
-- **Color coding**: Outstanding > 0 in red, fully paid in green
-- **Totals footer row**
-- **Welile branding footer**
+On mobile, the left panel collapses to a horizontal scrollable chip bar.
 
-### 2. Update `TenantOpsDashboard.tsx`
-- Add a `Printer` icon button next to the navigation cards area (on the overview screen)
-- On click: fetch full tenant data with agent names and payment counts, call the PDF generator, trigger browser download
-- The query will:
-  - Fetch all funded/repaying/disbursed rent_requests with agent_id
-  - Join profiles for tenant + agent names
-  - Count payments from `subscription_charge_logs` grouped by tenant_id
-  - Compute outstanding = total_repayment - amount_repaid
+## Data Fetching
+- **Agents list**: Query `profiles` where role = `agent`, joined with:
+  - `rent_requests` count (grouped by `assigned_agent_id`) for tenants managed
+  - `properties` or `landlord_profiles` count for landlords onboarded
+  - `agent_earnings` sum for total commission
+  - `wallets` for wallet balance
+  - `last_active_at` from profiles for status classification
+- **Status classification**: Active (last_active < 7d), Inactive (7-30d), At Risk (30d+), Pending (no activity), Top Performers (commission > threshold)
+- **Realtime**: Subscribe to `profiles` changes for agent status updates
 
-### Files Changed
-- **New**: `src/lib/generateTenantOpsReportPdf.ts`
-- **Edit**: `src/components/executive/TenantOpsDashboard.tsx` — add print button + data fetch logic
+## Agent Detail Panel (slide-in on row click)
+- Profile card (name, phone, email, joined date)
+- Wallet balance with mini-chart
+- Commission history (last 10 entries from `agent_earnings`)
+- Linked tenants (from `rent_requests`)
+- Linked landlords (from properties/assignments)
+- Recent activity timeline (from `agent_visits`, `agent_collections`)
+
+## Files Changed
+
+### New Files
+- **`src/components/coo/COOAgentHub.tsx`** — Main two-panel layout with left nav, right content, filters, search, sort, and agent detail drawer
+- **`src/components/coo/AgentDetailDrawer.tsx`** — Slide-in panel showing full agent profile, wallet, commissions, linked tenants/landlords, and activity timeline
+
+### Edited Files
+- **`src/pages/coo/Dashboard.tsx`** — Replace `<COOAgentTracker />` with `<COOAgentHub />` in the `agent-activity` case
+- **`src/components/layout/executiveSidebarConfig.ts`** — Rename "Agent Activity" to "Agents" for clarity
+
+## Visual Style
+- Left panel: `bg-[#1a1f3d]` (deep navy), white text, large bold category labels, counts in badges
+- Right panel: White/card background, clean table rows with subtle hover states
+- Status indicators: Green dot (Active), Gray (Inactive), Yellow (Pending), Red (At Risk), Gold star (Top Performer)
+- Bold typography, generous whitespace, strong visual hierarchy
+- Accessible contrast ratios, keyboard-navigable rows and filters
 
