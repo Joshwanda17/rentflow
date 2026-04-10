@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
-import { Loader2, CheckCircle2, ArrowDownCircle, AlertCircle, Smartphone, Building2, Banknote, CreditCard } from 'lucide-react';
+import { Loader2, CheckCircle2, ArrowDownCircle, AlertCircle, Smartphone, Building2, Banknote, CreditCard, Phone } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface AgentDepositCashDialogProps {
@@ -17,6 +17,11 @@ interface AgentDepositCashDialogProps {
 }
 
 type DepositType = 'float' | 'rent_repayment';
+
+const USSD_DIAL: Record<string, string> = {
+  mtn: 'tel:*165*4%23',     // *165*4#
+  airtel: 'tel:*185*9%23',  // *185*9#
+};
 
 export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentDepositCashDialogProps) {
   const { profile } = useProfile();
@@ -184,6 +189,28 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
                 From your mobile money SMS or bank deposit slip
               </p>
             </div>
+
+            {/* USSD Dial Now Button */}
+            {(method === 'mtn' || method === 'airtel') && (
+              <div className="space-y-2">
+                <a href={USSD_DIAL[method]} className="block">
+                  <Button
+                    type="button"
+                    className={`w-full h-12 text-base font-bold ${
+                      method === 'mtn'
+                        ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                  >
+                    <Phone className="h-5 w-5 mr-2" />
+                    Dial Now — {method === 'mtn' ? 'MTN MoMo' : 'Airtel Money'}
+                  </Button>
+                </a>
+                <p className="text-xs text-center text-muted-foreground">
+                  Tap to open your phone dialer and complete payment instantly.
+                </p>
+              </div>
+            )}
 
             {/* Context info based on deposit type */}
             {depositType === 'rent_repayment' && (
