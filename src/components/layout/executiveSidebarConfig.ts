@@ -85,6 +85,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Overview', icon: Activity, id: 'overview' },
         { label: 'Rent Approvals', icon: ClipboardList, id: 'rent-approvals' },
+        { label: 'Tenants', icon: Home, id: 'tenants' },
         { label: 'Transactions', icon: ClipboardList, id: 'transactions' },
         { label: 'Agent Collections', icon: Users, id: 'collections' },
         { label: 'Wallets', icon: Wallet, id: 'wallets' },

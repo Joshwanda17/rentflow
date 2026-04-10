@@ -14,13 +14,14 @@ import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { COOAgentHub } from '@/components/coo/COOAgentHub';
+import { MissedDaysTracker } from '@/components/executive/MissedDaysTracker';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck,
-  TrendingUp, ArrowLeft, ChevronRight, Receipt
+  TrendingUp, ArrowLeft, ChevronRight, Receipt, Home
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ interface QuickNavItem {
 
 const quickNavItems: QuickNavItem[] = [
   { id: 'rent-approvals', label: 'Rent Approvals', icon: ClipboardList, color: 'bg-blue-500/10 text-blue-600 border-blue-500/20', description: 'Review & approve' },
+  { id: 'tenants', label: 'Tenants', icon: Home, color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20', description: 'Repayment tracker' },
   { id: 'wallets', label: 'Wallets & Ops', icon: Wallet, color: 'bg-primary/10 text-primary border-primary/20', description: 'Deposits & payouts' },
   { id: 'transactions', label: 'Transactions', icon: BarChart3, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20', description: 'Monitor activity' },
   { id: 'collections', label: 'Collections', icon: Users, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', description: 'Agent reports' },
@@ -88,6 +90,15 @@ export default function COODashboardPage() {
             {renderSectionHeader('Rent Approvals', ClipboardList)}
             <p className="text-sm text-muted-foreground -mt-2">Review rent requests approved by Landlord Ops. Your sign-off forwards to CFO for payout.</p>
             <RentPipelineQueue stage="landlord_ops_approved" />
+          </div>
+        );
+      case 'tenants':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Tenant Repayment Tracker', Home)}
+            <p className="text-sm text-muted-foreground -mt-2">Track tenant repayment progress, overdue accounts, and assigned agent contacts.</p>
+            <MissedDaysTracker />
           </div>
         );
       case 'transactions':
