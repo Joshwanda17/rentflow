@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
 
     // 1. Insert balanced ledger entries via RPC
     const { data: txnGroupId, error: ledgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
-      entries: JSON.stringify([
+      entries: [
         {
           user_id: tenantId,
           amount: payAmount,
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
           currency: 'UGX',
           transaction_date: new Date().toISOString(),
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {

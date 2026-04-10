@@ -79,7 +79,7 @@ async function applyRepaymentForRepayingRequest(
   }
 
   const { error: ledgerError } = await adminClient.rpc('create_ledger_transaction', {
-    entries: JSON.stringify([
+    entries: [
       {
         user_id: tenantId,
         amount: appliedAmount,
@@ -105,7 +105,7 @@ async function applyRepaymentForRepayingRequest(
         currency: 'UGX',
         transaction_date: new Date().toISOString(),
       },
-    ]),
+    ],
   });
 
   if (ledgerError) throw ledgerError;
@@ -392,7 +392,7 @@ Deno.serve(async (req) => {
 
         // Agent wallet deduction is handled by sync_wallet_from_ledger trigger on ledger insert below
         const { error: agentLedgerError } = await adminClient.rpc('create_ledger_transaction', {
-          entries: JSON.stringify([
+          entries: [
             {
               user_id: agentId,
               amount: amount,
@@ -415,7 +415,7 @@ Deno.serve(async (req) => {
               source_table: 'wallet_deposits',
               transaction_date: new Date().toISOString(),
             },
-          ]),
+          ],
         });
 
         if (agentLedgerError) {
@@ -451,7 +451,7 @@ Deno.serve(async (req) => {
           await ensureWalletExists(adminClient, landlordUserId);
 
           const { error: landlordLedgerError } = await adminClient.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 direction: 'cash_out',
                 amount: landlordPayment,
@@ -477,7 +477,7 @@ Deno.serve(async (req) => {
                 reference_id: activeRentRequest.id,
                 transaction_date: new Date().toISOString(),
               },
-            ]),
+            ],
           });
 
           if (landlordLedgerError) {
@@ -505,7 +505,7 @@ Deno.serve(async (req) => {
     if (repaymentAmount === 0) {
       // Agent wallet deduction is handled by sync_wallet_from_ledger trigger on ledger insert below
       const { error: agentLedgerError } = await adminClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: agentId,
             amount: amount,
@@ -528,7 +528,7 @@ Deno.serve(async (req) => {
             source_table: 'wallet_deposits',
             transaction_date: new Date().toISOString(),
           },
-        ]),
+        ],
       });
 
       if (agentLedgerError) {
@@ -545,7 +545,7 @@ Deno.serve(async (req) => {
       await ensureWalletExists(adminClient, targetUserId!);
 
       const { error: tenantLedgerError } = await adminClient.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             direction: 'cash_out',
             amount: depositAmount,
@@ -570,7 +570,7 @@ Deno.serve(async (req) => {
             linked_party: agentId,
             transaction_date: new Date().toISOString(),
           },
-        ]),
+        ],
       });
 
       if (tenantLedgerError) {
