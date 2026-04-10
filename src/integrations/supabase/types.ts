@@ -9617,7 +9617,9 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
-      create_ledger_transaction: { Args: { entries: Json }; Returns: string }
+      create_ledger_transaction:
+        | { Args: { entries: Json }; Returns: string }
+        | { Args: { entries: Json; idempotency_key?: string }; Returns: string }
       credit_agent_event_bonus: {
         Args: {
           p_agent_id: string
