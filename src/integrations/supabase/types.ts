@@ -9727,6 +9727,27 @@ export type Database = {
         }[]
       }
       get_agent_workload_summary: { Args: never; Returns: Json }
+      get_agents_hub: {
+        Args: {
+          page_limit?: number
+          page_offset?: number
+          search_query?: string
+          sort_dir?: string
+          sort_field?: string
+        }
+        Returns: {
+          full_name: string
+          id: string
+          landlords_count: number
+          last_active_at: string
+          phone: string
+          tenants_count: number
+          territory: string
+          total_commission: number
+          total_count: number
+          wallet_balance: number
+        }[]
+      }
       get_approximate_user_count: { Args: never; Returns: number }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
