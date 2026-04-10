@@ -59,7 +59,7 @@ export function TenantOpsDashboard() {
       // Fetch rent requests with agent_id
       const { data: requests } = await supabase
         .from('rent_requests')
-        .select('tenant_id, agent_id, rent_amount, total_repayment, amount_repaid, duration_days, number_of_payments, status')
+        .select('tenant_id, agent_id, rent_amount, total_repayment, amount_repaid, duration_days, number_of_payments, status, created_at')
         .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted']);
 
       if (!requests || requests.length === 0) {
@@ -92,6 +92,7 @@ export function TenantOpsDashboard() {
       const rows = requests.map(r => ({
         tenant_name: tenantMap.get(r.tenant_id)?.full_name || '—',
         tenant_phone: tenantMap.get(r.tenant_id)?.phone || '—',
+        start_date: r.created_at || '',
         rent_given: Number(r.rent_amount || 0),
         amount_paid: Number(r.amount_repaid || 0),
         outstanding: Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
