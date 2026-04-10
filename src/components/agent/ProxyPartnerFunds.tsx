@@ -243,7 +243,7 @@ export function ProxyPartnerFunds() {
           portfolioId: group.portfolioId,
           portfolioCode: pInfo?.portfolio_code || null,
           accountName: pInfo?.account_name || null,
-          totalReturns: groupNets[key],
+          totalReturns: Math.round(Math.max(0, partnerNet[group.partnerId]) * proportion),
           totalWithdrawn,
           available,
         };
