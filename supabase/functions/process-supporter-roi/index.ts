@@ -142,9 +142,10 @@ Deno.serve(async (req) => {
           const { error: reinvestLedgerErr } = await supabase.rpc('create_ledger_transaction', {
             entries: [
               {
-                direction: 'cash_out',
-                amount: roiAmount,
-                category: 'roi_expense',
+              user_id: rr.supporter_id,
+              direction: 'cash_out',
+              amount: roiAmount,
+              category: 'roi_expense',
                 ledger_scope: 'platform',
                 source_table: 'supporter_roi_payments',
                 source_id: rr.id,
@@ -188,9 +189,10 @@ Deno.serve(async (req) => {
           const { error: walletLedgerErr } = await supabase.rpc('create_ledger_transaction', {
             entries: [
               {
-                direction: 'cash_out',
-                amount: roiAmount,
-                category: 'roi_expense',
+              user_id: rr.supporter_id,
+              direction: 'cash_out',
+              amount: roiAmount,
+              category: 'roi_expense',
                 ledger_scope: 'platform',
                 source_table: 'supporter_roi_payments',
                 source_id: rr.id,
@@ -323,7 +325,7 @@ Deno.serve(async (req) => {
           await supabase.rpc('create_ledger_transaction', {
             entries: [
               {
-                user_id: null,
+                user_id: partnerId,
                 amount: totalPending,
                 direction: 'cash_out',
                 category: 'pending_portfolio_topup',
@@ -332,6 +334,7 @@ Deno.serve(async (req) => {
                 description: `Auto-merged ${pendingOps.length} pending top-up(s) into ${accountLabel} at ROI cycle`,
                 currency: 'UGX',
                 ledger_scope: 'platform',
+                transaction_date: now.toISOString(),
               },
               {
                 user_id: partnerId,
@@ -343,6 +346,7 @@ Deno.serve(async (req) => {
                 description: `${pendingOps.length} pending top-up(s) merged into ${accountLabel} — capital activated`,
                 currency: 'UGX',
                 ledger_scope: 'platform',
+                transaction_date: now.toISOString(),
               },
             ],
           });

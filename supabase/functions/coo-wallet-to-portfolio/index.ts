@@ -139,9 +139,10 @@ Deno.serve(async (req) => {
           description: `Wallet deduction for ${accountLabel} — Tenant Partnership Operations`,
           currency: 'UGX',
           ledger_scope: "wallet",
+          transaction_date: new Date().toISOString(),
         },
         {
-          user_id: null,
+          user_id: partnerId,
           amount: topupAmount,
           direction: "cash_in",
           category: "partner_funding",
@@ -150,6 +151,7 @@ Deno.serve(async (req) => {
           description: `Pending capital for ${accountLabel} — applied at maturity`,
           currency: 'UGX',
           ledger_scope: "platform",
+          transaction_date: new Date().toISOString(),
         },
       ],
     });

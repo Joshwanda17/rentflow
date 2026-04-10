@@ -49,25 +49,34 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Get tenant's wallet balance
-    const { data: profile, error: profileErr } = await supabaseAdmin
+    // Get tenant's wallet balance from wallets table (source of truth)
+    const { data: walletData, error: walletErr } = await supabaseAdmin
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", tenantId)
+      .single();
+
+    // Get tenant name for notifications
+    const { data: profileData } = await supabaseAdmin
       .from("profiles")
-      .select("wallet_balance, full_name")
+      .select("full_name")
       .eq("id", tenantId)
       .single();
 
-    if (profileErr || !profile) {
+    const walletBalance = walletData?.balance ?? 0;
+
+    if (walletErr || !walletData) {
       return new Response(
-        JSON.stringify({ error: "Could not find tenant profile" }),
+        JSON.stringify({ error: "Could not find tenant wallet" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (profile.wallet_balance < amount) {
+    if (walletBalance < amount) {
       return new Response(
         JSON.stringify({
           error: "Insufficient wallet balance",
-          wallet_balance: profile.wallet_balance,
+          wallet_balance: walletBalance,
           requested: amount,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -220,7 +229,7 @@ Deno.serve(async (req) => {
         success: true,
         amount_paid: payAmount,
         remaining_balance: remainingBalance,
-        new_wallet_balance: updatedProfile?.wallet_balance ?? profile.wallet_balance - payAmount,
+        new_wallet_balance: updatedProfile?.wallet_balance ?? walletBalance - payAmount,
         rent_status: updatedRent?.status ?? rentRequest.status,
         reference: `PAY-${txnGroupId.slice(0, 8).toUpperCase()}`,
       }),

@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     await supabase.rpc('create_ledger_transaction', {
       entries: [
         {
-          user_id: null,
+          user_id: partnerId,
           amount: totalPending,
           direction: "cash_out",
           category: "partner_funding",
@@ -147,6 +147,7 @@ Deno.serve(async (req) => {
           description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel} — platform disbursal`,
           currency: 'UGX',
           ledger_scope: "platform",
+          transaction_date: now,
         },
         {
           user_id: partnerId,
@@ -158,6 +159,7 @@ Deno.serve(async (req) => {
           description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel}`,
           currency: 'UGX',
           ledger_scope: "wallet",
+          transaction_date: now,
         },
       ],
     });
