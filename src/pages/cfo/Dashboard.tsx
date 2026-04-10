@@ -36,6 +36,7 @@ import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
 import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { AgentFloatManagement } from '@/components/cfo/AgentFloatManagement';
+import { LedgerHealthPanel } from '@/components/cfo/LedgerHealthPanel';
 
 export default function CFODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -127,6 +128,8 @@ export default function CFODashboardPage() {
         return <AgentPerformanceRankings />;
       case 'float-management':
         return <AgentFloatManagement />;
+      case 'ledger-health':
+        return <LedgerHealthPanel />;
       default:
         return <CFOOverviewDashboard onTabChange={setActiveTab} />;
     }
