@@ -9952,6 +9952,16 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_wallet_ops_stats: { Args: { p_period?: string }; Returns: Json }
+      get_wallet_reconciliation: {
+        Args: never
+        Returns: {
+          discrepancy: number
+          ledger_balance: number
+          user_id: string
+          user_name: string
+          wallet_balance: number
+        }[]
+      }
       has_dashboard_access: {
         Args: { _dashboard: string; _user_id: string }
         Returns: boolean
