@@ -114,7 +114,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Treasury Balance"
             accent="border-l-blue-500"
             icon={<Banknote className="h-5 w-5 text-blue-500" />}
-            onClick={() => onTabChange?.('reconciliation')}
+            onClick={() => setActiveBreakdown('cash')}
           />
           <KPICard
             label="User Wallets"
@@ -122,7 +122,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Liabilities"
             accent="border-l-yellow-500"
             icon={<Wallet className="h-5 w-5 text-yellow-500" />}
-            onClick={() => onTabChange?.('solvency')}
+            onClick={() => setActiveBreakdown('wallets')}
           />
           <KPICard
             label="Platform Earnings"
@@ -130,6 +130,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Revenue - Expenses"
             accent="border-l-emerald-500"
             icon={<PiggyBank className="h-5 w-5 text-emerald-500" />}
+            onClick={() => setActiveBreakdown('earnings')}
           />
           <KPICard
             label="Cash In Today"
@@ -137,6 +138,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Total inflows"
             accent="border-l-green-500"
             icon={<ArrowDownRight className="h-5 w-5 text-green-500" />}
+            onClick={() => setActiveBreakdown('cashIn')}
           />
           <KPICard
             label="Cash Out Today"
@@ -144,6 +146,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="Total outflows"
             accent="border-l-red-500"
             icon={<ArrowUpRight className="h-5 w-5 text-red-500" />}
+            onClick={() => setActiveBreakdown('cashOut')}
           />
           <KPICard
             label="Net Cash Today"
@@ -151,6 +154,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             subtitle="In - Out"
             accent={(todayCashFlow?.netToday ?? 0) >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}
             icon={<ArrowUpDown className="h-5 w-5 text-indigo-500" />}
+            onClick={() => setActiveBreakdown('netCash')}
           />
         </div>
       </div>
