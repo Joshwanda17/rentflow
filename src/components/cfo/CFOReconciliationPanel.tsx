@@ -72,10 +72,11 @@ export default function CFOReconciliationPanel() {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['cfo-reconciliation'],
     queryFn: async () => {
-      const { data: rpcData, error } = await supabase.rpc('get_wallet_reconciliation');
+      const { data: rpcData, error } = await supabase.rpc('get_wallet_reconciliation' as any);
       if (error) throw error;
 
-      return (rpcData || []).map((r: any) => ({
+      const rows = rpcData as any[];
+      return (rows || []).map((r: any) => ({
         userId: r.user_id,
         userName: r.user_name || 'Unknown',
         walletBalance: Number(r.wallet_balance) || 0,
