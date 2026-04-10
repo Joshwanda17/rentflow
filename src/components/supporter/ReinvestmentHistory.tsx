@@ -40,7 +40,7 @@ export function ReinvestmentHistory() {
       const { data } = await supabase
         .from('audit_logs')
         .select('id, created_at, action_type, metadata')
-        .in('action_type', ['roi_compounded', 'roi_split_compound'])
+        .in('action_type', ['roi_compounded', 'roi_split_payout'])
         .order('created_at', { ascending: true });
 
       // Filter client-side for partner_id match
@@ -132,7 +132,7 @@ export function ReinvestmentHistory() {
       <div className="space-y-2">
         {[...entries].reverse().map((entry) => {
           const meta = entry.metadata as any;
-          const isSplit = entry.action_type === 'roi_split_compound';
+          const isSplit = entry.action_type === 'roi_split_payout';
           const reinvestedAmount = isSplit ? meta.reinvest_amount : meta.roi_amount;
 
           return (
