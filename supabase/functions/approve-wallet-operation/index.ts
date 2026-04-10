@@ -183,6 +183,7 @@ Deno.serve(async (req) => {
               direction: op.direction === 'cash_in' ? 'cash_out' : 'cash_in',
               amount: op.amount,
               category: op.category === 'supporter_platform_rewards' ? 'roi_expense'
+                : op.category === 'roi_payout' ? 'roi_expense'
                 : op.category === 'supporter_facilitation_capital' ? 'partner_funding'
                 : 'system_balance_correction',
               ledger_scope: 'platform',
