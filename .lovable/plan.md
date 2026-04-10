@@ -1,82 +1,114 @@
 
 
-# Audit: Remaining Agent Flaws — Broken Functions, Missing Ledger Entries, Direct Wallet Mutations
+# Full Ledger Architecture Compliance Audit
 
-## Critical Findings
+## Audit Methodology
+Searched all 88 edge functions for: direct wallet mutations (`.update({balance})`), direct `general_ledger` inserts, missing `user_id` on platform entries, missing `transaction_date`, and `p_entries` / `scope:` anti-patterns.
 
-### FLAW 1 — `approve-loan-application`: Direct wallet mutations (CRITICAL)
+## Results Summary
 
-This is the worst remaining anti-pattern. The entire function bypasses the ledger completely:
-
-- **Line 123-129**: Directly does `.update({ balance: agentWallet.balance - application.amount })` on the wallets table (agent debit)
-- **Line 166-172**: Directly does `.update({ balance: ... + application.amount })` on the wallets table (borrower credit)
-- **Lines 153-159, 176-182**: Manual "rollback" logic that also directly mutates wallet balances
-- **Zero ledger entries created** — this entire money flow is invisible to the financial system
-- **Race condition**: Read-then-write pattern on `balance` with no locking
-
-**Fix**: Replace all direct wallet mutations with a single `create_ledger_transaction` RPC call containing two legs:
-- Leg 1: Agent wallet `cash_out` (loan disbursement)
-- Leg 2: Borrower wallet `cash_in` (loan receipt)
-
-Remove all manual rollback logic — the RPC is atomic.
-
-### FLAW 2 — `process-agent-advance-deductions`: Missing `user_id` on platform entry
-
-Line 116-126: The platform-side entry has no `user_id` field. While the RPC accepts `NULL` user_id for platform entries, this makes it impossible to trace which agent's repayment created the platform income. The wallet-side entry (line 104-115) correctly has `user_id: advance.agent_id`.
-
-**Fix**: Add `user_id: advance.agent_id` to the platform entry.
-
-### FLAW 3 — `agent-angel-pool-invest`: Missing `transaction_date` on all entries
-
-Lines 92-109 and 128-145: No `transaction_date` field on any of the 4 ledger entries (2 for investment, 2 for commission). While the RPC defaults to `NOW()`, this is inconsistent with the standard entry format used by all other fixed functions. More importantly, the commission platform entry (line 131-136) has no `user_id`, making platform-side commission expenses untraceable.
-
-**Fix**: Add `transaction_date: new Date().toISOString()` to all entries. Add `user_id: user.id` to the platform commission entry (line 131).
-
-### FLAW 4 — `agent-invest-for-partner`: Missing `transaction_date` on all entries + `user_id: null` pattern
-
-Lines 103-130, 211-240, 243-272: None of the 6 entries across 3 RPC calls include `transaction_date`. Multiple entries use explicit `user_id: null` for platform legs, which is fine functionally but inconsistent. The bigger issue: this function creates 3 separate RPC calls for what is logically one transaction, breaking atomicity — if the second or third RPC fails, the system is in an inconsistent state.
-
-**Fix**: Add `transaction_date` to all entries. Consider consolidating the credit+debit into fewer RPC calls where possible, though the net-zero design is intentional.
-
-### FLAW 5 — `fund-agent-landlord-float`: Missing `user_id` on bonus platform entry
-
-Line 183-193: The platform-side entry for the agent bonus has no `user_id`. The wallet-side entry (line 170-181) correctly has `user_id: bonusAgentId`. This makes it impossible to trace which agent's bonus created the platform expense.
-
-**Fix**: Add `user_id: bonusAgentId` to the platform entry.
-
-### FLAW 6 — `agent-deposit`: Missing `user_id` on multiple platform entries
-
-- Line 408-417: Platform entry for `agent_float_used_for_rent` — no `user_id`
-- Line 522-530: Same issue in the no-repayment branch
-- Line 550-558: Platform entry for tenant wallet deposit — no `user_id`
-
-**Fix**: Add appropriate `user_id` values to all platform entries.
+| Check | Status |
+|-------|--------|
+| ❌ Direct `.update({ balance })` | **CLEAN** — Zero remaining violations |
+| ❌ `p_entries` parameter name | **CLEAN** — All fixed |
+| ❌ `scope:` instead of `ledger_scope:` | **CLEAN** — All fixed |
+| ❌ Direct `general_ledger.insert()` | **1 VIOLATION** |
+| ❌ Missing `transaction_date` | **12 functions affected** |
+| ❌ Missing `user_id` on platform entries | **11 functions affected** |
 
 ---
 
-## Summary Table
+## CRITICAL — Direct Ledger Insert (Bypasses RPC Entirely)
 
-| Function | Severity | Issue |
-|----------|----------|-------|
-| `approve-loan-application` | **CRITICAL** | Direct wallet `.update()` — no ledger entries at all |
-| `process-agent-advance-deductions` | Medium | Missing `user_id` on platform entry |
-| `agent-angel-pool-invest` | Medium | Missing `transaction_date` + missing `user_id` on platform commission |
-| `agent-invest-for-partner` | Low-Medium | Missing `transaction_date` on all entries |
-| `fund-agent-landlord-float` | Medium | Missing `user_id` on bonus platform entry |
-| `agent-deposit` | Medium | Missing `user_id` on 3 platform entries |
+### `approve-rent-request` — Lines 225-232
+Directly inserts into `general_ledger` table, bypassing the RPC completely:
+```typescript
+await adminClient.from("general_ledger").insert({
+  user_id: rentRequest.tenant_id, amount: totalRepayment,
+  direction: "cash_out", category: "rent_obligation", ...
+});
+```
+This also uses `rent_obligation` — a category NOT in the locked allowlist. With `strict_mode` enabled, this insert would be rejected by the session guard trigger (`trg_guard_ledger_write`).
 
-## Files to Modify
+**Fix**: Remove this direct insert entirely. The rent obligation is already tracked via `rent_receivable_created` in the bridge scope when the rent is funded/disbursed. This is a redundant, broken write.
+
+---
+
+## MEDIUM — Missing `transaction_date` on Entries
+
+These functions rely on the database `NOW()` default instead of explicit application-level timestamps:
+
+| Function | Affected Entries |
+|----------|-----------------|
+| `fund-rent-pool` | 2 entries |
+| `fund-tenants` | 2 entries |
+| `fund-tenant-from-pool` | 6 entries (landlord credit, pool deployment, agent bonus) |
+| `portfolio-topup` | 4 entries (main + reversal) |
+| `apply-pending-topups` | 2 entries |
+| `coo-wallet-to-portfolio` | 2 entries |
+| `manager-portfolio-topup` | 4 entries (main + reversal) |
+| `process-supporter-roi` (auto-merge section) | 2 entries |
+| `process-investment-interest` | 2 entries |
+| `angel-pool-invest` | 2 entries |
+| `manual-collect-rent` | 4 entries (tenant + agent) |
+| `platform-expense-transfer` | 4 entries (single + payroll) |
+
+**Fix**: Add `transaction_date: new Date().toISOString()` to all entries in these functions.
+
+---
+
+## MEDIUM — Missing `user_id` on Platform Entries
+
+Platform contra-entries that lack `user_id`, making them untraceable to the originating user:
+
+| Function | Missing `user_id` On |
+|----------|---------------------|
+| `fund-rent-pool` | Platform `cash_in` leg (supporter capital received) |
+| `fund-tenants` | Platform `cash_out` leg (rent disbursement) |
+| `fund-tenant-from-pool` | 3 platform legs (landlord credit, pool deployment, agent bonus) |
+| `portfolio-topup` | 2 platform legs (main + reversal) |
+| `apply-pending-topups` | Platform `cash_out` leg |
+| `coo-wallet-to-portfolio` | Platform `cash_in` leg |
+| `manager-portfolio-topup` | 2 platform legs (main + reversal) |
+| `process-supporter-roi` (auto-merge) | Platform `cash_out` leg |
+| `process-investment-interest` | Platform `cash_out` leg (ROI expense) |
+| `angel-pool-invest` | Platform `cash_in` leg |
+| `platform-expense-transfer` | 2 platform legs (single + payroll) |
+
+**Fix**: Add the originating user's ID to each platform entry for traceability.
+
+---
+
+## LOW — `tenant-pay-rent` Reads from `profiles.wallet_balance`
+
+Line 53-57: This function checks `profiles.wallet_balance` instead of `wallets.balance`. The `profiles` table likely has a stale/legacy balance field.
+
+**Fix**: Change to read from `wallets` table.
+
+---
+
+## Files to Modify (18 total)
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/approve-loan-application/index.ts` | Full rewrite of approval flow: replace direct wallet mutations with `create_ledger_transaction` RPC |
-| `supabase/functions/process-agent-advance-deductions/index.ts` | Add `user_id` to platform entry |
-| `supabase/functions/agent-angel-pool-invest/index.ts` | Add `transaction_date` to all entries, add `user_id` to platform commission entry |
-| `supabase/functions/agent-invest-for-partner/index.ts` | Add `transaction_date` to all entries |
-| `supabase/functions/fund-agent-landlord-float/index.ts` | Add `user_id` to bonus platform entry |
-| `supabase/functions/agent-deposit/index.ts` | Add `user_id` to 3 platform entries |
+| `approve-rent-request/index.ts` | Remove direct `general_ledger.insert()` (lines 222-233) |
+| `fund-rent-pool/index.ts` | Add `transaction_date` + `user_id` to platform entry |
+| `fund-tenants/index.ts` | Add `transaction_date` + `user_id` to platform entry |
+| `fund-tenant-from-pool/index.ts` | Add `transaction_date` + `user_id` to 3 platform entries |
+| `portfolio-topup/index.ts` | Add `transaction_date` + `user_id` to 2 platform entries |
+| `apply-pending-topups/index.ts` | Add `transaction_date` + `user_id` to platform entry |
+| `coo-wallet-to-portfolio/index.ts` | Add `transaction_date` + `user_id` to platform entry |
+| `manager-portfolio-topup/index.ts` | Add `transaction_date` + `user_id` to 2 platform entries |
+| `process-supporter-roi/index.ts` | Add `transaction_date` + `user_id` to auto-merge platform entry |
+| `process-investment-interest/index.ts` | Add `transaction_date` + `user_id` to platform entry |
+| `angel-pool-invest/index.ts` | Add `transaction_date` + `user_id` to platform entry |
+| `manual-collect-rent/index.ts` | Add `transaction_date` to all 4 entries |
+| `platform-expense-transfer/index.ts` | Add `transaction_date` + `user_id` to 2 platform entries |
+| `tenant-pay-rent/index.ts` | Fix wallet balance read from `wallets` table instead of `profiles` |
+
+## What's Already Clean
+These functions passed all checks: `approve-deposit`, `approve-withdrawal`, `approve-loan-application`, `agent-deposit`, `agent-withdrawal`, `product-purchase`, `wallet-transfer`, `wallet-deduction`, `disburse-rent-to-landlord`, `credit-landlord-registration-bonus`, `credit-landlord-verification-bonus`, `approve-listing-bonus`, `cfo-direct-credit`, `auto-charge-wallets`, `retry-no-smartphone-charges`, `process-credit-daily-charges`, `approve-wallet-operation`, `agent-angel-pool-invest`, `agent-invest-for-partner`, `fund-agent-landlord-float`, `process-agent-advance-deductions`, `process-credit-draw`, `tenant-pay-rent` (ledger entries OK, only balance source wrong).
 
 ## Deployment
-
-Redeploy all 6 edge functions after fixes. Test with dummy data via `curl` to confirm RPC layer is reached correctly.
+Redeploy all 14 modified edge functions after fixes.
 
