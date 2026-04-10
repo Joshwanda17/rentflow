@@ -43,10 +43,14 @@ export function AgentActivityChart() {
           .gte('created_at', iso)
           .order('created_at', { ascending: true }),
         supabase
-          .from('agent_collections')
-          .select('created_at, amount')
-          .gte('created_at', iso)
-          .order('created_at', { ascending: true }),
+          .from('general_ledger')
+          .select('transaction_date, amount')
+          .eq('category', 'tenant_repayment')
+          .eq('direction', 'cash_in')
+          .in('classification', ['production', 'legacy_real'])
+          .gte('transaction_date', iso)
+          .order('transaction_date', { ascending: true })
+          .limit(500),
       ]);
 
       return {
