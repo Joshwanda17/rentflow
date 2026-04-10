@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useCallback } from 'react';
+import { KPIBreakdownSheet, type BreakdownItem } from '@/components/cfo/KPIBreakdownSheet';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
