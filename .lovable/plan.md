@@ -1,35 +1,59 @@
 
 
-# Fix: 241 Stale "Approved" Withdrawal Requests Flooding FinOps Queue
+# One-Tap USSD Deposit Buttons for MTN MoMo & Airtel Money
 
-## The Problem
+## What We're Building
 
-There are **241 withdrawal requests** stuck at `approved` status, dating from January 20 to late February. These were operationally approved months ago but never finalized in the system. Our recent filter expansion (adding `approved`/`manager_approved` to the FinOps view) surfaced all of them, flooding the queue with 100 items (the query limit).
+Add "Pay Now" buttons to the deposit dialogs that open the phone dialer with the correct USSD code pre-filled — one tap to start the payment flow, no manual dialing.
 
-## Root Cause
+## Where to Add
 
-The old approval workflow had no FinOps finalization step — managers clicked "Approve" and the money was (presumably) paid out externally, but the status was never advanced to `completed`. These are **zombie records**, not active requests.
+Two dialogs need USSD buttons:
 
-## Proposed Fix — Two Parts
+1. **`src/components/wallet/DepositDialog.tsx`** — the main user deposit dialog (shown in screenshot)
+2. **`src/components/agent/AgentDepositCashDialog.tsx`** — agent deposit dialog
 
-### 1. Bulk-close the 241 stale approved requests (Data cleanup)
+## Changes
 
-These requests are 2-3 months old. They need to be moved to either `completed` or `rejected` so they stop polluting the active queue.
+### 1. DepositDialog.tsx — Add "Pay Now" button below the merchant code display (after line 319)
 
-**Option A (Recommended)**: Mark all 241 as `expired` or `rejected` with a system note explaining they were stale approvals from the pre-FinOps era. No ledger impact since the wallet deductions (if any) already happened or never happened.
+Replace the static "How to deposit" instructions block with a streamlined version, and add a prominent "Pay Now" button below the merchant code card:
 
-**Option B**: Mark them as `completed` with a note "Legacy closure — pre-FinOps era". This assumes the money was actually paid out.
+- **MTN**: `tel:*165*4%23` (dials `*165*4#`)
+- **Airtel**: `tel:*185*9%23` (dials `*185*9#`)
 
-→ **Which option do you prefer?** Or should FinOps review each one individually?
+The button will be provider-aware (yellow for MTN, red for Airtel), appear right below the merchant code, and use an `<a href="tel:...">` wrapped in a styled Button. Helper text below: "Tap to open your phone dialer and complete payment instantly."
 
-### 2. Add a date filter / age indicator to the FinOps withdrawal view
+After tapping, show a subtle info banner: "If payment is complete, scroll down to enter your transaction details."
 
-To prevent this from happening again:
-- Add a visual age badge (e.g., "3 months old") on stale requests
-- Sort newest-first by default (currently ascending = oldest first)
-- Optionally add a date range filter so FinOps can focus on recent items
+### 2. AgentDepositCashDialog.tsx — Add USSD quick-dial buttons
 
-### Files Changed
-- **Database**: UPDATE query to close the 241 stale records (via insert tool)
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — change sort order to descending, add age indicator
+Same pattern — when MTN or Airtel is selected as the deposit method, show a "Dial Now" button with the appropriate `tel:` link.
+
+### 3. USSD config constant
+
+Add a shared config object (in `DepositDialog.tsx` or a small util):
+
+```typescript
+const USSD_DIAL = {
+  mtn: 'tel:*165*4%23',    // *165*4#
+  airtel: 'tel:*185*9%23', // *185*9#
+};
+```
+
+## UX Flow
+
+1. User selects provider (MTN/Airtel)
+2. Merchant code + "Pay Now" button displayed
+3. User taps "Pay Now" → phone dialer opens with USSD code
+4. User completes USSD payment on their phone
+5. User returns to app → fills in TID, amount, date/time, reason
+6. Submits deposit request
+
+## Files Changed
+
+- `src/components/wallet/DepositDialog.tsx` — add Pay Now button below merchant code
+- `src/components/agent/AgentDepositCashDialog.tsx` — add Dial Now button for MTN/Airtel methods
+
+No database or backend changes needed.
 
