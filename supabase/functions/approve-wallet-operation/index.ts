@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
 
         // Insert into general_ledger via RPC
         const { data: rpcTxGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
-          entries: JSON.stringify([
+          entries: [
             {
               user_id: ledgerUserId,
               amount: op.amount,
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
               currency: 'UGX',
               transaction_date: new Date().toISOString(),
             },
-          ]),
+          ],
         });
 
         if (ledgerErr) {
@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
                 const today = new Date().toISOString().split('T')[0];
 
                 const { error: advLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
-                  entries: JSON.stringify([
+                  entries: [
                     {
                       user_id: op.user_id,
                       amount: deductAmount,
@@ -272,7 +272,7 @@ Deno.serve(async (req) => {
                       currency: 'UGX',
                       transaction_date: new Date().toISOString(),
                     },
-                  ]),
+                  ],
                 });
 
                 if (advLedgerErr) {
@@ -356,7 +356,7 @@ Deno.serve(async (req) => {
 
                   if (!repaymentErr) {
                     const { error: rentLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
-                      entries: JSON.stringify([
+                      entries: [
                         {
                           user_id: op.user_id,
                           amount: repaymentAmount,
@@ -382,7 +382,7 @@ Deno.serve(async (req) => {
                           currency: 'UGX',
                           transaction_date: new Date().toISOString(),
                         },
-                      ]),
+                      ],
                     });
                     if (rentLedgerErr) {
                       console.error(`[approve-wallet-op] Rent ledger RPC failed:`, rentLedgerErr.message);
@@ -455,7 +455,7 @@ Deno.serve(async (req) => {
                 } else {
                   // Credit agent wallet via balanced RPC
                   const { error: commLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
-                    entries: JSON.stringify([
+                    entries: [
                       {
                         direction: 'cash_out',
                         amount: commissionAmount,
@@ -481,7 +481,7 @@ Deno.serve(async (req) => {
                         reference_id: op.reference_id,
                         transaction_date: new Date().toISOString(),
                       },
-                    ]),
+                    ],
                   });
                   if (commLedgerErr) console.error(`[approve-wallet-op] Commission ledger RPC failed:`, commLedgerErr);
                   else console.log(`[approve-wallet-op] Credited agent ${portfolioData.agent_id} with ${commissionAmount} investment commission`);
@@ -496,7 +496,7 @@ Deno.serve(async (req) => {
           // Immediately debit wallet → investment (net zero wallet impact)
           const investTxGroupId = crypto.randomUUID();
           const { error: investDebitErr } = await adminClient.rpc('create_ledger_transaction', {
-            entries: JSON.stringify([
+            entries: [
               {
                 user_id: funderId,
                 amount: op.amount,
@@ -522,7 +522,7 @@ Deno.serve(async (req) => {
                 currency: 'UGX',
                 transaction_date: new Date().toISOString(),
               },
-            ]),
+            ],
           });
           if (investDebitErr) {
             console.error(`[approve-wallet-op] Failed to debit wallet for investment ${op.id}:`, investDebitErr);
@@ -626,7 +626,7 @@ Deno.serve(async (req) => {
           if (portfolio) {
             // Restore agent wallet via ledger reversal (NOT direct wallet update)
             const { error: reversalErr } = await adminClient.rpc('create_ledger_transaction', {
-              entries: JSON.stringify([
+              entries: [
                 {
                   user_id: portfolio.agent_id,
                   amount: portfolio.investment_amount,
@@ -650,7 +650,7 @@ Deno.serve(async (req) => {
                   currency: 'UGX',
                   transaction_date: new Date().toISOString(),
                 },
-              ]),
+              ],
             });
 
             if (!reversalErr) {
