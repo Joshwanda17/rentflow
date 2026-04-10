@@ -42,6 +42,11 @@ const MERCHANT_CODES = {
 
 const MERCHANT_NAME = 'WELILE TECHNOLOGIES LIMITTED';
 
+const USSD_DIAL: Record<string, string> = {
+  mtn: 'tel:*165*4%23',     // *165*4#
+  airtel: 'tel:*185*9%23',  // *185*9#
+};
+
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
 export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
@@ -317,6 +322,31 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                 <p className="text-xs text-primary font-medium">{MERCHANT_NAME}</p>
                 <p className="text-xs text-muted-foreground">You'll see this name when making payment</p>
               </div>
+
+              {/* USSD Pay Now Button */}
+              {(provider === 'mtn' || provider === 'airtel') && (
+                <div className="space-y-2">
+                  <a href={USSD_DIAL[provider]} className="block">
+                    <Button
+                      type="button"
+                      className={`w-full h-12 text-base font-bold ${
+                        provider === 'mtn'
+                          ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                          : 'bg-red-600 hover:bg-red-700 text-white'
+                      }`}
+                    >
+                      <Phone className="h-5 w-5 mr-2" />
+                      Pay Now with {provider === 'mtn' ? 'MTN MoMo' : 'Airtel Money'}
+                    </Button>
+                  </a>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Tap to open your phone dialer and complete payment instantly.
+                  </p>
+                  <div className="rounded-lg bg-accent/50 border border-border/50 px-3 py-2 text-xs text-muted-foreground text-center">
+                    💡 After paying, return here to enter your Transaction ID below.
+                  </div>
+                </div>
+              )}
 
               {/* Amount */}
               <div className="space-y-2">
