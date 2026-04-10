@@ -276,7 +276,7 @@ export function COOAgentHub() {
                       <TableCell className="sticky left-0 bg-card z-10">
                         <div className="flex items-center gap-3">
                           <div className="relative shrink-0">
-                            <UserAvatar name={agent.full_name} size={36} />
+                            <UserAvatar fullName={agent.full_name} size="md" />
                             {meta.dotClass && (
                               <span className={cn('absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card', meta.dotClass)} />
                             )}
