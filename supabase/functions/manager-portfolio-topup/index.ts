@@ -258,33 +258,11 @@ Deno.serve(async (req) => {
         return jsonRes({ error: "Failed to record pending top-up" }, 500);
       }
 
-      // 2. Ledger entries via RPC
-      await supabase.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
-          {
-            user_id: partnerId,
-            amount: topupAmount,
-            direction: "cash_out",
-            category: "partner_funding",
-            source_table: "investor_portfolios",
-            source_id: portfolio_id,
-            description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
-            currency: 'UGX',
-            ledger_scope: "wallet",
-          },
-          {
-            user_id: null,
-            amount: topupAmount,
-            direction: "cash_in",
-            category: "partner_funding",
-            source_table: "investor_portfolios",
-            source_id: portfolio_id,
-            description: `Pending capital via ${methodLabel} for ${accountLabel}`,
-            currency: 'UGX',
-            ledger_scope: "platform",
-          },
-        ]),
-      });
+      // 2. NO ledger entry for external payments (cash/MoMo/bank).
+      //    The pending_wallet_operations record tracks the intent.
+      //    Actual ledger entries are created when apply-pending-topups
+      //    runs at maturity — matching the deposit approval pattern.
+      //    Writing a wallet cash_out here would phantom-debit the partner.
     }
 
     // ── SHARED: Audit trail ──
