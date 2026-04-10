@@ -3731,6 +3731,7 @@ export type Database = {
           account: string | null
           amount: number
           category: string
+          classification: string | null
           created_at: string
           currency: string
           description: string | null
@@ -3750,6 +3751,7 @@ export type Database = {
           account?: string | null
           amount: number
           category: string
+          classification?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -3769,6 +3771,7 @@ export type Database = {
           account?: string | null
           amount?: number
           category?: string
+          classification?: string | null
           created_at?: string
           currency?: string
           description?: string | null
