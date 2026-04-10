@@ -190,8 +190,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
                   <CircleDollarSign className="h-3.5 w-3.5 text-primary mx-auto mb-1 opacity-60" />
-                  <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Capital</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-[0.1em] font-medium">Active Capital</p>
                   <p className="text-[clamp(0.6rem,2.6vw,0.75rem)] font-extrabold text-foreground mt-0.5 truncate"><CompactAmount value={totalInvested} /></p>
+                  {totalPending > 0 && (
+                    <p className="text-[9px] font-semibold text-warning mt-0.5">+<CompactAmount value={totalPending} /> pending</p>
+                  )}
                 </div>
                 <div>
                   <ArrowUpRight className="h-3.5 w-3.5 text-success mx-auto mb-1 opacity-60" />
