@@ -159,6 +159,7 @@ export function useFinancialStatements() {
         if (startDate) q = q.gte('transaction_date', startDate.toISOString());
         if (endDate) q = q.lte('transaction_date', endDate.toISOString());
         q = q.eq('ledger_scope', scope);
+        q = q.in('classification', ['production', 'legacy_real']);
         if (direction) q = q.eq('direction', direction);
         return q;
       };
@@ -196,10 +197,10 @@ export function useFinancialStatements() {
         (() => {
           // Fix #1: No opening balance for "All Time" — prevents double-counting
           if (!startDate) return Promise.resolve({ data: [], error: null });
-          let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
-          q = q.lt('transaction_date', startDate.toISOString());
-          q = q.eq('ledger_scope', 'platform');
-          q = q.neq('category', 'opening_balance');
+           let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
+           q = q.lt('transaction_date', startDate.toISOString());
+           q = q.eq('ledger_scope', 'platform');
+           q = q.in('classification', ['production', 'legacy_real']);
           return q;
         })(),
         // All-time platform query for Balance Sheet platformCash (unfiltered by date)
@@ -214,7 +215,7 @@ export function useFinancialStatements() {
               .from('general_ledger')
               .select('amount, direction, category')
               .eq('ledger_scope', 'platform')
-              .neq('category', 'opening_balance')
+              .in('classification', ['production', 'legacy_real'])
               .range(offset, offset + PAGE - 1);
             if (error) throw error;
             if (page && page.length > 0) {

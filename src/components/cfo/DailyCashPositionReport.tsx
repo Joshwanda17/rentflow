@@ -21,7 +21,8 @@ export function DailyCashPositionReport() {
         .from('general_ledger')
         .select('amount, direction, transaction_date')
         .gte('transaction_date', startDate)
-        .eq('ledger_scope', 'platform');
+        .eq('ledger_scope', 'platform')
+        .in('classification', ['production', 'legacy_real']);
       if (error) throw error;
 
       // Platform cash = all-time platform-scoped earned revenue minus costs (paginated)
@@ -35,7 +36,7 @@ export function DailyCashPositionReport() {
           .from('general_ledger')
           .select('amount, direction, category')
           .eq('ledger_scope', 'platform')
-          .neq('category', 'opening_balance')
+          .in('classification', ['production', 'legacy_real'])
           .range(offset, offset + 999);
         if (page && page.length > 0) {
           allRows.push(...page);
