@@ -61,6 +61,31 @@ export function ProxyPartnerFunds() {
     loadProxyFunds();
   }, [user?.id]);
 
+  // Real-time subscription: auto-refresh when withdrawal statuses change
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('proxy-withdrawal-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'withdrawal_requests',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadProxyFunds();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   const loadProxyFunds = async () => {
     if (!user?.id) return;
     setLoading(true);
