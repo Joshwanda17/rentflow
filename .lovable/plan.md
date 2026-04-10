@@ -1,21 +1,25 @@
 
 
-# Fix: Drop Overloaded RPC to Resolve PGRST203
+# Fix: audit_logs Column Name Mismatch
 
 ## Problem
-The `create_ledger_transaction` function has two overloaded signatures. PostgREST can't disambiguate them, breaking all financial approvals with error `PGRST203`.
+The `audit_logs` table has a column called `action_type`, but the `create_ledger_transaction` RPC (and likely edge functions) insert into a column called `action` — which doesn't exist. This causes every approval to fail with a 422 error.
 
-## Fix
-One database migration:
+## Fix — Database Migration (one line)
+
+Add the missing `action` column as an alias so both old and new code works:
+
 ```sql
-DROP FUNCTION IF EXISTS public.create_ledger_transaction(jsonb);
+ALTER TABLE public.audit_logs ADD COLUMN IF NOT EXISTS action text;
 ```
 
-The remaining signature `create_ledger_transaction(entries jsonb, idempotency_key text DEFAULT NULL)` handles both cases. No edge function code changes needed.
+This is the safest approach since the `create_ledger_transaction` RPC we just deployed references `action`, and potentially many edge functions do too.
+
+## Alternative
+We could instead update the RPC to use `action_type` instead of `action`, but that risks missing other call sites across 35+ edge functions.
 
 ## Impact
-Instantly fixes all Approve/Reject buttons across Financial Ops, Manager dashboard, and CFO queues.
-
-## Risk
-None — the two-parameter version with `DEFAULT NULL` already accepts calls without an idempotency key.
+- Instantly unblocks all approval buttons
+- No edge function code changes needed
+- Zero risk to existing data using `action_type`
 
