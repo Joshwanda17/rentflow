@@ -324,6 +324,9 @@ export function ApprovalQueue() {
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
     } catch (err: any) {
       toast.error(err.message || 'Action failed');
+      // Invalidate on error to refresh stale items
+      const cacheKey = `approval-queue-${activeQueue}`;
+      queryClient.invalidateQueries({ queryKey: [cacheKey] });
     } finally {
       setProcessing(false);
     }
