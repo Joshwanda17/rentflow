@@ -144,6 +144,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   };
 
   const totalInvested = entries.reduce((s, a) => s + a.amount, 0);
+  const totalPending = Object.values(pendingByPortfolio).reduce((s, p) => s + p.total, 0);
   const totalEarned = entries.reduce((s, a) => s + a.total_earned, 0);
   const expectedMonthly = entries.reduce((s, a) => s + a.amount * (a.roi_percentage / 100), 0);
 
