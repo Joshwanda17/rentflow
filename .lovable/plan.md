@@ -1,26 +1,43 @@
-
-
-# Fix: Tooltip Label Mismatch in Agent Activity Chart
+# Fix Phantom Wallet Balances (PAMELA SSAKA & YAWE MIKE)
 
 ## Problem
-The tooltip `formatter` checks `name === 'registrations'` and `name === 'earnings'`, but Recharts passes the `name` prop from each `<Bar>` component — which are `"New Agents"`, `"Earnings"`, and `"Collections"`. So the condition never matches `'registrations'`, causing all three series to display as "Collections" in the tooltip.
 
-## Fix
-**File:** `src/components/coo/AgentActivityChart.tsx` (lines 159-161)
+Both users have wallet balances not backed by their ledger. Their ledger entries net to zero, but `wallets.balance` shows positive amounts. This is drift caused by incorrectly scoped ledger entries (both legs written to the same user in wallet scope, canceling each other out).
 
-Update the formatter to check against the display names that Recharts actually passes:
+## Solution: Force Reconciliation
 
-```typescript
-formatter={(value: number, name: string) => {
-  if (name === 'New Agents') return [value, 'New Agents'];
-  return [`UGX ${value.toLocaleString()}`, name];
-}}
-```
+Create `system_balance_correction` ledger entries via the `create_ledger_transaction` RPC to align wallet balances with ledger truth. Two options:
 
-This ensures:
-- **New Agents** (purple) → shows count (no UGX prefix)
-- **Earnings** (green) → shows `UGX X`
-- **Collections** (orange) → shows `UGX X`
+### Option A — Zero out the phantom wallets
 
-Single line change, no other files affected.
+If these balances are not real money owed to the users, create a correction entry that debits their wallet to zero:
 
+- PAMELA SSAKA: `cash_out` 6,729,419 (system_balance_correction)
+- YAWE MIKE: `cash_out` 45,000 (system_balance_correction)
+
+### Option B — Back the wallets with correction credits
+
+If the balances ARE real (money is owed), create a `cash_in` correction to establish ledger backing:
+
+- PAMELA SSAKA: `cash_in` 6,729,419 (system_balance_correction)
+- YAWE MIKE: `cash_in` 45,000 (system_balance_correction)
+
+## Implementation
+
+1. Create a database migration that calls `create_ledger_transaction` for each user with the chosen direction
+2. Each correction entry will include metadata documenting the reconciliation reason
+3. The `sync_wallet_from_ledger` trigger will automatically adjust wallet balances
+
+## Technical Detail
+
+- Uses existing `system_balance_correction` category (already approved)
+- Entries paired with a platform-scope counterpart for proper double-entry
+- Idempotency keys prevent accidental double-execution
+
+## Decision Needed
+
+Which option — zero out (Option A) or back with credits (Option B)?
+
+Option A
+
+&nbsp;
