@@ -319,8 +319,15 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         {/* Balance row */}
                         <div className="px-4 pb-3 flex items-end justify-between">
                           <div>
-                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Capital</p>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Active Capital</p>
                             <p className="text-xl font-black text-foreground font-mono tabular-nums tracking-tight"><CompactAmount value={entry.amount} /></p>
+                            {pendingByPortfolio[entry.id] && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded-full">
+                                  ⏳ +<CompactAmount value={pendingByPortfolio[entry.id].total} /> pending
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">
