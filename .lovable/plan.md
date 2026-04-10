@@ -1,49 +1,47 @@
 
 
-# Investigation: "Withdrawal Processing" Still Showing
+# Real-Time Proxy Partner Card Refresh on Withdrawal Completion
 
-## Root Cause — Not a Code Bug
+## What This Does
+When a FinOps officer marks a withdrawal as `completed`, the agent's Proxy Partner Funds page automatically refreshes — no manual reload needed. The "Withdrawal Processing" badge clears instantly and balances update.
 
-The UI is **correct**. It shows "Withdrawal Processing" because those withdrawal requests genuinely have status = `approved`, not `completed`.
+## Technical Approach
 
-### Database Evidence
+**Single file change**: `src/components/agent/ProxyPartnerFunds.tsx`
 
-All three partner withdrawals are stuck at `approved`:
+### Add a Realtime Subscription
+Inside the existing `useEffect` (or a new one), subscribe to `withdrawal_requests` changes filtered to the agent's `user_id`:
 
-| Partner | Amount | Status | Created |
-|---------|--------|--------|---------|
-| FAITH KIRABO | 2,016,000 | `approved` | Apr 9, 07:28 |
-| NFITUMUKIZA BOSCO | 750,000 | `approved` | Apr 9, 07:29 |
-| Mercy Bayo | 600,000 | `approved` | Apr 9, 07:29 |
-
-The code on line 116 queries withdrawals with status `IN ('pending', 'approved', 'processing', 'manager_approved')` and renders them as "Withdrawal Processing" — which is the correct behavior per the withdrawal governance pipeline.
-
-### Why They're Stuck
-
-These are **proxy agent withdrawals** (the agent withdrew on behalf of partners). The agent submitted them, COO approved them (`approved`), but **FinOps never finalized them to `completed`**. The agent likely already hand-delivered the cash to the partners, but the system was never updated.
-
-## Fix — Operational, Not Code
-
-**Bulk-update these 20+ proxy withdrawal requests from `approved` → `completed`** via a database migration, since the agent (LUKODDA JOSEPH) has already delivered the funds.
-
-### SQL Migration
-
-```sql
-UPDATE withdrawal_requests
-SET status = 'completed',
-    updated_at = now()
-WHERE user_id = 'b4d7c324-1f7e-4e1c-91a8-3f0e10e0b25c'
-  AND status = 'approved'
-  AND linked_party IS NOT NULL;
+```ts
+const channel = supabase
+  .channel('proxy-withdrawal-updates')
+  .on(
+    'postgres_changes',
+    {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'withdrawal_requests',
+      filter: `user_id=eq.${user.id}`,
+    },
+    (payload) => {
+      // When any withdrawal status changes, reload all data
+      loadProxyFunds();
+    }
+  )
+  .subscribe();
 ```
 
-This will:
-- Mark all 20+ proxy partner withdrawals as `completed`
-- Clear the "Withdrawal Processing" badge from every partner card
-- Move them into the `completedWithdrawals` query so balances recalculate correctly (Returns Due should drop to 0 for delivered partners)
+Cleanup on unmount: `supabase.removeChannel(channel)`.
 
-### Impact
-- No code changes needed
-- Single database update
-- Agent's partner cards will immediately show correct state on refresh
+### Why This Is Safe
+- `withdrawal_requests` is **already in `supabase_realtime` publication** (migration `20260119155432`)
+- Realtime kill switch is **currently OFF** (`REALTIME_DISABLED = false`)
+- The kill switch whitelist includes `withdrawal_requests`-adjacent tables
+- Filter by `user_id` ensures each agent only receives their own withdrawal events — minimal connection load
+- `loadProxyFunds()` already handles full state recalculation, so a simple re-fetch is correct
+
+### No Database Changes
+- No migrations needed
+- No new tables or RLS policies
+- Single UI file edit
 
