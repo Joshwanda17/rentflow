@@ -1,76 +1,76 @@
 
 
-# Fix Plan: Remove `JSON.stringify` from All Ledger RPC Calls
+# Fix Plan: Agent Withdrawal & Product Purchase — Broken RPC Calls
 
-## Problem
-32 edge functions still wrap the `entries` parameter in `JSON.stringify()` when calling `create_ledger_transaction`. This turns the array into a scalar string, causing Postgres `jsonb_array_elements()` to fail silently or throw errors. This is the same bug previously fixed in `agent-deposit`, `tenant-pay-rent`, and `approve-wallet-operation`.
+## Discovery
 
-## Scope
-**55 call sites across 32 edge function files.** Every instance of `entries: JSON.stringify([...])` or `entries: JSON.stringify(someArray)` must become `entries: [...]` or `entries: someArray`.
+Auditing `agent-withdrawal` and `product-purchase` revealed **three critical bugs** that make both functions silently fail at the ledger layer. These are the "remaining anti-patterns" from the user's list.
 
-## Files to Fix (all in `supabase/functions/`)
+## Bug Details
 
-| # | Edge Function | Sites |
-|---|---|---|
-| 1 | `agent-angel-pool-invest` | 2 |
-| 2 | `agent-invest-for-partner` | 3 |
-| 3 | `angel-pool-invest` | 1 |
-| 4 | `apply-pending-topups` | 1 |
-| 5 | `approve-deposit` | 4 |
-| 6 | `approve-listing-bonus` | 1 |
-| 7 | `approve-withdrawal` | 1 |
-| 8 | `auto-charge-wallets` | 3 |
-| 9 | `cfo-direct-credit` | 2 |
-| 10 | `coo-invest-for-partner` | 1 |
-| 11 | `coo-wallet-to-portfolio` | 1 |
-| 12 | `credit-landlord-registration-bonus` | 1 |
-| 13 | `credit-landlord-verification-bonus` | 1 |
-| 14 | `disburse-rent-to-landlord` | 2 |
-| 15 | `fund-agent-landlord-float` | 2 |
-| 16 | `fund-rent-pool` | 1 |
-| 17 | `fund-tenant-from-pool` | 3 |
-| 18 | `fund-tenants` | 1 |
-| 19 | `manager-portfolio-topup` | 2 |
-| 20 | `manual-collect-rent` | 2 |
-| 21 | `platform-expense-transfer` | 2 |
-| 22 | `portfolio-topup` | 2 |
-| 23 | `process-agent-advance-deductions` | 1 |
-| 24 | `process-credit-daily-charges` | 2 |
-| 25 | `process-credit-draw` | 1 |
-| 26 | `process-investment-interest` | 1 |
-| 27 | `process-supporter-roi` | 3 |
-| 28 | `reject-withdrawal` | 1 |
-| 29 | `retry-no-smartphone-charges` | 1 |
-| 30 | `seed-test-funds` | 1 |
-| 31 | `wallet-deduction` | 1 |
-| 32 | `wallet-transfer` | 1 |
+### Bug 1 — Wrong RPC parameter name: `p_entries` instead of `entries`
 
-## The Fix (identical for all sites)
+Both functions pass `p_entries` to the RPC. The actual parameter name is `entries`. Postgres silently ignores unknown named parameters, so the RPC receives `NULL` for `entries` and fails.
 
-```typescript
-// BEFORE (broken):
-entries: JSON.stringify([{ ... }])
+**Affected files:** `agent-withdrawal/index.ts`, `product-purchase/index.ts`
 
-// AFTER (correct):
-entries: [{ ... }]
+### Bug 2 — Phantom parameter: `p_transaction_group_id`
+
+Both functions pass `p_transaction_group_id`. This parameter does not exist on the RPC — the RPC generates its own `group_id` internally. This is harmless (ignored) but misleading.
+
+### Bug 3 — Wrong field name: `scope` instead of `ledger_scope`
+
+Both functions use `scope: 'wallet'` / `scope: 'platform'` in entry objects. The RPC reads `entry->>'ledger_scope'`. Result: all entries get `NULL` ledger_scope, bypassing the wallet sync trigger entirely.
+
+### Bug 4 — Unbalanced double-entry in `agent-withdrawal`
+
+Both legs are `cash_out`:
+- Leg 1: user wallet `cash_out` (correct)
+- Leg 2: platform `cash_out` (wrong — should be `cash_in`)
+
+The RPC's balance check (`total_in != total_out`) will reject this, so agent withdrawals always fail.
+
+## Fixes
+
+### File 1: `supabase/functions/agent-withdrawal/index.ts`
+
+1. Change `p_entries:` → `entries:`
+2. Remove `p_transaction_group_id` parameter
+3. Change `scope:` → `ledger_scope:` on both entries
+4. Change Leg 2 direction from `cash_out` → `cash_in` (platform receives the withdrawn funds)
+5. Add `currency: 'UGX'` and `transaction_date` fields to match the standard entry format
+
+### File 2: `supabase/functions/product-purchase/index.ts`
+
+1. Change `p_entries:` → `entries:`
+2. Remove `p_transaction_group_id` parameter
+3. Change `scope:` → `ledger_scope:` on all entry objects (6 entries across the file)
+
+### RPC Safety Guard (migration)
+
+Add a runtime type check at the top of `create_ledger_transaction`:
+
+```sql
+IF jsonb_typeof(entries) <> 'array' THEN
+  RAISE EXCEPTION 'entries must be a JSON array, got: %', jsonb_typeof(entries);
+END IF;
 ```
 
-For cases using a variable:
-```typescript
-// BEFORE:
-entries: JSON.stringify(buildTenantRepaymentEntries(...))
+This makes the entire class of serialization/parameter bugs impossible in the future.
 
-// AFTER:
-entries: buildTenantRepaymentEntries(...)
-```
+### Deployment
 
-## Deployment
-All 32 edge functions will be redeployed after the fix.
+Redeploy `agent-withdrawal` and `product-purchase` edge functions.
 
-## No Database Changes Required
-The RPC and triggers are correct — only the callers are passing the wrong type.
+## Reconciliation
 
-## Risk Assessment
-- **Low risk**: This is a mechanical find-and-replace of `JSON.stringify(` wrapper removal
-- **High impact**: Fixes silent ledger failures across the entire platform — deposits, withdrawals, ROI, commissions, rent disbursements, pool funding, and more
+Only **1 user** currently shows wallet-ledger drift (UGX 6,000). This will be noted but no correction is needed until the full reconciliation pass.
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/agent-withdrawal/index.ts` | Fix parameter name, field names, balance direction |
+| `supabase/functions/product-purchase/index.ts` | Fix parameter name, field names |
+| Database migration | Add `jsonb_typeof` guard to RPC |
 
