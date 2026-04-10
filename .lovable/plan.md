@@ -1,73 +1,35 @@
 
 
-# Reconcile 4 Drifted Wallets + Add Wallet Mutation Guard
+# Fix: 241 Stale "Approved" Withdrawal Requests Flooding FinOps Queue
 
-## Current Drift State (Confirmed)
+## The Problem
 
-| User | Wallet | Ledger | Drift | Fix |
-|------|--------|--------|-------|-----|
-| MUSEMA KIZITO | 1,100,000 | 0 | +1.1M | Zero the wallet via correction entry |
-| Mercy Bayo | 600,000 | 0 | +600K | Zero the wallet via correction entry |
-| NAMULINDWA IMMECULATE | 75,000 | 0 | +75K | Zero the wallet via correction entry |
-| HELLEN NABUKENYA | 0 | 5,000 | -5K | Credit wallet to 5K via correction entry |
+There are **241 withdrawal requests** stuck at `approved` status, dating from January 20 to late February. These were operationally approved months ago but never finalized in the system. Our recent filter expansion (adding `approved`/`manager_approved` to the FinOps view) surfaced all of them, flooding the queue with 100 items (the query limit).
 
-## Migration 1: Correction Ledger Entries
+## Root Cause
 
-For the 3 users with inflated wallets (ledger = 0, wallet > 0), insert balanced `system_balance_correction` entries:
-- **wallet scope, cash_out** for the inflated amount (drains the wallet via `sync_wallet_from_ledger`)
-- **platform scope, cash_in** for the same amount (platform absorbs the phantom funds)
+The old approval workflow had no FinOps finalization step — managers clicked "Approve" and the money was (presumably) paid out externally, but the status was never advanced to `completed`. These are **zombie records**, not active requests.
 
-For Hellen (ledger = 5K, wallet = 0):
-- **wallet scope, cash_in** for 5K (credits the wallet to match ledger truth)
-- **platform scope, cash_out** for 5K (platform funds the correction)
+## Proposed Fix — Two Parts
 
-All entries use `system_balance_correction` category, a shared `transaction_group_id`, descriptive audit text, and reference IDs like `COR260410XXXX`.
+### 1. Bulk-close the 241 stale approved requests (Data cleanup)
 
-After the ledger entries, `sync_wallet_from_ledger` will automatically adjust wallet balances. However, because the trigger uses `GREATEST(balance - amount, 0)` clamping, we need a final force-reconcile for Hellen whose wallet is already at 0 (the cash_in will correctly add 5K — no issue there). For the 3 inflated users, the cash_out entries will drain their ballets correctly.
+These requests are 2-3 months old. They need to be moved to either `completed` or `rejected` so they stop polluting the active queue.
 
-## Migration 2: Wallet Mutation Guard
+**Option A (Recommended)**: Mark all 241 as `expired` or `rejected` with a system note explaining they were stale approvals from the pre-FinOps era. No ledger impact since the wallet deductions (if any) already happened or never happened.
 
-The `sync_wallet_from_ledger` trigger updates wallets directly — so a naive "block all updates" trigger would break the system. Instead, we use the same session-variable pattern as the ledger fortress:
+**Option B**: Mark them as `completed` with a note "Legacy closure — pre-FinOps era". This assumes the money was actually paid out.
 
-```sql
-CREATE OR REPLACE FUNCTION public.guard_wallet_direct_update()
-RETURNS trigger AS $$
-BEGIN
-  -- Allow sync_wallet_from_ledger (sets this flag)
-  IF current_setting('wallet.sync_authorized', true) = 'true' THEN
-    RETURN NEW;
-  END IF;
-  
-  -- Allow if balance hasn't changed
-  IF OLD.balance IS NOT DISTINCT FROM NEW.balance THEN
-    RETURN NEW;
-  END IF;
-  
-  RAISE EXCEPTION 'Direct wallet balance mutation forbidden. All balance changes must go through the ledger.';
-END;
-$$ LANGUAGE plpgsql;
+→ **Which option do you prefer?** Or should FinOps review each one individually?
 
-CREATE TRIGGER trg_guard_wallet_mutation
-BEFORE UPDATE ON wallets
-FOR EACH ROW
-EXECUTE FUNCTION guard_wallet_direct_update();
-```
+### 2. Add a date filter / age indicator to the FinOps withdrawal view
 
-Then update `sync_wallet_from_ledger` to set `wallet.sync_authorized = 'true'` before its UPDATE calls.
+To prevent this from happening again:
+- Add a visual age badge (e.g., "3 months old") on stale requests
+- Sort newest-first by default (currently ascending = oldest first)
+- Optionally add a date range filter so FinOps can focus on recent items
 
-## Migration 3: Audit the partner_funding code path
-
-No code changes needed — `fund-rent-pool/index.ts` already uses `create_ledger_transaction` RPC exclusively. It never writes to `wallets.balance` directly. The drift was caused by **legacy rogue triggers** (now dropped), not by the current code.
-
-## Summary of Changes
-
-**Database (2 migrations):**
-1. Insert 8 correction ledger entries (4 users × 2 entries each) to reconcile drift
-2. Add `guard_wallet_direct_update` trigger + update `sync_wallet_from_ledger` to use session flag
-
-**No UI or Edge Function changes needed.**
-
-## Technical Detail
-
-The session-variable approach (`wallet.sync_authorized`) mirrors the existing `ledger.authorized` pattern used in the ledger fortress. This ensures only the sanctioned `sync_wallet_from_ledger` trigger can modify `wallets.balance`, while all other UPDATE attempts that change the balance column are blocked with a clear error.
+### Files Changed
+- **Database**: UPDATE query to close the 241 stale records (via insert tool)
+- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — change sort order to descending, add age indicator
 
