@@ -2608,7 +2608,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       if (upErr) throw upErr;
 
       // Reinvest ledger via RPC (double-entry: roi_expense + roi_reinvestment)
-      await supabase.rpc('create_ledger_transaction', {
+      const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
         entries: JSON.stringify([
           {
             user_id: p.investorId,
@@ -2638,6 +2638,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           },
         ]),
       });
+      if (ledgerErr) throw ledgerErr;
 
       await supabase.from('audit_logs').insert({
         user_id: user.id,
