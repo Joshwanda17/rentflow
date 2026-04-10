@@ -1,29 +1,37 @@
 
 
-# Fix COO Agent Hub — Data Not Loading
+# Purge Ledger Integrity Alerts
 
-## Root Cause
-The hub fetches all agent user IDs (5,772) then passes them into `.in('id', ids)` calls. This creates URLs with thousands of UUIDs that exceed HTTP URL length limits, returning **400 Bad Request**. All subsequent queries (wallets, earnings, rent_requests, landlord_assignments) fail the same way.
+## Root Cause Analysis
 
-## Solution
-Create a database function (RPC) that performs all joins server-side and returns paginated, pre-aggregated agent data. This eliminates the massive `.in()` calls entirely.
+The dashboard shows **113 drift** and **15 negatives**, but the actual numbers are **32 drift** and **2 negatives**. The inflation is caused by the client-side integrity check in `useCFOOverviewData.ts` fetching `general_ledger` entries via the Supabase JS client, which caps at **1,000 rows**. With 8,185 wallet-scope entries, most users get incomplete ledger sums, producing false alerts.
 
-### 1. Database Migration — Create `get_agents_hub` RPC
+## Two-Part Fix
 
-A PostgreSQL function that:
-- Joins `user_roles` (role='agent') → `profiles` → aggregates from `wallets`, `agent_earnings`, `rent_requests`, `agent_landlord_assignments`
-- Accepts parameters: `search_query text`, `sort_field text`, `sort_dir text`, `page_limit int`, `page_offset int`
-- Returns: `id, full_name, phone, territory, last_active_at, wallet_balance, total_commission, tenants_count, landlords_count`
-- All aggregation happens in SQL (COUNT DISTINCT for tenants/landlords, SUM for earnings)
+### Part 1: Fix the Dashboard (eliminate false alerts)
 
-### 2. Update `COOAgentHub.tsx`
+Create a **database RPC** `get_ledger_integrity_checks` that runs the integrity queries server-side with full data access. Returns `{ wallet_drift_count, missing_group_count, negative_balance_count }`.
 
-- Replace the 6 separate Supabase queries with a single `supabase.rpc('get_agents_hub', { ... })` call
-- Pass search, sort, and pagination params directly to the RPC
-- Status classification (`classifyAgent`) stays client-side since it's lightweight
-- Add pagination (load more / infinite scroll) since 5,772 agents shouldn't render at once
+Update `useCFOOverviewData.ts` to call this RPC instead of doing client-side aggregation.
+
+### Part 2: Purge the Real 32 Drift + 2 Negative Users
+
+**32 Wallet/Ledger Drift users**: Most are wallets stuck at 0 while the ledger shows positive balances (e.g., one user has UGX 86.8M in the ledger but wallet shows 0). These need the wallet force-reconciled to match the ledger truth.
+
+**2 Negative Ledger users**: Need `system_balance_correction` entries (same pattern used in the previous April 2026 purge) to zero them out.
+
+Create a **one-time migration** that:
+1. Inserts `system_balance_correction` ledger entries for the 2 negative-balance users
+2. Force-syncs all 32 drifted wallets to their ledger-derived balance
+3. Logs each correction to `audit_logs`
 
 ### Files Changed
-- **Migration**: New RPC function `get_agents_hub`
-- **Edit**: `src/components/coo/COOAgentHub.tsx` — replace data fetching with single RPC call + pagination
+
+- **Migration 1**: New RPC `get_ledger_integrity_checks`
+- **Migration 2**: One-time data correction (32 drift + 2 negatives)
+- **Edit**: `src/hooks/useCFOOverviewData.ts` — replace client-side integrity logic with single RPC call
+
+### Expected Result
+
+After both migrations run, the Ledger Integrity panel should show **0 / 0 / 0** (green across the board), and the numbers will be accurate going forward since the RPC bypasses the 1,000-row limit.
 
