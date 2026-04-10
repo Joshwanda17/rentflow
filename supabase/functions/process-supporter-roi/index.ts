@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
       reinvested: 0,
       skipped: 0,
       totalAmount: 0,
+      topupsMerged: 0,
+      topupsMergedAmount: 0,
       errors: [] as string[],
     };
 
@@ -246,7 +248,154 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, total: ${results.totalAmount}`);
+    // ═══ POST-PAYOUT: Merge pending top-ups into portfolio principal ═══
+    // After all ROI payouts, check each supporter's portfolios for approved pending top-ups
+    // and merge them into the active principal so next cycle uses the new amount.
+    const processedSupporterIds = [...new Set(
+      (fundedRequests || [])
+        .filter(rr => !pausedSupporterIds.has(rr.supporter_id))
+        .map(rr => rr.supporter_id)
+    )];
+
+    for (const supporterId of processedSupporterIds) {
+      try {
+        // Find all active portfolios for this supporter
+        const { data: portfolios } = await supabase
+          .from('investor_portfolios')
+          .select('id, investment_amount, portfolio_code, account_name, investor_id, agent_id')
+          .or(`investor_id.eq.${supporterId},agent_id.eq.${supporterId}`)
+          .eq('status', 'active');
+
+        if (!portfolios || portfolios.length === 0) continue;
+
+        for (const portfolio of portfolios) {
+          // Check for pending top-ups on this portfolio
+          const { data: pendingOps } = await supabase
+            .from('pending_wallet_operations')
+            .select('id, amount, transaction_group_id')
+            .eq('source_id', portfolio.id)
+            .eq('source_table', 'investor_portfolios')
+            .eq('operation_type', 'portfolio_topup')
+            .eq('status', 'pending');
+
+          if (!pendingOps || pendingOps.length === 0) continue;
+
+          const totalPending = pendingOps.reduce((s, op) => s + Number(op.amount), 0);
+          const currentAmount = Number(portfolio.investment_amount);
+          const newAmount = currentAmount + totalPending;
+          const accountLabel = portfolio.account_name || portfolio.portfolio_code;
+          const partnerId = portfolio.investor_id || portfolio.agent_id;
+          const mergeGroupId = crypto.randomUUID();
+
+          // 1. Update portfolio principal
+          const { error: updateErr } = await supabase
+            .from('investor_portfolios')
+            .update({ investment_amount: newAmount })
+            .eq('id', portfolio.id);
+
+          if (updateErr) {
+            console.error(`[process-supporter-roi] Failed to merge top-ups for portfolio ${portfolio.id}:`, updateErr.message);
+            continue;
+          }
+
+          // 2. Mark pending ops as approved
+          const pendingIds = pendingOps.map(op => op.id);
+          const { error: approveErr } = await supabase
+            .from('pending_wallet_operations')
+            .update({
+              status: 'approved',
+              reviewed_at: now.toISOString(),
+              reviewed_by: 'system:roi-merge',
+            })
+            .in('id', pendingIds);
+
+          if (approveErr) {
+            // Rollback
+            await supabase
+              .from('investor_portfolios')
+              .update({ investment_amount: currentAmount })
+              .eq('id', portfolio.id);
+            console.error(`[process-supporter-roi] Rollback merge for portfolio ${portfolio.id}:`, approveErr.message);
+            continue;
+          }
+
+          // 3. Ledger entry: pending capital now activates into portfolio (platform scope)
+          await supabase.rpc('create_ledger_transaction', {
+            entries: JSON.stringify([
+              {
+                user_id: null,
+                amount: totalPending,
+                direction: 'cash_out',
+                category: 'pending_portfolio_topup',
+                source_table: 'investor_portfolios',
+                source_id: portfolio.id,
+                description: `Auto-merged ${pendingOps.length} pending top-up(s) into ${accountLabel} at ROI cycle`,
+                currency: 'UGX',
+                ledger_scope: 'platform',
+              },
+              {
+                user_id: partnerId,
+                amount: totalPending,
+                direction: 'cash_in',
+                category: 'partner_funding',
+                source_table: 'investor_portfolios',
+                source_id: portfolio.id,
+                description: `${pendingOps.length} pending top-up(s) merged into ${accountLabel} — capital activated`,
+                currency: 'UGX',
+                ledger_scope: 'platform',
+              },
+            ]),
+          });
+
+          // 4. Audit log
+          await supabase.from('audit_logs').insert({
+            user_id: null,
+            action_type: 'auto_merge_pending_topups',
+            table_name: 'investor_portfolios',
+            record_id: portfolio.id,
+            metadata: {
+              partner_id: partnerId,
+              count: pendingOps.length,
+              total_merged: totalPending,
+              previous_capital: currentAmount,
+              new_capital: newAmount,
+              pending_op_ids: pendingIds,
+              trigger: 'roi_cycle',
+            },
+          });
+
+          // 5. Notify partner
+          await supabase.from('notifications').insert({
+            user_id: partnerId,
+            title: '🔄 Top-Ups Merged Into Capital',
+            message: `${pendingOps.length} pending deposit(s) totaling UGX ${totalPending.toLocaleString()} have been added to "${accountLabel}". New capital: UGX ${newAmount.toLocaleString()}.`,
+            type: 'success',
+            metadata: { portfolio_id: portfolio.id, total_merged: totalPending, new_capital: newAmount },
+          });
+
+          // Update reinvest map if applicable
+          if (autoReinvestMap.has(supporterId) && autoReinvestMap.get(supporterId)!.portfolio_id === portfolio.id) {
+            autoReinvestMap.get(supporterId)!.current_amount = newAmount;
+          }
+
+          results.topupsMerged += pendingOps.length;
+          results.topupsMergedAmount += totalPending;
+          console.log(`[process-supporter-roi] Merged ${pendingOps.length} pending top-ups (${totalPending}) into portfolio ${portfolio.id} for supporter ${supporterId}`);
+
+          logSystemEvent(supabase, 'pending_topups_merged', supporterId, 'investor_portfolios', portfolio.id, {
+            count: pendingOps.length,
+            total: totalPending,
+            new_capital: newAmount,
+          });
+        }
+      } catch (mergeErr: unknown) {
+        const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
+        console.error(`[process-supporter-roi] Merge error for supporter ${supporterId}:`, msg);
+        results.errors.push(`merge:${supporterId}: ${msg}`);
+      }
+    }
+
+    console.log(`[process-supporter-roi] Done: ${results.credited} wallet-credited, ${results.reinvested} auto-reinvested, ${results.topupsMerged} top-ups merged (${results.topupsMergedAmount}), total ROI: ${results.totalAmount}`);
 
 
     // Notify managers (fire-and-forget)
