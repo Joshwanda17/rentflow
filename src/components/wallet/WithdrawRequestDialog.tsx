@@ -91,6 +91,23 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     if (open) setWorkingHoursStatus(checkWorkingHours());
   }, [open]);
 
+  // Fetch pending withdrawal amounts to prevent over-requesting
+  useEffect(() => {
+    const fetchPending = async () => {
+      if (!user || !open) { setPendingAmount(0); return; }
+      try {
+        const { data } = await supabase
+          .from('withdrawal_requests')
+          .select('amount')
+          .eq('user_id', user.id)
+          .in('status', ['pending', 'requested', 'manager_approved']);
+        const total = (data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+        setPendingAmount(total);
+      } catch { setPendingAmount(0); }
+    };
+    fetchPending();
+  }, [user, open]);
+
 
   useEffect(() => {
     const fetchSavedNumber = async () => {
