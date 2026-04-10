@@ -98,6 +98,8 @@ Deno.serve(async (req) => {
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
     const agentName = agentProfileRes.data?.full_name || "Agent";
 
+    const txDate = new Date().toISOString();
+
     // --- Record agent cash_out via RPC ---
     const { error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
       entries: [
@@ -113,9 +115,10 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: "Rent Management Pool",
           ledger_scope: "wallet",
+          transaction_date: txDate,
         },
         {
-          user_id: null,
+          user_id: agent.id,
           amount,
           direction: "cash_in",
           category: "partner_funding",
@@ -126,6 +129,7 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: agent.id,
           ledger_scope: "platform",
+          transaction_date: txDate,
         },
       ],
     });
@@ -211,7 +215,7 @@ Deno.serve(async (req) => {
     await adminClient.rpc('create_ledger_transaction', {
       entries: [
         {
-          user_id: null,
+          user_id: agent.id,
           amount,
           direction: "cash_out",
           category: "partner_funding",
@@ -222,6 +226,7 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: agentName,
           ledger_scope: "platform",
+          transaction_date: txDate,
         },
         {
           user_id: partner_id,
@@ -235,6 +240,7 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: agentName,
           ledger_scope: "wallet",
+          transaction_date: txDate,
         },
       ],
     });
@@ -254,9 +260,10 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: "Rent Management Pool",
           ledger_scope: "wallet",
+          transaction_date: txDate,
         },
         {
-          user_id: null,
+          user_id: partner_id,
           amount,
           direction: "cash_in",
           category: "partner_funding",
@@ -267,6 +274,7 @@ Deno.serve(async (req) => {
           reference_id: referenceId,
           linked_party: partner_id,
           ledger_scope: "platform",
+          transaction_date: txDate,
         },
       ],
     });

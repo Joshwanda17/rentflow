@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
           transaction_date: now,
         },
         {
+          user_id: bonusAgentId,
           direction: 'cash_out',
           amount: RENT_FUNDED_BONUS,
           category: 'agent_commission_earned',

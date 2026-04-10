@@ -406,6 +406,7 @@ Deno.serve(async (req) => {
               transaction_date: new Date().toISOString(),
             },
             {
+              user_id: agentId,
               direction: 'cash_in',
               amount: amount,
               category: 'agent_float_used_for_rent',
@@ -519,6 +520,7 @@ Deno.serve(async (req) => {
             transaction_date: new Date().toISOString(),
           },
           {
+            user_id: agentId,
             direction: 'cash_in',
             amount: amount,
             category: 'agent_float_used_for_rent',
@@ -547,6 +549,7 @@ Deno.serve(async (req) => {
       const { error: tenantLedgerError } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
+            user_id: agentId,
             direction: 'cash_out',
             amount: depositAmount,
             category: 'wallet_deposit',

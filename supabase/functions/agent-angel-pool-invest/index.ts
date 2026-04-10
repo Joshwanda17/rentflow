@@ -88,6 +88,8 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `ANG${yy}${mm}${dd}${seq}`;
 
+    const txDate = new Date().toISOString();
+
     // 1. Investment: wallet cash_out + platform cash_in (share_capital)
     const { error: investRpcErr } = await adminClient.rpc('create_ledger_transaction', {
       entries: [
@@ -96,14 +98,14 @@ Deno.serve(async (req) => {
           amount: actualAmount, category: 'share_capital',
           source_table: 'angel_pool_investments', source_id: investorWallet.id,
           description: `Angel Pool investment: ${shares} shares @ USh ${PRICE_PER_SHARE.toLocaleString()}/share (via agent)`,
-          currency: 'UGX', reference_id: referenceId,
+          currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
         },
         {
-          ledger_scope: 'platform', direction: 'cash_in',
+          user_id: investor_id, ledger_scope: 'platform', direction: 'cash_in',
           amount: actualAmount, category: 'share_capital',
           source_table: 'angel_pool_investments', source_id: investorWallet.id,
           description: `Angel Pool share capital received via agent`,
-          currency: 'UGX', reference_id: referenceId,
+          currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
         },
       ],
     });
@@ -128,18 +130,18 @@ Deno.serve(async (req) => {
       const { error: commErr } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
-            ledger_scope: 'platform', direction: 'cash_out',
+            user_id: user.id, ledger_scope: 'platform', direction: 'cash_out',
             amount: commission, category: 'agent_commission_earned',
             source_table: 'angel_pool_investments', source_id: investorWallet.id,
             description: `Angel Pool agent commission expense (1%) for ${referenceId}`,
-            currency: 'UGX', reference_id: referenceId,
+            currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
           },
           {
             user_id: user.id, ledger_scope: 'wallet', direction: 'cash_in',
             amount: commission, category: 'agent_commission_earned',
             source_table: 'angel_pool_investments', source_id: investorWallet.id,
             description: `Angel Pool agent commission (1%) for ${referenceId}`,
-            currency: 'UGX', reference_id: referenceId,
+            currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
           },
         ],
       });
