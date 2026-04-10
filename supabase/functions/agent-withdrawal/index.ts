@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Input validation helpers
+// ── Input validation helpers ──
 function validateUUID(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const cleaned = value.trim();
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify agent role
+    // ── Verify agent role ──
     const { data: agentRole } = await adminClient
       .from('user_roles')
       .select('role')
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Find user by phone if not provided user_id
+    // ── Find user by phone if needed ──
     let targetUserId = userId;
     if (!targetUserId && userPhone) {
       const { data: profile } = await adminClient
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         .select('id')
         .eq('phone', userPhone)
         .maybeSingle();
-      
+
       if (!profile) {
         return new Response(
           JSON.stringify({ error: 'User not found with this phone number' }),
@@ -134,10 +134,10 @@ Deno.serve(async (req) => {
       targetUserId = profile.id;
     }
 
-    // Get user's wallet with fresh balance
+    // ── Balance check (ledger-derived via sync trigger) ──
     const { data: userWallet } = await adminClient
       .from('wallets')
-      .select('*')
+      .select('balance')
       .eq('user_id', targetUserId)
       .maybeSingle();
 
@@ -155,31 +155,49 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Deduct from user's wallet using optimistic locking
-    const { data: updatedRows, error: updateError } = await adminClient
-      .from('wallets')
-      .update({ balance: userWallet.balance - amount, updated_at: new Date().toISOString() })
-      .eq('user_id', targetUserId)
-      .eq('balance', userWallet.balance)
-      .select();
+    // ── Execute atomic ledger transaction (double-entry withdrawal) ──
+    const transactionGroupId = crypto.randomUUID();
 
-    if (updateError) {
-      console.error('[agent-withdrawal] Wallet update error:', updateError);
+    const { error: ledgerError } = await adminClient.rpc(
+      'create_ledger_transaction',
+      {
+        p_entries: [
+          {
+            user_id: targetUserId,
+            scope: 'wallet',
+            direction: 'cash_out',
+            category: 'wallet_withdrawal',
+            amount: amount,
+            description: `Agent-processed withdrawal by ${agentId}`,
+            source_table: 'wallet_withdrawals',
+            source_id: targetUserId,
+          },
+          {
+            user_id: targetUserId,
+            scope: 'platform',
+            direction: 'cash_out',
+            category: 'wallet_withdrawal',
+            amount: amount,
+            description: `Platform cash-out for agent withdrawal`,
+            source_table: 'wallet_withdrawals',
+            source_id: targetUserId,
+          },
+        ],
+        p_transaction_group_id: transactionGroupId,
+      }
+    );
+
+    if (ledgerError) {
+      console.error('[agent-withdrawal] Ledger RPC error:', ledgerError);
       return new Response(
-        JSON.stringify({ error: 'Failed to update wallet' }),
+        JSON.stringify({ error: ledgerError.message || 'Financial transaction failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!updatedRows || updatedRows.length === 0) {
-      console.error('[agent-withdrawal] Optimistic lock failed');
-      return new Response(
-        JSON.stringify({ error: 'Balance changed during withdrawal. Please try again.' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log(`[agent-withdrawal] Ledger OK, group=${transactionGroupId}`);
 
-    // Record withdrawal
+    // ── Record withdrawal ──
     const { error: withdrawalRecordError } = await adminClient
       .from('wallet_withdrawals')
       .insert({
@@ -192,25 +210,22 @@ Deno.serve(async (req) => {
       console.error('[agent-withdrawal] Failed to record withdrawal:', withdrawalRecordError);
     }
 
-    // Get user profile for response
-    const { data: userProfile } = await adminClient
-      .from('profiles')
-      .select('full_name')
-      .eq('id', targetUserId)
-      .single();
+    // ── Get updated balance (now synced by trigger) and user profile ──
+    const [{ data: freshWallet }, { data: userProfile }] = await Promise.all([
+      adminClient.from('wallets').select('balance').eq('user_id', targetUserId).single(),
+      adminClient.from('profiles').select('full_name').eq('id', targetUserId!).single(),
+    ]);
 
-    const newBalance = updatedRows[0].balance;
+    const newBalance = freshWallet?.balance ?? 0;
     console.log(`[agent-withdrawal] Completed: Amount: ${amount}, New balance: ${newBalance}`);
 
-
-    // Notify managers (fire-and-forget)
+    // ── Notifications (fire-and-forget) ──
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({ title: "💸 Agent Withdrawal", body: "Activity: withdrawal", url: "/manager" }),
     }).catch(() => {});
 
-    // Push notification to agent (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
@@ -219,7 +234,6 @@ Deno.serve(async (req) => {
         payload: { title: "✅ Withdrawal Processed", body: `UGX ${amount.toLocaleString()} withdrawal completed`, url: "/dashboard", type: "success" },
       }),
     }).catch(() => {});
-
 
     return new Response(
       JSON.stringify({
