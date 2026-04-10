@@ -124,6 +124,11 @@ export function CFOAdvancesManager() {
         <Button onClick={() => setIssueOpen(true)} size="sm" className="gap-1">
           <Plus className="h-4 w-4" /> Issue Advance
         </Button>
+        {selectedIds.size > 0 && (
+          <Button variant="destructive" size="sm" className="gap-1" onClick={() => setDeleteDialogOpen(true)}>
+            <Trash2 className="h-4 w-4" /> Delete ({selectedIds.size})
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
