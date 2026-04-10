@@ -2996,7 +2996,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                   const isDone = completed[p.portfolioId];
                   const refPreview = `${p.portfolioId.slice(0, 8)}`;
                   return (
-                    <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5")}>
+                    <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5", isDone === 'split' && "opacity-70 border-violet-500/40 bg-violet-500/5")}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{p.name}</p>
@@ -3009,6 +3009,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                         ) : isDone === 'compounded' ? (
                           <Badge className="shrink-0 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
                             ✓ Compounded
+                          </Badge>
+                        ) : isDone === 'split' ? (
+                          <Badge className="shrink-0 text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30">
+                            ✂️ Split Processed
                           </Badge>
                         ) : p.daysUntil < 0 ? (
                           <Badge variant="destructive" className="shrink-0 text-[10px]">
@@ -3072,6 +3076,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                             >
                               {isProcessing === 'compound' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowUpRight className="h-3 w-3" />}
                               Compound
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="flex-1 text-xs gap-1.5"
+                              disabled={!!isProcessing || (reasons[p.portfolioId]?.length || 0) < 10}
+                              onClick={() => handleSplitClick(p)}
+                            >
+                              {isProcessing === 'split' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Scissors className="h-3 w-3" />}
+                              Split
                             </Button>
                             <Button
                               size="sm"
