@@ -10,6 +10,8 @@ import {
   BadgeCheck,
   XCircle
 } from 'lucide-react';
+import BoringAvatar from 'boring-avatars';
+import { MARBLE_COLORS } from '@/components/UserAvatar';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { hapticTap } from '@/lib/haptics';
 import OnlineIndicator from '@/components/chat/OnlineIndicator';
@@ -100,7 +102,7 @@ export function SimpleUserCard({ user, isSelected, onSelect, onClick, isOnline =
           <Avatar className="h-14 w-14 border-2 border-background shadow-md">
             <AvatarImage src={user.avatar_url || undefined} />
             <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-              {getInitials(user.full_name)}
+              <BoringAvatar size={56} name={user.full_name} variant="marble" colors={MARBLE_COLORS} />
             </AvatarFallback>
           </Avatar>
           <OnlineIndicator 
