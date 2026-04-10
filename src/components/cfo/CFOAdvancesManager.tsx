@@ -73,6 +73,39 @@ export function CFOAdvancesManager() {
   const calcFee = calcAmount ? calculateAccessFee(Number(calcAmount), Number(calcRate), Number(calcDays)) : 0;
   const calcTotal = Number(calcAmount || 0) + calcFee;
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((a: any) => a.id)));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    setDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase.from('agent_advances').delete().in('id', ids);
+      if (error) throw error;
+      toast.success(`${ids.length} advance(s) deleted`);
+      setSelectedIds(new Set());
+      setDeleteDialogOpen(false);
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || 'Delete failed');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const summaryCards = [
     { label: 'Total Issued', value: formatUGX(totalIssued), icon: DollarSign, cls: 'text-primary' },
     { label: 'Outstanding', value: formatUGX(totalOutstanding), icon: TrendingUp, cls: 'text-amber-600' },
