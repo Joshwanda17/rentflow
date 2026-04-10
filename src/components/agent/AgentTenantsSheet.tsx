@@ -81,6 +81,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [agentPayments, setAgentPayments] = useState<Record<string, AgentPaymentSummary>>({});
   const [noSmartphoneMap, setNoSmartphoneMap] = useState<Record<string, boolean>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
+  const [renewDialogOpen, setRenewDialogOpen] = useState(false);
+  const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -764,7 +766,26 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                   </div>
 
                                   {/* Actions */}
-                                  <div className="grid grid-cols-2 gap-1.5">
+                                  <div className={`grid ${req.status === 'completed' ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5`}>
+                                    {req.status === 'completed' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-[10px] h-7 rounded-lg border-primary/30 text-primary col-span-3 font-semibold"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setRenewPrefill({
+                                            name: tenant.full_name,
+                                            phone: tenant.phone,
+                                            amount: String(req.rent_amount),
+                                          });
+                                          setRenewDialogOpen(true);
+                                        }}
+                                      >
+                                        <RefreshCw className="h-3 w-3 mr-1" />
+                                        🔄 Renew Rent
+                                      </Button>
+                                    )}
                                     <Button size="sm" variant="outline" className="text-[10px] h-7 rounded-lg" onClick={() => handleDownloadPdf(tenant, req)}>
                                       <FileDown className="h-3 w-3 mr-1" />PDF
                                     </Button>
