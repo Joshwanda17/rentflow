@@ -26,8 +26,8 @@ export function UserAvatar({ avatarUrl, fullName, size = 'md', className = '' }:
   }
 
   return (
-    <div className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden shrink-0`}>
-      <BoringAvatar size={sizeMap[size]} name={fullName || 'user'} variant="marble" colors={MARBLE_COLORS} square />
+    <div className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden shrink-0 flex items-center justify-center`}>
+      <BoringAvatar size={sizeMap[size]} name={fullName || 'user'} variant="marble" colors={MARBLE_COLORS} />
     </div>
   );
 }
