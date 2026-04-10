@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
     }
 
     const results: Array<{ id: string; status: string; user_id: string; amount: number }> = [];
+    const failedResults: Array<{ id: string; error: string }> = [];
 
     for (const op of operations) {
       if (action === "approve") {
@@ -195,6 +196,7 @@ Deno.serve(async (req) => {
 
         if (ledgerErr) {
           console.error(`[approve-wallet-op] Ledger insert failed for ${op.id}:`, ledgerErr);
+          failedResults.push({ id: op.id, error: ledgerErr.message || 'Ledger insert failed' });
           continue;
         }
 
@@ -694,11 +696,32 @@ Deno.serve(async (req) => {
     }).catch(() => {});
 
 
+    const approved_ids = results.filter(r => r.status === 'approved').map(r => r.id);
+    const rejected_ids = results.filter(r => r.status === 'rejected').map(r => r.id);
+    const failed_ids = failedResults.map(r => r.id);
+
+    // If nothing succeeded, return an error
+    if (results.length === 0 && failedResults.length > 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `All ${failedResults.length} operation(s) failed`,
+          failed_ids,
+          failures: failedResults,
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({
-        success: true,
-        message: `${results.length} operation(s) ${action}d`,
+        success: results.length > 0,
+        message: `${results.length} operation(s) ${action}d` + (failedResults.length > 0 ? `, ${failedResults.length} failed` : ''),
         results,
+        approved_ids,
+        rejected_ids,
+        failed_ids,
+        failures: failedResults.length > 0 ? failedResults : undefined,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
