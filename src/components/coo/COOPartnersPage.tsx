@@ -3106,7 +3106,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               )}
             </div>
           </>
-        ) : selectedPayout && (
+        ) : paymentStep === 'payment-options' && selectedPayout ? (
           /* ═══ Step 2: Payment Options ═══ */
           <>
             <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
@@ -3232,7 +3232,135 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               )}
             </div>
           </>
-        )}
+        ) : paymentStep === 'split-config' && selectedPayout ? (
+          /* ═══ Step 3: Split Configuration ═══ */
+          <>
+            <DialogHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <button
+                  onClick={() => { setPaymentStep('list'); setSelectedPayout(null); }}
+                  className="p-1 -ml-1 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <ArrowUpRight className="h-4 w-4 rotate-[225deg]" />
+                </button>
+                <Scissors className="h-4 w-4" />
+                Split Payout
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Split {selectedPayout.name}'s returns between cash and reinvestment
+              </DialogDescription>
+            </DialogHeader>
+            <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4">
+              {/* Summary */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm">{selectedPayout.name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedPayout.phone || selectedPayout.email || 'No contact'}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] shrink-0">
+                    {selectedPayout.roiPercentage}% ROI
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-background p-2">
+                    <p className="text-[10px] text-muted-foreground">Principal</p>
+                    <p className="text-xs font-bold tabular-nums">{formatUGX(selectedPayout.investmentAmount)}</p>
+                  </div>
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <p className="text-[10px] text-muted-foreground">Total Returns</p>
+                    <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(selectedRoiAmount)}</p>
+                  </div>
+                  <div className="rounded-lg bg-background p-2">
+                    <p className="text-[10px] text-muted-foreground">New Principal</p>
+                    <p className="text-xs font-bold tabular-nums">{formatUGX(selectedPayout.investmentAmount + (selectedRoiAmount - splitCashAmount))}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Split Controls */}
+              <div className="space-y-3">
+                <Label className="text-xs font-medium">Cash Amount</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={selectedRoiAmount - 1}
+                    value={splitCashAmount}
+                    onChange={e => {
+                      const val = Math.max(1, Math.min(selectedRoiAmount - 1, Number(e.target.value) || 0));
+                      setSplitCashAmount(val);
+                    }}
+                    className="text-sm tabular-nums"
+                  />
+                </div>
+                <Slider
+                  min={1}
+                  max={selectedRoiAmount - 1}
+                  step={1000}
+                  value={[splitCashAmount]}
+                  onValueChange={([v]) => setSplitCashAmount(v)}
+                  className="py-1"
+                />
+
+                {/* Visual breakdown */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3 text-center">
+                    <Wallet className="h-4 w-4 mx-auto mb-1 text-primary" />
+                    <p className="text-[10px] text-muted-foreground">Cash Payout</p>
+                    <p className="text-sm font-bold tabular-nums text-primary">{formatUGX(splitCashAmount)}</p>
+                  </div>
+                  <div className="rounded-xl border-2 border-green-500/30 bg-green-500/5 p-3 text-center">
+                    <TrendingUp className="h-4 w-4 mx-auto mb-1 text-green-600" />
+                    <p className="text-[10px] text-muted-foreground">Reinvested</p>
+                    <p className="text-sm font-bold tabular-nums text-green-600">{formatUGX(selectedRoiAmount - splitCashAmount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment method for cash portion */}
+              {checkingManagedStep2 ? (
+                <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-xs">Checking account status...</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Cash portion payment method</Label>
+                  <Select value={splitPayMode} onValueChange={(v: any) => setSplitPayMode(v)}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedManaged?.isManaged || selectedManaged?.hasProxy ? (
+                        <SelectItem value="agent_wallet">Agent Wallet ({selectedManaged?.agentName})</SelectItem>
+                      ) : (
+                        <SelectItem value="wallet">Pay to Wallet</SelectItem>
+                      )}
+                      <SelectItem value="already_paid">Cash (already/to be paid externally)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Audit reason */}
+              <div className="rounded-lg bg-background border border-border/40 p-2.5">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Audit Reason</p>
+                <p className="text-xs leading-relaxed">{selectedReason}</p>
+              </div>
+
+              {/* Confirm */}
+              <Button
+                className="w-full gap-2"
+                disabled={!!selectedProcessing || splitCashAmount < 1 || splitCashAmount >= selectedRoiAmount}
+                onClick={() => handleSplitPayout(selectedPayout, splitCashAmount, selectedReason, splitPayMode)}
+              >
+                {selectedProcessing === 'split' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
+                Confirm Split Payout
+              </Button>
+            </div>
+          </>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
