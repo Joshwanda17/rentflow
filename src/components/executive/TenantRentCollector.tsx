@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { Loader2, User, Wallet, Banknote, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { Loader2, User, Wallet, Banknote, AlertTriangle, CheckCircle2, Info, History } from 'lucide-react';
+import { CompactAmount } from '@/components/ui/CompactAmount';
+import { format } from 'date-fns';
 
 interface SelectedUser {
   id: string;
