@@ -66,6 +66,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
+  const [pendingAmount, setPendingAmount] = useState(0);
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');
@@ -89,6 +90,23 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     if (open) setWorkingHoursStatus(checkWorkingHours());
   }, [open]);
+
+  // Fetch pending withdrawal amounts to prevent over-requesting
+  useEffect(() => {
+    const fetchPending = async () => {
+      if (!user || !open) { setPendingAmount(0); return; }
+      try {
+        const { data } = await supabase
+          .from('withdrawal_requests')
+          .select('amount')
+          .eq('user_id', user.id)
+          .in('status', ['pending', 'requested', 'manager_approved']);
+        const total = (data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+        setPendingAmount(total);
+      } catch { setPendingAmount(0); }
+    };
+    fetchPending();
+  }, [user, open]);
 
 
   useEffect(() => {
@@ -127,8 +145,9 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   };
 
   const MIN_BALANCE = 5000;
+  const availableBalance = Math.max(0, walletBalance - pendingAmount);
   const meetsMinBalance = walletBalance >= MIN_BALANCE;
-  const isFormValid = meetsMinBalance && amount >= 500 && amount <= walletBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
+  const isFormValid = meetsMinBalance && amount >= 500 && amount <= availableBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
 
   const handleSubmit = async () => {
     if (!user) { toast.error('Please log in first'); return; }
@@ -137,7 +156,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     
     if (!meetsMinBalance) { toast.error('Wallet balance must be at least UGX 5,000'); return; }
     if (amount < 500) { toast.error('Minimum withdrawal is UGX 500'); return; }
-    if (amount > walletBalance) { toast.error('Insufficient balance'); return; }
+    if (amount > availableBalance) { toast.error(`Insufficient available balance. You have UGX ${pendingAmount.toLocaleString()} in pending withdrawals.`); return; }
     if (!isPayoutValid()) { toast.error('Please complete payout details'); return; }
 
     setLoading(true);
@@ -164,35 +183,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         } as any);
         if (error) throw error;
 
-        // Fetch the newly created withdrawal ID for ledger linking
-        const { data: newRow } = await supabase
-          .from('withdrawal_requests')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        // Pre-deduct wallet via ledger (sync_wallet_from_ledger trigger handles balance)
-        if (newRow) {
-          const isProxyWithdrawal = !!linkedParty;
-          await supabase.from('general_ledger').insert({
-            user_id: user.id,
-            amount,
-            direction: 'cash_out',
-            category: isProxyWithdrawal ? 'proxy_partner_withdrawal' : 'withdrawal_pending',
-            description: isProxyWithdrawal
-              ? `Proxy payout withdrawal for partner ${linkedParty} – funds deducted from agent wallet`
-              : 'Wallet withdrawal requested – funds held pending approval',
-            currency: 'UGX',
-            transaction_group_id: `wallet-withdraw-${newRow.id}`,
-            source_table: 'withdrawal_requests',
-            source_id: newRow.id,
-            ledger_scope: 'wallet',
-            ...(isProxyWithdrawal ? { linked_party: linkedParty } : {}),
-          } as any);
-        }
+        // No wallet deduction or ledger insert here — that happens at approval time
+        // via the approve-withdrawal edge function (ledger-first architecture)
 
         if (payoutMode === 'mtn' || payoutMode === 'airtel') {
           await supabase.from('profiles').update({ mobile_money_number: momoNumber.trim(), mobile_money_provider: payoutMode }).eq('id', user.id);
@@ -261,9 +253,14 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           >
             <div className="flex items-center gap-2">
               <Wallet className="h-4 w-4 text-white/80" />
-              <span className="text-white/70 text-xs font-medium">Withdrawable Balance</span>
+              <span className="text-white/70 text-xs font-medium">Available Balance</span>
             </div>
-            <span className="text-white text-xl font-black tracking-tight">{formatCurrency(walletBalance)}</span>
+            <div className="text-right">
+              <span className="text-white text-xl font-black tracking-tight">{formatCurrency(availableBalance)}</span>
+              {pendingAmount > 0 && (
+                <p className="text-white/50 text-[10px]">{formatCurrency(pendingAmount)} pending</p>
+              )}
+            </div>
           </motion.div>
         </div>
 
