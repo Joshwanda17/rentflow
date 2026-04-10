@@ -90,6 +90,7 @@ export function TenantRentCollector() {
     },
   });
 
+  const collectMutation = useMutation({
     mutationFn: async ({ rentRequestId, collectionReason }: { rentRequestId: string; collectionReason: string }) => {
       const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
         body: { rent_request_id: rentRequestId, reason: collectionReason },
