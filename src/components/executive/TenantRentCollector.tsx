@@ -73,7 +73,23 @@ export function TenantRentCollector() {
     },
   });
 
-  const collectMutation = useMutation({
+  const { data: collectionHistory, isLoading: historyLoading } = useQuery({
+    queryKey: ['tenant-collection-history', selectedTenant?.id],
+    enabled: !!selectedTenant,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('general_ledger')
+        .select('id, transaction_date, amount, category, description, direction')
+        .eq('user_id', selectedTenant!.id)
+        .eq('ledger_scope', 'wallet')
+        .eq('direction', 'cash_out')
+        .eq('source_table', 'rent_requests')
+        .order('transaction_date', { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+  });
+
     mutationFn: async ({ rentRequestId, collectionReason }: { rentRequestId: string; collectionReason: string }) => {
       const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
         body: { rent_request_id: rentRequestId, reason: collectionReason },
@@ -93,7 +109,7 @@ export function TenantRentCollector() {
       setReason('');
       setCollectingId(null);
       qc.invalidateQueries({ queryKey: ['tenant-collect-data', selectedTenant?.id] });
-      qc.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      qc.invalidateQueries({ queryKey: ['tenant-collection-history', selectedTenant?.id] });
     },
     onError: (e: any) => {
       toast({ title: 'Collection Failed', description: e.message, variant: 'destructive' });
@@ -258,6 +274,56 @@ export function TenantRentCollector() {
             </Card>
           ))}
         </div>
+      )}
+
+      {selectedTenant && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <History className="h-4 w-4 text-muted-foreground" />
+              Collection History
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            {historyLoading && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {!historyLoading && (!collectionHistory || collectionHistory.length === 0) && (
+              <p className="text-xs text-muted-foreground text-center py-4">No collection history yet</p>
+            )}
+
+            {!historyLoading && collectionHistory && collectionHistory.length > 0 && (
+              <div className="divide-y divide-border">
+                {collectionHistory.map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between gap-2 py-2">
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-muted-foreground">
+                          {format(new Date(entry.transaction_date), 'dd MMM yyyy, HH:mm')}
+                        </span>
+                        <Badge variant="outline" size="sm">
+                          {(entry.category || '').replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                      {entry.description && (
+                        <p className="text-[11px] text-muted-foreground truncate max-w-[260px]">
+                          {entry.description}
+                        </p>
+                      )}
+                    </div>
+                    <CompactAmount
+                      value={Number(entry.amount || 0)}
+                      className="text-sm font-semibold text-destructive shrink-0"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
