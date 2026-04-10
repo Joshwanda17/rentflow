@@ -1,60 +1,56 @@
 
 
-# Trace Real vs Test Money — Ledger Classification Report
+# Tag and Filter the Ledger — Classification Column
 
-## Findings
+## Overview
+Add a `classification` column to `general_ledger`, populate it for all 11,355 existing entries based on category, and update reporting queries to filter out test/dev data.
 
-Your ledger has **11,355 total entries** across two distinct populations:
+## Database Migration
 
-### Production (Locked Categories) — 7,616 entries
-Categories in the approved allowlist. These are **real money**: `wallet_deposit`, `wallet_withdrawal`, `referral_bonus`, `system_balance_correction`, `rent_disbursement`, etc.
-- Total In: UGX 137.9M | Total Out: UGX 191.4M
+### Step 1: Add column + populate via UPDATE
 
-### Legacy / Test — 3,739 entries
-Categories that predate the locked category system. These break into 3 sub-groups:
+```sql
+ALTER TABLE public.general_ledger
+ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'production';
+```
 
-**1. Clearly Test/Development (safe to flag)**
-| Category | In | Out | Entries |
-|---|---|---|---|
-| `test_funds_cleanup` | 5.6M | 87.7M | 6 |
-| `opening_balance` | 46.2M | 92.5M | 498 |
-| `🔧 Manual Adjustment` | 40K | — | 1 |
-| `correction_reversal` | 50K | — | 1 |
-| `balance_correction` | 560K | 12.9M | 18 |
+Then batch-update all existing rows using the category mapping:
 
-**2. Legacy Real Operations (pre-lockdown categories)**
-| Category | Entries | Notes |
-|---|---|---|
-| `deposit` (91) | 209.2M in | Old version of `wallet_deposit` |
-| `roi_payout` (103) | 186.2M in, 121.4M out | Old version of `roi_wallet_credit` |
-| `supporter_facilitation_capital` (47) | 61.9M in | Old version of `partner_funding` |
-| `agent_proxy_investment` (45) | 58.9M out | Legacy agent ops |
-| `supporter_rent_fund` (60) | Real capital deployment |
-| `rent_repayment` (149) | Real collections |
-| `agent_commission` (2,363) | Old version of `agent_commission_earned` |
+**`production`** (locked categories — default):
+`wallet_deposit`, `wallet_withdrawal`, `wallet_transfer`, `wallet_deduction`, `referral_bonus`, `rent_disbursement`, `rent_principal_collected`, `access_fee_collected`, `registration_fee_collected`, `roi_wallet_credit`, `roi_expense`, `roi_reinvestment`, `agent_commission_earned`, `agent_commission_withdrawal`, `agent_commission_used_for_rent`, `agent_float_deposit`, `agent_float_used_for_rent`, `system_balance_correction`, `orphan_reassignment`, `orphan_reversal`, `tenant_repayment`, `agent_repayment`, `partner_funding`, `share_capital`, `rent_receivable_created`, `rent_disbursement`
 
-**3. Admin/Operational (manual corrections)**
-| Category | Notes |
-|---|---|
-| `wallet_deduction_general_adjustment` (17) | 56.6M out — manual deductions |
-| `wallet_deduction_cash_payout_retraction` (5) | 66.6M out — payout reversals |
-| `manager_debit` / `manager_credit` | Staff ops |
-| `reconciliation` (1) | 23.1M — one-time fix |
+**`legacy_real`**:
+`deposit`, `roi_payout`, `agent_commission`, `agent_commission_payout`, `supporter_facilitation_capital`, `supporter_rent_fund`, `supporter_capital`, `rent_repayment`, `tenant_access_fee`, `supporter_platform_rewards`, `agent_proxy_investment`, `proxy_investment_commission`, `agent_investment_commission`, `rent_payment_for_tenant`, `landlord_rent_payment`, `rent_obligation`, `rent_obligation_reversal`, `rent_obligation_reversal_adjustment`, `credit_access_repayment`, `advance_repayment`, `pool_capital_received`, `pool_rent_deployment`, `pool_rent_deployment_reversal`, `angel_pool_investment`, `coo_proxy_investment`, `coo_proxy_investment_reversal`, `wallet_to_investment`, `proxy_partner_withdrawal`, `pending_portfolio_topup`, `rent_float_funding`, `debt_clearance`, `agent_bonus`, `tenant_default_charge`, `platform_expense`, `marketing_expense`, `account_merge`
 
-## Plan — Generate Classification Report
+**`test_dev`**:
+`test_funds_cleanup`, `opening_balance`
 
-### Step 1: Generate a CSV artifact
-Run a script that queries the ledger and classifies every entry as:
-- **`production`** — locked category
-- **`legacy_real`** — pre-lockdown but represents real money movement
-- **`test_dev`** — test funds, opening balances, manual adjustments
-- **`admin_correction`** — balance corrections, reconciliation entries
+**`admin_correction`**:
+`balance_correction`, `correction_reversal`, `🔧 Manual Adjustment`, `reconciliation`, `manager_credit`, `manager_debit`, `wallet_deduction_general_adjustment`, `wallet_deduction_cash_payout_retraction`
 
-Output: `/mnt/documents/ledger_classification_2026-04-10.csv` with columns: `id, user, category, direction, amount, classification, created_at`
+### Step 2: Auto-classify future entries
 
-### Step 2: Generate summary report
-A second CSV with per-category totals and classification, so you can see at a glance what's real vs test.
+New entries use locked categories and get `DEFAULT 'production'` automatically. No trigger needed.
 
-### No ledger changes
-Zero writes. Read-only analysis only. The CSV becomes your reference for future cleanup decisions.
+## Code Changes
+
+### Update CFO/COO reporting queries
+Add `.in('classification', ['production', 'legacy_real'])` filter to key reporting queries in:
+
+- `src/hooks/useCFOOverviewData.ts` — treasury KPI cards
+- `src/components/cfo/DailyCashPositionReport.tsx` — daily cash
+- `src/components/coo/FinancialMetricsCards.tsx` — COO metrics
+- `src/hooks/useFinancialStatements.ts` — income/cash flow/balance sheet
+
+This ensures test and correction entries are excluded from financial reports while remaining fully visible in audit/search views.
+
+### No changes to
+- Transaction search, ledger detail drawers, or wallet history — these show all entries for full traceability
+- No data deletion or balance edits
+
+## Result
+- Every ledger entry tagged with its classification
+- Reports show only real money (production + legacy_real)
+- Test/dev data preserved but filtered out of analytics
+- Future entries auto-classified as `production`
 
