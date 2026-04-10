@@ -2609,7 +2609,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
       // Reinvest ledger via RPC (double-entry: roi_expense + roi_reinvestment)
       const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: p.investorId,
             ledger_scope: 'platform',
@@ -2636,7 +2636,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             linked_party: user.id,
             currency: 'UGX',
           },
-        ]),
+        ],
       });
       if (ledgerErr) throw ledgerErr;
 
@@ -2859,7 +2859,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
       // Reinvest ledger via RPC (double-entry: roi_expense + roi_reinvestment)
       const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
-        entries: JSON.stringify([
+        entries: [
           {
             user_id: p.investorId,
             ledger_scope: 'platform',
@@ -2886,7 +2886,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             linked_party: user.id,
             currency: 'UGX',
           },
-        ]),
+        ],
       });
       if (ledgerErr) throw ledgerErr;
 
