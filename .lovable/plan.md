@@ -1,50 +1,76 @@
 
 
-# Fix Plan: Agent Workflow — All 6 Flaws
+# Fix Plan: Remove `JSON.stringify` from All Ledger RPC Calls
 
-## Current State After Previous Fixes
-- **Flaws 1 & 2** (JSON.stringify in `agent-deposit` and `tenant-pay-rent`): **Already fixed.**
-- **One extra instance found**: `supabase/functions/auto-charge-wallets/index.ts` line 907 still uses `JSON.stringify(entries)` — must fix too.
-- **Flaws 3–6**: All still present and confirmed in the codebase.
+## Problem
+32 edge functions still wrap the `entries` parameter in `JSON.stringify()` when calling `create_ledger_transaction`. This turns the array into a scalar string, causing Postgres `jsonb_array_elements()` to fail silently or throw errors. This is the same bug previously fixed in `agent-deposit`, `tenant-pay-rent`, and `approve-wallet-operation`.
 
----
+## Scope
+**55 call sites across 32 edge function files.** Every instance of `entries: JSON.stringify([...])` or `entries: JSON.stringify(someArray)` must become `entries: [...]` or `entries: someArray`.
 
-## Changes
+## Files to Fix (all in `supabase/functions/`)
 
-### 1. Fix `JSON.stringify` in `auto-charge-wallets` edge function
-Remove `JSON.stringify()` wrapper at line 907. Pass raw array to RPC. Redeploy the function.
+| # | Edge Function | Sites |
+|---|---|---|
+| 1 | `agent-angel-pool-invest` | 2 |
+| 2 | `agent-invest-for-partner` | 3 |
+| 3 | `angel-pool-invest` | 1 |
+| 4 | `apply-pending-topups` | 1 |
+| 5 | `approve-deposit` | 4 |
+| 6 | `approve-listing-bonus` | 1 |
+| 7 | `approve-withdrawal` | 1 |
+| 8 | `auto-charge-wallets` | 3 |
+| 9 | `cfo-direct-credit` | 2 |
+| 10 | `coo-invest-for-partner` | 1 |
+| 11 | `coo-wallet-to-portfolio` | 1 |
+| 12 | `credit-landlord-registration-bonus` | 1 |
+| 13 | `credit-landlord-verification-bonus` | 1 |
+| 14 | `disburse-rent-to-landlord` | 2 |
+| 15 | `fund-agent-landlord-float` | 2 |
+| 16 | `fund-rent-pool` | 1 |
+| 17 | `fund-tenant-from-pool` | 3 |
+| 18 | `fund-tenants` | 1 |
+| 19 | `manager-portfolio-topup` | 2 |
+| 20 | `manual-collect-rent` | 2 |
+| 21 | `platform-expense-transfer` | 2 |
+| 22 | `portfolio-topup` | 2 |
+| 23 | `process-agent-advance-deductions` | 1 |
+| 24 | `process-credit-daily-charges` | 2 |
+| 25 | `process-credit-draw` | 1 |
+| 26 | `process-investment-interest` | 1 |
+| 27 | `process-supporter-roi` | 3 |
+| 28 | `reject-withdrawal` | 1 |
+| 29 | `retry-no-smartphone-charges` | 1 |
+| 30 | `seed-test-funds` | 1 |
+| 31 | `wallet-deduction` | 1 |
+| 32 | `wallet-transfer` | 1 |
 
-### 2. Fix tenant list to include `agent_id`-linked tenants (Flaw 3)
-In `AgentTenantsSheet.tsx`, after fetching tenants via `referrer_id`, also query `rent_requests` for `agent_id = user.id` to get additional tenant IDs. Fetch those profiles and merge/deduplicate into the tenant list.
+## The Fix (identical for all sites)
 
-### 3. Fix status filter in `AgentTopUpTenantDialog` (Flaw 4)
-Change line 97 from:
-```ts
-.in('status', ['approved', 'disbursed', 'active'])
+```typescript
+// BEFORE (broken):
+entries: JSON.stringify([{ ... }])
+
+// AFTER (correct):
+entries: [{ ... }]
 ```
-to:
-```ts
-.in('status', ['approved', 'funded', 'disbursed', 'repaying'])
+
+For cases using a variable:
+```typescript
+// BEFORE:
+entries: JSON.stringify(buildTenantRepaymentEntries(...))
+
+// AFTER:
+entries: buildTenantRepaymentEntries(...)
 ```
 
-### 4. Fix duplicate dialog title (Flaw 6)
-Change lines 167-168 to a single title: `"Pay Rent for Tenant"`.
+## Deployment
+All 32 edge functions will be redeployed after the fix.
 
-### 5. Add "Renew Rent" button for completed tenants (Flaw 5)
-In the tenant detail view within `AgentTenantsSheet.tsx`, when a tenant's latest rent request has status `completed`, show a "Renew Rent" button that opens the `AgentRentRequestDialog` pre-filled with the tenant's name, phone, and previous rent details.
+## No Database Changes Required
+The RPC and triggers are correct — only the callers are passing the wrong type.
 
-### 6. Redeploy edge function
-Deploy `auto-charge-wallets` after fix.
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `supabase/functions/auto-charge-wallets/index.ts` | Remove `JSON.stringify` (1 site) |
-| `src/components/agent/AgentTenantsSheet.tsx` | Merge `agent_id` tenants; add Renew button |
-| `src/components/agent/AgentTopUpTenantDialog.tsx` | Fix status filter; fix duplicate title |
-
-No database migrations required.
+## Risk Assessment
+- **Low risk**: This is a mechanical find-and-replace of `JSON.stringify(` wrapper removal
+- **High impact**: Fixes silent ledger failures across the entire platform — deposits, withdrawals, ROI, commissions, rent disbursements, pool funding, and more
 
