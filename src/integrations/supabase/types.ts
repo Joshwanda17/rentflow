@@ -2151,6 +2151,7 @@ export type Database = {
       }
       audit_logs: {
         Row: {
+          action: string | null
           action_type: string
           created_at: string | null
           id: string
@@ -2160,6 +2161,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          action?: string | null
           action_type: string
           created_at?: string | null
           id?: string
@@ -2169,6 +2171,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          action?: string | null
           action_type?: string
           created_at?: string | null
           id?: string
