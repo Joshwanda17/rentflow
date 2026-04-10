@@ -3737,6 +3737,7 @@ export type Database = {
           description: string | null
           direction: string
           id: string
+          idempotency_key: string | null
           ledger_scope: string
           linked_party: string | null
           reference_id: string | null
@@ -3757,6 +3758,7 @@ export type Database = {
           description?: string | null
           direction: string
           id?: string
+          idempotency_key?: string | null
           ledger_scope?: string
           linked_party?: string | null
           reference_id?: string | null
@@ -3777,6 +3779,7 @@ export type Database = {
           description?: string | null
           direction?: string
           id?: string
+          idempotency_key?: string | null
           ledger_scope?: string
           linked_party?: string | null
           reference_id?: string | null
