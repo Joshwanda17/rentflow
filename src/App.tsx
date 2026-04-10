@@ -93,6 +93,7 @@ const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const StaffPortal = lazy(() => import('./pages/StaffPortal'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
+const ReinvestmentHistory = lazy(() => import('./pages/ReinvestmentHistory'));
 // Executive role-isolated dashboards
 const CTODashboardPage = lazy(() => import('./pages/cto/Dashboard'));
 const CEODashboardPage = lazy(() => import('./pages/ceo/Dashboard'));
@@ -277,6 +278,7 @@ function AppRoutes() {
           <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
           <Route path="/platform-users" element={<RoleGuard allowedRoles={['manager', 'cto']}><UserManagement /></RoleGuard>} />
           <Route path="/supporter-earnings" element={<SupporterEarnings />} />
+          <Route path="/reinvestment-history" element={<ReinvestmentHistory />} />
           <Route path="/investment-portfolio" element={<InvestmentPortfolio />} />
           <Route path="/my-watchlist" element={<MyWatchlist />} />
           <Route path="/opportunities" element={<Opportunities />} />
