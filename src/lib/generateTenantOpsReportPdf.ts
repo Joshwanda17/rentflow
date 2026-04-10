@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 interface TenantRentRow {
   tenant_name: string;
   tenant_phone: string;
+  start_date: string;
   rent_given: number;
   amount_paid: number;
   outstanding: number;
@@ -20,6 +21,9 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
   let y = 14;
 
   const ugx = (n: number) => `UGX ${n.toLocaleString()}`;
+  const fmtDate = (d: string) => {
+    try { return format(new Date(d), 'dd MMM yyyy'); } catch { return '—'; }
+  };
 
   // Header
   doc.setFontSize(16);
@@ -51,14 +55,15 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
   // Table columns
   const cols = [
     { label: '#', x: margin, w: 7 },
-    { label: 'Tenant Name', x: margin + 7, w: 40 },
-    { label: 'Phone', x: margin + 47, w: 28 },
-    { label: 'Rent Given', x: margin + 75, w: 28 },
-    { label: 'Amount Paid', x: margin + 103, w: 28 },
-    { label: 'Outstanding', x: margin + 131, w: 28 },
-    { label: 'Agent', x: margin + 159, w: 40 },
-    { label: 'Days', x: margin + 199, w: 16 },
-    { label: 'Payments', x: margin + 215, w: 20 },
+    { label: 'Tenant Name', x: margin + 7, w: 36 },
+    { label: 'Start Date', x: margin + 43, w: 24 },
+    { label: 'Phone', x: margin + 67, w: 26 },
+    { label: 'Rent Given', x: margin + 93, w: 26 },
+    { label: 'Amount Paid', x: margin + 119, w: 26 },
+    { label: 'Outstanding', x: margin + 145, w: 26 },
+    { label: 'Agent', x: margin + 171, w: 36 },
+    { label: 'Days', x: margin + 207, w: 14 },
+    { label: 'Payments', x: margin + 221, w: 18 },
   ];
 
   const drawHeader = () => {
@@ -90,12 +95,13 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     doc.text(`${i + 1}`, cols[0].x + 1, y);
-    doc.text(t.tenant_name.slice(0, 24), cols[1].x + 1, y);
-    doc.text(t.tenant_phone || '—', cols[2].x + 1, y);
-    doc.text(ugx(t.rent_given), cols[3].x + 1, y);
+    doc.text(t.tenant_name.slice(0, 22), cols[1].x + 1, y);
+    doc.text(fmtDate(t.start_date), cols[2].x + 1, y);
+    doc.text(t.tenant_phone || '—', cols[3].x + 1, y);
+    doc.text(ugx(t.rent_given), cols[4].x + 1, y);
 
     doc.setTextColor(0, 130, 50);
-    doc.text(ugx(t.amount_paid), cols[4].x + 1, y);
+    doc.text(ugx(t.amount_paid), cols[5].x + 1, y);
 
     if (t.outstanding > 0) {
       doc.setTextColor(200, 30, 30);
@@ -103,13 +109,13 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
       doc.setTextColor(0, 130, 50);
     }
     doc.setFont('helvetica', 'bold');
-    doc.text(ugx(t.outstanding), cols[5].x + 1, y);
+    doc.text(ugx(t.outstanding), cols[6].x + 1, y);
 
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'normal');
-    doc.text(t.agent_name.slice(0, 24), cols[6].x + 1, y);
-    doc.text(`${t.duration_days}`, cols[7].x + 1, y);
-    doc.text(`${t.payments_made}`, cols[8].x + 1, y);
+    doc.text(t.agent_name.slice(0, 22), cols[7].x + 1, y);
+    doc.text(`${t.duration_days}`, cols[8].x + 1, y);
+    doc.text(`${t.payments_made}`, cols[9].x + 1, y);
 
     y += 5;
   });
@@ -123,9 +129,9 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('TOTALS', cols[1].x + 1, y);
-  doc.text(ugx(totalGiven), cols[3].x + 1, y);
-  doc.text(ugx(totalPaid), cols[4].x + 1, y);
-  doc.text(ugx(totalOutstanding), cols[5].x + 1, y);
+  doc.text(ugx(totalGiven), cols[4].x + 1, y);
+  doc.text(ugx(totalPaid), cols[5].x + 1, y);
+  doc.text(ugx(totalOutstanding), cols[6].x + 1, y);
   doc.setTextColor(0, 0, 0);
 
   // Footer
