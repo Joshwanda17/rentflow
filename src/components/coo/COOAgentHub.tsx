@@ -10,10 +10,12 @@ import { AgentDetailDrawer } from './AgentDetailDrawer';
 import { AgentActivityChart } from './AgentActivityChart';
 import { UserAvatar } from '@/components/UserAvatar';
 import { CompactAmount } from '@/components/ui/CompactAmount';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import {
   Search, Users, UserCheck, UserX, Clock, Star, AlertTriangle,
-  ChevronRight, Wallet, TrendingUp, Loader2
+  ChevronRight, ChevronLeft, Wallet, TrendingUp, Loader2
 } from 'lucide-react';
 
 type StatusFilter = 'all' | 'active' | 'inactive' | 'pending' | 'top' | 'at_risk';
@@ -60,14 +62,14 @@ const SORT_MAP: Record<string, string> = {
 export function COOAgentHub() {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'commission' | 'tenants'>('name');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(0);
+  const [activeOnly, setActiveOnly] = useState(true);
 
   // Debounce search
   useEffect(() => {
@@ -75,8 +77,8 @@ export function COOAgentHub() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const fetchAgents = useCallback(async (pageOffset: number, append: boolean) => {
-    if (append) setLoadingMore(true); else setLoading(true);
+  const fetchAgents = useCallback(async (currentPage: number) => {
+    setLoading(true);
 
     const sortField = SORT_MAP[sortBy] || 'full_name';
     const sortDir = sortBy === 'name' ? 'asc' : 'desc';
@@ -86,12 +88,13 @@ export function COOAgentHub() {
       sort_field: sortField,
       sort_dir: sortDir,
       page_limit: PAGE_SIZE,
-      page_offset: pageOffset,
+      page_offset: currentPage * PAGE_SIZE,
+      active_only: activeOnly,
     });
 
     if (error) {
       console.error('get_agents_hub error:', error);
-      if (!append) setLoading(false); else setLoadingMore(false);
+      setLoading(false);
       return;
     }
 
@@ -113,18 +116,23 @@ export function COOAgentHub() {
     });
 
     if (data?.length) setTotalCount(Number(data[0].total_count));
-    else if (!append) setTotalCount(0);
+    else setTotalCount(0);
 
-    setAgents(prev => append ? [...prev, ...rows] : rows);
-    setOffset(pageOffset + PAGE_SIZE);
-    if (!append) setLoading(false); else setLoadingMore(false);
-  }, [debouncedSearch, sortBy]);
+    setAgents(rows);
+    setLoading(false);
+  }, [debouncedSearch, sortBy, activeOnly]);
 
-  // Re-fetch on search/sort change
+  // Re-fetch on search/sort/activeOnly change — reset to page 0
   useEffect(() => {
-    setOffset(0);
-    fetchAgents(0, false);
+    setPage(0);
+    fetchAgents(0);
   }, [fetchAgents]);
+
+  // Fetch when page changes (but not on initial mount handled above)
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchAgents(newPage);
+  };
 
   // Counts per category
   const counts = useMemo(() => {
@@ -142,7 +150,9 @@ export function COOAgentHub() {
     return filter === 'all' ? agents : agents.filter(a => a.status === filter);
   }, [agents, filter]);
 
-  const hasMore = agents.length < totalCount;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const rangeStart = page * PAGE_SIZE + 1;
+  const rangeEnd = Math.min((page + 1) * PAGE_SIZE, totalCount);
 
   return (
     <div className="space-y-5">
@@ -206,6 +216,17 @@ export function COOAgentHub() {
             onChange={e => setSearch(e.target.value)}
             className="pl-9 h-10"
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Switch
+            id="active-only"
+            checked={activeOnly}
+            onCheckedChange={setActiveOnly}
+          />
+          <Label htmlFor="active-only" className="text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+            Active only
+          </Label>
         </div>
 
         <Select value={filter} onValueChange={v => setFilter(v as StatusFilter)}>
@@ -314,19 +335,37 @@ export function COOAgentHub() {
           </Table>
         </div>
 
-        {!loading && visible.length > 0 && (
+        {/* Pagination Footer */}
+        {!loading && (
           <div className="px-4 py-3 bg-muted/20 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Showing {visible.length} of {totalCount} agents</span>
-            {hasMore && (
+            <span>
+              {totalCount > 0
+                ? `Showing ${rangeStart}–${rangeEnd} of ${totalCount} agents`
+                : 'No agents'}
+            </span>
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                disabled={loadingMore}
-                onClick={() => fetchAgents(offset, true)}
+                disabled={page === 0}
+                onClick={() => handlePageChange(page - 1)}
               >
-                {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Loading…</> : 'Load more'}
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
               </Button>
-            )}
+              <span className="text-xs font-medium px-2">
+                Page {page + 1} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page + 1 >= totalPages}
+                onClick={() => handlePageChange(page + 1)}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
