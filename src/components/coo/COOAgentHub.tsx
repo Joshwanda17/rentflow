@@ -193,6 +193,9 @@ export function COOAgentHub() {
         />
       </div>
 
+      {/* Agent Activity Chart */}
+      <AgentActivityChart />
+
       {/* Filters + Search Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         <div className="relative flex-1 min-w-[180px]">
