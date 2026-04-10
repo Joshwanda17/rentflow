@@ -72,7 +72,7 @@ export function FinOpsWithdrawalVerification() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .in('status', ['pending', 'requested'])
+        .in('status', ['pending', 'requested', 'approved', 'manager_approved'])
         .order('created_at', { ascending: true })
         .limit(100);
 

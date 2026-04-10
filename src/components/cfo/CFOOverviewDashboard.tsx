@@ -208,7 +208,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               <Badge
                 variant="secondary"
                 className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                onClick={() => onTabChange?.('withdrawals')}
+                onClick={() => onTabChange?.('approvals')}
               >
                 View All →
               </Badge>
