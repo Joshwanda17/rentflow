@@ -1,36 +1,52 @@
 
 
-# Replace DiceBear Robots with Boring Avatars Marble Style
+# Redesign COO Agent Hub: Remove Inner Sidemenu, Add KPI Cards + Advanced Table
+
+## Current State
+The Agent Hub has a two-panel layout: a dark blue left sidebar (`w-[260px]`, lines 217-221) with status filter buttons and KPI summary, and a right panel with a simple agent list. On mobile, the sidebar collapses to horizontal chips.
 
 ## What Changes
 
-Replace the current DiceBear "bottts" robot avatars with [Boring Avatars](https://boringavatars.com/) marble-style SVGs that use the system's purple/violet color palette — giving every user a unique, aesthetic, fintech-appropriate default avatar.
+Remove the inner dark sidemenu entirely. Replace the page with a clean single-column layout:
 
-## How It Works
+1. **KPI Row** (top) — 6 metric cards in a responsive grid showing:
+   - Total Agents (count)
+   - Active Agents (count + percentage)
+   - Inactive Agents (count)
+   - Pending Agents (count)
+   - Total Commission (sum, formatted UGX)
+   - Avg Wallet Balance (formatted UGX)
 
-Boring Avatars is a lightweight library (`boring-avatars` npm package) that generates deterministic SVG avatars from a name string. The "marble" variant creates smooth, organic gradient patterns — no cartoonish shapes.
+   Use the existing `KPICard` component from `src/components/executive/KPICard.tsx` for visual consistency with other COO dashboard tabs.
 
-We'll pass in 5 colors derived from the system's purple palette:
-- `#7C3AED` (primary purple)
-- `#A78BFA` (lighter purple)
-- `#4C1D95` (deep purple)
-- `#DDD6FE` (lavender)
-- `#1E1B4B` (dark navy)
+2. **Filter/Search Bar** — Below KPIs, a toolbar with:
+   - Search input (existing)
+   - Status filter dropdown (replaces sidebar buttons): All / Active / Inactive / Pending / Top Performers / At Risk
+   - Sort dropdown (existing)
+   - Top Performers and At Risk shown as colored badge-style filter chips
 
-These ensure every marble avatar feels cohesive with the fintech brand regardless of light/dark mode.
+3. **Agent Table** — Replace the current list-style layout with a proper `<Table>` using the existing shadcn table components. Columns:
+   - Agent Name (with marble avatar + status dot)
+   - Phone
+   - Territory
+   - Tenants (count)
+   - Landlords (count)
+   - Commission (formatted)
+   - Wallet Balance (formatted)
+   - Status (badge)
+   - Action (chevron → opens existing detail drawer)
+
+   Retains server-side pagination via `get_agents_hub` RPC + "Load more" button.
+
+## Data Integrity
+- No data source changes — same `get_agents_hub` RPC, same `classifyAgent` logic, same counts computation
+- Status classification logic unchanged (lines 42-49)
+- KPI values computed identically from loaded agent data
+- Pagination and search debounce preserved exactly
 
 ## Files Changed
+- `src/components/coo/COOAgentHub.tsx` — full rewrite of the render output; all state/fetch logic stays the same
 
-### 1. Install `boring-avatars` package
-
-### 2. `src/components/UserAvatar.tsx`
-- Remove `getRandomAvatarUrl` function (DiceBear)
-- Import `Avatar as BoringAvatar` from `boring-avatars`
-- When no custom `avatarUrl` exists, render a `<BoringAvatar>` component with `variant="marble"`, the user's name as seed, and the 5-color palette
-- When a custom `avatarUrl` exists, render the existing Radix avatar as before
-
-### 3. `src/components/manager/ActiveUsersCard.tsx` and `SimpleUserCard.tsx`
-- These use raw `<Avatar>` + `<AvatarImage>` with `user.avatar_url`. Update fallbacks to use a Boring Avatars marble SVG instead of initials text, using the same color palette.
-
-## No database or backend changes needed.
+## Runtime Error
+The `useContext` error from `next-themes` is unrelated to this component — it's a theme provider ordering issue. Will investigate and fix silently if possible during implementation.
 
