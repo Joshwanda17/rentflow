@@ -100,8 +100,6 @@ Deno.serve(async (req) => {
     const cashbackAmount = agentRoleData ? Math.round(totalPrice * 0.04) : 0;
 
     // ── Build ledger entries (single atomic transaction) ──
-    const transactionGroupId = crypto.randomUUID();
-
     const now = new Date().toISOString();
 
     const entries: Array<{

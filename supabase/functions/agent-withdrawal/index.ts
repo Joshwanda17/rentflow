@@ -156,8 +156,6 @@ Deno.serve(async (req) => {
     }
 
     // ── Execute atomic ledger transaction (double-entry withdrawal) ──
-    const transactionGroupId = crypto.randomUUID();
-
     const now = new Date().toISOString();
 
     const { error: ledgerError } = await adminClient.rpc(
