@@ -6,6 +6,7 @@ import { Server, Activity, ShieldAlert, Users, Bug, Wifi, Database, Clock, HardD
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
 import { SystemLogsViewer } from './SystemLogsViewer';
+import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
