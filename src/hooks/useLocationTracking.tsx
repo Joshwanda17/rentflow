@@ -113,18 +113,18 @@ export function useLocationTracking() {
     }
   }, [user]);
 
-  // Auto-capture periodically (every 5 minutes while app is active)
+   // Auto-capture periodically (every 30 minutes — cost optimized)
   useEffect(() => {
     if (user) {
       // Initial capture after short delay
       const initialTimer = setTimeout(() => {
         captureLocation();
-      }, 2000);
+      }, 5000);
 
-      // Periodic updates every 5 minutes for live tracking
+      // Periodic updates every 30 minutes — reduced from 5min to cut DB writes
       const intervalId = setInterval(() => {
         captureLocation();
-      }, 5 * 60 * 1000);
+      }, 30 * 60 * 1000);
 
       return () => {
         clearTimeout(initialTimer);
