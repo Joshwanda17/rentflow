@@ -80,6 +80,23 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
 
+      {/* ── PAY TO WALLET QUICK ACTION ── */}
+      {onTabChange && (
+        <button
+          onClick={() => onTabChange('wallet-payout')}
+          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-primary bg-primary/10 hover:bg-primary/20 transition-colors text-left"
+        >
+          <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center shrink-0">
+            <Wallet className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-base">💳 Pay to Wallet</p>
+            <p className="text-xs text-muted-foreground">Credit or debit any user's wallet instantly</p>
+          </div>
+          <ArrowUpRight className="h-5 w-5 text-primary shrink-0" />
+        </button>
+      )}
+
       {/* ── HEALTH AT A GLANCE ── */}
       <div className="text-center py-3">
         <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-1">Platform Health</p>
