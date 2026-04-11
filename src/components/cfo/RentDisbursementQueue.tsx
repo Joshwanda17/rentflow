@@ -44,7 +44,7 @@ export function RentDisbursementQueue() {
       // Get COO-approved rent requests
       const { data: requests, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, registration_fee, total_repayment, created_at')
+        .select('id, rent_amount, tenant_id, landlord_id, agent_id, assigned_agent_id, access_fee, request_fee, total_repayment, created_at')
         .eq('status', 'coo_approved')
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -87,7 +87,7 @@ export function RentDisbursementQueue() {
         return {
           ...r,
           access_fee: r.access_fee ?? 0,
-          registration_fee: r.registration_fee ?? 0,
+          request_fee: r.request_fee ?? 0,
           total_repayment: r.total_repayment ?? 0,
           tenant_name: profileMap.get(r.tenant_id) || 'Unknown Tenant',
           landlord_name: landlordMap.get(r.landlord_id) || 'Unknown Landlord',
