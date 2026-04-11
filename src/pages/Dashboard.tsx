@@ -62,13 +62,21 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Role switch: only switch to roles the user already has.
   // New roles must be requested via ApplyForRoleDialog in BottomRoleSwitcher.
   const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
     if (!roles.includes(newRole)) return; // Block — must apply first
-    switchRole(newRole);
-  }, [roles, switchRole]);
+    if (newRole === role) return; // Already on this role
+    setIsTransitioning(true);
+    // Small delay to let the loading state render before switching
+    requestAnimationFrame(() => {
+      switchRole(newRole);
+      // Clear transition after the new dashboard has time to mount
+      setTimeout(() => setIsTransitioning(false), 150);
+    });
+  }, [roles, role, switchRole]);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -285,7 +293,7 @@ function DashboardContent() {
     );
   }
 
-  if (loading && !showCachedUI) {
+  if ((loading && !showCachedUI) || isTransitioning) {
     return <DashboardLoadingFallback />;
   }
 
