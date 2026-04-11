@@ -34,7 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(initialRoles.includes('supporter') ? 'supporter' : initialRoles[0]);
   const [roles, setRoles] = useState<AppRole[]>(initialRoles);
+  const rolesRef = useRef<AppRole[]>(initialRoles);
   const [loading, setLoading] = useState(true);
+
+  // Keep ref in sync with state
+  const setRolesWithRef = (newRoles: AppRole[]) => {
+    rolesRef.current = newRoles;
+    setRoles(newRoles);
+  };
 
   useEffect(() => {
     let isMounted = true;
