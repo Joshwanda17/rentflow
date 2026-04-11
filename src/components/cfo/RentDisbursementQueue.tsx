@@ -102,7 +102,7 @@ export function RentDisbursementQueue() {
 
   const selectedItems = useMemo(() => items.filter(i => selected.has(i.id)), [items, selected]);
   const totalRent = useMemo(() => selectedItems.reduce((s, i) => s + i.rent_amount, 0), [selectedItems]);
-  const totalRevenue = useMemo(() => selectedItems.reduce((s, i) => s + i.access_fee + i.registration_fee, 0), [selectedItems]);
+  const totalRevenue = useMemo(() => selectedItems.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [selectedItems]);
   const totalRepaymentExpected = useMemo(() => selectedItems.reduce((s, i) => s + i.total_repayment, 0), [selectedItems]);
   const allSelected = items.length > 0 && selected.size === items.length;
 
@@ -161,7 +161,7 @@ export function RentDisbursementQueue() {
 
   // Summary totals for ALL queued items
   const queueTotalRent = useMemo(() => items.reduce((s, i) => s + i.rent_amount, 0), [items]);
-  const queueTotalRevenue = useMemo(() => items.reduce((s, i) => s + i.access_fee + i.registration_fee, 0), [items]);
+  const queueTotalRevenue = useMemo(() => items.reduce((s, i) => s + i.access_fee + i.request_fee, 0), [items]);
 
   return (
     <Card>
@@ -273,7 +273,7 @@ export function RentDisbursementQueue() {
                     </div>
                     <div className="flex items-center gap-3 text-[10px]">
                       <span>Rent: <b className="text-orange-600">{fmt(item.rent_amount)}</b></span>
-                      <span>Fees: <b className="text-emerald-600">{fmt(item.access_fee + item.registration_fee)}</b></span>
+                      <span>Fees: <b className="text-emerald-600">{fmt(item.access_fee + item.request_fee)}</b></span>
                       <span>Repay: <b>{fmt(item.total_repayment)}</b></span>
                     </div>
                   </div>
