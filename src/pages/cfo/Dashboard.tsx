@@ -44,6 +44,16 @@ export default function CFODashboardPage() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'wallet-payout':
+        return (
+          <div className="space-y-4">
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+              <h1 className="text-xl font-bold flex items-center gap-2 mb-1">💳 Pay Out to Any User's Wallet</h1>
+              <p className="text-sm text-muted-foreground mb-4">Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly.</p>
+              <DirectCreditTool />
+            </div>
+          </div>
+        );
       case 'roi-requests':
         return <CFOROIRequests />;
       case 'rent-payouts':
