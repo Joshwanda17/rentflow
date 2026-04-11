@@ -28,6 +28,7 @@ const BiometricSecuritySection = lazy(() => import('@/components/settings/Biomet
 const MyLandlordsSection = lazy(() => import('@/components/tenant/MyLandlordsSection'));
 const MyTenantsSection = lazy(() => import('@/components/landlord/MyTenantsSection'));
 const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountToggle'));
+const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard'));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
