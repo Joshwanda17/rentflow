@@ -23,7 +23,7 @@ interface ApprovedRentItem {
   agent_id: string | null;
   assigned_agent_id: string | null;
   access_fee: number;
-  registration_fee: number;
+  request_fee: number;
   total_repayment: number;
   created_at: string;
   tenant_name: string;
