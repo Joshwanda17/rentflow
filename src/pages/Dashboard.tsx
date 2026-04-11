@@ -293,7 +293,7 @@ function DashboardContent() {
     );
   }
 
-  if (loading && !showCachedUI) {
+  if ((loading && !showCachedUI) || isTransitioning) {
     return <DashboardLoadingFallback />;
   }
 
