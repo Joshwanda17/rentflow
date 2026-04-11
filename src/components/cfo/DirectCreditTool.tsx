@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
+import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 
 type Operation = 'credit' | 'debit';
 
