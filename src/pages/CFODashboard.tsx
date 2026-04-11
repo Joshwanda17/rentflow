@@ -67,6 +67,7 @@ export default function CFODashboard() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'wallet-payout', label: 'Pay to Wallet', icon: Wallet },
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
     { id: 'requisitions', label: 'Financial Agents', icon: FileText },
@@ -122,6 +123,11 @@ export default function CFODashboard() {
           <TabsContent value="overview" className="space-y-6">
             <ThresholdAlerts />
             <FinancialOverview />
+          </TabsContent>
+
+          {/* Pay to Wallet Tab */}
+          <TabsContent value="wallet-payout" className="space-y-6">
+            <DirectCreditTool />
           </TabsContent>
 
           {/* ROI Requests Tab */}
