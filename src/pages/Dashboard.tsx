@@ -134,19 +134,19 @@ function DashboardContent() {
     };
   }, []);
 
-  // Auto-default qualified investors (≥100K deployed) to Funder dashboard
-  // BUT skip if user has toggled "Open All Dashboards" — they choose freely
+  // Auto-default qualified investors (≥100K deployed) to Funder dashboard on INITIAL load only
+  const hasAutoDefaulted = useRef(false);
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
+    if (hasAutoDefaulted.current) return; // Only auto-default once per session
     if (!isQualifiedInvestor) return;
-    if (areAllRolesUnlocked()) return; // user opted to freely navigate all roles
-    // Only auto-switch if user hasn't set an explicit preference
+    if (areAllRolesUnlocked()) return;
     const preferred = getPreferredDefaultRole();
     if (preferred !== 'auto') return;
-    // If current role isn't supporter and supporter is available, switch
     if (role !== 'supporter' && roles.includes('supporter')) {
       switchRole('supporter');
     }
+    hasAutoDefaulted.current = true;
   }, [loading, user, roles, role, isQualifiedInvestor, switchRole]);
 
   // Handle role switch via URL param (e.g. after tenant/supporter activation)
