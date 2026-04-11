@@ -307,15 +307,15 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
       try {
         const { rates, timestamp } = JSON.parse(cached);
         const age = Date.now() - timestamp;
-        if (age < 6 * 60 * 60 * 1000) {
+        if (age < 30 * 24 * 60 * 60 * 1000) {
           setLiveRates(rates);
           setLastUpdated(new Date(timestamp));
           currencies = baseCurrencies.map(c => ({
             ...c,
             rate: rates[c.code] || fallbackRates[c.code] || 0.00027
           }));
-          // Refresh every 6 hours — rates don't change frequently enough for 30min
-          const interval = setInterval(fetchLiveRates, 6 * 60 * 60 * 1000);
+          // Refresh every 30 days
+          const interval = setInterval(fetchLiveRates, 30 * 24 * 60 * 60 * 1000);
           return () => clearInterval(interval);
         }
       } catch {
@@ -328,7 +328,7 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
       ? (window as any).requestIdleCallback(() => fetchLiveRates(), { timeout: 5000 })
       : setTimeout(() => fetchLiveRates(), 2000);
     
-    const interval = setInterval(fetchLiveRates, 6 * 60 * 60 * 1000);
+    const interval = setInterval(fetchLiveRates, 30 * 24 * 60 * 60 * 1000);
     return () => {
       if ('requestIdleCallback' in window) {
         (window as any).cancelIdleCallback(scheduleId);
