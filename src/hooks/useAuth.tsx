@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Only fetch roles if initializeAuth hasn't already done it
           if (!rolesFetched) {
             rolesFetched = true;
-            fetchUserRoles(session.user.id, role, setRoles, setRole);
+            fetchUserRoles(session.user.id, role, setRolesWithRef, setRole);
           }
 
         if (event === 'SIGNED_IN') {
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (event === 'SIGNED_OUT') {
           rolesFetched = false;
           setRole(null);
-          setRoles([]);
+          setRolesWithRef([]);
           clearSessionCache();
         }
       },
@@ -169,12 +169,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchRole = (newRole: AppRole) => {
-    if (roles.includes(newRole)) setRole(newRole);
+    if (rolesRef.current.includes(newRole)) setRole(newRole);
   };
 
   const addRole = async (newRole: AppRole) => {
     if (!user) return { error: new Error('No user logged in') };
-    return addRoleForUser(user.id, newRole, roles, role, setRoles, setRole);
+    return addRoleForUser(user.id, newRole, rolesRef.current, role, setRolesWithRef, setRole);
+  };
+
+  /** Atomically grant a role (if missing) and switch to it */
+  const grantAndSwitchRole = async (newRole: AppRole) => {
+    if (!user) return { error: new Error('No user logged in') };
+    if (!rolesRef.current.includes(newRole)) {
+      const { error } = await addRoleForUser(user.id, newRole, rolesRef.current, role, setRolesWithRef, setRole);
+      if (error) return { error };
+    }
+    // At this point rolesRef is already updated by setRolesWithRef
+    setRole(newRole);
+    return { error: null };
   };
 
   const signOut = async () => {
