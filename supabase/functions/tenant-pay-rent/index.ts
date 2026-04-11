@@ -117,7 +117,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 1. Insert balanced ledger entries via RPC
+    // 1. Insert balanced ledger entries via RPC (with idempotency)
+    const idempotencyKey = `tenant-pay-${rentRequest.id}-${payAmount}`;
     const { data: txnGroupId, error: ledgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
       entries: [
         {
@@ -146,6 +147,7 @@ Deno.serve(async (req) => {
           transaction_date: new Date().toISOString(),
         },
       ],
+      idempotency_key: idempotencyKey,
     });
 
     if (ledgerErr) {
