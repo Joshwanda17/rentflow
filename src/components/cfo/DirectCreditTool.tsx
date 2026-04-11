@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, Home } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
+import { RentDisbursementQueue } from './RentDisbursementQueue';
 
 type Operation = 'credit' | 'debit';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
@@ -71,6 +72,15 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     impact: 'neutral',
     walletCategory: 'wallet_transfer',
     platformCategory: 'wallet_transfer',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'rent_disbursement',
+    label: '🏠 Rent Disbursement',
+    description: 'Approved rent payouts to landlord wallets or agent float — earns access fees & request fees',
+    impact: 'revenue',
+    walletCategory: 'rent_disbursement',
+    platformCategory: 'rent_disbursement',
     allowedOps: ['credit'],
   },
 
@@ -137,6 +147,20 @@ export function DirectCreditTool() {
   const [operation, setOperation] = useState<Operation>('credit');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
 
+  // Live count of COO-approved rent requests for the dropdown badge
+  const { data: rentQueueCount = 0 } = useQuery({
+    queryKey: ['rent-disbursement-queue-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('rent_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'coo_approved');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 20_000,
+  });
+
   const availableCategories = useMemo(
     () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
     [operation]
@@ -146,6 +170,8 @@ export function DirectCreditTool() {
     () => PAYOUT_CATEGORIES.find(c => c.id === selectedCategoryId),
     [selectedCategoryId]
   );
+
+  const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
 
   // Reset category when switching operation
   const handleOperationChange = (op: Operation) => {
@@ -240,10 +266,16 @@ export function DirectCreditTool() {
             <SelectContent>
               {availableCategories.map(cat => {
                 const cfg = IMPACT_CONFIG[cat.impact];
+                const isRent = cat.id === 'rent_disbursement';
                 return (
                   <SelectItem key={cat.id} value={cat.id}>
                     <span className="flex items-center gap-2">
                       {cat.label}
+                      {isRent && rentQueueCount > 0 && (
+                        <Badge className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                          {rentQueueCount} ready
+                        </Badge>
+                      )}
                       <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${cfg.color}`}>
                         {cfg.label}
                       </Badge>
@@ -256,7 +288,7 @@ export function DirectCreditTool() {
         </div>
 
         {/* Category Impact Explanation */}
-        {selectedCategory && impactInfo && ImpactIcon && (
+        {selectedCategory && impactInfo && ImpactIcon && !isRentDisbursement && (
           <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${impactInfo.color}`}>
             <div className="flex items-center gap-2 font-semibold">
               <ImpactIcon className="h-4 w-4" />
@@ -285,75 +317,85 @@ export function DirectCreditTool() {
           </div>
         )}
 
-        <UserSearchPicker
-          label="Search User"
-          placeholder="Name or phone..."
-          selectedUser={selectedUser}
-          onSelect={setSelectedUser}
-        />
-
-        <div>
-          <Label>Amount (UGX)</Label>
-          <Input type="number" placeholder="50000" value={amount} onChange={e => setAmount(e.target.value)} />
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {[10000, 50000, 100000, 200000, 500000].map(v => (
-              <Button key={v} size="sm" variant="outline" className="text-xs h-7" onClick={() => setAmount(String(v))}>
-                {(v / 1000).toFixed(0)}K
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <Label>Reason (min 10 chars)</Label>
-          <Textarea
-            placeholder={isCredit
-              ? 'e.g. ROI payout for March cycle, salary advance for agent...'
-              : 'e.g. Access fee collection, penalty for policy violation...'}
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-            rows={2}
-          />
-          <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
-        </div>
-
-        {/* Treasury Impact - shows automatically when amount is entered for credits */}
-        {amt > 0 && isCredit && (
-          <TreasuryImpactBanner payoutAmount={amt} />
+        {/* ── RENT DISBURSEMENT QUEUE ── */}
+        {isRentDisbursement && (
+          <RentDisbursementQueue />
         )}
 
-        {/* Summary before submit */}
-        {selectedCategory && amt > 0 && selectedUser && (
-          <div className="rounded-lg bg-muted/30 border p-3 text-xs space-y-1">
-            <p className="font-bold text-sm flex items-center gap-1.5">
-              <Info className="h-3.5 w-3.5" />
-              Double-Entry Summary
-            </p>
-            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-              <span className="text-muted-foreground">Entry 1:</span>
-              <span>
-                {isCredit ? '↗ Credit' : '↘ Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
-                <span className="font-medium">{selectedUser.full_name}</span>'s wallet
-                <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.walletCategory.replace(/_/g, ' ')}</Badge>
-              </span>
+        {/* ── MANUAL PAYOUT FORM (non-rent categories) ── */}
+        {!isRentDisbursement && (
+          <>
+            <UserSearchPicker
+              label="Search User"
+              placeholder="Name or phone..."
+              selectedUser={selectedUser}
+              onSelect={setSelectedUser}
+            />
 
-              <span className="text-muted-foreground">Entry 2:</span>
-              <span>
-                {isCredit ? '↘ Debit' : '↗ Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
-                <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.platformCategory.replace(/_/g, ' ')}</Badge>
-              </span>
+            <div>
+              <Label>Amount (UGX)</Label>
+              <Input type="number" placeholder="50000" value={amount} onChange={e => setAmount(e.target.value)} />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[10000, 50000, 100000, 200000, 500000].map(v => (
+                  <Button key={v} size="sm" variant="outline" className="text-xs h-7" onClick={() => setAmount(String(v))}>
+                    {(v / 1000).toFixed(0)}K
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
 
-        <Button
-          className={`w-full ${isCredit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}`}
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId}
-        >
-          {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-          {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'} {selectedUser?.full_name || '...'}
-        </Button>
+            <div>
+              <Label>Reason (min 10 chars)</Label>
+              <Textarea
+                placeholder={isCredit
+                  ? 'e.g. ROI payout for March cycle, salary advance for agent...'
+                  : 'e.g. Access fee collection, penalty for policy violation...'}
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                rows={2}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
+            </div>
+
+            {/* Treasury Impact */}
+            {amt > 0 && isCredit && (
+              <TreasuryImpactBanner payoutAmount={amt} />
+            )}
+
+            {/* Summary before submit */}
+            {selectedCategory && amt > 0 && selectedUser && (
+              <div className="rounded-lg bg-muted/30 border p-3 text-xs space-y-1">
+                <p className="font-bold text-sm flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5" />
+                  Double-Entry Summary
+                </p>
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                  <span className="text-muted-foreground">Entry 1:</span>
+                  <span>
+                    {isCredit ? '↗ Credit' : '↘ Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
+                    <span className="font-medium">{selectedUser.full_name}</span>'s wallet
+                    <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.walletCategory.replace(/_/g, ' ')}</Badge>
+                  </span>
+
+                  <span className="text-muted-foreground">Entry 2:</span>
+                  <span>
+                    {isCredit ? '↘ Debit' : '↗ Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
+                    <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.platformCategory.replace(/_/g, ' ')}</Badge>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <Button
+              className={`w-full ${isCredit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}`}
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId}
+            >
+              {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'} {selectedUser?.full_name || '...'}
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );
