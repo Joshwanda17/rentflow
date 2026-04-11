@@ -80,7 +80,7 @@ export function PendingFunderApprovals() {
 
       return enriched as PendingFunder[];
     },
-    refetchInterval: 30000,
+    refetchInterval: false, // Cost optimization — manual refresh only
   });
 
   const approveMutation = useMutation({
