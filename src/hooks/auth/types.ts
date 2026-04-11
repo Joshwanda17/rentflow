@@ -16,5 +16,6 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   switchRole: (role: AppRole) => void;
   addRole: (role: AppRole) => Promise<{ error: Error | null }>;
+  grantAndSwitchRole: (role: AppRole) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }

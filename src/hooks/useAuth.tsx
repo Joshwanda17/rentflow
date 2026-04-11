@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, useRef, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -34,7 +34,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(initialRoles.includes('supporter') ? 'supporter' : initialRoles[0]);
   const [roles, setRoles] = useState<AppRole[]>(initialRoles);
+  const rolesRef = useRef<AppRole[]>(initialRoles);
   const [loading, setLoading] = useState(true);
+
+  // Keep ref in sync with state
+  const setRolesWithRef = (newRoles: AppRole[]) => {
+    rolesRef.current = newRoles;
+    setRoles(newRoles);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -64,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Only fetch roles if initializeAuth hasn't already done it
           if (!rolesFetched) {
             rolesFetched = true;
-            fetchUserRoles(session.user.id, role, setRoles, setRole);
+            fetchUserRoles(session.user.id, role, setRolesWithRef, setRole);
           }
 
         if (event === 'SIGNED_IN') {
@@ -80,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (event === 'SIGNED_OUT') {
           rolesFetched = false;
           setRole(null);
-          setRoles([]);
+          setRolesWithRef([]);
           clearSessionCache();
         }
       },
@@ -98,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let earlyRoleFetch: Promise<void> | null = null;
       if (cachedSession?.userId && !rolesFetched) {
         rolesFetched = true;
-        earlyRoleFetch = fetchUserRoles(cachedSession.userId, role, setRoles, setRole);
+        earlyRoleFetch = fetchUserRoles(cachedSession.userId, role, setRolesWithRef, setRole);
       }
 
       try {
@@ -115,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(null);
             setUser(null);
             setRole(null);
-            setRoles([]);
+            setRolesWithRef([]);
           } else if (isNetworkError) {
             console.warn('[Auth] Network error during session restore — proceeding offline:', error.message);
           } else {
@@ -133,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               await Promise.race([earlyRoleFetch, timeoutPromise]);
             } else {
               rolesFetched = true;
-              const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
+              const rolePromise = fetchUserRoles(session.user.id, role, setRolesWithRef, setRole);
               const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
               await Promise.race([rolePromise, timeoutPromise]);
             }
@@ -162,12 +169,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchRole = (newRole: AppRole) => {
-    if (roles.includes(newRole)) setRole(newRole);
+    if (rolesRef.current.includes(newRole)) setRole(newRole);
   };
 
   const addRole = async (newRole: AppRole) => {
     if (!user) return { error: new Error('No user logged in') };
-    return addRoleForUser(user.id, newRole, roles, role, setRoles, setRole);
+    return addRoleForUser(user.id, newRole, rolesRef.current, role, setRolesWithRef, setRole);
+  };
+
+  /** Atomically grant a role (if missing) and switch to it */
+  const grantAndSwitchRole = async (newRole: AppRole) => {
+    if (!user) return { error: new Error('No user logged in') };
+    if (!rolesRef.current.includes(newRole)) {
+      const { error } = await addRoleForUser(user.id, newRole, rolesRef.current, role, setRolesWithRef, setRole);
+      if (error) return { error };
+    }
+    // At this point rolesRef is already updated by setRolesWithRef
+    setRole(newRole);
+    return { error: null };
   };
 
   const signOut = async () => {
@@ -175,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setRole(null);
-    setRoles([]);
+    setRolesWithRef([]);
     clearSessionCache();
   };
 
@@ -191,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         switchRole,
         addRole,
+        grantAndSwitchRole,
         resetPassword: ops.resetPassword,
       }}
     >

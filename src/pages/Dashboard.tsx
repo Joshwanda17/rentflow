@@ -60,48 +60,40 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 );
 
 function DashboardContent() {
-  const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
-  const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { user, role, roles, loading, signOut, switchRole, addRole, grantAndSwitchRole } = useAuth();
+  const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
 
-  // Role switch: only switch to roles the user already has.
-  // New roles must be requested via ApplyForRoleDialog in BottomRoleSwitcher.
+  // Clear pendingRole when the active role matches it
+  useEffect(() => {
+    if (pendingRole && role === pendingRole) {
+      setPendingRole(null);
+    }
+  }, [role, pendingRole]);
+
   const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
-    if (newRole === role) return; // Already on this role
+    if (newRole === role && !pendingRole) return;
+    if (pendingRole) return; // Already switching, ignore taps
     
-    // Clear any pending transition timer
-    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    setIsTransitioning(true);
-    
-    // For public roles, auto-add if user doesn't have it yet
     const publicRoles: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
-    if (publicRoles.includes(newRole) && !roles.includes(newRole)) {
-      const { error } = await addRole(newRole);
-      if (error) {
-        console.warn('[Dashboard] Failed to add role:', error.message);
-        setIsTransitioning(false);
-        return;
-      }
-    } else if (!roles.includes(newRole)) {
-      setIsTransitioning(false);
+    if (!publicRoles.includes(newRole) && !roles.includes(newRole)) {
       return; // Non-public role they don't have — block
     }
-    
-    switchRole(newRole);
-    
-    // Auto-clear transition after a fixed delay
-    transitionTimerRef.current = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 300);
-  }, [roles, role, switchRole, addRole]);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    };
-  }, []);
+    setPendingRole(newRole);
+
+    if (publicRoles.includes(newRole)) {
+      // Use atomic grant-and-switch to avoid race condition
+      const { error } = await grantAndSwitchRole(newRole);
+      if (error) {
+        console.warn('[Dashboard] Failed to switch role:', error.message);
+        setPendingRole(null);
+        return;
+      }
+    } else {
+      switchRole(newRole);
+    }
+  }, [role, roles, pendingRole, switchRole, grantAndSwitchRole]);
+
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -318,13 +310,13 @@ function DashboardContent() {
     );
   }
 
-  if ((loading && !showCachedUI) || isTransitioning) {
+  if ((loading && !showCachedUI) || pendingRole) {
     return (
       <>
         <DashboardLoadingFallback />
         {/* Keep bottom nav visible during transition for continuity */}
-        {isTransitioning && displayRole && ['tenant', 'agent', 'landlord', 'supporter'].includes(displayRole) && (
-          <BottomRoleSwitcher currentRole={displayRole} onRoleChange={handlePublicRoleSwitch} />
+        {pendingRole && displayRole && ['tenant', 'agent', 'landlord', 'supporter'].includes(pendingRole) && (
+          <BottomRoleSwitcher currentRole={pendingRole} onRoleChange={handlePublicRoleSwitch} />
         )}
       </>
     );
