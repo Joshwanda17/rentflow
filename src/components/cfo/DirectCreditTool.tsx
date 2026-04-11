@@ -13,7 +13,6 @@ import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, M
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
-import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 
 type Operation = 'credit' | 'debit';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
