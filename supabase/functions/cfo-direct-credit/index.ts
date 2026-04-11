@@ -51,9 +51,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount, reason, operation } = await req.json();
+    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label } = await req.json();
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
+
+    // Allowed production categories
+    const ALLOWED_CATEGORIES = [
+      'roi_wallet_credit', 'roi_expense', 'agent_commission_earned',
+      'system_balance_correction', 'wallet_transfer', 'wallet_deduction',
+      'access_fee_collected', 'registration_fee_collected',
+    ];
+    const walletCat = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'system_balance_correction';
+    const platformCat = ALLOWED_CATEGORIES.includes(platform_category) ? platform_category : 'system_balance_correction';
+    const impact = ['revenue', 'expense', 'neutral'].includes(financial_impact) ? financial_impact : 'neutral';
 
     // Validate inputs — shadow on failure paths
     if (!target_user_id || typeof target_user_id !== "string") {
