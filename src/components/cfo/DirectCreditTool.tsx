@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -7,11 +7,126 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Send, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 
 type Operation = 'credit' | 'debit';
+type FinancialImpact = 'expense' | 'revenue' | 'neutral';
+
+interface PayoutCategory {
+  id: string;
+  label: string;
+  description: string;
+  impact: FinancialImpact;
+  walletCategory: string;
+  platformCategory: string;
+  allowedOps: Operation[];
+}
+
+const PAYOUT_CATEGORIES: PayoutCategory[] = [
+  // ── CREDIT (Platform → Wallet) ──
+  {
+    id: 'roi_payout',
+    label: '📈 ROI Payout',
+    description: 'Return on investment to a partner/supporter',
+    impact: 'expense',
+    walletCategory: 'roi_wallet_credit',
+    platformCategory: 'roi_expense',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'agent_commission',
+    label: '🤝 Agent Commission',
+    description: 'Commission earned by an agent for rent collection',
+    impact: 'expense',
+    walletCategory: 'agent_commission_earned',
+    platformCategory: 'agent_commission_earned',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'salary_advance',
+    label: '💼 Salary / Advance',
+    description: 'Staff salary, advance, or employee payment',
+    impact: 'expense',
+    walletCategory: 'system_balance_correction',
+    platformCategory: 'system_balance_correction',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'correction_credit',
+    label: '🔧 Balance Correction (Credit)',
+    description: 'Fix an error — add missing funds to a user wallet',
+    impact: 'neutral',
+    walletCategory: 'system_balance_correction',
+    platformCategory: 'system_balance_correction',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'wallet_transfer_out',
+    label: '🔄 Internal Transfer',
+    description: 'Move funds from platform to a user wallet (inter-account)',
+    impact: 'neutral',
+    walletCategory: 'wallet_transfer',
+    platformCategory: 'wallet_transfer',
+    allowedOps: ['credit'],
+  },
+
+  // ── DEBIT (Wallet → Platform) ──
+  {
+    id: 'fee_collection',
+    label: '💰 Fee Collection',
+    description: 'Collect access fee, registration fee, or service charge',
+    impact: 'revenue',
+    walletCategory: 'wallet_deduction',
+    platformCategory: 'access_fee_collected',
+    allowedOps: ['debit'],
+  },
+  {
+    id: 'penalty',
+    label: '⚠️ Penalty / Fine',
+    description: 'Penalty for rule violation, late payment, or fraud',
+    impact: 'revenue',
+    walletCategory: 'wallet_deduction',
+    platformCategory: 'wallet_deduction',
+    allowedOps: ['debit'],
+  },
+  {
+    id: 'correction_debit',
+    label: '🔧 Balance Correction (Debit)',
+    description: 'Fix an error — remove excess funds from a user wallet',
+    impact: 'neutral',
+    walletCategory: 'system_balance_correction',
+    platformCategory: 'system_balance_correction',
+    allowedOps: ['debit'],
+  },
+  {
+    id: 'overpayment_recovery',
+    label: '🔁 Overpayment Recovery',
+    description: 'Recover funds that were credited in error or overpaid',
+    impact: 'revenue',
+    walletCategory: 'wallet_deduction',
+    platformCategory: 'wallet_deduction',
+    allowedOps: ['debit'],
+  },
+  {
+    id: 'wallet_retraction',
+    label: '🚫 Wallet Retraction',
+    description: 'Retract funds paid out externally that still show in balance',
+    impact: 'neutral',
+    walletCategory: 'wallet_deduction',
+    platformCategory: 'wallet_deduction',
+    allowedOps: ['debit'],
+  },
+];
+
+const IMPACT_CONFIG: Record<FinancialImpact, { label: string; color: string; icon: typeof TrendingUp }> = {
+  revenue: { label: 'Revenue', color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: TrendingUp },
+  expense: { label: 'Expense', color: 'text-orange-600 bg-orange-50 border-orange-200', icon: TrendingDown },
+  neutral: { label: 'Neutral', color: 'text-muted-foreground bg-muted/50 border-border', icon: Minus },
+};
 
 export function DirectCreditTool() {
   const { toast } = useToast();
@@ -20,6 +135,23 @@ export function DirectCreditTool() {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [operation, setOperation] = useState<Operation>('credit');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+
+  const availableCategories = useMemo(
+    () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
+    [operation]
+  );
+
+  const selectedCategory = useMemo(
+    () => PAYOUT_CATEGORIES.find(c => c.id === selectedCategoryId),
+    [selectedCategoryId]
+  );
+
+  // Reset category when switching operation
+  const handleOperationChange = (op: Operation) => {
+    setOperation(op);
+    setSelectedCategoryId('');
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -27,9 +159,19 @@ export function DirectCreditTool() {
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
       if (!selectedUser) throw new Error('Select a user');
+      if (!selectedCategory) throw new Error('Select a payout category');
 
       const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
-        body: { target_user_id: selectedUser.id, amount: amt, reason, operation },
+        body: {
+          target_user_id: selectedUser.id,
+          amount: amt,
+          reason,
+          operation,
+          wallet_category: selectedCategory.walletCategory,
+          platform_category: selectedCategory.platformCategory,
+          financial_impact: selectedCategory.impact,
+          category_label: selectedCategory.label,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -39,20 +181,26 @@ export function DirectCreditTool() {
       toast({ title: operation === 'credit' ? '✅ Credit applied' : '✅ Debit applied', description: data?.message });
       qc.invalidateQueries({ queryKey: ['expense-transfers'] });
       qc.invalidateQueries({ queryKey: ['channel-balances'] });
+      qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
+      qc.invalidateQueries({ queryKey: ['cfo-overview'] });
       setSelectedUser(null);
       setAmount('');
       setReason('');
+      setSelectedCategoryId('');
     },
     onError: (e: any) => toast({ title: 'Failed', description: e.message, variant: 'destructive' }),
   });
 
   const isCredit = operation === 'credit';
+  const amt = parseFloat(amount || '0');
+  const impactInfo = selectedCategory ? IMPACT_CONFIG[selectedCategory.impact] : null;
+  const ImpactIcon = impactInfo?.icon;
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
-          {isCredit ? <ArrowUpRight className="h-4 w-4 text-green-600" /> : <ArrowDownLeft className="h-4 w-4 text-destructive" />}
+          {isCredit ? <ArrowUpRight className="h-4 w-4 text-emerald-600" /> : <ArrowDownLeft className="h-4 w-4 text-destructive" />}
           CFO Wallet Adjustment
         </CardTitle>
       </CardHeader>
@@ -62,8 +210,8 @@ export function DirectCreditTool() {
           <Button
             type="button"
             variant={isCredit ? 'default' : 'outline'}
-            className={isCredit ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
-            onClick={() => setOperation('credit')}
+            className={isCredit ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
+            onClick={() => handleOperationChange('credit')}
           >
             <ArrowUpRight className="h-4 w-4 mr-1.5" />
             Platform → Wallet
@@ -72,18 +220,70 @@ export function DirectCreditTool() {
             type="button"
             variant={!isCredit ? 'default' : 'outline'}
             className={!isCredit ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
-            onClick={() => setOperation('debit')}
+            onClick={() => handleOperationChange('debit')}
           >
             <ArrowDownLeft className="h-4 w-4 mr-1.5" />
             Wallet → Platform
           </Button>
         </div>
 
-        <p className="text-[11px] text-muted-foreground">
-          {isCredit
-            ? 'Credit funds from the platform into a user\'s wallet (expenses, salaries, advances).'
-            : 'Debit funds from a user\'s wallet back to the platform (corrections, clawbacks, refunds).'}
-        </p>
+        {/* Category Dropdown */}
+        <div>
+          <Label className="flex items-center gap-1.5 mb-1.5">
+            Payout Category
+            <span className="text-destructive">*</span>
+          </Label>
+          <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a category..." />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCategories.map(cat => {
+                const cfg = IMPACT_CONFIG[cat.impact];
+                return (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <span className="flex items-center gap-2">
+                      {cat.label}
+                      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${cfg.color}`}>
+                        {cfg.label}
+                      </Badge>
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category Impact Explanation */}
+        {selectedCategory && impactInfo && ImpactIcon && (
+          <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${impactInfo.color}`}>
+            <div className="flex items-center gap-2 font-semibold">
+              <ImpactIcon className="h-4 w-4" />
+              Financial Impact: {impactInfo.label}
+            </div>
+            <p className="opacity-80">{selectedCategory.description}</p>
+            <div className="pt-1 border-t border-current/10 space-y-0.5 text-[10px]">
+              <p><span className="font-medium">Wallet entry:</span> {selectedCategory.walletCategory.replace(/_/g, ' ')}</p>
+              <p><span className="font-medium">Platform entry:</span> {selectedCategory.platformCategory.replace(/_/g, ' ')}</p>
+              {selectedCategory.impact === 'revenue' && (
+                <p className="font-medium text-emerald-700">
+                  ✅ This payout earns money for the platform — recorded as platform income.
+                </p>
+              )}
+              {selectedCategory.impact === 'expense' && (
+                <p className="font-medium text-orange-700">
+                  📉 This payout is a platform expense — reduces platform earnings.
+                </p>
+              )}
+              {selectedCategory.impact === 'neutral' && (
+                <p className="font-medium">
+                  ➖ This is a balance adjustment — no effect on profit or loss.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         <UserSearchPicker
           label="Search User"
@@ -108,8 +308,8 @@ export function DirectCreditTool() {
           <Label>Reason (min 10 chars)</Label>
           <Textarea
             placeholder={isCredit
-              ? 'e.g. Salary advance for March, transport reimbursement...'
-              : 'e.g. Correction for duplicate credit, clawback of overpayment...'}
+              ? 'e.g. ROI payout for March cycle, salary advance for agent...'
+              : 'e.g. Access fee collection, penalty for policy violation...'}
             value={reason}
             onChange={e => setReason(e.target.value)}
             rows={2}
@@ -117,18 +317,42 @@ export function DirectCreditTool() {
           <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
         </div>
 
-        {/* Treasury Impact - shows automatically when amount is entered */}
-        {parseFloat(amount || '0') > 0 && isCredit && (
-          <TreasuryImpactBanner payoutAmount={parseFloat(amount || '0')} />
+        {/* Treasury Impact - shows automatically when amount is entered for credits */}
+        {amt > 0 && isCredit && (
+          <TreasuryImpactBanner payoutAmount={amt} />
+        )}
+
+        {/* Summary before submit */}
+        {selectedCategory && amt > 0 && selectedUser && (
+          <div className="rounded-lg bg-muted/30 border p-3 text-xs space-y-1">
+            <p className="font-bold text-sm flex items-center gap-1.5">
+              <Info className="h-3.5 w-3.5" />
+              Double-Entry Summary
+            </p>
+            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+              <span className="text-muted-foreground">Entry 1:</span>
+              <span>
+                {isCredit ? '↗ Credit' : '↘ Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
+                <span className="font-medium">{selectedUser.full_name}</span>'s wallet
+                <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.walletCategory.replace(/_/g, ' ')}</Badge>
+              </span>
+
+              <span className="text-muted-foreground">Entry 2:</span>
+              <span>
+                {isCredit ? '↘ Debit' : '↗ Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
+                <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.platformCategory.replace(/_/g, ' ')}</Badge>
+              </span>
+            </div>
+          </div>
         )}
 
         <Button
-          className={`w-full ${isCredit ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}`}
+          className={`w-full ${isCredit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}`}
           onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10}
+          disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId}
         >
           {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-          {isCredit ? 'Credit' : 'Debit'} UGX {parseFloat(amount || '0').toLocaleString()} {isCredit ? 'to' : 'from'} {selectedUser?.full_name || '...'}
+          {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'} {selectedUser?.full_name || '...'}
         </Button>
       </CardContent>
     </Card>
