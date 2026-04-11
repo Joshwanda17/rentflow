@@ -266,10 +266,16 @@ export function DirectCreditTool() {
             <SelectContent>
               {availableCategories.map(cat => {
                 const cfg = IMPACT_CONFIG[cat.impact];
+                const isRent = cat.id === 'rent_disbursement';
                 return (
                   <SelectItem key={cat.id} value={cat.id}>
                     <span className="flex items-center gap-2">
                       {cat.label}
+                      {isRent && rentQueueCount > 0 && (
+                        <Badge className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                          {rentQueueCount} ready
+                        </Badge>
+                      )}
                       <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${cfg.color}`}>
                         {cfg.label}
                       </Badge>
