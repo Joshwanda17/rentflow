@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
+import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 
 type Operation = 'credit' | 'debit';
 
@@ -115,6 +116,11 @@ export function DirectCreditTool() {
           />
           <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
         </div>
+
+        {/* Treasury Impact - shows automatically when amount is entered */}
+        {parseFloat(amount || '0') > 0 && isCredit && (
+          <TreasuryImpactBanner payoutAmount={parseFloat(amount || '0')} />
+        )}
 
         <Button
           className={`w-full ${isCredit ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}`}
