@@ -110,7 +110,9 @@ export default function CFODashboard() {
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="flex items-center gap-1.5 text-xs sm:text-sm px-3 py-2 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className={`flex items-center gap-1.5 text-xs sm:text-sm px-3 py-2 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
+                  tab.id === 'wallet-payout' ? 'ring-2 ring-primary/40 font-bold bg-primary/10' : ''
+                }`}
               >
                 <tab.icon className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -127,7 +129,16 @@ export default function CFODashboard() {
 
           {/* Pay to Wallet Tab */}
           <TabsContent value="wallet-payout" className="space-y-6">
-            <DirectCreditTool />
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4 sm:p-6">
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+                <Wallet className="h-5 w-5 text-primary" />
+                💳 Pay Out to Any User's Wallet
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly.
+              </p>
+              <DirectCreditTool />
+            </div>
           </TabsContent>
 
           {/* ROI Requests Tab */}
