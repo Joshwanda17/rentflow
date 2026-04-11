@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, Suspense, lazy, memo } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense, lazy, memo } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
@@ -63,29 +63,45 @@ function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [prevRole, setPrevRole] = useState<AppRole | null>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Role switch: only switch to roles the user already has.
   // New roles must be requested via ApplyForRoleDialog in BottomRoleSwitcher.
   const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
-    if (!roles.includes(newRole)) return; // Block — must apply first
     if (newRole === role) return; // Already on this role
-    setPrevRole(role);
+    
+    // Clear any pending transition timer
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
     setIsTransitioning(true);
-    switchRole(newRole);
-  }, [roles, role, switchRole]);
-
-  // Clear transition once the role state has actually updated and component can render
-  useEffect(() => {
-    if (isTransitioning && role && role !== prevRole) {
-      // Give Suspense time to resolve the lazy component
-      const timer = setTimeout(() => {
+    
+    // For public roles, auto-add if user doesn't have it yet
+    const publicRoles: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
+    if (publicRoles.includes(newRole) && !roles.includes(newRole)) {
+      const { error } = await addRole(newRole);
+      if (error) {
+        console.warn('[Dashboard] Failed to add role:', error.message);
         setIsTransitioning(false);
-        setPrevRole(null);
-      }, 100);
-      return () => clearTimeout(timer);
+        return;
+      }
+    } else if (!roles.includes(newRole)) {
+      setIsTransitioning(false);
+      return; // Non-public role they don't have — block
     }
-  }, [isTransitioning, role, prevRole]);
+    
+    switchRole(newRole);
+    
+    // Auto-clear transition after a fixed delay
+    transitionTimerRef.current = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
+  }, [roles, role, switchRole, addRole]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    };
+  }, []);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -118,19 +134,19 @@ function DashboardContent() {
     };
   }, []);
 
-  // Auto-default qualified investors (≥100K deployed) to Funder dashboard
-  // BUT skip if user has toggled "Open All Dashboards" — they choose freely
+  // Auto-default qualified investors (≥100K deployed) to Funder dashboard on INITIAL load only
+  const hasAutoDefaulted = useRef(false);
   useEffect(() => {
     if (loading || !user || roles.length === 0) return;
+    if (hasAutoDefaulted.current) return; // Only auto-default once per session
     if (!isQualifiedInvestor) return;
-    if (areAllRolesUnlocked()) return; // user opted to freely navigate all roles
-    // Only auto-switch if user hasn't set an explicit preference
+    if (areAllRolesUnlocked()) return;
     const preferred = getPreferredDefaultRole();
     if (preferred !== 'auto') return;
-    // If current role isn't supporter and supporter is available, switch
     if (role !== 'supporter' && roles.includes('supporter')) {
       switchRole('supporter');
     }
+    hasAutoDefaulted.current = true;
   }, [loading, user, roles, role, isQualifiedInvestor, switchRole]);
 
   // Handle role switch via URL param (e.g. after tenant/supporter activation)
