@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let earlyRoleFetch: Promise<void> | null = null;
       if (cachedSession?.userId && !rolesFetched) {
         rolesFetched = true;
-        earlyRoleFetch = fetchUserRoles(cachedSession.userId, role, setRoles, setRole);
+        earlyRoleFetch = fetchUserRoles(cachedSession.userId, role, setRolesWithRef, setRole);
       }
 
       try {
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(null);
             setUser(null);
             setRole(null);
-            setRoles([]);
+            setRolesWithRef([]);
           } else if (isNetworkError) {
             console.warn('[Auth] Network error during session restore — proceeding offline:', error.message);
           } else {
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               await Promise.race([earlyRoleFetch, timeoutPromise]);
             } else {
               rolesFetched = true;
-              const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
+              const rolePromise = fetchUserRoles(session.user.id, role, setRolesWithRef, setRole);
               const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
               await Promise.race([rolePromise, timeoutPromise]);
             }
