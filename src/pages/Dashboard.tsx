@@ -63,20 +63,29 @@ function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [prevRole, setPrevRole] = useState<AppRole | null>(null);
 
   // Role switch: only switch to roles the user already has.
   // New roles must be requested via ApplyForRoleDialog in BottomRoleSwitcher.
   const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
     if (!roles.includes(newRole)) return; // Block — must apply first
     if (newRole === role) return; // Already on this role
+    setPrevRole(role);
     setIsTransitioning(true);
-    // Small delay to let the loading state render before switching
-    requestAnimationFrame(() => {
-      switchRole(newRole);
-      // Clear transition after the new dashboard has time to mount
-      setTimeout(() => setIsTransitioning(false), 150);
-    });
+    switchRole(newRole);
   }, [roles, role, switchRole]);
+
+  // Clear transition once the role state has actually updated and component can render
+  useEffect(() => {
+    if (isTransitioning && role && role !== prevRole) {
+      // Give Suspense time to resolve the lazy component
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+        setPrevRole(null);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isTransitioning, role, prevRole]);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -294,7 +303,15 @@ function DashboardContent() {
   }
 
   if ((loading && !showCachedUI) || isTransitioning) {
-    return <DashboardLoadingFallback />;
+    return (
+      <>
+        <DashboardLoadingFallback />
+        {/* Keep bottom nav visible during transition for continuity */}
+        {isTransitioning && displayRole && ['tenant', 'agent', 'landlord', 'supporter'].includes(displayRole) && (
+          <BottomRoleSwitcher currentRole={displayRole} onRoleChange={handlePublicRoleSwitch} />
+        )}
+      </>
+    );
   }
 
   // If no user and not loading, the redirect effect above will handle it.

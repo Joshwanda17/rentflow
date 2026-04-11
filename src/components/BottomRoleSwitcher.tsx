@@ -39,9 +39,11 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
   const staffRole = roles.find(r => STAFF_ROLES.includes(r));
 
   const isRoleGated = (role: AppRole): boolean => {
-    if (areAllRolesUnlocked()) return false; // user opted to unlock all roles
-    if (roles.includes(role)) return false; // already has the role
-    return true; // must apply for any role they don't have
+    // Public roles (tenant, agent, supporter, landlord) are always available
+    if (['tenant', 'agent', 'supporter', 'landlord'].includes(role)) return false;
+    if (areAllRolesUnlocked()) return false;
+    if (roles.includes(role)) return false;
+    return true;
   };
 
   const handleSwitch = (role: AppRole) => {
