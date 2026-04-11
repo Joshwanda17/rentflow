@@ -66,7 +66,7 @@ export default function CFODashboard() {
   if (isManager === false) { navigate('/dashboard'); return null; }
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
+    { id: 'overview', label: 'Pending Approvals', icon: Bell },
     { id: 'wallet-payout', label: 'Pay to Wallet', icon: Wallet },
     { id: 'roi', label: 'ROI Requests', icon: TrendingUp },
     { id: 'payouts', label: 'Rent Payouts', icon: Banknote },
