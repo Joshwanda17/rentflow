@@ -28,6 +28,7 @@ const BiometricSecuritySection = lazy(() => import('@/components/settings/Biomet
 const MyLandlordsSection = lazy(() => import('@/components/tenant/MyLandlordsSection'));
 const MyTenantsSection = lazy(() => import('@/components/landlord/MyTenantsSection'));
 const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountToggle'));
+const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard'));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -302,6 +303,7 @@ export default function Settings() {
 
             {activeSection === 'roles' && (
               <div className="space-y-4">
+                <LazySection name="StaffAccess"><StaffAccessCard /></LazySection>
                 <Card className="border-border/40 rounded-2xl">
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between gap-3">
