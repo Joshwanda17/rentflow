@@ -74,6 +74,15 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     platformCategory: 'wallet_transfer',
     allowedOps: ['credit'],
   },
+  {
+    id: 'rent_disbursement',
+    label: '🏠 Rent Disbursement',
+    description: 'Approved rent payouts to landlord wallets or agent float — earns access fees & request fees',
+    impact: 'revenue',
+    walletCategory: 'rent_disbursement',
+    platformCategory: 'rent_disbursement',
+    allowedOps: ['credit'],
+  },
 
   // ── DEBIT (Wallet → Platform) ──
   {
