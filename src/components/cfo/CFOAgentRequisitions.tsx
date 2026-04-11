@@ -12,6 +12,7 @@ import {
   FileText, Loader2, CheckCircle, XCircle, Clock, AlertTriangle,
   Filter
 } from 'lucide-react';
+import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { format } from 'date-fns';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
@@ -207,7 +208,9 @@ export function CFOAgentRequisitions() {
                   )}
 
                   {req.status === 'pending' && (
-                    <div className="flex gap-2 pt-1">
+                    <div className="space-y-3 pt-1">
+                      <TreasuryImpactBanner payoutAmount={Number(req.amount)} />
+                      <div className="flex gap-2">
                       <Button
                         size="sm"
                         className="gap-1 flex-1"
@@ -226,6 +229,7 @@ export function CFOAgentRequisitions() {
                         <XCircle className="h-3 w-3" />
                         Reject
                       </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
