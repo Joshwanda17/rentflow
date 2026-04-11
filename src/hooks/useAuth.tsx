@@ -194,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setRole(null);
-    setRoles([]);
+    setRolesWithRef([]);
     clearSessionCache();
   };
 
