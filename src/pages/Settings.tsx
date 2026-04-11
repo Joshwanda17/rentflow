@@ -302,6 +302,7 @@ export default function Settings() {
 
             {activeSection === 'roles' && (
               <div className="space-y-4">
+                <LazySection name="StaffAccess"><StaffAccessCard /></LazySection>
                 <Card className="border-border/40 rounded-2xl">
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between gap-3">
