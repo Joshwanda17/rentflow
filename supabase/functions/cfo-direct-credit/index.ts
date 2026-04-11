@@ -189,6 +189,10 @@ Deno.serve(async (req) => {
         amount,
         reason,
         operation: op,
+        wallet_category: walletCat,
+        platform_category: platformCat,
+        financial_impact: impact,
+        category_label: category_label || walletCat,
       },
     });
 
