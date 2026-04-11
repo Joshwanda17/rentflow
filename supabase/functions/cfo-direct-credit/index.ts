@@ -51,9 +51,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount, reason, operation } = await req.json();
+    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label } = await req.json();
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
+
+    // Allowed production categories
+    const ALLOWED_CATEGORIES = [
+      'roi_wallet_credit', 'roi_expense', 'agent_commission_earned',
+      'system_balance_correction', 'wallet_transfer', 'wallet_deduction',
+      'access_fee_collected', 'registration_fee_collected',
+    ];
+    const walletCat = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'system_balance_correction';
+    const platformCat = ALLOWED_CATEGORIES.includes(platform_category) ? platform_category : 'system_balance_correction';
+    const impact = ['revenue', 'expense', 'neutral'].includes(financial_impact) ? financial_impact : 'neutral';
 
     // Validate inputs — shadow on failure paths
     if (!target_user_id || typeof target_user_id !== "string") {
@@ -120,18 +130,19 @@ Deno.serve(async (req) => {
             user_id: target_user_id,
             amount,
             direction: 'cash_in',
-            category: 'system_balance_correction',
+            category: walletCat,
             ledger_scope: 'wallet',
-            description: `CFO Credit: ${reason}`,
+            description: `CFO Credit [${category_label || walletCat}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
           {
+            user_id: userId,
             direction: 'cash_out',
             amount,
-            category: 'system_balance_correction',
+            category: platformCat,
             ledger_scope: 'platform',
-            description: `Platform → ${targetProfile.full_name}: ${reason}`,
+            description: `Platform → ${targetProfile.full_name} [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
@@ -145,18 +156,19 @@ Deno.serve(async (req) => {
             user_id: target_user_id,
             amount,
             direction: 'cash_out',
-            category: 'system_balance_correction',
+            category: walletCat,
             ledger_scope: 'wallet',
-            description: `CFO Debit: ${reason}`,
+            description: `CFO Debit [${category_label || walletCat}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
           {
+            user_id: userId,
             direction: 'cash_in',
             amount,
-            category: 'system_balance_correction',
+            category: platformCat,
             ledger_scope: 'platform',
-            description: `${targetProfile.full_name} → Platform: ${reason}`,
+            description: `${targetProfile.full_name} → Platform [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
@@ -177,6 +189,10 @@ Deno.serve(async (req) => {
         amount,
         reason,
         operation: op,
+        wallet_category: walletCat,
+        platform_category: platformCat,
+        financial_impact: impact,
+        category_label: category_label || walletCat,
       },
     });
 
