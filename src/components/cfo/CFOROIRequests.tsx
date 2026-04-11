@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, Clock, Loader2, TrendingUp, User, Wallet } from 'lucide-react';
+import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { format } from 'date-fns';
 
 interface PendingOp {
@@ -197,7 +198,9 @@ export function CFOROIRequests() {
                   </div>
 
                   {op.status === 'pending' && (
-                    <div className="flex items-end gap-2 flex-wrap pt-2 border-t">
+                    <div className="space-y-3 pt-2 border-t">
+                      <TreasuryImpactBanner payoutAmount={op.amount} />
+                      <div className="flex items-end gap-2 flex-wrap">
                       <Button
                         size="sm"
                         onClick={() => approveMutation.mutate(op.id)}
