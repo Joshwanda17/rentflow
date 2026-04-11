@@ -116,22 +116,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </div>
       </div>
 
-      {/* ── PENDING ACTIONS ── */}
-      {pendingCount > 0 && (
-        <button
-          onClick={() => onTabChange?.('approvals')}
-          className="w-full rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
-        >
-          <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
-            <Clock className="h-6 w-6 text-amber-600" />
-          </div>
-          <div className="text-left flex-1 min-w-0">
-            <p className="text-base font-bold">{pendingCount} Pending Approvals</p>
-            <p className="text-sm text-muted-foreground truncate">Worth {fmt(pendingApprovals?.totalAmount ?? 0)}</p>
-          </div>
-          <Badge variant="secondary" className="shrink-0">Review →</Badge>
-        </button>
-      )}
 
       {/* ── 3 BIG NUMBERS ── */}
       <div className="grid grid-cols-1 gap-3">
