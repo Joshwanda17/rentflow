@@ -67,21 +67,34 @@ function DashboardContent() {
 
   // Role switch: only switch to roles the user already has.
   // New roles must be requested via ApplyForRoleDialog in BottomRoleSwitcher.
-  const handlePublicRoleSwitch = useCallback((newRole: AppRole) => {
-    if (!roles.includes(newRole)) return; // Block — must apply first
+  const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
     if (newRole === role) return; // Already on this role
     
     // Clear any pending transition timer
     if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    
     setIsTransitioning(true);
+    
+    // For public roles, auto-add if user doesn't have it yet
+    const publicRoles: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
+    if (publicRoles.includes(newRole) && !roles.includes(newRole)) {
+      const { error } = await addRole(newRole);
+      if (error) {
+        console.warn('[Dashboard] Failed to add role:', error.message);
+        setIsTransitioning(false);
+        return;
+      }
+    } else if (!roles.includes(newRole)) {
+      setIsTransitioning(false);
+      return; // Non-public role they don't have — block
+    }
+    
     switchRole(newRole);
     
-    // Auto-clear transition after a fixed delay to let Suspense resolve
+    // Auto-clear transition after a fixed delay
     transitionTimerRef.current = setTimeout(() => {
       setIsTransitioning(false);
     }, 300);
-  }, [roles, role, switchRole]);
+  }, [roles, role, switchRole, addRole]);
 
   // Cleanup timer on unmount
   useEffect(() => {
