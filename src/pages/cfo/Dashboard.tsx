@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummary';
@@ -48,6 +49,10 @@ export default function CFODashboardPage() {
         return (
           <div className="space-y-4">
             <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+              <button onClick={() => setActiveTab('overview')} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3 transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Treasury
+              </button>
               <h1 className="text-xl font-bold flex items-center gap-2 mb-1">💳 Pay Out to Any User's Wallet</h1>
               <p className="text-sm text-muted-foreground mb-4">Search a user by name or phone number, enter the amount, and credit or debit their wallet instantly.</p>
               <DirectCreditTool />
