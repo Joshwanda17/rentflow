@@ -303,7 +303,15 @@ function DashboardContent() {
   }
 
   if ((loading && !showCachedUI) || isTransitioning) {
-    return <DashboardLoadingFallback />;
+    return (
+      <>
+        <DashboardLoadingFallback />
+        {/* Keep bottom nav visible during transition for continuity */}
+        {isTransitioning && displayRole && ['tenant', 'agent', 'landlord', 'supporter'].includes(displayRole) && (
+          <BottomRoleSwitcher currentRole={displayRole} onRoleChange={handlePublicRoleSwitch} />
+        )}
+      </>
+    );
   }
 
   // If no user and not loading, the redirect effect above will handle it.
