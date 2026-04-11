@@ -117,6 +117,11 @@ export function DirectCreditTool() {
           <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
         </div>
 
+        {/* Treasury Impact - shows automatically when amount is entered */}
+        {parseFloat(amount || '0') > 0 && isCredit && (
+          <TreasuryImpactBanner payoutAmount={parseFloat(amount || '0')} />
+        )}
+
         <Button
           className={`w-full ${isCredit ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}`}
           onClick={() => mutation.mutate()}
