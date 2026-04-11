@@ -2,17 +2,19 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Shield, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Shield, Lock, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { STAFF_ROLES } from '@/lib/roleConstants';
+import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import type { AppRole } from '@/hooks/auth/types';
 
 const ADMIN_ACCESS_CODE = 'Manager@welile';
 
 export default function StaffAccessCard() {
-  const { roles, addRole, switchRole } = useAuth();
+  const { user, roles, addRole, switchRole } = useAuth();
   const navigate = useNavigate();
   const [showCode, setShowCode] = useState(false);
   const [code, setCode] = useState('');
@@ -22,31 +24,61 @@ export default function StaffAccessCard() {
   const existingStaffRoles = roles.filter(r => STAFF_ROLES.includes(r));
   const hasStaffAccess = existingStaffRoles.length > 0;
 
+  const getStaffDashboardRoute = (staffRole: AppRole): string => {
+    return roleDashboardRoutes[staffRole] || '/admin/dashboard';
+  };
+
   const handleVerify = async () => {
     if (code !== ADMIN_ACCESS_CODE) {
       toast.error('Invalid access code');
+      setCode('');
       return;
     }
 
     setLoading(true);
-    // Grant the manager role as the entry point to staff
-    const targetRole: AppRole = 'manager';
-    if (!roles.includes(targetRole)) {
-      const { error } = await addRole(targetRole);
-      if (error) {
-        toast.error(error.message);
-        setLoading(false);
-        return;
+    try {
+      // Grant the manager role as the entry point to staff
+      const targetRole: AppRole = 'manager';
+      if (!roles.includes(targetRole)) {
+        const { error } = await addRole(targetRole);
+        if (error) {
+          toast.error(error.message);
+          setLoading(false);
+          return;
+        }
       }
+
+      // Log the staff access attempt
+      if (user) {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'staff_access_granted',
+          metadata: { method: 'access_code', role: targetRole },
+        }).then(() => {});
+      }
+
+      switchRole(targetRole);
+      toast.success('Staff access granted! Redirecting...');
+      
+      // Navigate directly to the manager dashboard
+      const route = getStaffDashboardRoute(targetRole);
+      navigate(route, { replace: true });
+    } catch (err) {
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    switchRole(targetRole);
-    toast.success('Switching to Staff Portal...');
-    setLoading(false);
-    navigate('/staff-portal');
   };
 
-  const handleQuickSwitch = () => {
-    navigate('/staff-portal');
+  const handleQuickSwitch = (staffRole?: AppRole) => {
+    const role = staffRole || existingStaffRoles[0];
+    if (role) {
+      switchRole(role);
+      const route = getStaffDashboardRoute(role);
+      navigate(route, { replace: true });
+    } else {
+      navigate('/staff-portal');
+    }
   };
 
   return (
@@ -63,7 +95,7 @@ export default function StaffAccessCard() {
       <CardContent className="space-y-3">
         {hasStaffAccess ? (
           <Button
-            onClick={handleQuickSwitch}
+            onClick={() => handleQuickSwitch()}
             className="w-full gap-2"
             variant="outline"
           >
