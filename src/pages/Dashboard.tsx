@@ -63,29 +63,32 @@ function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [prevRole, setPrevRole] = useState<AppRole | null>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Role switch: only switch to roles the user already has.
   // New roles must be requested via ApplyForRoleDialog in BottomRoleSwitcher.
-  const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
+  const handlePublicRoleSwitch = useCallback((newRole: AppRole) => {
     if (!roles.includes(newRole)) return; // Block — must apply first
     if (newRole === role) return; // Already on this role
-    setPrevRole(role);
+    
+    // Clear any pending transition timer
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    
     setIsTransitioning(true);
     switchRole(newRole);
+    
+    // Auto-clear transition after a fixed delay to let Suspense resolve
+    transitionTimerRef.current = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   }, [roles, role, switchRole]);
 
-  // Clear transition once the role state has actually updated and component can render
+  // Cleanup timer on unmount
   useEffect(() => {
-    if (isTransitioning && role && role !== prevRole) {
-      // Give Suspense time to resolve the lazy component
-      const timer = setTimeout(() => {
-        setIsTransitioning(false);
-        setPrevRole(null);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isTransitioning, role, prevRole]);
+    return () => {
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    };
+  }, []);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
