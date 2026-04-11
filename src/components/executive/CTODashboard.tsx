@@ -201,6 +201,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Infrastructure Health Monitor */}
+      <InfrastructureHealthMonitor />
+
       {/* System KPIs - all real */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard
