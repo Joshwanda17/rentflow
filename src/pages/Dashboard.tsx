@@ -94,12 +94,6 @@ function DashboardContent() {
     }
   }, [role, roles, pendingRole, switchRole, grantAndSwitchRole]);
 
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
-    };
-  }, []);
   const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -316,13 +310,13 @@ function DashboardContent() {
     );
   }
 
-  if ((loading && !showCachedUI) || isTransitioning) {
+  if ((loading && !showCachedUI) || pendingRole) {
     return (
       <>
         <DashboardLoadingFallback />
         {/* Keep bottom nav visible during transition for continuity */}
-        {isTransitioning && displayRole && ['tenant', 'agent', 'landlord', 'supporter'].includes(displayRole) && (
-          <BottomRoleSwitcher currentRole={displayRole} onRoleChange={handlePublicRoleSwitch} />
+        {pendingRole && displayRole && ['tenant', 'agent', 'landlord', 'supporter'].includes(pendingRole) && (
+          <BottomRoleSwitcher currentRole={pendingRole} onRoleChange={handlePublicRoleSwitch} />
         )}
       </>
     );
