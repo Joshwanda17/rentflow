@@ -1,18 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Banknote, Wallet, TrendingUp, ArrowUpDown, ShieldAlert, Users, Smartphone, Building2, HandCoins, ArrowDownToLine, PiggyBank, ReceiptText, AlertTriangle, ArrowDownRight, ArrowUpRight, CheckCircle2, XCircle, Scale, Clock } from 'lucide-react';
-import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
-import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
-import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
-import { Progress } from '@/components/ui/progress';
+import { Loader2, Banknote, Wallet, PiggyBank, ArrowDownRight, ArrowUpRight, Scale, Clock, ShieldAlert, CheckCircle2, XCircle, HandCoins, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useCallback } from 'react';
-import { KPIBreakdownSheet, type BreakdownItem } from '@/components/cfo/KPIBreakdownSheet';
+import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -27,12 +21,10 @@ const fmtShort = (n: number) => {
   return n.toFixed(0);
 };
 
-const pct = (part: number, total: number) => (total === 0 ? 0 : Math.round((part / total) * 100));
-
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
   const {
-    channelBalances, liabilities, revenue, moneyFlow, receivables, cashFlowByPurpose,
+    channelBalances, liabilities, revenue, receivables,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
     isLoading
   } = useCFOOverviewData();
@@ -42,7 +34,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       .from('treasury_controls' as any)
       .update({ enabled: newValue, updated_at: new Date().toISOString() } as any)
       .eq('control_key', controlKey);
-
     if (error) {
       toast.error(`Failed to update ${controlKey}`);
     } else {
@@ -63,508 +54,216 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
   const platformEarnings = revenue?.netProfit ?? 0;
+  const walletTotal = liabilities?.tenantFunds ?? 0;
   const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
 
-  const solvencyColor =
-    solvencyRatio >= 100 ? 'text-emerald-600' : solvencyRatio >= 80 ? 'text-yellow-600' : 'text-red-600';
-  const solvencyBg =
-    solvencyRatio >= 100
-      ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800'
-      : solvencyRatio >= 80
-        ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800'
-        : 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800';
+  const solvencyStatus = solvencyRatio >= 100 ? 'healthy' : solvencyRatio >= 80 ? 'warning' : 'critical';
+  const netToday = todayCashFlow?.netToday ?? 0;
+  const pendingCount = pendingApprovals?.count ?? 0;
 
   const channels = channelBalances?.channels ?? {};
   const channelIcons: Record<string, React.ReactNode> = {
-    MTN: <Smartphone className="h-5 w-5 text-yellow-500" />,
-    Airtel: <Smartphone className="h-5 w-5 text-red-500" />,
-    Bank: <Building2 className="h-5 w-5 text-blue-600" />,
-    Cash: <Banknote className="h-5 w-5 text-emerald-600" />,
+    MTN: <span className="text-lg">📱</span>,
+    Airtel: <span className="text-lg">📱</span>,
+    Bank: <span className="text-lg">🏦</span>,
+    Cash: <span className="text-lg">💵</span>,
   };
-
-  const negativeChannels = Object.entries(channels).filter(([, v]) => v.deposits - v.withdrawals < 0);
 
   const liabilityItems = [
     { label: 'Tenant Funds', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
     { label: 'Agent Payables', value: liabilities?.agentPayables ?? 0, icon: <Users className="h-4 w-4" /> },
-    { label: 'Landlord Payables', value: liabilities?.landlordPayables ?? 0, icon: <Building2 className="h-4 w-4" /> },
+    { label: 'Landlord Payables', value: liabilities?.landlordPayables ?? 0 },
     { label: 'ROI Obligations', value: liabilities?.roiObligations ?? 0, icon: <HandCoins className="h-4 w-4" /> },
-    { label: 'Pending Withdrawals', value: liabilities?.pendingWithdrawals ?? 0, icon: <ArrowDownToLine className="h-4 w-4" /> },
+    { label: 'Pending Withdrawals', value: liabilities?.pendingWithdrawals ?? 0 },
   ];
 
-  // Golden Rule calculation
-  const walletTotal = liabilities?.tenantFunds ?? 0;
-  const timingDifference = totalCash - walletTotal - platformEarnings;
-  const timingPct = totalCash > 0 ? Math.abs(timingDifference / totalCash) * 100 : 0;
-  const timingColor = timingPct < 1 ? 'text-emerald-600' : timingPct < 5 ? 'text-yellow-600' : 'text-red-600';
-  const timingBg = timingPct < 1
-    ? 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950/20'
-    : timingPct < 5
-      ? 'bg-yellow-50 border-yellow-300 dark:bg-yellow-950/20'
-      : 'bg-red-50 border-red-300 dark:bg-red-950/20';
-
   return (
-    <div className="space-y-6">
-      {/* SECTION 0: Treasury KPI Header */}
-      <div className="pb-3 pt-1">
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-          <KPICard
-            label="Platform Cash"
-            value={fmt(totalCash)}
-            subtitle="Treasury Balance"
-            accent="border-l-blue-500"
-            icon={<Banknote className="h-5 w-5 text-blue-500" />}
-            onClick={() => setActiveBreakdown('cash')}
-          />
-          <KPICard
-            label="User Wallets"
-            value={fmt(walletTotal)}
-            subtitle="Liabilities"
-            accent="border-l-yellow-500"
-            icon={<Wallet className="h-5 w-5 text-yellow-500" />}
-            onClick={() => setActiveBreakdown('wallets')}
-          />
-          <KPICard
-            label="Platform Earnings"
-            value={fmt(platformEarnings)}
-            subtitle="Revenue - Expenses"
-            accent="border-l-emerald-500"
-            icon={<PiggyBank className="h-5 w-5 text-emerald-500" />}
-            onClick={() => setActiveBreakdown('earnings')}
-          />
-          <KPICard
-            label="Cash In Today"
-            value={fmt(todayCashFlow?.cashInToday ?? 0)}
-            subtitle="Total inflows"
-            accent="border-l-green-500"
-            icon={<ArrowDownRight className="h-5 w-5 text-green-500" />}
-            onClick={() => setActiveBreakdown('cashIn')}
-          />
-          <KPICard
-            label="Cash Out Today"
-            value={fmt(todayCashFlow?.cashOutToday ?? 0)}
-            subtitle="Total outflows"
-            accent="border-l-red-500"
-            icon={<ArrowUpRight className="h-5 w-5 text-red-500" />}
-            onClick={() => setActiveBreakdown('cashOut')}
-          />
-          <KPICard
-            label="Net Cash Today"
-            value={fmt(todayCashFlow?.netToday ?? 0)}
-            subtitle="In - Out"
-            accent={(todayCashFlow?.netToday ?? 0) >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}
-            icon={<ArrowUpDown className="h-5 w-5 text-indigo-500" />}
-            onClick={() => setActiveBreakdown('netCash')}
-          />
+    <div className="space-y-4 max-w-2xl mx-auto">
+
+      {/* ── HEALTH AT A GLANCE ── */}
+      <div className="text-center py-3">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-1">Platform Health</p>
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2"
+          style={{
+            borderColor: solvencyStatus === 'healthy' ? 'hsl(var(--primary))' : solvencyStatus === 'warning' ? 'hsl(45, 93%, 47%)' : 'hsl(0, 84%, 60%)',
+            background: solvencyStatus === 'healthy' ? 'hsl(var(--primary) / 0.08)' : solvencyStatus === 'warning' ? 'hsl(45, 93%, 47%, 0.08)' : 'hsl(0, 84%, 60%, 0.08)',
+          }}
+        >
+          {solvencyStatus === 'healthy' && <CheckCircle2 className="h-5 w-5 text-primary" />}
+          {solvencyStatus === 'warning' && <AlertTriangle className="h-5 w-5 text-yellow-600" />}
+          {solvencyStatus === 'critical' && <XCircle className="h-5 w-5 text-red-600" />}
+          <span className="text-lg font-bold">
+            {solvencyStatus === 'healthy' ? 'All Good' : solvencyStatus === 'warning' ? 'Needs Attention' : 'Critical'}
+          </span>
+          <span className="text-sm text-muted-foreground">({solvencyRatio.toFixed(0)}% covered)</span>
         </div>
       </div>
 
-      {/* GOLDEN RULE EQUATION */}
-      <Card className={`border-2 ${timingBg}`}>
-        <CardContent className="py-4 px-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Scale className="h-5 w-5 text-indigo-600" />
-            <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Golden Rule</span>
+      {/* ── PENDING ACTIONS ── */}
+      {pendingCount > 0 && (
+        <button
+          onClick={() => onTabChange?.('approvals')}
+          className="w-full rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-center gap-3 active:scale-[0.98] transition-transform"
+        >
+          <div className="h-12 w-12 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+            <Clock className="h-6 w-6 text-amber-600" />
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-center">
-            <div className="rounded-xl border bg-blue-50 dark:bg-blue-950/30 p-3 flex-1 min-w-[120px]">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Cash</p>
-              <p className="text-lg font-bold font-mono text-blue-600">{fmtShort(totalCash)}</p>
+          <div className="text-left flex-1 min-w-0">
+            <p className="text-base font-bold">{pendingCount} Pending Approvals</p>
+            <p className="text-sm text-muted-foreground truncate">Worth {fmt(pendingApprovals?.totalAmount ?? 0)}</p>
+          </div>
+          <Badge variant="secondary" className="shrink-0">Review →</Badge>
+        </button>
+      )}
+
+      {/* ── 3 BIG NUMBERS ── */}
+      <div className="grid grid-cols-1 gap-3">
+        <BigNumber
+          emoji="💰"
+          label="Money We Have"
+          value={fmt(totalCash)}
+          sub={`Available: ${fmtShort(Math.max(0, totalCash - totalLiabilities))}`}
+          onClick={() => setActiveBreakdown('cash')}
+        />
+        <BigNumber
+          emoji="👛"
+          label="Money We Owe"
+          value={fmt(walletTotal)}
+          sub={`Total liabilities: ${fmtShort(totalLiabilities)}`}
+          onClick={() => setActiveBreakdown('wallets')}
+        />
+        <BigNumber
+          emoji="📈"
+          label="Our Profit"
+          value={fmt(platformEarnings)}
+          sub={`Revenue: ${fmtShort(revenue?.totalRevenue ?? 0)} · Costs: ${fmtShort(revenue?.totalExpenses ?? 0)}`}
+          onClick={() => setActiveBreakdown('earnings')}
+        />
+      </div>
+
+      {/* ── TODAY'S MOVEMENT ── */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Today</p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-3" onClick={() => setActiveBreakdown('cashIn')}>
+              <ArrowDownRight className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
+              <p className="text-lg font-bold font-mono text-emerald-600">{fmtShort(todayCashFlow?.cashInToday ?? 0)}</p>
+              <p className="text-[11px] text-muted-foreground">In</p>
             </div>
-            <span className="text-xl font-bold text-muted-foreground">=</span>
-            <div className="rounded-xl border bg-yellow-50 dark:bg-yellow-950/30 p-3 flex-1 min-w-[120px]">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Wallets</p>
-              <p className="text-lg font-bold font-mono text-yellow-600">{fmtShort(walletTotal)}</p>
+            <div className="rounded-xl bg-red-50 dark:bg-red-950/20 p-3" onClick={() => setActiveBreakdown('cashOut')}>
+              <ArrowUpRight className="h-5 w-5 text-red-500 mx-auto mb-1" />
+              <p className="text-lg font-bold font-mono text-red-500">{fmtShort(todayCashFlow?.cashOutToday ?? 0)}</p>
+              <p className="text-[11px] text-muted-foreground">Out</p>
             </div>
-            <span className="text-xl font-bold text-muted-foreground">+</span>
-            <div className="rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 p-3 flex-1 min-w-[120px]">
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Platform</p>
-              <p className="text-lg font-bold font-mono text-emerald-600">{fmtShort(platformEarnings)}</p>
-            </div>
-            <span className="text-xl font-bold text-muted-foreground">±</span>
-            <div className={`rounded-xl border p-3 flex-1 min-w-[120px] ${timingBg}`}>
-              <p className="text-[10px] uppercase text-muted-foreground font-semibold">Timing Diff</p>
-              <p className={`text-lg font-bold font-mono ${timingColor}`}>{fmtShort(timingDifference)}</p>
-              <p className={`text-[10px] ${timingColor}`}>{timingPct.toFixed(1)}% variance</p>
+            <div className="rounded-xl bg-muted/50 p-3" onClick={() => setActiveBreakdown('netCash')}>
+              <Scale className="h-5 w-5 text-foreground mx-auto mb-1" />
+              <p className={`text-lg font-bold font-mono ${netToday >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                {netToday >= 0 ? '+' : ''}{fmtShort(netToday)}
+              </p>
+              <p className="text-[11px] text-muted-foreground">Net</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* PENDING APPROVAL QUEUE */}
-      {(pendingApprovals?.count ?? 0) > 0 && (
-        <Card className="border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/10">
-          <CardContent className="py-4 px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-amber-600" />
-                <div>
-                  <p className="text-sm font-bold">Pending Approval Queue</p>
-                  <p className="text-xs text-muted-foreground">
-                    {pendingApprovals?.count} requests totalling {fmt(pendingApprovals?.totalAmount ?? 0)}
-                  </p>
-                </div>
-              </div>
-              <Badge
-                variant="secondary"
-                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                onClick={() => onTabChange?.('approvals')}
-              >
-                View All →
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* LEDGER INTEGRITY ALERTS */}
-      <SectionCard title="Ledger Integrity" icon={<ShieldAlert className="h-5 w-5 text-indigo-600" />} accent="border-l-indigo-500">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <IntegrityAlert
-            label="Wallet / Ledger Drift"
-            count={integrityChecks?.walletDriftCount ?? 0}
-            description="Users with balance mismatch > UGX 100"
-            onClick={() => onTabChange?.('reconciliation')}
-          />
-          <IntegrityAlert
-            label="Missing Group IDs"
-            count={integrityChecks?.missingGroupCount ?? 0}
-            description="Entries without transaction_group_id (7d)"
-          />
-          <IntegrityAlert
-            label="Negative Balances"
-            count={integrityChecks?.negativeLedgerCount ?? 0}
-            description="Users with negative ledger balance"
-          />
-        </div>
-      </SectionCard>
-
-      {/* AUTO-PAYOUT CONTROLS */}
-      <SectionCard title="Auto-Payout Controls" icon={<Wrench className="h-5 w-5 text-slate-600" />} accent="border-l-slate-400">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { key: 'auto_roi', label: 'Auto ROI Payouts', icon: <HandCoins className="h-4 w-4" /> },
-            { key: 'auto_salaries', label: 'Auto Salaries', icon: <Users className="h-4 w-4" /> },
-            { key: 'auto_commissions', label: 'Auto Commissions', icon: <Banknote className="h-4 w-4" /> },
-            { key: 'auto_advances', label: 'Auto Advances', icon: <TrendingUp className="h-4 w-4" /> },
-          ].map((ctrl) => (
-            <div key={ctrl.key} className="rounded-xl border bg-muted/30 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {ctrl.icon}
-                <span className="text-sm font-medium">{ctrl.label}</span>
-              </div>
-              <Switch
-                checked={treasuryControls?.[ctrl.key] ?? false}
-                onCheckedChange={(val) => handleToggleControl(ctrl.key, val)}
-              />
-            </div>
-          ))}
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-2">
-          ⚠️ Even when auto-payouts are ON, each transaction is validated against cash availability and ledger balance before release.
-        </p>
-      </SectionCard>
-
-      {/* SECTION 1: Cash & Liquidity */}
-      <SectionCard title="Cash & Liquidity" icon={<Banknote className="h-5 w-5 text-blue-500" />} accent="border-l-blue-500">
-        {negativeChannels.length > 0 && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              ⚠️ Negative balance detected in: {negativeChannels.map(([n]) => n).join(', ')}. Immediate attention required.
-            </AlertDescription>
-          </Alert>
-        )}
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">Total Cash</p>
-          <p className="text-xl sm:text-3xl font-bold font-mono truncate">{fmt(totalCash)}</p>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          {Object.entries(channels).map(([name, vals]) => {
-            const balance = vals.deposits - vals.withdrawals;
-            return (
-              <div key={name} className={`rounded-xl border p-3 ${balance < 0 ? 'border-red-400 bg-red-50/50 dark:bg-red-950/20' : 'bg-muted/30'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  {channelIcons[name]}
-                  <span className="text-sm font-medium">{name}</span>
-                </div>
-                <p className={`text-base sm:text-lg font-bold font-mono truncate ${balance < 0 ? 'text-red-600' : ''}`}>{fmt(balance)}</p>
-                <p className="text-xs text-muted-foreground truncate">In: {fmtShort(vals.deposits)} · Out: {fmtShort(vals.withdrawals)}</p>
-              </div>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
-            <p className="text-xs text-muted-foreground">Available Cash</p>
-            <p className="text-base sm:text-lg font-bold font-mono truncate text-blue-600">{fmt(Math.max(0, totalCash - totalLiabilities))}</p>
-          </div>
-          <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
-            <p className="text-xs text-muted-foreground">Restricted (User Funds)</p>
-            <p className="text-base sm:text-lg font-bold font-mono truncate text-yellow-600">{fmt(Math.min(totalCash, totalLiabilities))}</p>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* SECTION 2: Assets / Receivables */}
-      <SectionCard title="Assets (Money Expected Back)" icon={<ReceiptText className="h-5 w-5 text-purple-500" />} accent="border-l-purple-500">
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">Total Receivables</p>
-          <p className="text-xl sm:text-3xl font-bold font-mono truncate text-purple-600">{fmt(totalReceivables)}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
-            <p className="text-xs text-muted-foreground">Tenant Outstanding</p>
-            <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(receivables?.tenantOutstanding ?? 0)}</p>
-            <p className="text-xs text-muted-foreground">{pct(receivables?.tenantOutstanding ?? 0, totalReceivables)}% of total</p>
-          </div>
-          <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
-            <p className="text-xs text-muted-foreground">Advances Outstanding</p>
-            <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(receivables?.advancesOutstanding ?? 0)}</p>
-            <p className="text-xs text-muted-foreground">{pct(receivables?.advancesOutstanding ?? 0, totalReceivables)}% of total</p>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-muted/30 p-3">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Aging (Coming Soon)</p>
-          <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-            <div className="text-center p-2 rounded-lg bg-muted/50">
-              <p className="font-medium">0–30 days</p>
-              <p className="text-sm font-mono mt-1">—</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-muted/50">
-              <p className="font-medium">30–60 days</p>
-              <p className="text-sm font-mono mt-1">—</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-muted/50">
-              <p className="font-medium">60+ days</p>
-              <p className="text-sm font-mono mt-1">—</p>
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* SECTION 3: Liabilities / User Funds */}
-      <SectionCard title="User Funds (Liabilities)" icon={<Wallet className="h-5 w-5 text-yellow-500" />} accent="border-l-yellow-500">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-          {liabilityItems.map((item) => (
-            <div key={item.label} className="rounded-xl border bg-muted/30 p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                {item.icon}
-                <span className="text-xs text-muted-foreground">{item.label}</span>
-              </div>
-              <p className="text-base sm:text-lg font-bold font-mono truncate">{fmt(item.value)}</p>
-              <p className="text-xs text-muted-foreground">{pct(item.value, totalLiabilities)}% of total</p>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Liability Breakdown</p>
-          <div className="flex h-3 rounded-full overflow-hidden bg-muted">
-            {liabilityItems
-              .filter((i) => i.value > 0)
-              .map((item, idx) => {
-                const colors = ['bg-yellow-400', 'bg-orange-400', 'bg-amber-500', 'bg-rose-400', 'bg-red-400'];
-                return (
-                  <div
-                    key={item.label}
-                    className={`${colors[idx]} transition-all`}
-                    style={{ width: `${pct(item.value, totalLiabilities)}%` }}
-                    title={`${item.label}: ${pct(item.value, totalLiabilities)}%`}
-                  />
-                );
-              })}
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* SECTION 4: Platform Earnings */}
-      <SectionCard title="Platform Earnings & Profit" icon={<PiggyBank className="h-5 w-5 text-emerald-500" />} accent="border-l-emerald-500">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <MiniKPI label="Revenue" value={fmt(revenue?.totalRevenue ?? 0)} />
-          <MiniKPI label="Fees" value={fmt(0)} muted />
-          <MiniKPI label="Expenses" value={fmt(revenue?.totalExpenses ?? 0)} />
-          <MiniKPI label="Net Profit" value={fmt(revenue?.netProfit ?? 0)} highlight />
-        </div>
-        {revenue?.trend && revenue.trend.length > 0 && (
-          <div className="h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenue.trend}>
-                <defs>
-                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtShort} width={45} />
-                <Tooltip formatter={(v: number) => fmt(v)} labelFormatter={(l) => `Date: ${l}`} />
-                <Area type="monotone" dataKey="amount" stroke="hsl(142, 76%, 36%)" fill="url(#revGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* SECTION 5: Cash Flow Engine */}
-      <SectionCard title="Cash Flow by Purpose" icon={<ArrowUpDown className="h-5 w-5 text-indigo-500" />} accent="border-l-indigo-500">
-        <div className="grid lg:grid-cols-2 gap-4 mb-4">
-          <div className="rounded-xl border bg-emerald-50/50 dark:bg-emerald-950/10 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowDownRight className="h-4 w-4 text-emerald-600" />
-              <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">CASH IN</span>
-              <span className="ml-auto text-sm font-bold font-mono text-emerald-600">{fmt(cashFlowByPurpose?.totalIn ?? 0)}</span>
-            </div>
-            <div className="space-y-2">
-              <FlowRow label="Partner Funding" value={cashFlowByPurpose?.cashIn.partnerFunding ?? 0} />
-              <FlowRow label="Tenant Repayments" value={cashFlowByPurpose?.cashIn.tenantRepayments ?? 0} />
-              <FlowRow label="Other Income" value={cashFlowByPurpose?.cashIn.other ?? 0} />
-            </div>
-          </div>
-          <div className="rounded-xl border bg-red-50/50 dark:bg-red-950/10 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowUpRight className="h-4 w-4 text-red-600" />
-              <span className="text-sm font-semibold text-red-700 dark:text-red-400">CASH OUT</span>
-              <span className="ml-auto text-sm font-bold font-mono text-red-600">{fmt(cashFlowByPurpose?.totalOut ?? 0)}</span>
-            </div>
-            <div className="space-y-2">
-              <FlowRow label="Rent Payments" value={cashFlowByPurpose?.cashOut.rentPayments ?? 0} />
-              <FlowRow label="ROI Payouts" value={cashFlowByPurpose?.cashOut.roiPayouts ?? 0} />
-              <FlowRow label="Advances" value={cashFlowByPurpose?.cashOut.advances ?? 0} />
-              <FlowRow label="Other Costs" value={cashFlowByPurpose?.cashOut.other ?? 0} />
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-indigo-50/50 dark:bg-indigo-950/20 p-4 mb-4">
-          <p className="text-xs text-muted-foreground">Net Cash Movement</p>
-          <p className={`text-xl sm:text-2xl font-bold font-mono truncate ${(cashFlowByPurpose?.netMovement ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {fmt(cashFlowByPurpose?.netMovement ?? 0)}
+      {/* ── GOLDEN RULE (simplified) ── */}
+      <Card className="rounded-2xl border-2 border-dashed border-muted-foreground/20">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
+            <Scale className="h-3.5 w-3.5" /> Golden Rule Check
           </p>
-        </div>
-        {moneyFlow?.trend && moneyFlow.trend.length > 0 && (
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={moneyFlow.trend}>
-                <defs>
-                  <linearGradient id="inflowGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="outflowGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
-                <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtShort} width={45} />
-                <Tooltip formatter={(v: number) => fmt(v)} labelFormatter={(l) => `Date: ${l}`} />
-                <Area type="monotone" dataKey="inflow" stroke="hsl(142, 76%, 36%)" fill="url(#inflowGrad)" name="Inflows" />
-                <Area type="monotone" dataKey="outflow" stroke="hsl(0, 84%, 60%)" fill="url(#outflowGrad)" name="Outflows" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="flex items-center justify-center gap-2 flex-wrap text-center">
+            <Pill label="Cash" value={fmtShort(totalCash)} color="text-blue-600 bg-blue-50 dark:bg-blue-950/30" />
+            <span className="text-lg font-bold text-muted-foreground">=</span>
+            <Pill label="Wallets" value={fmtShort(walletTotal)} color="text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30" />
+            <span className="text-lg font-bold text-muted-foreground">+</span>
+            <Pill label="Profit" value={fmtShort(platformEarnings)} color="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" />
           </div>
-        )}
-      </SectionCard>
-
-      {/* SECTION 6: Risk & Control */}
-      <SectionCard title="Risk & Control" icon={<ShieldAlert className="h-5 w-5 text-red-500" />} accent="border-l-red-500">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Channel Reconciliation</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          {Object.entries(channels).map(([name, vals]) => {
-            const systemBalance = vals.deposits - vals.withdrawals;
-            const actualBalance = systemBalance;
-            const variance = systemBalance - actualBalance;
-            const status = Math.abs(variance) < 1 ? 'ok' : Math.abs(variance) < systemBalance * 0.05 ? 'warning' : 'critical';
-            return (
-              <div key={name} className="rounded-xl border p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {channelIcons[name]}
-                    <span className="text-sm font-medium">{name}</span>
-                  </div>
-                  <Badge variant={status === 'ok' ? 'default' : status === 'warning' ? 'secondary' : 'destructive'} className="text-[10px]">
-                    {status === 'ok' ? '✅ OK' : status === 'warning' ? '⚠️ Warn' : '❌ Critical'}
-                  </Badge>
-                </div>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-muted-foreground">System</span><span className="font-mono">{fmtShort(systemBalance)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Actual</span><span className="font-mono">{fmtShort(actualBalance)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Variance</span><span className="font-mono">{fmtShort(variance)}</span></div>
-                </div>
-              </div>
+          {(() => {
+            const diff = totalCash - walletTotal - platformEarnings;
+            const diffPct = totalCash > 0 ? Math.abs(diff / totalCash) * 100 : 0;
+            return diffPct > 1 ? (
+              <p className="text-xs text-center mt-2 text-amber-600 font-medium">
+                ⚠️ {diffPct.toFixed(1)}% timing difference ({fmtShort(diff)})
+              </p>
+            ) : (
+              <p className="text-xs text-center mt-2 text-emerald-600 font-medium">
+                ✅ Balanced ({diffPct.toFixed(1)}% variance)
+              </p>
             );
-          })}
-        </div>
+          })()}
+        </CardContent>
+      </Card>
 
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Solvency Breakdown</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <div className="rounded-xl border bg-blue-50/50 dark:bg-blue-950/20 p-3">
-            <p className="text-xs text-muted-foreground">Cash</p>
-            <p className="text-base sm:text-lg font-bold font-mono truncate text-blue-600">{fmt(totalCash)}</p>
+      {/* ── CHANNEL BALANCES ── */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Money Channels</p>
+          <div className="space-y-2">
+            {Object.entries(channels).map(([name, vals]) => {
+              const balance = vals.deposits - vals.withdrawals;
+              const isNegative = balance < 0;
+              return (
+                <div key={name} className={`flex items-center gap-3 p-3 rounded-xl border ${isNegative ? 'border-red-300 bg-red-50/50 dark:bg-red-950/20' : 'bg-muted/30'}`}>
+                  <span className="text-xl">{channelIcons[name] || '💳'}</span>
+                  <span className="text-sm font-medium flex-1">{name}</span>
+                  <span className={`text-base font-bold font-mono ${isNegative ? 'text-red-600' : ''}`}>{fmtShort(balance)}</span>
+                </div>
+              );
+            })}
           </div>
-          <div className="rounded-xl border bg-purple-50/50 dark:bg-purple-950/20 p-3">
-            <p className="text-xs text-muted-foreground">Receivables</p>
-            <p className="text-base sm:text-lg font-bold font-mono truncate text-purple-600">{fmt(totalReceivables)}</p>
-          </div>
-          <div className="rounded-xl border bg-yellow-50/50 dark:bg-yellow-950/20 p-3">
-            <p className="text-xs text-muted-foreground">Liabilities</p>
-            <p className="text-base sm:text-lg font-bold font-mono truncate text-yellow-600">{fmt(totalLiabilities)}</p>
-          </div>
-          <div className={`rounded-xl border p-3 ${solvencyBg}`}>
-            <p className="text-xs text-muted-foreground">Coverage</p>
-            <p className={`text-base sm:text-lg font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</p>
-          </div>
-        </div>
-        <div className={`rounded-xl border p-4 ${solvencyBg}`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Solvency Indicator</span>
-            <span className={`text-xl font-bold font-mono ${solvencyColor}`}>{solvencyRatio.toFixed(1)}%</span>
-          </div>
-          <Progress value={Math.min(solvencyRatio, 100)} className="h-3" />
-          <p className="text-xs text-muted-foreground mt-1">
-            {solvencyRatio >= 100 ? '✅ Fully covered' : solvencyRatio >= 80 ? '⚠️ Warning zone — monitor closely' : '❌ Critical: underfunded — immediate action needed'}
+        </CardContent>
+      </Card>
+
+      {/* ── LEDGER HEALTH ── */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-1.5">
+            <ShieldAlert className="h-3.5 w-3.5" /> Ledger Health
           </p>
-        </div>
+          <div className="space-y-2">
+            <HealthRow
+              label="Wallet / Ledger Drift"
+              count={integrityChecks?.walletDriftCount ?? 0}
+              onClick={() => onTabChange?.('reconciliation')}
+            />
+            <HealthRow label="Missing Group IDs" count={integrityChecks?.missingGroupCount ?? 0} />
+            <HealthRow label="Negative Balances" count={integrityChecks?.negativeLedgerCount ?? 0} />
+          </div>
+        </CardContent>
+      </Card>
 
-        {(negativeChannels.length > 0 || solvencyRatio < 80) && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Alerts</p>
-            {negativeChannels.map(([name]) => (
-              <Alert key={name} variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>🔴 {name} channel has a negative balance. Investigate immediately.</AlertDescription>
-              </Alert>
+      {/* ── AUTO-PAYOUT SWITCHES ── */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Auto-Payouts</p>
+          <div className="space-y-3">
+            {[
+              { key: 'auto_roi', label: 'ROI Payouts', icon: <HandCoins className="h-4 w-4 text-muted-foreground" /> },
+              { key: 'auto_salaries', label: 'Salaries', icon: <Users className="h-4 w-4 text-muted-foreground" /> },
+              { key: 'auto_commissions', label: 'Commissions', icon: <Banknote className="h-4 w-4 text-muted-foreground" /> },
+              { key: 'auto_advances', label: 'Advances', icon: <TrendingUp className="h-4 w-4 text-muted-foreground" /> },
+            ].map((ctrl) => (
+              <div key={ctrl.key} className="flex items-center justify-between py-1">
+                <div className="flex items-center gap-2.5">
+                  {ctrl.icon}
+                  <span className="text-sm font-medium">{ctrl.label}</span>
+                </div>
+                <Switch
+                  checked={treasuryControls?.[ctrl.key] ?? false}
+                  onCheckedChange={(val) => handleToggleControl(ctrl.key, val)}
+                />
+              </div>
             ))}
-            {solvencyRatio < 80 && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>🔴 Solvency below 80%. Platform is underfunded — liquidity risk is high.</AlertDescription>
-              </Alert>
-            )}
-            {solvencyRatio >= 80 && solvencyRatio < 100 && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>🟡 Solvency below 100%. Not all liabilities are fully covered by cash + receivables.</AlertDescription>
-              </Alert>
-            )}
           </div>
-        )}
-      </SectionCard>
+          <p className="text-[10px] text-muted-foreground mt-3">
+            Each payout is validated against cash availability before release.
+          </p>
+        </CardContent>
+      </Card>
 
-      {/* SECTION 7: Operations */}
-      <SectionCard title="Operations" icon={<Users className="h-5 w-5 text-muted-foreground" />} accent="border-l-muted-foreground/40">
-        <div className="grid lg:grid-cols-2 gap-4">
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Top Agents</h3>
-            <AgentPerformanceRankings compact />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Recent Activity</h3>
-            <WalletRetractionsFeed compact />
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* KPI Breakdown Sheets */}
+      {/* ── BREAKDOWNS ── */}
       <KPIBreakdownSheet
         open={activeBreakdown === 'cash'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
@@ -596,7 +295,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <KPIBreakdownSheet
         open={activeBreakdown === 'cashIn'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Cash In Today — By Category"
+        title="Cash In Today"
         total={todayCashFlow?.cashInToday ?? 0}
         items={Object.entries(todayCashFlow?.inflowCategories ?? {}).map(([cat, val]) => ({
           label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
@@ -606,7 +305,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <KPIBreakdownSheet
         open={activeBreakdown === 'cashOut'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Cash Out Today — By Category"
+        title="Cash Out Today"
         total={todayCashFlow?.cashOutToday ?? 0}
         items={Object.entries(todayCashFlow?.outflowCategories ?? {}).map(([cat, val]) => ({
           label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
@@ -627,77 +326,47 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   );
 }
 
-// --- Sub-components ---
+/* ── Simple sub-components ── */
 
-import { Wrench } from 'lucide-react';
-
-function KPICard({ label, value, subtitle, accent, icon, onClick }: {
-  label: string; value: string; subtitle: string; accent: string; icon: React.ReactNode; onClick?: () => void;
+function BigNumber({ emoji, label, value, sub, onClick }: {
+  emoji: string; label: string; value: string; sub: string; onClick?: () => void;
 }) {
   return (
-    <div
-      className={`rounded-2xl border border-border/60 bg-card p-3 sm:p-4 border-l-4 ${accent} cursor-pointer hover:shadow-md transition-shadow`}
+    <button
       onClick={onClick}
+      className="w-full rounded-2xl border bg-card p-4 flex items-center gap-4 text-left active:scale-[0.98] transition-transform hover:shadow-sm"
     >
-      <div className="flex items-center gap-2 mb-1">
-        {icon}
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+      <span className="text-3xl">{emoji}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground font-medium">{label}</p>
+        <p className="text-xl font-bold font-mono truncate">{value}</p>
+        <p className="text-[11px] text-muted-foreground truncate">{sub}</p>
       </div>
-      <p className="text-base sm:text-2xl font-bold font-mono truncate">{value}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+    </button>
+  );
+}
+
+function Pill({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className={`rounded-xl px-4 py-2 ${color}`}>
+      <p className="text-[10px] uppercase font-semibold opacity-70">{label}</p>
+      <p className="text-lg font-bold font-mono">{value}</p>
     </div>
   );
 }
 
-function SectionCard({ title, icon, accent, children }: {
-  title: string; icon: React.ReactNode; accent: string; children: React.ReactNode;
-}) {
+function HealthRow({ label, count, onClick }: { label: string; count: number; onClick?: () => void }) {
+  const ok = count === 0;
   return (
-    <Card className={`border-l-4 ${accent}`}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-function MiniKPI({ label, value, highlight, muted: isMuted }: { label: string; value: string; highlight?: boolean; muted?: boolean }) {
-  return (
-    <div className="rounded-xl border bg-muted/30 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-base sm:text-lg font-bold font-mono truncate ${highlight ? 'text-emerald-600' : isMuted ? 'text-muted-foreground' : ''}`}>{value}</p>
-    </div>
-  );
-}
-
-function FlowRow({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex justify-between items-center text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono font-medium">{fmt(value)}</span>
-    </div>
-  );
-}
-
-function IntegrityAlert({ label, count, description, onClick }: {
-  label: string; count: number; description: string; onClick?: () => void;
-}) {
-  const isOk = count === 0;
-  return (
-    <div
-      className={`rounded-xl border p-4 cursor-pointer hover:shadow-sm transition-shadow ${isOk ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200' : 'bg-red-50/50 dark:bg-red-950/10 border-red-300'}`}
+    <button
       onClick={onClick}
+      className={`w-full flex items-center justify-between p-3 rounded-xl border text-left ${ok ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200' : 'bg-red-50/50 dark:bg-red-950/10 border-red-300'}`}
     >
-      <div className="flex items-center gap-2 mb-1">
-        {isOk ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
-        <span className="text-sm font-semibold">{label}</span>
+      <div className="flex items-center gap-2">
+        {ok ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+        <span className="text-sm font-medium">{label}</span>
       </div>
-      <p className={`text-2xl font-bold font-mono ${isOk ? 'text-emerald-600' : 'text-red-600'}`}>{count}</p>
-      <p className="text-[10px] text-muted-foreground mt-1">{description}</p>
-    </div>
+      <span className={`text-base font-bold font-mono ${ok ? 'text-emerald-600' : 'text-red-600'}`}>{count}</span>
+    </button>
   );
 }
