@@ -7,14 +7,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Wallet, Search, User, TrendingUp } from 'lucide-react';
+import { Loader2, Wallet, Search, User, TrendingUp, ArrowLeft } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import ConfirmSummaryCard from '@/components/payments/ConfirmSummaryCard';
 
 interface AgentTopUpTenantDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 }
+
+type DialogStep = 'input' | 'confirm' | 'success';
 
 export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentTopUpTenantDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,15 +26,15 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<{ id: string; full_name: string; phone: string }[]>([]);
   const [tenantInfo, setTenantInfo] = useState<{ id: string; full_name: string; phone: string } | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [step, setStep] = useState<DialogStep>('input');
   const [commissionEarned, setCommissionEarned] = useState(0);
   const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [tenantRentBalance, setTenantRentBalance] = useState<number | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch agent's wallet balance when dialog opens
   useEffect(() => {
     if (!open || !user) return;
     const fetchBalance = async () => {
@@ -45,7 +48,6 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
     fetchBalance();
   }, [open, user]);
 
-  // Search tenants by name or phone
   const searchTenant = async () => {
     const q = searchQuery.trim();
     if (q.length < 2) {
@@ -89,7 +91,6 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const selectTenant = async (tenant: { id: string; full_name: string; phone: string }) => {
     setTenantInfo(tenant);
     setSearchResults([]);
-    // Fetch tenant's rent balance
     const { data } = await supabase
       .from('rent_requests')
       .select('total_repayment, amount_repaid')
@@ -103,13 +104,19 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
     }
   };
 
+  const amountNum = parseFloat(amount) || 0;
+  const commission = Math.round(amountNum * 0.10);
+  const landlordPortion = amountNum - commission;
+
+  const handleProceedToConfirm = () => {
+    if (!tenantInfo || amountNum <= 0) return;
+    if (agentBalance !== null && amountNum > agentBalance) return;
+    setConfirmed(false);
+    setStep('confirm');
+  };
+
   const handleTopUp = async () => {
-    if (!tenantInfo) return;
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast({ title: 'Enter a valid amount', variant: 'destructive' });
-      return;
-    }
+    if (!tenantInfo || !confirmed) return;
 
     setLoading(true);
     try {
@@ -131,9 +138,8 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
 
       const earnedCommission = data?.details?.agent_commission || 0;
       setCommissionEarned(earnedCommission);
-      setSuccess(true);
+      setStep('success');
       
-      // Invalidate earnings and wallet caches so agent sees commission immediately
       queryClient.invalidateQueries({ queryKey: ['agent-daily-rent-expected'] });
       queryClient.invalidateQueries({ queryKey: ['agent-earnings-forecast'] });
       queryClient.invalidateQueries({ queryKey: ['wallet'] });
@@ -152,9 +158,10 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
     setAmount('');
     setTenantInfo(null);
     setSearchResults([]);
-    setSuccess(false);
+    setStep('input');
     setCommissionEarned(0);
     setTenantRentBalance(null);
+    setConfirmed(false);
     onOpenChange(false);
   };
 
@@ -163,8 +170,13 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
+            {step === 'confirm' && (
+              <Button variant="ghost" size="icon" className="h-7 w-7 -ml-1" onClick={() => setStep('input')}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
             <Wallet className="h-5 w-5 text-primary" />
-            Pay Rent for Tenant
+            {step === 'confirm' ? 'Confirm Payment' : 'Pay Rent for Tenant'}
           </DialogTitle>
         </DialogHeader>
 
@@ -176,13 +188,13 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
           </span>
         </div>
 
-        {success ? (
+        {step === 'success' ? (
          <div className="text-center py-6 space-y-4">
              <div className="w-16 h-16 mx-auto bg-success/20 rounded-full flex items-center justify-center">
                <Wallet className="h-8 w-8 text-success" />
              </div>
              <h3 className="text-lg font-semibold">Rent Payment Successful!</h3>
-             <p className="text-muted-foreground">{formatUGX(parseFloat(amount))} paid for {tenantInfo?.full_name}</p>
+             <p className="text-muted-foreground">{formatUGX(amountNum)} paid for {tenantInfo?.full_name}</p>
              
              {commissionEarned > 0 && (
                <div className="rounded-xl border-2 border-success/40 bg-success/5 p-4 space-y-1">
@@ -196,7 +208,47 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
              
              <Button onClick={handleClose} className="w-full">Done</Button>
            </div>
-         ) : (
+        ) : step === 'confirm' ? (
+          <div className="space-y-4">
+            <ConfirmSummaryCard
+              title="Payment Breakdown"
+              items={[
+                { label: 'Tenant', value: tenantInfo?.full_name || '', secondary: true },
+                { label: 'Total Payment', value: formatUGX(amountNum) },
+              ]}
+              fees={[
+                { label: 'Landlord receives', value: formatUGX(landlordPortion) },
+                { label: 'Your commission (10%)', value: formatUGX(commission) },
+              ]}
+              total={{ label: 'Deducted from Wallet', value: formatUGX(amountNum) }}
+              confirmText="I confirm this rent payment is correct"
+              confirmed={confirmed}
+              onConfirmChange={setConfirmed}
+              showSecurityNote={false}
+            />
+
+            {tenantRentBalance !== null && tenantRentBalance > 0 && (
+              <div className="bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                Tenant's outstanding balance after payment: <span className="font-bold text-foreground">
+                  {formatUGX(Math.max(0, tenantRentBalance - amountNum))}
+                </span>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep('input')} className="flex-1 h-12" disabled={loading}>
+                Back
+              </Button>
+              <Button
+                onClick={handleTopUp}
+                className="flex-1 h-12"
+                disabled={loading || !confirmed}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `Confirm ${formatUGX(amountNum)}`}
+              </Button>
+            </div>
+          </div>
+        ) : (
            <div className="space-y-4">
              {/* Step 1: Search tenant by name or phone */}
              <div className="space-y-2">
@@ -282,25 +334,34 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
                      min="1"
                      className="h-12"
                    />
-                   {agentBalance !== null && amount && parseFloat(amount) > agentBalance && (
+                   {agentBalance !== null && amountNum > agentBalance && amountNum > 0 && (
                      <p className="text-xs text-destructive font-medium">⚠️ Amount exceeds your wallet balance</p>
                    )}
                  </div>
 
-                 <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                   💡 This pays rent from your wallet into the tenant's wallet. If they have an active repayment, it'll be auto-deducted.
-                 </div>
+                 {amountNum > 0 && (
+                   <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                     <div className="flex justify-between text-muted-foreground">
+                       <span>Your commission (10%)</span>
+                       <span className="font-semibold text-success">{formatUGX(commission)}</span>
+                     </div>
+                     <div className="flex justify-between text-muted-foreground">
+                       <span>Landlord receives</span>
+                       <span className="font-semibold">{formatUGX(landlordPortion)}</span>
+                     </div>
+                   </div>
+                 )}
 
                  <div className="flex gap-2">
                    <Button variant="outline" onClick={handleClose} className="flex-1 h-12" disabled={loading}>
                      Cancel
                    </Button>
                    <Button 
-                     onClick={handleTopUp} 
+                     onClick={handleProceedToConfirm} 
                      className="flex-1 h-12" 
-                     disabled={loading || !amount || (agentBalance !== null && parseFloat(amount) > agentBalance)}
+                     disabled={!amount || amountNum <= 0 || (agentBalance !== null && amountNum > agentBalance)}
                    >
-                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay ${amount ? formatUGX(parseFloat(amount) || 0) : ''}`}
+                     Review Payment
                    </Button>
                  </div>
                </>
