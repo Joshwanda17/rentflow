@@ -95,7 +95,7 @@ export default function StaffAccessCard() {
       <CardContent className="space-y-3">
         {hasStaffAccess ? (
           <Button
-            onClick={handleQuickSwitch}
+            onClick={() => handleQuickSwitch()}
             className="w-full gap-2"
             variant="outline"
           >
