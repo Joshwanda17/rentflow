@@ -97,24 +97,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </button>
       )}
 
-      {/* ── HEALTH AT A GLANCE ── */}
-      <div className="text-center py-3">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-1">Platform Health</p>
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border-2"
-          style={{
-            borderColor: solvencyStatus === 'healthy' ? 'hsl(var(--primary))' : solvencyStatus === 'warning' ? 'hsl(45, 93%, 47%)' : 'hsl(0, 84%, 60%)',
-            background: solvencyStatus === 'healthy' ? 'hsl(var(--primary) / 0.08)' : solvencyStatus === 'warning' ? 'hsl(45, 93%, 47%, 0.08)' : 'hsl(0, 84%, 60%, 0.08)',
-          }}
-        >
-          {solvencyStatus === 'healthy' && <CheckCircle2 className="h-5 w-5 text-primary" />}
-          {solvencyStatus === 'warning' && <AlertTriangle className="h-5 w-5 text-yellow-600" />}
-          {solvencyStatus === 'critical' && <XCircle className="h-5 w-5 text-red-600" />}
-          <span className="text-lg font-bold">
-            {solvencyStatus === 'healthy' ? 'All Good' : solvencyStatus === 'warning' ? 'Needs Attention' : 'Critical'}
-          </span>
-          <span className="text-sm text-muted-foreground">({solvencyRatio.toFixed(0)}% covered)</span>
-        </div>
-      </div>
 
 
       {/* ── 3 BIG NUMBERS ── */}
