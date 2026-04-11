@@ -227,6 +227,7 @@ export function CFOROIRequests() {
                         {rejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <XCircle className="h-3.5 w-3.5 mr-1" />}
                         Reject
                       </Button>
+                      </div>
                     </div>
                   )}
 
