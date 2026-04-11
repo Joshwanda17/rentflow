@@ -64,6 +64,27 @@ const HOUSE_CATEGORIES = [
   { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
 ];
 
+// ===== FIX #1: Ugandan phone validation =====
+const UG_PHONE_REGEX = /^0[3-9][0-9]{8}$/;
+
+function isValidUgPhone(phone: string): boolean {
+  return UG_PHONE_REGEX.test(phone.replace(/\s/g, ''));
+}
+
+function formatPhoneInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+}
+
+// ===== FIX #7: Currency display formatting =====
+function formatCurrencyInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  return Number(digits).toLocaleString('en-UG');
+}
+
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, prefillTenantName, prefillTenantPhone, prefillRentAmount }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -99,6 +120,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
+
+  // FIX #9: house category for outstanding flow
+  const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
+
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
     if (open) {
@@ -185,6 +210,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Phone('');
     setLc1Village('');
     setHouseCategory('');
+    setOutstandingHouseCategory('');
     setNoSmartphone(false);
     setGpsLocation(null);
     setGpsLoading(false);
@@ -246,6 +272,29 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
   const fees = calculateFees();
 
+  // ===== FIX #1: Phone validation helper =====
+  const validatePhones = (isOutstanding: boolean): boolean => {
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+
+    if (!isValidUgPhone(cleanTenantPhone)) {
+      toast.error('Tenant phone must be a valid Ugandan number (e.g. 0783 123 456)');
+      return false;
+    }
+    if (!isValidUgPhone(cleanLandlordPhone)) {
+      toast.error('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
+      return false;
+    }
+    if (!isOutstanding && lc1Phone.trim()) {
+      const cleanLc1 = lc1Phone.replace(/\s/g, '');
+      if (!isValidUgPhone(cleanLc1)) {
+        toast.error('LC1 phone must be a valid Ugandan number');
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleSubmit = async () => {
     if (!user || !fees) return;
 
@@ -263,6 +312,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (!landlordName.trim() || !landlordPhone.trim()) {
       toast.error('Please provide landlord name and phone');
+      return;
+    }
+
+    // FIX #1: Validate phone formats
+    if (!validatePhones(isOutstanding)) return;
+
+    // FIX #8: Village required for outstanding flow
+    if (isOutstanding && !lc1Village.trim()) {
+      toast.error('Please provide the Village/Cell location');
       return;
     }
 
@@ -284,48 +342,75 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLoading(true);
 
     try {
-      // Create landlord record
-      const { data: landlord, error: landlordError } = await supabase
+      // ===== FIX #3: Upsert landlord — check existing by phone first =====
+      const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+      let landlordId: string;
+
+      const { data: existingLandlord } = await supabase
         .from('landlords')
-        .insert({
-          name: landlordName.trim(),
-          phone: landlordPhone.trim(),
-          property_address: isOutstanding ? (lc1Village.trim() || 'N/A') : propertyAddress.trim(),
-          registered_by: user?.id,
-        })
         .select('id')
-        .single();
+        .eq('phone', cleanLandlordPhone)
+        .limit(1)
+        .maybeSingle();
 
-      if (landlordError) throw landlordError;
-
-      // Create LC1 record (use placeholder values for outstanding if not provided)
-      let lc1Id: string | null = null;
-      if (!isOutstanding || (lc1Name.trim() && lc1Phone.trim())) {
-        const { data: lc1, error: lc1Error } = await supabase
-          .from('lc1_chairpersons')
+      if (existingLandlord) {
+        landlordId = existingLandlord.id;
+      } else {
+        const { data: landlord, error: landlordError } = await supabase
+          .from('landlords')
           .insert({
-            name: lc1Name.trim() || 'N/A',
-            phone: lc1Phone.trim() || 'N/A',
-            village: lc1Village.trim() || 'N/A',
+            name: landlordName.trim(),
+            phone: cleanLandlordPhone,
+            property_address: isOutstanding ? lc1Village.trim() : propertyAddress.trim(),
+            registered_by: user?.id,
           })
           .select('id')
           .single();
 
-        if (lc1Error) throw lc1Error;
-        lc1Id = lc1.id;
+        if (landlordError) throw landlordError;
+        landlordId = landlord.id;
+      }
+
+      // ===== FIX #4: Upsert LC1 — check existing by phone first =====
+      let lc1Id: string | null = null;
+      const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+      if (!isOutstanding || (lc1Name.trim() && cleanLc1Phone)) {
+        const { data: existingLc1 } = await supabase
+          .from('lc1_chairpersons')
+          .select('id')
+          .eq('phone', cleanLc1Phone)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingLc1) {
+          lc1Id = existingLc1.id;
+        } else {
+          const { data: lc1, error: lc1Error } = await supabase
+            .from('lc1_chairpersons')
+            .insert({
+              name: lc1Name.trim() || 'N/A',
+              phone: cleanLc1Phone || 'N/A',
+              village: lc1Village.trim() || 'N/A',
+            })
+            .select('id')
+            .single();
+
+          if (lc1Error) throw lc1Error;
+          lc1Id = lc1.id;
+        }
       }
 
       // Register tenant via edge function (handles both existing and new users)
+      const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
       const { data: tenantResult, error: tenantRegError } = await supabase.functions.invoke('register-tenant', {
         body: {
           full_name: tenantName.trim(),
-          phone: tenantPhone.trim(),
+          phone: cleanTenantPhone,
         },
       });
 
       if (tenantRegError) {
         console.error('Tenant registration error:', tenantRegError);
-        // Try to extract error message from the response
         let errorMsg = 'Failed to register tenant';
         try {
           if (tenantRegError.context?.body) {
@@ -348,12 +433,17 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       const tenantId = tenantResult.user_id;
 
+      // FIX #9: Use selected house category or null for outstanding
+      const resolvedHouseCategory = isOutstanding
+        ? (outstandingHouseCategory || null)
+        : houseCategory;
+
       const { data: rentReq, error: requestError } = await supabase
         .from('rent_requests')
         .insert({
           tenant_id: tenantId,
           agent_id: user.id,
-          landlord_id: landlord.id,
+          landlord_id: landlordId,
           lc1_id: lc1Id,
           rent_amount: fees.rentAmount,
           duration_days: fees.durationDays,
@@ -362,7 +452,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           total_repayment: fees.totalRepayment,
           daily_repayment: fees.dailyRepayment,
           status: 'pending',
-          house_category: isOutstanding ? 'single-room' : houseCategory,
+          house_category: resolvedHouseCategory,
           tenant_no_smartphone: isOutstanding ? false : noSmartphone,
           request_latitude: isOutstanding ? null : (gpsLocation?.lat ?? null),
           request_longitude: isOutstanding ? null : (gpsLocation?.lng ?? null),
@@ -414,6 +504,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       case '120': return '120 Days (4 Months)';
     }
   };
+
+  // FIX #5: Outstanding min = 50,000 (matches regular flow)
+  const outstandingMinAmount = 50000;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -601,22 +694,28 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <Label className="text-xs">Landlord Phone *</Label>
                         <Input
                           value={landlordPhone}
-                          onChange={(e) => setLandlordPhone(e.target.value)}
+                          onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
                           placeholder="0700 123 456"
                           className="h-10"
+                          maxLength={12}
                           required
                         />
+                        {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
+                          <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
+                        )}
                       </div>
                     </div>
+                    {/* FIX #8: Village required */}
                     <div className="space-y-1">
                       <Label className="text-xs flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> Village/Cell Location
+                        <MapPin className="h-3 w-3" /> Village/Cell Location *
                       </Label>
                       <Input
                         value={lc1Village}
                         onChange={(e) => setLc1Village(e.target.value)}
                         placeholder="📍 Village/Cell"
                         className="h-10"
+                        required
                       />
                     </div>
 
@@ -637,9 +736,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           <Label className="text-xs">LC1 Phone</Label>
                           <Input
                             value={lc1Phone}
-                            onChange={(e) => setLc1Phone(e.target.value)}
-                            placeholder="Phone"
+                            onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
+                            placeholder="0700 123 456"
                             className="h-10"
+                            maxLength={12}
                           />
                         </div>
                       </div>
@@ -667,29 +767,75 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <Label className="text-xs">Tenant Phone *</Label>
                         <Input
                           value={tenantPhone}
-                          onChange={(e) => setTenantPhone(e.target.value)}
-                          placeholder="0700 123 456"
+                          onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
+                          placeholder="0783 123 456"
                           className="h-10"
+                          maxLength={12}
                           required
                         />
+                        {tenantPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(tenantPhone.replace(/\s/g, '')) && (
+                          <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
+                        )}
                       </div>
                     </div>
+
+                    {/* FIX #7: Currency formatting on outstanding balance input */}
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Outstanding Balance (UGX) *</Label>
                       <Input
-                        value={outstandingBalance}
+                        value={formatCurrencyInput(outstandingBalance)}
                         onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Enter amount"
                         className="h-12 text-lg font-bold border-2 rounded-xl focus:ring-0" style={{ borderColor: 'rgba(124, 59, 237, 0.4)' }} onFocus={(e) => e.currentTarget.style.borderColor = '#7C3BED'} onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(124, 59, 237, 0.4)'}
                         required
                       />
-                      {amount > 0 && (
+                      {amount > 0 && amount < outstandingMinAmount && (
+                        <p className="text-[10px] text-destructive mt-1">
+                          Minimum outstanding balance is {formatUGX(outstandingMinAmount)}
+                        </p>
+                      )}
+                      {amount >= outstandingMinAmount && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / 30))}/day</span> for 30 days
+                          Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / parseInt(duration)))}/day</span> for {duration} days
                         </p>
                       )}
                     </div>
+
+                    {/* FIX #6: Duration selector for outstanding balance */}
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Repayment Duration *</Label>
+                      <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
+                        <SelectTrigger className="h-10 border-2 rounded-xl" style={{ borderColor: 'rgba(124, 59, 237, 0.3)' }}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="30">30 Days</SelectItem>
+                          <SelectItem value="60">60 Days</SelectItem>
+                          <SelectItem value="90">90 Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* FIX #9: House category selector for outstanding */}
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">House Category (optional)</Label>
+                      <Select value={outstandingHouseCategory} onValueChange={setOutstandingHouseCategory}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select house type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {HOUSE_CATEGORIES.map(cat => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.emoji} {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
+
+                  {/* FIX #2: Add GuarantorConsentCheckbox to outstanding flow */}
+                  <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
 
                   {/* Submit button for outstanding mode */}
                   <div className="flex gap-3 pt-2">
@@ -704,7 +850,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Button 
                       onClick={handleSubmit} 
                       className="flex-1 text-white hover:opacity-90" style={{ backgroundColor: '#7C3BED' }}
-                      disabled={loading || amount < 2000}
+                      disabled={loading || amount < outstandingMinAmount || !guarantorConsent}
                     >
                       {loading ? (
                         <>
@@ -729,8 +875,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold text-primary/80">Rent Amount (UGX) *</Label>
                     <p className="text-[10px] font-bold text-primary/60 italic">Let Welile pay this today</p>
+                    {/* FIX #7: Currency formatting */}
                     <Input
-                      value={rentAmount}
+                      value={formatCurrencyInput(rentAmount)}
                       onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder="500,000"
                       className="h-12 text-lg font-bold border-2 border-primary/30 focus:border-primary rounded-xl"
@@ -847,11 +994,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Input
                       id="tenantPhone"
                       value={tenantPhone}
-                      onChange={(e) => setTenantPhone(e.target.value)}
-                      placeholder="0783..."
+                      onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
+                      placeholder="0783 123 456"
                       className="h-10"
+                      maxLength={12}
                       required
                     />
+                    {tenantPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(tenantPhone.replace(/\s/g, '')) && (
+                      <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -901,11 +1052,15 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label className="text-xs">Phone *</Label>
                     <Input
                       value={landlordPhone}
-                      onChange={(e) => setLandlordPhone(e.target.value)}
-                      placeholder="Phone"
+                      onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
+                      placeholder="0700 123 456"
                       className="h-10"
+                      maxLength={12}
                       required
                     />
+                    {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
+                      <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -1026,9 +1181,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Label className="text-xs">Phone *</Label>
                     <Input
                       value={lc1Phone}
-                      onChange={(e) => setLc1Phone(e.target.value)}
-                      placeholder="Phone"
+                      onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
+                      placeholder="0700 123 456"
                       className="h-10"
+                      maxLength={12}
                       required
                     />
                   </div>
