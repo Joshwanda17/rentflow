@@ -210,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         switchRole,
         addRole,
+        grantAndSwitchRole,
         resetPassword: ops.resetPassword,
       }}
     >
