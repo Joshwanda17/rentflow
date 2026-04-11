@@ -2,8 +2,7 @@ import { useState, useCallback } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Banknote, Wallet, PiggyBank, ArrowDownRight, ArrowUpRight, Scale, Clock, ShieldAlert, CheckCircle2, XCircle, HandCoins, Users, TrendingUp, AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, HandCoins, Users, TrendingUp, Banknote } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
@@ -56,17 +55,14 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const platformEarnings = revenue?.netProfit ?? 0;
   const walletTotal = liabilities?.tenantFunds ?? 0;
   const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
-
-  const solvencyStatus = solvencyRatio >= 100 ? 'healthy' : solvencyRatio >= 80 ? 'warning' : 'critical';
   const netToday = todayCashFlow?.netToday ?? 0;
-  const pendingCount = pendingApprovals?.count ?? 0;
 
   const channels = channelBalances?.channels ?? {};
-  const channelIcons: Record<string, React.ReactNode> = {
-    MTN: <span className="text-lg">📱</span>,
-    Airtel: <span className="text-lg">📱</span>,
-    Bank: <span className="text-lg">🏦</span>,
-    Cash: <span className="text-lg">💵</span>,
+  const channelColors: Record<string, string> = {
+    MTN: 'bg-yellow-400',
+    Airtel: 'bg-red-400',
+    Bank: 'bg-blue-400',
+    Cash: 'bg-emerald-400',
   };
 
   const liabilityItems = [
@@ -78,120 +74,129 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   ];
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <div className="space-y-5 max-w-2xl mx-auto">
 
-      {/* ── PAY TO WALLET QUICK ACTION ── */}
+      {/* ── PAY TO WALLET ── */}
       {onTabChange && (
         <button
           onClick={() => onTabChange('wallet-payout')}
-          className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-primary bg-primary/10 hover:bg-primary/20 transition-colors text-left"
+          className="w-full flex items-center gap-3 p-4 rounded-2xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity text-left shadow-lg"
         >
-          <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center shrink-0">
-            <Wallet className="h-6 w-6 text-primary-foreground" />
+          <div className="h-11 w-11 rounded-xl bg-primary-foreground/20 flex items-center justify-center shrink-0">
+            <Wallet className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-base">💳 Pay to Wallet</p>
-            <p className="text-xs text-muted-foreground">Credit or debit any user's wallet instantly</p>
+            <p className="font-semibold text-sm">Send Money to a Wallet</p>
+            <p className="text-xs opacity-80">Credit or debit any user instantly</p>
           </div>
-          <ArrowUpRight className="h-5 w-5 text-primary shrink-0" />
+          <ArrowUpRight className="h-5 w-5 opacity-60 shrink-0" />
         </button>
       )}
 
-
-
-      {/* ── 3 BIG NUMBERS ── */}
+      {/* ── 3 KEY NUMBERS ── */}
       <div className="grid grid-cols-1 gap-3">
-        <BigNumber
-          emoji="💰"
+        <MetricCard
+          icon={<div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><Banknote className="h-5 w-5 text-blue-600" /></div>}
           label="Money We Have"
+          sublabel="Total cash across all channels"
           value={fmt(totalCash)}
-          sub={`Available: ${fmtShort(Math.max(0, totalCash - totalLiabilities))}`}
+          detail={`Free to use: ${fmtShort(Math.max(0, totalCash - totalLiabilities))}`}
           onClick={() => setActiveBreakdown('cash')}
         />
-        <BigNumber
-          emoji="👛"
+        <MetricCard
+          icon={<div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"><Wallet className="h-5 w-5 text-amber-600" /></div>}
           label="Money We Owe"
+          sublabel="User wallets we need to cover"
           value={fmt(walletTotal)}
-          sub={`Total liabilities: ${fmtShort(totalLiabilities)}`}
+          detail={`All debts: ${fmtShort(totalLiabilities)}`}
           onClick={() => setActiveBreakdown('wallets')}
         />
-        <BigNumber
-          emoji="📈"
+        <MetricCard
+          icon={<div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><TrendingUp className="h-5 w-5 text-emerald-600" /></div>}
           label="Our Profit"
+          sublabel="What we've earned after costs"
           value={fmt(platformEarnings)}
-          sub={`Revenue: ${fmtShort(revenue?.totalRevenue ?? 0)} · Costs: ${fmtShort(revenue?.totalExpenses ?? 0)}`}
+          detail={`Income: ${fmtShort(revenue?.totalRevenue ?? 0)} · Costs: ${fmtShort(revenue?.totalExpenses ?? 0)}`}
+          valueColor={platformEarnings >= 0 ? 'text-emerald-600' : 'text-destructive'}
           onClick={() => setActiveBreakdown('earnings')}
         />
       </div>
 
       {/* ── TODAY'S MOVEMENT ── */}
-      <Card className="rounded-2xl">
-        <CardContent className="p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Today</p>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-3" onClick={() => setActiveBreakdown('cashIn')}>
-              <ArrowDownRight className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
-              <p className="text-lg font-bold font-mono text-emerald-600">{fmtShort(todayCashFlow?.cashInToday ?? 0)}</p>
-              <p className="text-[11px] text-muted-foreground">In</p>
-            </div>
-            <div className="rounded-xl bg-red-50 dark:bg-red-950/20 p-3" onClick={() => setActiveBreakdown('cashOut')}>
-              <ArrowUpRight className="h-5 w-5 text-red-500 mx-auto mb-1" />
-              <p className="text-lg font-bold font-mono text-red-500">{fmtShort(todayCashFlow?.cashOutToday ?? 0)}</p>
-              <p className="text-[11px] text-muted-foreground">Out</p>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-3" onClick={() => setActiveBreakdown('netCash')}>
-              <Scale className="h-5 w-5 text-foreground mx-auto mb-1" />
-              <p className={`text-lg font-bold font-mono ${netToday >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {netToday >= 0 ? '+' : ''}{fmtShort(netToday)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">Net</p>
-            </div>
+      <Card className="rounded-2xl overflow-hidden">
+        <CardContent className="p-0">
+          <div className="px-5 pt-4 pb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Today's Money Flow</p>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-border">
+            <FlowCell
+              label="Came In"
+              value={fmtShort(todayCashFlow?.cashInToday ?? 0)}
+              color="text-emerald-600"
+              icon={<ArrowDownRight className="h-4 w-4" />}
+              onClick={() => setActiveBreakdown('cashIn')}
+            />
+            <FlowCell
+              label="Went Out"
+              value={fmtShort(todayCashFlow?.cashOutToday ?? 0)}
+              color="text-destructive"
+              icon={<ArrowUpRight className="h-4 w-4" />}
+              onClick={() => setActiveBreakdown('cashOut')}
+            />
+            <FlowCell
+              label="Net Change"
+              value={`${netToday >= 0 ? '+' : ''}${fmtShort(netToday)}`}
+              color={netToday >= 0 ? 'text-emerald-600' : 'text-destructive'}
+              icon={<Scale className="h-4 w-4" />}
+              onClick={() => setActiveBreakdown('netCash')}
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* ── GOLDEN RULE (simplified) ── */}
-      <Card className="rounded-2xl border-2 border-dashed border-muted-foreground/20">
+      {/* ── BALANCE CHECK ── */}
+      <Card className="rounded-2xl">
         <CardContent className="p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2 flex items-center gap-1.5">
-            <Scale className="h-3.5 w-3.5" /> Golden Rule Check
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+            Balance Check
+          </p>
+          <p className="text-sm text-muted-foreground mb-3">
+            Our cash should equal what we owe users + our profit.
           </p>
           <div className="flex items-center justify-center gap-2 flex-wrap text-center">
-            <Pill label="Cash" value={fmtShort(totalCash)} color="text-blue-600 bg-blue-50 dark:bg-blue-950/30" />
+            <ValueChip label="Cash" value={fmtShort(totalCash)} variant="blue" />
             <span className="text-lg font-bold text-muted-foreground">=</span>
-            <Pill label="Wallets" value={fmtShort(walletTotal)} color="text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30" />
+            <ValueChip label="We Owe" value={fmtShort(walletTotal)} variant="amber" />
             <span className="text-lg font-bold text-muted-foreground">+</span>
-            <Pill label="Profit" value={fmtShort(platformEarnings)} color="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" />
+            <ValueChip label="Profit" value={fmtShort(platformEarnings)} variant="emerald" />
           </div>
           {(() => {
             const diff = totalCash - walletTotal - platformEarnings;
             const diffPct = totalCash > 0 ? Math.abs(diff / totalCash) * 100 : 0;
-            return diffPct > 1 ? (
-              <p className="text-xs text-center mt-2 text-amber-600 font-medium">
-                ⚠️ {diffPct.toFixed(1)}% timing difference ({fmtShort(diff)})
-              </p>
-            ) : (
-              <p className="text-xs text-center mt-2 text-emerald-600 font-medium">
-                ✅ Balanced ({diffPct.toFixed(1)}% variance)
+            return (
+              <p className={`text-xs text-center mt-3 font-medium ${diffPct > 1 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                {diffPct > 1 ? `⚠️ ${diffPct.toFixed(1)}% difference (${fmtShort(diff)}) — check recent transactions` : `✅ Balanced (${diffPct.toFixed(1)}% variance)`}
               </p>
             );
           })()}
         </CardContent>
       </Card>
 
-      {/* ── CHANNEL BALANCES ── */}
+      {/* ── WHERE THE MONEY IS ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Money Channels</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Where the Money Is</p>
           <div className="space-y-2">
             {Object.entries(channels).map(([name, vals]) => {
               const balance = vals.deposits - vals.withdrawals;
               const isNegative = balance < 0;
               return (
-                <div key={name} className={`flex items-center gap-3 p-3 rounded-xl border ${isNegative ? 'border-red-300 bg-red-50/50 dark:bg-red-950/20' : 'bg-muted/30'}`}>
-                  <span className="text-xl">{channelIcons[name] || '💳'}</span>
+                <div key={name} className={`flex items-center gap-3 p-3 rounded-xl border ${isNegative ? 'border-destructive/30 bg-destructive/5' : 'bg-muted/30'}`}>
+                  <div className={`h-2.5 w-2.5 rounded-full ${channelColors[name] || 'bg-muted-foreground'}`} />
                   <span className="text-sm font-medium flex-1">{name}</span>
-                  <span className={`text-base font-bold font-mono ${isNegative ? 'text-red-600' : ''}`}>{fmtShort(balance)}</span>
+                  <span className={`text-sm font-bold font-mono tabular-nums ${isNegative ? 'text-destructive' : 'text-foreground'}`}>
+                    {fmtShort(balance)}
+                  </span>
                 </div>
               );
             })}
@@ -199,39 +204,22 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </CardContent>
       </Card>
 
-      {/* ── LEDGER HEALTH ── */}
+      {/* ── AUTO-PAYOUTS ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-1.5">
-            <ShieldAlert className="h-3.5 w-3.5" /> Ledger Health
-          </p>
-          <div className="space-y-2">
-            <HealthRow
-              label="Wallet / Ledger Drift"
-              count={integrityChecks?.walletDriftCount ?? 0}
-              onClick={() => onTabChange?.('reconciliation')}
-            />
-            <HealthRow label="Missing Group IDs" count={integrityChecks?.missingGroupCount ?? 0} />
-            <HealthRow label="Negative Balances" count={integrityChecks?.negativeLedgerCount ?? 0} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── AUTO-PAYOUT SWITCHES ── */}
-      <Card className="rounded-2xl">
-        <CardContent className="p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Auto-Payouts</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Automatic Payments</p>
+          <p className="text-xs text-muted-foreground mb-4">Toggle which payouts happen automatically. Each is checked against available cash first.</p>
           <div className="space-y-3">
             {[
-              { key: 'auto_roi', label: 'ROI Payouts', icon: <HandCoins className="h-4 w-4 text-muted-foreground" /> },
-              { key: 'auto_salaries', label: 'Salaries', icon: <Users className="h-4 w-4 text-muted-foreground" /> },
-              { key: 'auto_commissions', label: 'Commissions', icon: <Banknote className="h-4 w-4 text-muted-foreground" /> },
-              { key: 'auto_advances', label: 'Advances', icon: <TrendingUp className="h-4 w-4 text-muted-foreground" /> },
+              { key: 'auto_roi', label: 'Investor Returns', desc: 'Pay investors automatically' },
+              { key: 'auto_salaries', label: 'Staff Salaries', desc: 'Monthly payroll' },
+              { key: 'auto_commissions', label: 'Agent Commissions', desc: 'Agent earnings payouts' },
+              { key: 'auto_advances', label: 'Advance Payments', desc: 'Pre-approved advances' },
             ].map((ctrl) => (
-              <div key={ctrl.key} className="flex items-center justify-between py-1">
-                <div className="flex items-center gap-2.5">
-                  {ctrl.icon}
-                  <span className="text-sm font-medium">{ctrl.label}</span>
+              <div key={ctrl.key} className="flex items-center justify-between py-2 px-1">
+                <div>
+                  <p className="text-sm font-medium">{ctrl.label}</p>
+                  <p className="text-xs text-muted-foreground">{ctrl.desc}</p>
                 </div>
                 <Switch
                   checked={treasuryControls?.[ctrl.key] ?? false}
@@ -240,9 +228,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-3">
-            Each payout is validated against cash availability before release.
-          </p>
         </CardContent>
       </Card>
 
@@ -250,35 +235,34 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <KPIBreakdownSheet
         open={activeBreakdown === 'cash'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Platform Cash Breakdown"
+        title="Cash Breakdown"
         total={totalCash}
         items={Object.entries(channels).map(([name, vals]) => ({
           label: name,
           value: vals.deposits - vals.withdrawals,
-          icon: channelIcons[name],
         }))}
       />
       <KPIBreakdownSheet
         open={activeBreakdown === 'wallets'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="User Wallets Breakdown"
+        title="What We Owe — Breakdown"
         total={totalLiabilities}
         items={liabilityItems}
       />
       <KPIBreakdownSheet
         open={activeBreakdown === 'earnings'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Platform Earnings Breakdown"
+        title="Profit Breakdown"
         total={platformEarnings}
         items={[
-          { label: 'Total Revenue', value: revenue?.totalRevenue ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-green-500" /> },
-          { label: 'Total Expenses', value: -(revenue?.totalExpenses ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-red-500" /> },
+          { label: 'Total Income', value: revenue?.totalRevenue ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-emerald-500" /> },
+          { label: 'Total Costs', value: -(revenue?.totalExpenses ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-destructive" /> },
         ]}
       />
       <KPIBreakdownSheet
         open={activeBreakdown === 'cashIn'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Cash In Today"
+        title="Money In Today"
         total={todayCashFlow?.cashInToday ?? 0}
         items={Object.entries(todayCashFlow?.inflowCategories ?? {}).map(([cat, val]) => ({
           label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
@@ -288,7 +272,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <KPIBreakdownSheet
         open={activeBreakdown === 'cashOut'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Cash Out Today"
+        title="Money Out Today"
         total={todayCashFlow?.cashOutToday ?? 0}
         items={Object.entries(todayCashFlow?.outflowCategories ?? {}).map(([cat, val]) => ({
           label: cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
@@ -298,58 +282,68 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <KPIBreakdownSheet
         open={activeBreakdown === 'netCash'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Net Cash Today"
+        title="Net Change Today"
         total={todayCashFlow?.netToday ?? 0}
         items={[
-          { label: 'Cash In', value: todayCashFlow?.cashInToday ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-green-500" /> },
-          { label: 'Cash Out', value: -(todayCashFlow?.cashOutToday ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-red-500" /> },
+          { label: 'Money In', value: todayCashFlow?.cashInToday ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-emerald-500" /> },
+          { label: 'Money Out', value: -(todayCashFlow?.cashOutToday ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-destructive" /> },
         ]}
       />
     </div>
   );
 }
 
-/* ── Simple sub-components ── */
+/* ── Sub-components ── */
 
-function BigNumber({ emoji, label, value, sub, onClick }: {
-  emoji: string; label: string; value: string; sub: string; onClick?: () => void;
+function MetricCard({ icon, label, sublabel, value, detail, valueColor, onClick }: {
+  icon: React.ReactNode;
+  label: string;
+  sublabel: string;
+  value: string;
+  detail: string;
+  valueColor?: string;
+  onClick?: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-2xl border bg-card p-4 flex items-center gap-4 text-left active:scale-[0.98] transition-transform hover:shadow-sm"
+      className="w-full rounded-2xl border bg-card p-4 flex items-center gap-4 text-left active:scale-[0.98] transition-all hover:shadow-md"
     >
-      <span className="text-3xl">{emoji}</span>
+      {icon}
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground font-medium">{label}</p>
-        <p className="text-xl font-bold font-mono truncate">{value}</p>
-        <p className="text-[11px] text-muted-foreground truncate">{sub}</p>
+        <p className="text-sm font-semibold">{label}</p>
+        <p className="text-[11px] text-muted-foreground">{sublabel}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className={`text-lg font-bold font-mono tabular-nums ${valueColor || ''}`}>{value}</p>
+        <p className="text-[10px] text-muted-foreground">{detail}</p>
       </div>
     </button>
   );
 }
 
-function Pill({ label, value, color }: { label: string; value: string; color: string }) {
+function FlowCell({ label, value, color, icon, onClick }: {
+  label: string; value: string; color: string; icon: React.ReactNode; onClick?: () => void;
+}) {
   return (
-    <div className={`rounded-xl px-4 py-2 ${color}`}>
+    <button onClick={onClick} className="flex flex-col items-center gap-1 py-4 px-2 hover:bg-muted/30 transition-colors">
+      <div className={`${color}`}>{icon}</div>
+      <p className={`text-lg font-bold font-mono tabular-nums ${color}`}>{value}</p>
+      <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
+    </button>
+  );
+}
+
+function ValueChip({ label, value, variant }: { label: string; value: string; variant: 'blue' | 'amber' | 'emerald' }) {
+  const colors = {
+    blue: 'text-blue-600 bg-blue-50 dark:bg-blue-950/30',
+    amber: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30',
+    emerald: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30',
+  };
+  return (
+    <div className={`rounded-xl px-4 py-2 ${colors[variant]}`}>
       <p className="text-[10px] uppercase font-semibold opacity-70">{label}</p>
-      <p className="text-lg font-bold font-mono">{value}</p>
+      <p className="text-lg font-bold font-mono tabular-nums">{value}</p>
     </div>
-  );
-}
-
-function HealthRow({ label, count, onClick }: { label: string; count: number; onClick?: () => void }) {
-  const ok = count === 0;
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center justify-between p-3 rounded-xl border text-left ${ok ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200' : 'bg-red-50/50 dark:bg-red-950/10 border-red-300'}`}
-    >
-      <div className="flex items-center gap-2">
-        {ok ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-        <span className="text-sm font-medium">{label}</span>
-      </div>
-      <span className={`text-base font-bold font-mono ${ok ? 'text-emerald-600' : 'text-red-600'}`}>{count}</span>
-    </button>
   );
 }
