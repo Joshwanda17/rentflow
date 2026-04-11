@@ -147,6 +147,20 @@ export function DirectCreditTool() {
   const [operation, setOperation] = useState<Operation>('credit');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
 
+  // Live count of COO-approved rent requests for the dropdown badge
+  const { data: rentQueueCount = 0 } = useQuery({
+    queryKey: ['rent-disbursement-queue-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('rent_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'coo_approved');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 20_000,
+  });
+
   const availableCategories = useMemo(
     () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
     [operation]
@@ -156,6 +170,8 @@ export function DirectCreditTool() {
     () => PAYOUT_CATEGORIES.find(c => c.id === selectedCategoryId),
     [selectedCategoryId]
   );
+
+  const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
 
   // Reset category when switching operation
   const handleOperationChange = (op: Operation) => {
