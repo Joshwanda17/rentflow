@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
 import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
+import { getStaffSession, setStaffSession } from '@/lib/staffSessionCache';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 const CACHE_KEY = 'welile_mgr_profiles';
