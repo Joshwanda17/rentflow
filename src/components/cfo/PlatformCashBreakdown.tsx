@@ -31,21 +31,27 @@ const PRIORITY_4_CATEGORIES = [
   'salary_advance_repayment',
 ];
 
-// Priority 5: Corrections
-const PRIORITY_5_CATEGORIES = [
+// Priority 5: Others (catch-all for items not in other groups)
+// Dynamically computed — no fixed list
+
+// Priority 6: Corrections
+const PRIORITY_6_CATEGORIES = [
   'system_balance_correction', 'orphan_reassignment', 'orphan_reversal',
 ];
 
-const ALL_PRIORITIZED = [
+// Priority 7: Penalties
+const PRIORITY_7_CATEGORIES = [
+  'penalty_fee', 'late_payment_penalty',
+];
+
+const ALL_NAMED = [
   ...PRIORITY_1_CATEGORIES,
   ...PRIORITY_2_CATEGORIES,
   ...PRIORITY_3_CATEGORIES,
   ...PRIORITY_4_CATEGORIES,
-  ...PRIORITY_5_CATEGORIES,
+  ...PRIORITY_6_CATEGORIES,
+  ...PRIORITY_7_CATEGORIES,
 ];
-
-// Only these categories are shown in the CFO "Money We Have" view
-const ALLOWED_CATEGORIES = [...ALL_PRIORITIZED];
 
 const CATEGORY_LABELS: Record<string, string> = {
   partner_funding: 'Partner / Funder Capital',
@@ -144,14 +150,37 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
     });
   }
 
-  const p5 = entries.filter(e => PRIORITY_5_CATEGORIES.includes(e.category));
+  // Priority 5: Others — anything not in named groups
+  const p5 = entries.filter(e => !ALL_NAMED.includes(e.category));
   if (p5.length > 0) {
+    groups.push({
+      label: 'Other Sources',
+      emoji: '📦',
+      icon: MoreHorizontal,
+      items: p5,
+      total: p5.reduce((s, e) => s + e.total_amount, 0),
+    });
+  }
+
+  const p6 = entries.filter(e => PRIORITY_6_CATEGORIES.includes(e.category));
+  if (p6.length > 0) {
     groups.push({
       label: 'Corrections',
       emoji: '🔄',
       icon: MoreHorizontal,
-      items: p5,
-      total: p5.reduce((s, e) => s + e.total_amount, 0),
+      items: p6,
+      total: p6.reduce((s, e) => s + e.total_amount, 0),
+    });
+  }
+
+  const p7 = entries.filter(e => PRIORITY_7_CATEGORIES.includes(e.category));
+  if (p7.length > 0) {
+    groups.push({
+      label: 'Penalties',
+      emoji: '⚠️',
+      icon: MoreHorizontal,
+      items: p7,
+      total: p7.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
@@ -177,11 +206,11 @@ export function PlatformCashBreakdown() {
     );
   }
 
-  // Only show allowed categories in the CFO "Money We Have" view
-  const filtered = data.filter(e => ALLOWED_CATEGORIES.includes(e.category));
-  if (filtered.length === 0) return null;
+  // Show all cash_in entries — groupByPriority handles the categorization
+  const increases = data.filter(e => e.direction === 'cash_in');
+  if (increases.length === 0) return null;
 
-  const increases = filtered.filter(e => e.direction === 'cash_in');
+  
 
   const totalIn = increases.reduce((s, e) => s + e.total_amount, 0);
 
