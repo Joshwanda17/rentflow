@@ -174,25 +174,27 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </CardContent>
       </Card>
 
-      {/* ── WHERE THE MONEY IS ── */}
+      {/* ── SOURCES OF CASH (replaces channel breakdown) ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Where the Money Is</p>
-          <div className="space-y-2">
-            {Object.entries(channels).map(([name, vals]) => {
-              const balance = vals.deposits - vals.withdrawals;
-              const isNegative = balance < 0;
-              return (
-                <div key={name} className={`flex items-center gap-3 p-3 rounded-xl border ${isNegative ? 'border-destructive/30 bg-destructive/5' : 'bg-muted/30'}`}>
-                  <div className={`h-2.5 w-2.5 rounded-full ${channelColors[name] || 'bg-muted-foreground'}`} />
-                  <span className="text-sm font-medium flex-1">{name}</span>
-                  <span className={`text-sm font-bold font-mono tabular-nums ${isNegative ? 'text-destructive' : 'text-foreground'}`}>
-                    {fmtShort(balance)}
-                  </span>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Where Our Money Comes From</p>
+          <div className="space-y-1.5">
+            {(platformCash?.increases ?? []).slice(0, 6).map((item, i) => (
+              <div key={i} className="flex items-center justify-between text-xs gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="truncate text-foreground">{item.label}</span>
+                  <span className="text-muted-foreground shrink-0">({item.count})</span>
                 </div>
-              );
-            })}
+                <span className="font-mono font-semibold text-emerald-600 shrink-0">+{fmtShort(item.value)}</span>
+              </div>
+            ))}
           </div>
+          {(platformCash?.increases?.length ?? 0) > 6 && (
+            <button onClick={() => setActiveBreakdown('cash')} className="text-xs text-primary mt-2 hover:underline">
+              View all sources →
+            </button>
+          )}
         </CardContent>
       </Card>
 
