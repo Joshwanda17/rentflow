@@ -115,11 +115,14 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
 
   const p3 = entries.filter(e => PRIORITY_3_CATEGORIES.includes(e.category));
   if (p3.length > 0) {
+    // Sort by priority order: principal first, then access fee, registration fee, then wallet repayments
+    const order = PRIORITY_3_CATEGORIES;
+    const sorted = [...p3].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
     groups.push({
-      label: 'Rent Repayments',
+      label: 'Rent Collections & Fees',
       emoji: '🏠',
       icon: Home,
-      items: p3,
+      items: sorted,
       total: p3.reduce((s, e) => s + e.total_amount, 0),
     });
   }
