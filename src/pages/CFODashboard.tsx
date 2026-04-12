@@ -150,6 +150,7 @@ export default function CFODashboard() {
           {/* Cash Position Tab */}
           <TabsContent value="cash" className="space-y-6">
             <DailyCashPositionReport />
+            <PlatformCashBreakdown />
           </TabsContent>
 
           {/* Channel Balances & Direct Credit Tab */}
