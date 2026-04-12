@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
 import ForcePasswordChange from '@/components/auth/ForcePasswordChange';
+import { getStaffSession, setStaffSession } from '@/lib/staffSessionCache';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 const CACHE_KEY = 'welile_mgr_profiles';
@@ -151,6 +152,13 @@ export default function ManagerLogin() {
 
   const handleSelectProfile = (manager: ManagerProfile) => {
     hapticTap();
+    // Check if this manager has a valid 24hr session cached
+    const cachedSession = getStaffSession();
+    if (cachedSession && cachedSession.userId === manager.user_id) {
+      // Skip password — session still valid
+      proceedToDashboard(manager);
+      return;
+    }
     setSelectedManager(manager);
     setAccessPassword('');
     setPasswordError(false);
@@ -216,6 +224,9 @@ export default function ManagerLogin() {
     localStorage.setItem('manager_access_verified', 'true');
     sessionStorage.setItem('manager_selected_id', manager.user_id);
     sessionStorage.setItem('manager_selected_name', manager.full_name);
+
+    // Cache staff session for 24 hours
+    setStaffSession(manager.user_id, manager.full_name);
 
     if (roles.includes('manager')) {
       switchRole('manager');

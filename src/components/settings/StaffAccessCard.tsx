@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { STAFF_ROLES } from '@/lib/roleConstants';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 import type { AppRole } from '@/hooks/auth/types';
+import { getStaffSession, setStaffSession } from '@/lib/staffSessionCache';
 
 const ADMIN_ACCESS_CODE = 'Manager@welile';
 
@@ -57,6 +58,9 @@ export default function StaffAccessCard() {
         }).then(() => {});
       }
 
+      // Cache staff session for 24 hours
+      if (user) setStaffSession(user.id, 'staff');
+
       switchRole(targetRole);
       toast.success('Staff access granted! Redirecting...');
       
@@ -101,6 +105,29 @@ export default function StaffAccessCard() {
           >
             <Shield className="h-4 w-4" />
             Open Staff Portal
+            <ArrowRight className="h-4 w-4 ml-auto" />
+          </Button>
+        ) : getStaffSession() ? (
+          <Button
+            onClick={() => {
+              const session = getStaffSession();
+              if (session) {
+                const targetRole: AppRole = 'manager';
+                if (roles.includes(targetRole)) {
+                  switchRole(targetRole);
+                  const route = getStaffDashboardRoute(targetRole);
+                  navigate(route, { replace: true });
+                } else {
+                  // Session cached but role missing — re-grant
+                  setShowCode(true);
+                }
+              }
+            }}
+            className="w-full gap-2"
+            variant="outline"
+          >
+            <CheckCircle className="h-4 w-4 text-primary" />
+            Continue as Staff
             <ArrowRight className="h-4 w-4 ml-auto" />
           </Button>
         ) : showCode ? (
