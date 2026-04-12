@@ -418,10 +418,10 @@ export function useCFOOverviewData() {
   });
 
   const isLoading =
-    channelBalances.isLoading || liabilities.isLoading || revenue.isLoading || moneyFlow.isLoading || receivables.isLoading || cashFlowByPurpose.isLoading;
+    platformCash.isLoading || liabilities.isLoading || revenue.isLoading || moneyFlow.isLoading || receivables.isLoading || cashFlowByPurpose.isLoading;
 
   return {
-    channelBalances: channelBalances.data,
+    platformCash: platformCash.data,
     liabilities: liabilities.data,
     revenue: revenue.data,
     moneyFlow: moneyFlow.data,

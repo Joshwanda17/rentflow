@@ -23,7 +23,7 @@ const fmtShort = (n: number) => {
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
   const {
-    channelBalances, liabilities, revenue, receivables,
+    platformCash, liabilities, revenue, receivables,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
     isLoading
   } = useCFOOverviewData();
