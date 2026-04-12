@@ -16,7 +16,7 @@ interface DepositFlowProps {
   walletBalance?: number;
 }
 
-type DepositChannel = 'momo' | 'bank' | 'agent_cash';
+type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
 
 const MERCHANT_CODES = {
   mtn: '090777',
