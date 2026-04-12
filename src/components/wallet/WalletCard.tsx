@@ -7,7 +7,7 @@ import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, Histo
 import { useWallet } from '@/hooks/useWallet';
 import { getBalanceColorClass, getBalanceDotClass, formatSyncTime } from '@/lib/walletUtils';
 import { SendMoneyDialog } from './SendMoneyDialog';
-import { DepositDialog } from './DepositDialog';
+import DepositFlow from '@/components/payments/DepositFlow';
 import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
@@ -290,7 +290,7 @@ export function WalletCard() {
       <UserWithdrawalRequests />
 
       <SendMoneyDialog open={sendOpen} onOpenChange={setSendOpen} />
-      <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+      <DepositFlow open={depositOpen} onOpenChange={setDepositOpen} />
       <RequestMoneyDialog 
         open={requestOpen} 
         onOpenChange={setRequestOpen} 
