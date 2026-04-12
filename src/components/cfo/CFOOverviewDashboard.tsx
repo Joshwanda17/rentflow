@@ -121,6 +121,30 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     return groups;
   }, [platformCash?.increases]);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const totalCash = platformCash?.totalCash ?? 0;
+  const totalReceivables = receivables?.totalReceivables ?? 0;
+  const totalLiabilities = liabilities?.totalLiabilities ?? 0;
+  const platformEarnings = revenue?.netProfit ?? 0;
+  const walletTotal = liabilities?.tenantFunds ?? 0;
+  const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
+  const netToday = todayCashFlow?.netToday ?? 0;
+
+  const liabilityItems = [
+    { label: 'Tenant Funds', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
+    { label: 'Agent Payables', value: liabilities?.agentPayables ?? 0, icon: <Users className="h-4 w-4" /> },
+    { label: 'Landlord Payables', value: liabilities?.landlordPayables ?? 0 },
+    { label: 'ROI Obligations', value: liabilities?.roiObligations ?? 0, icon: <HandCoins className="h-4 w-4" /> },
+    { label: 'Pending Withdrawals', value: liabilities?.pendingWithdrawals ?? 0 },
+  ];
+
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
 
