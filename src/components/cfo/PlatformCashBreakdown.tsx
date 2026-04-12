@@ -206,9 +206,9 @@ export function PlatformCashBreakdown() {
     );
   }
 
-  // Only show allowed categories in the CFO "Money We Have" view
-  const filtered = data.filter(e => ALLOWED_CATEGORIES.includes(e.category));
-  if (filtered.length === 0) return null;
+  // Show all cash_in entries — groupByPriority handles the categorization
+  const increases = data.filter(e => e.direction === 'cash_in');
+  if (increases.length === 0) return null;
 
   const increases = filtered.filter(e => e.direction === 'cash_in');
 
