@@ -210,7 +210,7 @@ export function PlatformCashBreakdown() {
   const increases = data.filter(e => e.direction === 'cash_in');
   if (increases.length === 0) return null;
 
-  const increases = filtered.filter(e => e.direction === 'cash_in');
+  
 
   const totalIn = increases.reduce((s, e) => s + e.total_amount, 0);
 
