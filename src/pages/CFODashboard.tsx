@@ -23,6 +23,7 @@ import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { DisbursementRegistry } from '@/components/cfo/DisbursementRegistry';
 import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
+import { PlatformCashBreakdown } from '@/components/cfo/PlatformCashBreakdown';
 import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 import { ThresholdAlerts } from '@/components/cfo/ThresholdAlerts';
 import { BatchPayoutProcessor } from '@/components/cfo/BatchPayoutProcessor';
@@ -149,6 +150,7 @@ export default function CFODashboard() {
           {/* Cash Position Tab */}
           <TabsContent value="cash" className="space-y-6">
             <DailyCashPositionReport />
+            <PlatformCashBreakdown />
           </TabsContent>
 
           {/* Channel Balances & Direct Credit Tab */}
