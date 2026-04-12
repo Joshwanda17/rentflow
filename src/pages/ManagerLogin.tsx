@@ -152,6 +152,13 @@ export default function ManagerLogin() {
 
   const handleSelectProfile = (manager: ManagerProfile) => {
     hapticTap();
+    // Check if this manager has a valid 24hr session cached
+    const cachedSession = getStaffSession();
+    if (cachedSession && cachedSession.userId === manager.user_id) {
+      // Skip password — session still valid
+      proceedToDashboard(manager);
+      return;
+    }
     setSelectedManager(manager);
     setAccessPassword('');
     setPasswordError(false);
@@ -217,6 +224,9 @@ export default function ManagerLogin() {
     localStorage.setItem('manager_access_verified', 'true');
     sessionStorage.setItem('manager_selected_id', manager.user_id);
     sessionStorage.setItem('manager_selected_name', manager.full_name);
+
+    // Cache staff session for 24 hours
+    setStaffSession(manager.user_id, manager.full_name);
 
     if (roles.includes('manager')) {
       switchRole('manager');
