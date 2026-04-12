@@ -10155,6 +10155,19 @@ export type Database = {
           whatsapp_verified: boolean
         }[]
       }
+      search_wallets_by_balance: {
+        Args: {
+          p_limit?: number
+          p_max_balance?: number
+          p_min_balance?: number
+        }
+        Returns: {
+          balance: number
+          full_name: string
+          phone: string
+          user_id: string
+        }[]
+      }
       set_staff_access_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
