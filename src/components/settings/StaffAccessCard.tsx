@@ -58,6 +58,9 @@ export default function StaffAccessCard() {
         }).then(() => {});
       }
 
+      // Cache staff session for 24 hours
+      if (user) setStaffSession(user.id, 'staff');
+
       switchRole(targetRole);
       toast.success('Staff access granted! Redirecting...');
       
