@@ -113,6 +113,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   // Home: Core tools front and center
   return (
     <div className="space-y-5">
+      <WalletOverviewCard />
       <FinancialOpsPulseStrip />
 
       {/* ═══ CORE: Wallet Management ═══ */}
