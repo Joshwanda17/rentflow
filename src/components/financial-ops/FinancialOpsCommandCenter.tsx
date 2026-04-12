@@ -15,38 +15,34 @@ import { DepositStatsPanel } from './DepositStatsPanel';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
-  ShieldCheck, Banknote, X, ArrowLeft, Menu, ChevronDown, ChevronUp,
+  ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
 type View = 'home' | 'deposits';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
-const tools = [
-  { id: 'ops' as const, label: 'Ops Center', icon: Gauge },
-  { id: 'queue' as const, label: 'Approval Queue', icon: ClipboardList },
-  { id: 'search' as const, label: 'Transaction Search', icon: Search },
-  { id: 'recon' as const, label: 'Reconciliation', icon: Scale },
-  { id: 'ledgers' as const, label: 'Ledgers', icon: BookOpen },
-  { id: 'audit' as const, label: 'Audit Trail', icon: Shield },
-  { id: 'withdrawals' as const, label: 'Withdrawals & Payouts', icon: Banknote },
-  { id: 'opportunities' as const, label: 'Capital Opportunities', icon: TrendingUp },
-  { id: 'deductions' as const, label: 'Wallet Deductions', icon: MinusCircle },
-  { id: 'requisitions' as const, label: 'Fund Requisitions', icon: FileText },
+const supportTools = [
+  { id: 'ops' as const, label: 'Ops Center', icon: Gauge, desc: 'Automation & monitoring' },
+  { id: 'queue' as const, label: 'Approval Queue', icon: ClipboardList, desc: 'Pending approvals' },
+  { id: 'search' as const, label: 'Transaction Search', icon: Search, desc: 'Find any transaction' },
+  { id: 'recon' as const, label: 'Reconciliation', icon: Scale, desc: 'Wallet-ledger drift' },
+  { id: 'audit' as const, label: 'Audit Trail', icon: Shield, desc: 'Action history' },
+  { id: 'opportunities' as const, label: 'Capital Opportunities', icon: TrendingUp, desc: 'Investment summaries' },
+  { id: 'requisitions' as const, label: 'Fund Requisitions', icon: FileText, desc: 'Agent fund requests' },
 ];
 
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
   const [view, setView] = useState<View>('home');
-  const [toolSheet, setToolSheet] = useState(false);
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [showDepositStats, setShowDepositStats] = useState(false);
+  const [supportSheet, setSupportSheet] = useState(false);
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
-    setToolSheet(false);
+    setSupportSheet(false);
   };
 
   // Sub-view: Deposits
@@ -58,8 +54,11 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         </button>
         <h2 className="text-lg font-bold flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          Verify Deposits
+          Verify User Deposits
         </h2>
+        <p className="text-xs text-muted-foreground -mt-2">
+          CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and do not require verification.
+        </p>
         <TidVerification />
       </div>
     );
@@ -110,77 +109,116 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     );
   }
 
-  // Home: Verify Deposits + More Tools
+  // Home: Core tools front and center
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <FinancialOpsPulseStrip />
 
-      <div className="grid grid-cols-1 gap-4">
-        {/* Verify Deposits */}
-        <button
-          onClick={() => setShowDepositStats(!showDepositStats)}
-          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[80px]"
-        >
-          <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-base">Verify Deposits</p>
-            <p className="text-xs text-muted-foreground">TID match & approve manual deposits</p>
-          </div>
-          {showDepositStats ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-          )}
-        </button>
+      {/* ═══ CORE: Wallet Management ═══ */}
+      <div>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+          Wallet Management
+        </h2>
+        <div className="grid grid-cols-1 gap-3">
+          {/* Verify User Deposits */}
+          <button
+            onClick={() => setShowDepositStats(!showDepositStats)}
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[80px]"
+          >
+            <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Verify Deposits</p>
+              <p className="text-xs text-muted-foreground">TID match & approve user deposits</p>
+            </div>
+            {showDepositStats ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+            )}
+          </button>
 
-        <AnimatePresence>
-          {showDepositStats && (
-            <DepositStatsPanel onOpenVerification={() => setView('deposits')} />
-          )}
-        </AnimatePresence>
-        {/* Withdrawals & Payouts */}
+          <AnimatePresence>
+            {showDepositStats && (
+              <DepositStatsPanel onOpenVerification={() => setView('deposits')} />
+            )}
+          </AnimatePresence>
+
+          {/* Withdrawals & Payouts */}
+          <button
+            onClick={() => openTool('withdrawals')}
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[80px]"
+          >
+            <div className="h-12 w-12 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
+              <Banknote className="h-6 w-6 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Withdrawals & Payouts</p>
+              <p className="text-xs text-muted-foreground">Process & verify cash-out requests</p>
+            </div>
+          </button>
+
+          {/* Wallet Deductions */}
+          <button
+            onClick={() => openTool('deductions')}
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-destructive/20 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/40 transition-all text-left min-h-[80px]"
+          >
+            <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+              <MinusCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Wallet Deductions</p>
+              <p className="text-xs text-muted-foreground">Retractions, corrections & penalties</p>
+            </div>
+          </button>
+
+          {/* Ledger */}
+          <button
+            onClick={() => openTool('ledgers')}
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-muted bg-muted/30 hover:bg-muted/50 hover:border-muted-foreground/30 transition-all text-left min-h-[80px]"
+          >
+            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
+              <BookOpen className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Ledger</p>
+              <p className="text-xs text-muted-foreground">Full financial record of all wallet activity</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ SUPPORT: Additional Tools ═══ */}
+      <div>
         <button
-          onClick={() => openTool('withdrawals')}
-          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[80px]"
+          onClick={() => setSupportSheet(true)}
+          className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border hover:bg-accent/30 transition-colors"
         >
-          <div className="h-12 w-12 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
-            <Banknote className="h-6 w-6 text-orange-600" />
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-base">Withdrawals & Payouts</p>
-            <p className="text-xs text-muted-foreground">Process & verify cash-out requests</p>
-          </div>
+          <span className="text-sm font-semibold text-muted-foreground">Support Tools</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
 
-      {/* More Tools Button */}
-      <Button
-        variant="outline"
-        className="w-full gap-2"
-        onClick={() => setToolSheet(true)}
-      >
-        <Menu className="h-4 w-4" />
-        More Tools
-      </Button>
-
-      {/* Tools Sheet */}
-      <Sheet open={toolSheet} onOpenChange={setToolSheet}>
+      {/* Support Tools Sheet */}
+      <Sheet open={supportSheet} onOpenChange={setSupportSheet}>
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh]">
           <SheetHeader>
-            <SheetTitle>Financial Tools</SheetTitle>
-            <SheetDescription>Additional operations & reporting</SheetDescription>
+            <SheetTitle>Support Tools</SheetTitle>
+            <SheetDescription>Ops, search, reconciliation & reporting</SheetDescription>
           </SheetHeader>
-          <div className="grid gap-2 mt-4">
-            {tools.map(t => (
+          <div className="grid gap-1.5 mt-4">
+            {supportTools.map(t => (
               <button
                 key={t.id}
                 onClick={() => openTool(t.id)}
                 className="flex items-center gap-3 p-4 rounded-xl hover:bg-accent/40 transition-colors text-left"
               >
-                <t.icon className="h-5 w-5 text-muted-foreground" />
-                <span className="font-medium text-sm">{t.label}</span>
+                <t.icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-sm block">{t.label}</span>
+                  <span className="text-[11px] text-muted-foreground">{t.desc}</span>
+                </div>
               </button>
             ))}
           </div>
