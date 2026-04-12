@@ -403,6 +403,18 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               </div>
             )}
 
+            {/* ─── Cash Deposit Instructions ─── */}
+            {channel === 'cash' && (
+              <div className="p-3 bg-violet-500/5 rounded-lg border border-violet-500/20">
+                <h4 className="font-medium text-xs mb-1 flex items-center gap-1.5">
+                  <Receipt className="h-3.5 w-3.5 text-violet-600" /> Cash Deposit
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Enter the receipt number you received when you deposited cash.
+                </p>
+              </div>
+            )}
+
             {/* ─── Amount ─── */}
             <div className="space-y-2">
               <Label className="text-xs">Amount (UGX)</Label>
