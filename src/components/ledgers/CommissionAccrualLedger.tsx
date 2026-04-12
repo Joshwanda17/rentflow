@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { CheckCircle2, Clock, XCircle, Wallet } from 'lucide-react';
-import { toast } from 'sonner';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   earned: { label: 'Earned', color: 'bg-amber-500/10 text-amber-700 border-amber-500/30', icon: Clock },
@@ -33,7 +31,6 @@ const EVENT_LABELS: Record<string, string> = {
 
 export function CommissionAccrualLedger() {
   const [statusFilter, setStatusFilter] = useState('all');
-  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['commission-accrual-ledger', statusFilter],
@@ -45,22 +42,6 @@ export function CommissionAccrualLedger() {
       const { data } = await q;
       return data || [];
     },
-  });
-
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const updates: any = { status };
-      if (status === 'approved') updates.approved_at = new Date().toISOString();
-      if (status === 'paid') updates.paid_at = new Date().toISOString();
-      if (status === 'rejected') updates.rejected_at = new Date().toISOString();
-      const { error } = await supabase.from('commission_accrual_ledger').update(updates).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Commission updated');
-      queryClient.invalidateQueries({ queryKey: ['commission-accrual-ledger'] });
-    },
-    onError: (e: any) => toast.error(e.message),
   });
 
   const totals = (data || []).reduce((acc, e) => {
@@ -87,6 +68,10 @@ export function CommissionAccrualLedger() {
         })}
       </div>
 
+      <p className="text-[10px] text-muted-foreground text-center">
+        ✅ Commissions flow automatically as a platform expense — no approval required
+      </p>
+
       {/* Entries */}
       <div className="space-y-2">
         {isLoading ? (
@@ -94,7 +79,7 @@ export function CommissionAccrualLedger() {
         ) : (data || []).length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-6">No commissions recorded</p>
         ) : (data || []).map(entry => {
-          const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.earned;
+          const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.paid;
           const Icon = cfg.icon;
           return (
             <Card key={entry.id}>
@@ -116,15 +101,6 @@ export function CommissionAccrualLedger() {
                     <Badge variant="outline" className={`text-[9px] ${cfg.color}`}>
                       <Icon className="h-2.5 w-2.5 mr-0.5" /> {cfg.label}
                     </Badge>
-                    {entry.status === 'earned' && (
-                      <div className="flex gap-1 mt-1">
-                        <Button size="sm" variant="outline" className="h-5 text-[9px] px-1.5" onClick={() => updateStatus.mutate({ id: entry.id, status: 'approved' })}>Approve</Button>
-                        <Button size="sm" variant="ghost" className="h-5 text-[9px] px-1.5 text-destructive" onClick={() => updateStatus.mutate({ id: entry.id, status: 'rejected' })}>Reject</Button>
-                      </div>
-                    )}
-                    {entry.status === 'approved' && (
-                      <Button size="sm" className="h-5 text-[9px] px-1.5 mt-1" onClick={() => updateStatus.mutate({ id: entry.id, status: 'paid' })}>Mark Paid</Button>
-                    )}
                   </div>
                 </div>
               </CardContent>
