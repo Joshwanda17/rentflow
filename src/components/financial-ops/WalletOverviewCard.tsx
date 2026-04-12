@@ -7,19 +7,42 @@ export function WalletOverviewCard() {
   const { data, isLoading } = useQuery({
     queryKey: ['finops-wallet-overview'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Use count query + paginated sum to bypass the 1000-row default limit
+      const { count, error: countErr } = await supabase
         .from('wallets')
-        .select('balance');
+        .select('*', { count: 'exact', head: true });
 
-      if (error) throw error;
+      if (countErr) throw countErr;
 
-      const wallets = data || [];
-      const totalBalance = wallets.reduce((sum, w) => sum + Number(w.balance || 0), 0);
-      const activeWallets = wallets.filter(w => Number(w.balance) > 0).length;
+      // Fetch ALL balances in batches of 1000 to get accurate totals
+      const PAGE_SIZE = 1000;
+      const totalPages = Math.ceil((count || 0) / PAGE_SIZE);
+      let totalBalance = 0;
+      let activeWallets = 0;
 
-      return { totalBalance, walletCount: wallets.length, activeWallets };
+      const batchPromises = [];
+      for (let i = 0; i < totalPages; i++) {
+        batchPromises.push(
+          supabase
+            .from('wallets')
+            .select('balance')
+            .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1)
+        );
+      }
+
+      const results = await Promise.all(batchPromises);
+      for (const res of results) {
+        if (res.error) throw res.error;
+        for (const w of res.data || []) {
+          const bal = Number(w.balance || 0);
+          totalBalance += bal;
+          if (bal > 0) activeWallets++;
+        }
+      }
+
+      return { totalBalance, walletCount: count || 0, activeWallets };
     },
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   return (
