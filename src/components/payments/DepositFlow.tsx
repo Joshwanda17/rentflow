@@ -79,6 +79,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const getProviderLabel = () => {
     if (channel === 'momo') return momoProvider === 'mtn' ? 'MTN MoMo' : 'Airtel Money';
     if (channel === 'bank') return 'Bank Transfer';
+    if (channel === 'cash') return 'Cash Deposit';
     return 'Agent Cash';
   };
 
