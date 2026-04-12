@@ -487,12 +487,16 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
                       className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">From the physical receipt the agent gave you</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {channel === 'agent_cash' ? 'From the physical receipt the agent gave you' : 'From your cash deposit receipt'}
+                  </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Agent Name *</Label>
-                  <Input placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
-                </div>
+                {channel === 'agent_cash' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Agent Name *</Label>
+                    <Input placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
+                  </div>
+                )}
               </>
             )}
 
