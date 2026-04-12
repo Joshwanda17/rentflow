@@ -236,7 +236,8 @@ export function useFinancialStatements() {
       const walletOut = walletOutRes.data || [];
       const bridgeIn = bridgeInRes.data || [];
       const bridgeOut = bridgeOutRes.data || [];
-      const wallets = walletsRes.data || [];
+      const walletTotalsData = walletsRes.data as any;
+      const wallets = [{ balance: Number(walletTotalsData?.total_balance ?? 0) }];
       const rentRequests = rentRequestsRes.data || [];
       const activeAdvances = advancesRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
