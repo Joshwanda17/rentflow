@@ -27,7 +27,7 @@ import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { TenantWalletHeroCard } from '@/components/tenant/TenantWalletHeroCard';
+import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { SubscriptionStatusCard } from '@/components/tenant/SubscriptionStatusCard';
@@ -258,16 +258,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </motion.div>
 
           {/* Wallet Hero Card */}
-          <TenantWalletHeroCard
-            walletBalance={wallet?.balance ?? 0}
-            rentDue={rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0}
-            dueDate={(() => {
-              const active = rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
-              if (!active) return undefined;
-              const d = new Date(active.created_at);
-              d.setDate(d.getDate() + active.duration_days);
-              return d;
-            })()}
+          <UnifiedWalletHeroCard
+            balance={wallet?.balance ?? 0}
+            role="tenant"
+            secondaryLabel="Used for Rent"
+            secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
           />
           
 

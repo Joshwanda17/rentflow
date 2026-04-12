@@ -23,7 +23,7 @@ import RegisterPropertyDialog from '@/components/landlord/RegisterPropertyDialog
 import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
-import { LandlordWalletHeroCard } from '@/components/landlord/LandlordWalletHeroCard';
+import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { MyPropertiesSheet } from '@/components/landlord/MyPropertiesSheet';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 import { useWallet } from '@/hooks/useWallet';
@@ -83,11 +83,11 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
 
           {/* Portfolio Hero Card */}
-          <LandlordWalletHeroCard
-            walletBalance={wallet?.balance ?? 0}
-            totalProperties={landlordStats.totalProperties}
-            emptyHouses={landlordStats.emptyHouses}
-            totalRentReceivable={landlordStats.totalRentReceivable}
+          <UnifiedWalletHeroCard
+            balance={wallet?.balance ?? 0}
+            role="landlord"
+            secondaryLabel="Withdrawable"
+            secondaryValue={formatUGX(wallet?.balance ?? 0)}
           />
 
           {/* Verification Checklist */}
