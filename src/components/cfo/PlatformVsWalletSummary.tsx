@@ -8,8 +8,9 @@ export function PlatformVsWalletSummary() {
   const { data, isLoading } = useQuery({
     queryKey: ['cfo-platform-vs-wallets'],
     queryFn: async () => {
-      const { data: wallets } = await supabase.from('wallets').select('balance');
-      const totalWallets = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
+      // Use RPC to bypass 1000-row limit
+      const { data: walletTotals } = await supabase.rpc('get_wallet_totals');
+      const totalWallets = Number((walletTotals as any)?.total_balance ?? 0);
 
       // Platform cash: all-time earned revenue minus costs (paginated, direction-fallback)
       const revenueCategories = ['tenant_access_fee', 'access_fee', 'tenant_request_fee', 'request_fee', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
