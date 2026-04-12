@@ -9985,6 +9985,7 @@ export type Database = {
           wallet_balance: number
         }[]
       }
+      get_wallet_totals: { Args: never; Returns: Json }
       has_dashboard_access: {
         Args: { _dashboard: string; _user_id: string }
         Returns: boolean
