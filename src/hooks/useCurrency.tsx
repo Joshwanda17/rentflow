@@ -13,7 +13,7 @@ export interface Currency {
 // Base currencies with default rates (will be updated with live rates)
 const baseCurrencies: Omit<Currency, 'rate'>[] = [
   // Africa
-  { code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling', flag: '🇺🇬', locale: 'en-UG' },
+  { code: 'UGX', symbol: 'UGX', name: 'Ugandan Shilling', flag: '🇺🇬', locale: 'en-UG' },
   { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', flag: '🇰🇪', locale: 'en-KE' },
   { code: 'TZS', symbol: 'TSh', name: 'Tanzanian Shilling', flag: '🇹🇿', locale: 'sw-TZ' },
   { code: 'RWF', symbol: 'FRw', name: 'Rwandan Franc', flag: '🇷🇼', locale: 'rw-RW' },
