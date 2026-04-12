@@ -435,13 +435,3 @@ export function useCFOOverviewData() {
     isLoading,
   };
 }
-
-function mapProvider(provider: string | null): string {
-  if (!provider) return 'Unassigned';
-  const p = provider.toLowerCase();
-  if (p.includes('mtn')) return 'MTN';
-  if (p.includes('airtel')) return 'Airtel';
-  if (p.includes('bank') || p.includes('stanbic') || p.includes('centenary')) return 'Bank';
-  if (p.includes('cash')) return 'Cash';
-  return 'Unassigned';
-}
