@@ -171,10 +171,18 @@ export function PlatformCashBreakdown() {
     );
   }
 
-  if (!data || data.length === 0) return null;
+  // Categories to exclude from the CFO "Money We Have" view
+  const EXCLUDED_CATEGORIES = [
+    'supporter_platform_rewards',
+    'agent_commission_payout',
+    'rent_disbursement',
+  ];
 
-  const increases = data.filter(e => e.direction === 'cash_in');
-  const decreases = data.filter(e => e.direction === 'cash_out').sort((a, b) => b.total_amount - a.total_amount);
+  const filtered = data.filter(e => !EXCLUDED_CATEGORIES.includes(e.category));
+  if (filtered.length === 0) return null;
+
+  const increases = filtered.filter(e => e.direction === 'cash_in');
+  const decreases = filtered.filter(e => e.direction === 'cash_out').sort((a, b) => b.total_amount - a.total_amount);
 
   const totalIn = increases.reduce((s, e) => s + e.total_amount, 0);
   const totalOut = decreases.reduce((s, e) => s + e.total_amount, 0);
