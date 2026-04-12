@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "💳 CFO Direct Credit", body: "Activity: direct credit", url: "/manager" }),
+      body: JSON.stringify({ title: "💳 Welile Technologies Finance", body: "Activity: wallet credit", url: "/manager" }),
     }).catch(() => {});
 
     // Push notification to target user (fire-and-forget)
