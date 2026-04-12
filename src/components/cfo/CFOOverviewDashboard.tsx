@@ -227,15 +227,12 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       </Card>
 
       {/* ── BREAKDOWNS ── */}
-      <KPIBreakdownSheet
+      <GroupedKPIBreakdownSheet
         open={activeBreakdown === 'cash'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
         title="💰 Money We Have — Sources"
         total={totalCash}
-        items={[
-          ...(platformCash?.increases ?? []).map(i => ({ label: `⬆ ${i.label}`, value: i.value })),
-          ...(platformCash?.decreases ?? []).map(d => ({ label: `⬇ ${d.label}`, value: -d.value })),
-        ]}
+        groups={cashSourceGroups}
       />
       <KPIBreakdownSheet
         open={activeBreakdown === 'wallets'}
