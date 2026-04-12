@@ -240,17 +240,21 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
         ) : step === 'channel' ? (
           /* ─── Channel Selection ─── */
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">How did you deposit?</p>
+            <p className="text-sm text-muted-foreground">Choose how you want to deposit</p>
             <div className="grid gap-3">
               {[
-                { id: 'momo' as DepositChannel, icon: Phone, label: 'Mobile Money', desc: 'MTN MoMo or Airtel Money', color: 'border-yellow-500 bg-yellow-500/5' },
-                 { id: 'bank' as DepositChannel, icon: Building2, label: 'Bank Transfer', desc: 'Equity Bank Uganda', color: 'border-blue-500 bg-blue-500/5' },
-                 { id: 'cash' as DepositChannel, icon: Receipt, label: 'Cash Deposit', desc: 'Deposited cash & have a receipt', color: 'border-violet-500 bg-violet-500/5' },
-                 { id: 'agent_cash' as DepositChannel, icon: Banknote, label: 'Agent Cash Deposit', desc: 'Paid cash to a Welile agent', color: 'border-emerald-500 bg-emerald-500/5' },
-              ].map((ch) => (
+                { id: 'agent_cash' as DepositChannel, provider: null, icon: Banknote, label: 'Cash with Agent', desc: 'Pay cash to a Welile agent near you', color: 'border-emerald-500 bg-emerald-500/5' },
+                { id: 'momo' as DepositChannel, provider: 'mtn' as const, icon: Phone, label: 'MTN MoMo', desc: 'Pay via MTN Mobile Money', color: 'border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/5' },
+                { id: 'momo' as DepositChannel, provider: 'airtel' as const, icon: Phone, label: 'Airtel Money', desc: 'Pay via Airtel Money', color: 'border-destructive bg-destructive/5' },
+                { id: 'bank' as DepositChannel, provider: null, icon: Building2, label: 'Bank Transfer', desc: 'Equity Bank Uganda deposit', color: 'border-blue-500 bg-blue-500/5' },
+              ].map((ch, idx) => (
                 <button
-                  key={ch.id}
-                  onClick={() => { setChannel(ch.id); setStep('form'); }}
+                  key={idx}
+                  onClick={() => {
+                    setChannel(ch.id);
+                    if (ch.provider) setMomoProvider(ch.provider);
+                    setStep('form');
+                  }}
                   className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] touch-manipulation ${ch.color}`}
                 >
                   <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center shrink-0">
