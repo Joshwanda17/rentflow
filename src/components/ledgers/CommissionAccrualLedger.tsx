@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { CheckCircle2, Clock, XCircle, Wallet } from 'lucide-react';
-import { toast } from 'sonner';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   earned: { label: 'Earned', color: 'bg-amber-500/10 text-amber-700 border-amber-500/30', icon: Clock },
@@ -32,7 +31,6 @@ const EVENT_LABELS: Record<string, string> = {
 
 export function CommissionAccrualLedger() {
   const [statusFilter, setStatusFilter] = useState('all');
-  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['commission-accrual-ledger', statusFilter],
@@ -45,8 +43,6 @@ export function CommissionAccrualLedger() {
       return data || [];
     },
   });
-
-  // Commissions flow automatically — no approval needed
 
   const totals = (data || []).reduce((acc, e) => {
     acc[e.status] = (acc[e.status] || 0) + e.amount;
@@ -72,6 +68,10 @@ export function CommissionAccrualLedger() {
         })}
       </div>
 
+      <p className="text-[10px] text-muted-foreground text-center">
+        ✅ Commissions flow automatically as a platform expense — no approval required
+      </p>
+
       {/* Entries */}
       <div className="space-y-2">
         {isLoading ? (
@@ -79,7 +79,7 @@ export function CommissionAccrualLedger() {
         ) : (data || []).length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-6">No commissions recorded</p>
         ) : (data || []).map(entry => {
-          const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.earned;
+          const cfg = STATUS_CONFIG[entry.status] || STATUS_CONFIG.paid;
           const Icon = cfg.icon;
           return (
             <Card key={entry.id}>
@@ -101,15 +101,6 @@ export function CommissionAccrualLedger() {
                     <Badge variant="outline" className={`text-[9px] ${cfg.color}`}>
                       <Icon className="h-2.5 w-2.5 mr-0.5" /> {cfg.label}
                     </Badge>
-                    {entry.status === 'earned' && (
-                      <div className="flex gap-1 mt-1">
-                        <Button size="sm" variant="outline" className="h-5 text-[9px] px-1.5" onClick={() => updateStatus.mutate({ id: entry.id, status: 'approved' })}>Approve</Button>
-                        <Button size="sm" variant="ghost" className="h-5 text-[9px] px-1.5 text-destructive" onClick={() => updateStatus.mutate({ id: entry.id, status: 'rejected' })}>Reject</Button>
-                      </div>
-                    )}
-                    {entry.status === 'approved' && (
-                      <Button size="sm" className="h-5 text-[9px] px-1.5 mt-1" onClick={() => updateStatus.mutate({ id: entry.id, status: 'paid' })}>Mark Paid</Button>
-                    )}
                   </div>
                 </div>
               </CardContent>
