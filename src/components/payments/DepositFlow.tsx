@@ -94,6 +94,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     if (channel === 'bank' && !transactionId.trim()) { toast.error('Enter the bank reference number'); return false; }
     if (channel === 'agent_cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
     if (channel === 'agent_cash' && !agentName.trim()) { toast.error('Enter the agent name'); return false; }
+    if (channel === 'cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
 
     // TID format validation
     if (channel === 'momo') {
