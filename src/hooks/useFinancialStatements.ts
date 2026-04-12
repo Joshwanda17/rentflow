@@ -218,7 +218,7 @@ export function useFinancialStatements() {
       const rentRequests = rentRequestsRes.data || [];
       const activeAdvances = advancesRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
-      const allTimePlatform = allTimePlatformRes.data || [];
+      const allTimePlatformSummary = allTimePlatformRes.data as any;
 
       // Fix #2: Exclude 'opening_balance' migration artifacts from all aggregations
       const excludeSynthetic = (rows: any[]) => rows.filter(r => r.category !== 'opening_balance');
@@ -302,14 +302,9 @@ export function useFinancialStatements() {
       // BALANCE SHEET — Platform assets vs obligations
       // User wallet balances = custodial LIABILITY (not our money)
       // ══════════════════════════════════════════════════════════════
-      // Platform Cash = All-time cumulative retained earnings (Balance Sheet is a point-in-time snapshot)
-      // Uses the SAME direction-fallback logic as the Income Statement for consistency
-      const revenueCategories = ['tenant_access_fee', 'access_fee', 'access_fee_collected', 'tenant_request_fee', 'request_fee', 'registration_fee_collected', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
-      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_commission_earned', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense', 'salary_payment', 'employee_advance', 'agent_requisition', 'platform_expense_disbursement'];
-      const allTimePlatformIn = allTimePlatform.filter(e => e.direction === 'cash_in');
-      const allTimePlatformOut = allTimePlatform.filter(e => e.direction === 'cash_out');
-      const allTimeRevenue = sumWithDirectionFallback(allTimePlatformIn, allTimePlatformOut, revenueCategories);
-      const allTimeCosts = sumWithDirectionFallback(allTimePlatformOut, allTimePlatformIn, costCategories);
+      // Platform Cash = All-time cumulative retained earnings via server-side RPC (no row limit)
+      const allTimeRevenue = Number(allTimePlatformSummary?.total_revenue ?? 0);
+      const allTimeCosts = Number(allTimePlatformSummary?.total_costs ?? 0);
       const platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
 
       const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
