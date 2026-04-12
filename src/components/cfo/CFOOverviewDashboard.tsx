@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useCFOOverviewData } from '@/hooks/useCFOOverviewData';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -6,6 +6,7 @@ import { Loader2, ArrowDownRight, ArrowUpRight, Scale, Wallet, HandCoins, Users,
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
+import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSheet';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
