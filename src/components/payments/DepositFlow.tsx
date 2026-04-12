@@ -158,7 +158,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
         }
       }
 
-      const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : 'agent_cash';
+      const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : channel === 'cash' ? 'cash_deposit' : 'agent_cash';
       const notes = [
         reason.trim(),
         channel === 'agent_cash' ? `Agent: ${agentName.trim()}` : '',
