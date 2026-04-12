@@ -429,7 +429,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
             </div>
 
             {/* ─── Reference / TID / Receipt ─── */}
-            {channel !== 'agent_cash' ? (
+            {channel !== 'agent_cash' && channel !== 'cash' ? (
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Hash className="h-3.5 w-3.5" />
