@@ -237,18 +237,11 @@ export function PlatformCashBreakdown() {
         </div>
       </div>
 
-
-      {/* Net */}
-      <div className={cn(
-        "rounded-xl border-2 p-3 text-center",
-        totalIn - totalOut >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-destructive/30 bg-destructive/5"
-      )}>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Net Cash Available</p>
-        <p className={cn(
-          "text-lg font-bold font-mono",
-          totalIn - totalOut >= 0 ? "text-emerald-600" : "text-destructive"
-        )}>
-          <CompactAmount value={totalIn - totalOut} />
+      {/* Total */}
+      <div className="rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 p-3 text-center">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Cash Sources</p>
+        <p className="text-lg font-bold font-mono text-emerald-600">
+          <CompactAmount value={totalIn} />
         </p>
       </div>
     </div>
