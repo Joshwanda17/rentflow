@@ -36,7 +36,7 @@ const currencyLocales: Record<string, string> = {
 };
 
 const currencySymbols: Record<string, string> = {
-  UGX: 'USh', KES: 'KSh', TZS: 'TSh', RWF: 'FRw', ETB: 'Br', NGN: '₦',
+  UGX: 'UGX', KES: 'KSh', TZS: 'TSh', RWF: 'FRw', ETB: 'Br', NGN: '₦',
   GHS: 'GH₵', ZAR: 'R', USD: '$', CAD: 'C$', EUR: '€', GBP: '£',
   CHF: 'Fr', JPY: '¥', CNY: '¥', INR: '₹', AUD: 'A$', NZD: 'NZ$',
   SGD: 'S$', HKD: 'HK$', KRW: '₩', PHP: '₱', THB: '฿', VND: '₫',
