@@ -150,14 +150,37 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
     });
   }
 
-  const p5 = entries.filter(e => PRIORITY_5_CATEGORIES.includes(e.category));
+  // Priority 5: Others — anything not in named groups
+  const p5 = entries.filter(e => !ALL_NAMED.includes(e.category));
   if (p5.length > 0) {
+    groups.push({
+      label: 'Other Sources',
+      emoji: '📦',
+      icon: MoreHorizontal,
+      items: p5,
+      total: p5.reduce((s, e) => s + e.total_amount, 0),
+    });
+  }
+
+  const p6 = entries.filter(e => PRIORITY_6_CATEGORIES.includes(e.category));
+  if (p6.length > 0) {
     groups.push({
       label: 'Corrections',
       emoji: '🔄',
       icon: MoreHorizontal,
-      items: p5,
-      total: p5.reduce((s, e) => s + e.total_amount, 0),
+      items: p6,
+      total: p6.reduce((s, e) => s + e.total_amount, 0),
+    });
+  }
+
+  const p7 = entries.filter(e => PRIORITY_7_CATEGORIES.includes(e.category));
+  if (p7.length > 0) {
+    groups.push({
+      label: 'Penalties',
+      emoji: '⚠️',
+      icon: MoreHorizontal,
+      items: p7,
+      total: p7.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
