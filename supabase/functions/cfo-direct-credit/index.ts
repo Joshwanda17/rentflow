@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
             direction: 'cash_in',
             category: walletCat,
             ledger_scope: 'wallet',
-            description: `CFO Credit [${category_label || walletCat}]: ${reason}`,
+            description: `Welile Technologies Finance [${category_label || walletCat}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
             amount,
             category: platformCat,
             ledger_scope: 'platform',
-            description: `Platform → ${targetProfile.full_name} [${impact}]: ${reason}`,
+            description: `Welile Technologies Finance → ${targetProfile.full_name} [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "💳 CFO Direct Credit", body: "Activity: direct credit", url: "/manager" }),
+      body: JSON.stringify({ title: "💳 Welile Technologies Finance", body: "Activity: wallet credit", url: "/manager" }),
     }).catch(() => {});
 
     // Push notification to target user (fire-and-forget)
@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [target_user_id],
-        payload: { title: op === "credit" ? "💰 Wallet Credited" : "💸 Wallet Debited", body: `UGX ${amount.toLocaleString()} ${verb} your wallet`, url: "/dashboard", type: "success" },
+        payload: { title: op === "credit" ? "💰 Welile Technologies Finance" : "💸 Wallet Debited", body: `UGX ${amount.toLocaleString()} ${verb} your wallet by Welile Technologies Finance`, url: "/dashboard", type: "success" },
       }),
     }).catch(() => {});
 
