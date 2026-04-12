@@ -5,44 +5,72 @@ import { LEDGER_SCOPE, FINAL_WITHDRAWAL_STATUSES } from '@/lib/ledgerConstants';
 const STALE_TIME = 300_000; // 5 minutes
 
 export function useCFOOverviewData() {
-  // Channel balances from deposit_requests (approved) grouped by provider
-  const channelBalances = useQuery({
-    queryKey: ['cfo-overview-channels'],
+  // Platform cash from ledger RPCs (source-based, not channel-based)
+  const platformCash = useQuery({
+    queryKey: ['cfo-overview-platform-cash'],
     queryFn: async () => {
-      const { data: deposits } = await supabase
-        .from('deposit_requests')
-        .select('amount, provider')
-        .eq('status', 'approved');
+      const [summaryRes, breakdownRes] = await Promise.all([
+        supabase.rpc('get_platform_cash_summary'),
+        supabase.rpc('get_platform_cash_breakdown'),
+      ]);
 
-      const { data: withdrawals } = await supabase
-        .from('withdrawal_requests')
-        .select('amount, mobile_money_provider')
-        .in('status', FINAL_WITHDRAWAL_STATUSES);
+      const summary = summaryRes.data as any;
+      const cashIn = Number(summary?.platform_cash_in ?? summary?.total_revenue ?? 0);
+      const cashOut = Number(summary?.platform_cash_out ?? summary?.total_costs ?? 0);
+      const totalCash = cashIn - cashOut;
 
-      const channels: Record<string, { deposits: number; withdrawals: number }> = {
-        MTN: { deposits: 0, withdrawals: 0 },
-        Airtel: { deposits: 0, withdrawals: 0 },
-        Bank: { deposits: 0, withdrawals: 0 },
-        Cash: { deposits: 0, withdrawals: 0 },
-        Unassigned: { deposits: 0, withdrawals: 0 },
+      // Group breakdown by source category for CFO view
+      const breakdown = (breakdownRes.data as any[]) || [];
+      const SOURCE_LABELS: Record<string, string> = {
+        share_capital: '🏦 Share Capital (Funders)',
+        partner_funding: '🤝 Partner Funding',
+        tenant_repayment: '💰 Tenant Repayments',
+        agent_repayment: '💰 Agent Repayments',
+        rent_principal_collected: '🏠 Rent Collections',
+        wallet_deposit: '📥 Wallet Deposits',
+        wallet_deduction: '🔄 Wallet Deductions / Retractions',
+        access_fee_collected: '🎫 Access Fees',
+        registration_fee_collected: '📋 Registration Fees',
+        system_balance_correction: '🔧 Corrections',
+        agent_commission_earned: '👤 Agent Commissions (Expense)',
+        roi_expense: '📈 ROI Payouts (Expense)',
+        roi_wallet_credit: '📈 ROI Wallet Credits (Expense)',
+        rent_disbursement: '🏠 Rent Disbursements (Expense)',
+        wallet_withdrawal: '💸 Wallet Withdrawals (Expense)',
+        wallet_transfer: '🔀 Wallet Transfers',
+        orphan_reassignment: '🔄 Orphan Reassignments',
+        orphan_reversal: '🔄 Orphan Reversals',
+        agent_float_deposit: '💼 Agent Float Deposits',
+        agent_commission_withdrawal: '💸 Commission Withdrawals',
+        agent_commission_used_for_rent: '🏠 Commission Used for Rent',
+        agent_float_used_for_rent: '🏠 Float Used for Rent',
+        roi_reinvestment: '📈 ROI Reinvestments',
+        pending_portfolio_topup: '📊 Portfolio Top-ups',
+        rent_receivable_created: '📋 Rent Receivables Created',
       };
 
-      (deposits || []).forEach((d) => {
-        const provider = mapProvider(d.provider);
-        channels[provider].deposits += Number(d.amount);
-      });
+      const increases = breakdown
+        .filter((e: any) => e.direction === 'cash_in')
+        .map((e: any) => ({
+          label: SOURCE_LABELS[e.category] || e.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          value: Number(e.total_amount),
+          count: Number(e.entry_count),
+        }))
+        .sort((a: any, b: any) => b.value - a.value);
 
-      (withdrawals || []).forEach((w) => {
-        const provider = mapProvider(w.mobile_money_provider);
-        channels[provider].withdrawals += Number(w.amount);
-      });
+      const decreases = breakdown
+        .filter((e: any) => e.direction === 'cash_out')
+        .map((e: any) => ({
+          label: SOURCE_LABELS[e.category] || e.category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          value: Number(e.total_amount),
+          count: Number(e.entry_count),
+        }))
+        .sort((a: any, b: any) => b.value - a.value);
 
-      const totalCash = Object.values(channels).reduce(
-        (sum, c) => sum + (c.deposits - c.withdrawals),
-        0
-      );
+      const totalIn = increases.reduce((s: number, e: any) => s + e.value, 0);
+      const totalOut = decreases.reduce((s: number, e: any) => s + e.value, 0);
 
-      return { channels, totalCash };
+      return { totalCash, increases, decreases, totalIn, totalOut };
     },
     staleTime: STALE_TIME,
   });
@@ -390,10 +418,10 @@ export function useCFOOverviewData() {
   });
 
   const isLoading =
-    channelBalances.isLoading || liabilities.isLoading || revenue.isLoading || moneyFlow.isLoading || receivables.isLoading || cashFlowByPurpose.isLoading;
+    platformCash.isLoading || liabilities.isLoading || revenue.isLoading || moneyFlow.isLoading || receivables.isLoading || cashFlowByPurpose.isLoading;
 
   return {
-    channelBalances: channelBalances.data,
+    platformCash: platformCash.data,
     liabilities: liabilities.data,
     revenue: revenue.data,
     moneyFlow: moneyFlow.data,
@@ -406,14 +434,4 @@ export function useCFOOverviewData() {
     refetchControls: treasuryControls.refetch,
     isLoading,
   };
-}
-
-function mapProvider(provider: string | null): string {
-  if (!provider) return 'Unassigned';
-  const p = provider.toLowerCase();
-  if (p.includes('mtn')) return 'MTN';
-  if (p.includes('airtel')) return 'Airtel';
-  if (p.includes('bank') || p.includes('stanbic') || p.includes('centenary')) return 'Bank';
-  if (p.includes('cash')) return 'Cash';
-  return 'Unassigned';
 }

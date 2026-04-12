@@ -23,7 +23,7 @@ const fmtShort = (n: number) => {
 export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps) {
   const [activeBreakdown, setActiveBreakdown] = useState<string | null>(null);
   const {
-    channelBalances, liabilities, revenue, receivables,
+    platformCash, liabilities, revenue, receivables,
     todayCashFlow, integrityChecks, pendingApprovals, treasuryControls, refetchControls,
     isLoading
   } = useCFOOverviewData();
@@ -49,21 +49,13 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     );
   }
 
-  const totalCash = channelBalances?.totalCash ?? 0;
+  const totalCash = platformCash?.totalCash ?? 0;
   const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
   const platformEarnings = revenue?.netProfit ?? 0;
   const walletTotal = liabilities?.tenantFunds ?? 0;
   const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
   const netToday = todayCashFlow?.netToday ?? 0;
-
-  const channels = channelBalances?.channels ?? {};
-  const channelColors: Record<string, string> = {
-    MTN: 'bg-yellow-400',
-    Airtel: 'bg-red-400',
-    Bank: 'bg-blue-400',
-    Cash: 'bg-emerald-400',
-  };
 
   const liabilityItems = [
     { label: 'Tenant Funds', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
@@ -98,7 +90,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <MetricCard
           icon={<div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><Banknote className="h-5 w-5 text-blue-600" /></div>}
           label="Money We Have"
-          sublabel="Total cash across all channels"
+          sublabel="From funders, repayments, collections & wallets"
           value={fmt(totalCash)}
           detail={`Free to use: ${fmtShort(Math.max(0, totalCash - totalLiabilities))}`}
           onClick={() => setActiveBreakdown('cash')}
@@ -182,25 +174,27 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </CardContent>
       </Card>
 
-      {/* ── WHERE THE MONEY IS ── */}
+      {/* ── SOURCES OF CASH (replaces channel breakdown) ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Where the Money Is</p>
-          <div className="space-y-2">
-            {Object.entries(channels).map(([name, vals]) => {
-              const balance = vals.deposits - vals.withdrawals;
-              const isNegative = balance < 0;
-              return (
-                <div key={name} className={`flex items-center gap-3 p-3 rounded-xl border ${isNegative ? 'border-destructive/30 bg-destructive/5' : 'bg-muted/30'}`}>
-                  <div className={`h-2.5 w-2.5 rounded-full ${channelColors[name] || 'bg-muted-foreground'}`} />
-                  <span className="text-sm font-medium flex-1">{name}</span>
-                  <span className={`text-sm font-bold font-mono tabular-nums ${isNegative ? 'text-destructive' : 'text-foreground'}`}>
-                    {fmtShort(balance)}
-                  </span>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Where Our Money Comes From</p>
+          <div className="space-y-1.5">
+            {(platformCash?.increases ?? []).slice(0, 6).map((item, i) => (
+              <div key={i} className="flex items-center justify-between text-xs gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="truncate text-foreground">{item.label}</span>
+                  <span className="text-muted-foreground shrink-0">({item.count})</span>
                 </div>
-              );
-            })}
+                <span className="font-mono font-semibold text-emerald-600 shrink-0">+{fmtShort(item.value)}</span>
+              </div>
+            ))}
           </div>
+          {(platformCash?.increases?.length ?? 0) > 6 && (
+            <button onClick={() => setActiveBreakdown('cash')} className="text-xs text-primary mt-2 hover:underline">
+              View all sources →
+            </button>
+          )}
         </CardContent>
       </Card>
 
@@ -235,12 +229,12 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <KPIBreakdownSheet
         open={activeBreakdown === 'cash'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Cash Breakdown"
+        title="💰 Money We Have — Sources"
         total={totalCash}
-        items={Object.entries(channels).map(([name, vals]) => ({
-          label: name,
-          value: vals.deposits - vals.withdrawals,
-        }))}
+        items={[
+          ...(platformCash?.increases ?? []).map(i => ({ label: `⬆ ${i.label}`, value: i.value })),
+          ...(platformCash?.decreases ?? []).map(d => ({ label: `⬇ ${d.label}`, value: -d.value })),
+        ]}
       />
       <KPIBreakdownSheet
         open={activeBreakdown === 'wallets'}
