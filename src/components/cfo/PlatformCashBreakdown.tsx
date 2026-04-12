@@ -31,21 +31,27 @@ const PRIORITY_4_CATEGORIES = [
   'salary_advance_repayment',
 ];
 
-// Priority 5: Corrections
-const PRIORITY_5_CATEGORIES = [
+// Priority 5: Others (catch-all for items not in other groups)
+// Dynamically computed — no fixed list
+
+// Priority 6: Corrections
+const PRIORITY_6_CATEGORIES = [
   'system_balance_correction', 'orphan_reassignment', 'orphan_reversal',
 ];
 
-const ALL_PRIORITIZED = [
+// Priority 7: Penalties
+const PRIORITY_7_CATEGORIES = [
+  'penalty_fee', 'late_payment_penalty',
+];
+
+const ALL_NAMED = [
   ...PRIORITY_1_CATEGORIES,
   ...PRIORITY_2_CATEGORIES,
   ...PRIORITY_3_CATEGORIES,
   ...PRIORITY_4_CATEGORIES,
-  ...PRIORITY_5_CATEGORIES,
+  ...PRIORITY_6_CATEGORIES,
+  ...PRIORITY_7_CATEGORIES,
 ];
-
-// Only these categories are shown in the CFO "Money We Have" view
-const ALLOWED_CATEGORIES = [...ALL_PRIORITIZED];
 
 const CATEGORY_LABELS: Record<string, string> = {
   partner_funding: 'Partner / Funder Capital',
