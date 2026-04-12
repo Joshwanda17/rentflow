@@ -177,14 +177,8 @@ export function PlatformCashBreakdown() {
     );
   }
 
-  // Categories to exclude from the CFO "Money We Have" view
-  const EXCLUDED_CATEGORIES = [
-    'supporter_platform_rewards',
-    'agent_commission_payout',
-    'rent_disbursement',
-  ];
-
-  const filtered = data.filter(e => !EXCLUDED_CATEGORIES.includes(e.category));
+  // Only show allowed categories in the CFO "Money We Have" view
+  const filtered = data.filter(e => ALLOWED_CATEGORIES.includes(e.category));
   if (filtered.length === 0) return null;
 
   const increases = filtered.filter(e => e.direction === 'cash_in');
