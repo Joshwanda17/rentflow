@@ -239,32 +239,6 @@ export function PlatformCashBreakdown() {
         </div>
       </div>
 
-      {/* What Reduces Our Cash */}
-      <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <TrendingDown className="h-4 w-4 text-destructive" />
-          <h3 className="text-sm font-bold text-red-700 dark:text-red-400">
-            What Reduces Our Cash
-          </h3>
-          <span className="ml-auto text-xs font-mono font-bold text-destructive">
-            -<CompactAmount value={totalOut} />
-          </span>
-        </div>
-        <div className="space-y-1.5">
-          {decreases.map(e => (
-            <div key={`${e.category}-${e.direction}`} className="flex items-center justify-between text-xs gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
-                <span className="truncate text-foreground">{formatCategory(e.category)}</span>
-                <span className="text-muted-foreground shrink-0">({e.entry_count})</span>
-              </div>
-              <span className="font-mono font-semibold text-destructive shrink-0">
-                -<CompactAmount value={e.total_amount} />
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Net */}
       <div className={cn(
