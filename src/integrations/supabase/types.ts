@@ -9627,24 +9627,44 @@ export type Database = {
         Args: { entries: Json; idempotency_key?: string }
         Returns: string
       }
-      credit_agent_event_bonus: {
-        Args: {
-          p_agent_id: string
-          p_event_type: string
-          p_source_id?: string
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
-      credit_agent_rent_commission: {
-        Args: {
-          p_event_reference_id?: string
-          p_rent_request_id: string
-          p_repayment_amount: number
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
+      credit_agent_event_bonus:
+        | {
+            Args: {
+              p_agent_id: string
+              p_event_type: string
+              p_source_id?: string
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_agent_id: string
+              p_event_type: string
+              p_source_id?: string
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
+      credit_agent_rent_commission:
+        | {
+            Args: {
+              p_event_reference_id?: string
+              p_rent_request_id: string
+              p_repayment_amount: number
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_event_reference_id?: string
+              p_rent_request_id: string
+              p_repayment_amount: number
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
       credit_proxy_approval:
         | {
             Args: {
