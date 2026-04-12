@@ -21,16 +21,19 @@ const PRIORITY_2_CATEGORIES = [
   'angel_pool_investment', 'angel_pool_commission',
 ];
 
-// Priority 3: Rent Repayments (from tenant wallets or agent wallets)
+// Priority 3: Rent Collections (principal, access fee, registration fee)
 const PRIORITY_3_CATEGORIES = [
   'rent_principal_collected', 'access_fee_collected', 'registration_fee_collected',
-  'tenant_repayment', 'agent_repayment',
 ];
 
-// Priority 4: Salary Advance Repayments & Retractions
+// Priority 4: Salary Advance Repayments
 const PRIORITY_4_CATEGORIES = [
-  'salary_advance_repayment', 'wallet_deduction', 'system_balance_correction',
-  'orphan_reassignment', 'orphan_reversal',
+  'salary_advance_repayment',
+];
+
+// Priority 5: Corrections
+const PRIORITY_5_CATEGORIES = [
+  'system_balance_correction', 'orphan_reassignment', 'orphan_reversal',
 ];
 
 const ALL_PRIORITIZED = [
@@ -38,7 +41,11 @@ const ALL_PRIORITIZED = [
   ...PRIORITY_2_CATEGORIES,
   ...PRIORITY_3_CATEGORIES,
   ...PRIORITY_4_CATEGORIES,
+  ...PRIORITY_5_CATEGORIES,
 ];
+
+// Only these categories are shown in the CFO "Money We Have" view
+const ALLOWED_CATEGORIES = [...ALL_PRIORITIZED];
 
 const CATEGORY_LABELS: Record<string, string> = {
   partner_funding: 'Partner / Funder Capital',
