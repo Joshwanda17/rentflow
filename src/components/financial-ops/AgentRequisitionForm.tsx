@@ -76,14 +76,14 @@ export function AgentRequisitionForm() {
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'requisition_submitted',
-        description: `Submitted fund requisition of USh ${parsedAmount.toLocaleString()} for ${purpose}`,
+        description: `Submitted fund requisition of UGX ${parsedAmount.toLocaleString()} for ${purpose}`,
         metadata: { amount: parsedAmount, purpose, description: description.trim() },
       });
 
       await supabase.from('notifications').insert({
         user_id: user.id,
         title: 'New Fund Requisition',
-        message: `Fund requisition of USh ${parsedAmount.toLocaleString()} submitted for ${purpose}`,
+        message: `Fund requisition of UGX ${parsedAmount.toLocaleString()} submitted for ${purpose}`,
         type: 'approval_required',
         metadata: { category: 'agent_requisition', amount: parsedAmount, purpose },
       });

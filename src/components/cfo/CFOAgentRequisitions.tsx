@@ -72,7 +72,7 @@ export function CFOAgentRequisitions() {
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
         action_type: 'requisition_approved',
-        description: `Approved fund requisition of USh ${Number(req.amount).toLocaleString()} for agent ${req.user_id}`,
+        description: `Approved fund requisition of UGX ${Number(req.amount).toLocaleString()} for agent ${req.user_id}`,
         metadata: { operation_id: reqId, amount: req.amount, agent_id: req.user_id },
       });
 
@@ -80,7 +80,7 @@ export function CFOAgentRequisitions() {
       await supabase.from('notifications').insert({
         user_id: req.user_id,
         title: 'Requisition Approved',
-        message: `Your fund requisition of USh ${Number(req.amount).toLocaleString()} has been approved and credited to your wallet.`,
+        message: `Your fund requisition of UGX ${Number(req.amount).toLocaleString()} has been approved and credited to your wallet.`,
         type: 'requisition_approved',
         metadata: { operation_id: reqId, amount: req.amount },
       });
@@ -112,7 +112,7 @@ export function CFOAgentRequisitions() {
       await supabase.from('audit_logs').insert({
         user_id: user?.id,
         action_type: 'requisition_rejected',
-        description: `Rejected fund requisition of USh ${Number(req.amount).toLocaleString()} — ${reason}`,
+        description: `Rejected fund requisition of UGX ${Number(req.amount).toLocaleString()} — ${reason}`,
         metadata: { operation_id: id, amount: req.amount, agent_id: req.user_id, reason },
       });
 
@@ -120,7 +120,7 @@ export function CFOAgentRequisitions() {
       await supabase.from('notifications').insert({
         user_id: req.user_id,
         title: 'Requisition Rejected',
-        message: `Your fund requisition of USh ${Number(req.amount).toLocaleString()} was rejected. Reason: ${reason}`,
+        message: `Your fund requisition of UGX ${Number(req.amount).toLocaleString()} was rejected. Reason: ${reason}`,
         type: 'requisition_rejected',
         metadata: { operation_id: id, reason },
       });
@@ -184,7 +184,7 @@ export function CFOAgentRequisitions() {
                         {profile?.full_name || 'Unknown Agent'}
                         <span className="text-xs text-muted-foreground ml-2">{profile?.phone || ''}</span>
                       </p>
-                      <p className="text-lg font-bold">USh {Number(req.amount).toLocaleString()}</p>
+                      <p className="text-lg font-bold">UGX {Number(req.amount).toLocaleString()}</p>
                     </div>
                     {statusBadge(req.status)}
                   </div>

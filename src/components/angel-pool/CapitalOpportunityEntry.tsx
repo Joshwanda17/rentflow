@@ -167,7 +167,7 @@ function TenantCommittedSummary({
         <div>
           <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Total Rent Demand</p>
           <p className="text-3xl font-black text-foreground tracking-tight mt-0.5">
-            USh {amount.toLocaleString()}
+            UGX {amount.toLocaleString()}
           </p>
           <p className="text-[10px] text-primary font-medium mt-1 flex items-center gap-1">
             <Zap className="h-3 w-3" /> Welile is turning rent into an asset
@@ -224,7 +224,7 @@ function TenantCommittedSummary({
         {/* Footer */}
         <div className="text-center space-y-1.5">
           <p className="text-[10px] text-muted-foreground">
-            <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: USh {PRICE_PER_SHARE.toLocaleString()}
+            <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: UGX {PRICE_PER_SHARE.toLocaleString()}
           </p>
           <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
             Returns are projected based on historical performance. Capital is deployed into verified rent facilitation agreements managed by Welile with reserve protection.
@@ -274,7 +274,7 @@ function AngelCommittedSummary({
         <div>
           <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest">Your Investment</p>
           <p className="text-3xl font-black text-foreground tracking-tight mt-0.5">
-            USh {amount.toLocaleString()}
+            UGX {amount.toLocaleString()}
           </p>
           <p className="text-[10px] text-primary font-medium mt-1 flex items-center gap-1">
             <Zap className="h-3 w-3" /> You own a piece of the future
@@ -347,7 +347,7 @@ function AngelCommittedSummary({
         {/* Footer */}
         <div className="text-center space-y-1.5">
           <p className="text-[10px] text-muted-foreground">
-            <Lock className="h-3 w-3 inline mr-1" />Price per share: USh {PRICE_PER_SHARE.toLocaleString()} · Total pool: {TOTAL_SHARES.toLocaleString()} shares
+            <Lock className="h-3 w-3 inline mr-1" />Price per share: UGX {PRICE_PER_SHARE.toLocaleString()} · Total pool: {TOTAL_SHARES.toLocaleString()} shares
           </p>
           <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
             Angel Pool shares represent early-stage equity in Welile Technologies. Returns are realized at exit events. Past projections are illustrative and not guaranteed.

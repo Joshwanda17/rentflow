@@ -206,7 +206,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
     const msg = encodeURIComponent(
       `✅ Angel Pool Investment Confirmed!\n\n` +
       `Investor: ${selectedInvestor.full_name}\n` +
-      `Amount: USh ${result.actual_amount.toLocaleString()}\n` +
+      `Amount: UGX ${result.actual_amount.toLocaleString()}\n` +
       `Shares: ${result.shares}\n` +
       `Pool Ownership: ${result.pool_ownership_percent.toFixed(4)}%\n` +
       `Company Equity: ${result.company_ownership_percent.toFixed(4)}%\n` +
@@ -378,7 +378,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               />
               {parsedAmount > 0 && shares > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  = {shares} shares × USh {PRICE_PER_SHARE.toLocaleString()} = {formatUGX(actualAmount)}
+                  = {shares} shares × UGX {PRICE_PER_SHARE.toLocaleString()} = {formatUGX(actualAmount)}
                 </p>
               )}
               {parsedAmount > 0 && selectedInvestor.walletBalance < actualAmount && (

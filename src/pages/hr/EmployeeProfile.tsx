@@ -334,7 +334,7 @@ export default function HREmployeeProfile() {
               <Card className="border-border/40">
                 <CardContent className="p-3.5">
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Total Payroll</p>
-                  <p className="text-lg font-bold mt-0.5">USh {totalPayroll.toLocaleString()}</p>
+                  <p className="text-lg font-bold mt-0.5">UGX {totalPayroll.toLocaleString()}</p>
                 </CardContent>
               </Card>
               <Card className="border-border/40">
@@ -475,7 +475,7 @@ export default function HREmployeeProfile() {
                   <Card className="border-border/40">
                     <CardContent className="p-3.5">
                       <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Total Payroll</p>
-                      <p className="text-lg font-bold mt-0.5">USh {totalPayroll.toLocaleString()}</p>
+                      <p className="text-lg font-bold mt-0.5">UGX {totalPayroll.toLocaleString()}</p>
                     </CardContent>
                   </Card>
                   <Card className="border-border/40">
@@ -516,7 +516,7 @@ export default function HREmployeeProfile() {
                                 <TableCell className="text-xs font-medium">{p.batch?.batch_month || '—'}</TableCell>
                                 <TableCell className="text-xs capitalize">{p.category}</TableCell>
                                 <TableCell className="text-xs text-muted-foreground">{p.description || '—'}</TableCell>
-                                <TableCell className="text-xs font-semibold text-right">USh {Number(p.amount).toLocaleString()}</TableCell>
+                                <TableCell className="text-xs font-semibold text-right">UGX {Number(p.amount).toLocaleString()}</TableCell>
                                 <TableCell>
                                   <Badge variant={p.status === 'paid' ? 'default' : p.status === 'failed' ? 'destructive' : 'secondary'} className="text-[10px]">{p.status}</Badge>
                                 </TableCell>

@@ -28,7 +28,7 @@ export function AngelPoolDashboard() {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] text-muted-foreground">Total Raised</p>
-            <p className="text-lg font-black">USh {formatCompact(totalRaised)}</p>
+            <p className="text-lg font-black">UGX {formatCompact(totalRaised)}</p>
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-card p-3 flex items-start gap-2.5">
@@ -37,7 +37,7 @@ export function AngelPoolDashboard() {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] text-muted-foreground">Target</p>
-            <p className="text-lg font-black">USh {formatCompact(TOTAL_POOL_UGX)}</p>
+            <p className="text-lg font-black">UGX {formatCompact(TOTAL_POOL_UGX)}</p>
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-card p-3 flex items-start gap-2.5">
@@ -92,7 +92,7 @@ export function AngelPoolDashboard() {
                 <p className="text-sm font-semibold truncate">{inv.name}</p>
                 <p className="text-[10px] text-muted-foreground">{inv.shares} shares</p>
               </div>
-              <span className="text-sm font-bold text-primary">USh {formatCompact(inv.amount)}</span>
+              <span className="text-sm font-bold text-primary">UGX {formatCompact(inv.amount)}</span>
             </div>
           ))}
         </CardContent>

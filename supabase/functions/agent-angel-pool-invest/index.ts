@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (!amount || typeof amount !== "number" || amount < PRICE_PER_SHARE) {
-      return new Response(JSON.stringify({ error: `Minimum investment is USh ${PRICE_PER_SHARE.toLocaleString()}` }),
+      return new Response(JSON.stringify({ error: `Minimum investment is UGX ${PRICE_PER_SHARE.toLocaleString()}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
           user_id: investor_id, ledger_scope: 'wallet', direction: 'cash_out',
           amount: actualAmount, category: 'share_capital',
           source_table: 'angel_pool_investments', source_id: investorWallet.id,
-          description: `Angel Pool investment: ${shares} shares @ USh ${PRICE_PER_SHARE.toLocaleString()}/share (via agent)`,
+          description: `Angel Pool investment: ${shares} shares @ UGX ${PRICE_PER_SHARE.toLocaleString()}/share (via agent)`,
           currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
         },
         {

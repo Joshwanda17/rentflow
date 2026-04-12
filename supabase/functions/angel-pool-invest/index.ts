@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const { amount } = body as { amount?: number };
 
     if (!amount || typeof amount !== "number" || amount < PRICE_PER_SHARE) {
-      return new Response(JSON.stringify({ error: `Minimum investment is USh ${PRICE_PER_SHARE.toLocaleString()}` }),
+      return new Response(JSON.stringify({ error: `Minimum investment is UGX ${PRICE_PER_SHARE.toLocaleString()}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (!wallet || wallet.balance < actualAmount) {
-      return new Response(JSON.stringify({ error: `Insufficient wallet balance. You need USh ${actualAmount.toLocaleString()}` }),
+      return new Response(JSON.stringify({ error: `Insufficient wallet balance. You need UGX ${actualAmount.toLocaleString()}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
           category: 'share_capital',
           source_table: 'angel_pool_investments',
           source_id: wallet.id,
-          description: `Angel Pool investment: ${shares} shares @ USh ${PRICE_PER_SHARE.toLocaleString()}/share`,
+          description: `Angel Pool investment: ${shares} shares @ UGX ${PRICE_PER_SHARE.toLocaleString()}/share`,
           currency: 'UGX',
           reference_id: referenceId,
           transaction_date: txDate,

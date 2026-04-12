@@ -240,13 +240,13 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><DollarSign className="h-3.5 w-3.5" /> Total Raised</div>
-            <p className="text-lg font-bold">USh {fmt(totalRaised)}</p>
+            <p className="text-lg font-bold">UGX {fmt(totalRaised)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><TrendingUp className="h-3.5 w-3.5" /> Pool Target</div>
-            <p className="text-lg font-bold">USh {fmt(config.total_pool_ugx)}</p>
+            <p className="text-lg font-bold">UGX {fmt(config.total_pool_ugx)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -277,7 +277,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><DollarSign className="h-3.5 w-3.5" /> Share Price</div>
-            <p className="text-lg font-bold">USh {fmt(config.price_per_share)}</p>
+            <p className="text-lg font-bold">UGX {fmt(config.price_per_share)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -339,7 +339,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                     <TableCell className="text-muted-foreground">{page * PAGE_SIZE + i + 1}</TableCell>
                     <TableCell className="font-medium">{inv.name}</TableCell>
                     <TableCell className="text-right">{fmt(inv.total_shares)}</TableCell>
-                    <TableCell className="text-right hidden sm:table-cell">USh {fmt(inv.total_amount)}</TableCell>
+                    <TableCell className="text-right hidden sm:table-cell">UGX {fmt(inv.total_amount)}</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.pool_pct.toFixed(4)}%</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.company_pct.toFixed(4)}%</TableCell>
                     <TableCell className="hidden lg:table-cell">{format(new Date(inv.latest_date), 'dd MMM yyyy')}</TableCell>
@@ -423,7 +423,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                 <Label>New Total Shares</Label>
                 <Input type="number" min={0} value={editShares} onChange={e => setEditShares(Number(e.target.value))} />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Current: {selectedInvestor?.total_shares.toLocaleString()} shares · New amount: USh {(editShares * config.price_per_share).toLocaleString()}
+                  Current: {selectedInvestor?.total_shares.toLocaleString()} shares · New amount: UGX {(editShares * config.price_per_share).toLocaleString()}
                 </p>
               </div>
             )}
