@@ -8,49 +8,20 @@ export function PlatformVsWalletSummary() {
   const { data, isLoading } = useQuery({
     queryKey: ['cfo-platform-vs-wallets'],
     queryFn: async () => {
-      // Use RPC to bypass 1000-row limit
-      const { data: walletTotals } = await supabase.rpc('get_wallet_totals');
-      const totalWallets = Number((walletTotals as any)?.total_balance ?? 0);
+      const [walletTotalsRes, cashSummaryRes] = await Promise.all([
+        supabase.rpc('get_wallet_totals'),
+        supabase.rpc('get_platform_cash_summary'),
+      ]);
 
-      // Platform cash: all-time earned revenue minus costs (paginated, direction-fallback)
-      const revenueCategories = ['tenant_access_fee', 'access_fee', 'tenant_request_fee', 'request_fee', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
-      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense'];
-      const allPlatformRows: any[] = [];
-      let offset = 0;
-      let hasMore = true;
-      while (hasMore) {
-        const { data: page } = await supabase
-          .from('general_ledger')
-          .select('amount, direction, category')
-          .eq('ledger_scope', 'platform')
-          .neq('category', 'opening_balance')
-          .range(offset, offset + 999);
-        if (page && page.length > 0) {
-          allPlatformRows.push(...page);
-          offset += 1000;
-          hasMore = page.length === 1000;
-        } else {
-          hasMore = false;
-        }
-      }
-      const sumByCat = (rows: any[], cats: string[]) => rows.filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
-      const pIn = allPlatformRows.filter(e => e.direction === 'cash_in');
-      const pOut = allPlatformRows.filter(e => e.direction === 'cash_out');
-      const rev = sumByCat(pIn, revenueCategories) || sumByCat(pOut, revenueCategories);
-      const costs = sumByCat(pOut, costCategories) || sumByCat(pIn, costCategories);
+      const totalWallets = Number((walletTotalsRes.data as any)?.total_balance ?? 0);
+      const cashSummary = cashSummaryRes.data as any;
+      const rev = Number(cashSummary?.total_revenue ?? 0);
+      const costs = Number(cashSummary?.total_costs ?? 0);
       const platformNet = Math.max(0, rev - costs);
 
-      const { data: allIn } = await supabase
-        .from('general_ledger').select('amount')
-        .eq('direction', 'cash_in').in('ledger_scope', ['wallet', 'bridge']);
-      const allCashIn = (allIn || []).reduce((s, e) => s + (e.amount || 0), 0);
-
-      const { data: allOut } = await supabase
-        .from('general_ledger').select('amount')
-        .eq('direction', 'cash_out').in('ledger_scope', ['wallet', 'bridge']);
-      const allCashOut = (allOut || []).reduce((s, e) => s + (e.amount || 0), 0);
-
-      const ledgerNetWallets = allCashIn - allCashOut;
+      const walletCashIn = Number(cashSummary?.wallet_cash_in ?? 0);
+      const walletCashOut = Number(cashSummary?.wallet_cash_out ?? 0);
+      const ledgerNetWallets = walletCashIn - walletCashOut;
       const variance = totalWallets - ledgerNetWallets;
 
       return { totalWallets, platformNet, ledgerNetWallets, variance };

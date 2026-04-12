@@ -203,31 +203,8 @@ export function useFinancialStatements() {
            q = q.in('classification', ['production', 'legacy_real']);
           return q;
         })(),
-        // All-time platform query for Balance Sheet platformCash (unfiltered by date)
-        // Paginate to avoid the 1000-row default cap
-        (async () => {
-          const allRows: any[] = [];
-          const PAGE = 1000;
-          let offset = 0;
-          let hasMore = true;
-          while (hasMore) {
-            const { data: page, error } = await supabase
-              .from('general_ledger')
-              .select('amount, direction, category')
-              .eq('ledger_scope', 'platform')
-              .in('classification', ['production', 'legacy_real'])
-              .range(offset, offset + PAGE - 1);
-            if (error) throw error;
-            if (page && page.length > 0) {
-              allRows.push(...page);
-              offset += PAGE;
-              hasMore = page.length === PAGE;
-            } else {
-              hasMore = false;
-            }
-          }
-          return { data: allRows, error: null };
-        })(),
+        // All-time platform cash via server-side RPC (no row limit)
+        supabase.rpc('get_platform_cash_summary'),
       ]);
 
       const platformIn = platformInRes.data || [];

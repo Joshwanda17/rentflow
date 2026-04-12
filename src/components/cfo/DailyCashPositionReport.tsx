@@ -25,45 +25,26 @@ export function DailyCashPositionReport() {
         .in('classification', ['production', 'legacy_real']);
       if (error) throw error;
 
-      // Platform cash = all-time platform-scoped earned revenue minus costs (paginated)
-      const revenueCategories = ['tenant_access_fee', 'access_fee', 'tenant_request_fee', 'request_fee', 'platform_service_income', 'landlord_platform_fee', 'management_fee'];
-      const costCategories = ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus', 'referral_bonus', 'transaction_platform_expenses', 'operational_expenses', 'platform_expense'];
-      const allRows: any[] = [];
-      let offset = 0;
-      let hasMore = true;
-      while (hasMore) {
-        const { data: page } = await supabase
-          .from('general_ledger')
-          .select('amount, direction, category')
-          .eq('ledger_scope', 'platform')
-          .in('classification', ['production', 'legacy_real'])
-          .range(offset, offset + 999);
-        if (page && page.length > 0) {
-          allRows.push(...page);
-          offset += 1000;
-          hasMore = page.length === 1000;
-        } else {
-          hasMore = false;
-        }
-      }
-      const sumByCat = (rows: any[], cats: string[]) => rows.filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
-      const pIn = allRows.filter(e => e.direction === 'cash_in');
-      const pOut = allRows.filter(e => e.direction === 'cash_out');
-      const rev = sumByCat(pIn, revenueCategories) || sumByCat(pOut, revenueCategories);
-      const costs = sumByCat(pOut, costCategories) || sumByCat(pIn, costCategories);
+      // Platform cash via server-side RPC (no row limit)
+      const [cashSummaryRes, walletTotalsRes, pendingRentRes] = await Promise.all([
+        supabase.rpc('get_platform_cash_summary'),
+        supabase.rpc('get_wallet_totals'),
+        supabase.from('rent_requests')
+          .select('rent_amount')
+          .in('status', ['coo_approved', 'cfo_approved']),
+      ]);
+
+      const cashSummary = cashSummaryRes.data as any;
+      const rev = Number(cashSummary?.total_revenue ?? 0);
+      const costs = Number(cashSummary?.total_costs ?? 0);
       const platformCash = Math.max(0, rev - costs);
 
-      // User funds held in custody (separate from platform)
-      const { data: wallets } = await supabase
-        .from('wallets').select('balance').gt('balance', 0).limit(500);
-      const userFundsCustody = (wallets || []).reduce((s, w) => s + w.balance, 0);
+      // User funds held in custody (all wallets, no row limit)
+      const walletTotals = walletTotalsRes.data as any;
+      const userFundsCustody = Number(walletTotals?.total_balance ?? 0);
 
       // Get pending obligations
-      const { data: pendingRent } = await supabase
-        .from('rent_requests')
-        .select('rent_amount')
-        .in('status', ['coo_approved', 'cfo_approved']);
-      const pendingObligations = (pendingRent || []).reduce((s, r) => s + r.rent_amount, 0);
+      const pendingObligations = (pendingRentRes.data || []).reduce((s, r) => s + r.rent_amount, 0);
 
       // Aggregate by day (platform scope only)
       for (let i = 6; i >= 0; i--) {
