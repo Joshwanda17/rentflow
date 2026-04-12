@@ -43,6 +43,7 @@ import { hapticTap } from '@/lib/haptics';
 
 // Virtual Houses components
 import { PortfolioSummaryCards } from '@/components/supporter/PortfolioSummaryCards';
+import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { VirtualHousesFeed } from '@/components/supporter/VirtualHousesFeed';
 import { VirtualHouse } from '@/components/supporter/VirtualHouseCard';
 import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDetailsSheet';
@@ -379,12 +380,11 @@ export default function SupporterDashboard({
           <MerchantCodePills />
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
-          <PortfolioSummaryCards
-            housesFunded={virtualHouses.length}
-            rentSecured={totalRentContributed}
-            walletBalance={wallet?.balance ?? 0}
-            portfolioHealth={portfolioHealth}
-            totalReturn={totalRoiEarned}
+          <UnifiedWalletHeroCard
+            balance={wallet?.balance ?? 0}
+            role="supporter"
+            secondaryLabel="Invested"
+            secondaryValue={_formatUGX(totalRentContributed)}
           />
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
