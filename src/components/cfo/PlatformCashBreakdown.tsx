@@ -122,7 +122,6 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
 
   const p3 = entries.filter(e => PRIORITY_3_CATEGORIES.includes(e.category));
   if (p3.length > 0) {
-    // Sort by priority order: principal first, then access fee, registration fee, then wallet repayments
     const order = PRIORITY_3_CATEGORIES;
     const sorted = [...p3].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
     groups.push({
@@ -137,22 +136,22 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
   const p4 = entries.filter(e => PRIORITY_4_CATEGORIES.includes(e.category));
   if (p4.length > 0) {
     groups.push({
-      label: 'Advances, Retractions & Corrections',
-      emoji: '🔄',
+      label: 'Salary Advance Repayments',
+      emoji: '💼',
       icon: Briefcase,
       items: p4,
       total: p4.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
-  const others = entries.filter(e => !ALL_PRIORITIZED.includes(e.category));
-  if (others.length > 0) {
+  const p5 = entries.filter(e => PRIORITY_5_CATEGORIES.includes(e.category));
+  if (p5.length > 0) {
     groups.push({
-      label: 'Other Sources',
-      emoji: '📋',
+      label: 'Corrections',
+      emoji: '🔄',
       icon: MoreHorizontal,
-      items: others.sort((a, b) => b.total_amount - a.total_amount),
-      total: others.reduce((s, e) => s + e.total_amount, 0),
+      items: p5,
+      total: p5.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
