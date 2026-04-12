@@ -182,10 +182,8 @@ export function PlatformCashBreakdown() {
   if (filtered.length === 0) return null;
 
   const increases = filtered.filter(e => e.direction === 'cash_in');
-  const decreases = filtered.filter(e => e.direction === 'cash_out').sort((a, b) => b.total_amount - a.total_amount);
 
   const totalIn = increases.reduce((s, e) => s + e.total_amount, 0);
-  const totalOut = decreases.reduce((s, e) => s + e.total_amount, 0);
 
   const priorityGroups = groupByPriority(increases);
 
