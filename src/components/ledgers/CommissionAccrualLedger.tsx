@@ -47,21 +47,7 @@ export function CommissionAccrualLedger() {
     },
   });
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const updates: any = { status };
-      if (status === 'approved') updates.approved_at = new Date().toISOString();
-      if (status === 'paid') updates.paid_at = new Date().toISOString();
-      if (status === 'rejected') updates.rejected_at = new Date().toISOString();
-      const { error } = await supabase.from('commission_accrual_ledger').update(updates).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Commission updated');
-      queryClient.invalidateQueries({ queryKey: ['commission-accrual-ledger'] });
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
+  // Commissions flow automatically — no approval needed
 
   const totals = (data || []).reduce((acc, e) => {
     acc[e.status] = (acc[e.status] || 0) + e.amount;
