@@ -274,7 +274,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           balance={floatBalance + commissionBalance}
           role="agent"
           secondaryLabel="Withdrawable"
-          secondaryValue={formatAmountCompact(commissionBalance)}
+          secondaryValue={formatUGX(commissionBalance)}
         />
 
         {/* Verification Checklist */}

@@ -87,7 +87,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             balance={wallet?.balance ?? 0}
             role="landlord"
             secondaryLabel="Withdrawable"
-            secondaryValue={formatAmount(wallet?.balance ?? 0)}
+            secondaryValue={formatUGX(wallet?.balance ?? 0)}
           />
 
           {/* Verification Checklist */}
