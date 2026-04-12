@@ -17,7 +17,9 @@ export function PlatformVsWalletSummary() {
       const cashSummary = cashSummaryRes.data as any;
       const rev = Number(cashSummary?.total_revenue ?? 0);
       const costs = Number(cashSummary?.total_costs ?? 0);
-      const platformNet = Math.max(0, rev - costs);
+      const platformCashIn = Number(cashSummary?.platform_cash_in ?? rev);
+      const platformCashOut = Number(cashSummary?.platform_cash_out ?? costs);
+      const platformNet = platformCashIn - platformCashOut;
 
       const walletCashIn = Number(cashSummary?.wallet_cash_in ?? 0);
       const walletCashOut = Number(cashSummary?.wallet_cash_out ?? 0);
