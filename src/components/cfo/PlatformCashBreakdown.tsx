@@ -23,7 +23,8 @@ const PRIORITY_2_CATEGORIES = [
 
 // Priority 3: Rent Repayments (from tenant wallets or agent wallets)
 const PRIORITY_3_CATEGORIES = [
-  'tenant_repayment', 'agent_repayment', 'rent_principal_collected',
+  'rent_principal_collected', 'access_fee_collected', 'registration_fee_collected',
+  'tenant_repayment', 'agent_repayment',
 ];
 
 // Priority 4: Salary Advance Repayments & Retractions
