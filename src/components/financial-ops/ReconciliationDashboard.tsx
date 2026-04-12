@@ -12,11 +12,26 @@ export function ReconciliationDashboard() {
     queryKey: ['reconciliation-7d'],
     queryFn: async () => {
       const since = subDays(new Date(), 7).toISOString();
-      const { data: ledger } = await supabase
-        .from('general_ledger')
-        .select('amount, direction, transaction_date, ledger_scope')
-        .gte('transaction_date', since)
-        .order('transaction_date', { ascending: true });
+      // Paginate to bypass 1000-row limit
+      const allLedger: any[] = [];
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const { data: page } = await supabase
+          .from('general_ledger')
+          .select('amount, direction, transaction_date, ledger_scope')
+          .gte('transaction_date', since)
+          .order('transaction_date', { ascending: true })
+          .range(offset, offset + 999);
+        if (page && page.length > 0) {
+          allLedger.push(...page);
+          offset += 1000;
+          hasMore = page.length === 1000;
+        } else {
+          hasMore = false;
+        }
+      }
+      const ledger = allLedger;
 
       if (!ledger) return { days: [], totals: { cashIn: 0, cashOut: 0, net: 0 }, discrepancies: [] };
 
