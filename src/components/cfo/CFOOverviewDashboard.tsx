@@ -90,7 +90,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         <MetricCard
           icon={<div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><Banknote className="h-5 w-5 text-blue-600" /></div>}
           label="Money We Have"
-          sublabel="Total cash across all channels"
+          sublabel="From funders, repayments, collections & wallets"
           value={fmt(totalCash)}
           detail={`Free to use: ${fmtShort(Math.max(0, totalCash - totalLiabilities))}`}
           onClick={() => setActiveBreakdown('cash')}
