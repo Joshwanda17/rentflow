@@ -126,7 +126,7 @@ export default function StaffAccessCard() {
             className="w-full gap-2"
             variant="outline"
           >
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-primary" />
             Continue as Staff
             <ArrowRight className="h-4 w-4 ml-auto" />
           </Button>
