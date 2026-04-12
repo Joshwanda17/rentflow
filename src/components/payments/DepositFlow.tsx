@@ -16,7 +16,7 @@ interface DepositFlowProps {
   walletBalance?: number;
 }
 
-type DepositChannel = 'momo' | 'bank' | 'agent_cash';
+type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
 
 const MERCHANT_CODES = {
   mtn: '090777',
@@ -79,11 +79,12 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const getProviderLabel = () => {
     if (channel === 'momo') return momoProvider === 'mtn' ? 'MTN MoMo' : 'Airtel Money';
     if (channel === 'bank') return 'Bank Transfer';
+    if (channel === 'cash') return 'Cash Deposit';
     return 'Agent Cash';
   };
 
   const getReferenceId = () => {
-    if (channel === 'agent_cash') return receiptNumber.trim() ? `RCT${receiptNumber.trim().toUpperCase()}` : '';
+    if (channel === 'agent_cash' || channel === 'cash') return receiptNumber.trim() ? `RCT${receiptNumber.trim().toUpperCase()}` : '';
     return transactionId.trim().toUpperCase();
   };
 
@@ -93,6 +94,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     if (channel === 'bank' && !transactionId.trim()) { toast.error('Enter the bank reference number'); return false; }
     if (channel === 'agent_cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
     if (channel === 'agent_cash' && !agentName.trim()) { toast.error('Enter the agent name'); return false; }
+    if (channel === 'cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
 
     // TID format validation
     if (channel === 'momo') {
@@ -156,7 +158,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
         }
       }
 
-      const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : 'agent_cash';
+      const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : channel === 'cash' ? 'cash_deposit' : 'agent_cash';
       const notes = [
         reason.trim(),
         channel === 'agent_cash' ? `Agent: ${agentName.trim()}` : '',
@@ -242,8 +244,9 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
             <div className="grid gap-3">
               {[
                 { id: 'momo' as DepositChannel, icon: Phone, label: 'Mobile Money', desc: 'MTN MoMo or Airtel Money', color: 'border-yellow-500 bg-yellow-500/5' },
-                { id: 'bank' as DepositChannel, icon: Building2, label: 'Bank Transfer', desc: 'Equity Bank Uganda', color: 'border-blue-500 bg-blue-500/5' },
-                { id: 'agent_cash' as DepositChannel, icon: Banknote, label: 'Agent Cash Deposit', desc: 'Paid cash to a Welile agent', color: 'border-emerald-500 bg-emerald-500/5' },
+                 { id: 'bank' as DepositChannel, icon: Building2, label: 'Bank Transfer', desc: 'Equity Bank Uganda', color: 'border-blue-500 bg-blue-500/5' },
+                 { id: 'cash' as DepositChannel, icon: Receipt, label: 'Cash Deposit', desc: 'Deposited cash & have a receipt', color: 'border-violet-500 bg-violet-500/5' },
+                 { id: 'agent_cash' as DepositChannel, icon: Banknote, label: 'Agent Cash Deposit', desc: 'Paid cash to a Welile agent', color: 'border-emerald-500 bg-emerald-500/5' },
               ].map((ch) => (
                 <button
                   key={ch.id}
@@ -400,6 +403,18 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               </div>
             )}
 
+            {/* ─── Cash Deposit Instructions ─── */}
+            {channel === 'cash' && (
+              <div className="p-3 bg-violet-500/5 rounded-lg border border-violet-500/20">
+                <h4 className="font-medium text-xs mb-1 flex items-center gap-1.5">
+                  <Receipt className="h-3.5 w-3.5 text-violet-600" /> Cash Deposit
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Enter the receipt number you received when you deposited cash.
+                </p>
+              </div>
+            )}
+
             {/* ─── Amount ─── */}
             <div className="space-y-2">
               <Label className="text-xs">Amount (UGX)</Label>
@@ -414,7 +429,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
             </div>
 
             {/* ─── Reference / TID / Receipt ─── */}
-            {channel !== 'agent_cash' ? (
+            {channel !== 'agent_cash' && channel !== 'cash' ? (
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Hash className="h-3.5 w-3.5" />
@@ -472,12 +487,16 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
                       className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">From the physical receipt the agent gave you</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {channel === 'agent_cash' ? 'From the physical receipt the agent gave you' : 'From your cash deposit receipt'}
+                  </p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Agent Name *</Label>
-                  <Input placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
-                </div>
+                {channel === 'agent_cash' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Agent Name *</Label>
+                    <Input placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
+                  </div>
+                )}
               </>
             )}
 
