@@ -21,16 +21,19 @@ const PRIORITY_2_CATEGORIES = [
   'angel_pool_investment', 'angel_pool_commission',
 ];
 
-// Priority 3: Rent Repayments (from tenant wallets or agent wallets)
+// Priority 3: Rent Collections (principal, access fee, registration fee)
 const PRIORITY_3_CATEGORIES = [
   'rent_principal_collected', 'access_fee_collected', 'registration_fee_collected',
-  'tenant_repayment', 'agent_repayment',
 ];
 
-// Priority 4: Salary Advance Repayments & Retractions
+// Priority 4: Salary Advance Repayments
 const PRIORITY_4_CATEGORIES = [
-  'salary_advance_repayment', 'wallet_deduction', 'system_balance_correction',
-  'orphan_reassignment', 'orphan_reversal',
+  'salary_advance_repayment',
+];
+
+// Priority 5: Corrections
+const PRIORITY_5_CATEGORIES = [
+  'system_balance_correction', 'orphan_reassignment', 'orphan_reversal',
 ];
 
 const ALL_PRIORITIZED = [
@@ -38,7 +41,11 @@ const ALL_PRIORITIZED = [
   ...PRIORITY_2_CATEGORIES,
   ...PRIORITY_3_CATEGORIES,
   ...PRIORITY_4_CATEGORIES,
+  ...PRIORITY_5_CATEGORIES,
 ];
+
+// Only these categories are shown in the CFO "Money We Have" view
+const ALLOWED_CATEGORIES = [...ALL_PRIORITIZED];
 
 const CATEGORY_LABELS: Record<string, string> = {
   partner_funding: 'Partner / Funder Capital',
@@ -115,7 +122,6 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
 
   const p3 = entries.filter(e => PRIORITY_3_CATEGORIES.includes(e.category));
   if (p3.length > 0) {
-    // Sort by priority order: principal first, then access fee, registration fee, then wallet repayments
     const order = PRIORITY_3_CATEGORIES;
     const sorted = [...p3].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
     groups.push({
@@ -130,22 +136,22 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
   const p4 = entries.filter(e => PRIORITY_4_CATEGORIES.includes(e.category));
   if (p4.length > 0) {
     groups.push({
-      label: 'Advances, Retractions & Corrections',
-      emoji: '🔄',
+      label: 'Salary Advance Repayments',
+      emoji: '💼',
       icon: Briefcase,
       items: p4,
       total: p4.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
-  const others = entries.filter(e => !ALL_PRIORITIZED.includes(e.category));
-  if (others.length > 0) {
+  const p5 = entries.filter(e => PRIORITY_5_CATEGORIES.includes(e.category));
+  if (p5.length > 0) {
     groups.push({
-      label: 'Other Sources',
-      emoji: '📋',
+      label: 'Corrections',
+      emoji: '🔄',
       icon: MoreHorizontal,
-      items: others.sort((a, b) => b.total_amount - a.total_amount),
-      total: others.reduce((s, e) => s + e.total_amount, 0),
+      items: p5,
+      total: p5.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
@@ -171,14 +177,8 @@ export function PlatformCashBreakdown() {
     );
   }
 
-  // Categories to exclude from the CFO "Money We Have" view
-  const EXCLUDED_CATEGORIES = [
-    'supporter_platform_rewards',
-    'agent_commission_payout',
-    'rent_disbursement',
-  ];
-
-  const filtered = data.filter(e => !EXCLUDED_CATEGORIES.includes(e.category));
+  // Only show allowed categories in the CFO "Money We Have" view
+  const filtered = data.filter(e => ALLOWED_CATEGORIES.includes(e.category));
   if (filtered.length === 0) return null;
 
   const increases = filtered.filter(e => e.direction === 'cash_in');
