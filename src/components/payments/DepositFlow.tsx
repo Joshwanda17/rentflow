@@ -244,8 +244,9 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
             <div className="grid gap-3">
               {[
                 { id: 'momo' as DepositChannel, icon: Phone, label: 'Mobile Money', desc: 'MTN MoMo or Airtel Money', color: 'border-yellow-500 bg-yellow-500/5' },
-                { id: 'bank' as DepositChannel, icon: Building2, label: 'Bank Transfer', desc: 'Equity Bank Uganda', color: 'border-blue-500 bg-blue-500/5' },
-                { id: 'agent_cash' as DepositChannel, icon: Banknote, label: 'Agent Cash Deposit', desc: 'Paid cash to a Welile agent', color: 'border-emerald-500 bg-emerald-500/5' },
+                 { id: 'bank' as DepositChannel, icon: Building2, label: 'Bank Transfer', desc: 'Equity Bank Uganda', color: 'border-blue-500 bg-blue-500/5' },
+                 { id: 'cash' as DepositChannel, icon: Receipt, label: 'Cash Deposit', desc: 'Deposited cash & have a receipt', color: 'border-violet-500 bg-violet-500/5' },
+                 { id: 'agent_cash' as DepositChannel, icon: Banknote, label: 'Agent Cash Deposit', desc: 'Paid cash to a Welile agent', color: 'border-emerald-500 bg-emerald-500/5' },
               ].map((ch) => (
                 <button
                   key={ch.id}
