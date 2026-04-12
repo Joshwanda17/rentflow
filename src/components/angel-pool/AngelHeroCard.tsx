@@ -4,10 +4,10 @@ import { TOTAL_POOL_UGX, POOL_PERCENT, TOTAL_SHARES, PRICE_PER_SHARE } from './c
 import { MOCK_TOTAL_RAISED } from './mockData';
 
 const formatCompact = (n: number) => {
-  if (n >= 1_000_000_000) return `USh ${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000) return `USh ${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `USh ${(n / 1_000).toFixed(0)}K`;
-  return `USh ${n}`;
+  if (n >= 1_000_000_000) return `UGX ${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `UGX ${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `UGX ${(n / 1_000).toFixed(0)}K`;
+  return `UGX ${n}`;
 };
 
 interface AngelHeroCardProps {

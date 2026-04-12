@@ -361,7 +361,7 @@ export function FunderCapitalOpportunities() {
                 {/* Footer */}
                 <div className="text-center space-y-1.5">
                   <p className="text-[10px] text-muted-foreground">
-                    <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: USh {PRICE_PER_SHARE.toLocaleString()}
+                    <Clock className="h-3 w-3 inline mr-1" />Avg. cycle: 30 days · Min: UGX {PRICE_PER_SHARE.toLocaleString()}
                   </p>
                   <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
                     Returns are projected based on historical performance. Capital is deployed into verified rent facilitation agreements managed by Welile with reserve protection.

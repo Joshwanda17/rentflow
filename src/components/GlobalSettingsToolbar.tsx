@@ -236,7 +236,7 @@ const CurrencySelectorGrid = () => {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
   
   const currencies = [
-    { code: 'UGX', name: 'Ugandan Shilling', flag: '🇺🇬', symbol: 'USh' },
+    { code: 'UGX', name: 'Ugandan Shilling', flag: '🇺🇬', symbol: 'UGX' },
     { code: 'USD', name: 'US Dollar', flag: '🇺🇸', symbol: '$' },
     { code: 'EUR', name: 'Euro', flag: '🇪🇺', symbol: '€' },
     { code: 'GBP', name: 'British Pound', flag: '🇬🇧', symbol: '£' },

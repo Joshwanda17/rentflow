@@ -58,7 +58,7 @@ export function AngelActivityFeed() {
             <span className={`text-xs font-bold ${evt.type === 'secured' ? 'text-success' : 'text-primary'}`}>
               +
             </span>
-            <span className="font-semibold">USh {formatCompact(evt.amount)}</span>
+            <span className="font-semibold">UGX {formatCompact(evt.amount)}</span>
             <span className="text-muted-foreground text-xs">
               {evt.type === 'secured' ? 'secured' : 'pledged'} — {evt.name}
             </span>

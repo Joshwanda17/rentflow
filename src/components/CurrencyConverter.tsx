@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 
 // List of popular currencies for the converter
 const popularCurrencies = [
-  { code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling', flag: '🇺🇬', rate: 1 },
+  { code: 'UGX', symbol: 'UGX', name: 'Ugandan Shilling', flag: '🇺🇬', rate: 1 },
   { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸', rate: 0.00027 },
   { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺', rate: 0.00025 },
   { code: 'GBP', symbol: '£', name: 'British Pound', flag: '🇬🇧', rate: 0.00021 },
