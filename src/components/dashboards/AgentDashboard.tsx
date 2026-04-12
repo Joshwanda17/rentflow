@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { AgentWalletHeroCard } from '@/components/agent/AgentWalletHeroCard';
+import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
 
 import { Button } from '@/components/ui/button';
@@ -270,12 +270,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Wallet Hero Card */}
-        <AgentWalletHeroCard
-          floatBalance={floatBalance}
-          commissionBalance={commissionBalance}
-          tenantsCount={tenantsCount}
-          totalEarnings={totalEarnings}
-          territory={profile?.territory}
+        <UnifiedWalletHeroCard
+          balance={floatBalance + commissionBalance}
+          role="agent"
+          secondaryLabel="Withdrawable"
+          secondaryValue={formatAmountCompact(commissionBalance)}
         />
 
         {/* Verification Checklist */}
