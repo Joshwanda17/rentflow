@@ -182,10 +182,8 @@ export function PlatformCashBreakdown() {
   if (filtered.length === 0) return null;
 
   const increases = filtered.filter(e => e.direction === 'cash_in');
-  const decreases = filtered.filter(e => e.direction === 'cash_out').sort((a, b) => b.total_amount - a.total_amount);
 
   const totalIn = increases.reduce((s, e) => s + e.total_amount, 0);
-  const totalOut = decreases.reduce((s, e) => s + e.total_amount, 0);
 
   const priorityGroups = groupByPriority(increases);
 
@@ -239,44 +237,11 @@ export function PlatformCashBreakdown() {
         </div>
       </div>
 
-      {/* What Reduces Our Cash */}
-      <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <TrendingDown className="h-4 w-4 text-destructive" />
-          <h3 className="text-sm font-bold text-red-700 dark:text-red-400">
-            What Reduces Our Cash
-          </h3>
-          <span className="ml-auto text-xs font-mono font-bold text-destructive">
-            -<CompactAmount value={totalOut} />
-          </span>
-        </div>
-        <div className="space-y-1.5">
-          {decreases.map(e => (
-            <div key={`${e.category}-${e.direction}`} className="flex items-center justify-between text-xs gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
-                <span className="truncate text-foreground">{formatCategory(e.category)}</span>
-                <span className="text-muted-foreground shrink-0">({e.entry_count})</span>
-              </div>
-              <span className="font-mono font-semibold text-destructive shrink-0">
-                -<CompactAmount value={e.total_amount} />
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Net */}
-      <div className={cn(
-        "rounded-xl border-2 p-3 text-center",
-        totalIn - totalOut >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-destructive/30 bg-destructive/5"
-      )}>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Net Cash Available</p>
-        <p className={cn(
-          "text-lg font-bold font-mono",
-          totalIn - totalOut >= 0 ? "text-emerald-600" : "text-destructive"
-        )}>
-          <CompactAmount value={totalIn - totalOut} />
+      {/* Total */}
+      <div className="rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 p-3 text-center">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Cash Sources</p>
+        <p className="text-lg font-bold font-mono text-emerald-600">
+          <CompactAmount value={totalIn} />
         </p>
       </div>
     </div>
