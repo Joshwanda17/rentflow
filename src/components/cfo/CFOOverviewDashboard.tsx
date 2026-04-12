@@ -49,21 +49,13 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     );
   }
 
-  const totalCash = channelBalances?.totalCash ?? 0;
+  const totalCash = platformCash?.totalCash ?? 0;
   const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
   const platformEarnings = revenue?.netProfit ?? 0;
   const walletTotal = liabilities?.tenantFunds ?? 0;
   const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
   const netToday = todayCashFlow?.netToday ?? 0;
-
-  const channels = channelBalances?.channels ?? {};
-  const channelColors: Record<string, string> = {
-    MTN: 'bg-yellow-400',
-    Airtel: 'bg-red-400',
-    Bank: 'bg-blue-400',
-    Cash: 'bg-emerald-400',
-  };
 
   const liabilityItems = [
     { label: 'Tenant Funds', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
