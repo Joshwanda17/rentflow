@@ -7,40 +7,15 @@ export function WalletOverviewCard() {
   const { data, isLoading } = useQuery({
     queryKey: ['finops-wallet-overview'],
     queryFn: async () => {
-      // Use count query + paginated sum to bypass the 1000-row default limit
-      const { count, error: countErr } = await supabase
-        .from('wallets')
-        .select('*', { count: 'exact', head: true });
-
-      if (countErr) throw countErr;
-
-      // Fetch ALL balances in batches of 1000 to get accurate totals
-      const PAGE_SIZE = 1000;
-      const totalPages = Math.ceil((count || 0) / PAGE_SIZE);
-      let totalBalance = 0;
-      let activeWallets = 0;
-
-      const batchPromises = [];
-      for (let i = 0; i < totalPages; i++) {
-        batchPromises.push(
-          supabase
-            .from('wallets')
-            .select('balance')
-            .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1)
-        );
-      }
-
-      const results = await Promise.all(batchPromises);
-      for (const res of results) {
-        if (res.error) throw res.error;
-        for (const w of res.data || []) {
-          const bal = Number(w.balance || 0);
-          totalBalance += bal;
-          if (bal > 0) activeWallets++;
-        }
-      }
-
-      return { totalBalance, walletCount: count || 0, activeWallets };
+      // Server-side RPC bypasses RLS and the 1000-row limit
+      const { data, error } = await supabase.rpc('get_wallet_totals');
+      if (error) throw error;
+      const d = data as any;
+      return {
+        totalBalance: Number(d.total_balance ?? 0),
+        walletCount: Number(d.total_wallets ?? 0),
+        activeWallets: Number(d.active_wallets ?? 0),
+      };
     },
     staleTime: 60_000,
   });
@@ -51,9 +26,7 @@ export function WalletOverviewCard() {
         <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
           <Wallet className="h-5 w-5 text-primary" />
         </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Money in All Wallets</p>
-        </div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Money in All Wallets</p>
       </div>
       <p className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${isLoading ? 'animate-pulse text-muted-foreground' : 'text-foreground'}`}>
         {isLoading ? '———' : formatUGX(data?.totalBalance ?? 0)}
