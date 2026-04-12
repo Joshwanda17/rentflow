@@ -62,7 +62,7 @@ export function PlatformCashBreakdown() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_platform_cash_breakdown');
       if (error) throw error;
-      return (data as BreakdownEntry[] | null) || [];
+      return (data as unknown as BreakdownEntry[] | null) || [];
     },
     staleTime: 300_000,
   });
