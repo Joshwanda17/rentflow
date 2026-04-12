@@ -9,15 +9,15 @@ export default function WalletMonitoringPanel() {
   const { data, isLoading } = useQuery({
     queryKey: ['coo-wallet-monitoring'],
     queryFn: async () => {
-      const [walletsCountRes, pendingSettlementsRes, completedSettlementsRes] = await Promise.all([
-        supabase.from('wallets').select('balance', { count: 'exact' }),
+      const [walletTotalsRes, pendingSettlementsRes, completedSettlementsRes] = await Promise.all([
+        supabase.rpc('get_wallet_totals'),
         supabase.from('withdrawal_requests').select('amount').eq('status', 'pending'),
         supabase.from('withdrawal_requests').select('amount').eq('status', 'approved'),
       ]);
 
-      const wallets = walletsCountRes.data || [];
-      const walletCount = walletsCountRes.count || wallets.length;
-      const totalBalance = wallets.reduce((s, w) => s + (w.balance || 0), 0);
+      const wt = walletTotalsRes.data as any;
+      const walletCount = Number(wt?.total_wallets ?? 0);
+      const totalBalance = Number(wt?.total_balance ?? 0);
 
       // Get agent float totals
       const { data: floats } = await supabase.from('agent_float_limits').select('float_limit');

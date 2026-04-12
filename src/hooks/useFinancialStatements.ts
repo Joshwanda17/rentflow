@@ -191,7 +191,7 @@ export function useFinancialStatements() {
         buildScopedQuery('wallet', 'cash_out'),
         buildScopedQuery('bridge', 'cash_in'),
         buildScopedQuery('bridge', 'cash_out'),
-        supabase.from('wallets').select('balance'),
+        supabase.rpc('get_wallet_totals'),
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
         supabase.from('agent_advances').select('access_fee, access_fee_collected, access_fee_status, status').in('status', ['active', 'overdue']),
         (() => {
@@ -236,7 +236,8 @@ export function useFinancialStatements() {
       const walletOut = walletOutRes.data || [];
       const bridgeIn = bridgeInRes.data || [];
       const bridgeOut = bridgeOutRes.data || [];
-      const wallets = walletsRes.data || [];
+      const walletTotalsData = walletsRes.data as any;
+      const wallets = [{ balance: Number(walletTotalsData?.total_balance ?? 0) }];
       const rentRequests = rentRequestsRes.data || [];
       const activeAdvances = advancesRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
