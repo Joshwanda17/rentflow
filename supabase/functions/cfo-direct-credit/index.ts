@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label } = await req.json();
+    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category } = await req.json();
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
 
