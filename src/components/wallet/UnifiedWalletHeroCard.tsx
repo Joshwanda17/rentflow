@@ -82,7 +82,27 @@ export function UnifiedWalletHeroCard({
             </p>
           </div>
 
-          {/* Secondary info — role-specific, compact */}
+          {/* Supporter metric cards */}
+          {role === 'supporter' && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
+                <Home className="h-3.5 w-3.5 text-white/60 mx-auto mb-1" />
+                <p className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Houses</p>
+                <p className="text-sm font-black text-white mt-0.5 font-mono tabular-nums">{houses ?? 0}</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
+                <TrendingUp className="h-3.5 w-3.5 text-white/60 mx-auto mb-1" />
+                <p className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Return/Mo</p>
+                <p className="text-[11px] font-extrabold text-white mt-0.5 font-mono tabular-nums truncate">{returnPerMonth ?? '—'}</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center">
+                <Rocket className="h-3.5 w-3.5 text-white/60 mx-auto mb-1" />
+                <p className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Deployed</p>
+                <p className="text-[11px] font-extrabold text-white mt-0.5 font-mono tabular-nums truncate">{deployed ?? '—'}</p>
+              </div>
+            </div>
+          )}
+
           {secondaryLabel && secondaryValue && (
             <div className="flex items-center justify-between pt-1 border-t border-white/[0.08]">
               <span className="text-[11px] text-white/50 font-medium">{secondaryLabel}</span>
