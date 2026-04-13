@@ -66,7 +66,8 @@ export const UserSearchPicker = forwardRef<HTMLDivElement, UserSearchPickerProps
             } else {
               q = q.ilike('full_name', `%${query}%`);
             }
-            const { data } = await q;
+            const { data, error } = await q;
+            console.log('[UserSearchPicker] query:', query, 'isPhone:', isPhone, 'results:', data?.length, 'error:', error);
             setResults(data || []);
           }
         } catch {
