@@ -230,55 +230,44 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [isLoadingRates, setIsLoadingRates] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Fetch real-time exchange rates
+  // Fetch real-time exchange rates — single attempt, no retry, no dependency on currency
   const fetchLiveRates = useCallback(async () => {
     setIsLoadingRates(true);
     try {
-      // Using exchangerate-api.com free tier (with UGX as base is limited, so we fetch USD and calculate)
-      const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-      
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD', {
+        signal: controller.signal,
+        mode: 'cors',
+      });
+      clearTimeout(timeout);
+
       if (!response.ok) throw new Error('Failed to fetch rates');
-      
+
       const data = await response.json();
       const usdRates = data.rates as Record<string, number>;
-      
-      // Get UGX rate (how many UGX per 1 USD)
-      const ugxPerUsd = usdRates.UGX || 3700; // Fallback to approximate rate
-      
-      // Calculate rates relative to UGX (1 UGX = ? of target currency)
+      const ugxPerUsd = usdRates.UGX || 3700;
+
       const newRates: Record<string, number> = { UGX: 1 };
-      
       Object.entries(usdRates).forEach(([code, rateVsUsd]) => {
-        // rateVsUsd = how many of target currency per 1 USD
-        // We want: how many of target currency per 1 UGX
-        // = rateVsUsd / ugxPerUsd
-        newRates[code] = rateVsUsd / ugxPerUsd;
+        newRates[code] = (rateVsUsd as number) / ugxPerUsd;
       });
-      
+
       setLiveRates(newRates);
       setLastUpdated(new Date());
-      
-      // Update currencies array with new rates
+
       currencies = baseCurrencies.map(c => ({
         ...c,
         rate: newRates[c.code] || fallbackRates[c.code] || 0.00027
       }));
-      
-      // Also update current currency if it's selected
-      const updatedCurrency = currencies.find(c => c.code === currency.code);
-      if (updatedCurrency) {
-        setCurrencyState(updatedCurrency);
-      }
-      
-      // Cache rates in localStorage
+
       localStorage.setItem('welile-live-rates', JSON.stringify({
         rates: newRates,
         timestamp: Date.now()
       }));
-      
     } catch (error) {
-      console.error('Failed to fetch live rates:', error);
-      // Try to load cached rates
+      // Silently use cached or fallback rates — do NOT log repeatedly
       try {
         const cached = localStorage.getItem('welile-live-rates');
         if (cached) {
@@ -287,12 +276,12 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
           setLastUpdated(new Date(timestamp));
         }
       } catch {
-        // Use fallback rates
+        // Use fallback rates — already set as default
       }
     } finally {
       setIsLoadingRates(false);
     }
-  }, [currency.code]);
+  }, []); // No dependencies — rates are currency-agnostic
 
   // Refresh rates function for manual refresh
   const refreshRates = useCallback(async () => {
