@@ -19,7 +19,7 @@ interface UnifiedWalletHeroCardProps {
 const ROLE_LABELS: Record<WalletRole, string> = {
   agent: 'Agent Wallet',
   tenant: 'Rent Wallet',
-  supporter: 'Investor Wallet',
+  supporter: 'PARTNER WALLET',
   landlord: 'Owner Wallet',
 };
 
