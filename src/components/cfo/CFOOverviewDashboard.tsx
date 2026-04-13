@@ -323,11 +323,11 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       <KPIBreakdownSheet
         open={activeBreakdown === 'earnings'}
         onOpenChange={(o) => !o && setActiveBreakdown(null)}
-        title="Profit Breakdown"
-        total={platformEarnings}
+        title="Money We Can Use — Breakdown"
+        total={moneyWeCanUse}
         items={[
-          { label: 'Total Income', value: revenue?.totalRevenue ?? 0, icon: <ArrowDownRight className="h-4 w-4 text-emerald-500" /> },
-          { label: 'Total Costs', value: -(revenue?.totalExpenses ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-destructive" /> },
+          { label: 'Total Cash (Money We Have)', value: totalCash, icon: <ArrowDownRight className="h-4 w-4 text-emerald-500" /> },
+          { label: 'User Wallets (Money We Owe)', value: -walletTotal, icon: <ArrowUpRight className="h-4 w-4 text-destructive" /> },
         ]}
       />
       <KPIBreakdownSheet
