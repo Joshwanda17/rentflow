@@ -303,6 +303,89 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [addPortfolioDate, setAddPortfolioDate] = useState('');
   const [addingPortfolio, setAddingPortfolio] = useState(false);
 
+  // Compound from portfolio view
+  const [compoundingPortfolioId, setCompoundingPortfolioId] = useState<string | null>(null);
+
+  const handlePortfolioCompound = async (portfolio: PortfolioRow) => {
+    if (!detailPartner) return;
+    setCompoundingPortfolioId(portfolio.id);
+    try {
+      const roiAmount = Math.round(portfolio.investment_amount * portfolio.roi_percentage / 100);
+      const newAmount = portfolio.investment_amount + roiAmount;
+      const refId = `CMP-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Update principal only — date stays unchanged, advances on CFO approval
+      const { error: upErr } = await supabase
+        .from('investor_portfolios')
+        .update({ investment_amount: newAmount })
+        .eq('id', portfolio.id);
+      if (upErr) throw upErr;
+
+      // Double-entry ledger: roi_expense + roi_reinvestment
+      const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
+        entries: [
+          {
+            user_id: detailPartner.profile.id,
+            ledger_scope: 'platform',
+            direction: 'cash_out',
+            amount: roiAmount,
+            category: 'roi_expense',
+            description: `ROI compounded: ${formatUGX(roiAmount)} reinvested into portfolio. New principal: ${formatUGX(newAmount)}. Ref: ${refId}`,
+            reference_id: refId,
+            source_table: 'investor_portfolios',
+            source_id: portfolio.id,
+            linked_party: user.id,
+            currency: 'UGX',
+          },
+          {
+            user_id: detailPartner.profile.id,
+            ledger_scope: 'platform',
+            direction: 'cash_in',
+            amount: roiAmount,
+            category: 'roi_reinvestment',
+            description: `ROI reinvestment: ${formatUGX(roiAmount)} added to principal. New principal: ${formatUGX(newAmount)}. Ref: ${refId}`,
+            reference_id: refId,
+            source_table: 'investor_portfolios',
+            source_id: portfolio.id,
+            linked_party: user.id,
+            currency: 'UGX',
+          },
+        ],
+      });
+      if (ledgerErr) throw ledgerErr;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'roi_compounded',
+        table_name: 'investor_portfolios',
+        record_id: portfolio.id,
+        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: detailPartner.profile.id },
+      });
+
+      await supabase.from('notifications').insert({
+        user_id: detailPartner.profile.id,
+        title: 'Portfolio ROI Compounded',
+        message: `Your ROI of ${formatUGX(roiAmount)} has been compounded into your portfolio. New investment total: ${formatUGX(newAmount)}. Ref: ${refId}`,
+        type: 'portfolio_update',
+        metadata: { portfolio_id: portfolio.id, roi_amount: roiAmount, reference: refId },
+      });
+
+      toast.success(`Compounded ${formatUGX(roiAmount)}`, { description: `New principal: ${formatUGX(newAmount)}. Ref: ${refId}` });
+      // Refresh detail view
+      if (detailPartner) {
+        const row = rows.find(r => r.id === detailPartner.profile.id);
+        if (row) openPartnerDetail(row);
+      }
+      fetchData();
+    } catch (err: any) {
+      toast.error('Compound failed', { description: err.message });
+    } finally {
+      setCompoundingPortfolioId(null);
+    }
+  };
+
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
