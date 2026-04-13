@@ -520,6 +520,153 @@ function FloatReconciliationTab() {
   );
 }
 
+// ─── Tab 4: All Agents Float vs Commission ───────────────────────────────────
+function AllAgentsBreakdownTab() {
+  const [search, setSearch] = useState('');
+
+  const { data: agents = [], isLoading } = useQuery({
+    queryKey: ['all-agents-float-commission'],
+    queryFn: async () => {
+      // 1. Get all agent user IDs
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent');
+      if (!roles?.length) return [];
+
+      const ids = roles.map(r => r.user_id);
+
+      // 2. Fetch profiles, wallets, and ledger commission data in parallel
+      const [{ data: profiles }, { data: wallets }, { data: ledger }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, phone').in('id', ids),
+        supabase.from('wallets').select('user_id, balance').in('user_id', ids),
+        supabase
+          .from('general_ledger')
+          .select('user_id, amount, direction, category')
+          .in('user_id', ids)
+          .eq('ledger_scope', 'wallet')
+          .in('category', [
+            'agent_commission_earned', 'agent_commission', 'agent_bonus',
+            'referral_bonus', 'proxy_investment_commission',
+            'agent_commission_withdrawal', 'agent_commission_used_for_rent',
+          ]),
+      ]);
+
+      const EARN_CATS = ['agent_commission_earned', 'agent_commission', 'agent_bonus', 'referral_bonus', 'proxy_investment_commission'];
+      const SPEND_CATS = ['agent_commission_withdrawal', 'agent_commission_used_for_rent'];
+
+      // Aggregate commission per agent
+      const commMap: Record<string, { earned: number; spent: number }> = {};
+      for (const e of (ledger || [])) {
+        if (!commMap[e.user_id]) commMap[e.user_id] = { earned: 0, spent: 0 };
+        const isPositive = e.direction === 'credit' || e.direction === 'cash_in';
+        if (EARN_CATS.includes(e.category) && isPositive) commMap[e.user_id].earned += Number(e.amount);
+        if (SPEND_CATS.includes(e.category) && !isPositive) commMap[e.user_id].spent += Number(e.amount);
+      }
+
+      const walletMap: Record<string, number> = {};
+      for (const w of (wallets || [])) walletMap[w.user_id] = w.balance ?? 0;
+
+      return (profiles || []).map(p => {
+        const wallet = walletMap[p.id] ?? 0;
+        const comm = commMap[p.id] ?? { earned: 0, spent: 0 };
+        const commissionBalance = Math.max(0, comm.earned - comm.spent);
+        const floatBalance = wallet - commissionBalance;
+        return {
+          id: p.id,
+          name: p.full_name || 'Unknown',
+          phone: p.phone || '',
+          wallet,
+          commissionBalance,
+          floatBalance,
+        };
+      }).sort((a, b) => a.floatBalance - b.floatBalance);
+    },
+    staleTime: 60_000,
+  });
+
+  const filtered = agents.filter(a =>
+    !search || a.name.toLowerCase().includes(search.toLowerCase()) || a.phone.includes(search)
+  );
+
+  const totalFloat = agents.reduce((s, a) => s + a.floatBalance, 0);
+  const totalComm = agents.reduce((s, a) => s + a.commissionBalance, 0);
+  const needsTopUp = agents.filter(a => a.floatBalance <= 0).length;
+
+  return (
+    <div className="space-y-3">
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-center">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total Float</p>
+          <p className="font-bold text-sm mt-0.5">{formatUGX(totalFloat)}</p>
+        </div>
+        <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/20 text-center">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Total Comm.</p>
+          <p className="font-bold text-sm mt-0.5 text-purple-600">{formatUGX(totalComm)}</p>
+        </div>
+        <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/20 text-center">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Need Top-Up</p>
+          <p className="font-bold text-sm mt-0.5 text-destructive">{needsTopUp}</p>
+        </div>
+      </div>
+
+      <Input
+        placeholder="Search agent name or phone…"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="rounded-xl h-10"
+      />
+
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">No agents found</p>
+      ) : (
+        <ScrollArea className="max-h-[55vh]">
+          <div className="space-y-2">
+            {filtered.map(a => (
+              <Card key={a.id} className={`rounded-xl border ${
+                a.floatBalance <= 0 ? 'border-destructive/40 bg-destructive/5' :
+                a.floatBalance < 50000 ? 'border-amber-500/40 bg-amber-500/5' :
+                'border-border/40'
+              }`}>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm truncate">{a.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{a.phone}</p>
+                    </div>
+                    {a.floatBalance <= 0 && (
+                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="p-2 rounded-lg bg-muted/50">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold">Wallet</p>
+                      <p className="font-bold mt-0.5">{formatUGX(a.wallet)}</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-muted/50">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold">Float</p>
+                      <p className={`font-bold mt-0.5 ${a.floatBalance <= 0 ? 'text-destructive' : 'text-emerald-600'}`}>
+                        {formatUGX(Math.max(0, a.floatBalance))}
+                      </p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-muted/50">
+                      <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold">Comm.</p>
+                      <p className="font-bold mt-0.5 text-purple-600">{formatUGX(a.commissionBalance)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function AgentFloatManagement() {
   return (
@@ -528,18 +675,22 @@ export function AgentFloatManagement() {
         <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Agent Float Management</p>
         <h1 className="text-xl font-bold mt-0.5">Agent Float Management</h1>
       </div>
-      <Tabs defaultValue="transfers" className="space-y-4">
+      <Tabs defaultValue="all-agents" className="space-y-4">
         <TabsList variant="underline" className="w-full justify-start">
+          <TabsTrigger value="all-agents" variant="underline" className="text-sm font-semibold">
+            All Agents
+          </TabsTrigger>
           <TabsTrigger value="transfers" variant="underline" className="text-sm font-semibold">
             Transfers
           </TabsTrigger>
           <TabsTrigger value="balances" variant="underline" className="text-sm font-semibold">
-            Balances
+            Cashout Agents
           </TabsTrigger>
           <TabsTrigger value="reconciliation" variant="underline" className="text-sm font-semibold">
             Reconciliation
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="all-agents"><AllAgentsBreakdownTab /></TabsContent>
         <TabsContent value="transfers"><FloatTransfersTab /></TabsContent>
         <TabsContent value="balances"><AgentFloatBalancesTab /></TabsContent>
         <TabsContent value="reconciliation"><FloatReconciliationTab /></TabsContent>
