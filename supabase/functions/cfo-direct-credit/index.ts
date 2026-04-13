@@ -124,6 +124,7 @@ Deno.serve(async (req) => {
     const groupId = crypto.randomUUID();
 
     if (op === "credit") {
+      console.log("[cfo-direct-credit] Creating CREDIT ledger entries for", target_user_id, "amount:", amount);
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
@@ -148,8 +149,12 @@ Deno.serve(async (req) => {
           },
         ],
       });
-      if (rpcErr) throw new Error(`Ledger error: ${rpcErr.message}`);
+      if (rpcErr) {
+        console.error("[cfo-direct-credit] Credit ledger error:", rpcErr.message);
+        throw new Error(`Ledger error: ${rpcErr.message}`);
+      }
     } else {
+      console.log("[cfo-direct-credit] Creating DEBIT ledger entries for", target_user_id, "amount:", amount);
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
@@ -174,7 +179,10 @@ Deno.serve(async (req) => {
           },
         ],
       });
-      if (rpcErr) throw new Error(`Ledger error: ${rpcErr.message}`);
+      if (rpcErr) {
+        console.error("[cfo-direct-credit] Debit ledger error:", rpcErr.message);
+        throw new Error(`Ledger error: ${rpcErr.message}`);
+      }
     }
 
     // Audit log
