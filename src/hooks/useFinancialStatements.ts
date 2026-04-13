@@ -265,7 +265,29 @@ export function useFinancialStatements() {
       const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance']);
       const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
       const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
-      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses;
+
+      // ── NEW: Parse CFO subcategory expenses from system_balance_correction entries ──
+      const sumByDescriptionMatch = (rows: any[], pattern: string) =>
+        excludeSynthetic(rows)
+          .filter(r => r.category === 'system_balance_correction' && r.description && r.description.toLowerCase().includes(pattern.toLowerCase()))
+          .reduce((s, r) => s + Number(r.amount), 0);
+
+      const marketingExpenses = sumByDescriptionMatch(platformOut, 'Marketing Expenses');
+      const researchDevelopment = sumByDescriptionMatch(platformOut, 'Research & Development');
+
+      // Operational subcategories
+      const opSubSalaries = sumByDescriptionMatch(platformOut, '→ Salaries');
+      const opSubTransport = sumByDescriptionMatch(platformOut, '→ Transport');
+      const opSubFood = sumByDescriptionMatch(platformOut, '→ Food');
+      const opSubOfficeRent = sumByDescriptionMatch(platformOut, '→ Office Rent');
+      const opSubInternet = sumByDescriptionMatch(platformOut, '→ Internet');
+      const opSubAirtime = sumByDescriptionMatch(platformOut, '→ Airtime');
+      const opSubStationery = sumByDescriptionMatch(platformOut, '→ Stationery');
+      const opSubPropertyEquipment = sumByDescriptionMatch(platformOut, '→ Property & Equipment');
+      const opSubTaxes = sumByDescriptionMatch(platformOut, '→ Taxes');
+      const opSubInterests = sumByDescriptionMatch(platformOut, '→ Interests');
+
+      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
 
       // Advance Access Fee Revenue (only recognized when collected)
       const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
