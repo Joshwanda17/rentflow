@@ -39,6 +39,9 @@ export function UnifiedWalletHeroCard({
   role,
   secondaryLabel,
   secondaryValue,
+  houses,
+  returnPerMonth,
+  deployed,
 }: UnifiedWalletHeroCardProps) {
   const [showWallet, setShowWallet] = useState(false);
   const { formatAmount } = useCurrency();
