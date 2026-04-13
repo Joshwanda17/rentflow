@@ -409,6 +409,9 @@ export default function SupporterDashboard({
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
 
+          {/* ═══ MY PORTFOLIO ACCOUNTS ═══ */}
+          <MyPortfolioAccounts />
+
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
             <button
