@@ -162,6 +162,7 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="User Funds Held in Custody" value={d.assets.userFundsHeld} indent />
       <LineItem label="Rent Receivables (Funded)" value={d.assets.receivables} indent />
       <LineItem label="Advance Access Fee Receivables" value={d.assets.advanceAccessFeeReceivables} indent />
+      <LineItem label="Promissory Notes Receivable" value={d.assets.promissoryNotesReceivable} indent />
       <LineItem label="Total Assets" value={d.assets.totalAssets} bold />
 
       <SectionHeader>Obligations (Liabilities)</SectionHeader>
@@ -363,6 +364,7 @@ export function FinancialStatementsPanel() {
       rows.push(['User Funds Held in Custody', '', d.assets.userFundsHeld]);
       rows.push(['Rent Receivables (Funded)', '', d.assets.receivables]);
       rows.push(['Advance Access Fee Receivables', '', d.assets.advanceAccessFeeReceivables]);
+      rows.push(['Promissory Notes Receivable', '', d.assets.promissoryNotesReceivable]);
       rows.push(['Total Assets', '', d.assets.totalAssets]);
       rows.push(['', '', '']);
       rows.push(['OBLIGATIONS (LIABILITIES)', '', '']);
@@ -522,6 +524,8 @@ export function FinancialStatementsPanel() {
         addRow('Platform Cash (Earned Revenue)', d.assets.platformCash, false, false, true);
         addRow('User Funds Held in Custody', d.assets.userFundsHeld, false, false, true);
         addRow('Rent Receivables (Funded)', d.assets.receivables, false, false, true);
+        addRow('Advance Access Fee Receivables', d.assets.advanceAccessFeeReceivables, false, false, true);
+        addRow('Promissory Notes Receivable', d.assets.promissoryNotesReceivable, false, false, true);
         addRow('Total Assets', d.assets.totalAssets, true);
         y += 3;
         addSection('Obligations (Liabilities)');
