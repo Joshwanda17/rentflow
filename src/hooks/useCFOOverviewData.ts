@@ -4,8 +4,6 @@ import { LEDGER_SCOPE, FINAL_WITHDRAWAL_STATUSES } from '@/lib/ledgerConstants';
 
 const STALE_TIME = 300_000; // 5 minutes
 
-// System/operational account excluded from user wallet totals
-const SYSTEM_ACCOUNT_ID = '06b14430-7cdc-41c9-96a4-a8dedf8995b1';
 
 export function useCFOOverviewData() {
   // Platform cash from ledger RPCs (source-based, not channel-based)
@@ -111,49 +109,18 @@ export function useCFOOverviewData() {
     staleTime: STALE_TIME,
   });
 
-  // Wallet totals grouped by role for liability breakdown
+  // "Money We Owe" = actual wallet balances (same as Financial Ops)
   const liabilities = useQuery({
     queryKey: ['cfo-overview-liabilities'],
     queryFn: async () => {
-      const [walletsRes, pendingWithdrawalsRes, portfoliosRes, agentPayoutsRes] = await Promise.all([
-        supabase.from('wallets').select('balance, user_id').neq('user_id', SYSTEM_ACCOUNT_ID),
-        supabase.from('withdrawal_requests').select('amount').eq('status', 'pending'),
-        supabase.from('investor_portfolios').select('investment_amount, roi_percentage, total_roi_earned').eq('status', 'active'),
-        supabase.from('agent_commission_payouts').select('amount').eq('status', 'pending'),
-      ]);
-
-      const totalWalletBalance = (walletsRes.data || []).reduce(
-        (sum, w) => sum + Number(w.balance),
-        0
-      );
-
-      const pendingWithdrawalTotal = (pendingWithdrawalsRes.data || []).reduce(
-        (sum, w) => sum + Number(w.amount),
-        0
-      );
-
-      const roiObligations = (portfoliosRes.data || []).reduce(
-        (sum, p) => {
-          const expectedReturn = Number(p.investment_amount) * (Number(p.roi_percentage) / 100);
-          return sum + (expectedReturn - Number(p.total_roi_earned || 0));
-        },
-        0
-      );
-
-      const agentPayables = (agentPayoutsRes.data || []).reduce(
-        (sum, p) => sum + Number(p.amount),
-        0
-      );
-
-      const totalLiabilities = totalWalletBalance + pendingWithdrawalTotal + roiObligations + agentPayables;
+      const { data, error } = await supabase.rpc('get_wallet_totals');
+      if (error) throw error;
+      const d = data as any;
+      const totalWalletBalance = Number(d.total_balance ?? 0);
 
       return {
         tenantFunds: totalWalletBalance,
-        agentPayables,
-        landlordPayables: 0,
-        roiObligations,
-        pendingWithdrawals: pendingWithdrawalTotal,
-        totalLiabilities,
+        totalLiabilities: totalWalletBalance,
       };
     },
     staleTime: STALE_TIME,
