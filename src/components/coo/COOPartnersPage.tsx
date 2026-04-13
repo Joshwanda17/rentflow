@@ -2208,7 +2208,61 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
 
-      {/* Update Contribution Dates Dialog */}
+      {/* Compound Preview Dialog */}
+      <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Confirm Compounding
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 pt-2">
+                <p className="text-sm text-muted-foreground">
+                  You are about to compound the ROI into this portfolio. Review the changes below:
+                </p>
+                {compoundPreview && (
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Current Principal</span>
+                      <span className="font-semibold">{formatUGX(compoundPreview.currentPrincipal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">ROI ({compoundPreview.roiPercentage}%)</span>
+                      <span className="font-semibold text-green-600">+ {formatUGX(compoundPreview.roiAmount)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">New Principal</span>
+                      <span className="font-bold text-primary text-base">{formatUGX(compoundPreview.newPrincipal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Next Payout Date</span>
+                      <span className="text-muted-foreground italic">Unchanged (until CFO approves)</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!compoundingPortfolioId}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!compoundingPortfolioId}
+              onClick={() => {
+                if (compoundPreview) {
+                  handlePortfolioCompound(compoundPreview.portfolio);
+                  setCompoundPreview(null);
+                }
+              }}
+            >
+              {compoundingPortfolioId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm Compound
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => {
         fetchData();
         if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
