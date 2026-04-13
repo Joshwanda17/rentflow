@@ -353,6 +353,15 @@ export default function SupporterDashboard({
 
   return (
     <div className="h-dvh bg-background flex flex-col overflow-hidden">
+      {/* Inactivity lock overlay */}
+      {isLocked && (
+        <SupporterInactivityLock
+          userEmail={user.email || ''}
+          fullName={profile?.full_name}
+          avatarUrl={profile?.avatar_url}
+          onUnlock={unlock}
+        />
+      )}
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
