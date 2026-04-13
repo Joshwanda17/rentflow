@@ -77,7 +77,8 @@ export async function generateAgentWalletReportPdf(data: AgentWalletReportData):
     pdf.setFont('helvetica', 'bold');
     pdf.text('Date', margin + 2, y + 4);
     pdf.text('Tenant', margin + 28, y + 4);
-    pdf.text('Amount', pw - margin - 40, y + 4);
+    pdf.text('Amount', pw / 2, y + 4);
+    pdf.text('Tenant Bal', pw / 2 + 28, y + 4);
     pdf.text('Ref', pw - margin - 10, y + 4);
     y += 7;
     pdf.setTextColor(0, 0, 0);
@@ -89,8 +90,9 @@ export async function generateAgentWalletReportPdf(data: AgentWalletReportData):
       pdf.setFontSize(8);
       pdf.text(fmtDate(e.created_at), margin + 2, rowY);
       const tenantLabel = e.tenant_name ? `Paid for: ${e.tenant_name}` : (e.description || catLabel(e.category));
-      pdf.text(tenantLabel.substring(0, 45), margin + 28, rowY);
-      pdf.text(formatUGX(e.amount), pw - margin - 40, rowY);
+      pdf.text(tenantLabel.substring(0, 35), margin + 28, rowY);
+      pdf.text(formatUGX(e.amount), pw / 2, rowY);
+      pdf.text(e.tenant_balance !== undefined ? formatUGX(e.tenant_balance) : '—', pw / 2 + 28, rowY);
       pdf.text((e.transaction_group_id || '').slice(0, 8), pw - margin - 10, rowY);
       y += 5.5;
     }

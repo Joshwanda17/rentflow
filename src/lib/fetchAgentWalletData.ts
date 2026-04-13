@@ -11,6 +11,7 @@ export interface AgentLedgerEntry {
   transaction_group_id: string | null;
   linked_party: string | null;
   tenant_name?: string;
+  tenant_balance?: number;
 }
 
 export interface AgentWalletReportData {
@@ -54,18 +55,23 @@ export async function fetchAgentWalletData(agentId: string): Promise<AgentWallet
   // Resolve tenant names from linked_party UUIDs
   const tenantIds = [...new Set(entries.map(e => e.linked_party).filter(Boolean))] as string[];
   const tenantNameMap: Record<string, string> = {};
+  const tenantBalanceMap: Record<string, number> = {};
   if (tenantIds.length > 0) {
-    const { data: tenantProfiles } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', tenantIds);
+    const [{ data: tenantProfiles }, { data: tenantWallets }] = await Promise.all([
+      supabase.from('profiles').select('id, full_name').in('id', tenantIds),
+      supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds),
+    ]);
     for (const p of tenantProfiles || []) {
       if (p.full_name) tenantNameMap[p.id] = p.full_name;
     }
+    for (const w of tenantWallets || []) {
+      tenantBalanceMap[w.user_id] = w.balance ?? 0;
+    }
   }
   for (const e of entries) {
-    if (e.linked_party && tenantNameMap[e.linked_party]) {
-      e.tenant_name = tenantNameMap[e.linked_party];
+    if (e.linked_party) {
+      if (tenantNameMap[e.linked_party]) e.tenant_name = tenantNameMap[e.linked_party];
+      if (tenantBalanceMap[e.linked_party] !== undefined) e.tenant_balance = tenantBalanceMap[e.linked_party];
     }
   }
   // Compute commission balance
