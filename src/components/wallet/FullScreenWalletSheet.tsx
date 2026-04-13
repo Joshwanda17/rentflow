@@ -301,6 +301,30 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   </CardContent>
                 </Card>
 
+                {/* Download Statement Button */}
+                {isAgent && user?.id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-xs"
+                    onClick={async () => {
+                      try {
+                        const data = await fetchAgentWalletData(user.id);
+                        const blob = await generateAgentWalletReportPdf(data);
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `My_Wallet_Statement.pdf`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      } catch (e) { console.error(e); }
+                    }}
+                  >
+                    <FileDown className="h-3.5 w-3.5" />
+                    Download Wallet Statement (PDF)
+                  </Button>
+                )}
+
                 {/* Ledger statement with optional proxy tab */}
                 {hasProxyPartners ? (
                   <Tabs defaultValue="statement">
