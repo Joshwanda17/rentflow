@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check caller role
+    // Check caller role (staff OR active cashout agent)
     const admin = createClient(supabaseUrl, serviceKey);
     const { data: roles } = await admin
       .from("user_roles")
@@ -43,8 +43,21 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id);
 
     const allowedRoles = ["super_admin", "manager", "cfo", "coo", "operations", "cto"];
-    const hasAccess = (roles || []).some((r: any) => allowedRoles.includes(r.role));
-    if (!hasAccess) {
+    const hasStaffRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
+
+    // Also check if caller is an active cashout agent
+    let isCashoutAgent = false;
+    if (!hasStaffRole) {
+      const { data: agentRow } = await admin
+        .from("cashout_agents")
+        .select("id")
+        .eq("agent_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+      isCashoutAgent = !!agentRow;
+    }
+
+    if (!hasStaffRole && !isCashoutAgent) {
       return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
