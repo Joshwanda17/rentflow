@@ -291,10 +291,18 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
       });
 
       if (error) {
-        const errMsg = error?.context
-          ? await error.context.json().then((r: any) => r.error).catch(() => error.message)
-          : error.message;
-        throw new Error(errMsg || 'Import failed');
+        let errMsg = error.message || 'Import failed';
+        try {
+          if (error?.context) {
+            const body = await error.context.json();
+            errMsg = body?.error || errMsg;
+          }
+        } catch { /* use default */ }
+        throw new Error(errMsg);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
       setImportResult(data);

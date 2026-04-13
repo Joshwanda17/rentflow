@@ -33,8 +33,8 @@ Deno.serve(async (req) => {
     const { data: allowedRoles } = await adminClient
       .from("user_roles").select("role")
       .eq("user_id", user.id)
-      .in("role", ["coo", "partner_ops", "manager", "super_admin"]);
-    if (!allowedRoles || allowedRoles.length === 0) return errorResponse("Only COO or Partner Ops can import partners", 403);
+      .in("role", ["coo", "operations", "manager", "super_admin", "cfo", "cto"]);
+    if (!allowedRoles || allowedRoles.length === 0) return errorResponse("Only COO, Operations, or authorized staff can import partners", 403);
 
     // Parse body
     const { partners } = await req.json() as {
