@@ -30,6 +30,20 @@ export interface IncomeStatementData {
     payrollExpenses: number;
     agentRequisitions: number;
     financialAgentExpenses: number;
+    marketingExpenses: number;
+    researchDevelopment: number;
+    operationalSubcategories: {
+      salaries: number;
+      transport: number;
+      food: number;
+      officeRent: number;
+      internet: number;
+      airtime: number;
+      stationery: number;
+      propertyEquipment: number;
+      taxes: number;
+      interests: number;
+    };
     total: number;
   };
   netOperatingIncome: number;
