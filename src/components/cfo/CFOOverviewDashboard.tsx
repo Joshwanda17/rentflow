@@ -48,22 +48,24 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     type Inc = typeof increases[number];
 
     const PRIORITY_MAP: Record<string, number> = {
-      partner_funding: 1, share_capital: 1,
-      angel_pool_investment: 2, angel_pool_commission: 2,
-      rent_principal_collected: 3, access_fee_collected: 3, registration_fee_collected: 3,
-      salary_advance_repayment: 4,
-      system_balance_correction: 6, orphan_reassignment: 6, orphan_reversal: 6,
-      penalty_fee: 7, late_payment_penalty: 7,
+      partner_funding: 1,
+      share_capital: 2,
+      angel_pool_investment: 3, angel_pool_commission: 3,
+      rent_principal_collected: 4, access_fee_collected: 4, registration_fee_collected: 4,
+      salary_advance_repayment: 5,
+      system_balance_correction: 7, orphan_reassignment: 7, orphan_reversal: 7,
+      penalty_fee: 8, late_payment_penalty: 8,
     };
 
     const GROUP_META: Record<number, { label: string; emoji: string }> = {
-      1: { label: 'Funders & Partners Capital', emoji: '🏦' },
-      2: { label: 'Shareholders Capital (Angel Pool)', emoji: '💎' },
-      3: { label: 'Rent Collections & Fees', emoji: '🏠' },
-      4: { label: 'Salary Advance Repayments', emoji: '💼' },
-      5: { label: 'Other Sources', emoji: '📦' },
-      6: { label: 'Corrections', emoji: '🔄' },
-      7: { label: 'Penalties', emoji: '⚠️' },
+      1: { label: 'Partner Funding', emoji: '🤝' },
+      2: { label: 'Supporters Capital', emoji: '🏦' },
+      3: { label: 'Shareholders Capital (Angel Pool)', emoji: '💎' },
+      4: { label: 'Rent Collections & Fees', emoji: '🏠' },
+      5: { label: 'Salary Advance Repayments', emoji: '💼' },
+      6: { label: 'Other Sources', emoji: '📦' },
+      7: { label: 'Corrections', emoji: '🔄' },
+      8: { label: 'Penalties', emoji: '⚠️' },
     };
 
     // Extract raw category from label (reverse the SOURCE_LABELS mapping)
