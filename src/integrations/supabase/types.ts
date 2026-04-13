@@ -6520,6 +6520,66 @@ export type Database = {
         }
         Relationships: []
       }
+      promissory_notes: {
+        Row: {
+          activation_token: string
+          agent_id: string
+          amount: number
+          contribution_type: string
+          created_at: string
+          deduction_day: number | null
+          email: string | null
+          id: string
+          next_deduction_date: string | null
+          notes: string | null
+          partner_name: string
+          partner_user_id: string | null
+          phone_number: string | null
+          status: string
+          total_collected: number
+          updated_at: string
+          whatsapp_number: string
+        }
+        Insert: {
+          activation_token?: string
+          agent_id: string
+          amount: number
+          contribution_type?: string
+          created_at?: string
+          deduction_day?: number | null
+          email?: string | null
+          id?: string
+          next_deduction_date?: string | null
+          notes?: string | null
+          partner_name: string
+          partner_user_id?: string | null
+          phone_number?: string | null
+          status?: string
+          total_collected?: number
+          updated_at?: string
+          whatsapp_number: string
+        }
+        Update: {
+          activation_token?: string
+          agent_id?: string
+          amount?: number
+          contribution_type?: string
+          created_at?: string
+          deduction_day?: number | null
+          email?: string | null
+          id?: string
+          next_deduction_date?: string | null
+          notes?: string | null
+          partner_name?: string
+          partner_user_id?: string | null
+          phone_number?: string | null
+          status?: string
+          total_collected?: number
+          updated_at?: string
+          whatsapp_number?: string
+        }
+        Relationships: []
+      }
       property_viewings: {
         Row: {
           agent_checkin_at: string | null
