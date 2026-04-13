@@ -1,66 +1,78 @@
 
-Summary:
-The import is very likely failing before any records are created because the backend permission check is using the wrong role name for Partner Ops.
 
-What I found:
-- Both COO and Partner Ops use the same import dialog/component:
-  - `src/components/coo/PartnerImportDialog.tsx`
-  - embedded from `src/components/coo/COOPartnersPage.tsx`
-  - Partner Ops reuses that same page from `src/components/executive/PartnersOpsDashboard.tsx`
-- The dialog does call the backend function correctly:
-  - `supabase.functions.invoke('import-partners', { body: { partners: payload } })`
-- The backend function currently authorizes these roles:
-  - `["coo", "partner_ops", "manager", "super_admin"]`
-  - file: `supabase/functions/import-partners/index.ts`
-- But the actual role enum in the project contains `operations`, not `partner_ops`
-  - file: `src/integrations/supabase/types.ts`
-- That mismatch explains why clicking “Confirm & Import” spins, then returns to the confirmation step with no import happening, especially for Partner Ops users.
-- Edge function logs only show `booted` and no successful import completion logs, which is consistent with the request failing early.
+## Plan: Agent Wallet History PDF Download
 
-Implementation plan:
-1. Fix the import function authorization check
-- Update `supabase/functions/import-partners/index.ts`
-- Replace or expand `partner_ops` to the real role used in this app: `operations`
-- Keep COO/manager/super_admin access intact
-- Update the error message to match the real role naming shown in the product
+### Summary
+Add a "Download Wallet Report (PDF)" button in two places:
+1. **Agent Ops Dashboard** — inside the Agent Directory, after searching/selecting an agent, a button to download that specific agent's full wallet ledger as a PDF
+2. **Agent's own Wallet** — inside the `FullScreenWalletSheet`, a download button for their own wallet history
 
-2. Improve import failure visibility in the dialog
-- In `src/components/coo/PartnerImportDialog.tsx`, improve the error surfaced when the function rejects
-- Show a clearer toast/message for authorization or backend validation failures so it doesn’t feel like “nothing happened”
-- Keep the current step fallback to confirm, but make the reason obvious
+The PDF will be a professional financial report showing wallet summary, rent payment breakdown, and full transaction log from the `general_ledger`.
 
-3. Verify both dashboard entry points
-- Re-test the same flow from:
-  - COO dashboard
-  - Partner Ops dashboard
-- Confirm that both paths reach the same working backend import flow and produce results instead of bouncing back
+### Changes
 
-4. Sanity-check post-import messaging
-- Review the final success card text in the import dialog for consistency with actual generated credentials/password behavior, since the UI copy and function logic may not fully match
-- If needed, align only the user-facing message so operations staff see accurate login details
+**1. New PDF generator: `src/lib/agentWalletReportPdf.ts`**
+- Create a new PDF generator (separate from the existing `agentReportPdf.ts` which is for collection reports)
+- Accepts: agent name, phone, wallet balance, commission balance, float balance, and ledger entries
+- PDF sections:
+  - Header with agent name, ID, report date
+  - Wallet Summary: Total Balance, Float Balance, Commission Balance, Total Deposits, Total Spent on Rent
+  - Rent Payment Breakdown table: Date, Tenant/Description, Amount, Reference
+  - Full Transaction Log table: Date, Category, Type (In/Out), Amount, Description
+- Uses jsPDF (already in project) with the same Welile branding style as existing reports
 
-Technical details:
+**2. Agent Ops — Add download button to Agent Directory (`src/components/executive/AgentDirectory.tsx`)**
+- When an agent is selected/expanded, add a "Download Wallet Report" button
+- On click: fetch that agent's `general_ledger` entries (scoped to `wallet`), their wallet balance, and generate the PDF
+- Uses the new PDF generator
+
+**3. Agent Wallet — Add download button to `src/components/wallet/FullScreenWalletSheet.tsx`**
+- Add a small "Download Statement" button near the wallet statement section
+- On click: fetch the logged-in agent's own ledger entries and generate the same PDF
+- Only visible when `role === 'agent'`
+
+**4. Shared data fetcher: `src/lib/fetchAgentWalletData.ts`**
+- Helper function to fetch all ledger entries for a given user ID from `general_ledger` where `ledger_scope = 'wallet'`
+- Fetches wallet balance from `wallets` table
+- Fetches agent split balances (commission vs float) by computing from ledger categories
+- Returns structured data ready for PDF generation
+- Reusable by both Agent Ops and the agent's own wallet
+
+### Technical Details
+
 ```text
-Current mismatch:
-UI route(s) -> PartnerImportDialog -> import-partners function
-                                      |
-                                      v
-Allowed roles in function: coo, partner_ops, manager, super_admin
-Actual app role enum:      coo, operations, manager, super_admin, ...
+Data flow:
+  Agent Ops:   AgentDirectory → select agent → click Download
+                → fetchAgentWalletData(agentId) → generateAgentWalletReportPdf(data) → browser download
 
-Likely effect:
-Partner Ops user authenticated
--> role lookup returns operations
--> function denies access
--> dialog catches error and returns to confirm step
+  Agent Side:  FullScreenWalletSheet → click Download Statement
+                → fetchAgentWalletData(user.id) → generateAgentWalletReportPdf(data) → browser download
+
+PDF structure:
+  ┌─────────────────────────────────────┐
+  │  WELILE — Agent Wallet Statement    │  (purple header)
+  │  Agent: Name  |  Date: ...          │
+  ├─────────────────────────────────────┤
+  │  💰 Wallet Summary                  │
+  │  Total Balance | Float | Commission │
+  │  Total Deposits | Total Rent Paid   │
+  ├─────────────────────────────────────┤
+  │  🏠 Rent Payments Breakdown         │
+  │  Date | Description | Amount | Ref  │
+  │  ...rows...                         │
+  ├─────────────────────────────────────┤
+  │  📋 Full Transaction History        │
+  │  Date | Category | In/Out | Amount  │
+  │  ...rows...                         │
+  └─────────────────────────────────────┘
 ```
 
-Files to update:
-- `supabase/functions/import-partners/index.ts`
-- `src/components/coo/PartnerImportDialog.tsx`
+### Files to create/edit
+- **Create**: `src/lib/agentWalletReportPdf.ts` — PDF generator
+- **Create**: `src/lib/fetchAgentWalletData.ts` — shared data fetcher
+- **Edit**: `src/components/executive/AgentDirectory.tsx` — add download button per agent
+- **Edit**: `src/components/wallet/FullScreenWalletSheet.tsx` — add download button for agent's own statement
 
-Validation after implementation:
-- Import a small valid spreadsheet from COO dashboard
-- Import the same style of file from Partner Ops dashboard
-- Confirm the result screen shows created/skipped counts
-- Confirm failures now show a readable reason instead of silent bounce-back
+### No database changes needed
+All data already exists in `general_ledger` and `wallets` tables with appropriate RLS policies.
+
