@@ -305,6 +305,25 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   // Compound from portfolio view
   const [compoundingPortfolioId, setCompoundingPortfolioId] = useState<string | null>(null);
+  const [compoundPreview, setCompoundPreview] = useState<{
+    portfolio: PortfolioRow;
+    roiAmount: number;
+    currentPrincipal: number;
+    newPrincipal: number;
+    roiPercentage: number;
+  } | null>(null);
+
+  const openCompoundPreview = (portfolio: PortfolioRow) => {
+    const roiAmount = Math.round(portfolio.investment_amount * portfolio.roi_percentage / 100);
+    const newPrincipal = portfolio.investment_amount + roiAmount;
+    setCompoundPreview({
+      portfolio,
+      roiAmount,
+      currentPrincipal: portfolio.investment_amount,
+      newPrincipal,
+      roiPercentage: portfolio.roi_percentage,
+    });
+  };
 
   const handlePortfolioCompound = async (portfolio: PortfolioRow) => {
     if (!detailPartner) return;
@@ -1906,7 +1925,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     size="sm"
                                     className="h-9 px-3 text-xs text-primary hover:text-primary hover:bg-primary/5 gap-1.5 min-h-[44px]"
                                     disabled={compoundingPortfolioId === p.id}
-                                    onClick={() => handlePortfolioCompound(p)}
+                                    onClick={() => openCompoundPreview(p)}
                                   >
                                     {compoundingPortfolioId === p.id
                                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
