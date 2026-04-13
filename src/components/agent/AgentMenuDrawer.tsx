@@ -125,6 +125,7 @@ export function AgentMenuDrawer({
   onAngelPoolInvest,
   onShareTenantForm,
   onSharePartnerForm,
+  onCreatePromissoryNote,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
