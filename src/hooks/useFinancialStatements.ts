@@ -383,7 +383,17 @@ export function useFinancialStatements() {
           period: formatPeriodLabel(activeFilters),
           revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, transactionExpenses, total: totalServiceCosts },
-          operatingExpenses: { generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses, total: operatingExpensesTotal },
+          operatingExpenses: {
+            generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses,
+            marketingExpenses, researchDevelopment,
+            operationalSubcategories: {
+              salaries: opSubSalaries, transport: opSubTransport, food: opSubFood,
+              officeRent: opSubOfficeRent, internet: opSubInternet, airtime: opSubAirtime,
+              stationery: opSubStationery, propertyEquipment: opSubPropertyEquipment,
+              taxes: opSubTaxes, interests: opSubInterests,
+            },
+            total: operatingExpensesTotal,
+          },
           netOperatingIncome,
         },
         cashFlow: {
