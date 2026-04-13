@@ -471,16 +471,6 @@ export default function SupporterDashboard({
           )}
 
 
-          {/* ═══ ANGEL POOL SHARES ═══ */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 px-1">
-              <div className="w-1 h-5 rounded-full bg-[hsl(var(--primary))]" />
-              <h2 className="text-sm font-black text-foreground tracking-tight">Angel Pool Shares</h2>
-            </div>
-            <AngelSharesTab />
-          </div>
-
-
         </main>
       </div>
       <SupporterMenuDrawer
