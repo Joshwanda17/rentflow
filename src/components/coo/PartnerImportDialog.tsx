@@ -329,11 +329,11 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
         {/* ── Step: Upload ── */}
         {step === 'upload' && (
           <div className="space-y-4 py-2">
-            <div
-              className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+            <label
+              htmlFor="partner-import-file-input"
+              className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all block"
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-              onClick={() => fileInputRef.current?.click()}
             >
               {loading ? (
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
@@ -347,13 +347,14 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                 </>
               )}
               <input
+                id="partner-import-file-input"
                 ref={fileInputRef}
                 type="file"
                 accept=".xlsx,.xls"
                 className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) { handleFile(f); e.target.value = ''; } }}
               />
-            </div>
+            </label>
 
             <div className="flex items-center justify-center">
               <button onClick={downloadTemplate} className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
