@@ -330,6 +330,9 @@ export function FinancialStatementsPanel() {
       rows.push(['Payroll Paid', '', -d.operatingActivities.payrollPaid]);
       rows.push(['Agent Requisitions Paid', '', -d.operatingActivities.agentRequisitionsPaid]);
       rows.push(['Financial Agent Expenses Paid', '', -d.operatingActivities.financialAgentExpensesPaid]);
+      rows.push(['Marketing Expenses Paid', '', -d.operatingActivities.marketingPaid]);
+      rows.push(['R&D Expenses Paid', '', -d.operatingActivities.rdPaid]);
+      rows.push(['Operational Expenses Paid', '', -d.operatingActivities.operationalSubcatPaid]);
       rows.push(['General Operating Expenses Paid', '', -d.operatingActivities.withdrawalsPaid]);
       rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
       rows.push(['', '', '']);
