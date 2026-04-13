@@ -57,6 +57,8 @@ import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapital
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
+import { useInactivityLock } from '@/hooks/useInactivityLock';
+import { SupporterInactivityLock } from '@/components/supporter/SupporterInactivityLock';
 
 
 interface SupporterDashboardProps {
@@ -117,6 +119,10 @@ export default function SupporterDashboard({
   // Agreement
   const { hasAccepted, acceptance, loading: agreementLoading, acceptAgreement } = useSupporterAgreement();
   const effectiveHasAccepted = localHasAccepted === true || hasAccepted === true;
+
+  // Inactivity lock — only for users with active portfolios
+  const hasActivePortfolios = totalRentContributed > 0;
+  const { isLocked, unlock } = useInactivityLock({ enabled: hasActivePortfolios });
 
   const opportunitiesRefreshRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -347,6 +353,15 @@ export default function SupporterDashboard({
 
   return (
     <div className="h-dvh bg-background flex flex-col overflow-hidden">
+      {/* Inactivity lock overlay */}
+      {isLocked && (
+        <SupporterInactivityLock
+          userEmail={user.email || ''}
+          fullName={profile?.full_name}
+          avatarUrl={profile?.avatar_url}
+          onUnlock={unlock}
+        />
+      )}
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
