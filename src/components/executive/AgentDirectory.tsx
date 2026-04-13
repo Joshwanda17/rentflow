@@ -435,7 +435,15 @@ export function AgentDirectory() {
                 </button>
 
                 {/* Download wallet report */}
-                <DownloadWalletReportButton agentId={a.id} agentName={a.full_name} />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-8 w-8"
+                  title="Download Wallet Report"
+                  onClick={(e) => { e.stopPropagation(); handleDownloadReport(a.id, a.full_name); }}
+                >
+                  <FileDown className="h-4 w-4" />
+                </Button>
               </div>
             );
           })}
