@@ -307,8 +307,11 @@ export function useFinancialStatements() {
       const payrollPaid = payrollExpenses;
       const agentRequisitionsPaid = agentRequisitions;
       const financialAgentExpensesPaid = financialAgentExpenses;
+      const marketingPaid = marketingExpenses;
+      const rdPaid = researchDevelopment;
+      const operationalSubcatPaid = opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
       const withdrawalsPaid = generalOperating + transactionExpenses;
-      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - withdrawalsPaid;
+      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - marketingPaid - rdPaid - operationalSubcatPaid - withdrawalsPaid;
 
       // Facilitation Activities (capital pass-through: tenant repayments ↔ landlord deployments)
       const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
