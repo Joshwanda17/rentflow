@@ -113,11 +113,12 @@ Deno.serve(async (req) => {
       await adminClient.from("wallets").insert({ user_id: target_user_id, balance: 0 });
     }
 
-    // For debit: check sufficient balance
+    // CFO has authority to debit regardless of balance (corrections, clawbacks)
+    // Log a warning if balance is insufficient for audit trail
     if (op === "debit") {
       const bal = existingWallet?.balance ?? 0;
       if (bal < amount) {
-        throw new Error(`Insufficient balance. User has UGX ${bal.toLocaleString()}`);
+        console.warn(`[cfo-direct-credit] CFO debit exceeds balance: user=${target_user_id} balance=${bal} debit=${amount}`);
       }
     }
 
