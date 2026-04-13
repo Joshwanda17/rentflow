@@ -1900,22 +1900,20 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 >
                                   <FileText className="h-3.5 w-3.5" /> PDF
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-9 px-3 text-xs text-success hover:text-success hover:bg-success/5 gap-1.5 min-h-[44px]"
-                                  onClick={() => sharePortfolioViaWhatsApp({
-                                    portfolioCode: p.portfolio_code, accountName: p.account_name,
-                                    investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
-                                    roiMode: p.roi_mode, totalRoiEarned: p.total_roi_earned,
-                                    status: p.status, createdAt: p.created_at,
-                                    durationMonths: p.duration_months, payoutDay: p.payout_day,
-                                    nextRoiDate: p.next_roi_date, maturityDate: p.maturity_date,
-                                    ownerName: detailPartner?.profile.full_name,
-                                  })}
-                                >
-                                  <Share2 className="h-3.5 w-3.5" /> WhatsApp
-                                </Button>
+                                {!readOnly && p.status === 'active' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-primary hover:text-primary hover:bg-primary/5 gap-1.5 min-h-[44px]"
+                                    disabled={compoundingPortfolioId === p.id}
+                                    onClick={() => handlePortfolioCompound(p)}
+                                  >
+                                    {compoundingPortfolioId === p.id
+                                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      : <TrendingUp className="h-3.5 w-3.5" />}
+                                    Compound
+                                  </Button>
+                                )}
                               </div>
 
                             </div>
