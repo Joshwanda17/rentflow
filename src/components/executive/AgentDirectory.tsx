@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
-import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X } from 'lucide-react';
+import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X, FileDown, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
+import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
 
 interface AgentRow {
   id: string;
@@ -234,6 +236,24 @@ export function AgentDirectory() {
     return counts;
   }, [agents]);
 
+  const handleDownloadReport = async (agentId: string, agentName: string) => {
+    try {
+      toast({ title: 'Generating report…' });
+      const data = await fetchAgentWalletData(agentId);
+      const blob = await generateAgentWalletReportPdf(data);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Wallet_Report_${agentName.replace(/\s+/g, '_')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Report downloaded!' });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'Failed to generate report', description: e.message, variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
       {/* Header */}
@@ -413,6 +433,17 @@ export function AgentDirectory() {
                     )}
                   </div>
                 </button>
+
+                {/* Download wallet report */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 h-8 w-8"
+                  title="Download Wallet Report"
+                  onClick={(e) => { e.stopPropagation(); handleDownloadReport(a.id, a.full_name); }}
+                >
+                  <FileDown className="h-4 w-4" />
+                </Button>
               </div>
             );
           })}
