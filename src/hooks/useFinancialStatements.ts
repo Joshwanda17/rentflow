@@ -168,8 +168,8 @@ export function useFinancialStatements() {
       const endDate = activeFilters.endDate || end;
 
       // Helper: build scoped ledger query
-      const buildScopedQuery = (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
-        let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
+       const buildScopedQuery = (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
+        let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope, description');
         if (startDate) q = q.gte('transaction_date', startDate.toISOString());
         if (endDate) q = q.lte('transaction_date', endDate.toISOString());
         q = q.eq('ledger_scope', scope);
