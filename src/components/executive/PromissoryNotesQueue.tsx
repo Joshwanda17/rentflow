@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CompactAmount } from '@/components/ui/CompactAmount';
 
