@@ -14,6 +14,15 @@ interface PullToRefreshState {
   canRefresh: boolean;
 }
 
+const INTERACTIVE_SELECTORS = 'button, a, input, select, textarea, [role="tab"], [role="tablist"], [role="button"], [role="link"], [role="menuitem"], [data-radix-collection-item]';
+const DRAG_START_THRESHOLD = 10; // px of vertical movement before entering pull mode
+
+function isInteractiveElement(el: EventTarget | null): boolean {
+  if (!el || !(el instanceof HTMLElement)) return false;
+  // Walk up to check if the touch target is inside an interactive element
+  return el.closest(INTERACTIVE_SELECTORS) !== null;
+}
+
 export function usePullToRefresh({
   onRefresh,
   threshold = 80,
@@ -30,42 +39,62 @@ export function usePullToRefresh({
   const currentY = useRef<number>(0);
   const isAtTop = useRef<boolean>(true);
   const hasTriggeredThresholdHaptic = useRef<boolean>(false);
+  const touchOnInteractive = useRef<boolean>(false);
+  const dragConfirmed = useRef<boolean>(false);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    // Check if we're at the top of the scroll container
+    // If touch starts on an interactive element, skip pull-to-refresh entirely
+    if (isInteractiveElement(e.target)) {
+      touchOnInteractive.current = true;
+      return;
+    }
+    touchOnInteractive.current = false;
+    dragConfirmed.current = false;
+
     const scrollTop = (e.currentTarget as HTMLElement).scrollTop;
     isAtTop.current = scrollTop <= 0;
-    
+
     if (isAtTop.current && !state.isRefreshing) {
       startY.current = e.touches[0].clientY;
       hasTriggeredThresholdHaptic.current = false;
-      setState(prev => ({ ...prev, isPulling: true }));
+      // Don't set isPulling yet — wait for drag confirmation
     }
   }, [state.isRefreshing]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!state.isPulling || state.isRefreshing || !isAtTop.current) return;
+    if (touchOnInteractive.current || state.isRefreshing || !isAtTop.current) return;
 
     currentY.current = e.touches[0].clientY;
     const diff = currentY.current - startY.current;
 
     // Only allow pulling down
     if (diff < 0) {
-      setState(prev => ({ ...prev, pullDistance: 0, canRefresh: false }));
+      if (state.isPulling) {
+        setState(prev => ({ ...prev, pullDistance: 0, canRefresh: false, isPulling: false }));
+      }
       return;
     }
 
-    // Apply resistance to make it feel more natural
+    // Require a minimum drag distance before activating pull mode
+    if (!dragConfirmed.current) {
+      if (diff < DRAG_START_THRESHOLD) return;
+      dragConfirmed.current = true;
+      // Reset startY so the visible pull starts from 0
+      startY.current = currentY.current;
+    }
+
+    if (!state.isPulling) {
+      setState(prev => ({ ...prev, isPulling: true }));
+    }
+
     const resistance = 0.5;
-    const pullDistance = Math.min(diff * resistance, maxPull);
+    const pullDistance = Math.min((currentY.current - startY.current) * resistance, maxPull);
     const canRefresh = pullDistance >= threshold;
 
-    // Trigger haptic when crossing threshold (ready to refresh)
     if (canRefresh && !hasTriggeredThresholdHaptic.current) {
       hasTriggeredThresholdHaptic.current = true;
       hapticImpact();
     } else if (!canRefresh && hasTriggeredThresholdHaptic.current) {
-      // Reset if pulled back below threshold
       hasTriggeredThresholdHaptic.current = false;
     }
 
@@ -77,22 +106,25 @@ export function usePullToRefresh({
   }, [state.isPulling, state.isRefreshing, threshold, maxPull]);
 
   const handleTouchEnd = useCallback(async () => {
+    if (touchOnInteractive.current) {
+      touchOnInteractive.current = false;
+      return;
+    }
+
     if (!state.isPulling) return;
 
     if (state.canRefresh && !state.isRefreshing) {
-      // Haptic when starting refresh
       hapticSelection();
-      
+
       setState(prev => ({
         ...prev,
         isPulling: false,
         isRefreshing: true,
-        pullDistance: threshold * 0.6, // Keep indicator visible during refresh
+        pullDistance: threshold * 0.6,
       }));
 
       try {
         await onRefresh();
-        // Success haptic when refresh completes
         hapticSuccess();
       } finally {
         setState({
