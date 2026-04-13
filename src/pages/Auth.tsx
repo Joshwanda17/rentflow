@@ -364,10 +364,22 @@ export default function Auth() {
                       />
                       <span className="text-xs text-muted-foreground">Remember me</span>
                     </label>
-                    <button type="button" onClick={() => setIsForgotPassword(true)} className="text-xs text-primary hover:underline">
+                    <button type="button" onClick={() => setIsForgotPassword(true)} className="text-sm font-medium text-primary hover:underline">
                       Forgot password?
                     </button>
                   </div>
+
+                  {/* Prominent reset banner after 1 failed attempt */}
+                  {failedAttempts >= 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPassword(true)}
+                      className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
+                    >
+                      <Key className="h-4 w-4 shrink-0" />
+                      <span>Can't remember? Reset your password via SMS</span>
+                    </button>
+                  )}
 
                   <Button
                     type="submit"
