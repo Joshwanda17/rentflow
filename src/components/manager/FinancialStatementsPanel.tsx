@@ -162,6 +162,7 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="User Funds Held in Custody" value={d.assets.userFundsHeld} indent />
       <LineItem label="Rent Receivables (Funded)" value={d.assets.receivables} indent />
       <LineItem label="Advance Access Fee Receivables" value={d.assets.advanceAccessFeeReceivables} indent />
+      <LineItem label="Promissory Notes Receivable" value={d.assets.promissoryNotesReceivable} indent />
       <LineItem label="Total Assets" value={d.assets.totalAssets} bold />
 
       <SectionHeader>Obligations (Liabilities)</SectionHeader>

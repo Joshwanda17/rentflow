@@ -366,7 +366,11 @@ export function useFinancialStatements() {
       const advanceAccessFeeReceivables = activeAdvances.reduce((s: number, a: any) =>
         s + (Number(a.access_fee || 0) - Number(a.access_fee_collected || 0)), 0);
 
-      const totalAssets = platformCash + userFundsHeld + outstandingRent + advanceAccessFeeReceivables;
+      // Promissory Notes Receivable: outstanding promised amounts not yet collected
+      const promissoryNotesReceivable = promissoryNotes.reduce((s: number, n: any) =>
+        s + (Number(n.amount || 0) - Number(n.total_collected || 0)), 0);
+
+      const totalAssets = platformCash + userFundsHeld + outstandingRent + advanceAccessFeeReceivables + promissoryNotesReceivable;
 
       // Obligations
       const userWalletCustody = userFundsHeld; // We owe this back to users
@@ -419,7 +423,7 @@ export function useFinancialStatements() {
           closingBalance: Math.max(0, closingBalance),
         },
         balanceSheet: {
-          assets: { platformCash, userFundsHeld, receivables: outstandingRent, advanceAccessFeeReceivables, totalAssets },
+          assets: { platformCash, userFundsHeld, receivables: outstandingRent, advanceAccessFeeReceivables, promissoryNotesReceivable, totalAssets },
           platformObligations: { userWalletCustody, pendingWithdrawals, accruedPlatformRewards, agentCommissionsPayable, totalObligations },
           platformEquity: { retainedOperatingSurplus, totalEquity: retainedOperatingSurplus },
         },
