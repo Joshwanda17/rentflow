@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
-import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X } from 'lucide-react';
+import { Search, Users, Phone, MapPin, ChevronDown, ChevronUp, CheckSquare, Pause, MessageSquare, MapPinned, X, FileDown, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
+import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
 
 interface AgentRow {
   id: string;
@@ -413,6 +415,9 @@ export function AgentDirectory() {
                     )}
                   </div>
                 </button>
+
+                {/* Download wallet report */}
+                <DownloadWalletReportButton agentId={a.id} agentName={a.full_name} />
               </div>
             );
           })}
