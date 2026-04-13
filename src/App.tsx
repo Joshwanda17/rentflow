@@ -88,6 +88,7 @@ const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
 
 const RegisterTenantPublic = lazy(() => import('./pages/RegisterTenantPublic'));
 const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic'));
+const ActivatePartner = lazy(() => import('./pages/ActivatePartner'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
@@ -337,6 +338,7 @@ function AppRoutes() {
           <Route path="/investor/portfolio/:token" element={<InvestorPortfolioPublic />} />
           <Route path="/register-tenant" element={<RegisterTenantPublic />} />
           <Route path="/register-partner" element={<RegisterPartnerPublic />} />
+          <Route path="/activate" element={<ActivatePartner />} />
           <Route path="/rent-money" element={<RentMoney />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
