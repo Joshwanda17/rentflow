@@ -7501,6 +7501,57 @@ export type Database = {
           },
         ]
       }
+      scheduled_payouts: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          created_by: string
+          day_of_month: number
+          enabled: boolean
+          frequency: string
+          id: string
+          last_run_at: string | null
+          next_run_at: string | null
+          reason: string
+          sub_category: string | null
+          target_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string
+          created_by: string
+          day_of_month: number
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
+          reason: string
+          sub_category?: string | null
+          target_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          created_by?: string
+          day_of_month?: number
+          enabled?: boolean
+          frequency?: string
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
+          reason?: string
+          sub_category?: string | null
+          target_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_centre_setups: {
         Row: {
           agent_id: string
