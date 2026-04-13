@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchAllAgentIds, batchedQuery } from '@/lib/supabaseBatchUtils';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -92,43 +92,116 @@ function getAgentSearchScore(agent: AgentRow, rawQuery: string): number {
   return score;
 }
 
+const PAGE_SIZE = 50;
+
 export function AgentDirectory() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [sortField, setSortField] = useState<'name' | 'earnings' | 'rentRequests' | 'lastActive'>('name');
   const [sortAsc, setSortAsc] = useState(true);
-  const [showAll, setShowAll] = useState(false);
   const [tierFilter, setTierFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
   const { toast } = useToast();
 
-  const { data: agents, isLoading } = useQuery({
-    queryKey: ['exec-agent-directory-v2'],
-    queryFn: async () => {
-      const agentIds = await fetchAllAgentIds();
-      if (agentIds.length === 0) return [];
+  // Debounce search for server queries
+  const searchTimer = useState<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(0);
+    if (searchTimer[0]) clearTimeout(searchTimer[0]);
+    searchTimer[0] = setTimeout(() => setDebouncedSearch(value.trim()), 400);
+  }, []);
 
-      const [profilesData, earningsData, collectionsData, requestsData, housesData] = await Promise.all([
-        batchedQuery<any>(agentIds, b => supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at').in('id', b)),
-        batchedQuery<any>(agentIds, b => supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', b)),
-        batchedQuery<any>(agentIds, b => supabase.from('agent_collections').select('agent_id').in('agent_id', b)),
-        batchedQuery<any>(agentIds, b => supabase.from('rent_requests').select('agent_id').in('agent_id', b)),
-        batchedQuery<any>(agentIds, b => supabase.from('house_listings').select('agent_id').in('agent_id', b)),
+  // Fetch agent IDs for the role
+  const { data: allAgentIds } = useQuery({
+    queryKey: ['agent-role-ids'],
+    queryFn: async () => {
+      const ids: string[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'agent')
+          .range(from, from + batchSize - 1);
+        if (!data || data.length === 0) break;
+        ids.push(...data.map(r => r.user_id));
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
+      return ids;
+    },
+    staleTime: 600_000,
+  });
+
+  const totalAgents = allAgentIds?.length || 0;
+
+  // Server-side paginated query — fetch only current page of profiles
+  const { data: pageData, isLoading } = useQuery({
+    queryKey: ['agent-directory-page', page, debouncedSearch, sortField, sortAsc],
+    queryFn: async () => {
+      // If searching, do a server-side search on profiles with agent role filter
+      let query = supabase
+        .from('profiles')
+        .select('id, full_name, phone, email, avatar_url, verified, created_at, territory, last_active_at');
+
+      if (debouncedSearch) {
+        // Search by name, phone, email, territory
+        const s = `%${debouncedSearch}%`;
+        query = query.or(`full_name.ilike.${s},phone.ilike.${s},email.ilike.${s},territory.ilike.${s}`);
+      }
+
+      // Sort
+      const orderCol = sortField === 'name' ? 'full_name' : sortField === 'lastActive' ? 'last_active_at' : 'full_name';
+      query = query.order(orderCol, { ascending: sortAsc, nullsFirst: false });
+
+      // We need to filter to only agent IDs — use .in() with current page slice
+      // For search mode, filter all agent IDs matching search; for browse mode, paginate
+      if (!debouncedSearch && allAgentIds) {
+        const pageIds = allAgentIds.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+        if (pageIds.length === 0) return [];
+        query = query.in('id', pageIds);
+      } else if (allAgentIds) {
+        // For search, we filter within all agent IDs but limit results
+        // Use batched approach: search profiles, then filter by agent IDs client-side
+        query = query.limit(200);
+      }
+
+      const { data: profiles, error } = await query;
+      if (error) { console.error(error); return []; }
+
+      // Filter to only agents
+      const agentIdSet = new Set(allAgentIds || []);
+      const agentProfiles = (profiles || []).filter(p => agentIdSet.has(p.id));
+
+      if (agentProfiles.length === 0) return [];
+
+      const ids = agentProfiles.map(p => p.id);
+
+      // Fetch stats for just this page of agents
+      const [earningsData, collectionsData, requestsData, housesData] = await Promise.all([
+        supabase.from('agent_earnings').select('agent_id, amount').in('agent_id', ids),
+        supabase.from('agent_collections').select('agent_id').in('agent_id', ids),
+        supabase.from('rent_requests').select('agent_id').in('agent_id', ids),
+        supabase.from('house_listings').select('agent_id').in('agent_id', ids),
       ]);
 
       const earningsMap: Record<string, number> = {};
-      earningsData.forEach((e: any) => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
+      (earningsData.data || []).forEach((e: any) => { earningsMap[e.agent_id] = (earningsMap[e.agent_id] || 0) + e.amount; });
 
       const collectionsMap: Record<string, number> = {};
-      collectionsData.forEach((c: any) => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
+      (collectionsData.data || []).forEach((c: any) => { collectionsMap[c.agent_id] = (collectionsMap[c.agent_id] || 0) + 1; });
 
       const reqMap: Record<string, number> = {};
-      requestsData.forEach((r: any) => { if (r.agent_id) reqMap[r.agent_id] = (reqMap[r.agent_id] || 0) + 1; });
+      (requestsData.data || []).forEach((r: any) => { if (r.agent_id) reqMap[r.agent_id] = (reqMap[r.agent_id] || 0) + 1; });
 
       const houseMap: Record<string, number> = {};
-      housesData.forEach((h: any) => { houseMap[h.agent_id] = (houseMap[h.agent_id] || 0) + 1; });
+      (housesData.data || []).forEach((h: any) => { houseMap[h.agent_id] = (houseMap[h.agent_id] || 0) + 1; });
 
-      return profilesData.map((p: any) => ({
+      return agentProfiles.map((p: any) => ({
         ...p,
         totalEarnings: earningsMap[p.id] || 0,
         rentRequests: reqMap[p.id] || 0,
@@ -137,43 +210,14 @@ export function AgentDirectory() {
         tier: getTier(earningsMap[p.id] || 0, collectionsMap[p.id] || 0),
       })) as AgentRow[];
     },
-    staleTime: 300000,
+    enabled: !!allAgentIds,
+    staleTime: 60_000,
   });
 
-  const filtered = useMemo(() => {
-    let list = agents || [];
-
-    if (tierFilter === 'verified') {
-      list = list.filter(a => a.verified);
-    } else if (tierFilter !== 'all') {
-      list = list.filter(a => a.tier === tierFilter);
-    }
-
-    const searchValue = search.trim();
-    if (searchValue) {
-      return list
-        .map(agent => ({ agent, score: getAgentSearchScore(agent, searchValue) }))
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score || (a.agent.full_name || '').localeCompare(b.agent.full_name || ''))
-        .map(item => item.agent);
-    }
-
-    return [...list].sort((a, b) => {
-      let cmp = 0;
-      if (sortField === 'name') cmp = (a.full_name || '').localeCompare(b.full_name || '');
-      else if (sortField === 'earnings') cmp = a.totalEarnings - b.totalEarnings;
-      else if (sortField === 'lastActive') {
-        const aTime = a.lastActive ? new Date(a.lastActive).getTime() : 0;
-        const bTime = b.lastActive ? new Date(b.lastActive).getTime() : 0;
-        cmp = aTime - bTime;
-      } else {
-        cmp = a.rentRequests - b.rentRequests;
-      }
-      return sortAsc ? cmp : -cmp;
-    });
-  }, [agents, search, sortField, sortAsc, tierFilter]);
-
-  const displayed = search.trim() ? filtered.slice(0, 100) : showAll ? filtered : filtered.slice(0, 30);
+  const agents = pageData || [];
+  const displayed = agents;
+  const totalPages = Math.ceil(totalAgents / PAGE_SIZE);
+  const bulkMode = selectedIds.size > 0;
   const bulkMode = selectedIds.size > 0;
 
   const toggleSelect = (id: string) => {
