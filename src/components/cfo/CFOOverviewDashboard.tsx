@@ -132,8 +132,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const totalCash = platformCash?.totalCash ?? 0;
   const totalReceivables = receivables?.totalReceivables ?? 0;
   const totalLiabilities = liabilities?.totalLiabilities ?? 0;
-  const platformEarnings = revenue?.netProfit ?? 0;
   const walletTotal = liabilities?.tenantFunds ?? 0;
+  const moneyWeCanUse = Math.max(0, totalCash - walletTotal);
   const solvencyRatio = totalLiabilities > 0 ? ((totalCash + totalReceivables) / totalLiabilities) * 100 : 100;
   const netToday = todayCashFlow?.netToday ?? 0;
 
