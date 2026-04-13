@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
 import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSheet';
+import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -249,6 +250,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           })()}
         </CardContent>
       </Card>
+
+      {/* ── ROI PAYABLE FORECAST ── */}
+      <ROIPayableForecast />
 
       {/* ── SOURCES OF CASH (replaces channel breakdown) ── */}
       <Card className="rounded-2xl">
