@@ -123,5 +123,11 @@ self.addEventListener("fetch", (event) => {
   // ===================================================
   // 5️⃣ API & EVERYTHING ELSE — NETWORK ONLY
   // ===================================================
-  event.respondWith(fetch(request).catch(() => caches.match(request)));
+  event.respondWith(
+    fetch(request).catch(() =>
+      caches.match(request).then((cached) =>
+        cached || new Response('Network error', { status: 503, statusText: 'Service Unavailable' })
+      )
+    )
+  );
 });
