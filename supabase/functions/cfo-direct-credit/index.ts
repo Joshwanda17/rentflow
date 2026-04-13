@@ -224,6 +224,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (e) {
+    console.error("[cfo-direct-credit] Error:", e.message);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
