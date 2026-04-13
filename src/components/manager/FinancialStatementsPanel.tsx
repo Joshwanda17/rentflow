@@ -489,6 +489,9 @@ export function FinancialStatementsPanel() {
         addRow('Other Platform Income', d.operatingActivities.otherServiceIncome, false, false, true);
         addRow('Platform Rewards Paid', d.operatingActivities.platformRewardsPaid, false, true, true);
         addRow('Agent Commissions Paid', d.operatingActivities.agentCommissionsPaid, false, true, true);
+        addRow('Marketing Expenses Paid', d.operatingActivities.marketingPaid, false, true, true);
+        addRow('R&D Expenses Paid', d.operatingActivities.rdPaid, false, true, true);
+        addRow('Operational Expenses Paid', d.operatingActivities.operationalSubcatPaid, false, true, true);
         addRow('Operating Expenses Paid', d.operatingActivities.withdrawalsPaid, false, true, true);
         addRow('Net Platform Operating Cash', d.operatingActivities.netOperating, true);
         y += 3;
