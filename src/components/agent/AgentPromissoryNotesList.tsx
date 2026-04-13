@@ -42,7 +42,7 @@ export function AgentPromissoryNotesList({ open, onOpenChange }: Props) {
   const totalCollected = notes?.reduce((s, n) => s + (n.total_collected || 0), 0) ?? 0;
   const myCommission = totalPromised * 0.02;
   const earnedCommission = totalCollected * 0.02;
-  const activeCount = notes?.filter(n => n.status === 'activated' || n.status === 'fulfilled').length ?? 0;
+  
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
