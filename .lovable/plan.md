@@ -1,69 +1,77 @@
 
-Goal: fix the unresponsive “tabs” shown in your screenshot — these are the CFO executive sidebar navigation items, and the same touch problem may also affect other tab/button UIs on mobile.
 
-What I found
-- The screenshot matches the CFO sidebar config in `src/components/layout/executiveSidebarConfig.ts`.
-- Those sidebar items are rendered as plain buttons in `src/components/layout/ExecutiveDashboardLayout.tsx`.
-- The whole app is wrapped in a custom pull-to-refresh container in `src/App.tsx` via `src/components/PullToRefresh.tsx` and `src/hooks/usePullToRefresh.ts`.
-- That hook starts pull-tracking immediately on `touchstart` whenever the scroll container is at the top. On mobile, this can swallow or cancel normal tap/click behavior for nested interactive elements like sidebar items and tab triggers.
-- The current sidebar buttons also are not hardened for touch interaction (`type="button"`, `touch-action`, pointer handling, active state), unlike some newer components that already do this.
+## Plan: Restructure CFO Payout Categories with Subcategories and Automated Recurring Payouts
 
-Who is affected
-- Most likely all touch users, especially on mobile/tablet.
-- Most visible in executive dashboards (CFO, COO, HR, etc.) because they use the same `ExecutiveDashboardLayout`.
-- Potentially also some Radix tab UIs that depend on clean pointer/tap handling.
+### What Changes
 
-Implementation plan
-1. Harden the global pull-to-refresh behavior
-- Update `src/hooks/usePullToRefresh.ts` so it does not enter pull mode on every top-of-page touch.
-- Only begin pull behavior after a real downward drag threshold, not on simple taps.
-- Ignore touches that start on interactive elements such as:
-  - `button`
-  - links
-  - inputs/selects/textareas
-  - elements with tab roles / tablists
-  - drawer/sidebar navigation areas
-- Prevent pull-to-refresh from interfering with nested scrollable containers and fixed overlays.
+**1. Restructure payout categories with subcategories** in `DirectCreditTool.tsx`
 
-2. Make executive sidebar navigation reliably touchable
-- Update the sidebar buttons in `src/components/layout/ExecutiveDashboardLayout.tsx` to be mobile-safe:
-  - add `type="button"`
-  - add `touch-manipulation`
-  - add stronger pressed/hover states
-  - optionally trigger on pointer-up/touch-safe path instead of relying only on `onClick`
-- Raise the drawer above the backdrop with explicit z-index separation to eliminate any layering ambiguity on mobile.
+Replace the flat category list with a hierarchical structure:
 
-3. Harden shared tab triggers
-- Update `src/components/ui/tabs.tsx` so `TabsTrigger` is explicitly touch-friendly:
-  - add `type="button"`
-  - add `touch-manipulation`
-  - preserve haptic feedback without interfering with Radix behavior
-- This protects other tab strips across the app, not just the CFO sidebar.
+| Category | Subcategories | Ledger Mapping |
+|----------|--------------|----------------|
+| 📈 ROI Payout | *(none — standalone)* | roi_wallet_credit / roi_expense |
+| 🏠 Rent Disbursement | *(none — standalone)* | rent_disbursement |
+| 📢 Marketing Expenses | Marketing Materials | system_balance_correction (expense) |
+| 🤝 Agent Commissions | *(none — standalone)* | agent_commission_earned |
+| 🔬 Research & Development | *(none — standalone)* | system_balance_correction (expense) |
+| 🏢 Operational Expenses | Salaries, Transport, Food, Office Rent, Internet, Airtime, Stationery, Property & Equipment, Taxes, Interests | system_balance_correction (expense) |
 
-4. Verify executive tab IDs and route behavior
-- Re-check the CFO sidebar items against `src/pages/cfo/Dashboard.tsx` so every item maps to a valid content panel.
-- Keep the current tab-state approach, but make sure tapping any menu item always changes `activeTab` immediately and closes the drawer on mobile.
+The UI will show a two-step selection: pick a category first, then pick a subcategory if one exists. All new subcategories map to existing locked ledger categories (`system_balance_correction`) tagged with a `sub_category` metadata field for reporting granularity.
 
-5. QA pass after implementation
-- Test on touch-sized viewports for:
-  - CFO sidebar items
-  - any top tab bars using `TabsTrigger`
-  - drawer open/close behavior
-  - pull-to-refresh still working only when intentionally dragged
-- Also verify no regressions in desktop click behavior.
+**2. Add automated recurring payout toggle**
 
-Technical notes
-- Primary suspect files:
-  - `src/hooks/usePullToRefresh.ts`
-  - `src/components/PullToRefresh.tsx`
-  - `src/components/layout/ExecutiveDashboardLayout.tsx`
-  - `src/components/ui/tabs.tsx`
-- Most likely root cause:
-  - app-level touch gesture handling is too aggressive and interferes with nested buttons/tabs
-- Secondary hardening:
-  - improve touch semantics and z-index behavior for the executive drawer/sidebar buttons
+- Add a new database table `scheduled_payouts` to store recurring payout rules (user, amount, category, subcategory, frequency/date, enabled flag)
+- After the CFO searches and selects a user, a toggle appears: "Automate this payout"
+- When toggled ON, the CFO sets a recurrence schedule (e.g., monthly on day X)
+- A cron-triggered edge function (`process-scheduled-payouts`) runs daily, finds due payouts, and executes them via the same `cfo-direct-credit` flow
 
-Expected result
-- CFO sidebar items respond instantly on mobile/tablet
-- shared tabs become reliably clickable/tappable
-- pull-to-refresh still works, but only when the user actually intends to pull
+### Files to Create/Edit
+
+| File | Action |
+|------|--------|
+| `src/components/cfo/DirectCreditTool.tsx` | Restructure categories into parent/child, add subcategory selector, add automation toggle UI |
+| `src/components/cfo/PayoutAutomationToggle.tsx` | **New** — toggle + schedule picker component |
+| `supabase/functions/cfo-direct-credit/index.ts` | Accept `sub_category` field, pass through to ledger metadata |
+| `supabase/functions/process-scheduled-payouts/index.ts` | **New** — cron function to execute due scheduled payouts |
+| Database migration | Create `scheduled_payouts` table with RLS |
+
+### Database: `scheduled_payouts` table
+
+```text
+id              uuid PK
+created_by      uuid (CFO who set it up)
+target_user_id  uuid
+amount          numeric
+category_id     text (e.g. 'operational_expense')
+sub_category    text (e.g. 'salaries')
+reason          text
+frequency       text ('monthly')
+day_of_month    int
+enabled         boolean default true
+last_run_at     timestamptz
+next_run_at     timestamptz
+created_at      timestamptz
+```
+
+RLS: Only CFO/super_admin can read/write. The cron edge function uses service role.
+
+### How It Works
+
+1. CFO opens "Pay Out to Any User's Wallet"
+2. Selects "Platform → Wallet" (credit)
+3. Picks a category (e.g., Operational Expenses)
+4. Picks a subcategory (e.g., Salaries)
+5. Searches and selects a user
+6. Enters amount and reason
+7. Optionally toggles "Automate this payout" — picks a day of month
+8. Submits: immediate payout runs now, and if automated, a schedule is saved
+9. Daily cron checks `scheduled_payouts` and auto-executes due ones
+
+### Technical Notes
+
+- All new subcategories use existing locked ledger categories (`system_balance_correction` for expenses) — no database category changes needed
+- The `sub_category` label is stored in the ledger entry's `description` and `metadata` for reporting traceability
+- Debit categories (Fee Collection, Penalty, etc.) remain unchanged
+- The cron job reuses the same `cfo-direct-credit` edge function with service-role auth
+
