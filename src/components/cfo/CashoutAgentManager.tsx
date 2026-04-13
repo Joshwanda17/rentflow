@@ -39,13 +39,14 @@ export function CashoutAgentManager() {
   const assignMutation = useMutation({
     mutationFn: async () => {
       if (!pickedAgent) throw new Error('Please select an agent');
-      const { error } = await supabase.from('cashout_agents').insert({
+      const { error } = await supabase.from('cashout_agents').upsert({
         agent_id: pickedAgent.id,
         assigned_by: user!.id,
         handles_cash: handlesCash,
         handles_bank: handlesBank,
         label: label || 'Cash-Out Agent',
-      });
+        is_active: true,
+      }, { onConflict: 'agent_id' });
       if (error) throw error;
     },
     onSuccess: () => {
