@@ -1,5 +1,25 @@
 import jsPDF from 'jspdf';
 import { formatUGX } from '@/lib/rentCalculations';
+import welileLogo from '@/assets/welile-logo.png';
+
+// Helper to load image as base64 for jsPDF
+function loadImageAsBase64(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas context failed'));
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
 interface PromissoryNoteData {
   partnerName: string;
@@ -16,6 +36,14 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
 
+  // Load logo
+  let logoBase64: string | null = null;
+  try {
+    logoBase64 = await loadImageAsBase64(welileLogo);
+  } catch (e) {
+    console.warn('Could not load logo for PDF', e);
+  }
+
   // ═══ HEADER: Purple gradient banner ═══
   doc.setFillColor(107, 33, 168); // Purple-800
   doc.rect(0, 0, pageWidth, 55, 'F');
@@ -24,19 +52,24 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   doc.setFillColor(139, 92, 246); // Purple-500
   doc.rect(0, 55, pageWidth, 3, 'F');
 
-  // Title
+  // Logo + Title
+  if (logoBase64) {
+    const logoSize = 16;
+    doc.addImage(logoBase64, 'PNG', pageWidth / 2 - logoSize / 2, 4, logoSize, logoSize, undefined, 'FAST');
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text('WELILE', pageWidth / 2, 22, { align: 'center' });
+  doc.text('WELILE', pageWidth / 2, 28, { align: 'center' });
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('TECHNOLOGIES LIMITED', pageWidth / 2, 29, { align: 'center' });
+  doc.text('TECHNOLOGIES LIMITED', pageWidth / 2, 35, { align: 'center' });
 
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVESTMENT PROMISSORY NOTE', pageWidth / 2, 45, { align: 'center' });
+  doc.text('INVESTMENT PROMISSORY NOTE', pageWidth / 2, 48, { align: 'center' });
 
   // ═══ BODY ═══
   let y = 70;
