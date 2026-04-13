@@ -9,13 +9,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, Home } from 'lucide-react';
+import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
+import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 
 type Operation = 'credit' | 'debit';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
+
+interface SubCategory {
+  id: string;
+  label: string;
+}
 
 interface PayoutCategory {
   id: string;
@@ -25,6 +31,7 @@ interface PayoutCategory {
   walletCategory: string;
   platformCategory: string;
   allowedOps: Operation[];
+  subCategories?: SubCategory[];
 }
 
 const PAYOUT_CATEGORIES: PayoutCategory[] = [
@@ -39,8 +46,29 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     allowedOps: ['credit'],
   },
   {
+    id: 'rent_disbursement',
+    label: '🏠 Rent Disbursement',
+    description: 'Approved rent payouts to landlord wallets or agent float — earns access fees & request fees',
+    impact: 'revenue',
+    walletCategory: 'rent_disbursement',
+    platformCategory: 'rent_disbursement',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'marketing_expenses',
+    label: '📢 Marketing Expenses',
+    description: 'Payments for marketing, advertising, and promotional activities',
+    impact: 'expense',
+    walletCategory: 'system_balance_correction',
+    platformCategory: 'system_balance_correction',
+    allowedOps: ['credit'],
+    subCategories: [
+      { id: 'marketing_materials', label: 'Marketing Materials' },
+    ],
+  },
+  {
     id: 'agent_commission',
-    label: '🤝 Agent Commission',
+    label: '🤝 Agent Commissions',
     description: 'Commission earned by an agent for rent collection',
     impact: 'expense',
     walletCategory: 'agent_commission_earned',
@@ -48,13 +76,34 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     allowedOps: ['credit'],
   },
   {
-    id: 'salary_advance',
-    label: '💼 Salary / Advance',
-    description: 'Staff salary, advance, or employee payment',
+    id: 'research_development',
+    label: '🔬 Research & Development',
+    description: 'R&D expenditures, innovation costs, and technology investments',
     impact: 'expense',
     walletCategory: 'system_balance_correction',
     platformCategory: 'system_balance_correction',
     allowedOps: ['credit'],
+  },
+  {
+    id: 'operational_expense',
+    label: '🏢 Operational Expenses',
+    description: 'Day-to-day operational costs including staff, office, and utilities',
+    impact: 'expense',
+    walletCategory: 'system_balance_correction',
+    platformCategory: 'system_balance_correction',
+    allowedOps: ['credit'],
+    subCategories: [
+      { id: 'salaries', label: 'Salaries' },
+      { id: 'transport', label: 'Transport' },
+      { id: 'food', label: 'Food' },
+      { id: 'office_rent', label: 'Office Rent' },
+      { id: 'internet', label: 'Internet' },
+      { id: 'airtime', label: 'Airtime' },
+      { id: 'stationery', label: 'Stationery' },
+      { id: 'property_equipment', label: 'Property & Equipment' },
+      { id: 'taxes', label: 'Taxes' },
+      { id: 'interests', label: 'Interests' },
+    ],
   },
   {
     id: 'correction_credit',
@@ -72,15 +121,6 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     impact: 'neutral',
     walletCategory: 'wallet_transfer',
     platformCategory: 'wallet_transfer',
-    allowedOps: ['credit'],
-  },
-  {
-    id: 'rent_disbursement',
-    label: '🏠 Rent Disbursement',
-    description: 'Approved rent payouts to landlord wallets or agent float — earns access fees & request fees',
-    impact: 'revenue',
-    walletCategory: 'rent_disbursement',
-    platformCategory: 'rent_disbursement',
     allowedOps: ['credit'],
   },
 
@@ -146,8 +186,10 @@ export function DirectCreditTool() {
   const [reason, setReason] = useState('');
   const [operation, setOperation] = useState<Operation>('credit');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
+  const [automateEnabled, setAutomateEnabled] = useState(false);
+  const [automateDay, setAutomateDay] = useState(1);
 
-  // Live count of COO-approved rent requests for the dropdown badge
   const { data: rentQueueCount = 0 } = useQuery({
     queryKey: ['rent-disbursement-queue-count'],
     queryFn: async () => {
@@ -171,12 +213,26 @@ export function DirectCreditTool() {
     [selectedCategoryId]
   );
 
+  const hasSubCategories = selectedCategory?.subCategories && selectedCategory.subCategories.length > 0;
+  const needsSubCategory = hasSubCategories && !selectedSubCategoryId;
+
+  const selectedSubCategory = useMemo(
+    () => selectedCategory?.subCategories?.find(s => s.id === selectedSubCategoryId),
+    [selectedCategory, selectedSubCategoryId]
+  );
+
   const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
 
-  // Reset category when switching operation
   const handleOperationChange = (op: Operation) => {
     setOperation(op);
     setSelectedCategoryId('');
+    setSelectedSubCategoryId('');
+    setAutomateEnabled(false);
+  };
+
+  const handleCategoryChange = (catId: string) => {
+    setSelectedCategoryId(catId);
+    setSelectedSubCategoryId('');
   };
 
   const mutation = useMutation({
@@ -186,6 +242,11 @@ export function DirectCreditTool() {
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
       if (!selectedUser) throw new Error('Select a user');
       if (!selectedCategory) throw new Error('Select a payout category');
+      if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
+
+      const categoryLabel = selectedSubCategory
+        ? `${selectedCategory.label} → ${selectedSubCategory.label}`
+        : selectedCategory.label;
 
       const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
         body: {
@@ -196,38 +257,44 @@ export function DirectCreditTool() {
           wallet_category: selectedCategory.walletCategory,
           platform_category: selectedCategory.platformCategory,
           financial_impact: selectedCategory.impact,
-          category_label: selectedCategory.label,
+          category_label: categoryLabel,
+          sub_category: selectedSubCategoryId || null,
         },
       });
       if (error) {
         const msg = error?.message || 'Something went wrong';
-        // Parse user-friendly messages from edge function errors
-        if (msg.includes('Insufficient balance')) {
-          throw new Error(`This user has insufficient wallet balance for this debit. The operation was still processed.`);
-        }
-        if (msg.includes('Unauthorized')) {
-          throw new Error('You do not have permission to perform this action. Please log in again.');
-        }
-        if (msg.includes('Insufficient permissions')) {
-          throw new Error('Your role does not have CFO privileges to make wallet adjustments.');
-        }
-        if (msg.includes('Target user not found')) {
-          throw new Error('The selected user could not be found. They may have been removed from the system.');
-        }
-        if (msg.includes('Invalid amount')) {
-          throw new Error('Please enter a valid amount between 1 and 50,000,000 UGX.');
-        }
-        if (msg.includes('Reason must be')) {
-          throw new Error('Please provide a detailed reason (at least 10 characters) for audit purposes.');
-        }
-        if (msg.includes('Ledger error')) {
-          throw new Error('A ledger recording error occurred. Please try again or contact support.');
-        }
+        if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
+        if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
+        if (msg.includes('Target user not found')) throw new Error('The selected user could not be found.');
+        if (msg.includes('Invalid amount')) throw new Error('Please enter a valid amount between 1 and 50,000,000 UGX.');
+        if (msg.includes('Reason must be')) throw new Error('Please provide a detailed reason (at least 10 characters).');
+        if (msg.includes('Ledger error')) throw new Error('A ledger recording error occurred. Please try again.');
         throw new Error(msg);
       }
-      if (data?.error) {
-        throw new Error(data.error);
+      if (data?.error) throw new Error(data.error);
+
+      // Save scheduled payout if automation is enabled
+      if (automateEnabled && selectedUser) {
+        const { error: schedErr } = await supabase.from('scheduled_payouts').insert({
+          created_by: (await supabase.auth.getUser()).data.user?.id,
+          target_user_id: selectedUser.id,
+          amount: amt,
+          category_id: selectedCategoryId,
+          sub_category: selectedSubCategoryId || null,
+          reason,
+          frequency: 'monthly',
+          day_of_month: automateDay,
+          enabled: true,
+          next_run_at: getNextRunDate(automateDay),
+        });
+        if (schedErr) {
+          console.error('[DirectCreditTool] Failed to save schedule:', schedErr);
+          toast({ title: '⚠️ Payout succeeded but schedule failed', description: schedErr.message, variant: 'destructive' });
+        } else {
+          toast({ title: '🔁 Recurring payout saved', description: `Will auto-pay on day ${automateDay} every month` });
+        }
       }
+
       return data;
     },
     onSuccess: (data) => {
@@ -240,6 +307,8 @@ export function DirectCreditTool() {
       setAmount('');
       setReason('');
       setSelectedCategoryId('');
+      setSelectedSubCategoryId('');
+      setAutomateEnabled(false);
     },
     onError: (e: any) => toast({ title: 'Failed', description: e.message, variant: 'destructive' }),
   });
@@ -286,7 +355,7 @@ export function DirectCreditTool() {
             Payout Category
             <span className="text-destructive">*</span>
           </Label>
-          <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+          <Select value={selectedCategoryId} onValueChange={handleCategoryChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select a category..." />
             </SelectTrigger>
@@ -314,25 +383,50 @@ export function DirectCreditTool() {
           </Select>
         </div>
 
+        {/* Subcategory Dropdown */}
+        {hasSubCategories && (
+          <div>
+            <Label className="flex items-center gap-1.5 mb-1.5">
+              Subcategory
+              <span className="text-destructive">*</span>
+            </Label>
+            <Select value={selectedSubCategoryId} onValueChange={setSelectedSubCategoryId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a subcategory..." />
+              </SelectTrigger>
+              <SelectContent>
+                {selectedCategory!.subCategories!.map(sub => (
+                  <SelectItem key={sub.id} value={sub.id}>
+                    {sub.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Category Impact Explanation */}
-        {selectedCategory && impactInfo && ImpactIcon && !isRentDisbursement && (
+        {selectedCategory && impactInfo && ImpactIcon && !isRentDisbursement && !needsSubCategory && (
           <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${impactInfo.color}`}>
             <div className="flex items-center gap-2 font-semibold">
               <ImpactIcon className="h-4 w-4" />
               Financial Impact: {impactInfo.label}
             </div>
             <p className="opacity-80">{selectedCategory.description}</p>
+            {selectedSubCategory && (
+              <p className="font-medium">📂 Subcategory: {selectedSubCategory.label}</p>
+            )}
             <div className="pt-1 border-t border-current/10 space-y-0.5 text-[10px]">
               <p><span className="font-medium">Wallet entry:</span> {selectedCategory.walletCategory.replace(/_/g, ' ')}</p>
               <p><span className="font-medium">Platform entry:</span> {selectedCategory.platformCategory.replace(/_/g, ' ')}</p>
-              {selectedCategory.impact === 'revenue' && (
-                <p className="font-medium text-emerald-700">
-                  ✅ This payout earns money for the platform — recorded as platform income.
-                </p>
-              )}
               {selectedCategory.impact === 'expense' && (
                 <p className="font-medium text-orange-700">
                   📉 This payout is a platform expense — reduces platform earnings.
+                </p>
+              )}
+              {selectedCategory.impact === 'revenue' && (
+                <p className="font-medium text-emerald-700">
+                  ✅ This payout earns money for the platform — recorded as platform income.
                 </p>
               )}
               {selectedCategory.impact === 'neutral' && (
@@ -350,7 +444,7 @@ export function DirectCreditTool() {
         )}
 
         {/* ── MANUAL PAYOUT FORM (non-rent categories) ── */}
-        {!isRentDisbursement && (
+        {!isRentDisbursement && selectedCategoryId && !needsSubCategory && (
           <>
             <UserSearchPicker
               label="Search User"
@@ -384,6 +478,16 @@ export function DirectCreditTool() {
               <p className="text-[10px] text-muted-foreground mt-1">{reason.length}/10 characters minimum</p>
             </div>
 
+            {/* Automation Toggle (credit only) */}
+            {isCredit && selectedUser && (
+              <PayoutAutomationToggle
+                enabled={automateEnabled}
+                onToggle={setAutomateEnabled}
+                dayOfMonth={automateDay}
+                onDayChange={setAutomateDay}
+              />
+            )}
+
             {/* Treasury Impact */}
             {amt > 0 && isCredit && (
               <TreasuryImpactBanner payoutAmount={amt} />
@@ -403,12 +507,23 @@ export function DirectCreditTool() {
                     <span className="font-medium">{selectedUser.full_name}</span>'s wallet
                     <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.walletCategory.replace(/_/g, ' ')}</Badge>
                   </span>
-
                   <span className="text-muted-foreground">Entry 2:</span>
                   <span>
                     {isCredit ? '↘ Debit' : '↗ Credit'} UGX {amt.toLocaleString()} {isCredit ? 'from' : 'to'} platform
                     <Badge variant="outline" className="ml-1 text-[8px] px-1">{selectedCategory.platformCategory.replace(/_/g, ' ')}</Badge>
                   </span>
+                  {selectedSubCategory && (
+                    <>
+                      <span className="text-muted-foreground">Tag:</span>
+                      <span>📂 {selectedSubCategory.label}</span>
+                    </>
+                  )}
+                  {automateEnabled && (
+                    <>
+                      <span className="text-muted-foreground">Recurrence:</span>
+                      <span>🔁 Monthly on day {automateDay}</span>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -426,4 +541,13 @@ export function DirectCreditTool() {
       </CardContent>
     </Card>
   );
+}
+
+function getNextRunDate(dayOfMonth: number): string {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), dayOfMonth);
+  if (next <= now) {
+    next.setMonth(next.getMonth() + 1);
+  }
+  return next.toISOString();
 }

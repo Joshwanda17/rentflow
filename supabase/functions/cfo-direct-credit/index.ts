@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label } = await req.json();
+    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category } = await req.json();
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
 
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
             category: walletCat,
             ledger_scope: 'wallet',
             source_table: 'cfo_direct_credit',
-            description: `Welile Technologies Finance [${category_label || walletCat}]: ${reason}`,
+            description: `Welile Technologies Finance [${category_label || walletCat}]${sub_category ? ' → ' + sub_category : ''}: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
@@ -206,6 +206,7 @@ Deno.serve(async (req) => {
         platform_category: platformCat,
         financial_impact: impact,
         category_label: category_label || walletCat,
+        sub_category: sub_category || null,
       },
     });
 
