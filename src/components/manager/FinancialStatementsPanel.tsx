@@ -63,6 +63,33 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Payroll & Staff Costs" value={d.operatingExpenses.payrollExpenses} negative indent />
       <LineItem label="Agent Requisitions" value={d.operatingExpenses.agentRequisitions} negative indent />
       <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
+      <LineItem label="Marketing Expenses" value={d.operatingExpenses.marketingExpenses} negative indent />
+      <LineItem label="Research & Development" value={d.operatingExpenses.researchDevelopment} negative indent />
+      {/* Operational Subcategories */}
+      {(d.operatingExpenses.operationalSubcategories.salaries > 0 ||
+        d.operatingExpenses.operationalSubcategories.transport > 0 ||
+        d.operatingExpenses.operationalSubcategories.food > 0 ||
+        d.operatingExpenses.operationalSubcategories.officeRent > 0 ||
+        d.operatingExpenses.operationalSubcategories.internet > 0 ||
+        d.operatingExpenses.operationalSubcategories.airtime > 0 ||
+        d.operatingExpenses.operationalSubcategories.stationery > 0 ||
+        d.operatingExpenses.operationalSubcategories.propertyEquipment > 0 ||
+        d.operatingExpenses.operationalSubcategories.taxes > 0 ||
+        d.operatingExpenses.operationalSubcategories.interests > 0) && (
+        <>
+          <p className="text-[10px] text-muted-foreground pl-4 mt-1 font-medium">Operational Breakdown:</p>
+          {d.operatingExpenses.operationalSubcategories.salaries > 0 && <LineItem label="  Salaries" value={d.operatingExpenses.operationalSubcategories.salaries} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.transport > 0 && <LineItem label="  Transport" value={d.operatingExpenses.operationalSubcategories.transport} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.food > 0 && <LineItem label="  Food" value={d.operatingExpenses.operationalSubcategories.food} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.officeRent > 0 && <LineItem label="  Office Rent" value={d.operatingExpenses.operationalSubcategories.officeRent} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.internet > 0 && <LineItem label="  Internet" value={d.operatingExpenses.operationalSubcategories.internet} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.airtime > 0 && <LineItem label="  Airtime" value={d.operatingExpenses.operationalSubcategories.airtime} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.stationery > 0 && <LineItem label="  Stationery" value={d.operatingExpenses.operationalSubcategories.stationery} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.propertyEquipment > 0 && <LineItem label="  Property & Equipment" value={d.operatingExpenses.operationalSubcategories.propertyEquipment} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.taxes > 0 && <LineItem label="  Taxes" value={d.operatingExpenses.operationalSubcategories.taxes} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.interests > 0 && <LineItem label="  Interests" value={d.operatingExpenses.operationalSubcategories.interests} negative indent />}
+        </>
+      )}
       <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
       <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
 
