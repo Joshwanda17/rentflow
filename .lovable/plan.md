@@ -1,78 +1,35 @@
 
 
-## Plan: Agent Wallet History PDF Download
+## Plan: Show Tenant Names in Wallet Report PDF
 
-### Summary
-Add a "Download Wallet Report (PDF)" button in two places:
-1. **Agent Ops Dashboard** — inside the Agent Directory, after searching/selecting an agent, a button to download that specific agent's full wallet ledger as a PDF
-2. **Agent's own Wallet** — inside the `FullScreenWalletSheet`, a download button for their own wallet history
+### Problem
+The rent payment breakdown in the PDF shows generic descriptions like "Agent paid UGX 20,000 for tenant" without specifying **which** tenant was paid for.
 
-The PDF will be a professional financial report showing wallet summary, rent payment breakdown, and full transaction log from the `general_ledger`.
+### Root Cause
+1. The `general_ledger` stores the tenant's user ID in the `linked_party` column, but the data fetcher doesn't include it
+2. The edge function (`agent-deposit`) writes a generic description without the tenant's name
+3. The PDF generator just displays the description as-is
 
 ### Changes
 
-**1. New PDF generator: `src/lib/agentWalletReportPdf.ts`**
-- Create a new PDF generator (separate from the existing `agentReportPdf.ts` which is for collection reports)
-- Accepts: agent name, phone, wallet balance, commission balance, float balance, and ledger entries
-- PDF sections:
-  - Header with agent name, ID, report date
-  - Wallet Summary: Total Balance, Float Balance, Commission Balance, Total Deposits, Total Spent on Rent
-  - Rent Payment Breakdown table: Date, Tenant/Description, Amount, Reference
-  - Full Transaction Log table: Date, Category, Type (In/Out), Amount, Description
-- Uses jsPDF (already in project) with the same Welile branding style as existing reports
+**1. Fix the edge function description (`supabase/functions/agent-deposit/index.ts`)**
+- Before creating the ledger entry, fetch the tenant's `full_name` from `profiles`
+- Change description from `"Agent paid UGX X for tenant"` to `"Agent paid UGX X for tenant: <Tenant Name>"`
+- This fixes all **future** transactions
 
-**2. Agent Ops — Add download button to Agent Directory (`src/components/executive/AgentDirectory.tsx`)**
-- When an agent is selected/expanded, add a "Download Wallet Report" button
-- On click: fetch that agent's `general_ledger` entries (scoped to `wallet`), their wallet balance, and generate the PDF
-- Uses the new PDF generator
+**2. Update the data fetcher (`src/lib/fetchAgentWalletData.ts`)**
+- Include `linked_party` in the ledger query select
+- After fetching entries, collect all unique `linked_party` UUIDs from rent entries
+- Batch-fetch tenant names from `profiles` table
+- Enrich each rent entry with the resolved tenant name (stored in a new `tenant_name` field on the interface)
+- This fixes **existing** transactions that already have `linked_party` set
 
-**3. Agent Wallet — Add download button to `src/components/wallet/FullScreenWalletSheet.tsx`**
-- Add a small "Download Statement" button near the wallet statement section
-- On click: fetch the logged-in agent's own ledger entries and generate the same PDF
-- Only visible when `role === 'agent'`
+**3. Update the PDF generator (`src/lib/agentWalletReportPdf.ts`)**
+- In the Rent Payment Breakdown table, display the tenant name instead of the raw description
+- Format as: "Paid for: Tenant Name" or fall back to the description if no tenant name is available
 
-**4. Shared data fetcher: `src/lib/fetchAgentWalletData.ts`**
-- Helper function to fetch all ledger entries for a given user ID from `general_ledger` where `ledger_scope = 'wallet'`
-- Fetches wallet balance from `wallets` table
-- Fetches agent split balances (commission vs float) by computing from ledger categories
-- Returns structured data ready for PDF generation
-- Reusable by both Agent Ops and the agent's own wallet
-
-### Technical Details
-
-```text
-Data flow:
-  Agent Ops:   AgentDirectory → select agent → click Download
-                → fetchAgentWalletData(agentId) → generateAgentWalletReportPdf(data) → browser download
-
-  Agent Side:  FullScreenWalletSheet → click Download Statement
-                → fetchAgentWalletData(user.id) → generateAgentWalletReportPdf(data) → browser download
-
-PDF structure:
-  ┌─────────────────────────────────────┐
-  │  WELILE — Agent Wallet Statement    │  (purple header)
-  │  Agent: Name  |  Date: ...          │
-  ├─────────────────────────────────────┤
-  │  💰 Wallet Summary                  │
-  │  Total Balance | Float | Commission │
-  │  Total Deposits | Total Rent Paid   │
-  ├─────────────────────────────────────┤
-  │  🏠 Rent Payments Breakdown         │
-  │  Date | Description | Amount | Ref  │
-  │  ...rows...                         │
-  ├─────────────────────────────────────┤
-  │  📋 Full Transaction History        │
-  │  Date | Category | In/Out | Amount  │
-  │  ...rows...                         │
-  └─────────────────────────────────────┘
-```
-
-### Files to create/edit
-- **Create**: `src/lib/agentWalletReportPdf.ts` — PDF generator
-- **Create**: `src/lib/fetchAgentWalletData.ts` — shared data fetcher
-- **Edit**: `src/components/executive/AgentDirectory.tsx` — add download button per agent
-- **Edit**: `src/components/wallet/FullScreenWalletSheet.tsx` — add download button for agent's own statement
-
-### No database changes needed
-All data already exists in `general_ledger` and `wallets` tables with appropriate RLS policies.
+### Files to edit
+- `supabase/functions/agent-deposit/index.ts` — include tenant name in ledger description
+- `src/lib/fetchAgentWalletData.ts` — add `linked_party` to query, resolve tenant names
+- `src/lib/agentWalletReportPdf.ts` — display tenant name in rent breakdown table
 
