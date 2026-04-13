@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn, Smartphone, ArrowRight, Key } from 'lucide-react';
 import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
@@ -364,10 +364,22 @@ export default function Auth() {
                       />
                       <span className="text-xs text-muted-foreground">Remember me</span>
                     </label>
-                    <button type="button" onClick={() => setIsForgotPassword(true)} className="text-xs text-primary hover:underline">
+                    <button type="button" onClick={() => setIsForgotPassword(true)} className="text-sm font-medium text-primary hover:underline">
                       Forgot password?
                     </button>
                   </div>
+
+                  {/* Prominent reset banner after 1 failed attempt */}
+                  {failedAttempts >= 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPassword(true)}
+                      className="w-full flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
+                    >
+                      <Key className="h-4 w-4 shrink-0" />
+                      <span>Can't remember? Reset your password via SMS</span>
+                    </button>
+                  )}
 
                   <Button
                     type="submit"
@@ -573,54 +585,92 @@ export default function Auth() {
 
             {/* ===== FORGOT PASSWORD ===== */}
             {isForgotPassword && (
-              <div className="space-y-3 animate-in fade-in duration-200">
-                <p className="text-sm font-medium text-foreground">Reset Password</p>
-                <p className="text-xs text-muted-foreground">
-                  {resetStep === 'phone' ? 'Enter your phone or email' : resetStep === 'otp' ? 'Enter the 6-digit code' : 'Set your new password'}
-                </p>
+              <div className="space-y-4 animate-in fade-in duration-200">
+                {/* Step indicator */}
+                <div className="flex items-center gap-2 mb-2">
+                  {['phone', 'otp', 'new-password'].map((step, i) => (
+                    <div key={step} className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
+                        resetStep === step ? "bg-primary text-primary-foreground" :
+                        ['phone', 'otp', 'new-password'].indexOf(resetStep) > i ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                      )}>
+                        {i + 1}
+                      </div>
+                      {i < 2 && <div className={cn("w-6 h-0.5", ['phone', 'otp', 'new-password'].indexOf(resetStep) > i ? "bg-primary/40" : "bg-muted")} />}
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <p className="text-base font-semibold text-foreground">
+                    {resetStep === 'phone' ? '🔑 Reset Your Password' : resetStep === 'otp' ? '📱 Enter SMS Code' : '🔒 Create New Password'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {resetStep === 'phone' ? 'Enter your phone number and we\'ll send you a code via SMS' : resetStep === 'otp' ? `We sent a 6-digit code to ${resetPhone || 'your phone'}` : 'Choose a strong password you\'ll remember'}
+                  </p>
+                </div>
 
                 <form onSubmit={wrappedHandleSubmit} className="space-y-3">
                   {resetStep === 'phone' && (
                     <>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="tel" inputMode="tel" value={resetPhone} onChange={(e) => setResetPhone(e.target.value)} placeholder="0700123456" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} />
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input type="tel" inputMode="tel" value={resetPhone} onChange={(e) => setResetPhone(e.target.value)} placeholder="Enter your phone number e.g. 0700123456" className="pl-11 h-14 text-base rounded-xl border-2 focus:border-primary" style={{ fontSize: '16px' }} autoFocus />
                       </div>
                       <div className="relative flex items-center">
                         <div className="flex-1 border-t border-border/40" />
-                        <span className="px-3 text-xs text-muted-foreground">or</span>
+                        <span className="px-3 text-xs text-muted-foreground">or use email</span>
                         <div className="flex-1 border-t border-border/40" />
                       </div>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="pl-11 h-14 text-base rounded-xl border-2 focus:border-primary" style={{ fontSize: '16px' }} />
                       </div>
                     </>
                   )}
 
                   {resetStep === 'otp' && (
-                    <Input type="text" inputMode="numeric" maxLength={6} value={resetOtpCode} onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl font-mono" style={{ fontSize: '24px' }} required />
+                    <>
+                      <Input type="text" inputMode="numeric" maxLength={6} value={resetOtpCode} onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" className="h-16 text-center text-3xl tracking-[0.5em] rounded-xl font-mono border-2 focus:border-primary" style={{ fontSize: '28px' }} required autoFocus />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetOtpCode('');
+                          setResetStep('phone');
+                          // Re-trigger send
+                          setTimeout(() => {
+                            const form = document.querySelector('form');
+                            if (form) form.requestSubmit();
+                          }, 100);
+                        }}
+                        className="w-full text-sm text-primary hover:underline text-center"
+                      >
+                        Didn't get the code? Resend SMS
+                      </button>
+                    </>
                   )}
 
                   {resetStep === 'new-password' && (
                     <>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showPassword ? "text" : "password"} value={resetNewPassword} onChange={(e) => setResetNewPassword(e.target.value)} placeholder="New password" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input type={showPassword ? "text" : "password"} value={resetNewPassword} onChange={(e) => setResetNewPassword(e.target.value)} placeholder="New password (min 6 chars)" className="pl-11 h-14 text-base rounded-xl border-2 focus:border-primary" style={{ fontSize: '16px' }} required autoFocus />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">{showPassword ? 'Hide' : 'Show'}</button>
                       </div>
                       <PasswordStrengthIndicator password={resetNewPassword} />
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type={showPassword ? "text" : "password"} value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} placeholder="Confirm password" className={cn("pl-10 h-12 text-base rounded-xl", resetConfirmPassword && resetNewPassword !== resetConfirmPassword && 'border-destructive')} style={{ fontSize: '16px' }} required />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input type={showPassword ? "text" : "password"} value={resetConfirmPassword} onChange={(e) => setResetConfirmPassword(e.target.value)} placeholder="Confirm new password" className={cn("pl-11 h-14 text-base rounded-xl border-2 focus:border-primary", resetConfirmPassword && resetNewPassword !== resetConfirmPassword && 'border-destructive')} style={{ fontSize: '16px' }} required />
                       </div>
                       {resetConfirmPassword && resetNewPassword !== resetConfirmPassword && (
-                        <p className="text-xs text-destructive">Passwords don't match</p>
+                        <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Passwords don't match</p>
                       )}
                     </>
                   )}
 
-                  <Button type="submit" className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]" disabled={isLoading} style={{ fontSize: '16px' }}>
-                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : resetStep === 'phone' ? (email ? 'Send Reset Link' : 'Send Reset Code') : resetStep === 'otp' ? 'Verify Code' : 'Reset Password'}
+                  <Button type="submit" className="w-full h-14 text-base rounded-xl font-bold touch-manipulation active:scale-[0.98] shadow-md" disabled={isLoading} style={{ fontSize: '16px' }}>
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : resetStep === 'phone' ? (email ? '📧 Send Reset Link' : '📲 Send SMS Code') : resetStep === 'otp' ? '✅ Verify Code' : '🔐 Reset Password'}
                   </Button>
                 </form>
 
@@ -638,10 +688,10 @@ export default function Auth() {
                       setResetConfirmPassword('');
                     }
                   }}
-                  className="w-full text-xs text-muted-foreground hover:text-primary text-center flex items-center justify-center gap-1"
+                  className="w-full text-sm text-muted-foreground hover:text-primary text-center flex items-center justify-center gap-1 py-2"
                 >
-                  <ArrowLeft className="h-3 w-3" />
-                  {resetStep !== 'phone' ? 'Back' : 'Back to sign in'}
+                  <ArrowLeft className="h-4 w-4" />
+                  {resetStep !== 'phone' ? 'Go Back' : 'Back to Sign In'}
                 </button>
               </div>
             )}
