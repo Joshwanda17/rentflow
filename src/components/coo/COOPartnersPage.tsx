@@ -2672,9 +2672,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const nextDate = new Date();
-      nextDate.setMonth(nextDate.getMonth() + 1);
-      await supabase.from('investor_portfolios').update({ next_roi_date: nextDate.toISOString().split('T')[0] }).eq('id', p.portfolioId);
+      // Date stays unchanged — only advances when CFO approves the payout
 
       const operationType = mode === 'agent_wallet' ? 'roi_agent_wallet_credit' : mode === 'wallet' ? 'roi_wallet_credit' : 'roi_already_paid';
       const modeLabel = mode === 'agent_wallet' ? 'Agent Wallet' : mode === 'wallet' ? 'Pay to Wallet' : 'Cash';
