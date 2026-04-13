@@ -3,12 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, ArrowRight, ArrowLeft, Check, Share2, Loader2 } from 'lucide-react';
+import { FileText, Check, Share2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { generatePromissoryNotePDF } from '@/lib/promissoryNotePdf';
@@ -18,14 +16,10 @@ interface PromissoryNoteDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = 'details' | 'schedule' | 'review';
-
 export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialogProps) {
-  const [step, setStep] = useState<Step>('details');
   const [submitting, setSubmitting] = useState(false);
   const [createdNote, setCreatedNote] = useState<any>(null);
 
-  // Form fields
   const [partnerName, setPartnerName] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -33,10 +27,8 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
   const [amount, setAmount] = useState('');
   const [contributionType, setContributionType] = useState<'monthly' | 'once_off'>('once_off');
   const [deductionDay, setDeductionDay] = useState('1');
-  const [notes, setNotes] = useState('');
 
   const resetForm = () => {
-    setStep('details');
     setPartnerName('');
     setWhatsappNumber('');
     setPhoneNumber('');
@@ -44,7 +36,6 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     setAmount('');
     setContributionType('once_off');
     setDeductionDay('1');
-    setNotes('');
     setCreatedNote(null);
   };
 
@@ -53,7 +44,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     onOpenChange(v);
   };
 
-  const canProceedDetails = partnerName.trim().length >= 2 && whatsappNumber.trim().length >= 10 && Number(amount) > 0;
+  const isValid = partnerName.trim().length >= 2 && whatsappNumber.trim().length >= 10 && Number(amount) > 0;
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -69,12 +60,10 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         email: email.trim() || null,
         amount: Number(amount),
         contribution_type: contributionType,
-        notes: notes.trim() || null,
       };
 
       if (contributionType === 'monthly') {
         payload.deduction_day = Number(deductionDay);
-        // Set next deduction date to the next occurrence of this day
         const now = new Date();
         const nextDate = new Date(now.getFullYear(), now.getMonth(), Number(deductionDay));
         if (nextDate <= now) nextDate.setMonth(nextDate.getMonth() + 1);
@@ -89,7 +78,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
 
       if (error) throw error;
       setCreatedNote(data);
-      toast.success('Promissory note created successfully!');
+      toast.success('Promissory note created!');
     } catch (err: any) {
       toast.error(err.message || 'Failed to create note');
     } finally {
@@ -111,7 +100,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         createdAt: createdNote.created_at,
       });
 
-      const file = new File([pdfBlob], `Welile_Promissory_Note_${partnerName.replace(/\s+/g, '_')}.pdf`, { type: 'application/pdf' });
+      const file = new File([pdfBlob], `Welile_Note_${partnerName.replace(/\s+/g, '_')}.pdf`, { type: 'application/pdf' });
 
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
@@ -120,7 +109,6 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
           files: [file],
         });
       } else {
-        // Fallback: download
         const url = URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
@@ -130,9 +118,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         toast.success('PDF downloaded!');
       }
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        toast.error('Failed to generate PDF');
-      }
+      if (err.name !== 'AbortError') toast.error('Failed to generate PDF');
     }
   };
 
@@ -148,11 +134,7 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     }
   };
 
-  const steps: { key: Step; label: string }[] = [
-    { key: 'details', label: 'Details' },
-    { key: 'schedule', label: 'Schedule' },
-    { key: 'review', label: 'Review' },
-  ];
+  const parsedAmount = Number(amount) || 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -160,205 +142,114 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
-            {createdNote ? 'Note Created!' : 'Promissory Note'}
+            {createdNote ? 'Note Created!' : 'Quick Promissory Note'}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Step indicator */}
-        {!createdNote && (
-          <div className="flex items-center justify-center gap-2 py-2">
-            {steps.map((s, i) => (
-              <div key={s.key} className="flex items-center gap-1.5">
-                <div className={cn(
-                  'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold',
-                  step === s.key ? 'bg-primary text-primary-foreground' :
-                  steps.findIndex(x => x.key === step) > i ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                )}>
-                  {steps.findIndex(x => x.key === step) > i ? <Check className="h-3.5 w-3.5" /> : i + 1}
-                </div>
-                {i < steps.length - 1 && <div className="w-6 h-0.5 bg-muted" />}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Success state */}
         {createdNote ? (
           <div className="space-y-4">
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-2">
               <div className="text-3xl">🎉</div>
-              <p className="text-sm font-medium">Promissory note for <span className="text-primary">{partnerName}</span> created!</p>
-              <p className="text-lg font-bold text-primary">{formatUGX(Number(amount))}</p>
+              <p className="text-sm font-medium">Note for <span className="text-primary">{partnerName}</span> created!</p>
+              <p className="text-lg font-bold text-primary">{formatUGX(parsedAmount)}</p>
               <p className="text-xs text-muted-foreground">
-                {contributionType === 'monthly' ? `Monthly on day ${deductionDay}` : 'Once-off payment'}
+                {contributionType === 'monthly' ? `Monthly on day ${deductionDay}` : 'Once-off'} · Your commission: <span className="text-primary font-semibold">{formatUGX(parsedAmount * 0.02)}</span>
               </p>
             </div>
-
             <div className="grid gap-2">
               <Button onClick={handleSharePDF} className="gap-2 bg-primary hover:bg-primary/90">
-                <FileText className="h-4 w-4" />
-                Share Branded PDF
+                <FileText className="h-4 w-4" /> Share Branded PDF
               </Button>
               <Button variant="outline" onClick={handleShareLink} className="gap-2">
-                <Share2 className="h-4 w-4" />
-                Share Activation Link
+                <Share2 className="h-4 w-4" /> Share Activation Link
               </Button>
-              <Button variant="ghost" onClick={() => handleClose(false)} className="text-xs">
-                Done
-              </Button>
+              <Button variant="ghost" onClick={() => handleClose(false)} className="text-xs">Done</Button>
             </div>
           </div>
         ) : (
-          <>
-            {/* Step 1: Partner Details */}
-            {step === 'details' && (
-              <div className="space-y-3">
-                <div>
-                  <Label>Partner Full Name *</Label>
-                  <Input value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="e.g. John Mukasa" className="mt-1" />
-                </div>
-                <div>
-                  <Label>WhatsApp Number *</Label>
-                  <Input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="+256..." type="tel" className="mt-1" />
-                </div>
-                <div>
-                  <Label>Phone Number</Label>
-                  <Input value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+256..." type="tel" className="mt-1" />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" type="email" className="mt-1" />
-                </div>
-                <div>
-                  <Label>Promised Amount (UGX) *</Label>
-                  <Input value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} placeholder="e.g. 500000" type="text" inputMode="numeric" className="mt-1" />
-                  {Number(amount) > 0 && (
-                    <p className="text-xs text-primary mt-1 font-medium">{formatUGX(Number(amount))}</p>
-                  )}
-                </div>
-                <Button onClick={() => setStep('schedule')} disabled={!canProceedDetails} className="w-full gap-2">
-                  Next <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Partner Name *</Label>
+              <Input value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Full name" className="mt-0.5 h-9" />
+            </div>
 
-            {/* Step 2: Schedule */}
-            {step === 'schedule' && (
-              <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">WhatsApp *</Label>
+                <Input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="+256..." type="tel" className="mt-0.5 h-9" />
+              </div>
+              <div>
+                <Label className="text-xs">Phone</Label>
+                <Input value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+256..." type="tel" className="mt-0.5 h-9" />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Email</Label>
+              <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" type="email" className="mt-0.5 h-9" />
+            </div>
+
+            <div>
+              <Label className="text-xs">Promised Amount (UGX) *</Label>
+              <Input value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} placeholder="e.g. 500000" inputMode="numeric" className="mt-0.5 h-9" />
+              {parsedAmount > 0 && (
+                <div className="flex justify-between mt-1 text-[11px]">
+                  <span className="text-primary font-medium">{formatUGX(parsedAmount)}</span>
+                  <span className="text-emerald-600 font-medium">Your 2%: {formatUGX(parsedAmount * 0.02)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Type *</Label>
+                <Select value={contributionType} onValueChange={(v: 'monthly' | 'once_off') => setContributionType(v)}>
+                  <SelectTrigger className="mt-0.5 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="once_off">Once-off</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {contributionType === 'monthly' && (
                 <div>
-                  <Label>Contribution Type *</Label>
-                  <Select value={contributionType} onValueChange={(v: 'monthly' | 'once_off') => setContributionType(v)}>
-                    <SelectTrigger className="mt-1">
+                  <Label className="text-xs">Day of month</Label>
+                  <Select value={deductionDay} onValueChange={setDeductionDay}>
+                    <SelectTrigger className="mt-0.5 h-9 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="once_off">Once-off Payment</SelectItem>
-                      <SelectItem value="monthly">Monthly Contribution</SelectItem>
+                      {Array.from({ length: 28 }, (_, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>Day {i + 1}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+              )}
+            </div>
 
-                {contributionType === 'monthly' && (
-                  <div>
-                    <Label>Deduction Day of Month *</Label>
-                    <Select value={deductionDay} onValueChange={setDeductionDay}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 28 }, (_, i) => (
-                          <SelectItem key={i + 1} value={String(i + 1)}>
-                            Day {i + 1}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Auto-deduction will run on this day each month when the partner has sufficient wallet balance.
-                    </p>
-                  </div>
-                )}
-
-                <div>
-                  <Label>Notes (optional)</Label>
-                  <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional details about this commitment..." className="mt-1" rows={3} />
+            {/* Quick earnings preview */}
+            {parsedAmount > 0 && (
+              <div className="rounded-lg bg-primary/5 border border-primary/10 p-2.5 text-[11px] space-y-0.5">
+                <div className="font-semibold text-primary text-xs">💰 Earnings Preview</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Partner earns (15%/mo)</span>
+                  <span className="font-medium text-emerald-600">{formatUGX(parsedAmount * 0.15)}</span>
                 </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep('details')} className="gap-2">
-                    <ArrowLeft className="h-4 w-4" /> Back
-                  </Button>
-                  <Button onClick={() => setStep('review')} className="flex-1 gap-2">
-                    Review <ArrowRight className="h-4 w-4" />
-                  </Button>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Your commission (2%)</span>
+                  <span className="font-bold text-primary">{formatUGX(parsedAmount * 0.02)}</span>
                 </div>
               </div>
             )}
 
-            {/* Step 3: Review & Submit */}
-            {step === 'review' && (
-              <div className="space-y-3">
-                <div className="bg-muted/50 rounded-xl p-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Partner</span>
-                    <span className="font-medium">{partnerName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">WhatsApp</span>
-                    <span className="font-medium">{whatsappNumber}</span>
-                  </div>
-                  {phoneNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Phone</span>
-                      <span className="font-medium">{phoneNumber}</span>
-                    </div>
-                  )}
-                  {email && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Email</span>
-                      <span className="font-medium">{email}</span>
-                    </div>
-                  )}
-                  <hr className="border-border" />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount</span>
-                    <span className="font-bold text-primary">{formatUGX(Number(amount))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Type</span>
-                    <span className="font-medium">{contributionType === 'monthly' ? `Monthly (Day ${deductionDay})` : 'Once-off'}</span>
-                  </div>
-                  {contributionType === 'monthly' && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">ROI (15%/month)</span>
-                      <span className="font-medium text-emerald-600">{formatUGX(Number(amount) * 0.15)}/mo</span>
-                    </div>
-                  )}
-                  {notes && (
-                    <>
-                      <hr className="border-border" />
-                      <p className="text-xs text-muted-foreground">{notes}</p>
-                    </>
-                  )}
-                </div>
-
-                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs text-center">
-                  <p>This promissory note will be sent to <strong>Partner Operations</strong> for tracking.</p>
-                  <p className="mt-1">A branded PDF and activation link will be generated for sharing.</p>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep('schedule')} className="gap-2">
-                    <ArrowLeft className="h-4 w-4" /> Back
-                  </Button>
-                  <Button onClick={handleSubmit} disabled={submitting} className="flex-1 gap-2">
-                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Submit Note
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
+            <Button onClick={handleSubmit} disabled={!isValid || submitting} className="w-full gap-2">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Create & Share Note
+            </Button>
+          </div>
         )}
       </DialogContent>
     </Dialog>
