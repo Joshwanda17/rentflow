@@ -4,6 +4,9 @@ import { LEDGER_SCOPE, FINAL_WITHDRAWAL_STATUSES } from '@/lib/ledgerConstants';
 
 const STALE_TIME = 300_000; // 5 minutes
 
+// System/operational account excluded from user wallet totals
+const SYSTEM_ACCOUNT_ID = '06b14430-7cdc-41c9-96a4-a8dedf8995b1';
+
 export function useCFOOverviewData() {
   // Platform cash from ledger RPCs (source-based, not channel-based)
   const platformCash = useQuery({
@@ -113,7 +116,7 @@ export function useCFOOverviewData() {
     queryKey: ['cfo-overview-liabilities'],
     queryFn: async () => {
       const [walletsRes, pendingWithdrawalsRes, portfoliosRes, agentPayoutsRes] = await Promise.all([
-        supabase.from('wallets').select('balance, user_id'),
+        supabase.from('wallets').select('balance, user_id').neq('user_id', SYSTEM_ACCOUNT_ID),
         supabase.from('withdrawal_requests').select('amount').eq('status', 'pending'),
         supabase.from('investor_portfolios').select('investment_amount, roi_percentage, total_roi_earned').eq('status', 'active'),
         supabase.from('agent_commission_payouts').select('amount').eq('status', 'pending'),
