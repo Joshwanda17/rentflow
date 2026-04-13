@@ -2675,11 +2675,10 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const currentRoiDate = new Date();
-      currentRoiDate.setMonth(currentRoiDate.getMonth() + 1);
+      // Update principal only — date stays unchanged, advances on CFO approval
       const { error: upErr } = await supabase
         .from('investor_portfolios')
-        .update({ investment_amount: newAmount, next_roi_date: currentRoiDate.toISOString().split('T')[0] })
+        .update({ investment_amount: newAmount })
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
