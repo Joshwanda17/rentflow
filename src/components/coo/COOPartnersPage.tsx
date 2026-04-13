@@ -61,10 +61,8 @@ function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payout
     const base = createdDate;
     d = new Date(base.getFullYear(), base.getMonth() + 1, day);
   }
-  // Roll forward until d >= today
-  while (d < today) {
-    d = new Date(d.getFullYear(), d.getMonth() + 1, day);
-  }
+  // Do NOT roll forward — preserve the actual stored date so overdue/missed dates remain visible.
+  // Date only advances when CFO approves the payout.
   return formatLocalDateOnly(d);
 }
 import { RenewPortfolioDialog } from '@/components/manager/RenewPortfolioDialog';
@@ -2845,15 +2843,13 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const modeLabel = payMode === 'agent_wallet' ? 'Agent Wallet' : payMode === 'wallet' ? 'Wallet' : 'Cash';
       const txnGroupId = crypto.randomUUID();
 
-      // ── Advance next_roi_date ──
-      const nextDate = new Date();
-      nextDate.setMonth(nextDate.getMonth() + 1);
+      // Date stays unchanged — only advances when CFO approves the payout
 
       // ── Reinvest portion: add to principal ──
       const newPrincipal = p.investmentAmount + reinvestAmount;
       const { error: upErr } = await supabase
         .from('investor_portfolios')
-        .update({ investment_amount: newPrincipal, next_roi_date: nextDate.toISOString().split('T')[0] })
+        .update({ investment_amount: newPrincipal })
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
