@@ -74,6 +74,7 @@ interface AgentMenuDrawerProps {
   onAngelPoolInvest?: () => void;
   onShareTenantForm?: () => void;
   onSharePartnerForm?: () => void;
+  onCreatePromissoryNote?: () => void;
   isFinancialAgent?: boolean;
 }
 
