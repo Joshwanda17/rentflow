@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { useCurrency } from '@/hooks/useCurrency';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { ChannelBalanceTracker } from '@/components/cfo/ChannelBalanceTracker';
 import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummary';
