@@ -525,7 +525,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </DialogContent>
       </Dialog>
 
-      
+      <PromissoryNoteDialog open={promissoryNoteOpen} onOpenChange={setPromissoryNoteOpen} />
+
     </div>
   );
 }
