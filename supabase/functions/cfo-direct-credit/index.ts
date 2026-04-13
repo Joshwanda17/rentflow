@@ -151,6 +151,7 @@ Deno.serve(async (req) => {
             transaction_date: new Date().toISOString(),
           },
         ],
+        skip_balance_check: true,
       });
       if (rpcErr) {
         console.error("[cfo-direct-credit] Credit ledger error:", rpcErr.message);
@@ -183,6 +184,7 @@ Deno.serve(async (req) => {
             transaction_date: new Date().toISOString(),
           },
         ],
+        skip_balance_check: true,
       });
       if (rpcErr) {
         console.error("[cfo-direct-credit] Debit ledger error:", rpcErr.message);
