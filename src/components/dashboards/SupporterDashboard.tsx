@@ -57,6 +57,8 @@ import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapital
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
+import { useInactivityLock } from '@/hooks/useInactivityLock';
+import { SupporterInactivityLock } from '@/components/supporter/SupporterInactivityLock';
 
 
 interface SupporterDashboardProps {
