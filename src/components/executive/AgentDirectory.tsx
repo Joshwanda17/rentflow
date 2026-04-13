@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
@@ -218,7 +217,6 @@ export function AgentDirectory() {
   const displayed = agents;
   const totalPages = Math.ceil(totalAgents / PAGE_SIZE);
   const bulkMode = selectedIds.size > 0;
-  const bulkMode = selectedIds.size > 0;
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -305,7 +303,7 @@ export function AgentDirectory() {
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Users className="h-4 w-4" />
           Agent Directory
-          <Badge variant="secondary" className="text-xs">{filtered.length}</Badge>
+          <Badge variant="secondary" className="text-xs">{debouncedSearch ? displayed.length : totalAgents}</Badge>
         </h3>
         {bulkMode && (
           <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setSelectedIds(new Set())}>
@@ -320,7 +318,7 @@ export function AgentDirectory() {
         <Input
           placeholder="🔍 Find agent by name, phone, territory, email, or ID..."
           value={search}
-          onChange={e => { setSearch(e.target.value); setShowAll(false); }}
+          onChange={e => handleSearchChange(e.target.value)}
           className="pl-10 h-11 text-sm border-2 focus:border-primary"
           autoComplete="off"
         />
@@ -342,7 +340,7 @@ export function AgentDirectory() {
         {TIER_PILLS.map(pill => (
           <button
             key={pill.key}
-            onClick={() => { setTierFilter(pill.key); setShowAll(false); }}
+            onClick={() => { setTierFilter(pill.key); setPage(0); }}
             className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border whitespace-nowrap transition-all ${
               tierFilter === pill.key
                 ? (pill.color || 'bg-primary/10 text-primary border-primary/30') + ' font-semibold ring-1 ring-primary/20'
@@ -494,10 +492,31 @@ export function AgentDirectory() {
         </div>
       )}
 
-      {!showAll && filtered.length > 30 && (
-        <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setShowAll(true)}>
-          Show all {filtered.length} agents
-        </Button>
+      {/* Pagination */}
+      {!debouncedSearch && totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-8"
+            disabled={page === 0}
+            onClick={() => setPage(p => p - 1)}
+          >
+            ← Previous
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Page {page + 1} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-8"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage(p => p + 1)}
+          >
+            Next →
+          </Button>
+        </div>
       )}
 
       <UserProfileDialog
