@@ -53,6 +53,7 @@ import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
+import { MyPortfolioAccounts } from '@/components/supporter/MyPortfolioAccounts';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
@@ -407,6 +408,9 @@ export default function SupporterDashboard({
           />
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
+
+          {/* ═══ MY PORTFOLIO ACCOUNTS ═══ */}
+          <MyPortfolioAccounts />
 
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
