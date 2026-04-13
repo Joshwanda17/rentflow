@@ -124,6 +124,7 @@ Deno.serve(async (req) => {
     const groupId = crypto.randomUUID();
 
     if (op === "credit") {
+      console.log("[cfo-direct-credit] Creating CREDIT ledger entries for", target_user_id, "amount:", amount);
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
@@ -132,6 +133,7 @@ Deno.serve(async (req) => {
             direction: 'cash_in',
             category: walletCat,
             ledger_scope: 'wallet',
+            source_table: 'cfo_direct_credit',
             description: `Welile Technologies Finance [${category_label || walletCat}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
@@ -142,14 +144,19 @@ Deno.serve(async (req) => {
             amount,
             category: platformCat,
             ledger_scope: 'platform',
+            source_table: 'cfo_direct_credit',
             description: `Welile Technologies Finance → ${targetProfile.full_name} [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
         ],
       });
-      if (rpcErr) throw new Error(`Ledger error: ${rpcErr.message}`);
+      if (rpcErr) {
+        console.error("[cfo-direct-credit] Credit ledger error:", rpcErr.message);
+        throw new Error(`Ledger error: ${rpcErr.message}`);
+      }
     } else {
+      console.log("[cfo-direct-credit] Creating DEBIT ledger entries for", target_user_id, "amount:", amount);
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
         entries: [
           {
@@ -158,6 +165,7 @@ Deno.serve(async (req) => {
             direction: 'cash_out',
             category: walletCat,
             ledger_scope: 'wallet',
+            source_table: 'cfo_direct_credit',
             description: `CFO Debit [${category_label || walletCat}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
@@ -168,13 +176,17 @@ Deno.serve(async (req) => {
             amount,
             category: platformCat,
             ledger_scope: 'platform',
+            source_table: 'cfo_direct_credit',
             description: `${targetProfile.full_name} → Platform [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
           },
         ],
       });
-      if (rpcErr) throw new Error(`Ledger error: ${rpcErr.message}`);
+      if (rpcErr) {
+        console.error("[cfo-direct-credit] Debit ledger error:", rpcErr.message);
+        throw new Error(`Ledger error: ${rpcErr.message}`);
+      }
     }
 
     // Audit log
@@ -224,6 +236,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (e) {
+    console.error("[cfo-direct-credit] Error:", e.message);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
