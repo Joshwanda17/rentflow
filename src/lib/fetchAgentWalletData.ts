@@ -1,0 +1,89 @@
+import { supabase } from '@/integrations/supabase/client';
+
+export interface AgentLedgerEntry {
+  id: string;
+  user_id: string;
+  amount: number;
+  direction: string;
+  category: string;
+  description: string | null;
+  created_at: string;
+  transaction_group_id: string | null;
+}
+
+export interface AgentWalletReportData {
+  agentName: string;
+  agentPhone: string;
+  walletBalance: number;
+  floatBalance: number;
+  commissionBalance: number;
+  totalDeposits: number;
+  totalRentPaid: number;
+  rentEntries: AgentLedgerEntry[];
+  allEntries: AgentLedgerEntry[];
+}
+
+const COMMISSION_EARN_CATS = [
+  'agent_commission_earned', 'agent_commission', 'agent_bonus',
+  'referral_bonus', 'proxy_investment_commission',
+];
+const COMMISSION_SPEND_CATS = [
+  'agent_commission_withdrawal', 'agent_commission_used_for_rent',
+];
+
+export async function fetchAgentWalletData(agentId: string): Promise<AgentWalletReportData> {
+  // Fetch profile, wallet, and ledger in parallel
+  const [profileRes, walletRes, ledgerRes] = await Promise.all([
+    supabase.from('profiles').select('full_name, phone').eq('id', agentId).maybeSingle(),
+    supabase.from('wallets').select('balance').eq('user_id', agentId).maybeSingle(),
+    supabase
+      .from('general_ledger')
+      .select('id, user_id, amount, direction, category, description, created_at, transaction_group_id')
+      .eq('user_id', agentId)
+      .eq('ledger_scope', 'wallet')
+      .order('created_at', { ascending: false }),
+  ]);
+
+  const agentName = profileRes.data?.full_name || 'Unknown Agent';
+  const agentPhone = profileRes.data?.phone || '';
+  const walletBalance = walletRes.data?.balance ?? 0;
+  const entries: AgentLedgerEntry[] = (ledgerRes.data || []) as AgentLedgerEntry[];
+
+  // Compute commission balance
+  let commEarned = 0;
+  let commSpent = 0;
+  let totalDeposits = 0;
+  let totalRentPaid = 0;
+
+  const rentEntries: AgentLedgerEntry[] = [];
+
+  for (const e of entries) {
+    const isPositive = e.direction === 'credit' || e.direction === 'cash_in';
+    const signed = isPositive ? e.amount : -e.amount;
+
+    if (COMMISSION_EARN_CATS.includes(e.category) && isPositive) commEarned += e.amount;
+    if (COMMISSION_SPEND_CATS.includes(e.category) && !isPositive) commSpent += e.amount;
+
+    if (e.category === 'wallet_deposit' && isPositive) totalDeposits += e.amount;
+
+    if (e.category === 'rent_disbursement' || e.category === 'agent_float_used_for_rent' || e.category === 'agent_commission_used_for_rent') {
+      if (!isPositive) totalRentPaid += e.amount;
+      rentEntries.push(e);
+    }
+  }
+
+  const commissionBalance = Math.max(0, commEarned - commSpent);
+  const floatBalance = walletBalance - commissionBalance;
+
+  return {
+    agentName,
+    agentPhone,
+    walletBalance,
+    floatBalance: Math.max(0, floatBalance),
+    commissionBalance,
+    totalDeposits,
+    totalRentPaid,
+    rentEntries,
+    allEntries: entries,
+  };
+}
