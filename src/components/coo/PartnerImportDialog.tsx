@@ -197,6 +197,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
   const [groups, setGroups] = useState<ImportGroup[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = () => {
     setStep('upload');
