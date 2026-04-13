@@ -120,6 +120,10 @@ export default function SupporterDashboard({
   const { hasAccepted, acceptance, loading: agreementLoading, acceptAgreement } = useSupporterAgreement();
   const effectiveHasAccepted = localHasAccepted === true || hasAccepted === true;
 
+  // Inactivity lock — only for users with active portfolios
+  const hasActivePortfolios = totalRentContributed > 0;
+  const { isLocked, unlock } = useInactivityLock({ enabled: hasActivePortfolios });
+
   const opportunitiesRefreshRef = useRef<(() => Promise<void>) | null>(null);
 
   // Show agreement modal on first load if not accepted
