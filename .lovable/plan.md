@@ -1,52 +1,66 @@
 
+Summary:
+The import is very likely failing before any records are created because the backend permission check is using the wrong role name for Partner Ops.
 
-## Plan: Update WELILE_WORKFLOW.md with Latest Logic and Features
+What I found:
+- Both COO and Partner Ops use the same import dialog/component:
+  - `src/components/coo/PartnerImportDialog.tsx`
+  - embedded from `src/components/coo/COOPartnersPage.tsx`
+  - Partner Ops reuses that same page from `src/components/executive/PartnersOpsDashboard.tsx`
+- The dialog does call the backend function correctly:
+  - `supabase.functions.invoke('import-partners', { body: { partners: payload } })`
+- The backend function currently authorizes these roles:
+  - `["coo", "partner_ops", "manager", "super_admin"]`
+  - file: `supabase/functions/import-partners/index.ts`
+- But the actual role enum in the project contains `operations`, not `partner_ops`
+  - file: `src/integrations/supabase/types.ts`
+- That mismatch explains why clicking “Confirm & Import” spins, then returns to the confirmation step with no import happening, especially for Partner Ops users.
+- Edge function logs only show `booted` and no successful import completion logs, which is consistent with the request failing early.
 
-### Summary
-Update the workflow document to reflect three recent changes: (1) causal ROI date advancement policy, (2) compound feature with preview dialog, and (3) inactivity lock glassmorphism styling.
+Implementation plan:
+1. Fix the import function authorization check
+- Update `supabase/functions/import-partners/index.ts`
+- Replace or expand `partner_ops` to the real role used in this app: `operations`
+- Keep COO/manager/super_admin access intact
+- Update the error message to match the real role naming shown in the product
 
-### Changes to `public/WELILE_WORKFLOW.md`
+2. Improve import failure visibility in the dialog
+- In `src/components/coo/PartnerImportDialog.tsx`, improve the error surfaced when the function rejects
+- Show a clearer toast/message for authorization or backend validation failures so it doesn’t feel like “nothing happened”
+- Keep the current step fallback to confirm, but make the reason obvious
 
-**1. Section 11 — COO Dashboard (around line 609)**
+3. Verify both dashboard entry points
+- Re-test the same flow from:
+  - COO dashboard
+  - Partner Ops dashboard
+- Confirm that both paths reach the same working backend import flow and produce results instead of bouncing back
 
-Add to "Key COO Features" list:
-- Portfolio Compound with Preview Dialog — COO/Partner Ops can compound ROI directly from portfolio view (replaces WhatsApp button). Shows confirmation dialog with current principal, ROI amount, and new principal before executing. Updates principal only; does NOT advance `next_roi_date`.
-- OVERDUE Badge — Portfolios with `next_roi_date` in the past display a red "OVERDUE" badge in the Nearing Payouts section. Dates no longer auto-roll forward.
+4. Sanity-check post-import messaging
+- Review the final success card text in the import dialog for consistency with actual generated credentials/password behavior, since the UI copy and function logic may not fully match
+- If needed, align only the user-facing message so operations staff see accurate login details
 
-**2. Section 25 — Supporter Investment Model (around line 1100)**
+Technical details:
+```text
+Current mismatch:
+UI route(s) -> PartnerImportDialog -> import-partners function
+                                      |
+                                      v
+Allowed roles in function: coo, partner_ops, manager, super_admin
+Actual app role enum:      coo, operations, manager, super_admin, ...
 
-Add a new subsection "Causal Date Advancement Policy" after Payout Rules:
-- `next_roi_date` does NOT auto-roll on missed payments
-- `next_roi_date` does NOT advance when COO initiates a payout
-- `next_roi_date` advances +1 month ONLY when CFO approves via `approve-wallet-operation`
-- Compounding updates principal but preserves payout date
-- Missed payments show as OVERDUE until sequentially processed
-
-**3. Section 36 — Approval & Governance Flows (around line 1549)**
-
-Update "Monthly ROI Payout" flow to include the causal date advancement step and add a new "Compounding" flow:
-
+Likely effect:
+Partner Ops user authenticated
+-> role lookup returns operations
+-> function denies access
+-> dialog catches error and returns to confirm step
 ```
-COO initiates payout → Queued as pending_wallet_operation → CFO approves → Ledger entries → Wallet sync → next_roi_date +1 month → Notification
-```
 
-New Compounding flow:
-```
-COO/Partner Ops clicks Compound → Preview dialog → Confirm → Principal updated (no date change) → Ledger entries (roi_expense + roi_reinvestment) → Audit log
-```
+Files to update:
+- `supabase/functions/import-partners/index.ts`
+- `src/components/coo/PartnerImportDialog.tsx`
 
-**4. Section 7 — Supporter Dashboard (around line 402, Design subsection)**
-
-Add: Inactivity lock screen uses glassmorphism overlay (`backdrop-blur-2xl`, `backdrop-saturate-150`, 70% opacity)
-
-**5. Section 32 — Edge Functions, approve-wallet-operation entry (around line 1309)**
-
-Update description: "Approve pending credits; advances `next_roi_date` +1 month for ROI payout approvals"
-
-**6. Footer (line 2037)**
-
-Update version to 3.4 and date to April 13, 2026.
-
-### No database or backend changes needed
-This is a documentation-only update.
-
+Validation after implementation:
+- Import a small valid spreadsheet from COO dashboard
+- Import the same style of file from Partner Ops dashboard
+- Confirm the result screen shows created/skipped counts
+- Confirm failures now show a readable reason instead of silent bounce-back
