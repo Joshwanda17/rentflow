@@ -14,6 +14,10 @@ interface UnifiedWalletHeroCardProps {
   /** Role-specific secondary amount (commission for agent, rent due for tenant, etc.) */
   secondaryLabel?: string;
   secondaryValue?: string;
+  /** Supporter-specific metrics */
+  houses?: number;
+  returnPerMonth?: string;
+  deployed?: string;
 }
 
 const ROLE_LABELS: Record<WalletRole, string> = {
