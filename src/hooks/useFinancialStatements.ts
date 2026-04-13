@@ -59,6 +59,9 @@ export interface CashFlowData {
     payrollPaid: number;
     agentRequisitionsPaid: number;
     financialAgentExpensesPaid: number;
+    marketingPaid: number;
+    rdPaid: number;
+    operationalSubcatPaid: number;
     withdrawalsPaid: number;
     netOperating: number;
   };
