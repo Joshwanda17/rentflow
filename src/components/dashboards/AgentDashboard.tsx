@@ -454,6 +454,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             toast.error(err.message || 'Failed to generate link');
           }
         }}
+        onCreatePromissoryNote={() => {
+          setMenuOpen(false);
+          setPromissoryNoteOpen(true);
+        }}
       />
 
       {/* Existing Dialogs */}
