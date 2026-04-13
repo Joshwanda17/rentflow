@@ -30,6 +30,20 @@ export interface IncomeStatementData {
     payrollExpenses: number;
     agentRequisitions: number;
     financialAgentExpenses: number;
+    marketingExpenses: number;
+    researchDevelopment: number;
+    operationalSubcategories: {
+      salaries: number;
+      transport: number;
+      food: number;
+      officeRent: number;
+      internet: number;
+      airtime: number;
+      stationery: number;
+      propertyEquipment: number;
+      taxes: number;
+      interests: number;
+    };
     total: number;
   };
   netOperatingIncome: number;
@@ -45,6 +59,9 @@ export interface CashFlowData {
     payrollPaid: number;
     agentRequisitionsPaid: number;
     financialAgentExpensesPaid: number;
+    marketingPaid: number;
+    rdPaid: number;
+    operationalSubcatPaid: number;
     withdrawalsPaid: number;
     netOperating: number;
   };
@@ -154,8 +171,8 @@ export function useFinancialStatements() {
       const endDate = activeFilters.endDate || end;
 
       // Helper: build scoped ledger query
-      const buildScopedQuery = (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
-        let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
+       const buildScopedQuery = (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
+        let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope, description');
         if (startDate) q = q.gte('transaction_date', startDate.toISOString());
         if (endDate) q = q.lte('transaction_date', endDate.toISOString());
         q = q.eq('ledger_scope', scope);
@@ -251,7 +268,29 @@ export function useFinancialStatements() {
       const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance']);
       const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
       const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
-      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses;
+
+      // ── NEW: Parse CFO subcategory expenses from system_balance_correction entries ──
+      const sumByDescriptionMatch = (rows: any[], pattern: string) =>
+        excludeSynthetic(rows)
+          .filter(r => r.category === 'system_balance_correction' && r.description && r.description.toLowerCase().includes(pattern.toLowerCase()))
+          .reduce((s, r) => s + Number(r.amount), 0);
+
+      const marketingExpenses = sumByDescriptionMatch(platformOut, 'Marketing Expenses');
+      const researchDevelopment = sumByDescriptionMatch(platformOut, 'Research & Development');
+
+      // Operational subcategories
+      const opSubSalaries = sumByDescriptionMatch(platformOut, '→ Salaries');
+      const opSubTransport = sumByDescriptionMatch(platformOut, '→ Transport');
+      const opSubFood = sumByDescriptionMatch(platformOut, '→ Food');
+      const opSubOfficeRent = sumByDescriptionMatch(platformOut, '→ Office Rent');
+      const opSubInternet = sumByDescriptionMatch(platformOut, '→ Internet');
+      const opSubAirtime = sumByDescriptionMatch(platformOut, '→ Airtime');
+      const opSubStationery = sumByDescriptionMatch(platformOut, '→ Stationery');
+      const opSubPropertyEquipment = sumByDescriptionMatch(platformOut, '→ Property & Equipment');
+      const opSubTaxes = sumByDescriptionMatch(platformOut, '→ Taxes');
+      const opSubInterests = sumByDescriptionMatch(platformOut, '→ Interests');
+
+      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
 
       // Advance Access Fee Revenue (only recognized when collected)
       const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
@@ -271,8 +310,11 @@ export function useFinancialStatements() {
       const payrollPaid = payrollExpenses;
       const agentRequisitionsPaid = agentRequisitions;
       const financialAgentExpensesPaid = financialAgentExpenses;
+      const marketingPaid = marketingExpenses;
+      const rdPaid = researchDevelopment;
+      const operationalSubcatPaid = opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
       const withdrawalsPaid = generalOperating + transactionExpenses;
-      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - withdrawalsPaid;
+      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - marketingPaid - rdPaid - operationalSubcatPaid - withdrawalsPaid;
 
       // Facilitation Activities (capital pass-through: tenant repayments ↔ landlord deployments)
       const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
@@ -347,12 +389,22 @@ export function useFinancialStatements() {
           period: formatPeriodLabel(activeFilters),
           revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, transactionExpenses, total: totalServiceCosts },
-          operatingExpenses: { generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses, total: operatingExpensesTotal },
+          operatingExpenses: {
+            generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses,
+            marketingExpenses, researchDevelopment,
+            operationalSubcategories: {
+              salaries: opSubSalaries, transport: opSubTransport, food: opSubFood,
+              officeRent: opSubOfficeRent, internet: opSubInternet, airtime: opSubAirtime,
+              stationery: opSubStationery, propertyEquipment: opSubPropertyEquipment,
+              taxes: opSubTaxes, interests: opSubInterests,
+            },
+            total: operatingExpensesTotal,
+          },
           netOperatingIncome,
         },
         cashFlow: {
           period: formatPeriodLabel(activeFilters),
-          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, payrollPaid, agentRequisitionsPaid, financialAgentExpensesPaid, withdrawalsPaid, netOperating },
+          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, payrollPaid, agentRequisitionsPaid, financialAgentExpensesPaid, marketingPaid, rdPaid, operationalSubcatPaid, withdrawalsPaid, netOperating },
           facilitationActivities: { rentRepayments, rentDeployments, netFacilitation },
           custodialActivities: { userDeposits, userWithdrawals, userTransfers, netCustodial },
           financingActivities: { supporterCapitalInflows, supporterCapitalWithdrawals, netFinancing },

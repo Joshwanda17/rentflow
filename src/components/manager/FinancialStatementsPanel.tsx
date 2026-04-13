@@ -63,6 +63,33 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Payroll & Staff Costs" value={d.operatingExpenses.payrollExpenses} negative indent />
       <LineItem label="Agent Requisitions" value={d.operatingExpenses.agentRequisitions} negative indent />
       <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
+      <LineItem label="Marketing Expenses" value={d.operatingExpenses.marketingExpenses} negative indent />
+      <LineItem label="Research & Development" value={d.operatingExpenses.researchDevelopment} negative indent />
+      {/* Operational Subcategories */}
+      {(d.operatingExpenses.operationalSubcategories.salaries > 0 ||
+        d.operatingExpenses.operationalSubcategories.transport > 0 ||
+        d.operatingExpenses.operationalSubcategories.food > 0 ||
+        d.operatingExpenses.operationalSubcategories.officeRent > 0 ||
+        d.operatingExpenses.operationalSubcategories.internet > 0 ||
+        d.operatingExpenses.operationalSubcategories.airtime > 0 ||
+        d.operatingExpenses.operationalSubcategories.stationery > 0 ||
+        d.operatingExpenses.operationalSubcategories.propertyEquipment > 0 ||
+        d.operatingExpenses.operationalSubcategories.taxes > 0 ||
+        d.operatingExpenses.operationalSubcategories.interests > 0) && (
+        <>
+          <p className="text-[10px] text-muted-foreground pl-4 mt-1 font-medium">Operational Breakdown:</p>
+          {d.operatingExpenses.operationalSubcategories.salaries > 0 && <LineItem label="  Salaries" value={d.operatingExpenses.operationalSubcategories.salaries} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.transport > 0 && <LineItem label="  Transport" value={d.operatingExpenses.operationalSubcategories.transport} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.food > 0 && <LineItem label="  Food" value={d.operatingExpenses.operationalSubcategories.food} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.officeRent > 0 && <LineItem label="  Office Rent" value={d.operatingExpenses.operationalSubcategories.officeRent} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.internet > 0 && <LineItem label="  Internet" value={d.operatingExpenses.operationalSubcategories.internet} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.airtime > 0 && <LineItem label="  Airtime" value={d.operatingExpenses.operationalSubcategories.airtime} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.stationery > 0 && <LineItem label="  Stationery" value={d.operatingExpenses.operationalSubcategories.stationery} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.propertyEquipment > 0 && <LineItem label="  Property & Equipment" value={d.operatingExpenses.operationalSubcategories.propertyEquipment} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.taxes > 0 && <LineItem label="  Taxes" value={d.operatingExpenses.operationalSubcategories.taxes} negative indent />}
+          {d.operatingExpenses.operationalSubcategories.interests > 0 && <LineItem label="  Interests" value={d.operatingExpenses.operationalSubcategories.interests} negative indent />}
+        </>
+      )}
       <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
       <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
 
@@ -88,6 +115,9 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="Payroll Paid" value={d.operatingActivities.payrollPaid} negative indent />
       <LineItem label="Agent Requisitions Paid" value={d.operatingActivities.agentRequisitionsPaid} negative indent />
       <LineItem label="Financial Agent Expenses Paid" value={d.operatingActivities.financialAgentExpensesPaid} negative indent />
+      <LineItem label="Marketing Expenses Paid" value={d.operatingActivities.marketingPaid} negative indent />
+      <LineItem label="R&D Expenses Paid" value={d.operatingActivities.rdPaid} negative indent />
+      <LineItem label="Operational Expenses Paid" value={d.operatingActivities.operationalSubcatPaid} negative indent />
       <LineItem label="General Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
       <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
 
@@ -273,6 +303,18 @@ export function FinancialStatementsPanel() {
       rows.push(['Payroll & Staff Costs', '', -d.operatingExpenses.payrollExpenses]);
       rows.push(['Agent Requisitions', '', -d.operatingExpenses.agentRequisitions]);
       rows.push(['Financial Agent Expenses', '', -d.operatingExpenses.financialAgentExpenses]);
+      rows.push(['Marketing Expenses', '', -d.operatingExpenses.marketingExpenses]);
+      rows.push(['Research & Development', '', -d.operatingExpenses.researchDevelopment]);
+      if (d.operatingExpenses.operationalSubcategories.salaries) rows.push(['  Salaries', '', -d.operatingExpenses.operationalSubcategories.salaries]);
+      if (d.operatingExpenses.operationalSubcategories.transport) rows.push(['  Transport', '', -d.operatingExpenses.operationalSubcategories.transport]);
+      if (d.operatingExpenses.operationalSubcategories.food) rows.push(['  Food', '', -d.operatingExpenses.operationalSubcategories.food]);
+      if (d.operatingExpenses.operationalSubcategories.officeRent) rows.push(['  Office Rent', '', -d.operatingExpenses.operationalSubcategories.officeRent]);
+      if (d.operatingExpenses.operationalSubcategories.internet) rows.push(['  Internet', '', -d.operatingExpenses.operationalSubcategories.internet]);
+      if (d.operatingExpenses.operationalSubcategories.airtime) rows.push(['  Airtime', '', -d.operatingExpenses.operationalSubcategories.airtime]);
+      if (d.operatingExpenses.operationalSubcategories.stationery) rows.push(['  Stationery', '', -d.operatingExpenses.operationalSubcategories.stationery]);
+      if (d.operatingExpenses.operationalSubcategories.propertyEquipment) rows.push(['  Property & Equipment', '', -d.operatingExpenses.operationalSubcategories.propertyEquipment]);
+      if (d.operatingExpenses.operationalSubcategories.taxes) rows.push(['  Taxes', '', -d.operatingExpenses.operationalSubcategories.taxes]);
+      if (d.operatingExpenses.operationalSubcategories.interests) rows.push(['  Interests', '', -d.operatingExpenses.operationalSubcategories.interests]);
       rows.push(['General Operating Expenses', '', -d.operatingExpenses.generalOperating]);
       rows.push(['Total Operating Expenses', '', -d.operatingExpenses.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
@@ -288,6 +330,9 @@ export function FinancialStatementsPanel() {
       rows.push(['Payroll Paid', '', -d.operatingActivities.payrollPaid]);
       rows.push(['Agent Requisitions Paid', '', -d.operatingActivities.agentRequisitionsPaid]);
       rows.push(['Financial Agent Expenses Paid', '', -d.operatingActivities.financialAgentExpensesPaid]);
+      rows.push(['Marketing Expenses Paid', '', -d.operatingActivities.marketingPaid]);
+      rows.push(['R&D Expenses Paid', '', -d.operatingActivities.rdPaid]);
+      rows.push(['Operational Expenses Paid', '', -d.operatingActivities.operationalSubcatPaid]);
       rows.push(['General Operating Expenses Paid', '', -d.operatingActivities.withdrawalsPaid]);
       rows.push(['Net Operating Cash', '', d.operatingActivities.netOperating]);
       rows.push(['', '', '']);
@@ -427,6 +472,8 @@ export function FinancialStatementsPanel() {
         addRow('Payroll & Staff Costs', d.operatingExpenses.payrollExpenses, false, true, true);
         addRow('Agent Requisitions', d.operatingExpenses.agentRequisitions, false, true, true);
         addRow('Financial Agent Expenses', d.operatingExpenses.financialAgentExpenses, false, true, true);
+        addRow('Marketing Expenses', d.operatingExpenses.marketingExpenses, false, true, true);
+        addRow('Research & Development', d.operatingExpenses.researchDevelopment, false, true, true);
         addRow('General Operating', d.operatingExpenses.generalOperating, false, true, true);
         addRow('Total Operating Expenses', d.operatingExpenses.total, true, true);
         y += 3;
@@ -442,6 +489,9 @@ export function FinancialStatementsPanel() {
         addRow('Other Platform Income', d.operatingActivities.otherServiceIncome, false, false, true);
         addRow('Platform Rewards Paid', d.operatingActivities.platformRewardsPaid, false, true, true);
         addRow('Agent Commissions Paid', d.operatingActivities.agentCommissionsPaid, false, true, true);
+        addRow('Marketing Expenses Paid', d.operatingActivities.marketingPaid, false, true, true);
+        addRow('R&D Expenses Paid', d.operatingActivities.rdPaid, false, true, true);
+        addRow('Operational Expenses Paid', d.operatingActivities.operationalSubcatPaid, false, true, true);
         addRow('Operating Expenses Paid', d.operatingActivities.withdrawalsPaid, false, true, true);
         addRow('Net Platform Operating Cash', d.operatingActivities.netOperating, true);
         y += 3;
