@@ -75,6 +75,7 @@ interface AgentMenuDrawerProps {
   onShareTenantForm?: () => void;
   onSharePartnerForm?: () => void;
   onCreatePromissoryNote?: () => void;
+  onViewPromissoryNotes?: () => void;
   isFinancialAgent?: boolean;
 }
 
