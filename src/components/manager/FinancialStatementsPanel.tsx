@@ -472,6 +472,8 @@ export function FinancialStatementsPanel() {
         addRow('Payroll & Staff Costs', d.operatingExpenses.payrollExpenses, false, true, true);
         addRow('Agent Requisitions', d.operatingExpenses.agentRequisitions, false, true, true);
         addRow('Financial Agent Expenses', d.operatingExpenses.financialAgentExpenses, false, true, true);
+        addRow('Marketing Expenses', d.operatingExpenses.marketingExpenses, false, true, true);
+        addRow('Research & Development', d.operatingExpenses.researchDevelopment, false, true, true);
         addRow('General Operating', d.operatingExpenses.generalOperating, false, true, true);
         addRow('Total Operating Expenses', d.operatingExpenses.total, true, true);
         y += 3;
