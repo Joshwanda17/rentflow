@@ -113,11 +113,22 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
   const p1 = entries.filter(e => PRIORITY_1_CATEGORIES.includes(e.category));
   if (p1.length > 0) {
     groups.push({
-      label: 'Funders & Partners Capital',
-      emoji: '🏦',
+      label: 'Partner Funding',
+      emoji: '🤝',
       icon: Landmark,
       items: p1,
       total: p1.reduce((s, e) => s + e.total_amount, 0),
+    });
+  }
+
+  const p1b = entries.filter(e => PRIORITY_1B_CATEGORIES.includes(e.category));
+  if (p1b.length > 0) {
+    groups.push({
+      label: 'Supporters Capital',
+      emoji: '🏦',
+      icon: Landmark,
+      items: p1b,
+      total: p1b.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
