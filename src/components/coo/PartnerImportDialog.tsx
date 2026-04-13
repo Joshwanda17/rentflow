@@ -333,7 +333,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
               className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-              onClick={() => document.getElementById('import-file-input')?.click()}
+              onClick={() => fileInputRef.current?.click()}
             >
               {loading ? (
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
