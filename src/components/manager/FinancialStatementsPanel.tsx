@@ -115,6 +115,9 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="Payroll Paid" value={d.operatingActivities.payrollPaid} negative indent />
       <LineItem label="Agent Requisitions Paid" value={d.operatingActivities.agentRequisitionsPaid} negative indent />
       <LineItem label="Financial Agent Expenses Paid" value={d.operatingActivities.financialAgentExpensesPaid} negative indent />
+      <LineItem label="Marketing Expenses Paid" value={d.operatingActivities.marketingPaid} negative indent />
+      <LineItem label="R&D Expenses Paid" value={d.operatingActivities.rdPaid} negative indent />
+      <LineItem label="Operational Expenses Paid" value={d.operatingActivities.operationalSubcatPaid} negative indent />
       <LineItem label="General Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
       <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
 
