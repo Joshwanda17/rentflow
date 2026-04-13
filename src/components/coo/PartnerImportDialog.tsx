@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -197,6 +197,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
   const [groups, setGroups] = useState<ImportGroup[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = () => {
     setStep('upload');
@@ -310,7 +311,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -328,11 +329,11 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
         {/* ── Step: Upload ── */}
         {step === 'upload' && (
           <div className="space-y-4 py-2">
-            <div
-              className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+            <label
+              htmlFor="partner-import-file-input"
+              className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all block"
               onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-              onClick={() => document.getElementById('import-file-input')?.click()}
             >
               {loading ? (
                 <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
@@ -346,13 +347,14 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                 </>
               )}
               <input
-                id="import-file-input"
+                id="partner-import-file-input"
+                ref={fileInputRef}
                 type="file"
                 accept=".xlsx,.xls"
                 className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) { handleFile(f); e.target.value = ''; } }}
               />
-            </div>
+            </label>
 
             <div className="flex items-center justify-center">
               <button onClick={downloadTemplate} className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
