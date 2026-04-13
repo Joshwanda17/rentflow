@@ -172,24 +172,24 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           label="Money We Have"
           sublabel="From funders, repayments, collections & wallets"
           value={fmt(totalCash)}
-          detail={`Free to use: ${fmtShort(Math.max(0, totalCash - totalLiabilities))}`}
+          detail={`Free to use: ${fmtShort(moneyWeCanUse)}`}
           onClick={() => setActiveBreakdown('cash')}
         />
         <MetricCard
           icon={<div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"><Wallet className="h-5 w-5 text-amber-600" /></div>}
           label="Money We Owe"
-          sublabel="User wallets we need to cover"
+          sublabel="What users can withdraw anytime"
           value={fmt(walletTotal)}
           detail={`All debts: ${fmtShort(totalLiabilities)}`}
           onClick={() => setActiveBreakdown('wallets')}
         />
         <MetricCard
           icon={<div className="h-10 w-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><TrendingUp className="h-5 w-5 text-emerald-600" /></div>}
-          label="Our Profit"
-          sublabel="What we've earned after costs"
-          value={fmt(platformEarnings)}
-          detail={`Income: ${fmtShort(revenue?.totalRevenue ?? 0)} · Costs: ${fmtShort(revenue?.totalExpenses ?? 0)}`}
-          valueColor={platformEarnings >= 0 ? 'text-emerald-600' : 'text-destructive'}
+          label="Money We Can Use"
+          sublabel="Cash available for operations"
+          value={fmt(moneyWeCanUse)}
+          detail={`Cash: ${fmtShort(totalCash)} − Wallets: ${fmtShort(walletTotal)}`}
+          valueColor={moneyWeCanUse >= 0 ? 'text-emerald-600' : 'text-destructive'}
           onClick={() => setActiveBreakdown('earnings')}
         />
       </div>
@@ -233,17 +233,17 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
             Balance Check
           </p>
           <p className="text-sm text-muted-foreground mb-3">
-            Our cash should equal what we owe users + our profit.
+            Our cash should equal what we owe users + what we can use.
           </p>
           <div className="flex items-center justify-center gap-2 flex-wrap text-center">
             <ValueChip label="Cash" value={fmtShort(totalCash)} variant="blue" />
             <span className="text-lg font-bold text-muted-foreground">=</span>
             <ValueChip label="We Owe" value={fmtShort(walletTotal)} variant="amber" />
             <span className="text-lg font-bold text-muted-foreground">+</span>
-            <ValueChip label="Profit" value={fmtShort(platformEarnings)} variant="emerald" />
+            <ValueChip label="We Can Use" value={fmtShort(moneyWeCanUse)} variant="emerald" />
           </div>
           {(() => {
-            const diff = totalCash - walletTotal - platformEarnings;
+            const diff = totalCash - walletTotal - moneyWeCanUse;
             const diffPct = totalCash > 0 ? Math.abs(diff / totalCash) * 100 : 0;
             return (
               <p className={`text-xs text-center mt-3 font-medium ${diffPct > 1 ? 'text-amber-600' : 'text-emerald-600'}`}>
