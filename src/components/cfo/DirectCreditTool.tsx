@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -262,13 +263,14 @@ export function DirectCreditTool() {
         },
       });
       if (error) {
-        const msg = error?.message || 'Something went wrong';
+        const msg = await extractFromErrorObject(error, 'Something went wrong');
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
         if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
         if (msg.includes('Target user not found')) throw new Error('The selected user could not be found.');
         if (msg.includes('Invalid amount')) throw new Error('Please enter a valid amount between 1 and 50,000,000 UGX.');
         if (msg.includes('Reason must be')) throw new Error('Please provide a detailed reason (at least 10 characters).');
-        if (msg.includes('Ledger error')) throw new Error('A ledger recording error occurred. Please try again.');
+        if (msg.includes('Insufficient ledger balance')) throw new Error(msg);
+        if (msg.includes('Ledger error')) throw new Error(msg);
         throw new Error(msg);
       }
       if (data?.error) throw new Error(data.error);
