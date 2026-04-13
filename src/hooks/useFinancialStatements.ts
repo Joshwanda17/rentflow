@@ -92,6 +92,7 @@ export interface BalanceSheetData {
     userFundsHeld: number;
     receivables: number;
     advanceAccessFeeReceivables: number;
+    promissoryNotesReceivable: number;
     totalAssets: number;
   };
   platformObligations: {
@@ -201,6 +202,8 @@ export function useFinancialStatements() {
         prevPlatformRes,
         // All-time platform entries for Balance Sheet (no date filter)
         allTimePlatformRes,
+        // Promissory notes receivable
+        promissoryNotesRes,
       ] = await Promise.all([
         buildScopedQuery('platform', 'cash_in'),
         buildScopedQuery('platform', 'cash_out'),
@@ -222,6 +225,8 @@ export function useFinancialStatements() {
         })(),
         // All-time platform cash via server-side RPC (no row limit)
         supabase.rpc('get_platform_cash_summary'),
+        // Promissory notes: pending + activated = receivable assets
+        supabase.from('promissory_notes').select('amount, total_collected, status').in('status', ['pending', 'activated']),
       ]);
 
       const platformIn = platformInRes.data || [];
@@ -236,6 +241,7 @@ export function useFinancialStatements() {
       const activeAdvances = advancesRes.data || [];
       const prevPlatform = prevPlatformRes.data || [];
       const allTimePlatformSummary = allTimePlatformRes.data as any;
+      const promissoryNotes = promissoryNotesRes.data || [];
 
       // Fix #2: Exclude 'opening_balance' migration artifacts from all aggregations
       const excludeSynthetic = (rows: any[]) => rows.filter(r => r.category !== 'opening_balance');
