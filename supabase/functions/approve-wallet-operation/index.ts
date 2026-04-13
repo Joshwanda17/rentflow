@@ -202,6 +202,35 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // ── Advance next_roi_date on ROI payout approval ──
+        if ((op.category === 'roi_payout' || op.category === 'supporter_platform_rewards') && op.source_table === 'investor_portfolios' && op.source_id) {
+          try {
+            // Get current next_roi_date to advance from it (not from today)
+            const { data: portfolio } = await adminClient
+              .from('investor_portfolios')
+              .select('next_roi_date, created_at, payout_day')
+              .eq('id', op.source_id)
+              .single();
+
+            if (portfolio) {
+              const currentDate = portfolio.next_roi_date
+                ? new Date(portfolio.next_roi_date + 'T00:00:00')
+                : new Date(portfolio.created_at);
+              const nextDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
+              const nextDateStr = nextDate.toISOString().split('T')[0];
+
+              await adminClient
+                .from('investor_portfolios')
+                .update({ next_roi_date: nextDateStr })
+                .eq('id', op.source_id);
+
+              console.log(`[approve-wallet-op] Advanced next_roi_date for portfolio ${op.source_id} to ${nextDateStr}`);
+            }
+          } catch (dateErr) {
+            console.error(`[approve-wallet-op] Failed to advance next_roi_date for portfolio ${op.source_id}:`, dateErr);
+          }
+        }
+
         // If this is an agent rent payment for a tenant, update receivables
         if (op.category === 'rent_payment_for_tenant' && op.direction === 'cash_in' && op.user_id) {
           // The cash_in direction means tenant wallet was credited — update their rent repayment
