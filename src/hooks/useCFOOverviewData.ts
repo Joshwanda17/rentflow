@@ -112,33 +112,17 @@ export function useCFOOverviewData() {
   const liabilities = useQuery({
     queryKey: ['cfo-overview-liabilities'],
     queryFn: async () => {
-      // Fetch wallets and partner funding ledger totals in parallel
-      const [walletsRes, pendingWithdrawalsRes, portfoliosRes, agentPayoutsRes, partnerFundingRes] = await Promise.all([
+      const [walletsRes, pendingWithdrawalsRes, portfoliosRes, agentPayoutsRes] = await Promise.all([
         supabase.from('wallets').select('balance, user_id'),
         supabase.from('withdrawal_requests').select('amount').eq('status', 'pending'),
         supabase.from('investor_portfolios').select('investment_amount, roi_percentage, total_roi_earned').eq('status', 'active'),
         supabase.from('agent_commission_payouts').select('amount').eq('status', 'pending'),
-        // Get total partner funding that moved from wallets into platform cash
-        supabase.from('general_ledger')
-          .select('amount')
-          .in('category', ['partner_funding', 'share_capital'])
-          .eq('direction', 'cash_in')
-          .in('classification', ['production', 'legacy_real']),
       ]);
 
       const totalWalletBalance = (walletsRes.data || []).reduce(
         (sum, w) => sum + Number(w.balance),
         0
       );
-
-      // Partner/funder capital already moved to platform cash — not owed to wallets
-      const partnerFundingTotal = (partnerFundingRes.data || []).reduce(
-        (sum, e) => sum + Number((e as any).amount ?? 0),
-        0
-      );
-
-      // "Money We Owe" = wallet balances minus capital that's already on the platform side
-      const adjustedWalletBalance = Math.max(0, totalWalletBalance - partnerFundingTotal);
 
       const pendingWithdrawalTotal = (pendingWithdrawalsRes.data || []).reduce(
         (sum, w) => sum + Number(w.amount),
@@ -158,10 +142,10 @@ export function useCFOOverviewData() {
         0
       );
 
-      const totalLiabilities = adjustedWalletBalance + pendingWithdrawalTotal + roiObligations + agentPayables;
+      const totalLiabilities = totalWalletBalance + pendingWithdrawalTotal + roiObligations + agentPayables;
 
       return {
-        tenantFunds: adjustedWalletBalance,
+        tenantFunds: totalWalletBalance,
         agentPayables,
         landlordPayables: 0,
         roiObligations,
