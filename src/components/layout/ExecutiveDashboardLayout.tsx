@@ -62,7 +62,7 @@ export default function ExecutiveDashboardLayout({
   };
 
   const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => (
-    <nav className="flex-1 overflow-y-auto py-4 space-y-5">
+    <nav className="flex-1 overflow-y-auto py-4 space-y-5" style={{ touchAction: 'manipulation' }}>
       {sections.map((section) => (
         <div key={section.title}>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-4">
@@ -72,6 +72,7 @@ export default function ExecutiveDashboardLayout({
             {section.items.map((item) => (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => {
                   if (item.route) {
                     navigate(item.route);
@@ -81,11 +82,13 @@ export default function ExecutiveDashboardLayout({
                   onItemClick?.();
                 }}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors',
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors select-none',
+                  'active:scale-[0.98] active:bg-primary/15',
                   activeTab === item.id
                     ? 'bg-primary/10 text-primary font-semibold'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
+                style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 <span className="truncate">{item.label}</span>
@@ -97,8 +100,10 @@ export default function ExecutiveDashboardLayout({
 
       <div className="px-2 pt-4 border-t border-border mx-2">
         <button
+          type="button"
           onClick={() => { handleExit(); onItemClick?.(); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors select-none active:scale-[0.98]"
+          style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
           <span>Exit Dashboard</span>
@@ -115,17 +120,16 @@ export default function ExecutiveDashboardLayout({
     );
   }
 
-
-
-
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Top Bar */}
       <header className="shrink-0 z-40 h-14 bg-primary text-primary-foreground border-b border-border flex items-center px-4 gap-3">
         {/* Mobile hamburger */}
         <button
+          type="button"
           className="lg:hidden p-1.5 rounded-lg hover:bg-white/10 transition-colors"
           onClick={() => setDrawerOpen(true)}
+          style={{ touchAction: 'manipulation' }}
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -148,8 +152,10 @@ export default function ExecutiveDashboardLayout({
 
         {/* Sign Out */}
         <button
+          type="button"
           onClick={() => signOut()}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-white/10 transition-colors whitespace-nowrap"
+          style={{ touchAction: 'manipulation' }}
         >
           <LogOut className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Sign Out</span>
@@ -172,21 +178,31 @@ export default function ExecutiveDashboardLayout({
       {drawerOpen && (
         <>
           <div
-            className="fixed inset-0 bg-black/40 z-50 lg:hidden"
+            className="fixed inset-0 bg-black/40 z-[60] lg:hidden"
             onClick={() => setDrawerOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 w-72 bg-background z-50 lg:hidden flex flex-col shadow-xl animate-in slide-in-from-left duration-200">
+          <div
+            className="fixed inset-y-0 left-0 w-72 bg-background z-[70] lg:hidden flex flex-col shadow-xl animate-in slide-in-from-left duration-200"
+            style={{ touchAction: 'manipulation' }}
+          >
             <div className="h-14 flex items-center justify-between px-4 border-b border-border">
               <span className="font-bold text-sm">{displayRole} Dashboard</span>
-              <button onClick={() => setDrawerOpen(false)} className="p-1.5 rounded-lg hover:bg-muted">
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-muted"
+                style={{ touchAction: 'manipulation' }}
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <SidebarContent onItemClick={() => setDrawerOpen(false)} />
             <div className="p-4 border-t border-border">
               <button
+                type="button"
                 onClick={() => signOut()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                style={{ touchAction: 'manipulation' }}
               >
                 <LogOut className="h-4 w-4" />
                 Sign Out

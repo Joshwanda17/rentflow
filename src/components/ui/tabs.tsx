@@ -54,7 +54,7 @@ const tabsTriggerVariants = cva(
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & VariantProps<typeof tabsTriggerVariants>
->(({ className, variant, onClick, ...props }, ref) => {
+>(({ className, variant, onClick, style, ...props }, ref) => {
   const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     hapticSelection();
     onClick?.(e);
@@ -63,8 +63,10 @@ const TabsTrigger = React.forwardRef<
   return (
     <TabsPrimitive.Trigger
       ref={ref}
-      className={cn(tabsTriggerVariants({ variant }), className)}
+      type="button"
+      className={cn(tabsTriggerVariants({ variant }), 'select-none', className)}
       onClick={handleClick}
+      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', ...style }}
       {...props}
     />
   );
