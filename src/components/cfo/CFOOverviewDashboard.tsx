@@ -255,6 +255,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* ── ROI PAYABLE FORECAST ── */}
       <ROIPayableForecast />
 
+      {/* ── CFO ACTIONS LOG ── */}
+      <CFOActionsLog />
+
       {/* ── SOURCES OF CASH (replaces channel breakdown) ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
