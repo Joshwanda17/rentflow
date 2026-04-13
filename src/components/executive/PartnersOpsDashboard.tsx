@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft } from 'lucide-react';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
@@ -24,8 +24,9 @@ import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps'
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
+import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 
-type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity';
+type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -136,6 +137,7 @@ export function PartnersOpsDashboard() {
     { key: 'capital', label: 'Capital Flow', icon: DollarSign },
     { key: 'roi', label: 'Returns Payouts', icon: TrendingUp },
     { key: 'topups', label: 'Top-ups', icon: PlusCircle },
+    { key: 'promissory', label: 'Promissory Notes', icon: FileText },
   ];
 
   // ═══ RENDER TAB CONTENT ═══
@@ -155,6 +157,7 @@ export function PartnersOpsDashboard() {
       );
       case 'topups': return <PendingPortfolioTopUps />;
       case 'activity': return <PartnerFinancialActivity />;
+      case 'promissory': return <PromissoryNotesQueue />;
       default: return null;
     }
   };
