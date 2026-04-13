@@ -138,11 +138,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
   const netToday = todayCashFlow?.netToday ?? 0;
 
   const liabilityItems = [
-    { label: 'Tenant Funds', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
-    { label: 'Agent Payables', value: liabilities?.agentPayables ?? 0, icon: <Users className="h-4 w-4" /> },
-    { label: 'Landlord Payables', value: liabilities?.landlordPayables ?? 0 },
-    { label: 'ROI Obligations', value: liabilities?.roiObligations ?? 0, icon: <HandCoins className="h-4 w-4" /> },
-    { label: 'Pending Withdrawals', value: liabilities?.pendingWithdrawals ?? 0 },
+    { label: 'Total Wallet Balances', value: liabilities?.tenantFunds ?? 0, icon: <Wallet className="h-4 w-4" /> },
   ];
 
   return (

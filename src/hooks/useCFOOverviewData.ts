@@ -4,8 +4,6 @@ import { LEDGER_SCOPE, FINAL_WITHDRAWAL_STATUSES } from '@/lib/ledgerConstants';
 
 const STALE_TIME = 300_000; // 5 minutes
 
-// System/operational account excluded from user wallet totals
-const SYSTEM_ACCOUNT_ID = '06b14430-7cdc-41c9-96a4-a8dedf8995b1';
 
 export function useCFOOverviewData() {
   // Platform cash from ledger RPCs (source-based, not channel-based)
