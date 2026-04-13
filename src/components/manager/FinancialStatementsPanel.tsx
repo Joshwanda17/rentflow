@@ -303,6 +303,18 @@ export function FinancialStatementsPanel() {
       rows.push(['Payroll & Staff Costs', '', -d.operatingExpenses.payrollExpenses]);
       rows.push(['Agent Requisitions', '', -d.operatingExpenses.agentRequisitions]);
       rows.push(['Financial Agent Expenses', '', -d.operatingExpenses.financialAgentExpenses]);
+      rows.push(['Marketing Expenses', '', -d.operatingExpenses.marketingExpenses]);
+      rows.push(['Research & Development', '', -d.operatingExpenses.researchDevelopment]);
+      if (d.operatingExpenses.operationalSubcategories.salaries) rows.push(['  Salaries', '', -d.operatingExpenses.operationalSubcategories.salaries]);
+      if (d.operatingExpenses.operationalSubcategories.transport) rows.push(['  Transport', '', -d.operatingExpenses.operationalSubcategories.transport]);
+      if (d.operatingExpenses.operationalSubcategories.food) rows.push(['  Food', '', -d.operatingExpenses.operationalSubcategories.food]);
+      if (d.operatingExpenses.operationalSubcategories.officeRent) rows.push(['  Office Rent', '', -d.operatingExpenses.operationalSubcategories.officeRent]);
+      if (d.operatingExpenses.operationalSubcategories.internet) rows.push(['  Internet', '', -d.operatingExpenses.operationalSubcategories.internet]);
+      if (d.operatingExpenses.operationalSubcategories.airtime) rows.push(['  Airtime', '', -d.operatingExpenses.operationalSubcategories.airtime]);
+      if (d.operatingExpenses.operationalSubcategories.stationery) rows.push(['  Stationery', '', -d.operatingExpenses.operationalSubcategories.stationery]);
+      if (d.operatingExpenses.operationalSubcategories.propertyEquipment) rows.push(['  Property & Equipment', '', -d.operatingExpenses.operationalSubcategories.propertyEquipment]);
+      if (d.operatingExpenses.operationalSubcategories.taxes) rows.push(['  Taxes', '', -d.operatingExpenses.operationalSubcategories.taxes]);
+      if (d.operatingExpenses.operationalSubcategories.interests) rows.push(['  Interests', '', -d.operatingExpenses.operationalSubcategories.interests]);
       rows.push(['General Operating Expenses', '', -d.operatingExpenses.generalOperating]);
       rows.push(['Total Operating Expenses', '', -d.operatingExpenses.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
