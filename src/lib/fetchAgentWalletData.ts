@@ -9,6 +9,8 @@ export interface AgentLedgerEntry {
   description: string | null;
   created_at: string;
   transaction_group_id: string | null;
+  linked_party: string | null;
+  tenant_name?: string;
 }
 
 export interface AgentWalletReportData {

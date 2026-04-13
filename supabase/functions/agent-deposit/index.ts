@@ -261,6 +261,7 @@ Deno.serve(async (req) => {
 
     // Find user by phone if not provided user_id
     let targetUserId = userId;
+    let tenantFullName = '';
     if (!targetUserId && userPhone) {
       // Try multiple phone formats to find the profile
       const phoneVariants = normalizePhone(userPhone);
@@ -268,7 +269,7 @@ Deno.serve(async (req) => {
       for (const variant of phoneVariants) {
         const { data } = await adminClient
           .from('profiles')
-          .select('id')
+          .select('id, full_name')
           .eq('phone', variant)
           .maybeSingle();
         if (data) { profile = data; break; }
@@ -281,6 +282,17 @@ Deno.serve(async (req) => {
         );
       }
       targetUserId = profile.id;
+      tenantFullName = profile.full_name || '';
+    }
+
+    // If we have targetUserId but no name yet, fetch it
+    if (targetUserId && !tenantFullName) {
+      const { data: tProfile } = await adminClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', targetUserId)
+        .maybeSingle();
+      tenantFullName = tProfile?.full_name || '';
     }
 
     // Get user's wallet
