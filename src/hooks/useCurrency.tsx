@@ -288,9 +288,9 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
     await fetchLiveRates();
   }, [fetchLiveRates]);
 
-  // Fetch rates on mount - DEFERRED to not block initial render
+  // Fetch rates on mount — ONE TIME ONLY, stable dependency
   useEffect(() => {
-    // Check if we have recent cached rates (less than 30 min old)
+    // Check if we have recent cached rates (less than 30 days old)
     const cached = localStorage.getItem('welile-live-rates');
     if (cached) {
       try {
@@ -303,30 +303,26 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
             ...c,
             rate: rates[c.code] || fallbackRates[c.code] || 0.00027
           }));
-          // Refresh every 30 days
-          const interval = setInterval(fetchLiveRates, 30 * 24 * 60 * 60 * 1000);
-          return () => clearInterval(interval);
+          return; // Rates are fresh enough, skip fetch
         }
       } catch {
         // Continue to fetch
       }
     }
     
-    // DEFER initial fetch to after first paint using requestIdleCallback
+    // DEFER initial fetch to after first paint
     const scheduleId = 'requestIdleCallback' in window
       ? (window as any).requestIdleCallback(() => fetchLiveRates(), { timeout: 5000 })
-      : setTimeout(() => fetchLiveRates(), 2000);
+      : setTimeout(() => fetchLiveRates(), 3000);
     
-    const interval = setInterval(fetchLiveRates, 30 * 24 * 60 * 60 * 1000);
     return () => {
       if ('requestIdleCallback' in window) {
         (window as any).cancelIdleCallback(scheduleId);
       } else {
         clearTimeout(scheduleId);
       }
-      clearInterval(interval);
     };
-  }, [fetchLiveRates]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-set currency based on user's phone number after login
   useEffect(() => {
