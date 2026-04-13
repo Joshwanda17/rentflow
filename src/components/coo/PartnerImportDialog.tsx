@@ -347,11 +347,11 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                 </>
               )}
               <input
-                id="import-file-input"
+                ref={fileInputRef}
                 type="file"
                 accept=".xlsx,.xls"
                 className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) { handleFile(f); e.target.value = ''; } }}
               />
             </div>
 
