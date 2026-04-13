@@ -107,7 +107,7 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     });
 
     const groups: import('@/components/cfo/GroupedKPIBreakdownSheet').GroupedBreakdownGroup[] = [];
-    [1, 2, 3, 4, 5, 6, 7].forEach(tier => {
+    [1, 2, 3, 4, 5, 6, 7, 8].forEach(tier => {
       const items = buckets[tier];
       if (items && items.length > 0) {
         const meta = GROUP_META[tier];
