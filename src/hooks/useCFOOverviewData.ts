@@ -112,31 +112,40 @@ export function useCFOOverviewData() {
   const liabilities = useQuery({
     queryKey: ['cfo-overview-liabilities'],
     queryFn: async () => {
-      const { data: wallets } = await supabase
-        .from('wallets')
-        .select('balance, user_id');
+      // Fetch wallets and partner funding ledger totals in parallel
+      const [walletsRes, pendingWithdrawalsRes, portfoliosRes, agentPayoutsRes, partnerFundingRes] = await Promise.all([
+        supabase.from('wallets').select('balance, user_id'),
+        supabase.from('withdrawal_requests').select('amount').eq('status', 'pending'),
+        supabase.from('investor_portfolios').select('investment_amount, roi_percentage, total_roi_earned').eq('status', 'active'),
+        supabase.from('agent_commission_payouts').select('amount').eq('status', 'pending'),
+        // Get total partner funding that moved from wallets into platform cash
+        supabase.from('general_ledger')
+          .select('amount')
+          .in('category', ['partner_funding', 'share_capital'])
+          .eq('direction', 'cash_in')
+          .in('classification', ['production', 'legacy_real']),
+      ]);
 
-      const totalWalletBalance = (wallets || []).reduce(
+      const totalWalletBalance = (walletsRes.data || []).reduce(
         (sum, w) => sum + Number(w.balance),
         0
       );
 
-      const { data: pendingWithdrawals } = await supabase
-        .from('withdrawal_requests')
-        .select('amount')
-        .eq('status', 'pending');
+      // Partner/funder capital already moved to platform cash — not owed to wallets
+      const partnerFundingTotal = (partnerFundingRes.data || []).reduce(
+        (sum, e) => sum + Number((e as any).amount ?? 0),
+        0
+      );
 
-      const pendingWithdrawalTotal = (pendingWithdrawals || []).reduce(
+      // "Money We Owe" = wallet balances minus capital that's already on the platform side
+      const adjustedWalletBalance = Math.max(0, totalWalletBalance - partnerFundingTotal);
+
+      const pendingWithdrawalTotal = (pendingWithdrawalsRes.data || []).reduce(
         (sum, w) => sum + Number(w.amount),
         0
       );
 
-      const { data: portfolios } = await supabase
-        .from('investor_portfolios')
-        .select('investment_amount, roi_percentage, total_roi_earned')
-        .eq('status', 'active');
-
-      const roiObligations = (portfolios || []).reduce(
+      const roiObligations = (portfoliosRes.data || []).reduce(
         (sum, p) => {
           const expectedReturn = Number(p.investment_amount) * (Number(p.roi_percentage) / 100);
           return sum + (expectedReturn - Number(p.total_roi_earned || 0));
@@ -144,20 +153,15 @@ export function useCFOOverviewData() {
         0
       );
 
-      const { data: agentPayouts } = await supabase
-        .from('agent_commission_payouts')
-        .select('amount')
-        .eq('status', 'pending');
-
-      const agentPayables = (agentPayouts || []).reduce(
+      const agentPayables = (agentPayoutsRes.data || []).reduce(
         (sum, p) => sum + Number(p.amount),
         0
       );
 
-      const totalLiabilities = totalWalletBalance + pendingWithdrawalTotal + roiObligations + agentPayables;
+      const totalLiabilities = adjustedWalletBalance + pendingWithdrawalTotal + roiObligations + agentPayables;
 
       return {
-        tenantFunds: totalWalletBalance,
+        tenantFunds: adjustedWalletBalance,
         agentPayables,
         landlordPayables: 0,
         roiObligations,
