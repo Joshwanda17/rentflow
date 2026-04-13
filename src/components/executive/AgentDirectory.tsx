@@ -236,6 +236,24 @@ export function AgentDirectory() {
     return counts;
   }, [agents]);
 
+  const handleDownloadReport = async (agentId: string, agentName: string) => {
+    try {
+      toast({ title: 'Generating report…' });
+      const data = await fetchAgentWalletData(agentId);
+      const blob = await generateAgentWalletReportPdf(data);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Wallet_Report_${agentName.replace(/\s+/g, '_')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Report downloaded!' });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'Failed to generate report', description: e.message, variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
       {/* Header */}

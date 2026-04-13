@@ -13,8 +13,10 @@ import {
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, TrendingUp, ArrowDownToLine,
   X, Calendar, ChevronRight,
-  ChevronDown
+  ChevronDown, FileDown
 } from 'lucide-react';
+import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
+import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import DepositFlow from '@/components/payments/DepositFlow';
