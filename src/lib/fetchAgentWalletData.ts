@@ -40,7 +40,7 @@ export async function fetchAgentWalletData(agentId: string): Promise<AgentWallet
     supabase.from('wallets').select('balance').eq('user_id', agentId).maybeSingle(),
     supabase
       .from('general_ledger')
-      .select('id, user_id, amount, direction, category, description, created_at, transaction_group_id')
+      .select('id, user_id, amount, direction, category, description, created_at, transaction_group_id, linked_party')
       .eq('user_id', agentId)
       .eq('ledger_scope', 'wallet')
       .order('created_at', { ascending: false }),
