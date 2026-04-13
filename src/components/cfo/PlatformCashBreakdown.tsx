@@ -11,9 +11,14 @@ interface BreakdownEntry {
   total_amount: number;
 }
 
-// Priority 1: Funders & Shareholders
+// Priority 1: Partner Funding
 const PRIORITY_1_CATEGORIES = [
-  'partner_funding', 'share_capital',
+  'partner_funding',
+];
+
+// Priority 1b: Supporters Capital (Share Capital)
+const PRIORITY_1B_CATEGORIES = [
+  'share_capital',
 ];
 
 // Priority 2: Angel Pool / Shareholders Capital
