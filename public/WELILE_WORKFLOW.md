@@ -402,6 +402,7 @@ Users flagged with `is_frozen = true` are **completely blocked** from all dashbo
 ### Design
 
 - **Glassmorphism**: Frosted glass effects on hero cards
+- **Inactivity Lock Screen**: Glassmorphism overlay with `backdrop-blur-2xl`, `backdrop-saturate-150`, `bg-background/70` opacity — locks session after inactivity, requires password re-entry
 - **Mesh gradients**: Primary color gradient backgrounds
 - **Animated ROI indicators**: Framer Motion animations
 - **Haptic feedback**: `hapticTap` and `hapticSuccess`
@@ -617,6 +618,8 @@ Full access to all Manager features + system configuration + role assignment wit
 - Account suspension via `frozen_at` field
 - Bulk partner import from Excel
 - Bulk activate pending portfolios
+- Portfolio Compound with Preview Dialog — COO/Partner Ops can compound ROI directly from portfolio view (replaces WhatsApp button). Shows confirmation dialog with current principal, ROI amount, and new principal before executing. Updates principal only; does NOT advance `next_roi_date`.
+- OVERDUE Badge — Portfolios with `next_roi_date` in the past display a red "OVERDUE" badge in the Nearing Payouts section. Dates no longer auto-roll forward.
 
 ---
 
@@ -1103,6 +1106,14 @@ monthlyReward = investmentAmount × (roiPercentage / 100)
 2. **Dual-mode:** Strict 30-day cycle OR fixed calendar day (1st–28th, COO-configured)
 3. **Withdrawal:** Pauses rewards immediately, 90-day notice period
 
+### Causal Date Advancement Policy
+
+- `next_roi_date` does **NOT** auto-roll on missed payments — overdue dates remain visible
+- `next_roi_date` does **NOT** advance when COO initiates a payout — it stays unchanged until CFO approves
+- `next_roi_date` advances **+1 month ONLY** when CFO approves via `approve-wallet-operation` edge function
+- **Compounding** updates principal but preserves the payout date (`next_roi_date` unchanged)
+- Missed payments show as **OVERDUE** in the COO dashboard until sequentially processed (one approval = one month advanced)
+
 ### Privacy
 
 Supporters NEVER see tenant names, landlord details, agent info, or phone numbers. Only Virtual Houses, payment health, and portfolio performance.
@@ -1306,7 +1317,7 @@ NEVER edit entries. Post **reversing entries** instead.
 | `portfolio-topup` | Portfolio top-up |
 | `manager-portfolio-topup` | Manager-initiated top-up |
 | `apply-pending-topups` | Apply pending top-ups |
-| `approve-wallet-operation` | Approve pending credits |
+| `approve-wallet-operation` | Approve pending credits; advances `next_roi_date` +1 month for ROI payout approvals |
 | `supporter-account-action` | Supporter account operations |
 | `process-investment-interest` | Interest accrual |
 | `process-supporter-roi` | ROI payout processing |
@@ -1549,8 +1560,18 @@ Rejected → Idempotent refund via withdrawal_reversal ledger entry
 ### Monthly ROI Payout
 
 ```
-COO verifies liquidity (> 1.2x) → Triggers process-supporter-roi → Active portfolios processed → Ledger entries → Wallet sync → Notification
+COO initiates payout → Queued as pending_wallet_operation → CFO approves → Ledger entries → Wallet sync → next_roi_date +1 month → Notification
 ```
+
+> **Note:** `next_roi_date` advances only upon CFO approval. If a partner is multiple months overdue, each month must be approved sequentially — the partner reappears as OVERDUE after each approval until all arrears are cleared.
+
+### ROI Compounding
+
+```
+COO/Partner Ops clicks Compound → Preview dialog (current principal, ROI, new principal) → Confirm → Principal updated (no date change) → Ledger entries (roi_expense + roi_reinvestment) → Audit log
+```
+
+> Compounding does NOT create a `pending_wallet_operation` and does NOT advance `next_roi_date`. The partner remains in the Nearing Payouts queue.
 
 ---
 
@@ -2034,4 +2055,4 @@ OUT: Withdrawal pre-deductions (withdrawal_pending) and reversals (withdrawal_re
 
 ---
 
-*This document is the authoritative complete reference for the Welile platform. All UI components, business logic, edge functions, event architecture, cost optimizations, and governance flows are documented here. Version 3.3 — Last updated: April 2026.*
+*This document is the authoritative complete reference for the Welile platform. All UI components, business logic, edge functions, event architecture, cost optimizations, and governance flows are documented here. Version 3.4 — Last updated: April 13, 2026.*
