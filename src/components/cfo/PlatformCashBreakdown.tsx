@@ -11,9 +11,14 @@ interface BreakdownEntry {
   total_amount: number;
 }
 
-// Priority 1: Funders & Shareholders
+// Priority 1: Partner Funding
 const PRIORITY_1_CATEGORIES = [
-  'partner_funding', 'share_capital',
+  'partner_funding',
+];
+
+// Priority 1b: Supporters Capital (Share Capital)
+const PRIORITY_1B_CATEGORIES = [
+  'share_capital',
 ];
 
 // Priority 2: Angel Pool / Shareholders Capital
@@ -46,6 +51,7 @@ const PRIORITY_7_CATEGORIES = [
 
 const ALL_NAMED = [
   ...PRIORITY_1_CATEGORIES,
+  ...PRIORITY_1B_CATEGORIES,
   ...PRIORITY_2_CATEGORIES,
   ...PRIORITY_3_CATEGORIES,
   ...PRIORITY_4_CATEGORIES,
@@ -107,11 +113,22 @@ function groupByPriority(entries: BreakdownEntry[]): PriorityGroup[] {
   const p1 = entries.filter(e => PRIORITY_1_CATEGORIES.includes(e.category));
   if (p1.length > 0) {
     groups.push({
-      label: 'Funders & Partners Capital',
-      emoji: '🏦',
+      label: 'Partner Funding',
+      emoji: '🤝',
       icon: Landmark,
       items: p1,
       total: p1.reduce((s, e) => s + e.total_amount, 0),
+    });
+  }
+
+  const p1b = entries.filter(e => PRIORITY_1B_CATEGORIES.includes(e.category));
+  if (p1b.length > 0) {
+    groups.push({
+      label: 'Supporters Capital',
+      emoji: '🏦',
+      icon: Landmark,
+      items: p1b,
+      total: p1b.reduce((s, e) => s + e.total_amount, 0),
     });
   }
 
