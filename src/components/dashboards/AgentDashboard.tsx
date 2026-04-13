@@ -460,6 +460,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setMenuOpen(false);
           setPromissoryNoteOpen(true);
         }}
+        onViewPromissoryNotes={() => {
+          setMenuOpen(false);
+          setPromissoryListOpen(true);
+        }}
       />
 
       {/* Existing Dialogs */}
