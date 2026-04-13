@@ -199,8 +199,35 @@ export function DirectCreditTool() {
           category_label: selectedCategory.label,
         },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        const msg = error?.message || 'Something went wrong';
+        // Parse user-friendly messages from edge function errors
+        if (msg.includes('Insufficient balance')) {
+          throw new Error(`This user has insufficient wallet balance for this debit. The operation was still processed.`);
+        }
+        if (msg.includes('Unauthorized')) {
+          throw new Error('You do not have permission to perform this action. Please log in again.');
+        }
+        if (msg.includes('Insufficient permissions')) {
+          throw new Error('Your role does not have CFO privileges to make wallet adjustments.');
+        }
+        if (msg.includes('Target user not found')) {
+          throw new Error('The selected user could not be found. They may have been removed from the system.');
+        }
+        if (msg.includes('Invalid amount')) {
+          throw new Error('Please enter a valid amount between 1 and 50,000,000 UGX.');
+        }
+        if (msg.includes('Reason must be')) {
+          throw new Error('Please provide a detailed reason (at least 10 characters) for audit purposes.');
+        }
+        if (msg.includes('Ledger error')) {
+          throw new Error('A ledger recording error occurred. Please try again or contact support.');
+        }
+        throw new Error(msg);
+      }
+      if (data?.error) {
+        throw new Error(data.error);
+      }
       return data;
     },
     onSuccess: (data) => {
