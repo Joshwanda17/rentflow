@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
 import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSheet';
 import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
+import { CFOActionsLog } from '@/components/cfo/CFOActionsLog';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
