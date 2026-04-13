@@ -1,23 +1,19 @@
 
 
-## Plan: Add Tenant Wallet Balance to Agent Wallet Report PDF
+## Plan: Fix Cashout Agent Withdrawal Request Visibility
 
-### What changes
-After each rent payment row in the PDF's "Rent Payment Breakdown" table, show the tenant's current wallet balance so the agent can see exactly how much each tenant owes or has remaining.
+### Problem
+The cashout agent's query filters withdrawal requests by status `['pending', 'requested', 'manager_approved', 'cfo_approved']`, but the database has requests with statuses like `'approved'` and `'fin_ops_approved'` that are also actionable. The RLS policies already grant access — this is purely a filter mismatch.
 
-### Changes
+### Current State
+- **5** pending, **1** manager_approved, **32** approved, **2** fin_ops_approved requests exist
+- The query misses `approved` and `fin_ops_approved`, so 34 actionable requests are hidden
 
-**1. Update data fetcher (`src/lib/fetchAgentWalletData.ts`)**
-- After resolving tenant names, also batch-fetch tenant wallet balances from the `wallets` table using the same `tenantIds` list
-- Add `tenant_balance` field to `AgentLedgerEntry` interface
-- Enrich each rent entry with the tenant's current wallet balance
+### Change
 
-**2. Update PDF generator (`src/lib/agentWalletReportPdf.ts`)**
-- Add a "Tenant Balance" column to the Rent Payment Breakdown table header
-- Display each tenant's wallet balance next to their rent payment row
-- Format the balance in UGX, consistent with other amounts
+**Edit `src/components/agent/AgentCashPayoutsTab.tsx`** (line 48):
+- Expand the status filter to include all actionable statuses: `['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved']`
 
 ### Files to edit
-- `src/lib/fetchAgentWalletData.ts` — fetch tenant balances, add to entries
-- `src/lib/agentWalletReportPdf.ts` — add tenant balance column to rent breakdown table
+- `src/components/agent/AgentCashPayoutsTab.tsx` — one-line status filter fix
 
