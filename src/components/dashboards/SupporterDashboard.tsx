@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { AngelSharesTab } from '@/components/supporter/AngelSharesTab';
 import { useConfetti } from '@/components/Confetti';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
@@ -468,6 +469,30 @@ export default function SupporterDashboard({
               </Collapsible>
             </div>
           )}
+
+          {/* ═══ MY PORTFOLIOS ═══ */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1 h-5 rounded-full bg-primary" />
+              <h2 className="text-sm font-black text-foreground tracking-tight">My Portfolios</h2>
+            </div>
+            <PortfolioSummaryCards
+              housesFunded={virtualHouses.length}
+              rentSecured={totalRentContributed}
+              walletBalance={wallet?.balance ?? 0}
+              totalReturn={totalRoiEarned}
+              portfolioHealth={portfolioHealth}
+            />
+          </div>
+
+          {/* ═══ ANGEL POOL SHARES ═══ */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1 h-5 rounded-full bg-[hsl(var(--primary))]" />
+              <h2 className="text-sm font-black text-foreground tracking-tight">Angel Pool Shares</h2>
+            </div>
+            <AngelSharesTab />
+          </div>
 
 
         </main>
