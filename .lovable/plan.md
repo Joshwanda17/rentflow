@@ -1,36 +1,52 @@
 
 
-## Plan: Move `next_roi_date` Advancement to CFO Approval
+## Plan: Update WELILE_WORKFLOW.md with Latest Logic and Features
 
-### Problem
-Lines 2677-2679 (`handlePay`) and 2848-2856 (`handleSplitPayout`) in `COOPartnersPage.tsx` advance `next_roi_date` immediately when COO initiates a payout — before the CFO approves it. Additionally, `getNextPayoutDate()` (lines 65-67) silently rolls stale dates forward, hiding partners who were missed.
+### Summary
+Update the workflow document to reflect three recent changes: (1) causal ROI date advancement policy, (2) compound feature with preview dialog, and (3) inactivity lock glassmorphism styling.
 
-### Changes
+### Changes to `public/WELILE_WORKFLOW.md`
 
-**1. `src/components/coo/COOPartnersPage.tsx`** — 3 edits:
+**1. Section 11 — COO Dashboard (around line 609)**
 
-- **`getNextPayoutDate()` (line 65-67)**: Remove the `while (d < today)` auto-roll loop. Return the actual stored date so overdue/missed dates remain visible.
+Add to "Key COO Features" list:
+- Portfolio Compound with Preview Dialog — COO/Partner Ops can compound ROI directly from portfolio view (replaces WhatsApp button). Shows confirmation dialog with current principal, ROI amount, and new principal before executing. Updates principal only; does NOT advance `next_roi_date`.
+- OVERDUE Badge — Portfolios with `next_roi_date` in the past display a red "OVERDUE" badge in the Nearing Payouts section. Dates no longer auto-roll forward.
 
-- **`handlePay()` (lines 2677-2679)**: Remove the immediate `next_roi_date` update. The date stays unchanged until CFO approves.
+**2. Section 25 — Supporter Investment Model (around line 1100)**
 
-- **`handleSplitPayout()` (lines 2848-2856)**: Remove `next_roi_date` from the portfolio update. Only update `investment_amount` for the reinvest portion. Date advances on CFO approval.
+Add a new subsection "Causal Date Advancement Policy" after Payout Rules:
+- `next_roi_date` does NOT auto-roll on missed payments
+- `next_roi_date` does NOT advance when COO initiates a payout
+- `next_roi_date` advances +1 month ONLY when CFO approves via `approve-wallet-operation`
+- Compounding updates principal but preserves payout date
+- Missed payments show as OVERDUE until sequentially processed
 
-**2. `supabase/functions/approve-wallet-operation/index.ts`** — 1 edit:
+**3. Section 36 — Approval & Governance Flows (around line 1549)**
 
-- After the ledger entries succeed for `roi_payout` category: advance `next_roi_date` by +1 month on the source portfolio (`op.source_id`). This is where the date should change — only after CFO confirms the payment.
+Update "Monthly ROI Payout" flow to include the causal date advancement step and add a new "Compounding" flow:
 
-**3. `src/components/coo/COOPartnersPage.tsx`** — UI enhancement:
+```
+COO initiates payout → Queued as pending_wallet_operation → CFO approves → Ledger entries → Wallet sync → next_roi_date +1 month → Notification
+```
 
-- In the Nearing Payouts list, show a visual indicator (red "OVERDUE" badge) for portfolios whose `next_roi_date` is in the past, so COO/Partner Ops can clearly see who was missed and still needs to be paid.
+New Compounding flow:
+```
+COO/Partner Ops clicks Compound → Preview dialog → Confirm → Principal updated (no date change) → Ledger entries (roi_expense + roi_reinvestment) → Audit log
+```
 
-### Behavior After Change
+**4. Section 7 — Supporter Dashboard (around line 402, Design subsection)**
 
-| Scenario | `next_roi_date` | What happens |
-|---|---|---|
-| COO initiates payout | **Unchanged** | Queued for CFO |
-| CFO approves | **Advanced +1 month** | Wallet credited |
-| Date passes, no action | **Unchanged** | Shows as OVERDUE |
+Add: Inactivity lock screen uses glassmorphism overlay (`backdrop-blur-2xl`, `backdrop-saturate-150`, 70% opacity)
 
-### No database migration needed
-The existing `next_roi_date` column is sufficient. No new columns required — the `pending_wallet_operations` status already tracks pending vs approved.
+**5. Section 32 — Edge Functions, approve-wallet-operation entry (around line 1309)**
+
+Update description: "Approve pending credits; advances `next_roi_date` +1 month for ROI payout approvals"
+
+**6. Footer (line 2037)**
+
+Update version to 3.4 and date to April 13, 2026.
+
+### No database or backend changes needed
+This is a documentation-only update.
 
