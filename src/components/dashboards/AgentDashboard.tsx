@@ -91,6 +91,7 @@ import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
+import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
@@ -171,6 +172,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [requisitionOpen, setRequisitionOpen] = useState(false);
   const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
+  const [promissoryListOpen, setPromissoryListOpen] = useState(false);
 
   const { isFinancialAgent } = useIsFinancialAgent();
   // Check if this agent is a CFO-assigned cashout agent
@@ -458,6 +460,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setMenuOpen(false);
           setPromissoryNoteOpen(true);
         }}
+        onViewPromissoryNotes={() => {
+          setMenuOpen(false);
+          setPromissoryListOpen(true);
+        }}
       />
 
       {/* Existing Dialogs */}
@@ -526,6 +532,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </Dialog>
 
       <PromissoryNoteDialog open={promissoryNoteOpen} onOpenChange={setPromissoryNoteOpen} />
+      <AgentPromissoryNotesList open={promissoryListOpen} onOpenChange={setPromissoryListOpen} />
 
     </div>
   );
