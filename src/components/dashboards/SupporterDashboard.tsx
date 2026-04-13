@@ -386,6 +386,9 @@ export default function SupporterDashboard({
             role="supporter"
             secondaryLabel="Invested"
             secondaryValue={_formatUGX(totalRentContributed)}
+            houses={virtualHouses.length}
+            returnPerMonth={_formatUGX(totalRoiEarned)}
+            deployed={_formatUGX(totalRentContributed)}
           />
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
