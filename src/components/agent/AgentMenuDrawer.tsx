@@ -167,6 +167,7 @@ export function AgentMenuDrawer({
         { icon: Briefcase, label: 'Invite Investor', description: 'Share Angel Pool signup', onClick: onInviteAngelInvestor, accent: 'purple-500', badge: '🦄' },
         { icon: Share2, label: 'Share Tenant Form', description: 'Shareable registration link', onClick: onShareTenantForm, accent: 'teal-500', badge: '🔗' },
         { icon: UserPlus, label: 'Share Partner Form', description: 'Partner investment link', onClick: onSharePartnerForm, accent: 'emerald-600', badge: '🤝' },
+        { icon: FileText, label: 'Promissory Note', description: 'Capture partner commitment', onClick: onCreatePromissoryNote, accent: 'purple-600', badge: '📝' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),
     },
     {
