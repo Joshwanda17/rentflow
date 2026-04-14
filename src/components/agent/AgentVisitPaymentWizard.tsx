@@ -87,7 +87,7 @@ export function AgentVisitPaymentWizard({ open, onOpenChange, onSuccess, presele
   const [submitting, setSubmitting] = useState(false);
   const [trackingId, setTrackingId] = useState('');
   const [completed, setCompleted] = useState(false);
-  const [smsSending, setSmsSending] = useState(false);
+  const [smsSending] = useState(false);
 
   // Reset on close
   useEffect(() => {
@@ -111,7 +111,7 @@ export function AgentVisitPaymentWizard({ open, onOpenChange, onSuccess, presele
       setTrackingId('');
       setCompleted(false);
       setGpsCapturing(false);
-      setSmsSending(false);
+      // smsSending no longer managed locally
     }
   }, [open]);
 
