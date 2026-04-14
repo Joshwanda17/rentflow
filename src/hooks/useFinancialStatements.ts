@@ -407,28 +407,31 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const totalIncentiveCosts = referralBonuses + agentBonuses;
       const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
       const generalOperating = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
-      const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance']);
+      const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance', 'payroll_expense']);
       const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
       const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
-      // Legacy expenses captured
+
+      // ── GAAP Expense Categories (proper ledger categories) ──
+      const marketingExpenseCat = sumWithDirectionFallback(platformOut, platformIn, ['marketing_expense']);
+      const generalAdminCat = sumWithDirectionFallback(platformOut, platformIn, ['general_admin_expense']);
+      const researchDevCat = sumWithDirectionFallback(platformOut, platformIn, ['research_development_expense']);
+      const taxExpenseCat = sumWithDirectionFallback(platformOut, platformIn, ['tax_expense']);
+      const interestExpenseCat = sumWithDirectionFallback(platformOut, platformIn, ['interest_expense']);
+      const equipmentExpenseCat = sumWithDirectionFallback(platformOut, platformIn, ['equipment_expense']);
+
+      // Legacy expenses captured (description-based for historical data)
       const legacyMarketingExpense = sumBy(walletOut, ['marketing_expense']) + sumBy(platformOut, ['marketing_expense']);
       const tenantDefaultCharges = sumBy(walletOut, ['tenant_default_charge']);
       const debtClearance = sumBy(walletOut, ['debt_clearance']);
-      // financialAgentExpenses already declared above
 
-      // Subcategory expenses from system_balance_correction entries
-      // NOTE: Subcategory tags (e.g. "📢 Marketing Expenses → ...") are on the wallet-in leg,
-      // while the platform-out leg has the generic "[expense]" description.
-      // We match BOTH sources and take the higher value to avoid double-counting
-      // (each CFO credit produces one platform-out + one wallet-in).
+      // Legacy subcategory matching for old system_balance_correction entries
       const sumByDescriptionMatch = (rows: any[], pattern: string) =>
         excludeSynthetic(rows)
           .filter(r => r.category === 'system_balance_correction' && r.description && r.description.toLowerCase().includes(pattern.toLowerCase()))
           .reduce((s, r) => s + Number(r.amount), 0);
 
-      // Match from wallet-in (has structured subcategory tags) — this is the reliable source
-      const marketingExpenses = sumByDescriptionMatch(walletIn, 'Marketing Expenses');
-      const researchDevelopment = sumByDescriptionMatch(walletIn, 'Research & Development');
+      const legacyMarketingDesc = sumByDescriptionMatch(walletIn, 'Marketing Expenses');
+      const legacyRnDDesc = sumByDescriptionMatch(walletIn, 'Research & Development');
       const opSubSalaries = sumByDescriptionMatch(walletIn, '→ Salaries') || sumByDescriptionMatch(platformOut, '→ Salaries');
       const opSubTransport = sumByDescriptionMatch(walletIn, '→ Transport') || sumByDescriptionMatch(platformOut, '→ Transport');
       const opSubFood = sumByDescriptionMatch(walletIn, '→ Food') || sumByDescriptionMatch(platformOut, '→ Food');
@@ -440,7 +443,16 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const opSubTaxes = sumByDescriptionMatch(walletIn, '→ Taxes') || sumByDescriptionMatch(platformOut, '→ Taxes');
       const opSubInterests = sumByDescriptionMatch(walletIn, '→ Interests') || sumByDescriptionMatch(platformOut, '→ Interests');
 
-      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + legacyMarketingExpense + tenantDefaultCharges + debtClearance + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
+      // Combined totals: proper category + legacy description-based
+      const totalMarketingExpense = marketingExpenseCat + legacyMarketingExpense + legacyMarketingDesc;
+      const totalGeneralAdmin = generalAdminCat + generalOperating + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery;
+      const totalPayroll = payrollExpenses + opSubSalaries;
+      const totalRnD = researchDevCat + legacyRnDDesc;
+      const totalTaxExpense = taxExpenseCat + opSubTaxes;
+      const totalInterestExpense = interestExpenseCat + opSubInterests;
+      const totalEquipmentExpense = equipmentExpenseCat + opSubPropertyEquipment;
+
+      const operatingExpensesTotal = totalMarketingExpense + totalGeneralAdmin + totalPayroll + totalRnD + totalTaxExpense + totalInterestExpense + totalEquipmentExpense + agentRequisitions + financialAgentExpenses + transactionExpenses + tenantDefaultCharges + debtClearance;
 
       const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
 
