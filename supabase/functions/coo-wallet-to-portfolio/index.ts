@@ -203,9 +203,9 @@ Deno.serve(async (req) => {
     return jsonRes({
       success: true,
       amount: topupAmount,
-      status: "pending",
+      status: "pending_verification",
       current_capital: Number(portfolio.investment_amount),
-      wallet_balance_after: currentBalance - topupAmount,
+      wallet_balance: currentBalance,
       portfolio_code: portfolio.portfolio_code,
     }, 200);
 
