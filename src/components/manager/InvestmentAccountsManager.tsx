@@ -2,15 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, FileText, Share2, RefreshCw } from 'lucide-react';
-import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
+import { Textarea } from '@/components/ui/textarea';
+import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, Share2, RefreshCw } from 'lucide-react';
+import { sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { FundInvestmentAccountDialog } from './FundInvestmentAccountDialog';
 import { RenewPortfolioDialog } from './RenewPortfolioDialog';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from '@/components/ui/dialog';
 
 interface PortfolioRow {
   id: string;
@@ -40,6 +45,10 @@ export function InvestmentAccountsManager() {
   const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
   const [renewOpen, setRenewOpen] = useState(false);
   const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
+  const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
+  const [mergeReason, setMergeReason] = useState('');
+  const [mergingTopUp, setMergingTopUp] = useState(false);
 
   const fetchPortfolios = useCallback(async () => {
     setLoading(true);
