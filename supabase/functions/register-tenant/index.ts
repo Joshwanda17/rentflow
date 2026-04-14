@@ -70,11 +70,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { full_name: rawName, phone: rawPhone, email: rawEmail } = body as Record<string, unknown>;
-    console.log("[register-tenant] Input:", { rawName, rawPhone });
+    const { full_name: rawName, phone: rawPhone, email: rawEmail, national_id: rawNationalId } = body as Record<string, unknown>;
+    console.log("[register-tenant] Input:", { rawName, rawPhone, rawNationalId });
 
     const full_name = validateFullName(rawName);
     const phone = validatePhone(rawPhone);
+    const national_id = validateNationalId(rawNationalId);
 
     if (!full_name) {
       return new Response(JSON.stringify({ error: "Invalid name. Must be 2-100 characters, letters only." }), {
@@ -85,6 +86,26 @@ Deno.serve(async (req) => {
     if (!phone) {
       return new Response(JSON.stringify({ error: "Invalid phone number format." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!national_id) {
+      return new Response(JSON.stringify({ error: "National ID is required. Must be 10-14 alphanumeric characters." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check for duplicate National ID
+    const { data: existingNationalId } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .eq("national_id", national_id)
+      .maybeSingle();
+
+    if (existingNationalId) {
+      console.log("[register-tenant] Duplicate national_id found:", existingNationalId.id);
+      return new Response(JSON.stringify({ error: `A tenant with this National ID already exists (${existingNationalId.full_name})` }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -161,7 +182,7 @@ Deno.serve(async (req) => {
     // Update profile (trigger should have created it)
     const { error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .update({ full_name, phone: cleanPhone })
+      .update({ full_name, phone: cleanPhone, national_id })
       .eq("id", userId);
     
     if (profileErr) {
