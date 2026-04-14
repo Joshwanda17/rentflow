@@ -33,13 +33,13 @@ export function useCapitalOpportunities() {
       const [byInvestor, byAgent, summaryRes] = await Promise.all([
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned, roi_percentage, status, portfolio_code, account_name, maturity_date, duration_months, auto_reinvest, roi_mode, next_roi_date, created_at, funded_at')
+          .select('id, investment_amount, total_roi_earned, roi_percentage, status, portfolio_code, account_name, maturity_date, duration_months, auto_reinvest, roi_mode, next_roi_date, created_at')
           .eq('investor_id', user.id)
           .in('status', ['active', 'pending', 'pending_approval', 'matured', 'withdrawn'])
           .limit(100),
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned, roi_percentage, status, portfolio_code, account_name, maturity_date, duration_months, auto_reinvest, roi_mode, next_roi_date, created_at, funded_at')
+          .select('id, investment_amount, total_roi_earned, roi_percentage, status, portfolio_code, account_name, maturity_date, duration_months, auto_reinvest, roi_mode, next_roi_date, created_at')
           .eq('agent_id', user.id)
           .is('investor_id', null)
           .in('status', ['active', 'pending', 'pending_approval', 'matured', 'withdrawn'])
