@@ -431,6 +431,7 @@ export function FinancialStatementsPanel() {
       rows.push(['Platform Cash (Earned Revenue)', '', d.assets.platformCash]);
       rows.push(['User Funds Held in Custody', '', d.assets.userFundsHeld]);
       rows.push(['Rent Receivables (Funded)', '', d.assets.receivables]);
+      if (d.assets.rentReceivablesCreated) rows.push(['Rent Receivables Created', '', d.assets.rentReceivablesCreated]);
       rows.push(['Advance Access Fee Receivables', '', d.assets.advanceAccessFeeReceivables]);
       rows.push(['Promissory Notes Receivable', '', d.assets.promissoryNotesReceivable]);
       rows.push(['Total Assets', '', d.assets.totalAssets]);
