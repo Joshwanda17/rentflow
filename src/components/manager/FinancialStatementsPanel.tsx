@@ -129,6 +129,9 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
       <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
       <LineItem label="Marketing Expenses" value={d.operatingExpenses.marketingExpenses} negative indent />
       <LineItem label="Research & Development" value={d.operatingExpenses.researchDevelopment} negative indent />
+      <LineItem label="Tax Expense" value={d.operatingExpenses.taxExpense} negative indent />
+      <LineItem label="Interest Expense" value={d.operatingExpenses.interestExpense} negative indent />
+      <LineItem label="Equipment & Depreciation" value={d.operatingExpenses.equipmentExpense} negative indent />
       {(d.operatingExpenses.operationalSubcategories.salaries > 0 ||
         d.operatingExpenses.operationalSubcategories.transport > 0 ||
         d.operatingExpenses.operationalSubcategories.food > 0 ||
@@ -147,7 +150,7 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
           {d.operatingExpenses.operationalSubcategories.stationery > 0 && <LineItem label="  Stationery" value={d.operatingExpenses.operationalSubcategories.stationery} negative indent />}
         </>
       )}
-      <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
+      <LineItem label="General & Admin Expenses" value={d.operatingExpenses.generalOperating} negative indent />
       <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold delta={cm?.totalOperatingExpenses} />
 
       {/* GAAP: Operating Income (EBIT before D&A) */}
