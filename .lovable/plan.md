@@ -1,57 +1,62 @@
 
 
-## Investigation Results: Why Agents Aren't Getting Commission
+## Plan: Fix Landlord Display and Add Button
 
-### Root Cause Found
+### Problem 1: "No landlord linked"
+The houses shown in the screenshot (`Single Room in Wakiso`, `House near the Road`) genuinely have `landlord_id = NULL` in the database. They were never linked to a landlord during listing. The UI is correctly showing "No landlord linked" — this is a data issue, not a display bug.
 
-The `approve-deposit` edge function only calls `credit_agent_rent_commission` when the deposit request has an `agent_id` set:
-
-```typescript
-// Line 248 — commission is SKIPPED when agent_id is null
-if (depositRequest.agent_id && rentRequestId) {
-  await supabaseAdmin.rpc("credit_agent_rent_commission", { ... });
-}
+### Problem 2: "Add" button silently fails
+The `house_listings` table UPDATE policy only allows agents to update their own listings:
+```sql
+-- Current: only the listing agent can update
+Agents can update own listings: auth.uid() = agent_id
 ```
 
-**All recent deposits (since April 9) have `agent_id: null`** — they are self-deposits made by agents or tenants directly, not through an intermediary agent. So even though rent repayments are correctly applied (13+ repayments totaling hundreds of thousands of UGX), the commission call is skipped entirely.
+When an Operations or Executive user clicks "Add" to assign a landlord, the `AssignPersonDialog` runs:
+```typescript
+await supabase.from('house_listings')
+  .update({ landlord_id: person.id })
+  .eq('id', listingId);
+```
 
-The commission RPC itself already handles agent lookup internally from `rent_requests.agent_id` and `rent_requests.assigned_agent_id` — it does NOT need the deposit's `agent_id` at all. The guard condition is over-restrictive.
-
-### Evidence
-- Last `agent_commission` ledger entry: **April 9**
-- Repayments since April 9: **15+ records** (UGX 23K–780K each)
-- All via deposits where `deposit_requests.agent_id = null`
-- The `credit_agent_rent_commission` RPC correctly returns `no_agents` if no agent is linked — so it's safe to call unconditionally
+This fails silently because RLS blocks the update for non-agent roles. There is no UPDATE policy for operations/executive roles.
 
 ### Fix
 
-**File: `supabase/functions/approve-deposit/index.ts`**
+**Database migration** — Add an UPDATE policy for operations and executive roles on `house_listings`:
 
-Remove the `depositRequest.agent_id` guard from all three commission call sites (lines 248, 337, 421). Change:
-
-```typescript
-if (depositRequest.agent_id && rentRequestId) {
+```sql
+CREATE POLICY "Operations and executives can update house listings"
+ON public.house_listings
+FOR UPDATE
+TO authenticated
+USING (
+  has_role(auth.uid(), 'operations') OR
+  has_role(auth.uid(), 'manager') OR
+  has_role(auth.uid(), 'coo') OR
+  has_role(auth.uid(), 'ceo') OR
+  has_role(auth.uid(), 'cfo') OR
+  has_role(auth.uid(), 'super_admin') OR
+  has_role(auth.uid(), 'cto')
+)
+WITH CHECK (
+  has_role(auth.uid(), 'operations') OR
+  has_role(auth.uid(), 'manager') OR
+  has_role(auth.uid(), 'coo') OR
+  has_role(auth.uid(), 'ceo') OR
+  has_role(auth.uid(), 'cfo') OR
+  has_role(auth.uid(), 'super_admin') OR
+  has_role(auth.uid(), 'cto')
+);
 ```
-to:
-```typescript
-if (rentRequestId) {
-```
 
-This applies to three locations in the file:
-1. **Line 248** — After initial rent repayment
-2. **Line 337** — After clearing accumulated debt
-3. **Line 421** — After pre-paying future days
-
-The RPC safely handles the case where no agent exists (returns `no_agents` status with zero commission).
-
-### Backfill Missing Commissions
-
-After the fix, create a one-time backfill script to credit the missed commissions for the 15+ repayments since April 9. This would call `credit_agent_rent_commission` for each repayment that has no matching `commission_accrual_ledger` entry.
+This matches the existing SELECT policy for these roles, ensuring they can both view and update listings (assign landlords, agents, verify, etc.).
 
 ### Files
 
 | File | Action |
 |------|--------|
-| `supabase/functions/approve-deposit/index.ts` | **Edit** — remove `agent_id` guard from 3 commission calls |
-| Backfill script (one-time) | **Run** — credit missed commissions for April 9–14 repayments |
+| Database migration | **Create** — add UPDATE RLS policy for operations/executive roles on `house_listings` |
+
+No code changes needed — the `AssignPersonDialog` logic is correct, it's just being blocked by RLS.
 
