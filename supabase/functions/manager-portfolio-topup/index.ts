@@ -1,11 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const VALID_METHODS = ["cash", "mobile_money", "bank", "wallet"] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonRes(body: Record<string, unknown>, status: number) {
@@ -47,21 +47,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { portfolio_id, amount, notes, payment_method, wallet_source, proxy_agent_id } = body;
+    const { portfolio_id, amount, notes, payment_method, transaction_reference } = body;
 
     // Validate portfolio_id
     if (!portfolio_id || !UUID_RE.test(portfolio_id)) {
       return jsonRes({ error: "Invalid portfolio_id" }, 400);
     }
-
-    // Only wallet-based top-ups are allowed
-    if (payment_method !== "wallet") {
-      return jsonRes({ error: "Only wallet-based top-ups are supported" }, 400);
-    }
-
-    // Validate wallet_source
-    const validSources = ["partner_wallet", "proxy_agent_wallet"];
-    const source = validSources.includes(wallet_source) ? wallet_source : "partner_wallet";
 
     // Validate amount
     const topupAmount = Number(amount);
@@ -70,6 +61,20 @@ Deno.serve(async (req) => {
     }
     if (topupAmount > 200_000_000_000) {
       return jsonRes({ error: "Amount exceeds maximum" }, 400);
+    }
+
+    // Validate payment method
+    if (!payment_method || !VALID_METHODS.includes(payment_method)) {
+      return jsonRes({ error: "Invalid payment method. Use: cash, mobile_money, bank, or wallet" }, 400);
+    }
+
+    // Validate transaction reference for non-cash/non-wallet methods
+    const safeRef = typeof transaction_reference === "string" ? transaction_reference.trim().slice(0, 50) : "";
+    if (payment_method === "mobile_money" && safeRef.length < 8) {
+      return jsonRes({ error: "Mobile Money TID must be at least 8 characters" }, 400);
+    }
+    if (payment_method === "bank" && safeRef.length < 6) {
+      return jsonRes({ error: "Bank reference must be at least 6 characters" }, 400);
     }
 
     const safeNotes = typeof notes === "string" ? notes.slice(0, 500) : "";
@@ -92,86 +97,94 @@ Deno.serve(async (req) => {
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
     const now = new Date().toISOString();
 
-    // Determine whose wallet to deduct from
-    let deductUserId = partnerId;
-    let sourceLabel = "Partner Wallet";
+    const methodLabel = payment_method === "wallet" ? "Wallet" : payment_method === "mobile_money" ? "Mobile Money" : payment_method === "bank" ? "Bank Transfer" : "Cash";
+    const refLabel = safeRef ? ` (${payment_method === "mobile_money" ? "TID" : "Ref"}: ${safeRef})` : "";
 
-    if (source === "proxy_agent_wallet") {
-      if (!proxy_agent_id || !UUID_RE.test(proxy_agent_id)) {
-        return jsonRes({ error: "Invalid proxy_agent_id" }, 400);
+    // ── WALLET PAYMENT: Check balance & deduct via ledger ──
+    if (payment_method === "wallet") {
+      // 1. Check partner wallet balance
+      const { data: wallet, error: wErr } = await supabase
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", partnerId)
+        .single();
+
+      if (wErr || !wallet) return jsonRes({ error: "Partner wallet not found" }, 404);
+
+      if (Number(wallet.balance) < topupAmount) {
+        return jsonRes({ error: `Insufficient wallet balance. Available: UGX ${Number(wallet.balance).toLocaleString()}` }, 400);
       }
 
-      // Verify proxy assignment exists
-      const { data: proxyAssignment } = await supabase
-        .from("proxy_agent_assignments")
-        .select("id, agent_id")
-        .eq("agent_id", proxy_agent_id)
-        .eq("beneficiary_id", partnerId)
-        .eq("is_active", true)
-        .maybeSingle();
+      // 2. Record pending operation
+      const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
+        user_id: partnerId,
+        amount: topupAmount,
+        direction: "cash_in",
+        category: "pending_portfolio_topup",
+        source_table: "investor_portfolios",
+        source_id: portfolio_id,
+        transaction_group_id: txGroupId,
+        description: `Wallet top-up for ${accountLabel} — initiated by executive`,
+        linked_party: "platform",
+        status: "pending",
+        operation_type: "portfolio_topup",
+        reference_id: null,
+        account: "wallet",
+        metadata: {
+          payment_method: "wallet",
+          initiated_by: user.id,
+          portfolio_code: portfolio.portfolio_code,
+          source: "executive_wallet_deduction",
+        },
+      });
 
-      if (!proxyAssignment) {
-        return jsonRes({ error: "No active proxy agent assignment found for this partner" }, 403);
+      if (pendingErr) {
+        console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
+        return jsonRes({ error: "Failed to record pending top-up" }, 500);
       }
 
-      deductUserId = proxy_agent_id;
+      // 3. NO ledger entries at submission — Financial Ops must approve first.
+      //    Money only moves from wallet when approve-wallet-operation processes this.
 
-      // Get proxy agent name for audit
-      const { data: agentProfile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", proxy_agent_id)
-        .maybeSingle();
+    } else {
+      // ── NON-WALLET PAYMENT (cash, mobile_money, bank) ──
 
-      sourceLabel = `Proxy Agent (${agentProfile?.full_name || proxy_agent_id})`;
+      // 1. Record pending operation
+      const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
+        user_id: partnerId,
+        amount: topupAmount,
+        direction: "cash_in",
+        category: "pending_portfolio_topup",
+        source_table: "investor_portfolios",
+        source_id: portfolio_id,
+        transaction_group_id: txGroupId,
+        description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
+        linked_party: "platform",
+        status: "pending",
+        operation_type: "portfolio_topup",
+        reference_id: safeRef || null,
+        account: payment_method,
+        metadata: {
+          payment_method,
+          transaction_reference: safeRef || null,
+          initiated_by: user.id,
+          portfolio_code: portfolio.portfolio_code,
+        },
+      });
+
+      if (pendingErr) {
+        console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
+        return jsonRes({ error: "Failed to record pending top-up" }, 500);
+      }
+
+      // 2. NO ledger entry for external payments (cash/MoMo/bank).
+      //    The pending_wallet_operations record tracks the intent.
+      //    Actual ledger entries are created when apply-pending-topups
+      //    runs at maturity — matching the deposit approval pattern.
+      //    Writing a wallet cash_out here would phantom-debit the partner.
     }
 
-    // Check wallet balance
-    const { data: wallet, error: wErr } = await supabase
-      .from("wallets")
-      .select("balance")
-      .eq("user_id", deductUserId)
-      .single();
-
-    if (wErr || !wallet) return jsonRes({ error: `${sourceLabel} wallet not found` }, 404);
-
-    if (Number(wallet.balance) < topupAmount) {
-      return jsonRes({ error: `Insufficient ${sourceLabel.toLowerCase()} balance. Available: UGX ${Number(wallet.balance).toLocaleString()}` }, 400);
-    }
-
-    // Record pending operation with full source tracking
-    const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
-      user_id: deductUserId,
-      amount: topupAmount,
-      direction: "cash_in",
-      category: "pending_portfolio_topup",
-      source_table: "investor_portfolios",
-      source_id: portfolio_id,
-      transaction_group_id: txGroupId,
-      description: `${sourceLabel} top-up for ${accountLabel} — initiated by executive`,
-      linked_party: "platform",
-      status: "pending",
-      operation_type: "portfolio_topup",
-      reference_id: null,
-      account: "wallet",
-      metadata: {
-        payment_method: "wallet",
-        wallet_source: source,
-        deduct_from_user_id: deductUserId,
-        partner_id: partnerId,
-        proxy_agent_id: source === "proxy_agent_wallet" ? proxy_agent_id : null,
-        initiated_by: user.id,
-        portfolio_code: portfolio.portfolio_code,
-        source_label: sourceLabel,
-      },
-    });
-
-    if (pendingErr) {
-      console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
-      return jsonRes({ error: "Failed to record pending top-up" }, 500);
-    }
-
-    // Audit trail with full source tracking
+    // ── SHARED: Audit trail ──
     await supabase.from("audit_logs").insert({
       user_id: user.id,
       action_type: "manager_portfolio_topup_pending",
@@ -181,27 +194,60 @@ Deno.serve(async (req) => {
         partner_id: partnerId,
         amount: topupAmount,
         current_capital: Number(portfolio.investment_amount),
-        payment_method: "wallet",
-        wallet_source: source,
-        deduct_from_user_id: deductUserId,
-        proxy_agent_id: source === "proxy_agent_wallet" ? proxy_agent_id : null,
-        source_label: sourceLabel,
+        payment_method,
+        transaction_reference: safeRef || null,
         notes: safeNotes,
         status: "pending_verification",
+        wallet_deduction: payment_method === "wallet",
       },
     });
 
-    // System event for traceability
-    await logSystemEvent(supabase, "portfolio_topup_submitted", user.id, "investor_portfolios", portfolio_id, {
-      partner_id: partnerId,
-      amount: topupAmount,
-      wallet_source: source,
-      deduct_from: deductUserId,
-      source_label: sourceLabel,
-      portfolio_code: portfolio.portfolio_code,
+    // ── SHARED: Notify partner ──
+    const partnerMsg = payment_method === "wallet"
+      ? `UGX ${topupAmount.toLocaleString()} deducted from your wallet for portfolio "${accountLabel}". Awaiting verification.`
+      : `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for "${accountLabel}".${refLabel} Awaiting verification.`;
+
+    await supabase.from("notifications").insert({
+      user_id: partnerId,
+      title: payment_method === "wallet" ? "💳 Wallet → Portfolio Top-Up" : "⏳ Portfolio Top-Up Pending",
+      message: partnerMsg,
+      type: "info",
+      metadata: { portfolio_id, amount: topupAmount, payment_method, status: "pending", initiated_by: user.id },
     });
 
-    console.log(`[manager-portfolio-topup] ${user.id} submitted wallet top-up for ${portfolio_id} (partner: ${partnerId}, source: ${sourceLabel}, deduct: ${deductUserId}) amount ${topupAmount}`);
+    // ── SHARED: Notify CFO + COO executives ──
+    try {
+      const { data: execs } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .in("role", ["cfo", "coo"])
+        .eq("enabled", true);
+      if (execs && execs.length > 0) {
+        const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
+        if (uniqueIds.length > 0) {
+          await supabase.from("notifications").insert(
+            uniqueIds.map((uid: string) => ({
+              user_id: uid,
+              title: "📊 Portfolio Top-Up Submitted",
+              message: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up for "${accountLabel}" (${portfolio.portfolio_code})${refLabel} — pending verification.`,
+              type: "info",
+              metadata: { portfolio_id, amount: topupAmount, payment_method, portfolio_code: portfolio.portfolio_code, initiated_by: user.id },
+            }))
+          );
+        }
+      }
+    } catch (notifErr) {
+      console.error("[manager-portfolio-topup] Executive notification error (non-blocking):", notifErr);
+    }
+
+    console.log(`[manager-portfolio-topup] Manager ${user.id} submitted ${methodLabel} top-up for ${portfolio_id} (partner: ${partnerId}) amount ${topupAmount}${refLabel}`);
+
+    // Notify managers (fire-and-forget)
+    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ title: "📊 Manager Portfolio Top-Up", body: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up for ${accountLabel} (${portfolio.portfolio_code})`, url: "/manager" }),
+    }).catch(() => {});
 
     // Push notification to partner (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
@@ -209,7 +255,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [partnerId],
-        payload: { title: "💰 Portfolio Top-Up Submitted", body: `UGX ${topupAmount.toLocaleString()} top-up submitted for ${accountLabel} from ${sourceLabel}`, url: "/dashboard", type: "success" },
+        payload: { title: "💰 Portfolio Credited", body: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for ${accountLabel}`, url: "/dashboard", type: "success" },
       }),
     }).catch(() => {});
 
@@ -217,9 +263,7 @@ Deno.serve(async (req) => {
       success: true,
       amount: topupAmount,
       status: "pending",
-      payment_method: "wallet",
-      wallet_source: source,
-      source_label: sourceLabel,
+      payment_method,
       current_capital: Number(portfolio.investment_amount),
       portfolio_code: portfolio.portfolio_code,
     }, 200);
