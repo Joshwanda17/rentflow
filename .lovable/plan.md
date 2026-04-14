@@ -1,86 +1,114 @@
 
 
-## Plan: Portfolio Top-Up Approval Gate via Financial Ops
+## Plan: Short Referral Links for Agent Dashboard
 
 ### Problem
-Currently, when COO or Partner Operations initiates a wallet-to-portfolio top-up, the money is **immediately deducted** from the partner's wallet via ledger entries, and the pending record is created as a formality. The principal (`investment_amount`) is not updated at all — neither immediately nor on approval. This creates two issues:
-1. Money leaves the wallet before Financial Ops verifies the transaction
-2. The portfolio principal never actually increases from top-ups
+Agent share links contain raw UUIDs and long query parameters:
+```
+https://welilereceipts.com/auth?ref=8f42b1c3-5d9e-4a7b-b2e1-9c3f4d5a6e7b&become=agent
+```
+These are hard to read, intimidating to recipients, and break on some messaging apps.
 
-### New Flow
+### Solution
+Create a `short_links` database table that maps short 6-character codes to full URL parameters. When sharing, the app generates/reuses a short code. A new `/r/:code` route resolves the code and redirects to the full auth URL with all original parameters intact.
+
+### How It Works
 
 ```text
-COO/Partner Ops submits top-up
-        │
-        ▼
-  pending_wallet_operations record created (status: "pending")
-  ── NO wallet deduction, NO ledger entries ──
-        │
-        ▼
-  Shows as "⏳ Pending" in Financial Ops Approval Queue
-  Shows as "Pending Top-Up" badge on portfolio in COO/Partner Ops view
-        │
-        ├── Financial Ops APPROVES ──▶ Wallet deducted via ledger
-        │                             Portfolio investment_amount increased
-        │                             Partner notified: "Top-up approved"
-        │                             Audit logged
-        │
-        └── Financial Ops REJECTS ──▶ No money moves
-                                      Partner notified: "Top-up rejected"
-                                      Audit logged
+Agent clicks "Share"
+      │
+      ▼
+App checks short_links table for existing code
+matching this user + params combo
+      │
+      ├── Found ──▶ Reuse existing code
+      │
+      └── Not found ──▶ Insert new row, get auto-generated 6-char code
+      │
+      ▼
+Share link: welilereceipts.com/r/X7kM2p   (short!)
+      │
+      ▼
+Recipient opens link
+      │
+      ▼
+/r/:code route loads → queries short_links → redirects to:
+  /auth?ref=UUID&become=agent   (all params preserved)
 ```
 
-### Changes
+### Technical Details
 
-**1. `supabase/functions/coo-wallet-to-portfolio/index.ts`** — Remove immediate ledger entries
+**1. Database migration** — New `short_links` table:
+```sql
+CREATE TABLE public.short_links (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text UNIQUE NOT NULL DEFAULT generate_short_code(),  -- reuse existing 6-char generator
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  target_path text NOT NULL,       -- e.g. "/auth"
+  target_params jsonb NOT NULL,    -- e.g. {"ref":"uuid","become":"agent"}
+  created_at timestamptz DEFAULT now()
+);
 
-- Keep wallet balance check (validate partner has enough funds)
-- Keep pending_wallet_operations insert (status: "pending")
-- **Remove** the `create_ledger_transaction` RPC call (lines 130–157) — no wallet deduction at submission
-- Update response to indicate "pending_verification" status
-- Keep audit log, notifications
+-- Unique constraint: one code per user+path+params combo
+CREATE UNIQUE INDEX idx_short_links_user_params 
+  ON public.short_links(user_id, target_path, md5(target_params::text));
 
-**2. `supabase/functions/manager-portfolio-topup/index.ts`** — Remove immediate ledger entries for wallet path
+-- RLS: users can insert/select their own links
+ALTER TABLE public.short_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users manage own short links" ON public.short_links
+  FOR ALL TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
-- Keep wallet balance check
-- Keep pending_wallet_operations insert
-- **Remove** the ledger RPC call (lines 147–174) and the post-deduction negative balance check/rollback (lines 182–224)
-- **Remove** the wallet_transactions insert (lines 227–232) — premature
-- Keep audit, notifications
+-- Public select by code (for resolution)
+CREATE POLICY "Anyone can resolve short links" ON public.short_links
+  FOR SELECT TO anon, authenticated
+  USING (true);
+```
 
-**3. `supabase/functions/approve-wallet-operation/index.ts`** — Add portfolio top-up approval logic
+**2. New route `/r/:code`** — `src/pages/ResolveShortLink.tsx`
+- Queries `short_links` by code
+- Reconstructs the full URL from `target_path` + `target_params`
+- Redirects via `window.location.replace()`
+- Shows loading spinner while resolving
 
-After the existing ledger insert block (which handles wallet credits), add a new section for `portfolio_topup` operations:
+**3. New hook `useShortLink`** — `src/hooks/useShortLink.ts`
+- Takes `path` and `params` object
+- Upserts into `short_links` (reuses existing code if same user+path+params)
+- Returns the short URL: `welilereceipts.com/r/X7kM2p`
+- Caches in React Query to avoid repeated DB calls
 
-- When `op.operation_type === 'portfolio_topup'` and `op.source_table === 'investor_portfolios'`:
-  - Re-verify wallet balance (fresh check to prevent race conditions)
-  - Create balanced ledger entries: wallet `cash_out` (partner_funding) + platform `cash_in` (partner_funding)
-  - Update `investor_portfolios.investment_amount` += top-up amount
-  - Notify partner: "Your top-up of UGX X has been approved and applied"
-  - Log to audit_logs
+**4. Update agent share components** to use `useShortLink`:
+- `QuickShareSubAgentSheet.tsx` — `{ref, become: "agent"}`
+- `ShareSubAgentLink.tsx` — `{ref, become: "agent"}`
+- `ShareReferralLink.tsx` — `{ref}`
+- `AgentPartnerDashboardSheet.tsx` — `{ref}`
+- `ShareSupporterRecruit.tsx` — `{role: "supporter", ref}`
+- `ShareCalculatorLink.tsx` — `{role: "supporter", ref}`
+- `EarningsRankSystemSheet.tsx` — `{role: "agent", ref}`
+- `ShareWelileAIBanner.tsx` — (no params, static — skip)
 
-- On rejection of `portfolio_topup`:
-  - No money moves (nothing to reverse since no deduction happened)
-  - Notify partner: "Your top-up was rejected. Reason: ..."
-
-**4. No UI changes needed** — The COO/Partner Ops dashboard already:
-- Shows pending top-up badges via `pendingTopUps` state
-- Financial Ops Approval Queue already shows `portfolio_topup` items with the "💰 Portfolio Deposit" label
-- The approve/reject bulk actions already route through `approve-wallet-operation`
+Each component replaces the long URL with the short one from the hook. All params (ref, role, become) are preserved in the database and reconstructed on resolution.
 
 ### Files
 
 | File | Action |
 |------|--------|
-| `supabase/functions/coo-wallet-to-portfolio/index.ts` | **Edit** — remove ledger RPC call, keep only pending record |
-| `supabase/functions/manager-portfolio-topup/index.ts` | **Edit** — remove wallet-path ledger RPC + rollback + wallet_transactions |
-| `supabase/functions/approve-wallet-operation/index.ts` | **Edit** — add portfolio_topup approval logic (wallet deduct + principal update) |
+| Database migration | **Create** — `short_links` table with RLS |
+| `src/hooks/useShortLink.ts` | **Create** — hook to generate/cache short links |
+| `src/pages/ResolveShortLink.tsx` | **Create** — resolve code and redirect |
+| `src/App.tsx` | **Edit** — add `/r/:code` route |
+| `src/components/agent/QuickShareSubAgentSheet.tsx` | **Edit** — use short link |
+| `src/components/agent/ShareSubAgentLink.tsx` | **Edit** — use short link |
+| `src/components/agent/ShareReferralLink.tsx` | **Edit** — use short link |
+| `src/components/agent/AgentPartnerDashboardSheet.tsx` | **Edit** — use short link |
+| `src/components/shared/ShareSupporterRecruit.tsx` | **Edit** — use short link |
+| `src/components/supporter/ShareCalculatorLink.tsx` | **Edit** — use short link |
+| `src/components/agent/EarningsRankSystemSheet.tsx` | **Edit** — use short link |
 
-### Impact
+### Result
+Before: `welilereceipts.com/auth?ref=8f42b1c3-5d9e-4a7b-b2e1-9c3f4d5a6e7b&become=agent`
+After: `welilereceipts.com/r/X7kM2p`
 
-- **Financial Ops**: Full gatekeeping authority — no money moves without their approval
-- **COO/Partner Ops**: Can still submit top-ups, but see "Pending" status until approved
-- **Partners**: Wallet balance stays intact until Financial Ops approves; principal only increases on approval
-- **Audit trail**: Complete — submission logged by COO, approval/rejection logged by Financial Ops
-- **Ledger integrity**: Maintained — balanced double-entry only happens once, at approval time
+All referral tracking, role assignment, and sub-agent registration continue working exactly as before — the short code just maps back to the same parameters.
 
