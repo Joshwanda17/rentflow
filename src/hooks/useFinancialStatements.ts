@@ -305,23 +305,28 @@ export function useFinancialStatements() {
       // financialAgentExpenses already declared above
 
       // Subcategory expenses from system_balance_correction entries
+      // NOTE: Subcategory tags (e.g. "📢 Marketing Expenses → ...") are on the wallet-in leg,
+      // while the platform-out leg has the generic "[expense]" description.
+      // We match BOTH sources and take the higher value to avoid double-counting
+      // (each CFO credit produces one platform-out + one wallet-in).
       const sumByDescriptionMatch = (rows: any[], pattern: string) =>
         excludeSynthetic(rows)
           .filter(r => r.category === 'system_balance_correction' && r.description && r.description.toLowerCase().includes(pattern.toLowerCase()))
           .reduce((s, r) => s + Number(r.amount), 0);
 
-      const marketingExpenses = sumByDescriptionMatch(platformOut, 'Marketing Expenses');
-      const researchDevelopment = sumByDescriptionMatch(platformOut, 'Research & Development');
-      const opSubSalaries = sumByDescriptionMatch(platformOut, '→ Salaries');
-      const opSubTransport = sumByDescriptionMatch(platformOut, '→ Transport');
-      const opSubFood = sumByDescriptionMatch(platformOut, '→ Food');
-      const opSubOfficeRent = sumByDescriptionMatch(platformOut, '→ Office Rent');
-      const opSubInternet = sumByDescriptionMatch(platformOut, '→ Internet');
-      const opSubAirtime = sumByDescriptionMatch(platformOut, '→ Airtime');
-      const opSubStationery = sumByDescriptionMatch(platformOut, '→ Stationery');
-      const opSubPropertyEquipment = sumByDescriptionMatch(platformOut, '→ Property & Equipment');
-      const opSubTaxes = sumByDescriptionMatch(platformOut, '→ Taxes');
-      const opSubInterests = sumByDescriptionMatch(platformOut, '→ Interests');
+      // Match from wallet-in (has structured subcategory tags) — this is the reliable source
+      const marketingExpenses = sumByDescriptionMatch(walletIn, 'Marketing Expenses');
+      const researchDevelopment = sumByDescriptionMatch(walletIn, 'Research & Development');
+      const opSubSalaries = sumByDescriptionMatch(walletIn, '→ Salaries') || sumByDescriptionMatch(platformOut, '→ Salaries');
+      const opSubTransport = sumByDescriptionMatch(walletIn, '→ Transport') || sumByDescriptionMatch(platformOut, '→ Transport');
+      const opSubFood = sumByDescriptionMatch(walletIn, '→ Food') || sumByDescriptionMatch(platformOut, '→ Food');
+      const opSubOfficeRent = sumByDescriptionMatch(walletIn, '→ Office Rent') || sumByDescriptionMatch(platformOut, '→ Office Rent');
+      const opSubInternet = sumByDescriptionMatch(walletIn, '→ Internet') || sumByDescriptionMatch(platformOut, '→ Internet');
+      const opSubAirtime = sumByDescriptionMatch(walletIn, '→ Airtime') || sumByDescriptionMatch(platformOut, '→ Airtime');
+      const opSubStationery = sumByDescriptionMatch(walletIn, '→ Stationery') || sumByDescriptionMatch(platformOut, '→ Stationery');
+      const opSubPropertyEquipment = sumByDescriptionMatch(walletIn, '→ Property & Equipment') || sumByDescriptionMatch(platformOut, '→ Property & Equipment');
+      const opSubTaxes = sumByDescriptionMatch(walletIn, '→ Taxes') || sumByDescriptionMatch(platformOut, '→ Taxes');
+      const opSubInterests = sumByDescriptionMatch(walletIn, '→ Interests') || sumByDescriptionMatch(platformOut, '→ Interests');
 
       const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + legacyMarketingExpense + tenantDefaultCharges + debtClearance + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
 
