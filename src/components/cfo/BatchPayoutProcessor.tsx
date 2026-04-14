@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export function BatchPayoutProcessor() {
+  const { user } = useAuth();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchRef, setBatchRef] = useState('');
   const qc = useQueryClient();
@@ -66,12 +67,25 @@ export function BatchPayoutProcessor() {
         });
         if (error) throw error;
       }
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'cfo_batch_payout_processed',
+        table_name: 'rent_requests',
+        record_id: batchRef,
+        metadata: {
+          batch_reference: batchRef,
+          count: selected.size,
+          rent_request_ids: Array.from(selected),
+        },
+      });
     },
     onSuccess: () => {
       toast.success(`${selected.size} payouts processed`);
       setSelected(new Set());
       setBatchRef('');
       qc.invalidateQueries({ queryKey: ['batch-payout-pending'] });
+      qc.invalidateQueries({ queryKey: ['cfo-actions-log'] });
     },
     onError: (e: any) => toast.error(e.message || 'Batch failed'),
   });
