@@ -130,12 +130,32 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       // Try to find or create landlord reference
       let landlordId: string | null = null;
       if (form.landlord_phone) {
+        const normalizedPhone = form.landlord_phone.trim();
         const { data: landlord } = await supabase
           .from('landlords')
           .select('id')
-          .eq('phone', form.landlord_phone)
+          .eq('phone', normalizedPhone)
           .maybeSingle();
-        landlordId = landlord?.id || null;
+
+        if (landlord?.id) {
+          landlordId = landlord.id;
+        } else if (form.landlord_name.trim()) {
+          // Landlord doesn't exist yet — create one so the listing links properly
+          const { data: newLandlord } = await supabase
+            .from('landlords')
+            .insert({
+              name: form.landlord_name.trim(),
+              phone: normalizedPhone,
+              has_smartphone: form.landlord_has_smartphone,
+              property_address: form.address || null,
+              village: form.village || null,
+              district: form.district || null,
+              region: form.region || null,
+            })
+            .select('id')
+            .single();
+          landlordId = newLandlord?.id || null;
+        }
       }
 
       // Determine caretaker details
