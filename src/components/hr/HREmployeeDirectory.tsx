@@ -325,8 +325,8 @@ export default function HREmployeeDirectory() {
                       Status <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </TableHead>
-                  <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Contact</TableHead>
-                </TableRow>
+                    <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Contact</TableHead>
+                    <TableHead className="w-[60px] text-xs font-semibold uppercase tracking-wider">Edit</TableHead>
               </TableHeader>
               <TableBody>
                 {paged.map((emp) => (
