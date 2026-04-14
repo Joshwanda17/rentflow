@@ -91,5 +91,9 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.process-agent-advance-deductions]
     verify_jwt = false
+  [functions.inngest-send-sms]
+    verify_jwt = false
+  [functions.inngest]
+    verify_jwt = false
   [functions.process-email-queue]
     verify_jwt = true
