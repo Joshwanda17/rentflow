@@ -334,9 +334,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   // ── Success Screen ──
   if (success) {
     const hasToken = !!success.activation_token;
-    const activationLink = hasToken
-      ? `${getPublicOrigin()}/join?t=${success.activation_token}`
-      : null;
+    const activationLink = shortActivationLink
+      || (hasToken ? `${getPublicOrigin()}/join?t=${success.activation_token}` : null);
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
