@@ -20,7 +20,7 @@ import { formatDateOnlyForDisplay, extractDateOnly, dateOnlyToLocalDate } from '
 import { hapticTap } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
+import { downloadPortfolioPdf, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { differenceInCalendarDays } from 'date-fns';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'destructive' | 'muted'; dot: string }> = {
