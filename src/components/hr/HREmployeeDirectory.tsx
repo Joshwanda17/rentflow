@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Search, User, ArrowUpDown, Users, UserPlus, Download, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Building2, Shield } from 'lucide-react';
+import { Search, User, ArrowUpDown, Users, UserPlus, Download, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Building2, Shield, Pencil } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
 import type { AppRole } from '@/hooks/auth/types';
+import { EmployeeBadge } from '@/components/employee/EmployeeBadge';
+import { EditEmployeeModal } from '@/components/hr/EditEmployeeModal';
 
 const INTERNAL_ROLES: AppRole[] = ['manager', 'super_admin', 'employee', 'operations', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr'];
 
