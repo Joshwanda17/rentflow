@@ -310,9 +310,14 @@ export default function InvestmentPortfolio() {
                         </div>
                       ) : (
                         <>
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <p className="text-sm font-bold text-foreground truncate">{account.name}</p>
                             <span className="text-xs">{getStatusEmoji(account.status)}</span>
+                            {(account.pendingTopup ?? 0) > 0 && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-warning/15 border border-warning/20 text-[10px] font-bold text-warning shrink-0">
+                                ⏳ +{formatAmount(account.pendingTopup!)} pending
+                              </span>
+                            )}
                           </div>
                           {account.portfolio_code && (
                             <p className="text-[10px] text-muted-foreground font-mono">{account.portfolio_code}</p>
