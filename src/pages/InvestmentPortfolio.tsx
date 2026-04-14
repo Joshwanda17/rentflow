@@ -40,6 +40,7 @@ interface InvestmentAccount {
   created_at: string; updated_at: string; linked_fundings: LinkedFunding[];
   interest_payments: InterestPayment[]; total_roi_earned: number;
   portfolio_code?: string; duration_months?: number; roi_percentage?: number; roi_mode?: string;
+  pendingTopup?: number;
 }
 
 export default function InvestmentPortfolio() {
@@ -79,14 +80,27 @@ export default function InvestmentPortfolio() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: portfolios, error } = await supabase
-        .from('investor_portfolios').select('*')
-        .or(`investor_id.eq.${user.id},agent_id.eq.${user.id}`)
-        .in('status', ['active', 'pending_approval'])
-        .order('created_at', { ascending: false });
-      if (error) { console.error(error); setAccounts([]); return; }
+      const [portfoliosRes, pendingOpsRes] = await Promise.all([
+        supabase
+          .from('investor_portfolios').select('*')
+          .or(`investor_id.eq.${user.id},agent_id.eq.${user.id}`)
+          .in('status', ['active', 'pending_approval'])
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('pending_wallet_operations')
+          .select('source_id, amount')
+          .eq('source_table', 'investor_portfolios')
+          .eq('operation_type', 'portfolio_topup')
+          .in('status', ['approved', 'awaiting_verification']),
+      ]);
+      if (portfoliosRes.error) { console.error(portfoliosRes.error); setAccounts([]); return; }
+      // Build pending top-up map: portfolio_id -> total pending amount
+      const pendingMap = new Map<string, number>();
+      (pendingOpsRes.data || []).forEach((op: any) => {
+        pendingMap.set(op.source_id, (pendingMap.get(op.source_id) || 0) + Number(op.amount));
+      });
       const colors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#8b5cf6'];
-      setAccounts((portfolios || []).map((p: any, i: number) => ({
+      setAccounts((portfoliosRes.data || []).map((p: any, i: number) => ({
         id: p.id, name: p.account_name || p.portfolio_code || `Portfolio ${i + 1}`,
         balance: p.investment_amount || 0, color: colors[i % colors.length],
         status: p.status === 'active' ? 'approved' : p.status,
@@ -95,6 +109,7 @@ export default function InvestmentPortfolio() {
         total_roi_earned: p.total_roi_earned || 0,
         portfolio_code: p.portfolio_code, duration_months: p.duration_months,
         roi_percentage: p.roi_percentage, roi_mode: p.roi_mode,
+        pendingTopup: pendingMap.get(p.id) || 0,
       })));
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
@@ -295,9 +310,14 @@ export default function InvestmentPortfolio() {
                         </div>
                       ) : (
                         <>
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <p className="text-sm font-bold text-foreground truncate">{account.name}</p>
                             <span className="text-xs">{getStatusEmoji(account.status)}</span>
+                            {(account.pendingTopup ?? 0) > 0 && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-warning/15 border border-warning/20 text-[10px] font-bold text-warning shrink-0">
+                                ⏳ +{formatAmount(account.pendingTopup!)} pending
+                              </span>
+                            )}
                           </div>
                           {account.portfolio_code && (
                             <p className="text-[10px] text-muted-foreground font-mono">{account.portfolio_code}</p>

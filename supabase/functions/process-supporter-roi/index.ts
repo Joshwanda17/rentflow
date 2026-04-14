@@ -278,7 +278,7 @@ Deno.serve(async (req) => {
             .eq('source_id', portfolio.id)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
-            .eq('status', 'pending');
+            .in('status', ['approved', 'pending']);
 
           if (!pendingOps || pendingOps.length === 0) continue;
 
