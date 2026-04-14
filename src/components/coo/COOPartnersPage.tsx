@@ -2762,7 +2762,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       if (!user) throw new Error('Not authenticated');
 
       // Advance next_roi_date by +1 month on compound
-      const currentDate = new Date(p.nextRoiDate || new Date());
+      const currentDate = new Date(p.nextPayoutDate || new Date());
       const newDate = new Date(currentDate);
       newDate.setMonth(newDate.getMonth() + 1);
       const newRoiDate = newDate.toISOString().split('T')[0];
