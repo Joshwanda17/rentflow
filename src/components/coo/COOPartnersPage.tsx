@@ -2652,7 +2652,51 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </Dialog>
       {/* Nearing Payouts Dialog */}
       <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} onActionComplete={fetchData} />
+
+      {/* Merge Pending Top-Ups Dialog */}
+      <Dialog open={!!mergeDialogPortfolioId} onOpenChange={(open) => { if (!open) { setMergeDialogPortfolioId(null); setMergeReason(''); } }}>
+        <DialogContent stable className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Apply Pending Principal</DialogTitle>
+            <DialogDescription className="text-xs">
+              Merge approved top-ups into the portfolio's active principal immediately instead of waiting for the next ROI cycle.
+            </DialogDescription>
+          </DialogHeader>
+          {mergeDialogPortfolioId && approvedTopUps[mergeDialogPortfolioId] && (
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs">
+              <p className="font-semibold text-amber-700 dark:text-amber-400">
+                {approvedTopUps[mergeDialogPortfolioId].count} pending top-up{approvedTopUps[mergeDialogPortfolioId].count > 1 ? 's' : ''} totaling {formatUGX(approvedTopUps[mergeDialogPortfolioId].total)}
+              </p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Reason for manual merge (min 10 chars)</Label>
+            <Textarea
+              value={mergeReason}
+              onChange={e => setMergeReason(e.target.value)}
+              placeholder="e.g. Partner requested early activation of top-up funds..."
+              className="text-xs min-h-[70px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setMergeDialogPortfolioId(null); setMergeReason(''); }}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              disabled={mergingTopUp || mergeReason.trim().length < 10}
+              onClick={handleMergePendingTopUps}
+            >
+              {mergingTopUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
+              Apply Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
   );
 }
 
@@ -3643,46 +3687,4 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       </DialogContent>
     </Dialog>
 
-    {/* Merge Pending Top-Ups Dialog */}
-    <Dialog open={!!mergeDialogPortfolioId} onOpenChange={(open) => { if (!open) { setMergeDialogPortfolioId(null); setMergeReason(''); } }}>
-      <DialogContent stable className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-sm">Apply Pending Principal</DialogTitle>
-          <DialogDescription className="text-xs">
-            Merge approved top-ups into the portfolio's active principal immediately instead of waiting for the next ROI cycle.
-          </DialogDescription>
-        </DialogHeader>
-        {mergeDialogPortfolioId && approvedTopUps[mergeDialogPortfolioId] && (
-          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs">
-            <p className="font-semibold text-amber-700 dark:text-amber-400">
-              {approvedTopUps[mergeDialogPortfolioId].count} pending top-up{approvedTopUps[mergeDialogPortfolioId].count > 1 ? 's' : ''} totaling {formatUGX(approvedTopUps[mergeDialogPortfolioId].total)}
-            </p>
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Reason for manual merge (min 10 chars)</Label>
-          <Textarea
-            value={mergeReason}
-            onChange={e => setMergeReason(e.target.value)}
-            placeholder="e.g. Partner requested early activation of top-up funds..."
-            className="text-xs min-h-[70px]"
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => { setMergeDialogPortfolioId(null); setMergeReason(''); }}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            className="gap-1.5"
-            disabled={mergingTopUp || mergeReason.trim().length < 10}
-            onClick={handleMergePendingTopUps}
-          >
-            {mergingTopUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
-            Apply Now
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }
