@@ -290,6 +290,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   // Top-ups approved and parked until next ROI cycle (status: approved)
   const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
+  // Merge dialog state
+  const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
+  const [mergeReason, setMergeReason] = useState('');
+  const [mergingTopUp, setMergingTopUp] = useState(false);
 
   // Portfolio name editing
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
@@ -1965,22 +1969,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     <Trash2 className="h-3.5 w-3.5" /> Delete
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-9 px-3 text-xs gap-1.5 min-h-[44px]"
-                                  onClick={() => downloadPortfolioPdf({
-                                    portfolioCode: p.portfolio_code, accountName: p.account_name,
-                                    investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
-                                    roiMode: p.roi_mode, totalRoiEarned: p.total_roi_earned,
-                                    status: p.status, createdAt: p.created_at,
-                                    durationMonths: p.duration_months, payoutDay: p.payout_day,
-                                    nextRoiDate: p.next_roi_date, maturityDate: p.maturity_date,
-                                    ownerName: detailPartner?.profile.full_name,
-                                  })}
-                                >
-                                  <FileText className="h-3.5 w-3.5" /> PDF
-                                </Button>
+                                {!readOnly && approvedTopUps[p.id]?.total > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 font-semibold min-h-[44px]"
+                                    onClick={() => { setMergeDialogPortfolioId(p.id); setMergeReason(''); }}
+                                  >
+                                    <ArrowRightLeft className="h-3.5 w-3.5" /> Apply Top-up
+                                  </Button>
+                                )}
                                 {!readOnly && p.status === 'active' && (
                                   <Button
                                     variant="ghost"
