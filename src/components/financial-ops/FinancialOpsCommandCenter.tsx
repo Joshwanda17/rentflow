@@ -13,16 +13,17 @@ import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { WalletOverviewCard } from './WalletOverviewCard';
+import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText, Briefcase
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits';
+type View = 'home' | 'deposits' | 'portfolio-topups';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
 const supportTools = [
@@ -61,6 +62,25 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and do not require verification.
         </p>
         <TidVerification />
+      </div>
+    );
+  }
+
+  // Sub-view: Portfolio Top-Up Verification
+  if (view === 'portfolio-topups') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Briefcase className="h-5 w-5 text-blue-600" />
+          Portfolio Top-Up Verification
+        </h2>
+        <p className="text-xs text-muted-foreground -mt-2">
+          Review and approve portfolio capital injections submitted by Partner Operations.
+        </p>
+        <PortfolioTopUpVerification />
       </div>
     );
   }
@@ -146,6 +166,20 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               <DepositStatsPanel onOpenVerification={() => setView('deposits')} />
             )}
           </AnimatePresence>
+
+          {/* Portfolio Top-Up Verification */}
+          <button
+            onClick={() => setView('portfolio-topups')}
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-500/50 transition-all text-left min-h-[80px]"
+          >
+            <div className="h-12 w-12 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+              <Briefcase className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Portfolio Top-Ups</p>
+              <p className="text-xs text-muted-foreground">Verify & approve partner capital injections</p>
+            </div>
+          </button>
 
           {/* Withdrawals & Payouts */}
           <button

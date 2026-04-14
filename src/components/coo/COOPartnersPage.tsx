@@ -282,8 +282,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [walletToPortfolioReason, setWalletToPortfolioReason] = useState('');
   const [walletToPortfolioSaving, setWalletToPortfolioSaving] = useState(false);
 
-  // Pending top-ups per portfolio
+  // Pending top-ups per portfolio (status: pending)
   const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  // Top-ups awaiting Financial Ops verification (status: awaiting_verification)
+  const [awaitingVerification, setAwaitingVerification] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
 
   // Portfolio name editing
@@ -674,24 +676,32 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('portfolio_id', portfolioIds),
           supabase
             .from('pending_wallet_operations')
-            .select('source_id, amount')
+            .select('source_id, amount, status')
             .in('source_id', portfolioIds)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
-            .eq('status', 'pending'),
+            .in('status', ['pending', 'awaiting_verification']),
         ]);
         const counts: Record<string, number> = {};
         (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
         setRenewalCounts(counts);
 
         const pending: Record<string, { count: number; total: number }> = {};
+        const awaiting: Record<string, { count: number; total: number }> = {};
         (pendingRes.data || []).forEach((op: any) => {
           const key = op.source_id;
-          if (!pending[key]) pending[key] = { count: 0, total: 0 };
-          pending[key].count += 1;
-          pending[key].total += Number(op.amount);
+          if (op.status === 'awaiting_verification') {
+            if (!awaiting[key]) awaiting[key] = { count: 0, total: 0 };
+            awaiting[key].count += 1;
+            awaiting[key].total += Number(op.amount);
+          } else {
+            if (!pending[key]) pending[key] = { count: 0, total: 0 };
+            pending[key].count += 1;
+            pending[key].total += Number(op.amount);
+          }
         });
         setPendingTopUps(pending);
+        setAwaitingVerification(awaiting);
       }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
@@ -711,7 +721,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setDetailLoading(false); }
   }
 
-  /* ─── Apply Pending Top-Ups ─── */
+  /* ─── Submit Pending Top-Ups for Financial Ops Verification ─── */
   async function handleApplyPendingTopUps(portfolioId: string) {
     setApplyingTopUps(portfolioId);
     try {
@@ -720,12 +730,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
-      toast.success(`${data.count} pending deposit(s) applied`, {
-        description: `${formatUGX(data.total_applied)} added to portfolio. New capital: ${formatUGX(data.new_investment_total)}`,
+      toast.success(`${data.count} deposit(s) submitted for verification`, {
+        description: `UGX ${Number(data.total_amount).toLocaleString()} sent to Financial Operations for approval.`,
       });
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
     } catch (e: any) {
-      toast.error('Failed to apply pending top-ups', { description: e.message });
+      toast.error('Failed to submit for verification', { description: e.message });
     } finally {
       setApplyingTopUps(null);
     }
@@ -1691,9 +1701,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               {/* Investment amount - full width on mobile */}
                               <p className="text-lg font-black tabular-nums mb-1">{formatUGX(p.investment_amount)}</p>
                               {pendingTopUps[p.id] && (
-                                <div className="flex items-center gap-1.5 mb-2.5">
+                                <div className="flex items-center gap-1.5 mb-1">
                                   <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-500/40 text-amber-600 bg-amber-500/5">
                                     ⏳ {pendingTopUps[p.id].count} pending top-up{pendingTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(pendingTopUps[p.id].total)}
+                                  </Badge>
+                                </div>
+                              )}
+                              {awaitingVerification[p.id] && (
+                                <div className="flex items-center gap-1.5 mb-2.5">
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-blue-500/40 text-blue-600 bg-blue-500/5">
+                                    🔍 {awaitingVerification[p.id].count} awaiting verification: {formatUGX(awaitingVerification[p.id].total)}
                                   </Badge>
                                 </div>
                               )}
@@ -1885,9 +1902,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     onClick={() => handleApplyPendingTopUps(p.id)}
                                     disabled={applyingTopUps === p.id}
                                   >
-                                    {applyingTopUps === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                                    Apply {pendingTopUps[p.id].count} Pending
+                                    {applyingTopUps === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                                    Submit {pendingTopUps[p.id].count} for Verification
                                   </Button>
+                                )}
+                                {awaitingVerification[p.id] && (
+                                  <Badge variant="outline" className="text-[10px] px-2 py-1 border-blue-500/40 text-blue-600 bg-blue-500/5 gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    Awaiting Financial Ops
+                                  </Badge>
                                 )}
                                 {!readOnly && (
                                   <Button

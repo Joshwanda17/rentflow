@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * apply-pending-topups
+ * 
+ * COO/Manager action: changes pending top-ups to "awaiting_verification".
+ * NO money moves. Financial Ops must approve via approve-portfolio-topup
+ * before funds are applied to the portfolio.
+ */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -86,150 +93,77 @@ Deno.serve(async (req) => {
     }
 
     if (!pendingOps || pendingOps.length === 0) {
-      return new Response(JSON.stringify({ error: "No pending top-ups to apply" }), {
+      return new Response(JSON.stringify({ error: "No pending top-ups to submit for verification" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const totalPending = pendingOps.reduce((s, op) => s + Number(op.amount), 0);
-    const currentInvestment = Number(portfolio.investment_amount);
-    const newInvestment = currentInvestment + totalPending;
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
     const now = new Date().toISOString();
-    const txGroupId = crypto.randomUUID();
-    const partnerId = portfolio.investor_id || portfolio.agent_id;
-
-    // 1. Update portfolio investment_amount
-    const { error: updateErr } = await supabase
-      .from("investor_portfolios")
-      .update({ investment_amount: newInvestment })
-      .eq("id", portfolio_id);
-
-    if (updateErr) {
-      return new Response(JSON.stringify({ error: "Failed to update portfolio" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 2. Mark all pending ops as approved
     const pendingIds = pendingOps.map(op => op.id);
-    const { error: approveErr } = await supabase
+
+    // Change status from "pending" to "awaiting_verification" — NO money moves
+    const { error: updateErr } = await supabase
       .from("pending_wallet_operations")
       .update({
-        status: "approved",
+        status: "awaiting_verification",
         reviewed_at: now,
         reviewed_by: user.id,
       })
       .in("id", pendingIds);
 
-    if (approveErr) {
-      // Rollback portfolio
-      await supabase
-        .from("investor_portfolios")
-        .update({ investment_amount: currentInvestment })
-        .eq("id", portfolio_id);
-
-      return new Response(JSON.stringify({ error: "Failed to approve pending ops. Portfolio restored." }), {
+    if (updateErr) {
+      return new Response(JSON.stringify({ error: "Failed to update status" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 3. Record activation ledger entries via RPC
-    await supabase.rpc('create_ledger_transaction', {
-      entries: [
-        {
-          user_id: partnerId,
-          amount: totalPending,
-          direction: "cash_out",
-          category: "partner_funding",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel} — platform disbursal`,
-          currency: 'UGX',
-          ledger_scope: "platform",
-          transaction_date: now,
-        },
-        {
-          user_id: partnerId,
-          amount: totalPending,
-          direction: "cash_in",
-          category: "partner_funding",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `${pendingOps.length} pending top-up(s) applied to ${accountLabel}`,
-          currency: 'UGX',
-          ledger_scope: "wallet",
-          transaction_date: now,
-        },
-      ],
-    });
-
-    // 4. Audit log
+    // Audit log
     await supabase.from("audit_logs").insert({
       user_id: user.id,
-      action_type: "apply_pending_topups",
-      table_name: "investor_portfolios",
+      action_type: "submit_topups_for_verification",
+      table_name: "pending_wallet_operations",
       record_id: portfolio_id,
       metadata: {
-        partner_id: partnerId,
+        portfolio_code: portfolio.portfolio_code,
         count: pendingOps.length,
-        total_applied: totalPending,
-        previous_capital: currentInvestment,
-        new_capital: newInvestment,
+        total_amount: totalPending,
         pending_op_ids: pendingIds,
       },
     });
 
-    // 5. Notify partner
-    await supabase.from("notifications").insert({
-      user_id: partnerId,
-      title: "✅ Pending Top-Ups Applied",
-      message: `${pendingOps.length} pending deposit(s) totaling UGX ${totalPending.toLocaleString()} have been added to "${accountLabel}". New capital: UGX ${newInvestment.toLocaleString()}.`,
-      type: "success",
-      metadata: { portfolio_id, total_applied: totalPending, new_capital: newInvestment, applied_by: user.id },
-    });
-
-    // 6. Notify CFO + COO executives
+    // Notify Financial Ops (CFO + financial_ops roles)
     try {
-      const { data: execs } = await supabase
+      const { data: finOpsUsers } = await supabase
         .from("user_roles")
         .select("user_id")
-        .in("role", ["cfo", "coo"])
+        .in("role", ["cfo", "financial_ops"])
         .eq("enabled", true);
-      if (execs && execs.length > 0) {
-        const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
-        if (uniqueIds.length > 0) {
-          await supabase.from("notifications").insert(
-            uniqueIds.map((uid: string) => ({
-              user_id: uid,
-              title: "✅ Portfolio Top-Ups Applied",
-              message: `${pendingOps.length} pending top-up(s) totaling UGX ${totalPending.toLocaleString()} applied to "${accountLabel}" (${portfolio.portfolio_code}). New capital: UGX ${newInvestment.toLocaleString()}.`,
-              type: "success",
-              metadata: { portfolio_id, total_applied: totalPending, new_capital: newInvestment, portfolio_code: portfolio.portfolio_code, applied_by: user.id },
-            }))
-          );
-        }
+
+      const uniqueIds = [...new Set((finOpsUsers || []).map((e: any) => e.user_id))];
+      if (uniqueIds.length > 0) {
+        await supabase.from("notifications").insert(
+          uniqueIds.map((uid: string) => ({
+            user_id: uid,
+            title: "🔍 Portfolio Top-Up Awaiting Verification",
+            message: `${pendingOps.length} top-up(s) totaling UGX ${totalPending.toLocaleString()} for "${accountLabel}" (${portfolio.portfolio_code}) submitted for verification by operations.`,
+            type: "warning",
+            metadata: { portfolio_id, total_amount: totalPending, portfolio_code: portfolio.portfolio_code, submitted_by: user.id },
+          }))
+        );
       }
     } catch (notifErr) {
-      console.error("[apply-pending-topups] Executive notification error (non-blocking):", notifErr);
+      console.error("[apply-pending-topups] Notification error (non-blocking):", notifErr);
     }
 
-    console.log(`[apply-pending-topups] Manager ${user.id} applied ${pendingOps.length} pending top-ups (${totalPending}) to ${portfolio_id}. New total: ${newInvestment}`);
-
-
-    // Notify managers (fire-and-forget)
-    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "✅ Pending Top-Ups Applied", body: "Activity: pending top-ups applied", url: "/manager" }),
-    }).catch(() => {});
-
+    console.log(`[apply-pending-topups] ${user.id} submitted ${pendingOps.length} top-ups (${totalPending}) for verification on ${portfolio_id}`);
 
     return new Response(JSON.stringify({
       success: true,
       count: pendingOps.length,
-      total_applied: totalPending,
-      new_investment_total: newInvestment,
+      total_amount: totalPending,
+      status: "awaiting_verification",
       portfolio_code: portfolio.portfolio_code,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
