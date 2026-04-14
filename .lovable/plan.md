@@ -1,31 +1,27 @@
 
 
-## Plan: Agent Ops Pipeline — Multi-Tab Hub
+## Plan: Add Search/Filter to Remaining Pipeline Tabs
 
-### Problem
-The "Pipeline" button in Agent Ops currently only shows `RentPipelineQueue` filtered to `tenant_ops_approved`. It should show a comprehensive view of everything in the agent pipeline across four categories.
+### Current State
+- **Tenants tab** (`RentPipelineQueue`): Already has search by tenant/landlord/agent name ✓
+- **Promissory Notes tab** (`PromissoryNotesQueue`): Already has search + status filter ✓
+- **Sub-Agents tab** (`SubAgentVerificationQueue`): No search — only status tabs (pending/verified)
+- **Landlords tab** (`LandlordsPipeline`): No search at all
 
-### Solution
-Create a new `AgentOpsPipelineHub` component with tabbed navigation showing:
+### Changes
 
-1. **Tenants in Pipeline** — Existing `RentPipelineQueue` (all stages, not just `tenant_ops_approved`)
-2. **Sub-Agents in Pipeline** — Existing `SubAgentVerificationQueue` (pending/verified sub-agents)
-3. **Promissory Notes** — Existing `PromissoryNotesQueue` (notes posted by agents)
-4. **Landlords in Pipeline** — Landlords linked to in-progress rent requests (from `rent_requests` joined with `landlords`)
+**1. `src/components/executive/SubAgentVerificationQueue.tsx`**
+- Add a search state and a `Search` input field above the list
+- Filter records by parent agent name, sub-agent name, or phone number
+- Apply search filter alongside the existing status tab filter
 
-### Implementation
-
-**New file: `src/components/executive/AgentOpsPipelineHub.tsx`**
-- Horizontal scrollable tab bar with 4 tabs + count badges
-- Each tab renders the appropriate existing component
-- For "Landlords in Pipeline": a new lightweight list querying `rent_requests` where status is not `funded`/`rejected`, grouped by landlord with their linked rent request counts
-
-**Edit: `src/components/executive/AgentOpsDashboard.tsx`**
-- Line 148: Change `case 'pipeline'` from rendering `<RentPipelineQueue stage="tenant_ops_approved" />` to `<AgentOpsPipelineHub />`
+**2. `src/components/executive/AgentOpsPipelineHub.tsx` (LandlordsPipeline)**
+- Add a search state and `Search` input field above the landlord cards
+- Filter by landlord name, phone, or address
 
 ### Files
 | File | Action |
 |------|--------|
-| `src/components/executive/AgentOpsPipelineHub.tsx` | **Create** — tabbed hub wrapping existing components |
-| `src/components/executive/AgentOpsDashboard.tsx` | **Edit** — swap pipeline render to new hub |
+| `src/components/executive/SubAgentVerificationQueue.tsx` | Add search input + filter logic |
+| `src/components/executive/AgentOpsPipelineHub.tsx` | Add search to `LandlordsPipeline` component |
 
