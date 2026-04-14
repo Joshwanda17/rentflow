@@ -28,6 +28,8 @@ export interface IncomeStatementData {
     transactionExpenses: number;
     total: number;
   };
+  grossProfit: number;
+  grossMargin: number; // percentage
   operatingExpenses: {
     generalOperating: number;
     payrollExpenses: number;
@@ -64,9 +66,19 @@ export interface IncomeStatementData {
     realizedRequestFees: number;
     totalRealizedRevenue: number;
     deferredRevenue: number;
-    recognitionRate: number; // percentage
+    recognitionRate: number;
   };
-  netOperatingIncome: number;
+  // GAAP Below-the-Line Items
+  operatingIncome: number; // Revenue - COGS - OpEx
+  interestExpense: number;
+  interestIncome: number;
+  taxProvision: number;
+  depreciation: number;
+  amortization: number;
+  netOperatingIncome: number; // After interest & tax
+  ebitda: number;
+  ebitdaMargin: number; // percentage
+  operatingMargin: number; // percentage
 }
 
 export interface CashFlowData {
