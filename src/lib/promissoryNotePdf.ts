@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { formatUGX } from '@/lib/rentCalculations';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import welileLogo from '@/assets/welile-logo.png';
 
 function loadImageAsBase64(src: string): Promise<string> {
@@ -32,9 +33,8 @@ interface PromissoryNoteData {
   phoneNumber?: string;
 }
 
-// Company constants
-const COMPANY_NAME = 'WELILE TECHNOLOGIES LIMITED';
-const COMPANY_ADDRESS = 'Plot 12, Kampala Road, Kampala, Uganda';
+const COMPANY_NAME = 'Welile Technologies Limited';
+const COMPANY_ADDRESS = 'Plot 24, Kampala Road, Kampala, Uganda';
 const COMPANY_EMAIL = 'info@welile.com';
 const COMPANY_PHONE = '+256 700 000 000';
 const COMPANY_WEBSITE = 'www.welile.com';
@@ -45,7 +45,6 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
 
-  // Load logo
   let logoBase64: string | null = null;
   try {
     logoBase64 = await loadImageAsBase64(welileLogo);
@@ -53,7 +52,7 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
     console.warn('Could not load logo for PDF', e);
   }
 
-  // ═══ HEADER: Letterhead style ═══
+  // ═══ HEADER ═══
   let y = 15;
   const logoSize = 18;
   const textX = margin + logoSize + 5;
@@ -62,28 +61,22 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
     doc.addImage(logoBase64, 'PNG', margin, y - 3, logoSize, logoSize, undefined, 'FAST');
   }
 
-  // Company name
   doc.setTextColor(107, 33, 168);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(COMPANY_NAME, textX, y + 2);
 
-  // Address
   doc.setTextColor(80, 80, 80);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text(COMPANY_ADDRESS, textX, y + 8);
+  doc.text(`Email: ${COMPANY_EMAIL} | Phone: ${COMPANY_PHONE}`, textX, y + 13);
 
-  // Email | Phone
-  doc.text(`${COMPANY_EMAIL} | ${COMPANY_PHONE}`, textX, y + 13);
-
-  // Website
   doc.setTextColor(107, 33, 168);
   doc.text(COMPANY_WEBSITE, textX, y + 18);
 
   y += 25;
 
-  // HR line
   doc.setDrawColor(107, 33, 168);
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
@@ -96,7 +89,7 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   doc.text('INVESTMENT COMMITMENT NOTE', pageWidth / 2, y, { align: 'center' });
   y += 8;
 
-  // Date (right-aligned)
+  // Date
   doc.setTextColor(100, 100, 100);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -106,7 +99,7 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   doc.text(`Date: ${dateStr}`, pageWidth - margin, y, { align: 'right' });
   y += 12;
 
-  // ═══ PARTNER DETAILS SECTION ═══
+  // ═══ PARTNER DETAILS ═══
   doc.setTextColor(107, 33, 168);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
@@ -132,37 +125,109 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   });
   y += 6;
 
-  // ═══ INVESTMENT DETAILS BOX ═══
-  const investRows: [string, string][] = [
-    ['Investment Amount:', formatUGX(data.amount)],
-    ['Contribution Type:', data.contributionType === 'monthly' ? 'Monthly Recurring' : 'Once-off'],
-    ...(data.contributionType === 'monthly' && data.deductionDay
-      ? [['Deduction Day:', `Day ${data.deductionDay} of each month`] as [string, string]]
-      : []),
-    ['Monthly ROI Rate:', '15% of invested amount'],
-    ['Expected Monthly Return:', formatUGX(data.amount * 0.15)],
-  ];
-
-  const boxH = 10 + investRows.length * 6 + 4;
-  doc.setFillColor(240, 253, 244);
-  doc.roundedRect(margin, y, contentWidth, boxH, 3, 3, 'F');
-  doc.setDrawColor(34, 197, 94);
-  doc.roundedRect(margin, y, contentWidth, boxH, 3, 3, 'S');
-
-  doc.setTextColor(22, 101, 52);
+  // ═══ INVESTMENT DETAILS — borderless table ═══
+  doc.setTextColor(20, 33, 61); // dark navy
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('INVESTMENT DETAILS', margin + 5, y + 8);
+  doc.text('INVESTMENT DETAILS', margin, y);
+  y += 7;
 
-  doc.setFontSize(10);
-  investRows.forEach(([label, value], i) => {
-    doc.setTextColor(50, 50, 50);
+  const investRows: [string, string][] = [
+    ['Investment Amount', formatUGX(data.amount)],
+    ['Contribution Type', data.contributionType === 'monthly' ? 'Monthly Recurring' : 'Once-off'],
+    ...(data.contributionType === 'monthly' && data.deductionDay
+      ? [['Deduction Day', `Day ${data.deductionDay} of each month`] as [string, string]]
+      : []),
+    ['Monthly ROI Rate', '15% of invested amount'],
+    ['Expected Monthly Return', formatUGX(data.amount * 0.15)],
+  ];
+
+  const colLabelX = margin + 5;
+  const colValueX = margin + 75;
+  const rowH = 7;
+
+  investRows.forEach(([label, value]) => {
+    // light blue separator line
+    doc.setDrawColor(200, 220, 240);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y - 1, pageWidth - margin, y - 1);
+
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
     doc.setFont('helvetica', 'normal');
-    doc.text(label, margin + 8, y + 16 + i * 6);
+    doc.text(label, colLabelX, y + 3);
+
+    doc.setTextColor(20, 33, 61);
     doc.setFont('helvetica', 'bold');
-    doc.text(value, margin + 65, y + 16 + i * 6);
+    doc.text(value, colValueX, y + 3);
+
+    y += rowH;
   });
-  y += boxH + 10;
+  // bottom separator
+  doc.setDrawColor(200, 220, 240);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y - 1, pageWidth - margin, y - 1);
+  y += 8;
+
+  // ═══ ROI PROJECTION (Next 6 Months) ═══
+  doc.setTextColor(20, 33, 61);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ROI PROJECTION (Next 6 Months)', margin, y);
+  y += 7;
+
+  // Table headers
+  const colMonth = margin + 5;
+  const colOpening = margin + 30;
+  const colRoi = margin + 80;
+  const colClosing = margin + 130;
+
+  doc.setFontSize(8);
+  doc.setTextColor(20, 33, 61);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Month', colMonth, y);
+  doc.text('Opening Balance', colOpening, y);
+  doc.text('ROI Earned', colRoi, y);
+  doc.text('Closing Balance', colClosing, y);
+  y += 2;
+
+  doc.setDrawColor(20, 33, 61);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 4;
+
+  const monthlyRoi = data.amount * 0.15;
+  let balance = data.amount;
+
+  for (let m = 1; m <= 6; m++) {
+    const opening = balance;
+    const closing = opening + monthlyRoi;
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text(`Month ${m}`, colMonth, y);
+    doc.text(formatUGX(opening), colOpening, y);
+
+    // ROI in green
+    doc.setTextColor(22, 163, 74);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`+${formatUGX(monthlyRoi)}`, colRoi, y);
+
+    doc.setTextColor(20, 33, 61);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatUGX(closing), colClosing, y);
+
+    y += 5.5;
+
+    // light separator
+    doc.setDrawColor(200, 220, 240);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y - 2, pageWidth - margin, y - 2);
+
+    balance = closing;
+  }
+  y += 6;
 
   // ═══ COMMITMENT PARAGRAPH ═══
   doc.setTextColor(50, 50, 50);
@@ -186,7 +251,7 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const steps = [
-    '1. Activate your account using the link below',
+    '1. Activate your account using the button below',
     '2. Deposit the promised amount into your Welile wallet',
     '3. The system will automatically process your investment',
     '4. Earn 15% returns on every amount you invest, credited monthly',
@@ -198,18 +263,21 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   });
   y += 8;
 
-  // ═══ ACTIVATION LINK BOX ═══
+  // ═══ ACTIVATE ACCOUNT BUTTON (no visible link) ═══
+  const btnW = 60;
+  const btnH = 12;
+  const btnX = (pageWidth - btnW) / 2;
   doc.setFillColor(107, 33, 168);
-  doc.roundedRect(margin, y, contentWidth, 22, 3, 3, 'F');
+  doc.roundedRect(btnX, y, btnW, btnH, 3, 3, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('ACTIVATE YOUR ACCOUNT', pageWidth / 2, y + 8, { align: 'center' });
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  const linkText = data.activationLink.length > 70 ? data.activationLink.substring(0, 70) + '...' : data.activationLink;
-  doc.text(linkText, pageWidth / 2, y + 15, { align: 'center' });
-  y += 30;
+  doc.text('Activate Account', pageWidth / 2, y + 7.5, { align: 'center' });
+
+  // Build activation URL using public domain
+  const activationUrl = data.activationLink.replace(/^https?:\/\/[^/]+/, getPublicOrigin());
+  doc.link(btnX, y, btnW, btnH, { url: activationUrl });
+  y += btnH + 10;
 
   // ═══ DISCLAIMER ═══
   doc.setTextColor(150, 150, 150);
@@ -218,20 +286,16 @@ export async function generatePromissoryNotePDF(data: PromissoryNoteData): Promi
   const disclaimer = 'This promissory note is a non-binding commitment of intent to invest. Actual investment is processed upon wallet deposit. Returns are subject to platform terms and conditions. Welile Technologies Limited is registered in Uganda.';
   const disclaimerLines = doc.splitTextToSize(disclaimer, contentWidth);
   doc.text(disclaimerLines, margin, y);
-  y += disclaimerLines.length * 3.5 + 10;
+  y += disclaimerLines.length * 3.5 + 8;
 
-  // ═══ SIGNATURE AREA ═══
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineDashPattern([2, 2], 0);
-  doc.line(margin, y + 5, margin + 70, y + 5);
-  doc.line(margin + 90, y + 5, pageWidth - margin, y + 5);
-  doc.setLineDashPattern([], 0);
-
+  // ═══ GENERATED DATE ═══
+  const generatedDate = new Date().toLocaleString('en-UG', {
+    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
   doc.setTextColor(100, 100, 100);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text('Partner Signature', margin + 15, y + 10);
-  doc.text('Date', margin + 115, y + 10);
+  doc.text(`Generated on: ${generatedDate}`, pageWidth / 2, y, { align: 'center' });
 
   // ═══ FOOTER ═══
   const footerY = doc.internal.pageSize.getHeight() - 10;
