@@ -1,62 +1,57 @@
 
 
-## Plan: Route Post-Payment SMS Through Inngest
+## Investigation Results: Why Agents Aren't Getting Commission
 
-### What Changes
+### Root Cause Found
 
-Replace the direct client-side call to `send-collection-sms` with an Inngest event. Inngest handles the SMS delivery with automatic retries, keeping all financial logic untouched.
+The `approve-deposit` edge function only calls `credit_agent_rent_commission` when the deposit request has an `agent_id` set:
 
-### Architecture
-
-```text
-BEFORE:
-  Agent pays → Supabase (RPC/DB) → ✅ committed
-  Client calls send-collection-sms → Africa's Talking
-  (no retries, client waits)
-
-AFTER:
-  Agent pays → Supabase (RPC/DB) → ✅ committed
-  Client calls send-inngest-event edge function → Inngest
-  Inngest → send-collection-sms → Africa's Talking
-  (automatic retries, fire-and-forget)
+```typescript
+// Line 248 — commission is SKIPPED when agent_id is null
+if (depositRequest.agent_id && rentRequestId) {
+  await supabaseAdmin.rpc("credit_agent_rent_commission", { ... });
+}
 ```
 
-### Steps
+**All recent deposits (since April 9) have `agent_id: null`** — they are self-deposits made by agents or tenants directly, not through an intermediary agent. So even though rent repayments are correctly applied (13+ repayments totaling hundreds of thousands of UGX), the commission call is skipped entirely.
 
-**1. Link Inngest connector to project**
-- Use the existing "WELILE'S INGEST" workspace connection
-- This makes `LOVABLE_API_KEY` and `INNGEST_API_KEY` available as env vars
+The commission RPC itself already handles agent lookup internally from `rent_requests.agent_id` and `rent_requests.assigned_agent_id` — it does NOT need the deposit's `agent_id` at all. The guard condition is over-restrictive.
 
-**2. Create edge function: `supabase/functions/inngest-send-sms/index.ts`**
-- Receives the same SMS payload from the client
-- Fires an Inngest event (`app/payment.sms.requested`) via the connector gateway
-- Returns immediately — fire-and-forget
-- Payment data (tenant name, phone, amount, tracking ID, etc.) goes in the event payload
+### Evidence
+- Last `agent_commission` ledger entry: **April 9**
+- Repayments since April 9: **15+ records** (UGX 23K–780K each)
+- All via deposits where `deposit_requests.agent_id = null`
+- The `credit_agent_rent_commission` RPC correctly returns `no_agents` if no agent is linked — so it's safe to call unconditionally
 
-**3. Create Inngest serve endpoint: `supabase/functions/inngest/index.ts`**
-- Defines an Inngest function triggered by `app/payment.sms.requested`
-- Calls the existing `send-collection-sms` edge function internally (reuses all Africa's Talking logic)
-- Inngest handles retries automatically if SMS delivery fails
+### Fix
 
-**4. Update `AgentVisitPaymentWizard.tsx`**
-- Replace `supabase.functions.invoke('send-collection-sms', ...)` with `supabase.functions.invoke('inngest-send-sms', ...)` — same payload, different endpoint
-- Remove `smsSending` state since it's now fire-and-forget
+**File: `supabase/functions/approve-deposit/index.ts`**
 
-**5. Register functions in `supabase/config.toml`**
-- Add `[functions.inngest-send-sms]` and `[functions.inngest]` with `verify_jwt = false`
+Remove the `depositRequest.agent_id` guard from all three commission call sites (lines 248, 337, 421). Change:
 
-### What Does NOT Change
-- `send-collection-sms` edge function — stays exactly as-is (Africa's Talking logic)
-- All payment/wallet/ledger logic — completely untouched
-- The `validate_and_record_collection` RPC — no changes
-- SMS message format — identical
+```typescript
+if (depositRequest.agent_id && rentRequestId) {
+```
+to:
+```typescript
+if (rentRequestId) {
+```
+
+This applies to three locations in the file:
+1. **Line 248** — After initial rent repayment
+2. **Line 337** — After clearing accumulated debt
+3. **Line 421** — After pre-paying future days
+
+The RPC safely handles the case where no agent exists (returns `no_agents` status with zero commission).
+
+### Backfill Missing Commissions
+
+After the fix, create a one-time backfill script to credit the missed commissions for the 15+ repayments since April 9. This would call `credit_agent_rent_commission` for each repayment that has no matching `commission_accrual_ledger` entry.
 
 ### Files
 
 | File | Action |
 |------|--------|
-| `supabase/functions/inngest-send-sms/index.ts` | **Create** — event sender |
-| `supabase/functions/inngest/index.ts` | **Create** — serve endpoint with SMS function |
-| `src/components/agent/AgentVisitPaymentWizard.tsx` | **Edit** — swap SMS call |
-| `supabase/config.toml` | **Edit** — register new functions |
+| `supabase/functions/approve-deposit/index.ts` | **Edit** — remove `agent_id` guard from 3 commission calls |
+| Backfill script (one-time) | **Run** — credit missed commissions for April 9–14 repayments |
 
