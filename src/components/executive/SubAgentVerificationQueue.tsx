@@ -3,11 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, User, MapPin, Info } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SubAgentRecord {
@@ -33,6 +34,7 @@ export function SubAgentVerificationQueue() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
+  const [selectedRecord, setSelectedRecord] = useState<SubAgentRecord | null>(null);
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['subagent-verification-queue'],
@@ -122,7 +124,7 @@ export function SubAgentVerificationQueue() {
   };
 
   const renderCard = (r: SubAgentRecord, showActions: boolean) => (
-    <div key={r.id} className="rounded-xl border border-border p-3 space-y-2">
+    <div key={r.id} className="rounded-xl border border-border p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelectedRecord(r)}>
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-0.5 min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground truncate">
@@ -155,6 +157,7 @@ export function SubAgentVerificationQueue() {
       </div>
 
       {showActions && (
+        <div onClick={e => e.stopPropagation()}>
         rejectingId === r.id ? (
           <div className="space-y-2">
             <Input
