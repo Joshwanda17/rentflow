@@ -32,13 +32,39 @@ Deno.serve(async (req) => {
 
   const results = [];
   for (const b of backfills) {
+    // Use raw SQL to call the specific 4-arg overload positionally
     const { data, error } = await supabaseAdmin.rpc("credit_agent_rent_commission", {
       p_rent_request_id: b.rent_request_id,
       p_repayment_amount: b.repayment_amount,
       p_tenant_id: b.tenant_id,
       p_event_reference_id: b.event_ref,
-    });
-    results.push({ ...b, result: data, error: error?.message });
+    }).throwOnError().then(
+      (r: any) => ({ data: r.data, error: null }),
+      (err: any) => ({ data: null, error: err })
+    );
+    
+    // If named params fail due to ambiguity, try via fetch with raw SQL
+    if (error) {
+      const pgRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/credit_agent_rent_commission`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+          "Prefer": "params=single-object",
+        },
+        body: JSON.stringify({
+          p_rent_request_id: b.rent_request_id,
+          p_repayment_amount: b.repayment_amount,
+          p_tenant_id: b.tenant_id,
+          p_event_reference_id: b.event_ref,
+        }),
+      });
+      const pgData = await pgRes.json();
+      results.push({ ...b, result: pgData, status: pgRes.status });
+    } else {
+      results.push({ ...b, result: data, error: null });
+    }
   }
 
   return new Response(JSON.stringify({ results }), {
