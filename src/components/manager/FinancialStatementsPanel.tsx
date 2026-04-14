@@ -286,11 +286,31 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Pending Withdrawal Provisions" value={d.platformObligations.pendingWithdrawals} negative indent />
       <LineItem label="Accrued Platform Rewards" value={d.platformObligations.accruedPlatformRewards} negative indent />
       <LineItem label="Agent Commissions Payable" value={d.platformObligations.agentCommissionsPayable} negative indent />
+      {d.platformObligations.deferredRevenue > 0 && (
+        <LineItem label="Deferred Revenue (Unrecognized Fees)" value={d.platformObligations.deferredRevenue} negative indent />
+      )}
       <LineItem label="Total Obligations" value={d.platformObligations.totalObligations} negative bold />
 
       <SectionHeader>Platform Equity</SectionHeader>
       <LineItem label="Retained Operating Surplus" value={d.platformEquity.retainedOperatingSurplus} indent />
       <LineItem label="Total Equity" value={d.platformEquity.totalEquity} bold />
+
+      {/* Revenue Recognition Summary */}
+      {d.revenueRecognition.expectedRevenue > 0 && (
+        <div className="mt-3 p-3 rounded-lg bg-warning/5 border border-warning/20 space-y-1">
+          <p className="text-xs font-semibold text-warning uppercase tracking-wider">Revenue Recognition (ASC 606)</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <span className="text-muted-foreground">Expected Revenue</span>
+            <span className="font-mono text-right">{formatUGX(d.revenueRecognition.expectedRevenue)}</span>
+            <span className="text-muted-foreground">Realized Revenue</span>
+            <span className="font-mono text-right text-success">{formatUGX(d.revenueRecognition.realizedRevenue)}</span>
+            <span className="text-muted-foreground">Deferred Revenue</span>
+            <span className="font-mono text-right text-warning">{formatUGX(d.revenueRecognition.deferredRevenue)}</span>
+            <span className="text-muted-foreground">Recognition Rate</span>
+            <span className="font-mono text-right">{d.revenueRecognition.recognitionRate.toFixed(1)}%</span>
+          </div>
+        </div>
+      )}
 
       <p className={cn('text-xs text-center pt-2 mt-1', balanced ? 'text-success' : 'text-destructive')}>
         {balanced ? '✓ Balance sheet is balanced (Assets = Obligations + Equity)' : '⚠ Requires reconciliation'}
@@ -525,11 +545,18 @@ export function FinancialStatementsPanel() {
       rows.push(['Pending Withdrawal Provisions', '', d.platformObligations.pendingWithdrawals]);
       rows.push(['Accrued Platform Rewards', '', d.platformObligations.accruedPlatformRewards]);
       rows.push(['Agent Commissions Payable', '', d.platformObligations.agentCommissionsPayable]);
+      if (d.platformObligations.deferredRevenue > 0) rows.push(['Deferred Revenue (Unrecognized Fees)', '', d.platformObligations.deferredRevenue]);
       rows.push(['Total Obligations', '', d.platformObligations.totalObligations]);
       rows.push(['', '', '']);
       rows.push(['PLATFORM EQUITY', '', '']);
       rows.push(['Retained Operating Surplus', '', d.platformEquity.retainedOperatingSurplus]);
       rows.push(['Total Equity', '', d.platformEquity.totalEquity]);
+      rows.push(['', '', '']);
+      rows.push(['REVENUE RECOGNITION (ASC 606)', '', '']);
+      rows.push(['Expected Revenue', '', d.revenueRecognition.expectedRevenue]);
+      rows.push(['Realized Revenue', '', d.revenueRecognition.realizedRevenue]);
+      rows.push(['Deferred Revenue', '', d.revenueRecognition.deferredRevenue]);
+      rows.push(['Recognition Rate (%)', '', d.revenueRecognition.recognitionRate]);
     } else {
       const d = data.facilitatedVolume;
       rows.push(['WELILE — Facilitated Volume Report', '', period]);
@@ -697,11 +724,20 @@ export function FinancialStatementsPanel() {
         addRow('Pending Withdrawal Provisions', d.platformObligations.pendingWithdrawals, false, true, true);
         addRow('Accrued Platform Rewards', d.platformObligations.accruedPlatformRewards, false, true, true);
         addRow('Agent Commissions Payable', d.platformObligations.agentCommissionsPayable, false, true, true);
+        if (d.platformObligations.deferredRevenue > 0) {
+          addRow('Deferred Revenue (Unrecognized Fees)', d.platformObligations.deferredRevenue, false, true, true);
+        }
         addRow('Total Obligations', d.platformObligations.totalObligations, true, true);
         y += 3;
         addSection('Platform Equity');
         addRow('Retained Operating Surplus', d.platformEquity.retainedOperatingSurplus, false, false, true);
         addRow('Total Equity', d.platformEquity.totalEquity, true);
+        y += 3;
+        addSection('Revenue Recognition (ASC 606)');
+        addRow('Expected Revenue', d.revenueRecognition.expectedRevenue, false, false, true);
+        addRow('Realized Revenue', d.revenueRecognition.realizedRevenue, false, false, true);
+        addRow('Deferred Revenue', d.revenueRecognition.deferredRevenue, false, true, true);
+        addRow(`Recognition Rate: ${d.revenueRecognition.recognitionRate.toFixed(1)}%`, 0, false, false, true);
       } else {
         const d = data.facilitatedVolume;
         addSection('Facilitated Volume');

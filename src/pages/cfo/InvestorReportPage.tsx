@@ -261,11 +261,29 @@ function BalanceSheetStatement({ d }: { d: FinancialStatementsData['balanceSheet
       <StatementRow label="Pending Withdrawals" value={d.platformObligations.pendingWithdrawals} indent negative />
       <StatementRow label="Accrued Platform Rewards" value={d.platformObligations.accruedPlatformRewards} indent negative />
       <StatementRow label="Agent Commissions Payable" value={d.platformObligations.agentCommissionsPayable} indent negative />
+      {d.platformObligations.deferredRevenue > 0 && <StatementRow label="Deferred Revenue (Unrecognized Fees)" value={d.platformObligations.deferredRevenue} indent negative />}
       <StatementRow label="Total Liabilities" value={d.platformObligations.totalObligations} bold negative borderTop />
 
       <SectionTitle>Stockholders' Equity</SectionTitle>
       <StatementRow label="Retained Earnings" value={d.platformEquity.retainedOperatingSurplus} indent />
       <StatementRow label="Total Stockholders' Equity" value={d.platformEquity.totalEquity} bold borderTop />
+
+      {/* Revenue Recognition Note */}
+      {d.revenueRecognition.expectedRevenue > 0 && (
+        <div className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2">Note: Revenue Recognition (ASC 606)</p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
+            <span className="text-muted-foreground">Expected Revenue (Contracted)</span>
+            <span className="font-mono text-right">{formatUGX(d.revenueRecognition.expectedRevenue)}</span>
+            <span className="text-muted-foreground">Realized Revenue (Collected)</span>
+            <span className="font-mono text-right text-emerald-600">{formatUGX(d.revenueRecognition.realizedRevenue)}</span>
+            <span className="text-muted-foreground">Deferred Revenue</span>
+            <span className="font-mono text-right text-amber-600">{formatUGX(d.revenueRecognition.deferredRevenue)}</span>
+            <span className="text-muted-foreground">Recognition Rate</span>
+            <span className="font-mono text-right">{d.revenueRecognition.recognitionRate.toFixed(1)}%</span>
+          </div>
+        </div>
+      )}
 
       <div className={cn('text-center py-2 mt-3 rounded text-xs font-medium', balanced ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-500')}>
         {balanced ? '✓ Assets = Liabilities + Equity (Balanced)' : '⚠ Balance sheet requires reconciliation'}
@@ -385,11 +403,18 @@ async function exportToPPTX(data: FinancialStatementsData) {
     ['', ''],
     ['LIABILITIES', ''],
     ['  User Wallet Obligations', formatUGX(data.balanceSheet.platformObligations.userWalletCustody)],
+    ...(data.balanceSheet.platformObligations.deferredRevenue > 0 ? [['  Deferred Revenue', formatUGX(data.balanceSheet.platformObligations.deferredRevenue)]] : []),
     ['Total Liabilities', formatUGX(data.balanceSheet.platformObligations.totalObligations)],
     ['', ''],
     ['EQUITY', ''],
     ['  Retained Earnings', formatUGX(data.balanceSheet.platformEquity.retainedOperatingSurplus)],
     ['Total Equity', formatUGX(data.balanceSheet.platformEquity.totalEquity)],
+    ['', ''],
+    ['REVENUE RECOGNITION (ASC 606)', ''],
+    ['  Expected Revenue', formatUGX(data.balanceSheet.revenueRecognition.expectedRevenue)],
+    ['  Realized Revenue', formatUGX(data.balanceSheet.revenueRecognition.realizedRevenue)],
+    ['  Deferred Revenue', formatUGX(data.balanceSheet.revenueRecognition.deferredRevenue)],
+    ['  Recognition Rate', `${data.balanceSheet.revenueRecognition.recognitionRate.toFixed(1)}%`],
   ];
   s5.addTable(bsRows.map((row, i) => row.map((cell, j) => ({
     text: cell,
@@ -644,12 +669,21 @@ async function exportTo10KPDF(data: FinancialStatementsData) {
   addRow('Pending Withdrawals', data.balanceSheet.platformObligations.pendingWithdrawals, { indent: true, negative: true });
   addRow('Accrued Platform Rewards', data.balanceSheet.platformObligations.accruedPlatformRewards, { indent: true, negative: true });
   addRow('Agent Commissions Payable', data.balanceSheet.platformObligations.agentCommissionsPayable, { indent: true, negative: true });
+  if (data.balanceSheet.platformObligations.deferredRevenue > 0) {
+    addRow('Deferred Revenue (Unrecognized Fees)', data.balanceSheet.platformObligations.deferredRevenue, { indent: true, negative: true });
+  }
   addRow('Total Liabilities', data.balanceSheet.platformObligations.totalObligations, { bold: true, negative: true });
   y += 4;
 
   addSectionHead("Stockholders' Equity");
   addRow('Retained Earnings', data.balanceSheet.platformEquity.retainedOperatingSurplus, { indent: true });
   addRow('Total Equity', data.balanceSheet.platformEquity.totalEquity, { bold: true, highlight: true });
+  y += 4;
+
+  addSectionHead('Revenue Recognition (ASC 606)');
+  addRow('Expected Revenue (Contracted)', data.balanceSheet.revenueRecognition.expectedRevenue, { indent: true });
+  addRow('Realized Revenue (Collected)', data.balanceSheet.revenueRecognition.realizedRevenue, { indent: true });
+  addRow('Deferred Revenue', data.balanceSheet.revenueRecognition.deferredRevenue, { indent: true, negative: true });
   addFooter();
 
   pdf.save(`Welile-10K-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
