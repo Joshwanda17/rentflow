@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CreditCard, Phone, Copy, CheckCircle2, Banknote, Building2 } from 'lucide-react';
+import { CreditCard, Phone, Copy, CheckCircle2, Banknote, Building2, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentConfirmationForm from './PaymentConfirmationForm';
@@ -93,22 +93,35 @@ export default function PaymentPartnersCard({ dashboardType, onPaymentSubmitted 
   // Channel selection step
   if (!channel) {
     return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">Choose how you want to pay</p>
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm font-bold text-foreground">Choose how you want to pay</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Select a payment method to continue</p>
+        </div>
         <div className="grid gap-3">
           {CHANNELS.map((ch) => (
             <button
               key={ch.id}
               onClick={() => setChannel(ch.id)}
-              className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] touch-manipulation ${ch.color}`}
+              className={cn(
+                'flex items-center gap-3.5 p-4 rounded-2xl border-2 text-left transition-all hover:shadow-lg active:scale-[0.97] touch-manipulation',
+                ch.color
+              )}
             >
-              <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center shrink-0">
-                <ch.icon className="h-5 w-5 text-foreground" />
+              <div className={cn(
+                'w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm',
+                ch.id === 'agent_cash' && 'bg-emerald-500',
+                ch.id === 'momo_mtn' && 'bg-[hsl(var(--warning))]',
+                ch.id === 'momo_airtel' && 'bg-destructive',
+                ch.id === 'bank' && 'bg-blue-500',
+              )}>
+                <ch.icon className="h-5 w-5 text-white" />
               </div>
-              <div>
-                <p className="font-semibold text-sm">{ch.label}</p>
-                <p className="text-xs text-muted-foreground">{ch.desc}</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm">{ch.label}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{ch.desc}</p>
               </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0" />
             </button>
           ))}
         </div>
