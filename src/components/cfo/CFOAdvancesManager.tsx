@@ -327,6 +327,12 @@ export function CFOAdvancesManager() {
       </AlertDialog>
 
       <IssueAdvanceSheet open={issueOpen} onOpenChange={setIssueOpen} onSuccess={refetch} />
+      <IssueAdvanceSheet
+        open={renewOpen}
+        onOpenChange={(open) => { setRenewOpen(open); if (!open) setRenewAgentId(null); }}
+        onSuccess={() => { refetch(); setSelectedIds(new Set()); }}
+        preselectedAgentId={renewAgentId || undefined}
+      />
     </div>
   );
 }
