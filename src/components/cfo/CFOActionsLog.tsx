@@ -130,11 +130,39 @@ export function CFOActionsLog() {
     queryFn: async () => {
       const { data } = await supabase
         .from('audit_logs')
-        .select('id, action_type, created_at, metadata, table_name, record_id')
+        .select('id, action_type, created_at, metadata, table_name, record_id, user_id')
         .in('action_type', activeActions)
         .order('created_at', { ascending: false })
-        .limit(50);
-      return data || [];
+        .limit(100);
+
+      if (!data?.length) return [];
+
+      // Fetch actor names
+      const userIds = [...new Set(data.map((a: any) => a.user_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      // Fetch roles for each actor
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', userIds);
+
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.full_name]));
+      const roleMap: Record<string, string[]> = {};
+      (roles || []).forEach((r: any) => {
+        if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+        roleMap[r.user_id].push(r.role);
+      });
+
+      return data.map((a: any) => ({
+        ...a,
+        actor_name: profileMap[a.user_id] || 'System',
+        actor_roles: roleMap[a.user_id] || [],
+        is_manager_acting_as_cfo: (roleMap[a.user_id] || []).includes('manager') && !(roleMap[a.user_id] || []).includes('cfo'),
+      }));
     },
     staleTime: 30_000,
   });
@@ -146,6 +174,7 @@ export function CFOActionsLog() {
     const label = ACTION_LABELS[a.action_type] || a.action_type;
     return (
       label.toLowerCase().includes(s) ||
+      a.actor_name?.toLowerCase().includes(s) ||
       meta.target_name?.toLowerCase().includes(s) ||
       meta.target_user_name?.toLowerCase().includes(s) ||
       meta.user_name?.toLowerCase().includes(s) ||
@@ -165,15 +194,17 @@ export function CFOActionsLog() {
         action: ACTION_LABELS[a.action_type] || a.action_type,
         amount: meta.amount || '',
         target: meta.target_name || meta.target_user_name || meta.user_name || meta.agent_name || '',
+        performed_by: a.actor_name || '',
+        role: a.is_manager_acting_as_cfo ? 'Manager (acting as CFO)' : (a.actor_roles || []).join(', '),
         reason: meta.reason || meta.description || meta.category_label || '',
         record_id: a.record_id || '',
         table: a.table_name || '',
       };
     });
 
-    const header = 'Date,Action,Amount,Target,Reason,Record ID,Table\n';
+    const header = 'Date,Action,Amount,Target,Performed By,Role,Reason,Record ID,Table\n';
     const csv = header + rows.map(r =>
-      `"${r.date}","${r.action}","${r.amount}","${r.target}","${r.reason?.replace(/"/g, '""') || ''}","${r.record_id}","${r.table}"`
+      `"${r.date}","${r.action}","${r.amount}","${r.target}","${r.performed_by}","${r.role}","${r.reason?.replace(/"/g, '""') || ''}","${r.record_id}","${r.table}"`
     ).join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -267,11 +298,23 @@ export function CFOActionsLog() {
                         {categoryLabel ? `${categoryLabel} • ` : ''}{reason}
                       </p>
                     )}
-                    <div className="flex items-center gap-1 mt-1">
-                      <Clock className="h-2.5 w-2.5 text-muted-foreground" />
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(action.created_at), 'MMM d, h:mm a')}
-                      </p>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(action.created_at), 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      {action.actor_name && (
+                        <span className="text-[10px] text-primary font-medium">
+                          by {action.actor_name}
+                        </span>
+                      )}
+                      {action.is_manager_acting_as_cfo && (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 border-orange-400 text-orange-600">
+                          Manager
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
