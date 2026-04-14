@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useShortLink } from '@/hooks/useShortLink';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -189,7 +190,11 @@ export function AgentPartnerDashboardSheet({ open, onOpenChange }: Props) {
   const activePartners = partners.filter(p => p.status === 'Active').length;
   const totalDeposits = partners.reduce((s, p) => s + p.investedAmount, 0);
 
-  const referralLink = user ? `${window.location.origin}/auth?ref=${user.id}` : '';
+  const { shortUrl: referralLink } = useShortLink({
+    targetPath: '/auth',
+    targetParams: { ref: user?.id || '' },
+    enabled: open && !!user,
+  });
 
   const whatsAppMessage = `Hi, I'm onboarding partners into a passive income opportunity with Welile Technologies.
 
