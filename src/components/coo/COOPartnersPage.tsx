@@ -1735,6 +1735,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   </Badge>
                                 </div>
                               )}
+                              {approvedTopUps[p.id] && (
+                                <div className="flex items-center gap-1.5 mb-2.5">
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-emerald-500/40 text-emerald-600 bg-emerald-500/5">
+                                    ✅ {approvedTopUps[p.id].count} approved top-up{approvedTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(approvedTopUps[p.id].total)} — applied at next ROI cycle
+                                  </Badge>
+                                </div>
+                              )}
 
                               {/* Details grid */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs bg-muted/30 rounded-lg p-2.5">
