@@ -370,6 +370,11 @@ export default function HREmployeeDirectory() {
                     <TableCell className="hidden lg:table-cell text-xs text-muted-foreground" onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}>
                       {emp.profile?.email?.split('@')[0] || emp.profile?.phone || '—'}
                     </TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEmployee(emp)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
