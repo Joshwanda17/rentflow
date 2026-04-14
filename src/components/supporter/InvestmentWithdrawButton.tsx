@@ -52,7 +52,7 @@ export function InvestmentWithdrawButton() {
     if (!user) return;
     const fetchExisting = async () => {
       const { data } = await supabase
-        .from('investment_withdrawal_requests' as any)
+        .from('investment_withdrawal_requests')
         .select('amount, status, earliest_process_date, created_at, requested_at, partner_ops_approved_at, coo_approved_at, cfo_processed_at')
         .eq('user_id', user.id)
         .in('status', ['pending', 'partner_ops_approved', 'coo_approved', 'approved'])
