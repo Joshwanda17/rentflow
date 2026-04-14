@@ -148,6 +148,63 @@ export interface FacilitatedVolumeData {
   supporterCapitalDeployed: number;
 }
 
+export interface DeltaValue {
+  current: number;
+  previous: number;
+  change: number;
+  changePercent: number | null;
+}
+
+export interface ComparisonMetrics {
+  totalRevenue: DeltaValue;
+  accessFees: DeltaValue;
+  requestFees: DeltaValue;
+  otherServiceIncome: DeltaValue;
+  advanceAccessFeesCollected: DeltaValue;
+  totalServiceCosts: DeltaValue;
+  totalOperatingExpenses: DeltaValue;
+  netOperatingIncome: DeltaValue;
+  netOperatingCash: DeltaValue;
+  netFacilitation: DeltaValue;
+  netCustodial: DeltaValue;
+  netFinancing: DeltaValue;
+  netCashMovement: DeltaValue;
+  closingBalance: DeltaValue;
+  totalFacilitatedRentVolume: DeltaValue;
+  approvedRequests: DeltaValue;
+  activeTenants: DeltaValue;
+  activeAgents: DeltaValue;
+}
+
+function computeDelta(current: number, previous: number): DeltaValue {
+  const change = current - previous;
+  const changePercent = previous !== 0 ? (change / Math.abs(previous)) * 100 : null;
+  return { current, previous, change, changePercent };
+}
+
+export function buildComparisonMetrics(c: FinancialStatementsData, p: FinancialStatementsData): ComparisonMetrics {
+  return {
+    totalRevenue: computeDelta(c.incomeStatement.revenue.total, p.incomeStatement.revenue.total),
+    accessFees: computeDelta(c.incomeStatement.revenue.accessFees, p.incomeStatement.revenue.accessFees),
+    requestFees: computeDelta(c.incomeStatement.revenue.requestFees, p.incomeStatement.revenue.requestFees),
+    otherServiceIncome: computeDelta(c.incomeStatement.revenue.otherServiceIncome, p.incomeStatement.revenue.otherServiceIncome),
+    advanceAccessFeesCollected: computeDelta(c.incomeStatement.revenue.advanceAccessFeesCollected, p.incomeStatement.revenue.advanceAccessFeesCollected),
+    totalServiceCosts: computeDelta(c.incomeStatement.serviceDeliveryCosts.total, p.incomeStatement.serviceDeliveryCosts.total),
+    totalOperatingExpenses: computeDelta(c.incomeStatement.operatingExpenses.total, p.incomeStatement.operatingExpenses.total),
+    netOperatingIncome: computeDelta(c.incomeStatement.netOperatingIncome, p.incomeStatement.netOperatingIncome),
+    netOperatingCash: computeDelta(c.cashFlow.operatingActivities.netOperating, p.cashFlow.operatingActivities.netOperating),
+    netFacilitation: computeDelta(c.cashFlow.facilitationActivities.netFacilitation, p.cashFlow.facilitationActivities.netFacilitation),
+    netCustodial: computeDelta(c.cashFlow.custodialActivities.netCustodial, p.cashFlow.custodialActivities.netCustodial),
+    netFinancing: computeDelta(c.cashFlow.financingActivities.netFinancing, p.cashFlow.financingActivities.netFinancing),
+    netCashMovement: computeDelta(c.cashFlow.netCashMovement, p.cashFlow.netCashMovement),
+    closingBalance: computeDelta(c.cashFlow.closingBalance, p.cashFlow.closingBalance),
+    totalFacilitatedRentVolume: computeDelta(c.facilitatedVolume.totalFacilitatedRentVolume, p.facilitatedVolume.totalFacilitatedRentVolume),
+    approvedRequests: computeDelta(c.facilitatedVolume.approvedRequests, p.facilitatedVolume.approvedRequests),
+    activeTenants: computeDelta(c.facilitatedVolume.activeTenants, p.facilitatedVolume.activeTenants),
+    activeAgents: computeDelta(c.facilitatedVolume.activeAgents, p.facilitatedVolume.activeAgents),
+  };
+}
+
 export interface FinancialStatementsData {
   incomeStatement: IncomeStatementData;
   cashFlow: CashFlowData;
