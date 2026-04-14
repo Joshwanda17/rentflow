@@ -1,19 +1,48 @@
 
 
-## Rename "Approved Top-up" badge to "Pending Principal"
+## Replace PDF Button with "Apply Pending Principal" Action
 
-The approved top-up has been verified but not yet merged into the portfolio's active principal — it will only be applied at the next ROI cycle. The badge should reflect this state clearly.
+### Overview
+Remove the PDF download button from investment portfolios in both COO Partners Page and Partner Operations (Manager) dashboard. Replace it with a button that lets operations manually merge approved pending top-ups into the portfolio principal, requiring a reason before applying.
 
-### Changes in `src/components/coo/COOPartnersPage.tsx`
+### New Edge Function: `merge-pending-topups`
 
-1. **Header badge** (line ~1680): Change from `✅ Approved Top-up {amount}` to `⏳ Pending Principal +{amount}` with amber/orange styling instead of green, since the funds are not yet active.
+Creates `supabase/functions/merge-pending-topups/index.ts` — a manual version of the merge logic currently in `process-supporter-roi` (lines 260-395). This function:
 
-2. **Detail badge** (line ~1741): Change from `✅ X approved top-up(s): {amount} — applied at next ROI cycle` to `⏳ X pending principal addition(s): {amount} — merges at next ROI cycle`
+1. Authenticates caller and verifies role (coo, manager, operations, super_admin)
+2. Accepts `portfolio_id` and `reason` (min 10 chars)
+3. Fetches all `approved` pending_wallet_operations for the portfolio with `operation_type = 'portfolio_topup'`
+4. If none found, returns error
+5. Updates `investor_portfolios.investment_amount` by adding total pending amount
+6. Marks pending ops as `status: 'completed'` with `reviewed_by` set to the caller
+7. Creates balanced ledger entries: `pending_portfolio_topup` (cash_out) + `partner_funding` (cash_in) — same pattern as the ROI merge engine
+8. Creates audit log with action_type `manual_merge_pending_topups` including reason
+9. Notifies the partner about the merge
+10. Returns updated capital amount
 
-3. **Badge color**: Switch from emerald (green) to a blue or amber tone to distinguish "pending principal" (waiting to merge) from fully applied capital. Amber is more appropriate since it signals "in progress / waiting".
+### Frontend Changes
 
-### Result
-- Badge reads: `⏳ Pending Principal +USh 1,000,000`
-- Detail reads: `⏳ 1 pending principal addition: USh 1,000,000 — merges at next ROI cycle`
-- Clearly communicates that approved funds are parked and will be picked up by the merge engine
+**`src/components/coo/COOPartnersPage.tsx`** (~line 1968-1983):
+- Remove the PDF button and its `downloadPortfolioPdf` call
+- Add an "Apply Top-up" button (visible only when `approvedTopUps[p.id]?.total > 0`)
+- Button opens a small dialog/popover asking for a reason (textarea, min 10 chars)
+- On submit, calls `supabase.functions.invoke('merge-pending-topups', { body: { portfolio_id, reason } })`
+- On success, refreshes portfolio data and shows toast
+- Button styled with primary/amber color with a merge icon
+
+**`src/components/manager/InvestmentAccountsManager.tsx`** (~line 229-243):
+- Same replacement: remove PDF button, add "Apply Top-up" button with identical logic
+- Needs to fetch `approvedTopUps` state (query pending_wallet_operations with status 'approved' for each portfolio)
+
+### Technical Details
+
+- The merge ledger pattern mirrors `process-supporter-roi` exactly: `pending_portfolio_topup` cash_out + `partner_funding` cash_in
+- Pending ops marked as `completed` (not `approved`) to distinguish manual merges from automated ones
+- Rollback: if the pending ops status update fails after principal update, revert `investment_amount`
+- The button is conditionally rendered — only shows when there are approved pending top-ups for that portfolio
+
+### Files
+- **New**: `supabase/functions/merge-pending-topups/index.ts`
+- **Edit**: `src/components/coo/COOPartnersPage.tsx` — replace PDF button with Apply Top-up
+- **Edit**: `src/components/manager/InvestmentAccountsManager.tsx` — replace PDF button with Apply Top-up
 
