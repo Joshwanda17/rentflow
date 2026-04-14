@@ -235,12 +235,12 @@ function CashFlowSection({ d, cm }: { d: FinancialStatementsData['cashFlow']; cm
 
       <div className="pt-3 mt-2 border-t-2 border-primary/30 space-y-1">
         <LineItem label="Opening Platform Balance" value={d.openingBalance} />
-        <div className={cn('flex justify-between text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
-          <span>Net Platform Cash Movement</span>
+        <div className={cn('flex justify-between items-center text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
+          <span className="flex items-center">Net Platform Cash Movement{cm && <DeltaBadge delta={cm.netCashMovement} />}</span>
           <span className="font-mono">{d.netCashMovement >= 0 ? '+' : ''}{formatUGX(d.netCashMovement)}</span>
         </div>
-        <div className="flex justify-between text-base font-bold">
-          <span>Closing Platform Balance</span>
+        <div className="flex justify-between items-center text-base font-bold">
+          <span className="flex items-center">Closing Platform Balance{cm && <DeltaBadge delta={cm.closingBalance} />}</span>
           <span className="font-mono text-primary">{formatUGX(d.closingBalance)}</span>
         </div>
       </div>
