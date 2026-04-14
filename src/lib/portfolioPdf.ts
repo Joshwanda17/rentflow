@@ -1,5 +1,6 @@
 // jsPDF loaded dynamically to reduce initial bundle size
 import { formatUGX } from '@/lib/rentCalculations';
+import welileLogoUrl from '@/assets/welile-logo.png';
 
 export interface PortfolioPdfData {
   portfolioCode: string;
@@ -33,42 +34,91 @@ function getOrdinalSuffix(day: number): string {
   }
 }
 
+async function loadLogoAsBase64(): Promise<string | null> {
+  try {
+    const res = await fetch(welileLogoUrl);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function generatePortfolioPdf(data: PortfolioPdfData): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const pw = pdf.internal.pageSize.getWidth();
+  const ph = pdf.internal.pageSize.getHeight();
   const margin = 16;
   const cw = pw - margin * 2;
-  let y = 20;
+  let y = 14;
 
   const monthlyROI = Math.round(data.investmentAmount * (data.roiPercentage / 100));
   const displayName = data.accountName || data.portfolioCode;
 
-  // Header bar
-  pdf.setFillColor(30, 41, 59); // slate-800
-  pdf.rect(0, 0, pw, 38, 'F');
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFontSize(18);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('Investment Portfolio Statement', margin, 18);
-  pdf.setFontSize(10);
-  pdf.setFont('helvetica', 'normal');
-  pdf.text(`Generated: ${new Date().toLocaleDateString('en-UG', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin, 28);
-  
-  if (data.ownerName) {
-    pdf.text(`Partner: ${data.ownerName}`, pw - margin, 28, { align: 'right' });
+  // ─── BRANDED HEADER ───
+  // Logo
+  const logoBase64 = await loadLogoAsBase64();
+  if (logoBase64) {
+    pdf.addImage(logoBase64, 'PNG', margin, y - 4, 14, 14);
   }
 
-  y = 48;
+  // Company name next to logo
+  const textX = margin + 18;
+  pdf.setFontSize(16);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 41, 59);
+  pdf.text('Welile Technologies Limited', textX, y + 2);
+
+  // Address, email, phone below company name
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  y += 7;
+  pdf.text('Plot 24, Kampala Road, Kampala, Uganda', textX, y);
+  y += 4;
+  pdf.text('Email: info@welile.com  |  Phone: +256 700 000 000', textX, y);
+  y += 4;
+  pdf.text('www.welile.com', textX, y);
+
+  // HR line
+  y += 5;
+  pdf.setDrawColor(203, 213, 225);
+  pdf.setLineWidth(0.5);
+  pdf.line(margin, y, pw - margin, y);
+
+  // Document title
+  y += 8;
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 41, 59);
+  pdf.text('Investment Portfolio Statement', margin, y);
+
+  // Generated date & partner
+  y += 5;
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 116, 139);
+  pdf.text(`Generated: ${new Date().toLocaleDateString('en-UG', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin, y);
+  if (data.ownerName) {
+    pdf.text(`Partner: ${data.ownerName}`, pw - margin, y, { align: 'right' });
+  }
+
+  y += 8;
   pdf.setTextColor(30, 41, 59);
 
   // Portfolio name / code
-  pdf.setFontSize(14);
+  pdf.setFontSize(13);
   pdf.setFont('helvetica', 'bold');
   pdf.text(displayName, margin, y);
   y += 5;
   if (data.accountName) {
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(100, 116, 139);
     pdf.text(`ID: ${data.portfolioCode}`, margin, y);
@@ -123,7 +173,7 @@ export async function generatePortfolioPdf(data: PortfolioPdfData): Promise<Blob
     y += 28;
   }
 
-  // Projection table (simple)
+  // Projection table
   y += 4;
   pdf.setFontSize(11);
   pdf.setFont('helvetica', 'bold');
@@ -131,7 +181,6 @@ export async function generatePortfolioPdf(data: PortfolioPdfData): Promise<Blob
   pdf.text('ROI Projection (Next 6 Months)', margin, y);
   y += 6;
 
-  // Table header
   pdf.setFillColor(241, 245, 249);
   pdf.rect(margin, y, cw, 8, 'F');
   pdf.setFontSize(8);
@@ -170,15 +219,17 @@ export async function generatePortfolioPdf(data: PortfolioPdfData): Promise<Blob
     y += 7;
   }
 
-  // Footer
-  y += 10;
-  pdf.setDrawColor(226, 232, 240);
-  pdf.line(margin, y, pw - margin, y);
-  y += 6;
+  // ─── FOOTER ───
+  const footerY = ph - 14;
+  pdf.setDrawColor(203, 213, 225);
+  pdf.setLineWidth(0.3);
+  pdf.line(margin, footerY - 4, pw - margin, footerY - 4);
+
   pdf.setFontSize(7);
   pdf.setTextColor(148, 163, 184);
-  pdf.text('This is a system-generated document. Returns are subject to market conditions.', margin, y);
-  pdf.text('Welile Receipts · Investment Portfolio', pw - margin, y, { align: 'right' });
+  pdf.text('This is a system-generated document. Returns are subject to market conditions.', margin, footerY);
+  pdf.text('Welile Technologies Limited · Investment Portfolio', pw - margin, footerY, { align: 'right' });
+  pdf.text('Confidential — For intended recipient only', margin, footerY + 4);
 
   return pdf.output('blob');
 }
@@ -210,7 +261,7 @@ export function sharePortfolioViaWhatsApp(data: PortfolioPdfData) {
     ``,
     `Total Earned So Far: ${formatUGX(data.totalRoiEarned)}`,
     ``,
-    `_Welile Receipts - Investment Portfolio_`,
+    `_Welile Technologies Limited - Investment Portfolio_`,
   ].join('\n');
 
   const encoded = encodeURIComponent(message);
