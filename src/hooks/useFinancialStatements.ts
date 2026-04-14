@@ -339,14 +339,16 @@ export function useFinancialStatements() {
       const rentDisbursements = sumBy(platformOut, ['rent_disbursement']);
       const netFacilitation = rentRepayments + rentPrincipalCollected + agentRepayments - rentDeployments - rentDisbursements;
 
-      // Custodial (wallet scope)
+      // Custodial (wallet scope) — includes all legacy wallet categories
       const userDeposits = sumBy(walletIn, ['deposit', 'wallet_deposit', 'agent_float_deposit', 'pending_portfolio_topup']);
       const userWithdrawals = sumBy(walletOut, ['wallet_withdrawal']);
       const userTransfers = sumBy(walletOut, ['wallet_transfer']);
       const cfWalletDeductions = sumBy(walletOut, ['wallet_deduction']);
-      const roiWalletCredits = sumBy(walletIn, ['roi_wallet_credit']);
-      const rentFloatFunding = sumBy(walletIn, ['rent_float_funding']);
-      const netCustodial = userDeposits + roiWalletCredits + rentFloatFunding - userWithdrawals - userTransfers - cfWalletDeductions;
+      const roiWalletCredits = sumBy(walletIn, ['roi_wallet_credit', 'roi_payout']);
+      const rentFloatFunding = sumBy(walletIn, ['rent_float_funding', 'landlord_rent_payment', 'pool_capital_received', 'pool_rent_deployment_reversal', 'rent_obligation_reversal', 'coo_proxy_investment_reversal', 'proxy_investment_commission', 'platform_expense']);
+      // Legacy investment/deployment outflows
+      const legacyInvestmentOutflows = sumBy(walletOut, ['agent_proxy_investment', 'coo_proxy_investment', 'supporter_rent_fund', 'wallet_to_investment', 'angel_pool_investment', 'rent_payment_for_tenant', 'rent_obligation', 'proxy_partner_withdrawal', 'rent_obligation_reversal_adjustment']);
+      const netCustodial = userDeposits + roiWalletCredits + rentFloatFunding - userWithdrawals - userTransfers - cfWalletDeductions - legacyInvestmentOutflows;
 
       // Financing (bridge scope)
       const supporterCapitalInflows = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
