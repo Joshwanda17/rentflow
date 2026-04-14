@@ -22,6 +22,8 @@ export interface IncomeStatementData {
   serviceDeliveryCosts: {
     platformRewards: number;
     agentCommissions: number;
+    referralBonuses: number;
+    agentBonuses: number;
     transactionExpenses: number;
     total: number;
   };
@@ -262,12 +264,21 @@ export function useFinancialStatements() {
       const requestFees = sumWithDirectionFallback(platformIn, platformOut, ['tenant_request_fee', 'request_fee', 'registration_fee_collected']);
       const otherServiceIncome = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
       const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'roi_expense']);
-      const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_commission_earned', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
+      const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_commission_earned', 'agent_payout', 'agent_approval_bonus']);
+      // Referral & agent bonuses (production + legacy)
+      const referralBonuses = sumBy(walletIn, ['referral_bonus']) + sumBy(platformOut, ['referral_bonus']);
+      const agentBonuses = sumBy(walletIn, ['agent_bonus']) + sumBy(platformOut, ['agent_bonus']);
+      const totalIncentiveCosts = referralBonuses + agentBonuses;
       const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
       const generalOperating = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
       const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance']);
       const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
       const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
+      // Legacy expenses captured
+      const legacyMarketingExpense = sumBy(walletOut, ['marketing_expense']) + sumBy(platformOut, ['marketing_expense']);
+      const tenantDefaultCharges = sumBy(walletOut, ['tenant_default_charge']);
+      const debtClearance = sumBy(walletOut, ['debt_clearance']);
+      // financialAgentExpenses already declared above
 
       // Subcategory expenses from system_balance_correction entries
       const sumByDescriptionMatch = (rows: any[], pattern: string) =>
@@ -288,12 +299,12 @@ export function useFinancialStatements() {
       const opSubTaxes = sumByDescriptionMatch(platformOut, '→ Taxes');
       const opSubInterests = sumByDescriptionMatch(platformOut, '→ Interests');
 
-      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
+      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + legacyMarketingExpense + tenantDefaultCharges + debtClearance + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
 
       const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
 
       const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
-      const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
+      const totalServiceCosts = platformRewards + agentCommissions + totalIncentiveCosts + transactionExpenses;
 
       // ── Adjustments (non-revenue, non-expense items that affect net income) ──
       const walletDeductions = sumWithDirectionFallback(platformIn, walletOut, ['wallet_deduction']);
@@ -330,14 +341,16 @@ export function useFinancialStatements() {
       const rentDisbursements = sumBy(platformOut, ['rent_disbursement']);
       const netFacilitation = rentRepayments + rentPrincipalCollected + agentRepayments - rentDeployments - rentDisbursements;
 
-      // Custodial (wallet scope)
+      // Custodial (wallet scope) — includes all legacy wallet categories
       const userDeposits = sumBy(walletIn, ['deposit', 'wallet_deposit', 'agent_float_deposit', 'pending_portfolio_topup']);
       const userWithdrawals = sumBy(walletOut, ['wallet_withdrawal']);
       const userTransfers = sumBy(walletOut, ['wallet_transfer']);
       const cfWalletDeductions = sumBy(walletOut, ['wallet_deduction']);
-      const roiWalletCredits = sumBy(walletIn, ['roi_wallet_credit']);
-      const rentFloatFunding = sumBy(walletIn, ['rent_float_funding']);
-      const netCustodial = userDeposits + roiWalletCredits + rentFloatFunding - userWithdrawals - userTransfers - cfWalletDeductions;
+      const roiWalletCredits = sumBy(walletIn, ['roi_wallet_credit', 'roi_payout']);
+      const rentFloatFunding = sumBy(walletIn, ['rent_float_funding', 'landlord_rent_payment', 'pool_capital_received', 'pool_rent_deployment_reversal', 'rent_obligation_reversal', 'coo_proxy_investment_reversal', 'proxy_investment_commission', 'platform_expense']);
+      // Legacy investment/deployment outflows
+      const legacyInvestmentOutflows = sumBy(walletOut, ['agent_proxy_investment', 'coo_proxy_investment', 'supporter_rent_fund', 'wallet_to_investment', 'angel_pool_investment', 'rent_payment_for_tenant', 'rent_obligation', 'proxy_partner_withdrawal', 'rent_obligation_reversal_adjustment']);
+      const netCustodial = userDeposits + roiWalletCredits + rentFloatFunding - userWithdrawals - userTransfers - cfWalletDeductions - legacyInvestmentOutflows;
 
       // Financing (bridge scope)
       const supporterCapitalInflows = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
@@ -402,7 +415,7 @@ export function useFinancialStatements() {
         incomeStatement: {
           period: formatPeriodLabel(activeFilters),
           revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
-          serviceDeliveryCosts: { platformRewards, agentCommissions, transactionExpenses, total: totalServiceCosts },
+          serviceDeliveryCosts: { platformRewards, agentCommissions, referralBonuses, agentBonuses, transactionExpenses, total: totalServiceCosts },
           operatingExpenses: {
             generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses,
             marketingExpenses, researchDevelopment,

@@ -41,6 +41,8 @@ export interface IncomeStatement {
   serviceDeliveryCosts: {
     platformRewards: number;
     agentCommissions: number;
+    referralBonuses: number;
+    agentBonuses: number;
     transactionExpenses: number;
     total: number;
   };

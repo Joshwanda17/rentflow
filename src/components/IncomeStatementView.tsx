@@ -57,6 +57,18 @@ export function IncomeStatementView({ data }: IncomeStatementViewProps) {
             <span className="text-muted-foreground">Agent Commissions</span>
             <span className="font-mono text-destructive">({formatCurrency(data.serviceDeliveryCosts.agentCommissions)})</span>
           </div>
+          {data.serviceDeliveryCosts.referralBonuses > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Referral Bonuses</span>
+              <span className="font-mono text-destructive">({formatCurrency(data.serviceDeliveryCosts.referralBonuses)})</span>
+            </div>
+          )}
+          {data.serviceDeliveryCosts.agentBonuses > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Agent Bonuses</span>
+              <span className="font-mono text-destructive">({formatCurrency(data.serviceDeliveryCosts.agentBonuses)})</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Transaction Expenses</span>
             <span className="font-mono text-destructive">({formatCurrency(data.serviceDeliveryCosts.transactionExpenses)})</span>

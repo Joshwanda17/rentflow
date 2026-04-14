@@ -56,6 +56,8 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <SectionHeader>Service Delivery Costs</SectionHeader>
       <LineItem label="Platform Rewards (Supporters)" value={d.serviceDeliveryCosts.platformRewards} negative indent />
       <LineItem label="Agent Commissions" value={d.serviceDeliveryCosts.agentCommissions} negative indent />
+      <LineItem label="Referral Bonuses" value={d.serviceDeliveryCosts.referralBonuses} negative indent />
+      <LineItem label="Agent Bonuses" value={d.serviceDeliveryCosts.agentBonuses} negative indent />
       <LineItem label="Transaction Expenses" value={d.serviceDeliveryCosts.transactionExpenses} negative indent />
       <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold />
 
@@ -348,6 +350,8 @@ export function FinancialStatementsPanel() {
       rows.push(['SERVICE DELIVERY COSTS', '', '']);
       rows.push(['Platform Rewards', '', -d.serviceDeliveryCosts.platformRewards]);
       rows.push(['Agent Commissions', '', -d.serviceDeliveryCosts.agentCommissions]);
+      rows.push(['Referral Bonuses', '', -d.serviceDeliveryCosts.referralBonuses]);
+      rows.push(['Agent Bonuses', '', -d.serviceDeliveryCosts.agentBonuses]);
       rows.push(['Transaction Expenses', '', -d.serviceDeliveryCosts.transactionExpenses]);
       rows.push(['Total Service Costs', '', -d.serviceDeliveryCosts.total]);
       rows.push(['Payroll & Staff Costs', '', -d.operatingExpenses.payrollExpenses]);
@@ -536,6 +540,8 @@ export function FinancialStatementsPanel() {
         addSection('Service Delivery Costs');
         addRow('Platform Rewards', d.serviceDeliveryCosts.platformRewards, false, true, true);
         addRow('Agent Commissions', d.serviceDeliveryCosts.agentCommissions, false, true, true);
+        addRow('Referral Bonuses', d.serviceDeliveryCosts.referralBonuses, false, true, true);
+        addRow('Agent Bonuses', d.serviceDeliveryCosts.agentBonuses, false, true, true);
         addRow('Transaction Expenses', d.serviceDeliveryCosts.transactionExpenses, false, true, true);
         addRow('Total Service Costs', d.serviceDeliveryCosts.total, true, true);
         y += 3;
