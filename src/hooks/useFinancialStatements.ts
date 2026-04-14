@@ -597,8 +597,14 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
             platformCash, userFundsHeld, receivables: outstandingRent, rentReceivablesCreated,
             advanceAccessFeeReceivables, promissoryNotesReceivable, totalAssets,
           },
-          platformObligations: { userWalletCustody, pendingWithdrawals, accruedPlatformRewards, agentCommissionsPayable, totalObligations },
+          platformObligations: { userWalletCustody, pendingWithdrawals, accruedPlatformRewards, agentCommissionsPayable, deferredRevenue, totalObligations },
           platformEquity: { retainedOperatingSurplus, totalEquity: retainedOperatingSurplus },
+          revenueRecognition: {
+            expectedRevenue: totalExpectedRevenue,
+            realizedRevenue: totalRealizedRevenue,
+            deferredRevenue,
+            recognitionRate,
+          },
         },
         facilitatedVolume: {
           totalFacilitatedRentVolume,
