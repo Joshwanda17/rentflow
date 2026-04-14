@@ -397,16 +397,6 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
                 <Sparkles className="h-4 w-4" />
                 Top Up
               </Button>
-              <div className="flex-1 flex items-center justify-center gap-2 h-11 rounded-md border border-border/60 bg-muted/30 px-3">
-                <RefreshCw className={`h-3.5 w-3.5 ${autoReinvestValue ? 'text-primary' : 'text-muted-foreground'}`} />
-                <span className="text-xs font-semibold">Auto-Reinvest</span>
-                <Switch
-                  checked={autoReinvestValue}
-                  onCheckedChange={() => handleToggleAutoReinvest()}
-                  disabled={togglingReinvest}
-                  className="ml-1 scale-90"
-                />
-              </div>
               <Button
                 variant="outline"
                 onClick={() => {
