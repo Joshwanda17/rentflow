@@ -72,7 +72,7 @@ export function FinOpsWithdrawalVerification() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .in('status', ['pending', 'requested'])
+        .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'])
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(100);
