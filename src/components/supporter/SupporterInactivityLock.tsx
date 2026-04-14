@@ -52,7 +52,7 @@ export function SupporterInactivityLock({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-2xl backdrop-saturate-150"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-3xl backdrop-saturate-150"
     >
       <div className="flex flex-col items-center gap-5 px-6 py-10 max-w-sm w-full text-center">
         {/* Avatar */}
