@@ -53,7 +53,7 @@ import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
-import { MyPortfolioAccounts } from '@/components/supporter/MyPortfolioAccounts';
+import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
@@ -95,6 +95,8 @@ export default function SupporterDashboard({
   const [selectedPackageCategory, setSelectedPackageCategory] = useState<RentCategory | null>(null);
   const [showPackageSheet, setShowPackageSheet] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [showInvestments, setShowInvestments] = useState(false);
+  const [investmentsTab, setInvestmentsTab] = useState<'accounts' | 'angel'>('accounts');
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
@@ -411,21 +413,17 @@ export default function SupporterDashboard({
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             onReturnTap={() => {
-              const el = document.getElementById('my-portfolio-accounts');
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              setInvestmentsTab('accounts');
+              setShowInvestments(true);
             }}
             onDeployedTap={() => {
-              const el = document.getElementById('my-portfolio-accounts');
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              setInvestmentsTab('accounts');
+              setShowInvestments(true);
             }}
           />
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
 
-          {/* ═══ MY PORTFOLIO ACCOUNTS ═══ */}
-          <div id="my-portfolio-accounts">
-            <MyPortfolioAccounts />
-          </div>
 
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
@@ -582,6 +580,7 @@ export default function SupporterDashboard({
       />
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      <InvestmentAccountsDrawer open={showInvestments} onOpenChange={setShowInvestments} defaultTab={investmentsTab} />
       
       
     </div>
