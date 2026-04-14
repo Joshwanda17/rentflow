@@ -181,9 +181,59 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
     setDownloading(false);
   };
 
-  const handleShareWhatsApp = () => {
-    sharePortfolioViaWhatsApp(buildPdfData());
+  const handleToggleAutoReinvest = async () => {
+    if (!portfolio.id) return;
+    setTogglingReinvest(true);
+    const currentValue = localAutoReinvest ?? portfolio.auto_reinvest ?? false;
+    const newValue = !currentValue;
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ auto_reinvest: newValue })
+        .eq('id', portfolio.id);
+      if (error) throw error;
+      setLocalAutoReinvest(newValue);
+      toast.success(`Auto-reinvest ${newValue ? 'enabled' : 'disabled'}`);
+      onRenamed(); // triggers refetch
+    } catch {
+      toast.error('Failed to update auto-reinvest setting');
+    } finally {
+      setTogglingReinvest(false);
+    }
   };
+
+  const handleShare = async () => {
+    const displayName = portfolio.account_name || portfolio.portfolio_code || 'Investment Account';
+    const monthlyROI = Math.round(amount * (roiPct / 100));
+    const message = [
+      `📊 *Investment Portfolio: ${displayName}*`,
+      ``,
+      `💰 Capital: ${formatUGX(amount)}`,
+      `📈 ROI Rate: ${roiPct}% per month`,
+      `💵 Monthly Return: ${formatUGX(monthlyROI)}`,
+      `📅 Duration: ${portfolio.duration_months || '—'} months`,
+      `🔄 Mode: ${portfolio.roi_mode === 'monthly_compounding' ? 'Compounding' : 'Monthly Payout'}`,
+      `✅ Status: ${cfg.label}`,
+      ``,
+      `Total Earned So Far: ${formatUGX(totalEarned)}`,
+      ``,
+      `_Welile Technologies Limited - Investment Portfolio_`,
+    ].join('\n');
+
+    // Try native share first, fallback to WhatsApp
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Portfolio: ${displayName}`, text: message });
+      } catch {
+        // User cancelled or share failed — silent
+      }
+    } else {
+      const encoded = encodeURIComponent(message);
+      window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    }
+  };
+
+  const autoReinvestValue = localAutoReinvest ?? portfolio.auto_reinvest ?? false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
