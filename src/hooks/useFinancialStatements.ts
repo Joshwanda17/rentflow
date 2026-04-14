@@ -137,11 +137,18 @@ export interface BalanceSheetData {
     pendingWithdrawals: number;
     accruedPlatformRewards: number;
     agentCommissionsPayable: number;
+    deferredRevenue: number;
     totalObligations: number;
   };
   platformEquity: {
     retainedOperatingSurplus: number;
     totalEquity: number;
+  };
+  revenueRecognition: {
+    expectedRevenue: number;
+    realizedRevenue: number;
+    deferredRevenue: number;
+    recognitionRate: number;
   };
 }
 
