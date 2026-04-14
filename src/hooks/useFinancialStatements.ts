@@ -46,6 +46,13 @@ export interface IncomeStatementData {
     };
     total: number;
   };
+  adjustments: {
+    walletDeductions: number;
+    systemCorrections: number;
+    orphanReassignments: number;
+    orphanReversals: number;
+    total: number;
+  };
   netOperatingIncome: number;
 }
 
@@ -56,6 +63,8 @@ export interface CashFlowData {
     otherServiceIncome: number;
     platformRewardsPaid: number;
     agentCommissionsPaid: number;
+    agentCommissionWithdrawals: number;
+    agentCommissionUsedForRent: number;
     payrollPaid: number;
     agentRequisitionsPaid: number;
     financialAgentExpensesPaid: number;
@@ -67,17 +76,26 @@ export interface CashFlowData {
   };
   facilitationActivities: {
     rentRepayments: number;
+    rentPrincipalCollected: number;
+    agentRepayments: number;
     rentDeployments: number;
+    rentDisbursements: number;
     netFacilitation: number;
   };
   custodialActivities: {
     userDeposits: number;
     userWithdrawals: number;
     userTransfers: number;
+    walletDeductions: number;
+    roiWalletCredits: number;
+    rentFloatFunding: number;
     netCustodial: number;
   };
   financingActivities: {
     supporterCapitalInflows: number;
+    partnerFunding: number;
+    shareCapital: number;
+    roiReinvestment: number;
     supporterCapitalWithdrawals: number;
     netFinancing: number;
   };
@@ -91,6 +109,7 @@ export interface BalanceSheetData {
     platformCash: number;
     userFundsHeld: number;
     receivables: number;
+    rentReceivablesCreated: number;
     advanceAccessFeeReceivables: number;
     promissoryNotesReceivable: number;
     totalAssets: number;
@@ -183,27 +202,11 @@ export function useFinancialStatements() {
       };
 
       const [
-        // Platform-scoped (revenue & expenses)
-        platformInRes,
-        platformOutRes,
-        // Wallet-scoped (user custody flows)
-        walletInRes,
-        walletOutRes,
-        // Bridge-scoped (capital flows affecting both)
-        bridgeInRes,
-        bridgeOutRes,
-        // Current user wallet balances (custodial liability)
-        walletsRes,
-        // Rent requests for facilitated volume
-        rentRequestsRes,
-        // Active advances for access fee receivables
-        advancesRes,
-        // All-time platform balance for opening balance
-        prevPlatformRes,
-        // All-time platform entries for Balance Sheet (no date filter)
-        allTimePlatformRes,
-        // Promissory notes receivable
-        promissoryNotesRes,
+        platformInRes, platformOutRes,
+        walletInRes, walletOutRes,
+        bridgeInRes, bridgeOutRes,
+        walletsRes, rentRequestsRes, advancesRes,
+        prevPlatformRes, allTimePlatformRes, promissoryNotesRes,
       ] = await Promise.all([
         buildScopedQuery('platform', 'cash_in'),
         buildScopedQuery('platform', 'cash_out'),
@@ -215,7 +218,6 @@ export function useFinancialStatements() {
         supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
         supabase.from('agent_advances').select('access_fee, access_fee_collected, access_fee_status, status').in('status', ['active', 'overdue']),
         (() => {
-          // Fix #1: No opening balance for "All Time" — prevents double-counting
           if (!startDate) return Promise.resolve({ data: [], error: null });
            let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
            q = q.lt('transaction_date', startDate.toISOString());
@@ -223,9 +225,7 @@ export function useFinancialStatements() {
            q = q.in('classification', ['production', 'legacy_real']);
           return q;
         })(),
-        // All-time platform cash via server-side RPC (no row limit)
         supabase.rpc('get_platform_cash_summary'),
-        // Promissory notes: pending + activated = receivable assets
         supabase.from('promissory_notes').select('amount, total_collected, status').in('status', ['pending', 'activated']),
       ]);
 
@@ -243,17 +243,12 @@ export function useFinancialStatements() {
       const allTimePlatformSummary = allTimePlatformRes.data as any;
       const promissoryNotes = promissoryNotesRes.data || [];
 
-      // Fix #2: Exclude 'opening_balance' migration artifacts from all aggregations
       const excludeSynthetic = (rows: any[]) => rows.filter(r => r.category !== 'opening_balance');
       const sumBy = (rows: any[], cats: string[]) =>
         excludeSynthetic(rows).filter(r => cats.includes(r.category)).reduce((s, r) => s + Number(r.amount), 0);
-      const sumAll = (rows: any[]) => excludeSynthetic(rows).reduce((s, r) => s + Number(r.amount), 0);
       const sumWithDirectionFallback = (
-        preferredRows: any[],
-        fallbackRows: any[],
-        categories: string[],
+        preferredRows: any[], fallbackRows: any[], categories: string[],
       ) => {
-        // Per-category fallback: check each category individually
         return categories.reduce((total, cat) => {
           const preferred = sumBy(preferredRows, [cat]);
           return total + (preferred > 0 ? preferred : sumBy(fallbackRows, [cat]));
@@ -262,12 +257,11 @@ export function useFinancialStatements() {
 
       // ══════════════════════════════════════════════════════════════
       // INCOME STATEMENT — Platform scope ONLY (earned revenue & costs)
-      // User wallet deposits/withdrawals are NOT revenue or expenses.
       // ══════════════════════════════════════════════════════════════
       const accessFees = sumWithDirectionFallback(platformIn, platformOut, ['tenant_access_fee', 'access_fee', 'access_fee_collected']);
       const requestFees = sumWithDirectionFallback(platformIn, platformOut, ['tenant_request_fee', 'request_fee', 'registration_fee_collected']);
       const otherServiceIncome = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
-      const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout']);
+      const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'roi_expense']);
       const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_commission_earned', 'agent_payout', 'agent_approval_bonus', 'referral_bonus']);
       const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
       const generalOperating = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
@@ -275,7 +269,7 @@ export function useFinancialStatements() {
       const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
       const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
 
-      // ── NEW: Parse CFO subcategory expenses from system_balance_correction entries ──
+      // Subcategory expenses from system_balance_correction entries
       const sumByDescriptionMatch = (rows: any[], pattern: string) =>
         excludeSynthetic(rows)
           .filter(r => r.category === 'system_balance_correction' && r.description && r.description.toLowerCase().includes(pattern.toLowerCase()))
@@ -283,8 +277,6 @@ export function useFinancialStatements() {
 
       const marketingExpenses = sumByDescriptionMatch(platformOut, 'Marketing Expenses');
       const researchDevelopment = sumByDescriptionMatch(platformOut, 'Research & Development');
-
-      // Operational subcategories
       const opSubSalaries = sumByDescriptionMatch(platformOut, '→ Salaries');
       const opSubTransport = sumByDescriptionMatch(platformOut, '→ Transport');
       const opSubFood = sumByDescriptionMatch(platformOut, '→ Food');
@@ -298,21 +290,29 @@ export function useFinancialStatements() {
 
       const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
 
-      // Advance Access Fee Revenue (only recognized when collected)
       const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
 
       const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
       const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
-      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal;
+
+      // ── Adjustments (non-revenue, non-expense items that affect net income) ──
+      const walletDeductions = sumWithDirectionFallback(platformIn, walletOut, ['wallet_deduction']);
+      const systemCorrections = sumWithDirectionFallback(platformIn, platformOut, ['system_balance_correction'])
+        - (marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests); // exclude already-mapped subcats
+      const orphanReassignments = sumBy(platformIn, ['orphan_reassignment']);
+      const orphanReversals = sumBy(platformOut, ['orphan_reversal']);
+      const adjustmentsTotal = walletDeductions + Math.max(0, systemCorrections) - orphanReversals + orphanReassignments;
+
+      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal + adjustmentsTotal;
 
       // ══════════════════════════════════════════════════════════════
-      // CASH FLOW — Separated into platform ops, custodial, & financing
+      // CASH FLOW — All categories tracked
       // ══════════════════════════════════════════════════════════════
 
-      // Operating (platform scope only — excludes pass-through facilitation flows)
+      // Operating (platform scope)
       const tenantFeesReceived = accessFees + requestFees;
-      const platformRewardsPaid = platformRewards;
-      const agentCommissionsPaid = agentCommissions;
+      const agentCommissionWithdrawals = sumBy(walletOut, ['agent_commission_withdrawal']);
+      const agentCommissionUsedForRent = sumBy(walletOut, ['agent_commission_used_for_rent']);
       const payrollPaid = payrollExpenses;
       const agentRequisitionsPaid = agentRequisitions;
       const financialAgentExpensesPaid = financialAgentExpenses;
@@ -320,26 +320,33 @@ export function useFinancialStatements() {
       const rdPaid = researchDevelopment;
       const operationalSubcatPaid = opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
       const withdrawalsPaid = generalOperating + transactionExpenses;
-      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewardsPaid - agentCommissionsPaid - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - marketingPaid - rdPaid - operationalSubcatPaid - withdrawalsPaid;
+      const netOperating = tenantFeesReceived + otherServiceIncome - platformRewards - agentCommissions - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - marketingPaid - rdPaid - operationalSubcatPaid - withdrawalsPaid;
 
-      // Facilitation Activities (capital pass-through: tenant repayments ↔ landlord deployments)
-      const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment']);
+      // Facilitation Activities
+      const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment', 'tenant_repayment']);
+      const rentPrincipalCollected = sumBy(platformIn, ['rent_principal_collected']);
+      const agentRepayments = sumBy(platformIn, ['agent_repayment']);
       const rentDeployments = sumBy(platformOut, ['pool_rent_deployment', 'rent_facilitation_payout']);
-      const netFacilitation = rentRepayments - rentDeployments;
+      const rentDisbursements = sumBy(platformOut, ['rent_disbursement']);
+      const netFacilitation = rentRepayments + rentPrincipalCollected + agentRepayments - rentDeployments - rentDisbursements;
 
-      // Custodial (wallet scope — user money in/out of platform custody)
-      // Fix #3: Only count actual user deposits/withdrawals, not internal flows
+      // Custodial (wallet scope)
       const userDeposits = sumBy(walletIn, ['deposit', 'wallet_deposit', 'agent_float_deposit', 'pending_portfolio_topup']);
       const userWithdrawals = sumBy(walletOut, ['wallet_withdrawal']);
-      const userTransfers = 0; // internal wallet-to-wallet are net zero
-      const netCustodial = userDeposits - userWithdrawals;
+      const userTransfers = sumBy(walletOut, ['wallet_transfer']);
+      const cfWalletDeductions = sumBy(walletOut, ['wallet_deduction']);
+      const roiWalletCredits = sumBy(walletIn, ['roi_wallet_credit']);
+      const rentFloatFunding = sumBy(walletIn, ['rent_float_funding']);
+      const netCustodial = userDeposits + roiWalletCredits + rentFloatFunding - userWithdrawals - userTransfers - cfWalletDeductions;
 
-      // Financing (bridge scope — supporter capital)
+      // Financing (bridge scope)
       const supporterCapitalInflows = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
+      const partnerFunding = sumBy(bridgeIn, ['partner_funding']);
+      const shareCapital = sumBy(bridgeIn, ['share_capital']);
+      const roiReinvestment = sumBy(bridgeIn, ['roi_reinvestment']);
       const supporterCapitalWithdrawals = sumBy(bridgeOut, ['supporter_withdrawal', 'investment_withdrawal']);
-      const netFinancing = supporterCapitalInflows - supporterCapitalWithdrawals;
+      const netFinancing = supporterCapitalInflows + partnerFunding + shareCapital + roiReinvestment - supporterCapitalWithdrawals;
 
-      // Platform cash movement — operating only (facilitation & financing shown separately)
       const netCashMovement = netOperating;
       const openingBalance = prevPlatform.reduce(
         (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
@@ -347,33 +354,30 @@ export function useFinancialStatements() {
       const closingBalance = openingBalance + netCashMovement;
 
       // ══════════════════════════════════════════════════════════════
-      // BALANCE SHEET — Platform assets vs obligations
-      // User wallet balances = custodial LIABILITY (not our money)
+      // BALANCE SHEET
       // ══════════════════════════════════════════════════════════════
-      // Platform Cash = All-time cumulative retained earnings via server-side RPC (no row limit)
       const allTimeRevenue = Number(allTimePlatformSummary?.total_revenue ?? 0);
       const allTimeCosts = Number(allTimePlatformSummary?.total_costs ?? 0);
       const platformCash = Math.max(0, allTimeRevenue - allTimeCosts);
 
       const userFundsHeld = (wallets || []).reduce((s, w) => s + (w.balance || 0), 0);
 
-      // Receivables: outstanding rent that's been funded but not fully repaid
       const outstandingRent = rentRequests
         .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
         .reduce((s, r) => s + Number(r.rent_amount || 0), 0);
 
-      // Advance Access Fee Receivables: uncollected access fees on active/overdue advances
+      // Rent Receivables Created (bridge/platform scope)
+      const rentReceivablesCreated = sumBy(bridgeIn, ['rent_receivable_created']);
+
       const advanceAccessFeeReceivables = activeAdvances.reduce((s: number, a: any) =>
         s + (Number(a.access_fee || 0) - Number(a.access_fee_collected || 0)), 0);
 
-      // Promissory Notes Receivable: outstanding promised amounts not yet collected
       const promissoryNotesReceivable = promissoryNotes.reduce((s: number, n: any) =>
         s + (Number(n.amount || 0) - Number(n.total_collected || 0)), 0);
 
-      const totalAssets = platformCash + userFundsHeld + outstandingRent + advanceAccessFeeReceivables + promissoryNotesReceivable;
+      const totalAssets = platformCash + userFundsHeld + outstandingRent + rentReceivablesCreated + advanceAccessFeeReceivables + promissoryNotesReceivable;
 
-      // Obligations
-      const userWalletCustody = userFundsHeld; // We owe this back to users
+      const userWalletCustody = userFundsHeld;
       const pendingWithdrawals = sumBy(platformOut, ['wallet_withdrawal']) * 0.1;
       const accruedPlatformRewards = platformRewards * 0.1;
       const agentCommissionsPayable = agentCommissions * 0.05;
@@ -410,20 +414,44 @@ export function useFinancialStatements() {
             },
             total: operatingExpensesTotal,
           },
+          adjustments: {
+            walletDeductions,
+            systemCorrections: Math.max(0, systemCorrections),
+            orphanReassignments,
+            orphanReversals,
+            total: adjustmentsTotal,
+          },
           netOperatingIncome,
         },
         cashFlow: {
           period: formatPeriodLabel(activeFilters),
-          operatingActivities: { tenantFeesReceived, otherServiceIncome, platformRewardsPaid, agentCommissionsPaid, payrollPaid, agentRequisitionsPaid, financialAgentExpensesPaid, marketingPaid, rdPaid, operationalSubcatPaid, withdrawalsPaid, netOperating },
-          facilitationActivities: { rentRepayments, rentDeployments, netFacilitation },
-          custodialActivities: { userDeposits, userWithdrawals, userTransfers, netCustodial },
-          financingActivities: { supporterCapitalInflows, supporterCapitalWithdrawals, netFinancing },
+          operatingActivities: {
+            tenantFeesReceived, otherServiceIncome, platformRewardsPaid: platformRewards,
+            agentCommissionsPaid: agentCommissions, agentCommissionWithdrawals, agentCommissionUsedForRent: agentCommissionUsedForRent,
+            payrollPaid, agentRequisitionsPaid, financialAgentExpensesPaid,
+            marketingPaid, rdPaid, operationalSubcatPaid, withdrawalsPaid, netOperating,
+          },
+          facilitationActivities: {
+            rentRepayments, rentPrincipalCollected, agentRepayments,
+            rentDeployments, rentDisbursements, netFacilitation,
+          },
+          custodialActivities: {
+            userDeposits, userWithdrawals, userTransfers,
+            walletDeductions: cfWalletDeductions, roiWalletCredits, rentFloatFunding, netCustodial,
+          },
+          financingActivities: {
+            supporterCapitalInflows, partnerFunding, shareCapital,
+            roiReinvestment, supporterCapitalWithdrawals, netFinancing,
+          },
           netCashMovement,
           openingBalance: Math.max(0, openingBalance),
           closingBalance: Math.max(0, closingBalance),
         },
         balanceSheet: {
-          assets: { platformCash, userFundsHeld, receivables: outstandingRent, advanceAccessFeeReceivables, promissoryNotesReceivable, totalAssets },
+          assets: {
+            platformCash, userFundsHeld, receivables: outstandingRent, rentReceivablesCreated,
+            advanceAccessFeeReceivables, promissoryNotesReceivable, totalAssets,
+          },
           platformObligations: { userWalletCustody, pendingWithdrawals, accruedPlatformRewards, agentCommissionsPayable, totalObligations },
           platformEquity: { retainedOperatingSurplus, totalEquity: retainedOperatingSurplus },
         },
