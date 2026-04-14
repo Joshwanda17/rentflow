@@ -394,9 +394,10 @@ export function useFinancialStatements() {
       const shareCapital = sumBy(bridgeIn, ['share_capital']);
       const roiReinvestment = sumBy(bridgeIn, ['roi_reinvestment']);
       const supporterCapitalWithdrawals = sumBy(bridgeOut, ['supporter_withdrawal', 'investment_withdrawal']);
-      const netFinancing = supporterCapitalInflows + partnerFunding + shareCapital + roiReinvestment - supporterCapitalWithdrawals;
+      const agentCommissionBridge = sumBy(bridgeOut, ['agent_commission']);
+      const netFinancing = supporterCapitalInflows + partnerFunding + shareCapital + roiReinvestment - supporterCapitalWithdrawals - agentCommissionBridge;
 
-      const netCashMovement = netOperating;
+      const netCashMovement = netOperating + netFacilitation + netCustodial + netFinancing;
       const openingBalance = prevPlatform.reduce(
         (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
       );
