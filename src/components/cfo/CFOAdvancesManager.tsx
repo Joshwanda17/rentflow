@@ -34,6 +34,8 @@ export function CFOAdvancesManager() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all');
   const [issueOpen, setIssueOpen] = useState(false);
+  const [renewOpen, setRenewOpen] = useState(false);
+  const [renewAgentId, setRenewAgentId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
