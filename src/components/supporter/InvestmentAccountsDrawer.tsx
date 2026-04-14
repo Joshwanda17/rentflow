@@ -337,8 +337,9 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
             )}
             <DetailRow
               label="Auto-Reinvest"
-              value={portfolio.auto_reinvest ? 'Enabled' : 'Disabled'}
+              value={autoReinvestValue ? 'Enabled' : 'Disabled'}
               icon={RefreshCw}
+              valueClassName={autoReinvestValue ? 'text-primary' : ''}
             />
           </div>
 
