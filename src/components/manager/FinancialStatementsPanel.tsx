@@ -102,13 +102,26 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
       <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent delta={cm?.advanceAccessFeesCollected} />
       <LineItem label="Total Revenue" value={d.revenue.total} bold delta={cm?.totalRevenue} />
 
-      <SectionHeader>Service Delivery Costs</SectionHeader>
+      <SectionHeader>Cost of Revenue (Service Delivery)</SectionHeader>
       <LineItem label="Platform Rewards (Supporters)" value={d.serviceDeliveryCosts.platformRewards} negative indent />
       <LineItem label="Agent Commissions" value={d.serviceDeliveryCosts.agentCommissions} negative indent />
       <LineItem label="Referral Bonuses" value={d.serviceDeliveryCosts.referralBonuses} negative indent />
       <LineItem label="Agent Bonuses" value={d.serviceDeliveryCosts.agentBonuses} negative indent />
       <LineItem label="Transaction Expenses" value={d.serviceDeliveryCosts.transactionExpenses} negative indent />
-      <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold delta={cm?.totalServiceCosts} />
+      <LineItem label="Total Cost of Revenue" value={d.serviceDeliveryCosts.total} negative bold delta={cm?.totalServiceCosts} />
+
+      {/* GAAP: Gross Profit */}
+      <div className={cn(
+        'flex justify-between items-center font-semibold pt-2 mt-1 border-t border-primary/20',
+        d.grossProfit >= 0 ? 'text-success' : 'text-destructive'
+      )}>
+        <span className="flex items-center">Gross Profit{cm && <DeltaBadge delta={cm.grossProfit} />}</span>
+        <span className="font-mono">{formatUGX(d.grossProfit)}</span>
+      </div>
+      <div className="flex justify-between items-center text-xs pl-4 pr-2">
+        <span className="text-muted-foreground">Gross Margin</span>
+        <span className="font-mono text-muted-foreground">{d.grossMargin.toFixed(1)}%</span>
+      </div>
 
       <SectionHeader>Operating Expenses</SectionHeader>
       <LineItem label="Payroll & Staff Costs" value={d.operatingExpenses.payrollExpenses} negative indent />
@@ -122,10 +135,7 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
         d.operatingExpenses.operationalSubcategories.officeRent > 0 ||
         d.operatingExpenses.operationalSubcategories.internet > 0 ||
         d.operatingExpenses.operationalSubcategories.airtime > 0 ||
-        d.operatingExpenses.operationalSubcategories.stationery > 0 ||
-        d.operatingExpenses.operationalSubcategories.propertyEquipment > 0 ||
-        d.operatingExpenses.operationalSubcategories.taxes > 0 ||
-        d.operatingExpenses.operationalSubcategories.interests > 0) && (
+        d.operatingExpenses.operationalSubcategories.stationery > 0) && (
         <>
           <p className="text-[10px] text-muted-foreground pl-4 mt-1 font-medium">Operational Breakdown:</p>
           {d.operatingExpenses.operationalSubcategories.salaries > 0 && <LineItem label="  Salaries" value={d.operatingExpenses.operationalSubcategories.salaries} negative indent />}
@@ -135,13 +145,50 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
           {d.operatingExpenses.operationalSubcategories.internet > 0 && <LineItem label="  Internet" value={d.operatingExpenses.operationalSubcategories.internet} negative indent />}
           {d.operatingExpenses.operationalSubcategories.airtime > 0 && <LineItem label="  Airtime" value={d.operatingExpenses.operationalSubcategories.airtime} negative indent />}
           {d.operatingExpenses.operationalSubcategories.stationery > 0 && <LineItem label="  Stationery" value={d.operatingExpenses.operationalSubcategories.stationery} negative indent />}
-          {d.operatingExpenses.operationalSubcategories.propertyEquipment > 0 && <LineItem label="  Property & Equipment" value={d.operatingExpenses.operationalSubcategories.propertyEquipment} negative indent />}
-          {d.operatingExpenses.operationalSubcategories.taxes > 0 && <LineItem label="  Taxes" value={d.operatingExpenses.operationalSubcategories.taxes} negative indent />}
-          {d.operatingExpenses.operationalSubcategories.interests > 0 && <LineItem label="  Interests" value={d.operatingExpenses.operationalSubcategories.interests} negative indent />}
         </>
       )}
       <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
       <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold delta={cm?.totalOperatingExpenses} />
+
+      {/* GAAP: Operating Income (EBIT before D&A) */}
+      <div className={cn(
+        'flex justify-between items-center font-semibold pt-2 mt-1 border-t border-primary/20',
+        d.operatingIncome >= 0 ? 'text-success' : 'text-destructive'
+      )}>
+        <span className="flex items-center">Operating Income (EBIT){cm && <DeltaBadge delta={cm.operatingIncome} />}</span>
+        <span className="font-mono">{formatUGX(d.operatingIncome)}</span>
+      </div>
+      <div className="flex justify-between items-center text-xs pl-4 pr-2">
+        <span className="text-muted-foreground">Operating Margin</span>
+        <span className="font-mono text-muted-foreground">{d.operatingMargin.toFixed(1)}%</span>
+      </div>
+
+      {/* GAAP: D&A Schedule */}
+      {(d.depreciation > 0 || d.amortization > 0) && (
+        <>
+          <SectionHeader>Depreciation & Amortization</SectionHeader>
+          {d.depreciation > 0 && <LineItem label="Depreciation (Property & Equipment)" value={d.depreciation} negative indent />}
+          {d.amortization > 0 && <LineItem label="Amortization (Software & IP)" value={d.amortization} negative indent />}
+        </>
+      )}
+
+      {/* GAAP: EBITDA */}
+      <div className="mt-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+        <div className="flex justify-between items-center font-bold">
+          <span className="flex items-center text-primary">EBITDA{cm && <DeltaBadge delta={cm.ebitda} />}</span>
+          <span className="font-mono text-primary">{formatUGX(d.ebitda)}</span>
+        </div>
+        <div className="flex justify-between items-center text-xs mt-1">
+          <span className="text-muted-foreground">EBITDA Margin</span>
+          <span className="font-mono text-muted-foreground">{d.ebitdaMargin.toFixed(1)}%</span>
+        </div>
+      </div>
+
+      {/* GAAP: Below-the-Line (Interest & Tax) */}
+      <SectionHeader>Interest & Tax</SectionHeader>
+      <LineItem label="Interest Income" value={d.interestIncome} indent />
+      <LineItem label="Interest Expense" value={d.interestExpense} negative indent />
+      <LineItem label="Tax Provision" value={d.taxProvision} negative indent />
 
       {(d.adjustments.walletDeductions > 0 || d.adjustments.systemCorrections > 0 || d.adjustments.orphanReassignments > 0 || d.adjustments.orphanReversals > 0) && (
         <>
@@ -158,7 +205,7 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
         'flex justify-between items-center text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
         d.netOperatingIncome >= 0 ? 'text-success' : 'text-destructive'
       )}>
-        <span className="flex items-center">Net Operating Income{cm && <DeltaBadge delta={cm.netOperatingIncome} />}</span>
+        <span className="flex items-center">Net Income{cm && <DeltaBadge delta={cm.netOperatingIncome} />}</span>
         <span className="font-mono">{formatUGX(d.netOperatingIncome)}</span>
       </div>
     </div>
