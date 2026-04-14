@@ -754,6 +754,30 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   }
 
+  /* ─── Merge Approved Top-Ups Into Portfolio Principal ─── */
+  async function handleMergePendingTopUps() {
+    if (!mergeDialogPortfolioId || mergeReason.trim().length < 10) return;
+    setMergingTopUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('merge-pending-topups', {
+        body: { portfolio_id: mergeDialogPortfolioId, reason: mergeReason.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Merged ${formatUGX(data.merged_amount)} into principal`, {
+        description: `New capital: ${formatUGX(data.new_capital)}. ${data.ops_count} top-up(s) applied.`,
+      });
+      setMergeDialogPortfolioId(null);
+      setMergeReason('');
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      fetchData();
+    } catch (e: any) {
+      toast.error('Failed to merge top-ups', { description: e.message });
+    } finally {
+      setMergingTopUp(false);
+    }
+  }
+
   /* ─── Save portfolio account name ─── */
   async function handleSavePortfolioName(portfolioId: string) {
     const trimmed = editingNameValue.trim();
