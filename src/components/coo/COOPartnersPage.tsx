@@ -1701,9 +1701,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               {/* Investment amount - full width on mobile */}
                               <p className="text-lg font-black tabular-nums mb-1">{formatUGX(p.investment_amount)}</p>
                               {pendingTopUps[p.id] && (
-                                <div className="flex items-center gap-1.5 mb-2.5">
+                                <div className="flex items-center gap-1.5 mb-1">
                                   <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-500/40 text-amber-600 bg-amber-500/5">
                                     ⏳ {pendingTopUps[p.id].count} pending top-up{pendingTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(pendingTopUps[p.id].total)}
+                                  </Badge>
+                                </div>
+                              )}
+                              {awaitingVerification[p.id] && (
+                                <div className="flex items-center gap-1.5 mb-2.5">
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-blue-500/40 text-blue-600 bg-blue-500/5">
+                                    🔍 {awaitingVerification[p.id].count} awaiting verification: {formatUGX(awaitingVerification[p.id].total)}
                                   </Badge>
                                 </div>
                               )}
