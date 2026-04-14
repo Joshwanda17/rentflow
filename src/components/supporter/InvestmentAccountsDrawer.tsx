@@ -20,7 +20,7 @@ import { formatDateOnlyForDisplay, extractDateOnly, dateOnlyToLocalDate } from '
 import { hapticTap } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
+import { downloadPortfolioPdf, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { differenceInCalendarDays } from 'date-fns';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'destructive' | 'muted'; dot: string }> = {
@@ -121,6 +121,8 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [togglingReinvest, setTogglingReinvest] = useState(false);
+  const [localAutoReinvest, setLocalAutoReinvest] = useState<boolean | null>(null);
 
   if (!portfolio) return null;
   const amount = Number(portfolio.investment_amount);
@@ -179,9 +181,59 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
     setDownloading(false);
   };
 
-  const handleShareWhatsApp = () => {
-    sharePortfolioViaWhatsApp(buildPdfData());
+  const handleToggleAutoReinvest = async () => {
+    if (!portfolio.id) return;
+    setTogglingReinvest(true);
+    const currentValue = localAutoReinvest ?? portfolio.auto_reinvest ?? false;
+    const newValue = !currentValue;
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ auto_reinvest: newValue })
+        .eq('id', portfolio.id);
+      if (error) throw error;
+      setLocalAutoReinvest(newValue);
+      toast.success(`Auto-reinvest ${newValue ? 'enabled' : 'disabled'}`);
+      onRenamed(); // triggers refetch
+    } catch {
+      toast.error('Failed to update auto-reinvest setting');
+    } finally {
+      setTogglingReinvest(false);
+    }
   };
+
+  const handleShare = async () => {
+    const displayName = portfolio.account_name || portfolio.portfolio_code || 'Investment Account';
+    const monthlyROI = Math.round(amount * (roiPct / 100));
+    const message = [
+      `📊 *Investment Portfolio: ${displayName}*`,
+      ``,
+      `💰 Capital: ${formatUGX(amount)}`,
+      `📈 ROI Rate: ${roiPct}% per month`,
+      `💵 Monthly Return: ${formatUGX(monthlyROI)}`,
+      `📅 Duration: ${portfolio.duration_months || '—'} months`,
+      `🔄 Mode: ${portfolio.roi_mode === 'monthly_compounding' ? 'Compounding' : 'Monthly Payout'}`,
+      `✅ Status: ${cfg.label}`,
+      ``,
+      `Total Earned So Far: ${formatUGX(totalEarned)}`,
+      ``,
+      `_Welile Technologies Limited - Investment Portfolio_`,
+    ].join('\n');
+
+    // Try native share first, fallback to WhatsApp
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Portfolio: ${displayName}`, text: message });
+      } catch {
+        // User cancelled or share failed — silent
+      }
+    } else {
+      const encoded = encodeURIComponent(message);
+      window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    }
+  };
+
+  const autoReinvestValue = localAutoReinvest ?? portfolio.auto_reinvest ?? false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -285,8 +337,9 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
             )}
             <DetailRow
               label="Auto-Reinvest"
-              value={portfolio.auto_reinvest ? 'Enabled' : 'Disabled'}
+              value={autoReinvestValue ? 'Enabled' : 'Disabled'}
               icon={RefreshCw}
+              valueClassName={autoReinvestValue ? 'text-primary' : ''}
             />
           </div>
 
@@ -304,14 +357,34 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
             <Button
               variant="outline"
               className="flex-1 h-10 gap-2 text-xs font-semibold"
-              onClick={handleShareWhatsApp}
+              onClick={handleShare}
             >
               <Share2 className="h-3.5 w-3.5" />
               Share
             </Button>
           </div>
 
-          {/* Action Buttons */}
+          {/* Auto-Reinvest Toggle */}
+          {isActive && (
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <RefreshCw className={`h-4 w-4 ${autoReinvestValue ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div>
+                  <p className="text-xs font-bold">Auto-Reinvest</p>
+                  <p className="text-[10px] text-muted-foreground">Automatically compound your returns</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant={autoReinvestValue ? 'default' : 'outline'}
+                className="h-8 text-xs font-semibold min-w-[70px]"
+                onClick={handleToggleAutoReinvest}
+                disabled={togglingReinvest}
+              >
+                {togglingReinvest ? <Loader2 className="h-3 w-3 animate-spin" /> : autoReinvestValue ? 'On' : 'Off'}
+              </Button>
+            </div>
+          )}
           {isActive && (
             <div className="flex gap-3">
               <Button
