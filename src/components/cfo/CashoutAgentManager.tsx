@@ -49,6 +49,19 @@ export function CashoutAgentManager() {
         is_active: true,
       }, { onConflict: 'agent_id' });
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_cashout_agent_assigned',
+        table_name: 'cashout_agents',
+        record_id: pickedAgent.id,
+        metadata: {
+          agent_name: pickedAgent.full_name || pickedAgent.id,
+          handles_cash: handlesCash,
+          handles_bank: handlesBank,
+          label: label || 'Cash-Out Agent',
+        },
+      });
     },
     onSuccess: () => {
       toast({ title: '✅ Cash-Out Agent assigned' });
@@ -64,6 +77,14 @@ export function CashoutAgentManager() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('cashout_agents').update({ is_active: false }).eq('id', id);
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_cashout_agent_deactivated',
+        table_name: 'cashout_agents',
+        record_id: id,
+        metadata: {},
+      });
     },
     onSuccess: () => {
       toast({ title: 'Agent removed from cash-out duty' });

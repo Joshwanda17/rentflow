@@ -57,8 +57,21 @@ export function ServiceCentrePayoutApproval() {
         .eq('id', setup.id);
       if (updateErr) throw updateErr;
 
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'cfo_service_centre_payout',
+        table_name: 'service_centre_setups',
+        record_id: setup.id,
+        metadata: {
+          agent_id: setup.agent_id,
+          agent_name: setup.agent_name,
+          amount: 25000,
+        },
+      });
+
       toast.success(`UGX 25,000 paid to ${setup.agent_name}!`);
       queryClient.invalidateQueries({ queryKey: ['service-centre-verified-setups'] });
+      queryClient.invalidateQueries({ queryKey: ['cfo-actions-log'] });
     } catch (err: any) {
       toast.error(err.message || 'Failed to approve');
     } finally {
