@@ -53,7 +53,7 @@ import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
-import { MyPortfolioAccounts } from '@/components/supporter/MyPortfolioAccounts';
+import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
@@ -95,6 +95,8 @@ export default function SupporterDashboard({
   const [selectedPackageCategory, setSelectedPackageCategory] = useState<RentCategory | null>(null);
   const [showPackageSheet, setShowPackageSheet] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [showInvestments, setShowInvestments] = useState(false);
+  const [investmentsTab, setInvestmentsTab] = useState<'accounts' | 'angel'>('accounts');
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
