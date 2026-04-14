@@ -33,6 +33,7 @@ interface PendingOp {
 const formatUGX = (n: number) => `UGX ${n.toLocaleString()}`;
 
 export function CFOROIRequests() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
@@ -78,30 +79,60 @@ export function CFOROIRequests() {
 
   const approveMutation = useMutation({
     mutationFn: async (opId: string) => {
+      const op = operations.find(o => o.id === opId);
       const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
         body: { operation_id: opId, action: 'approve' },
       });
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'cfo_roi_payout_approved',
+        table_name: 'pending_wallet_operations',
+        record_id: opId,
+        metadata: {
+          amount: op?.amount,
+          target_user_id: op?.target_wallet_user_id || op?.user_id,
+          description: op?.description,
+        },
+      });
+
       return data;
     },
     onSuccess: () => {
       toast.success('ROI payout approved — wallet credited');
       queryClient.invalidateQueries({ queryKey: ['cfo-roi-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['cfo-actions-log'] });
     },
     onError: (err: any) => toast.error('Approval failed', { description: err.message }),
   });
 
   const rejectMutation = useMutation({
     mutationFn: async ({ opId, reason }: { opId: string; reason: string }) => {
+      const op = operations.find(o => o.id === opId);
       const { data, error } = await supabase.functions.invoke('approve-wallet-operation', {
         body: { operation_id: opId, action: 'reject', rejection_reason: reason },
       });
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'cfo_roi_payout_rejected',
+        table_name: 'pending_wallet_operations',
+        record_id: opId,
+        metadata: {
+          amount: op?.amount,
+          target_user_id: op?.target_wallet_user_id || op?.user_id,
+          reason,
+        },
+      });
+
       return data;
     },
     onSuccess: () => {
       toast.success('ROI payout rejected');
       queryClient.invalidateQueries({ queryKey: ['cfo-roi-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['cfo-actions-log'] });
     },
     onError: (err: any) => toast.error('Rejection failed', { description: err.message }),
   });
