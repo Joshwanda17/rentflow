@@ -143,6 +143,48 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
     }
   };
 
+  const handleInlineApprove = useCallback(async (deposit: PendingDeposit) => {
+    if (!user || !inlineTid.trim()) return;
+    setInlineApproving(true);
+    try {
+      const { error } = await supabase.functions.invoke('approve-deposit', {
+        body: { deposit_request_id: deposit.id, action: 'approve' },
+      });
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to approve deposit');
+        throw new Error(msg);
+      }
+
+      // Update TID on the deposit record if entered
+      if (inlineTid.trim()) {
+        await supabase.from('deposit_requests').update({ transaction_id: inlineTid.trim() }).eq('id', deposit.id);
+      }
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'deposit_approved_inline',
+        table_name: 'deposit_requests',
+        record_id: deposit.id,
+        metadata: {
+          transaction_id: inlineTid.trim(),
+          amount: deposit.amount,
+          depositor_name: deposit.depositor_name,
+          provider: deposit.provider,
+        },
+      });
+
+      setPendingDeposits(prev => prev.filter(d => d.id !== deposit.id));
+      setVerifyingId(null);
+      setInlineTid('');
+      toast.success(`Approved ${formatUGX(deposit.amount)} from ${deposit.depositor_name || 'user'}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Approval failed');
+    } finally {
+      setInlineApproving(false);
+    }
+  }, [user, inlineTid]);
+
   const openRejectDialog = (deposit: PendingDeposit) => {
     setRejectingDeposit(deposit);
     setRejectionReason('');
