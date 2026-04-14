@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { FileText, TrendingUp, TrendingDown, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows } from 'lucide-react';
+import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -282,13 +282,14 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
   );
 }
 
-function FacilitatedVolumeSection({ d }: { d: FinancialStatementsData['facilitatedVolume'] }) {
+function FacilitatedVolumeSection({ d, cm }: { d: FinancialStatementsData['facilitatedVolume']; cm?: ComparisonMetrics | null }) {
   const utilizationRate = d.supporterCapitalDeployed > 0 ? Math.min(100, (d.totalFacilitatedRentVolume / d.supporterCapitalDeployed) * 100) : 0;
   return (
     <div className="space-y-4">
       <div className="text-center py-3 rounded-xl bg-primary/5 border border-primary/20">
         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Facilitated Rent Volume</p>
         <p className="text-3xl font-bold font-mono text-primary">{formatUGX(d.totalFacilitatedRentVolume)}</p>
+        {cm && <DeltaBadge delta={cm.totalFacilitatedRentVolume} />}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
