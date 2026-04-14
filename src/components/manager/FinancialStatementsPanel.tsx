@@ -148,6 +148,9 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       {d.facilitationActivities.agentRepayments > 0 && (
         <LineItem label="Agent Repayments" value={d.facilitationActivities.agentRepayments} indent />
       )}
+      {d.facilitationActivities.advanceRepayments > 0 && (
+        <LineItem label="Advance & Credit Repayments" value={d.facilitationActivities.advanceRepayments} indent />
+      )}
       <LineItem label="Rent Deployed to Landlords" value={d.facilitationActivities.rentDeployments} negative indent />
       {d.facilitationActivities.rentDisbursements > 0 && (
         <LineItem label="Rent Disbursements" value={d.facilitationActivities.rentDisbursements} negative indent />
