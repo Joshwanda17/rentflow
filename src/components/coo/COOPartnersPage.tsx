@@ -1676,9 +1676,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                       </span>
                                     </div>
                                     {approvedTopUps[p.id]?.total > 0 && (
-                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap shrink-0">
-                                        ✅ Approved Top-up {formatUGX(approvedTopUps[p.id].total)}
-                                      </span>
+                                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
+                                         ⏳ Pending Principal +{formatUGX(approvedTopUps[p.id].total)}
+                                       </span>
                                     )}
                                     {(pendingTopUps[p.id]?.total > 0 || awaitingVerification[p.id]?.total > 0) && (
                                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
@@ -1737,9 +1737,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                               )}
                               {approvedTopUps[p.id] && (
                                 <div className="flex items-center gap-1.5 mb-2.5">
-                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-emerald-500/40 text-emerald-600 bg-emerald-500/5">
-                                    ✅ {approvedTopUps[p.id].count} approved top-up{approvedTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(approvedTopUps[p.id].total)} — applied at next ROI cycle
-                                  </Badge>
+                                   <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-500/40 text-amber-600 bg-amber-500/5">
+                                     ⏳ {approvedTopUps[p.id].count} pending principal addition{approvedTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(approvedTopUps[p.id].total)} — merges at next ROI cycle
+                                   </Badge>
                                 </div>
                               )}
 
