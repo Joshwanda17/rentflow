@@ -9,9 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -601,14 +599,17 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         )}
       </CardContent>
 
-      {/* Review Dialog */}
-      <Dialog open={!!selectedRequest} onOpenChange={() => { setSelectedRequest(null); setComment(''); setAssignedAgentId(null); setPayoutRef(''); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-base">Review Rent Request</DialogTitle>
-          </DialogHeader>
+      {/* Tenant Detail Sheet */}
+      <Sheet open={!!selectedRequest} onOpenChange={(open) => { if (!open) { setSelectedRequest(null); setComment(''); setAssignedAgentId(null); setPayoutRef(''); } }}>
+        <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2 text-base">
+              <User className="h-4 w-4 text-primary" />
+              Review Rent Request
+            </SheetTitle>
+          </SheetHeader>
           {selectedRequest && (
-            <div className="space-y-4">
+            <div className="space-y-4 mt-4 overflow-y-auto max-h-[calc(85vh-80px)] pb-6">
               {/* Request Details */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="space-y-0.5">
@@ -790,7 +791,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 />
               </div>
 
-              <DialogFooter className="gap-2">
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="destructive"
                   size="sm"
@@ -813,11 +814,11 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   )}
                   {config.approveLabel}
                 </Button>
-              </DialogFooter>
+              </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
