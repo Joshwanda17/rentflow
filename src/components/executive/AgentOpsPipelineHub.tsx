@@ -5,33 +5,38 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Users, UserCheck, FileText, Home, Phone, MapPin, Search } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Users, UserCheck, FileText, Home, Phone, MapPin, Search, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 
 function LandlordsPipeline() {
   const [search, setSearch] = useState('');
+  const [selectedLandlord, setSelectedLandlord] = useState<any>(null);
   const { data: landlords = [], isLoading } = useQuery({
     queryKey: ['pipeline-landlords'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, status, created_at, landlord_id, landlords!inner(id, full_name, phone, address)')
+        .select('id, status, created_at, rent_amount, landlord_id, tenant_id, landlords!inner(id, full_name, phone, address)')
         .not('status', 'in', '("funded","rejected","cancelled")')
         .order('created_at', { ascending: false })
         .limit(200);
 
       if (error) throw error;
 
-      const grouped = new Map<string, { name: string; phone: string; address: string; statuses: string[] }>();
+      const grouped = new Map<string, { name: string; phone: string; address: string; statuses: string[]; requests: { id: string; status: string; rent_amount: number; created_at: string }[] }>();
       for (const r of data || []) {
         const ll = r.landlords as any;
         const key = r.landlord_id;
         if (!grouped.has(key)) {
-          grouped.set(key, { name: ll?.full_name || 'Unknown', phone: ll?.phone || '', address: ll?.address || '', statuses: [] });
+          grouped.set(key, { name: ll?.full_name || 'Unknown', phone: ll?.phone || '', address: ll?.address || '', statuses: [], requests: [] });
         }
-        grouped.get(key)!.statuses.push(r.status || 'pending');
+        const entry = grouped.get(key)!;
+        entry.statuses.push(r.status || 'pending');
+        entry.requests.push({ id: r.id, status: r.status || 'pending', rent_amount: r.rent_amount || 0, created_at: r.created_at });
       }
       return Array.from(grouped.values());
     },
@@ -58,7 +63,7 @@ function LandlordsPipeline() {
       </div>
       {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No matching landlords</p>}
       {filtered.map((ll, i) => (
-        <Card key={i} className="border">
+        <Card key={i} className="border cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelectedLandlord(ll)}>
           <CardContent className="p-3 space-y-1.5">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
@@ -90,6 +95,75 @@ function LandlordsPipeline() {
           </CardContent>
         </Card>
       ))}
+
+      {/* Landlord Detail Sheet */}
+      <Sheet open={!!selectedLandlord} onOpenChange={(open) => { if (!open) setSelectedLandlord(null); }}>
+        <SheetContent side="bottom" className="h-[75vh] rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Home className="h-4 w-4 text-primary" />
+              Landlord Details
+            </SheetTitle>
+          </SheetHeader>
+          {selectedLandlord && (
+            <div className="space-y-4 mt-4 overflow-y-auto max-h-[calc(75vh-80px)] pb-6">
+              {/* Contact Info */}
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <p className="font-semibold text-base">{selectedLandlord.name}</p>
+                  {selectedLandlord.phone && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-3.5 w-3.5" />
+                      <span>{selectedLandlord.phone}</span>
+                    </div>
+                  )}
+                  {selectedLandlord.address && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span>{selectedLandlord.address}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Rent Requests */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase mb-2">
+                  Active Rent Requests ({selectedLandlord.requests.length})
+                </p>
+                <div className="space-y-2">
+                  {selectedLandlord.requests.map((req: any) => (
+                    <Card key={req.id} className="border">
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <Badge variant="outline" size="sm">{req.status.replace(/_/g, ' ')}</Badge>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(req.created_at), 'dd MMM yyyy')}
+                            </div>
+                          </div>
+                          <p className="font-bold text-sm">UGX {Number(req.rent_amount).toLocaleString()}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="p-3 text-center">
+                  <p className="text-xs text-muted-foreground">Total Pipeline Value</p>
+                  <p className="font-bold text-lg">
+                    UGX {selectedLandlord.requests.reduce((sum: number, r: any) => sum + Number(r.rent_amount), 0).toLocaleString()}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
