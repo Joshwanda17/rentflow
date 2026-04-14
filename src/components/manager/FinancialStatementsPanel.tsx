@@ -342,6 +342,65 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Retained Operating Surplus" value={d.platformEquity.retainedOperatingSurplus} indent />
       <LineItem label="Total Equity" value={d.platformEquity.totalEquity} bold />
 
+      {/* GAAP: AR Aging Schedule */}
+      {d.arAging.total > 0 && (
+        <div className="mt-3 p-3 rounded-lg bg-secondary/50 border border-border/50 space-y-1">
+          <p className="text-xs font-semibold text-primary uppercase tracking-wider">Accounts Receivable Aging</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <span className="text-muted-foreground">Current (0–30 days)</span>
+            <span className="font-mono text-right text-success">{formatUGX(d.arAging.current)}</span>
+            <span className="text-muted-foreground">31–60 days</span>
+            <span className="font-mono text-right text-warning">{formatUGX(d.arAging.days31to60)}</span>
+            <span className="text-muted-foreground">61–90 days</span>
+            <span className="font-mono text-right text-warning">{formatUGX(d.arAging.days61to90)}</span>
+            <span className="text-muted-foreground">90+ days (At Risk)</span>
+            <span className="font-mono text-right text-destructive">{formatUGX(d.arAging.over90)}</span>
+            <span className="font-medium">Total Receivables</span>
+            <span className="font-mono text-right font-medium">{formatUGX(d.arAging.total)}</span>
+            <span className="text-muted-foreground">Bad Debt Provision (Est.)</span>
+            <span className="font-mono text-right text-destructive">{formatUGX(d.arAging.badDebtProvision)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* GAAP: Working Capital */}
+      <div className="mt-3 p-3 rounded-lg bg-secondary/50 border border-border/50 space-y-1">
+        <p className="text-xs font-semibold text-primary uppercase tracking-wider">Working Capital Analysis</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <span className="text-muted-foreground">Current Assets</span>
+          <span className="font-mono text-right">{formatUGX(d.workingCapital.currentAssets)}</span>
+          <span className="text-muted-foreground">Current Liabilities</span>
+          <span className="font-mono text-right">{formatUGX(d.workingCapital.currentLiabilities)}</span>
+          <span className="font-medium">Net Working Capital</span>
+          <span className={cn('font-mono text-right font-medium', d.workingCapital.workingCapital >= 0 ? 'text-success' : 'text-destructive')}>
+            {formatUGX(d.workingCapital.workingCapital)}
+          </span>
+          <span className="text-muted-foreground">Current Ratio</span>
+          <span className="font-mono text-right">{d.workingCapital.currentRatio.toFixed(2)}x</span>
+        </div>
+      </div>
+
+      {/* GAAP: Statement of Changes in Equity */}
+      <div className="mt-3 p-3 rounded-lg bg-secondary/50 border border-border/50 space-y-1">
+        <p className="text-xs font-semibold text-primary uppercase tracking-wider">Statement of Changes in Equity</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <span className="text-muted-foreground">Opening Equity</span>
+          <span className="font-mono text-right">{formatUGX(d.equityChanges.openingEquity)}</span>
+          <span className="text-muted-foreground">Net Income for Period</span>
+          <span className={cn('font-mono text-right', d.equityChanges.netIncome >= 0 ? 'text-success' : 'text-destructive')}>
+            {formatUGX(d.equityChanges.netIncome)}
+          </span>
+          {d.equityChanges.otherChanges !== 0 && (
+            <>
+              <span className="text-muted-foreground">Other Changes</span>
+              <span className="font-mono text-right">{formatUGX(d.equityChanges.otherChanges)}</span>
+            </>
+          )}
+          <span className="font-medium">Closing Equity</span>
+          <span className="font-mono text-right font-medium">{formatUGX(d.equityChanges.closingEquity)}</span>
+        </div>
+      </div>
+
       {/* Revenue Recognition Summary */}
       {d.revenueRecognition.expectedRevenue > 0 && (
         <div className="mt-3 p-3 rounded-lg bg-warning/5 border border-warning/20 space-y-1">
