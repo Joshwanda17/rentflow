@@ -5,7 +5,7 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { TenantTransferPanel } from './TenantTransferPanel';
 import { AgentTenantConnector } from './AgentTenantConnector';
-import { RentPipelineQueue } from './RentPipelineQueue';
+import { AgentOpsPipelineHub } from './AgentOpsPipelineHub';
 import { AgentDirectory } from './AgentDirectory';
 import { AgentPerformanceTiers } from './AgentPerformanceTiers';
 import { AgentLifecyclePipeline } from './AgentLifecyclePipeline';
@@ -145,7 +145,7 @@ export function AgentOpsDashboard() {
   // Render sub-view content
   const renderSubView = () => {
     switch (activeView) {
-      case 'pipeline': return <RentPipelineQueue stage="tenant_ops_approved" />;
+      case 'pipeline': return <AgentOpsPipelineHub />;
       case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
       case 'connector': return <AgentTenantConnector />;
