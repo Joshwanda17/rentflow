@@ -7914,6 +7914,33 @@ export type Database = {
         }
         Relationships: []
       }
+      short_links: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          target_params: Json
+          target_path: string
+          user_id: string
+        }
+        Insert: {
+          code?: string
+          created_at?: string
+          id?: string
+          target_params?: Json
+          target_path: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          target_params?: Json
+          target_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       staff_access_passwords: {
         Row: {
           created_at: string | null
