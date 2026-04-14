@@ -214,7 +214,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       t.phone.includes(search)
     );
 
-    const activeStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying']);
+    const activeStatuses = new Set(['pending', 'agent_verified', 'approved', 'funded', 'disbursed', 'repaying']);
 
     switch (activeFilter) {
       case 'owing':
@@ -259,7 +259,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   // Stats
   const stats = useMemo(() => {
-    const activeStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying']);
+    const activeStatuses = new Set(['pending', 'agent_verified', 'approved', 'funded', 'disbursed', 'repaying']);
     const totalOwing = Object.values(tenantBalances).reduce((s, v) => s + v, 0);
     const owingCount = Object.values(tenantBalances).filter(v => v > 0).length;
     const allCount = tenants.filter(t => tenantStatuses[t.id] && tenantStatuses[t.id].size > 0).length;
