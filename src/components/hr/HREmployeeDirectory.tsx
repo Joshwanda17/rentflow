@@ -55,7 +55,7 @@ export default function HREmployeeDirectory() {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
-
+  const [editingEmployee, setEditingEmployee] = useState<EmployeeRecord | null>(null);
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['hr-employees-full'],
     queryFn: async () => {
