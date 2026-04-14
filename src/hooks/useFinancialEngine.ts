@@ -85,6 +85,8 @@ export function useFinancialEngine() {
       serviceDeliveryCosts: {
         platformRewards,
         agentCommissions,
+        referralBonuses: 0,
+        agentBonuses: 0,
         transactionExpenses,
         total: totalServiceCosts,
       },
