@@ -44,7 +44,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     onOpenChange(v);
   };
 
-  const isValid = partnerName.trim().length >= 2 && whatsappNumber.trim().length >= 10 && Number(amount) > 0;
+  const phoneDigits = (v: string) => v.replace(/\D/g, '');
+  const isValidPhone = (v: string) => { const d = phoneDigits(v); return d.length === 10; };
+  const isValid = partnerName.trim().length >= 2 && isValidPhone(whatsappNumber) && Number(amount) > 0 && (!email.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) && (!phoneNumber.trim() || isValidPhone(phoneNumber));
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -188,23 +190,26 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
           <div className="space-y-3">
             <div>
               <Label className="text-xs">Partner Name *</Label>
-              <Input value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Full name" className="mt-0.5 h-9" />
+              <Input value={partnerName} onChange={e => setPartnerName(e.target.value.replace(/[^a-zA-Z\s'-]/g, ''))} placeholder="Full name" className="mt-0.5 h-9" maxLength={100} />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs">WhatsApp *</Label>
-                <Input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="+256..." type="tel" className="mt-0.5 h-9" />
+                <Label className="text-xs">WhatsApp * <span className="text-muted-foreground">(10 digits)</span></Label>
+                <Input value={whatsappNumber} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setWhatsappNumber(v); }} placeholder="0780000000" type="tel" inputMode="numeric" className="mt-0.5 h-9" maxLength={10} minLength={10} />
+                {whatsappNumber && whatsappNumber.replace(/\D/g, '').length !== 10 && <p className="text-[10px] text-destructive mt-0.5">Must be exactly 10 digits</p>}
               </div>
               <div>
-                <Label className="text-xs">Phone</Label>
-                <Input value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+256..." type="tel" className="mt-0.5 h-9" />
+                <Label className="text-xs">Phone <span className="text-muted-foreground">(10 digits)</span></Label>
+                <Input value={phoneNumber} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setPhoneNumber(v); }} placeholder="0780000000" type="tel" inputMode="numeric" className="mt-0.5 h-9" maxLength={10} minLength={10} />
+                {phoneNumber && phoneNumber.replace(/\D/g, '').length !== 10 && <p className="text-[10px] text-destructive mt-0.5">Must be exactly 10 digits</p>}
               </div>
             </div>
 
             <div>
               <Label className="text-xs">Email</Label>
-              <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" type="email" className="mt-0.5 h-9" />
+              <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" type="email" className="mt-0.5 h-9" maxLength={255} />
+              {email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && <p className="text-[10px] text-destructive mt-0.5">Enter a valid email</p>}
             </div>
 
             <div>
