@@ -55,11 +55,19 @@ export function PayrollPanel() {
 
   const createBatchMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('payroll_batches').insert({
+      const { data, error } = await supabase.from('payroll_batches').insert({
         batch_month: currentMonth,
         created_by: user!.id,
-      });
+      }).select().single();
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_payroll_batch_created',
+        table_name: 'payroll_batches',
+        record_id: data.id,
+        metadata: { batch_month: currentMonth },
+      });
     },
     onSuccess: () => {
       toast({ title: '✅ Payroll batch created' });
@@ -112,12 +120,26 @@ export function PayrollPanel() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_payroll_processed',
+        table_name: 'payroll_batches',
+        record_id: batchId,
+        metadata: {
+          batch_month: selectedBatch?.batch_month,
+          total_amount: selectedBatch?.total_amount,
+          total_employees: selectedBatch?.total_employees,
+        },
+      });
+
       return data;
     },
     onSuccess: (data) => {
       toast({ title: '✅ Payroll processed', description: data?.message });
       qc.invalidateQueries({ queryKey: ['payroll-batches'] });
       qc.invalidateQueries({ queryKey: ['payroll-items', selectedBatch?.id] });
+      qc.invalidateQueries({ queryKey: ['cfo-actions-log'] });
     },
     onError: (e: any) => toast({ title: 'Payroll failed', description: e.message, variant: 'destructive' }),
   });
