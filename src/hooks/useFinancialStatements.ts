@@ -491,7 +491,10 @@ export function useFinancialStatements() {
           },
           custodialActivities: {
             userDeposits, userWithdrawals, userTransfers,
-            walletDeductions: cfWalletDeductions, roiWalletCredits, rentFloatFunding, netCustodial,
+            walletDeductions: cfWalletDeductions, roiWalletCredits,
+            agentFloatUsedForRent, walletCommissionCredits,
+            walletCorrectionCredits, walletCorrectionDebits,
+            rentFloatFunding, netCustodial,
           },
           financingActivities: {
             supporterCapitalInflows, partnerFunding, shareCapital,
