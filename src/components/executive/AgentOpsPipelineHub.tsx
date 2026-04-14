@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -8,8 +7,6 @@ import { Users, UserCheck, FileText, Home, Phone, MapPin } from 'lucide-react';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 
 function LandlordsPipeline() {
   const { data: landlords = [], isLoading } = useQuery({
@@ -17,21 +14,21 @@ function LandlordsPipeline() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, status, created_at, landlord_name, landlord_phone, property_address, profiles!rent_requests_user_id_fkey(full_name)')
+        .select('id, status, created_at, landlord_id, landlords!inner(id, full_name, phone, address)')
         .not('status', 'in', '("funded","rejected","cancelled")')
         .order('created_at', { ascending: false })
         .limit(200);
 
       if (error) throw error;
 
-      // Group by landlord phone
-      const grouped = new Map<string, { name: string; phone: string; address: string; requests: typeof data }>();
+      const grouped = new Map<string, { name: string; phone: string; address: string; statuses: string[] }>();
       for (const r of data || []) {
-        const key = r.landlord_phone || r.landlord_name || r.id;
+        const ll = r.landlords as any;
+        const key = r.landlord_id;
         if (!grouped.has(key)) {
-          grouped.set(key, { name: r.landlord_name || 'Unknown', phone: r.landlord_phone || '', address: r.property_address || '', requests: [] });
+          grouped.set(key, { name: ll?.full_name || 'Unknown', phone: ll?.phone || '', address: ll?.address || '', statuses: [] });
         }
-        grouped.get(key)!.requests.push(r);
+        grouped.get(key)!.statuses.push(r.status || 'pending');
       }
       return Array.from(grouped.values());
     },
@@ -64,13 +61,13 @@ function LandlordsPipeline() {
                   </div>
                 )}
               </div>
-              <Badge variant="primary" size="sm">{ll.requests.length} request{ll.requests.length !== 1 ? 's' : ''}</Badge>
+              <Badge variant="primary" size="sm">{ll.statuses.length} request{ll.statuses.length !== 1 ? 's' : ''}</Badge>
             </div>
             <div className="flex flex-wrap gap-1">
-              {ll.requests.slice(0, 3).map(r => (
-                <Badge key={r.id} variant="outline" size="sm">{r.status}</Badge>
+              {ll.statuses.slice(0, 3).map((s, j) => (
+                <Badge key={j} variant="outline" size="sm">{s}</Badge>
               ))}
-              {ll.requests.length > 3 && <Badge variant="muted" size="sm">+{ll.requests.length - 3}</Badge>}
+              {ll.statuses.length > 3 && <Badge variant="muted" size="sm">+{ll.statuses.length - 3}</Badge>}
             </div>
           </CardContent>
         </Card>
@@ -87,7 +84,7 @@ export function AgentOpsPipelineHub() {
         supabase.from('rent_requests').select('id', { count: 'exact', head: true }).not('status', 'in', '("funded","rejected","cancelled")'),
         supabase.from('agent_subagents').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('promissory_notes').select('id', { count: 'exact', head: true }).in('status', ['pending', 'activated']),
-        supabase.from('rent_requests').select('landlord_phone', { count: 'exact', head: true }).not('status', 'in', '("funded","rejected","cancelled")'),
+        supabase.from('rent_requests').select('id', { count: 'exact', head: true }).not('status', 'in', '("funded","rejected","cancelled")'),
       ]);
       return {
         tenants: tenants.count || 0,
@@ -121,7 +118,7 @@ export function AgentOpsPipelineHub() {
         </TabsList>
       </div>
 
-      <TabsContent value="tenants"><RentPipelineQueue /></TabsContent>
+      <TabsContent value="tenants"><RentPipelineQueue stage="pending" /></TabsContent>
       <TabsContent value="sub-agents"><SubAgentVerificationQueue /></TabsContent>
       <TabsContent value="notes"><PromissoryNotesQueue /></TabsContent>
       <TabsContent value="landlords"><LandlordsPipeline /></TabsContent>
