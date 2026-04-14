@@ -1,48 +1,41 @@
 
 
-## Replace PDF Button with "Apply Pending Principal" Action
+## Add Inline TID Verification to Pending Deposits List
 
-### Overview
-Remove the PDF download button from investment portfolios in both COO Partners Page and Partner Operations (Manager) dashboard. Replace it with a button that lets operations manually merge approved pending top-ups into the portfolio principal, requiring a reason before applying.
+### Problem
+When the Financial Ops manager taps "Verify Deposits" and sees the pending deposits list, they can see depositor names and amounts but can only reject deposits inline. To approve/verify, they must go to a separate TID Verification screen, losing context of whose deposit they're verifying.
 
-### New Edge Function: `merge-pending-topups`
+### Solution
+Add an inline TID input field directly on each pending deposit card in `DepositStatsPanel.tsx`, so the manager can enter the transaction ID while seeing the depositor's name and amount, then approve in one tap.
 
-Creates `supabase/functions/merge-pending-topups/index.ts` — a manual version of the merge logic currently in `process-supporter-roi` (lines 260-395). This function:
+### Changes in `src/components/financial-ops/DepositStatsPanel.tsx`
 
-1. Authenticates caller and verifies role (coo, manager, operations, super_admin)
-2. Accepts `portfolio_id` and `reason` (min 10 chars)
-3. Fetches all `approved` pending_wallet_operations for the portfolio with `operation_type = 'portfolio_topup'`
-4. If none found, returns error
-5. Updates `investor_portfolios.investment_amount` by adding total pending amount
-6. Marks pending ops as `status: 'completed'` with `reviewed_by` set to the caller
-7. Creates balanced ledger entries: `pending_portfolio_topup` (cash_out) + `partner_funding` (cash_in) — same pattern as the ROI merge engine
-8. Creates audit log with action_type `manual_merge_pending_topups` including reason
-9. Notifies the partner about the merge
-10. Returns updated capital amount
+1. **Add state** for tracking which deposit is being verified inline (`verifyingId`), the entered TID (`inlineTid`), and processing state (`inlineApproving`).
 
-### Frontend Changes
+2. **Replace the deposit card layout** (lines 269-307): Each pending deposit card gets:
+   - Depositor name and amount remain prominently visible at the top
+   - A "Verify" button that expands an inline TID input field below the card
+   - When expanded: a TID input field + provider selector + "Approve" button, all within the same card so the name and amount stay visible
+   - The existing "Reject" button remains
 
-**`src/components/coo/COOPartnersPage.tsx`** (~line 1968-1983):
-- Remove the PDF button and its `downloadPortfolioPdf` call
-- Add an "Apply Top-up" button (visible only when `approvedTopUps[p.id]?.total > 0`)
-- Button opens a small dialog/popover asking for a reason (textarea, min 10 chars)
-- On submit, calls `supabase.functions.invoke('merge-pending-topups', { body: { portfolio_id, reason } })`
-- On success, refreshes portfolio data and shows toast
-- Button styled with primary/amber color with a merge icon
+3. **Add inline approve handler**: When the manager enters a TID and taps "Approve":
+   - Calls `supabase.functions.invoke('approve-deposit', { body: { deposit_request_id, action: 'approve' } })`
+   - Logs an audit entry with the entered TID, depositor name, and amount
+   - Removes the deposit from the pending list and shows success toast
+   - Optionally updates the deposit's `transaction_id` if the manager entered/corrected it
 
-**`src/components/manager/InvestmentAccountsManager.tsx`** (~line 229-243):
-- Same replacement: remove PDF button, add "Apply Top-up" button with identical logic
-- Needs to fetch `approvedTopUps` state (query pending_wallet_operations with status 'approved' for each portfolio)
+4. **UI layout per card** (expanded state):
+   ```text
+   ┌──────────────────────────────────┐
+   │ 👤 John Doe          USh 50,000  │
+   │    MP241231... · MTN · 10:30 AM  │
+   │ ┌──────────────────────────────┐ │
+   │ │ TID: [____________] [MTN ▾] │ │
+   │ │ [✓ Approve]        [✗ Reject]│ │
+   │ └──────────────────────────────┘ │
+   └──────────────────────────────────┘
+   ```
 
-### Technical Details
-
-- The merge ledger pattern mirrors `process-supporter-roi` exactly: `pending_portfolio_topup` cash_out + `partner_funding` cash_in
-- Pending ops marked as `completed` (not `approved`) to distinguish manual merges from automated ones
-- Rollback: if the pending ops status update fails after principal update, revert `investment_amount`
-- The button is conditionally rendered — only shows when there are approved pending top-ups for that portfolio
-
-### Files
-- **New**: `supabase/functions/merge-pending-topups/index.ts`
-- **Edit**: `src/components/coo/COOPartnersPage.tsx` — replace PDF button with Apply Top-up
-- **Edit**: `src/components/manager/InvestmentAccountsManager.tsx` — replace PDF button with Apply Top-up
+### Files Modified
+- `src/components/financial-ops/DepositStatsPanel.tsx` — add inline TID entry and approve action to each pending deposit card
 
