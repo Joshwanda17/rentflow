@@ -681,7 +681,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('source_id', portfolioIds)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
-            .in('status', ['pending', 'awaiting_verification']),
+            .in('status', ['pending', 'awaiting_verification', 'approved']),
         ]);
         const counts: Record<string, number> = {};
         (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
