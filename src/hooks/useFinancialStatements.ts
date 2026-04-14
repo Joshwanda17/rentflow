@@ -297,12 +297,12 @@ export function useFinancialStatements() {
       const opSubTaxes = sumByDescriptionMatch(platformOut, '→ Taxes');
       const opSubInterests = sumByDescriptionMatch(platformOut, '→ Interests');
 
-      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
+      const operatingExpensesTotal = generalOperating + payrollExpenses + agentRequisitions + financialAgentExpenses + marketingExpenses + researchDevelopment + legacyMarketingExpense + tenantDefaultCharges + debtClearance + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
 
       const advanceAccessFeesCollected = activeAdvances.reduce((s: number, a: any) => s + Number(a.access_fee_collected || 0), 0);
 
       const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
-      const totalServiceCosts = platformRewards + agentCommissions + transactionExpenses;
+      const totalServiceCosts = platformRewards + agentCommissions + totalIncentiveCosts + transactionExpenses;
 
       // ── Adjustments (non-revenue, non-expense items that affect net income) ──
       const walletDeductions = sumWithDirectionFallback(platformIn, walletOut, ['wallet_deduction']);
