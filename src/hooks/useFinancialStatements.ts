@@ -56,6 +56,16 @@ export interface IncomeStatementData {
     orphanReversals: number;
     total: number;
   };
+  revenueRecognition: {
+    expectedAccessFees: number;
+    expectedRequestFees: number;
+    totalExpectedRevenue: number;
+    realizedAccessFees: number;
+    realizedRequestFees: number;
+    totalRealizedRevenue: number;
+    deferredRevenue: number;
+    recognitionRate: number; // percentage
+  };
   netOperatingIncome: number;
 }
 
@@ -386,6 +396,19 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
       const totalServiceCosts = platformRewards + agentCommissions + totalIncentiveCosts + transactionExpenses;
 
+      // ── Revenue Recognition: Expected vs Realized vs Deferred ──
+      // Expected = fees from all active rent requests (approved, funded, disbursed, repaying)
+      const activeRentRequests = rentRequests.filter(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
+      const expectedAccessFees = activeRentRequests.reduce((s, r) => s + Number(r.access_fee || 0), 0);
+      const expectedRequestFees = activeRentRequests.reduce((s, r) => s + Number(r.request_fee || 0), 0);
+      const totalExpectedRevenue = expectedAccessFees + expectedRequestFees;
+      // Realized = what the ledger has actually collected
+      const realizedAccessFees = accessFees + advanceAccessFeesCollected;
+      const realizedRequestFees = requestFees;
+      const totalRealizedRevenue = realizedAccessFees + realizedRequestFees;
+      const deferredRevenue = Math.max(0, totalExpectedRevenue - totalRealizedRevenue);
+      const recognitionRate = totalExpectedRevenue > 0 ? (totalRealizedRevenue / totalExpectedRevenue) * 100 : 0;
+
       // ── Adjustments (non-revenue, non-expense items that affect net income) ──
       const walletDeductions = sumWithDirectionFallback(platformIn, walletOut, ['wallet_deduction']);
       const systemCorrections = sumWithDirectionFallback(platformIn, platformOut, ['system_balance_correction'])
@@ -522,6 +545,16 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
             orphanReassignments,
             orphanReversals,
             total: adjustmentsTotal,
+          },
+          revenueRecognition: {
+            expectedAccessFees,
+            expectedRequestFees,
+            totalExpectedRevenue,
+            realizedAccessFees,
+            realizedRequestFees,
+            totalRealizedRevenue,
+            deferredRevenue,
+            recognitionRate,
           },
           netOperatingIncome,
         },

@@ -78,7 +78,24 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeStatement']; cm?: ComparisonMetrics | null }) {
   return (
     <div className="space-y-1">
-      <SectionHeader>Revenue</SectionHeader>
+      <SectionHeader>Revenue Recognition</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Expected revenue from active rent requests vs. collected (realized) through ledger</p>
+      <LineItem label="Expected Access Fees" value={d.revenueRecognition.expectedAccessFees} indent />
+      <LineItem label="Expected Request Fees" value={d.revenueRecognition.expectedRequestFees} indent />
+      <LineItem label="Total Expected Revenue" value={d.revenueRecognition.totalExpectedRevenue} bold />
+      <LineItem label="Realized Access Fees" value={d.revenueRecognition.realizedAccessFees} indent />
+      <LineItem label="Realized Request Fees" value={d.revenueRecognition.realizedRequestFees} indent />
+      <LineItem label="Total Realized Revenue" value={d.revenueRecognition.totalRealizedRevenue} bold />
+      <div className="flex justify-between items-center text-xs pl-4 pr-2">
+        <span className="text-warning font-medium">Deferred Revenue (Not Yet Collected)</span>
+        <span className="font-mono text-warning font-medium">{formatUGX(d.revenueRecognition.deferredRevenue)}</span>
+      </div>
+      <div className="flex justify-between items-center text-xs pl-4 pr-2">
+        <span className="text-muted-foreground">Recognition Rate</span>
+        <span className="font-mono text-muted-foreground">{d.revenueRecognition.recognitionRate.toFixed(1)}%</span>
+      </div>
+
+      <SectionHeader>Realized Revenue (Ledger-Confirmed)</SectionHeader>
       <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent delta={cm?.accessFees} />
       <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent delta={cm?.requestFees} />
       <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent delta={cm?.otherServiceIncome} />
@@ -388,7 +405,17 @@ export function FinancialStatementsPanel() {
       const d = data.incomeStatement;
       rows.push(['WELILE — Income Statement', '', period]);
       rows.push(['', '', '']);
-      rows.push(['REVENUE', '', '']);
+      rows.push(['REVENUE RECOGNITION', '', '']);
+      rows.push(['Expected Access Fees', '', d.revenueRecognition.expectedAccessFees]);
+      rows.push(['Expected Request Fees', '', d.revenueRecognition.expectedRequestFees]);
+      rows.push(['Total Expected Revenue', '', d.revenueRecognition.totalExpectedRevenue]);
+      rows.push(['Realized Access Fees', '', d.revenueRecognition.realizedAccessFees]);
+      rows.push(['Realized Request Fees', '', d.revenueRecognition.realizedRequestFees]);
+      rows.push(['Total Realized Revenue', '', d.revenueRecognition.totalRealizedRevenue]);
+      rows.push(['Deferred Revenue', '', d.revenueRecognition.deferredRevenue]);
+      rows.push(['Recognition Rate (%)', '', d.revenueRecognition.recognitionRate.toFixed(1)]);
+      rows.push(['', '', '']);
+      rows.push(['REALIZED REVENUE (LEDGER)', '', '']);
       rows.push(['Access Fees', '', d.revenue.accessFees]);
       rows.push(['Request Fees', '', d.revenue.requestFees]);
       rows.push(['Other Service Income', '', d.revenue.otherServiceIncome]);
@@ -584,7 +611,16 @@ export function FinancialStatementsPanel() {
 
       if (activeTab === 'income') {
         const d = data.incomeStatement;
-        addSection('Revenue');
+        addSection('Revenue Recognition');
+        addRow('Expected Access Fees', d.revenueRecognition.expectedAccessFees, false, false, true);
+        addRow('Expected Request Fees', d.revenueRecognition.expectedRequestFees, false, false, true);
+        addRow('Total Expected Revenue', d.revenueRecognition.totalExpectedRevenue, true);
+        addRow('Realized Access Fees', d.revenueRecognition.realizedAccessFees, false, false, true);
+        addRow('Realized Request Fees', d.revenueRecognition.realizedRequestFees, false, false, true);
+        addRow('Total Realized Revenue', d.revenueRecognition.totalRealizedRevenue, true);
+        addRow('Deferred Revenue', d.revenueRecognition.deferredRevenue, true, false, true);
+        y += 3;
+        addSection('Realized Revenue (Ledger-Confirmed)');
         addRow('Tenant Access Fees', d.revenue.accessFees, false, false, true);
         addRow('Tenant Request Fees', d.revenue.requestFees, false, false, true);
         addRow('Other Service Income', d.revenue.otherServiceIncome, false, false, true);
