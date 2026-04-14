@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { logSystemEvent } from "../_shared/eventLogger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,9 +10,9 @@ const corsHeaders = {
  * approve-portfolio-topup
  * 
  * Financial Ops action: Verifies awaiting_verification top-ups.
- * Funds are PARKED (not added to principal) until next ROI payout cycle,
- * at which point the process-supporter-roi engine merges them.
- * Only callable by financial_ops / cfo / super_admin roles.
+ * On approval, creates a pending_portfolio_topup ledger entry to park the funds.
+ * The process-supporter-roi engine merges parked funds into principal at next ROI cycle.
+ * Only callable by financial_ops / cfo / super_admin / manager / coo roles.
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Only Financial Ops / CFO / super_admin can approve
+    // Only Financial Ops / CFO / super_admin / manager / coo can approve
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
@@ -134,12 +135,11 @@ Deno.serve(async (req) => {
       });
 
       if (partnerId) {
-        await supabase.from("notifications").insert({
-          user_id: partnerId,
-          title: "❌ Portfolio Top-Up Rejected",
-          message: `${awaitingOps.length} top-up(s) totaling UGX ${totalAmount.toLocaleString()} for "${accountLabel}" were not approved. Contact your manager for details.`,
-          type: "warning",
-          metadata: { portfolio_id, total_amount: totalAmount },
+        await logSystemEvent(supabase, "portfolio_topup_rejected", partnerId, "investor_portfolios", portfolio_id, {
+          count: awaitingOps.length,
+          total_amount: totalAmount,
+          portfolio_code: portfolio.portfolio_code,
+          rejected_by: user.id,
         });
       }
 
@@ -150,9 +150,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── APPROVE: Park funds until next ROI cycle ──
-    // DO NOT update investment_amount — the process-supporter-roi engine
-    // will merge approved top-ups into the principal at the next payout.
+    // ── APPROVE: Park funds with ledger entry until next ROI cycle ──
 
     // 1. Mark all ops as approved (parked)
     const { error: approveErr } = await supabase
@@ -166,7 +164,53 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Audit log
+    // 2. Create ledger entry for parked capital (pending_portfolio_topup)
+    //    This is the critical step that was missing for external payments.
+    //    The process-supporter-roi engine will later reverse this with a cash_out
+    //    and create a partner_funding cash_in when merging into active capital.
+    if (partnerId) {
+      try {
+        const { error: ledgerErr } = await supabase.rpc("create_ledger_transaction", {
+          entries: [
+            {
+              user_id: partnerId,
+              amount: totalAmount,
+              direction: "cash_in",
+              category: "pending_portfolio_topup",
+              source_table: "investor_portfolios",
+              source_id: portfolio_id,
+              description: `Verified deposit of UGX ${totalAmount.toLocaleString()} for "${accountLabel}" (${portfolio.portfolio_code}). Parked until next ROI cycle.`,
+              currency: "UGX",
+              ledger_scope: "platform",
+              transaction_date: now,
+            },
+            {
+              user_id: partnerId,
+              amount: totalAmount,
+              direction: "cash_out",
+              category: "pending_portfolio_topup",
+              source_table: "investor_portfolios",
+              source_id: portfolio_id,
+              description: `Platform contra for verified portfolio deposit — ${portfolio.portfolio_code}`,
+              currency: "UGX",
+              ledger_scope: "platform",
+              transaction_date: now,
+            },
+          ],
+        });
+
+        if (ledgerErr) {
+          console.error("[approve-portfolio-topup] Ledger entry failed:", ledgerErr);
+          // Non-blocking — the approval is already recorded in pending_wallet_operations
+        } else {
+          console.log(`[approve-portfolio-topup] Ledger entry created for ${totalAmount} parked in ${portfolio.portfolio_code}`);
+        }
+      } catch (ledgerEx) {
+        console.error("[approve-portfolio-topup] Ledger exception:", ledgerEx);
+      }
+    }
+
+    // 3. Audit log
     await supabase.from("audit_logs").insert({
       user_id: user.id,
       action_type: "approve_portfolio_topup",
@@ -182,18 +226,19 @@ Deno.serve(async (req) => {
       },
     });
 
-    // 3. Notify partner
+    // 4. Log system event (replaces suppressed notifications)
     if (partnerId) {
-      await supabase.from("notifications").insert({
-        user_id: partnerId,
-        title: "✅ Portfolio Deposit Verified",
-        message: `${awaitingOps.length} deposit(s) totaling UGX ${totalAmount.toLocaleString()} for "${accountLabel}" verified. Funds are parked and will be added to your active capital at your next returns payout.`,
-        type: "success",
-        metadata: { portfolio_id, total_parked: totalAmount, current_capital: currentInvestment, approved_by: user.id },
+      await logSystemEvent(supabase, "portfolio_topup_approved", partnerId, "investor_portfolios", portfolio_id, {
+        count: awaitingOps.length,
+        total_parked: totalAmount,
+        current_capital: currentInvestment,
+        portfolio_code: portfolio.portfolio_code,
+        account_name: accountLabel,
+        approved_by: user.id,
       });
     }
 
-    // 4. Notify executives
+    // 5. Notify executives via system events
     try {
       const { data: execs } = await supabase
         .from("user_roles")
@@ -201,23 +246,21 @@ Deno.serve(async (req) => {
         .in("role", ["cfo", "coo"]);
       if (execs && execs.length > 0) {
         const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
-        if (uniqueIds.length > 0) {
-          await supabase.from("notifications").insert(
-            uniqueIds.map((uid: string) => ({
-              user_id: uid,
-              title: "✅ Portfolio Deposit Verified (Parked)",
-              message: `${awaitingOps.length} top-up(s) totaling UGX ${totalAmount.toLocaleString()} for "${accountLabel}" (${portfolio.portfolio_code}) verified & parked. Will merge at next ROI cycle. Current capital: UGX ${currentInvestment.toLocaleString()}.`,
-              type: "success",
-              metadata: { portfolio_id, total_parked: totalAmount, current_capital: currentInvestment, portfolio_code: portfolio.portfolio_code, approved_by: user.id },
-            }))
-          );
+        for (const uid of uniqueIds) {
+          await logSystemEvent(supabase, "portfolio_topup_verified", uid, "investor_portfolios", portfolio_id, {
+            count: awaitingOps.length,
+            total_parked: totalAmount,
+            current_capital: currentInvestment,
+            portfolio_code: portfolio.portfolio_code,
+            approved_by: user.id,
+          });
         }
       }
     } catch (notifErr) {
-      console.error("[approve-portfolio-topup] Notification error (non-blocking):", notifErr);
+      console.error("[approve-portfolio-topup] Exec notification error (non-blocking):", notifErr);
     }
 
-    console.log(`[approve-portfolio-topup] FinOps ${user.id} verified ${awaitingOps.length} top-ups (${totalAmount}) for ${portfolio_id}. Capital unchanged at ${currentInvestment} — funds parked until next ROI cycle.`);
+    console.log(`[approve-portfolio-topup] FinOps ${user.id} verified ${awaitingOps.length} top-ups (${totalAmount}) for ${portfolio_id}. Ledger entry created. Capital unchanged at ${currentInvestment} — funds parked until next ROI cycle.`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -226,7 +269,7 @@ Deno.serve(async (req) => {
       total_parked: totalAmount,
       current_capital: currentInvestment,
       portfolio_code: portfolio.portfolio_code,
-      note: "Funds parked. Will merge into active capital at next ROI payout.",
+      note: "Funds verified & parked. Will merge into active capital at next ROI payout.",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
