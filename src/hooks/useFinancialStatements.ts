@@ -477,19 +477,19 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       // ── Adjustments (non-revenue, non-expense items that affect net income) ──
       const walletDeductions = sumWithDirectionFallback(platformIn, walletOut, ['wallet_deduction']);
       const systemCorrections = sumWithDirectionFallback(platformIn, platformOut, ['system_balance_correction'])
-        - (marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests);
+        - (legacyMarketingDesc + legacyRnDDesc + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests);
       const orphanReassignments = sumBy(platformIn, ['orphan_reassignment']);
       const orphanReversals = sumBy(platformOut, ['orphan_reversal']);
       const adjustmentsTotal = walletDeductions + Math.max(0, systemCorrections) - orphanReversals + orphanReassignments;
 
       // ── GAAP: Below-the-Line Items ──
-      // Interest: from operational subcategories
-      const interestExpense = opSubInterests;
+      // Interest: from proper category + legacy subcategories
+      const interestExpense = totalInterestExpense;
       const interestIncome = 0; // No interest income streams yet
-      // Tax: from operational subcategories
-      const taxProvision = opSubTaxes;
-      // D&A: Property & Equipment mapped as depreciation proxy; software dev as amortization
-      const depreciation = opSubPropertyEquipment;
+      // Tax: from proper category + legacy subcategories
+      const taxProvision = totalTaxExpense;
+      // D&A: Equipment category + legacy Property & Equipment as depreciation proxy
+      const depreciation = totalEquipmentExpense;
       const amortization = 0; // No software amortization tracked separately yet
 
       // Operating Income = Gross Profit - OpEx (excluding interest, tax, D&A)
@@ -515,8 +515,8 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const payrollPaid = payrollExpenses;
       const agentRequisitionsPaid = agentRequisitions;
       const financialAgentExpensesPaid = financialAgentExpenses;
-      const marketingPaid = marketingExpenses;
-      const rdPaid = researchDevelopment;
+      const marketingPaid = totalMarketingExpense;
+      const rdPaid = totalRnD;
       const operationalSubcatPaid = opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests;
       const withdrawalsPaid = generalOperating + transactionExpenses;
       const netOperating = tenantFeesReceived + otherServiceIncome - platformRewards - agentCommissions - payrollPaid - agentRequisitionsPaid - financialAgentExpensesPaid - marketingPaid - rdPaid - operationalSubcatPaid - withdrawalsPaid;
@@ -657,8 +657,9 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
           grossProfit,
           grossMargin,
           operatingExpenses: {
-            generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses,
-            marketingExpenses, researchDevelopment,
+            generalOperating: totalGeneralAdmin, payrollExpenses: totalPayroll, agentRequisitions, financialAgentExpenses,
+            marketingExpenses: totalMarketingExpense, researchDevelopment: totalRnD,
+            taxExpense: totalTaxExpense, interestExpense: totalInterestExpense, equipmentExpense: totalEquipmentExpense,
             operationalSubcategories: {
               salaries: opSubSalaries, transport: opSubTransport, food: opSubFood,
               officeRent: opSubOfficeRent, internet: opSubInternet, airtime: opSubAirtime,
