@@ -32,6 +32,7 @@ function calculateAccessFee(amount: number, monthlyRate: number, durationDays: n
 }
 
 export function CFOAdvancesManager() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'overdue'>('all');
   const [issueOpen, setIssueOpen] = useState(false);
@@ -98,6 +99,18 @@ export function CFOAdvancesManager() {
       const ids = Array.from(selectedIds);
       const { error } = await supabase.from('agent_advances').delete().in('id', ids);
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'cfo_advance_deleted',
+        table_name: 'agent_advances',
+        record_id: ids[0],
+        metadata: {
+          count: ids.length,
+          advance_ids: ids,
+        },
+      });
+
       toast.success(`${ids.length} advance(s) deleted`);
       setSelectedIds(new Set());
       setDeleteDialogOpen(false);
