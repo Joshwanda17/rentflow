@@ -58,8 +58,8 @@ export function InvestmentWithdrawButton() {
         .in('status', ['pending', 'partner_ops_approved', 'coo_approved', 'approved'])
         .order('created_at', { ascending: false })
         .limit(1);
-      if (data && (data as any[]).length > 0) {
-        setExistingRequest((data as any[])[0]);
+      if (data && data.length > 0) {
+        setExistingRequest(data[0]);
       }
     };
     fetchExisting();
@@ -80,13 +80,13 @@ export function InvestmentWithdrawButton() {
     setSubmitting(true);
     try {
       const { error } = await supabase
-        .from('investment_withdrawal_requests' as any)
+        .from('investment_withdrawal_requests')
         .insert({
           user_id: user.id,
           amount: amountNum,
           reason: reason.trim() || null,
           rewards_paused: true,
-        } as any);
+        });
 
       if (error) throw error;
 
