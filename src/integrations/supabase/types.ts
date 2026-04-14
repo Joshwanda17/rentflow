@@ -9870,6 +9870,15 @@ export type Database = {
         Args: { p_batch_size?: number }
         Returns: Json
       }
+      backfill_agent_commission: {
+        Args: {
+          p_event_reference_id?: string
+          p_rent_request_id: string
+          p_repayment_amount: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       check_phone_exists: {
         Args: { phone_suffix: string }
         Returns: {
