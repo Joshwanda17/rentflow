@@ -65,7 +65,6 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
       <LineItem label="Marketing Expenses" value={d.operatingExpenses.marketingExpenses} negative indent />
       <LineItem label="Research & Development" value={d.operatingExpenses.researchDevelopment} negative indent />
-      {/* Operational Subcategories */}
       {(d.operatingExpenses.operationalSubcategories.salaries > 0 ||
         d.operatingExpenses.operationalSubcategories.transport > 0 ||
         d.operatingExpenses.operationalSubcategories.food > 0 ||
@@ -92,6 +91,17 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       )}
       <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
       <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
+
+      {(d.adjustments.walletDeductions > 0 || d.adjustments.systemCorrections > 0 || d.adjustments.orphanReassignments > 0 || d.adjustments.orphanReversals > 0) && (
+        <>
+          <SectionHeader>Adjustments & Corrections</SectionHeader>
+          {d.adjustments.walletDeductions > 0 && <LineItem label="Wallet Deductions (Recoveries)" value={d.adjustments.walletDeductions} indent />}
+          {d.adjustments.systemCorrections > 0 && <LineItem label="System Balance Corrections" value={d.adjustments.systemCorrections} indent />}
+          {d.adjustments.orphanReassignments > 0 && <LineItem label="Orphan Reassignments" value={d.adjustments.orphanReassignments} indent />}
+          {d.adjustments.orphanReversals > 0 && <LineItem label="Orphan Reversals" value={d.adjustments.orphanReversals} negative indent />}
+          <LineItem label="Net Adjustments" value={d.adjustments.total} bold />
+        </>
+      )}
 
       <div className={cn(
         'flex justify-between text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
