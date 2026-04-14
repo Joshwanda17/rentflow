@@ -17,7 +17,7 @@ export interface PortfolioRecord {
   roi_mode: string | null;
   next_roi_date: string | null;
   created_at: string | null;
-  funded_at: string | null;
+  funded_at: string | null; // mapped from created_at
 }
 
 export function useCapitalOpportunities() {
