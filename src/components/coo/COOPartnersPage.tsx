@@ -691,7 +691,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const awaiting: Record<string, { count: number; total: number }> = {};
         (pendingRes.data || []).forEach((op: any) => {
           const key = op.source_id;
-          if (op.status === 'awaiting_verification') {
+          if (op.status === 'awaiting_verification' || op.status === 'approved') {
             if (!awaiting[key]) awaiting[key] = { count: 0, total: 0 };
             awaiting[key].count += 1;
             awaiting[key].total += Number(op.amount);
