@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search, User, MapPin, Info } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SubAgentRecord {
@@ -273,6 +273,86 @@ export function SubAgentVerificationQueue() {
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      {/* Detail Sheet */}
+      <Sheet open={!!selectedRecord} onOpenChange={(open) => { if (!open) setSelectedRecord(null); }}>
+        <SheetContent side="bottom" className="h-[75vh] rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <UsersRound className="h-4 w-4 text-primary" />
+              Sub-Agent Details
+            </SheetTitle>
+          </SheetHeader>
+          {selectedRecord && (
+            <div className="space-y-4 mt-4 overflow-y-auto max-h-[calc(75vh-80px)] pb-6">
+              {/* Status */}
+              <div className="flex items-center justify-between">
+                <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                  selectedRecord.status === 'verified' ? 'bg-emerald-100 text-emerald-700' :
+                  selectedRecord.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                  'bg-amber-100 text-amber-700'
+                }`}>
+                  {selectedRecord.status.charAt(0).toUpperCase() + selectedRecord.status.slice(1)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Source: <span className="font-medium text-foreground">{selectedRecord.source}</span>
+                </span>
+              </div>
+
+              {/* Sub-Agent Info */}
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Sub-Agent</p>
+                  <p className="font-semibold text-base">{selectedRecord.sub_name}</p>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{selectedRecord.sub_phone}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Parent Agent Info */}
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Parent Agent</p>
+                  <p className="font-semibold">{selectedRecord.parent_name}</p>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{selectedRecord.parent_phone}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Timeline */}
+              <Card>
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Timeline</p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-muted-foreground">Registered:</span>
+                      <span className="font-medium">{format(new Date(selectedRecord.created_at), 'dd MMM yyyy HH:mm')}</span>
+                    </div>
+                    {selectedRecord.verified_at && (
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="text-muted-foreground">Verified:</span>
+                        <span className="font-medium text-emerald-600">{format(new Date(selectedRecord.verified_at), 'dd MMM yyyy HH:mm')}</span>
+                      </div>
+                    )}
+                    {selectedRecord.rejection_reason && (
+                      <div className="mt-2 p-2 rounded-lg bg-destructive/5 border border-destructive/20">
+                        <p className="text-xs font-medium text-destructive">Rejection Reason</p>
+                        <p className="text-sm mt-0.5">{selectedRecord.rejection_reason}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
