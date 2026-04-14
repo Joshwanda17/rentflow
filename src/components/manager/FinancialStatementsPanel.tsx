@@ -148,7 +148,7 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
   );
 }
 
-function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
+function CashFlowSection({ d, cm }: { d: FinancialStatementsData['cashFlow']; cm?: ComparisonMetrics | null }) {
   return (
     <div className="space-y-1">
       <SectionHeader>Platform Operating Activities</SectionHeader>
@@ -169,7 +169,7 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="R&D Expenses Paid" value={d.operatingActivities.rdPaid} negative indent />
       <LineItem label="Operational Expenses Paid" value={d.operatingActivities.operationalSubcatPaid} negative indent />
       <LineItem label="General Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
-      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
+      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold delta={cm?.netOperatingCash} />
 
       <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
@@ -187,7 +187,7 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       {d.facilitationActivities.rentDisbursements > 0 && (
         <LineItem label="Rent Disbursements" value={d.facilitationActivities.rentDisbursements} negative indent />
       )}
-      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold />
+      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold delta={cm?.netFacilitation} />
 
       <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits, withdrawals, and wallet movements</p>
@@ -217,7 +217,7 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       {d.custodialActivities.walletCorrectionDebits > 0 && (
         <LineItem label="CFO Debits (Corrections)" value={d.custodialActivities.walletCorrectionDebits} negative indent />
       )}
-      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
+      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold delta={cm?.netCustodial} />
 
       <SectionHeader>Financing Activities</SectionHeader>
       <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
@@ -231,7 +231,7 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
         <LineItem label="ROI Reinvestment" value={d.financingActivities.roiReinvestment} indent />
       )}
       <LineItem label="Supporter Capital Withdrawals" value={d.financingActivities.supporterCapitalWithdrawals} negative indent />
-      <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold />
+      <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold delta={cm?.netFinancing} />
 
       <div className="pt-3 mt-2 border-t-2 border-primary/30 space-y-1">
         <LineItem label="Opening Platform Balance" value={d.openingBalance} />
