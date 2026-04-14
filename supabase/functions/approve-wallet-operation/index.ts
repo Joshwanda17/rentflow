@@ -564,6 +564,109 @@ Deno.serve(async (req) => {
           }
         }
 
+        // ── Portfolio Top-Up Approval: deduct wallet + increase principal ──
+        if (op.operation_type === 'portfolio_topup' && op.source_table === 'investor_portfolios' && op.source_id) {
+          try {
+            const partnerId = op.user_id;
+
+            // Re-verify wallet balance (fresh check to prevent race conditions)
+            const { data: freshWallet } = await adminClient
+              .from("wallets")
+              .select("balance")
+              .eq("user_id", partnerId)
+              .single();
+
+            const walletBalance = Number(freshWallet?.balance || 0);
+            if (walletBalance < op.amount) {
+              failedResults.push({ id: op.id, error: `Insufficient wallet balance. Available: UGX ${walletBalance.toLocaleString()}, Required: UGX ${op.amount.toLocaleString()}` });
+              continue;
+            }
+
+            // Balanced ledger entries: wallet cash_out + platform cash_in
+            const { error: topupLedgerErr } = await adminClient.rpc('create_ledger_transaction', {
+              entries: [
+                {
+                  user_id: partnerId,
+                  amount: op.amount,
+                  direction: "cash_out",
+                  category: "partner_funding",
+                  source_table: "investor_portfolios",
+                  source_id: op.source_id,
+                  description: `Wallet deduction for portfolio top-up — approved by Financial Ops`,
+                  currency: 'UGX',
+                  ledger_scope: "wallet",
+                  transaction_date: new Date().toISOString(),
+                },
+                {
+                  user_id: partnerId,
+                  amount: op.amount,
+                  direction: "cash_in",
+                  category: "partner_funding",
+                  source_table: "investor_portfolios",
+                  source_id: op.source_id,
+                  description: `Capital received for portfolio top-up — Financial Ops verified`,
+                  currency: 'UGX',
+                  ledger_scope: "platform",
+                  transaction_date: new Date().toISOString(),
+                },
+              ],
+            });
+
+            if (topupLedgerErr) {
+              console.error(`[approve-wallet-op] Portfolio top-up ledger failed for ${op.id}:`, topupLedgerErr);
+              failedResults.push({ id: op.id, error: topupLedgerErr.message || 'Portfolio top-up ledger failed' });
+              continue;
+            }
+
+            // Update portfolio investment_amount
+            const { data: portfolio } = await adminClient
+              .from("investor_portfolios")
+              .select("investment_amount, portfolio_code, account_name")
+              .eq("id", op.source_id)
+              .single();
+
+            if (portfolio) {
+              const newAmount = Number(portfolio.investment_amount) + op.amount;
+              await adminClient
+                .from("investor_portfolios")
+                .update({ investment_amount: newAmount })
+                .eq("id", op.source_id);
+
+              console.log(`[approve-wallet-op] Portfolio ${op.source_id} capital updated: ${portfolio.investment_amount} → ${newAmount}`);
+
+              // Notify partner
+              const accountLabel = portfolio.account_name || portfolio.portfolio_code;
+              await adminClient.from("notifications").insert({
+                user_id: partnerId,
+                title: "✅ Portfolio Top-Up Approved",
+                message: `UGX ${op.amount.toLocaleString()} top-up for "${accountLabel}" has been approved by Financial Operations. New capital: UGX ${newAmount.toLocaleString()}.`,
+                type: "success",
+                metadata: { portfolio_id: op.source_id, amount: op.amount, new_capital: newAmount },
+              });
+
+              // Audit log
+              await adminClient.from("audit_logs").insert({
+                user_id: userId,
+                action_type: "approve_portfolio_topup",
+                table_name: "investor_portfolios",
+                record_id: op.source_id,
+                metadata: {
+                  partner_id: partnerId,
+                  amount: op.amount,
+                  previous_capital: Number(portfolio.investment_amount),
+                  new_capital: newAmount,
+                  pending_op_id: op.id,
+                  wallet_balance_before: walletBalance,
+                },
+              });
+            }
+          } catch (topupErr) {
+            console.error(`[approve-wallet-op] Portfolio top-up processing error for ${op.id}:`, topupErr);
+            failedResults.push({ id: op.id, error: 'Portfolio top-up processing failed' });
+            continue;
+          }
+        }
+
         // Mark as approved with payment details
         await adminClient
           .from("pending_wallet_operations")
