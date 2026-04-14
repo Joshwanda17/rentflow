@@ -129,6 +129,9 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
       <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
       <LineItem label="Marketing Expenses" value={d.operatingExpenses.marketingExpenses} negative indent />
       <LineItem label="Research & Development" value={d.operatingExpenses.researchDevelopment} negative indent />
+      <LineItem label="Tax Expense" value={d.operatingExpenses.taxExpense} negative indent />
+      <LineItem label="Interest Expense" value={d.operatingExpenses.interestExpense} negative indent />
+      <LineItem label="Equipment & Depreciation" value={d.operatingExpenses.equipmentExpense} negative indent />
       {(d.operatingExpenses.operationalSubcategories.salaries > 0 ||
         d.operatingExpenses.operationalSubcategories.transport > 0 ||
         d.operatingExpenses.operationalSubcategories.food > 0 ||
@@ -147,7 +150,7 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
           {d.operatingExpenses.operationalSubcategories.stationery > 0 && <LineItem label="  Stationery" value={d.operatingExpenses.operationalSubcategories.stationery} negative indent />}
         </>
       )}
-      <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
+      <LineItem label="General & Admin Expenses" value={d.operatingExpenses.generalOperating} negative indent />
       <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold delta={cm?.totalOperatingExpenses} />
 
       {/* GAAP: Operating Income (EBIT before D&A) */}
@@ -560,6 +563,9 @@ export function FinancialStatementsPanel() {
       rows.push(['Financial Agent Expenses', '', -d.operatingExpenses.financialAgentExpenses]);
       rows.push(['Marketing Expenses', '', -d.operatingExpenses.marketingExpenses]);
       rows.push(['Research & Development', '', -d.operatingExpenses.researchDevelopment]);
+      rows.push(['Tax Expense', '', -d.operatingExpenses.taxExpense]);
+      rows.push(['Interest Expense', '', -d.operatingExpenses.interestExpense]);
+      rows.push(['Equipment & Depreciation', '', -d.operatingExpenses.equipmentExpense]);
       if (d.operatingExpenses.operationalSubcategories.salaries) rows.push(['  Salaries', '', -d.operatingExpenses.operationalSubcategories.salaries]);
       if (d.operatingExpenses.operationalSubcategories.transport) rows.push(['  Transport', '', -d.operatingExpenses.operationalSubcategories.transport]);
       if (d.operatingExpenses.operationalSubcategories.food) rows.push(['  Food', '', -d.operatingExpenses.operationalSubcategories.food]);
@@ -568,9 +574,9 @@ export function FinancialStatementsPanel() {
       if (d.operatingExpenses.operationalSubcategories.airtime) rows.push(['  Airtime', '', -d.operatingExpenses.operationalSubcategories.airtime]);
       if (d.operatingExpenses.operationalSubcategories.stationery) rows.push(['  Stationery', '', -d.operatingExpenses.operationalSubcategories.stationery]);
       if (d.operatingExpenses.operationalSubcategories.propertyEquipment) rows.push(['  Property & Equipment', '', -d.operatingExpenses.operationalSubcategories.propertyEquipment]);
-      if (d.operatingExpenses.operationalSubcategories.taxes) rows.push(['  Taxes', '', -d.operatingExpenses.operationalSubcategories.taxes]);
-      if (d.operatingExpenses.operationalSubcategories.interests) rows.push(['  Interests', '', -d.operatingExpenses.operationalSubcategories.interests]);
-      rows.push(['General Operating Expenses', '', -d.operatingExpenses.generalOperating]);
+      if (d.operatingExpenses.operationalSubcategories.taxes) rows.push(['  Taxes (legacy)', '', -d.operatingExpenses.operationalSubcategories.taxes]);
+      if (d.operatingExpenses.operationalSubcategories.interests) rows.push(['  Interests (legacy)', '', -d.operatingExpenses.operationalSubcategories.interests]);
+      rows.push(['General & Admin Expenses', '', -d.operatingExpenses.generalOperating]);
       rows.push(['Total Operating Expenses', '', -d.operatingExpenses.total]);
       rows.push(['', '', '']);
       rows.push(['ADJUSTMENTS & CORRECTIONS', '', '']);
@@ -773,7 +779,10 @@ export function FinancialStatementsPanel() {
         addRow('Financial Agent Expenses', d.operatingExpenses.financialAgentExpenses, false, true, true);
         addRow('Marketing Expenses', d.operatingExpenses.marketingExpenses, false, true, true);
         addRow('Research & Development', d.operatingExpenses.researchDevelopment, false, true, true);
-        addRow('General Operating', d.operatingExpenses.generalOperating, false, true, true);
+        addRow('Tax Expense', d.operatingExpenses.taxExpense, false, true, true);
+        addRow('Interest Expense', d.operatingExpenses.interestExpense, false, true, true);
+        addRow('Equipment & Depreciation', d.operatingExpenses.equipmentExpense, false, true, true);
+        addRow('General & Admin', d.operatingExpenses.generalOperating, false, true, true);
         addRow('Total Operating Expenses', d.operatingExpenses.total, true, true);
         y += 3;
         pdf.setFontSize(11);

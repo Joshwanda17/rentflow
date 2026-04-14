@@ -59,6 +59,14 @@ export const LOCKED_CATEGORIES = [
   'agent_float_used_for_rent',
   // Portfolio
   'pending_portfolio_topup',
+  // GAAP expense categories
+  'marketing_expense',
+  'payroll_expense',
+  'general_admin_expense',
+  'research_development_expense',
+  'tax_expense',
+  'interest_expense',
+  'equipment_expense',
 ] as const;
 
 export type LockedCategory = typeof LOCKED_CATEGORIES[number];
