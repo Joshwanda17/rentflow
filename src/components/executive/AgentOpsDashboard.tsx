@@ -145,7 +145,7 @@ export function AgentOpsDashboard() {
   // Render sub-view content
   const renderSubView = () => {
     switch (activeView) {
-      case 'pipeline': return <RentPipelineQueue stage="tenant_ops_approved" />;
+      case 'pipeline': return <AgentOpsPipelineHub />;
       case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
       case 'connector': return <AgentTenantConnector />;
