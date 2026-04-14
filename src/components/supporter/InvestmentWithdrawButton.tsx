@@ -22,6 +22,7 @@ export function InvestmentWithdrawButton() {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState<'form' | 'confirm'>('form');
   const [existingRequest, setExistingRequest] = useState<{
     amount: number;
     status: string;
