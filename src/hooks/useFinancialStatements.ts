@@ -28,6 +28,8 @@ export interface IncomeStatementData {
     transactionExpenses: number;
     total: number;
   };
+  grossProfit: number;
+  grossMargin: number; // percentage
   operatingExpenses: {
     generalOperating: number;
     payrollExpenses: number;
@@ -64,9 +66,19 @@ export interface IncomeStatementData {
     realizedRequestFees: number;
     totalRealizedRevenue: number;
     deferredRevenue: number;
-    recognitionRate: number; // percentage
+    recognitionRate: number;
   };
-  netOperatingIncome: number;
+  // GAAP Below-the-Line Items
+  operatingIncome: number; // Revenue - COGS - OpEx
+  interestExpense: number;
+  interestIncome: number;
+  taxProvision: number;
+  depreciation: number;
+  amortization: number;
+  netOperatingIncome: number; // After interest & tax
+  ebitda: number;
+  ebitdaMargin: number; // percentage
+  operatingMargin: number; // percentage
 }
 
 export interface CashFlowData {
@@ -122,6 +134,29 @@ export interface CashFlowData {
   closingBalance: number;
 }
 
+export interface ARAgingBucket {
+  current: number;    // 0-30 days
+  days31to60: number;
+  days61to90: number;
+  over90: number;
+  total: number;
+  badDebtProvision: number; // estimated allowance
+}
+
+export interface WorkingCapitalMetrics {
+  currentAssets: number;
+  currentLiabilities: number;
+  workingCapital: number;
+  currentRatio: number;
+}
+
+export interface EquityChanges {
+  openingEquity: number;
+  netIncome: number;
+  otherChanges: number;
+  closingEquity: number;
+}
+
 export interface BalanceSheetData {
   assets: {
     platformCash: number;
@@ -150,6 +185,9 @@ export interface BalanceSheetData {
     deferredRevenue: number;
     recognitionRate: number;
   };
+  arAging: ARAgingBucket;
+  workingCapital: WorkingCapitalMetrics;
+  equityChanges: EquityChanges;
 }
 
 export interface FacilitatedVolumeData {
@@ -179,7 +217,10 @@ export interface ComparisonMetrics {
   otherServiceIncome: DeltaValue;
   advanceAccessFeesCollected: DeltaValue;
   totalServiceCosts: DeltaValue;
+  grossProfit: DeltaValue;
   totalOperatingExpenses: DeltaValue;
+  operatingIncome: DeltaValue;
+  ebitda: DeltaValue;
   netOperatingIncome: DeltaValue;
   netOperatingCash: DeltaValue;
   netFacilitation: DeltaValue;
@@ -207,7 +248,10 @@ export function buildComparisonMetrics(c: FinancialStatementsData, p: FinancialS
     otherServiceIncome: computeDelta(c.incomeStatement.revenue.otherServiceIncome, p.incomeStatement.revenue.otherServiceIncome),
     advanceAccessFeesCollected: computeDelta(c.incomeStatement.revenue.advanceAccessFeesCollected, p.incomeStatement.revenue.advanceAccessFeesCollected),
     totalServiceCosts: computeDelta(c.incomeStatement.serviceDeliveryCosts.total, p.incomeStatement.serviceDeliveryCosts.total),
+    grossProfit: computeDelta(c.incomeStatement.grossProfit, p.incomeStatement.grossProfit),
     totalOperatingExpenses: computeDelta(c.incomeStatement.operatingExpenses.total, p.incomeStatement.operatingExpenses.total),
+    operatingIncome: computeDelta(c.incomeStatement.operatingIncome, p.incomeStatement.operatingIncome),
+    ebitda: computeDelta(c.incomeStatement.ebitda, p.incomeStatement.ebitda),
     netOperatingIncome: computeDelta(c.incomeStatement.netOperatingIncome, p.incomeStatement.netOperatingIncome),
     netOperatingCash: computeDelta(c.cashFlow.operatingActivities.netOperating, p.cashFlow.operatingActivities.netOperating),
     netFacilitation: computeDelta(c.cashFlow.facilitationActivities.netFacilitation, p.cashFlow.facilitationActivities.netFacilitation),
@@ -403,13 +447,15 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
       const totalServiceCosts = platformRewards + agentCommissions + totalIncentiveCosts + transactionExpenses;
 
+      // ── GAAP: Gross Profit ──
+      const grossProfit = totalRevenue - totalServiceCosts;
+      const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
       // ── Revenue Recognition: Expected vs Realized vs Deferred ──
-      // Expected = fees from all active rent requests (approved, funded, disbursed, repaying)
       const activeRentRequests = rentRequests.filter(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
       const expectedAccessFees = activeRentRequests.reduce((s, r) => s + Number(r.access_fee || 0), 0);
       const expectedRequestFees = activeRentRequests.reduce((s, r) => s + Number(r.request_fee || 0), 0);
       const totalExpectedRevenue = expectedAccessFees + expectedRequestFees;
-      // Realized = what the ledger has actually collected
       const realizedAccessFees = accessFees + advanceAccessFeesCollected;
       const realizedRequestFees = requestFees;
       const totalRealizedRevenue = realizedAccessFees + realizedRequestFees;
@@ -419,12 +465,32 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       // ── Adjustments (non-revenue, non-expense items that affect net income) ──
       const walletDeductions = sumWithDirectionFallback(platformIn, walletOut, ['wallet_deduction']);
       const systemCorrections = sumWithDirectionFallback(platformIn, platformOut, ['system_balance_correction'])
-        - (marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests); // exclude already-mapped subcats
+        - (marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests);
       const orphanReassignments = sumBy(platformIn, ['orphan_reassignment']);
       const orphanReversals = sumBy(platformOut, ['orphan_reversal']);
       const adjustmentsTotal = walletDeductions + Math.max(0, systemCorrections) - orphanReversals + orphanReassignments;
 
-      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal + adjustmentsTotal;
+      // ── GAAP: Below-the-Line Items ──
+      // Interest: from operational subcategories
+      const interestExpense = opSubInterests;
+      const interestIncome = 0; // No interest income streams yet
+      // Tax: from operational subcategories
+      const taxProvision = opSubTaxes;
+      // D&A: Property & Equipment mapped as depreciation proxy; software dev as amortization
+      const depreciation = opSubPropertyEquipment;
+      const amortization = 0; // No software amortization tracked separately yet
+
+      // Operating Income = Gross Profit - OpEx (excluding interest, tax, D&A)
+      const opExExcludingITDA = operatingExpensesTotal - interestExpense - taxProvision - depreciation - amortization;
+      const operatingIncome = grossProfit - opExExcludingITDA + adjustmentsTotal;
+
+      // Net Income = Operating Income - Interest - Tax
+      const netOperatingIncome = operatingIncome - interestExpense + interestIncome - taxProvision;
+
+      // EBITDA = Operating Income + D&A (already excludes interest & tax)
+      const ebitda = operatingIncome + depreciation + amortization;
+      const ebitdaMargin = totalRevenue > 0 ? (ebitda / totalRevenue) * 100 : 0;
+      const operatingMargin = totalRevenue > 0 ? (operatingIncome / totalRevenue) * 100 : 0;
 
       // ══════════════════════════════════════════════════════════════
       // CASH FLOW — All categories tracked
@@ -517,6 +583,47 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
 
       const retainedOperatingSurplus = totalAssets - totalObligations;
 
+      // ── GAAP: AR Aging ──
+      const now = new Date();
+      const arCurrent = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince <= 30 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arDays31to60 = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince > 30 && daysSince <= 60 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arDays61to90 = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince > 60 && daysSince <= 90 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arOver90 = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince > 90 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arTotal = arCurrent + arDays31to60 + arDays61to90 + arOver90;
+      // Bad debt provision: 0% current, 5% 31-60, 15% 61-90, 50% 90+
+      const badDebtProvision = arDays31to60 * 0.05 + arDays61to90 * 0.15 + arOver90 * 0.50;
+
+      // ── GAAP: Working Capital ──
+      const currentAssets = platformCash + userFundsHeld + outstandingRent + advanceAccessFeeReceivables;
+      const currentLiabilities = userWalletCustody + pendingWithdrawals + accruedPlatformRewards + agentCommissionsPayable + deferredRevenue;
+      const workingCapitalAmount = currentAssets - currentLiabilities;
+      const currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : 0;
+
+      // ── GAAP: Statement of Changes in Equity ──
+      const openingEquity = Math.max(0, openingBalance); // approximate
+      const equityNetIncome = netOperatingIncome;
+      const closingEquity = retainedOperatingSurplus;
+
       // ── FACILITATED VOLUME ──
       const approvedRequests = rentRequests.filter(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
       const pendingRequestsList = rentRequests.filter(r => r.status === 'pending');
@@ -535,6 +642,8 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
           period: formatPeriodLabel(activeFilters),
           revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
           serviceDeliveryCosts: { platformRewards, agentCommissions, referralBonuses, agentBonuses, transactionExpenses, total: totalServiceCosts },
+          grossProfit,
+          grossMargin,
           operatingExpenses: {
             generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses,
             marketingExpenses, researchDevelopment,
@@ -554,16 +663,20 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
             total: adjustmentsTotal,
           },
           revenueRecognition: {
-            expectedAccessFees,
-            expectedRequestFees,
-            totalExpectedRevenue,
-            realizedAccessFees,
-            realizedRequestFees,
-            totalRealizedRevenue,
-            deferredRevenue,
-            recognitionRate,
+            expectedAccessFees, expectedRequestFees, totalExpectedRevenue,
+            realizedAccessFees, realizedRequestFees, totalRealizedRevenue,
+            deferredRevenue, recognitionRate,
           },
+          operatingIncome,
+          interestExpense,
+          interestIncome,
+          taxProvision,
+          depreciation,
+          amortization,
           netOperatingIncome,
+          ebitda,
+          ebitdaMargin,
+          operatingMargin,
         },
         cashFlow: {
           period: formatPeriodLabel(activeFilters),
@@ -604,6 +717,26 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
             realizedRevenue: totalRealizedRevenue,
             deferredRevenue,
             recognitionRate,
+          },
+          arAging: {
+            current: arCurrent,
+            days31to60: arDays31to60,
+            days61to90: arDays61to90,
+            over90: arOver90,
+            total: arTotal,
+            badDebtProvision,
+          },
+          workingCapital: {
+            currentAssets,
+            currentLiabilities,
+            workingCapital: workingCapitalAmount,
+            currentRatio,
+          },
+          equityChanges: {
+            openingEquity,
+            netIncome: equityNetIncome,
+            otherChanges: 0,
+            closingEquity,
           },
         },
         facilitatedVolume: {
