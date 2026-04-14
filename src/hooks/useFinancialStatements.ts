@@ -56,6 +56,16 @@ export interface IncomeStatementData {
     orphanReversals: number;
     total: number;
   };
+  revenueRecognition: {
+    expectedAccessFees: number;
+    expectedRequestFees: number;
+    totalExpectedRevenue: number;
+    realizedAccessFees: number;
+    realizedRequestFees: number;
+    totalRealizedRevenue: number;
+    deferredRevenue: number;
+    recognitionRate: number; // percentage
+  };
   netOperatingIncome: number;
 }
 
