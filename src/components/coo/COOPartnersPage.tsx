@@ -1675,6 +1675,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                         {p.status}
                                       </span>
                                     </div>
+                                    {approvedTopUps[p.id]?.total > 0 && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap shrink-0">
+                                        ✅ Approved Top-up {formatUGX(approvedTopUps[p.id].total)}
+                                      </span>
+                                    )}
                                     {(pendingTopUps[p.id]?.total > 0 || awaitingVerification[p.id]?.total > 0) && (
                                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
                                         ⏳ Awaiting Top-up {formatUGX((pendingTopUps[p.id]?.total || 0) + (awaitingVerification[p.id]?.total || 0))}
