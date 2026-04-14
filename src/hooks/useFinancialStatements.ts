@@ -90,6 +90,10 @@ export interface CashFlowData {
     userTransfers: number;
     walletDeductions: number;
     roiWalletCredits: number;
+    agentFloatUsedForRent: number;
+    walletCommissionCredits: number;
+    walletCorrectionCredits: number;
+    walletCorrectionDebits: number;
     rentFloatFunding: number;
     netCustodial: number;
   };
