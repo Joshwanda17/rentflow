@@ -287,6 +287,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
   // Top-ups awaiting Financial Ops verification (status: awaiting_verification)
   const [awaitingVerification, setAwaitingVerification] = useState<Record<string, { count: number; total: number }>>({});
+  // Top-ups approved and parked until next ROI cycle (status: approved)
+  const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
 
   // Portfolio name editing
