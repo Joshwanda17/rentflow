@@ -143,6 +143,9 @@ function IncomeStatement({ d, cm }: { d: FinancialStatementsData['incomeStatemen
       <StatementRow label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} indent negative />
       <StatementRow label="Sales & Marketing" value={d.operatingExpenses.marketingExpenses} indent negative />
       <StatementRow label="Research & Development" value={d.operatingExpenses.researchDevelopment} indent negative />
+      <StatementRow label="Tax Expense" value={d.operatingExpenses.taxExpense} indent negative />
+      <StatementRow label="Interest Expense" value={d.operatingExpenses.interestExpense} indent negative />
+      <StatementRow label="Equipment & Depreciation" value={d.operatingExpenses.equipmentExpense} indent negative />
       {d.operatingExpenses.operationalSubcategories && (
         <>
           {d.operatingExpenses.operationalSubcategories.salaries > 0 && <StatementRow label="Salaries" value={d.operatingExpenses.operationalSubcategories.salaries} negative sub />}
@@ -152,9 +155,6 @@ function IncomeStatement({ d, cm }: { d: FinancialStatementsData['incomeStatemen
           {d.operatingExpenses.operationalSubcategories.internet > 0 && <StatementRow label="Internet & Telecom" value={d.operatingExpenses.operationalSubcategories.internet} negative sub />}
           {d.operatingExpenses.operationalSubcategories.airtime > 0 && <StatementRow label="Airtime" value={d.operatingExpenses.operationalSubcategories.airtime} negative sub />}
           {d.operatingExpenses.operationalSubcategories.stationery > 0 && <StatementRow label="Stationery" value={d.operatingExpenses.operationalSubcategories.stationery} negative sub />}
-          {d.operatingExpenses.operationalSubcategories.propertyEquipment > 0 && <StatementRow label="Property & Equipment" value={d.operatingExpenses.operationalSubcategories.propertyEquipment} negative sub />}
-          {d.operatingExpenses.operationalSubcategories.taxes > 0 && <StatementRow label="Taxes" value={d.operatingExpenses.operationalSubcategories.taxes} negative sub />}
-          {d.operatingExpenses.operationalSubcategories.interests > 0 && <StatementRow label="Interest Expense" value={d.operatingExpenses.operationalSubcategories.interests} negative sub />}
         </>
       )}
       <StatementRow label="General & Administrative" value={d.operatingExpenses.generalOperating} indent negative />
@@ -561,6 +561,9 @@ async function exportTo10KPDF(data: FinancialStatementsData) {
   addRow('Payroll & Staff', data.incomeStatement.operatingExpenses.payrollExpenses, { indent: true, negative: true });
   addRow('Sales & Marketing', data.incomeStatement.operatingExpenses.marketingExpenses, { indent: true, negative: true });
   addRow('Research & Development', data.incomeStatement.operatingExpenses.researchDevelopment, { indent: true, negative: true });
+  addRow('Tax Expense', data.incomeStatement.operatingExpenses.taxExpense, { indent: true, negative: true });
+  addRow('Interest Expense', data.incomeStatement.operatingExpenses.interestExpense, { indent: true, negative: true });
+  addRow('Equipment & Depreciation', data.incomeStatement.operatingExpenses.equipmentExpense, { indent: true, negative: true });
   addRow('General & Administrative', data.incomeStatement.operatingExpenses.generalOperating, { indent: true, negative: true });
   addRow('Total Operating Expenses', data.incomeStatement.operatingExpenses.total, { bold: true, negative: true });
   y += 4;
