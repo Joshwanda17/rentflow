@@ -237,20 +237,8 @@ function formatPeriodLabel(filters: StatementFilters): string {
   return `${fmt(s)} — ${fmt(e)}`;
 }
 
-export function useFinancialStatements() {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<FinancialStatementsData | null>(null);
-  const [filters, setFilters] = useState<StatementFilters>({
-    period: '30days',
-    startDate: null,
-    endDate: null,
-  });
-
-  const generate = useCallback(async (overrideFilters?: StatementFilters) => {
-    const activeFilters = overrideFilters || filters;
-    setLoading(true);
-
-    try {
+// Standalone generation function (no React state) — used for comparison periods
+async function generateStatementsRaw(activeFilters: StatementFilters): Promise<FinancialStatementsData> {
       const { start, end } = getPeriodDates(activeFilters.period);
       const startDate = activeFilters.startDate || start;
       const endDate = activeFilters.endDate || end;
