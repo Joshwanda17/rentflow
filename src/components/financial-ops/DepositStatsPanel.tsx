@@ -4,8 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, ChevronDown, ChevronUp, User, Ban } from 'lucide-react';
+import { Loader2, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, ChevronDown, ChevronUp, User, Ban, ShieldCheck } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
