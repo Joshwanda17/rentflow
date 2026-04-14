@@ -138,10 +138,10 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
       )}
 
       <div className={cn(
-        'flex justify-between text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
+        'flex justify-between items-center text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
         d.netOperatingIncome >= 0 ? 'text-success' : 'text-destructive'
       )}>
-        <span>Net Operating Income</span>
+        <span className="flex items-center">Net Operating Income{cm && <DeltaBadge delta={cm.netOperatingIncome} />}</span>
         <span className="font-mono">{formatUGX(d.netOperatingIncome)}</span>
       </div>
     </div>
