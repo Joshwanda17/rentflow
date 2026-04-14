@@ -3450,6 +3450,39 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_agreement_acceptance: {
+        Row: {
+          accepted_at: string
+          agreement_version: string
+          created_at: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fee_revenue_ledger: {
         Row: {
           created_at: string
@@ -7934,33 +7967,39 @@ export type Database = {
       }
       staff_profiles: {
         Row: {
+          agreement_accepted: boolean
           created_at: string | null
           created_by: string | null
           department: string
           employee_id: string
           id: string
+          job_title: string | null
           must_change_password: boolean | null
           position: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          agreement_accepted?: boolean
           created_at?: string | null
           created_by?: string | null
           department?: string
           employee_id: string
           id?: string
+          job_title?: string | null
           must_change_password?: boolean | null
           position?: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          agreement_accepted?: boolean
           created_at?: string | null
           created_by?: string | null
           department?: string
           employee_id?: string
           id?: string
+          job_title?: string | null
           must_change_password?: boolean | null
           position?: string
           updated_at?: string | null

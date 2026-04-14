@@ -6,11 +6,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
+import { useEmployeeAgreement } from '@/hooks/useEmployeeAgreement';
 import type { AppRole } from '@/hooks/useAuth';
+import { STAFF_ROLES } from '@/lib/roleConstants';
+import { EmployeeBadge } from '@/components/employee/EmployeeBadge';
 
 const TenantAgreementModal = lazy(() => import('@/components/tenant/agreement').then(m => ({ default: m.TenantAgreementModal })));
 const AgentAgreementModal = lazy(() => import('@/components/agent/agreement').then(m => ({ default: m.AgentAgreementModal })));
 const SupporterAgreementModal = lazy(() => import('@/components/supporter/agreement').then(m => ({ default: m.SupporterAgreementModal })));
+const EmployeeAgreementModal = lazy(() => import('@/components/employee/EmployeeAgreementModal'));
 
 function AgreementRow({ label, accepted, acceptedAt, onView, note }: { label: string; accepted: boolean; acceptedAt?: string | null; onView: () => void; note?: string }) {
   return (
@@ -35,15 +39,34 @@ export default function LegalSection({ roles }: { roles: AppRole[] }) {
   const tenantAgreement = useTenantAgreement();
   const agentAgreement = useAgentAgreement();
   const supporterAgreement = useSupporterAgreement();
+  const employeeAgreement = useEmployeeAgreement();
 
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [showSupporterModal, setShowSupporterModal] = useState(false);
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+
+  const isStaff = roles.some(r => STAFF_ROLES.includes(r));
 
   return (
     <>
       <Card className="border-border/40 shadow-md rounded-2xl">
         <CardContent className="pt-5 space-y-3">
+          {isStaff && (
+            <>
+              <AgreementRow
+                label="Employment Contract"
+                accepted={employeeAgreement.isAccepted || false}
+                acceptedAt={employeeAgreement.acceptance?.accepted_at}
+                onView={() => setShowEmployeeModal(true)}
+              />
+              {employeeAgreement.isAccepted && (
+                <div className="px-3 pb-1">
+                  <EmployeeBadge />
+                </div>
+              )}
+            </>
+          )}
           {roles.includes('tenant') && (
             <AgreementRow
               label="Tenant Agreement"
@@ -73,6 +96,9 @@ export default function LegalSection({ roles }: { roles: AppRole[] }) {
       </Card>
 
       <Suspense fallback={null}>
+        {isStaff && showEmployeeModal && (
+          <EmployeeAgreementModal isOpen={showEmployeeModal} onClose={() => setShowEmployeeModal(false)} onAccept={employeeAgreement.acceptAgreement} viewOnly={employeeAgreement.isAccepted || false} />
+        )}
         {roles.includes('tenant') && showTenantModal && (
           <TenantAgreementModal isOpen={showTenantModal} onClose={() => setShowTenantModal(false)} onAccept={tenantAgreement.acceptAgreement} viewOnly={tenantAgreement.isAccepted || false} />
         )}

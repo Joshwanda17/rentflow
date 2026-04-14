@@ -9,10 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { Search, User, ArrowUpDown, Users, UserPlus, Download, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Building2, Shield } from 'lucide-react';
+import { Search, User, ArrowUpDown, Users, UserPlus, Download, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Building2, Shield, Pencil } from 'lucide-react';
 import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
 import type { AppRole } from '@/hooks/auth/types';
+import { EmployeeBadge } from '@/components/employee/EmployeeBadge';
+import { EditEmployeeModal } from '@/components/hr/EditEmployeeModal';
 
 const INTERNAL_ROLES: AppRole[] = ['manager', 'super_admin', 'employee', 'operations', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm', 'hr'];
 
@@ -53,7 +55,7 @@ export default function HREmployeeDirectory() {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
-
+  const [editingEmployee, setEditingEmployee] = useState<EmployeeRecord | null>(null);
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['hr-employees-full'],
     queryFn: async () => {
@@ -324,6 +326,7 @@ export default function HREmployeeDirectory() {
                     </button>
                   </TableHead>
                   <TableHead className="hidden lg:table-cell text-xs font-semibold uppercase tracking-wider">Contact</TableHead>
+                  <TableHead className="w-[60px] text-xs font-semibold uppercase tracking-wider">Edit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -335,7 +338,10 @@ export default function HREmployeeDirectory() {
                     <TableCell onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}>
                       <div className="flex items-center gap-2.5">
                         <UserAvatar avatarUrl={emp.profile?.avatar_url} fullName={emp.profile?.full_name} size="sm" />
-                        <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">{emp.profile?.full_name || 'Unknown'}</span>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">{emp.profile?.full_name || 'Unknown'}</span>
+                          {emp.staffProfile?.employee_id && <EmployeeBadge employeeId={emp.staffProfile.employee_id} className="w-fit" />}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-xs text-muted-foreground font-mono" onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}>
@@ -367,6 +373,11 @@ export default function HREmployeeDirectory() {
                     <TableCell className="hidden lg:table-cell text-xs text-muted-foreground" onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}>
                       {emp.profile?.email?.split('@')[0] || emp.profile?.phone || '—'}
                     </TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingEmployee(emp)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -395,6 +406,14 @@ export default function HREmployeeDirectory() {
             </div>
           </div>
         </>
+      )}
+
+      {editingEmployee && (
+        <EditEmployeeModal
+          open={!!editingEmployee}
+          onOpenChange={(v) => { if (!v) setEditingEmployee(null); }}
+          employee={editingEmployee}
+        />
       )}
     </div>
   );
