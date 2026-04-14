@@ -368,8 +368,9 @@ export function useFinancialStatements() {
 
       // Facilitation Activities
       const rentRepayments = sumWithDirectionFallback(platformIn, platformOut, ['rent_repayment', 'loan_repayment', 'tenant_repayment']);
-      const rentPrincipalCollected = sumBy(platformIn, ['rent_principal_collected']);
+      const rentPrincipalCollected = sumBy(platformIn, ['rent_principal_collected']) + sumBy(walletIn, ['rent_principal_collected']);
       const agentRepayments = sumBy(platformIn, ['agent_repayment']);
+      const advanceRepayments = sumBy(walletOut, ['advance_repayment', 'credit_access_repayment']);
       const rentDeployments = sumBy(platformOut, ['pool_rent_deployment', 'rent_facilitation_payout']);
       const rentDisbursements = sumBy(platformOut, ['rent_disbursement']);
       const netFacilitation = rentRepayments + rentPrincipalCollected + agentRepayments - rentDeployments - rentDisbursements;
