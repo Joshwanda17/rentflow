@@ -418,6 +418,7 @@ export function FinancialStatementsPanel() {
       rows.push(['Rent Repayments Received', '', d.facilitationActivities.rentRepayments]);
       if (d.facilitationActivities.rentPrincipalCollected) rows.push(['Rent Principal Collected', '', d.facilitationActivities.rentPrincipalCollected]);
       if (d.facilitationActivities.agentRepayments) rows.push(['Agent Repayments', '', d.facilitationActivities.agentRepayments]);
+      if (d.facilitationActivities.advanceRepayments) rows.push(['Advance & Credit Repayments', '', d.facilitationActivities.advanceRepayments]);
       rows.push(['Rent Deployed to Landlords', '', -d.facilitationActivities.rentDeployments]);
       if (d.facilitationActivities.rentDisbursements) rows.push(['Rent Disbursements', '', -d.facilitationActivities.rentDisbursements]);
       rows.push(['Net Facilitation', '', d.facilitationActivities.netFacilitation]);
