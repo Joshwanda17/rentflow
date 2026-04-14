@@ -104,17 +104,20 @@ Deno.serve(async (req) => {
     const pendingIds = pendingOps.map(op => op.id);
 
     // Change status from "pending" to "awaiting_verification" — NO money moves
-    const { error: updateErr } = await supabase
+    const { error: updateErr, data: updateData } = await supabase
       .from("pending_wallet_operations")
       .update({
         status: "awaiting_verification",
         reviewed_at: now,
         reviewed_by: user.id,
       })
-      .in("id", pendingIds);
+      .in("id", pendingIds)
+      .select();
+
+    console.log("[apply-pending-topups] Update result:", JSON.stringify({ updateErr, updateData, pendingIds }));
 
     if (updateErr) {
-      return new Response(JSON.stringify({ error: "Failed to update status" }), {
+      return new Response(JSON.stringify({ error: "Failed to update status", details: updateErr.message }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
