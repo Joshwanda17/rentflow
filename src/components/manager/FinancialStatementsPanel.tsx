@@ -730,6 +730,23 @@ export function FinancialStatementsPanel() {
         ))}
       </div>
 
+      {/* Comparison Mode Selector */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <GitCompareArrows className="h-4 w-4 text-muted-foreground shrink-0" />
+        {COMPARISON_MODES.map(m => (
+          <Button
+            key={m.value}
+            size="sm"
+            variant={comparisonMode === m.value ? 'default' : 'outline'}
+            className="text-xs h-7"
+            onClick={() => updateComparisonMode(m.value)}
+          >
+            {m.short}
+          </Button>
+        ))}
+        {loadingComparison && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+      </div>
+
       {/* Generate Button */}
       <Button
         onClick={handleGenerate}
