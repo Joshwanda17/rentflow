@@ -274,12 +274,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Wallet Hero Card */}
-        <UnifiedWalletHeroCard
-          balance={floatBalance + commissionBalance}
-          role="agent"
-          secondaryLabel="Withdrawable"
-          secondaryValue={formatUGX(commissionBalance)}
-        />
+         <UnifiedWalletHeroCard
+           balance={floatBalance + commissionBalance}
+           role="agent"
+           secondaryLabel="Withdrawable"
+           secondaryValue={formatUGX(commissionBalance)}
+           onOpenWallet={() => setShowWallet(true)}
+         />
 
         {/* Verification Checklist */}
         <VerificationChecklist userId={user.id} highlightRole="agent" compact />
