@@ -121,6 +121,8 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [togglingReinvest, setTogglingReinvest] = useState(false);
+  const [localAutoReinvest, setLocalAutoReinvest] = useState<boolean | null>(null);
 
   if (!portfolio) return null;
   const amount = Number(portfolio.investment_amount);
