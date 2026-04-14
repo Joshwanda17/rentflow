@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
+import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, differenceInDays } from 'date-fns';
 
 export type StatementPeriod = 'today' | '7days' | '30days' | 'month' | 'year' | 'all';
+export type ComparisonMode = 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
 
 export interface StatementFilters {
   period: StatementPeriod;
