@@ -337,8 +337,9 @@ export function DirectCreditTool() {
             className={isCredit ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}
             onClick={() => handleOperationChange('credit')}
           >
-            <ArrowUpRight className="h-4 w-4 mr-1.5" />
-            Platform → Wallet
+            <ArrowUpRight className="h-4 w-4 mr-1.5 shrink-0" />
+            <span className="hidden sm:inline">Platform → Wallet</span>
+            <span className="sm:hidden">Credit</span>
           </Button>
           <Button
             type="button"
@@ -346,8 +347,9 @@ export function DirectCreditTool() {
             className={!isCredit ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
             onClick={() => handleOperationChange('debit')}
           >
-            <ArrowDownLeft className="h-4 w-4 mr-1.5" />
-            Wallet → Platform
+            <ArrowDownLeft className="h-4 w-4 mr-1.5 shrink-0" />
+            <span className="hidden sm:inline">Wallet → Platform</span>
+            <span className="sm:hidden">Debit</span>
           </Button>
         </div>
 
@@ -502,7 +504,7 @@ export function DirectCreditTool() {
                   <Info className="h-3.5 w-3.5" />
                   Double-Entry Summary
                 </p>
-                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 overflow-x-auto">
                   <span className="text-muted-foreground">Entry 1:</span>
                   <span>
                     {isCredit ? '↗ Credit' : '↘ Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'}{' '}
