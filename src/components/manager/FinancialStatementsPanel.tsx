@@ -422,10 +422,14 @@ export function FinancialStatementsPanel() {
       rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
       rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
       if (d.custodialActivities.roiWalletCredits) rows.push(['ROI Wallet Credits', '', d.custodialActivities.roiWalletCredits]);
+      if (d.custodialActivities.walletCommissionCredits) rows.push(['Commission & Bonus Credits', '', d.custodialActivities.walletCommissionCredits]);
+      if (d.custodialActivities.walletCorrectionCredits) rows.push(['CFO Credits (Corrections)', '', d.custodialActivities.walletCorrectionCredits]);
       if (d.custodialActivities.rentFloatFunding) rows.push(['Rent Float Funding', '', d.custodialActivities.rentFloatFunding]);
       rows.push(['User Withdrawals Processed', '', -d.custodialActivities.userWithdrawals]);
       if (d.custodialActivities.userTransfers) rows.push(['Wallet Transfers', '', -d.custodialActivities.userTransfers]);
       if (d.custodialActivities.walletDeductions) rows.push(['Wallet Deductions', '', -d.custodialActivities.walletDeductions]);
+      if (d.custodialActivities.agentFloatUsedForRent) rows.push(['Agent Float Used for Rent', '', -d.custodialActivities.agentFloatUsedForRent]);
+      if (d.custodialActivities.walletCorrectionDebits) rows.push(['CFO Debits (Corrections)', '', -d.custodialActivities.walletCorrectionDebits]);
       rows.push(['Net Change in Custody', '', d.custodialActivities.netCustodial]);
       rows.push(['', '', '']);
       rows.push(['FINANCING ACTIVITIES', '', '']);
