@@ -80,6 +80,7 @@ export interface CashFlowData {
     rentRepayments: number;
     rentPrincipalCollected: number;
     agentRepayments: number;
+    advanceRepayments: number;
     rentDeployments: number;
     rentDisbursements: number;
     netFacilitation: number;
