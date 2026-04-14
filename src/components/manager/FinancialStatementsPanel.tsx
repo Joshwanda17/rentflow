@@ -545,11 +545,18 @@ export function FinancialStatementsPanel() {
       rows.push(['Pending Withdrawal Provisions', '', d.platformObligations.pendingWithdrawals]);
       rows.push(['Accrued Platform Rewards', '', d.platformObligations.accruedPlatformRewards]);
       rows.push(['Agent Commissions Payable', '', d.platformObligations.agentCommissionsPayable]);
+      if (d.platformObligations.deferredRevenue > 0) rows.push(['Deferred Revenue (Unrecognized Fees)', '', d.platformObligations.deferredRevenue]);
       rows.push(['Total Obligations', '', d.platformObligations.totalObligations]);
       rows.push(['', '', '']);
       rows.push(['PLATFORM EQUITY', '', '']);
       rows.push(['Retained Operating Surplus', '', d.platformEquity.retainedOperatingSurplus]);
       rows.push(['Total Equity', '', d.platformEquity.totalEquity]);
+      rows.push(['', '', '']);
+      rows.push(['REVENUE RECOGNITION (ASC 606)', '', '']);
+      rows.push(['Expected Revenue', '', d.revenueRecognition.expectedRevenue]);
+      rows.push(['Realized Revenue', '', d.revenueRecognition.realizedRevenue]);
+      rows.push(['Deferred Revenue', '', d.revenueRecognition.deferredRevenue]);
+      rows.push(['Recognition Rate (%)', '', d.revenueRecognition.recognitionRate]);
     } else {
       const d = data.facilitatedVolume;
       rows.push(['WELILE — Facilitated Volume Report', '', period]);
@@ -717,11 +724,20 @@ export function FinancialStatementsPanel() {
         addRow('Pending Withdrawal Provisions', d.platformObligations.pendingWithdrawals, false, true, true);
         addRow('Accrued Platform Rewards', d.platformObligations.accruedPlatformRewards, false, true, true);
         addRow('Agent Commissions Payable', d.platformObligations.agentCommissionsPayable, false, true, true);
+        if (d.platformObligations.deferredRevenue > 0) {
+          addRow('Deferred Revenue (Unrecognized Fees)', d.platformObligations.deferredRevenue, false, true, true);
+        }
         addRow('Total Obligations', d.platformObligations.totalObligations, true, true);
         y += 3;
         addSection('Platform Equity');
         addRow('Retained Operating Surplus', d.platformEquity.retainedOperatingSurplus, false, false, true);
         addRow('Total Equity', d.platformEquity.totalEquity, true);
+        y += 3;
+        addSection('Revenue Recognition (ASC 606)');
+        addRow('Expected Revenue', d.revenueRecognition.expectedRevenue, false, false, true);
+        addRow('Realized Revenue', d.revenueRecognition.realizedRevenue, false, false, true);
+        addRow('Deferred Revenue', d.revenueRecognition.deferredRevenue, false, true, true);
+        addRow(`Recognition Rate: ${d.revenueRecognition.recognitionRate.toFixed(1)}%`, 0, false, false, true);
       } else {
         const d = data.facilitatedVolume;
         addSection('Facilitated Volume');
