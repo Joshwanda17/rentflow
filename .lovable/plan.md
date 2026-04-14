@@ -1,65 +1,32 @@
 
 
-## Redesign Promissory Note PDF Layout
+## Promissory Note PDF Redesign
 
-### Current State
-The PDF currently uses a centered purple banner header with the logo centered, company name centered, and a large title. The body mixes commitment text with investment details in various colored boxes.
+### Changes (all in `src/lib/promissoryNotePdf.ts`)
 
-### New Layout
+**1. Header — match reference image (image-220)**
+- Update address from "Plot 12" to "Plot 24, Kampala Road, Kampala, Uganda" to match the reference image
+- Format: `Email: info@welile.com | Phone: +256 700 000 000` (with labels, matching image)
+- Company name uses title case "Welile Technologies Limited" (not all-caps) per reference
 
-**HEADER (left-aligned, professional letterhead style)**
-```text
-┌──────────────────────────────────────────────┐
-│ [Logo] WELILE TECHNOLOGIES LIMITED            │
-│         Plot 12, Kampala Road, Kampala, Uganda│
-│         info@welile.com | +256 XXX XXX XXX   │
-│         www.welile.com                        │
-│──────────────────────────────────────────────│
-│         INVESTMENT COMMITMENT NOTE            │
-│                                    Date: ...  │
-```
+**2. Investment Details — tabular format (image-219)**
+- Remove the green rounded-rect box entirely
+- Replace with a clean borderless table layout with column headers (bold, dark navy):
+  - Row separator: thin light-blue horizontal lines between rows
+  - No vertical borders
+  - Columns: label | value pairs rendered in a clean table grid
+- Add a new **"ROI Projection (Next 6 Months)"** section below investment details showing Month 1–6 with Opening, ROI Earned (green text with +), and Closing columns
 
-- Logo (left, ~14mm) with company name bold to its right
-- Below company name: address line
-- Below address: email | phone contacts
-- Below contacts: website
-- Horizontal rule (purple line)
-- Centered title "INVESTMENT COMMITMENT NOTE"
-- Right-aligned date
+**3. Activate Account button**
+- Remove the visible link text entirely (lines 210–211)
+- Keep the purple button with just "ACTIVATE YOUR ACCOUNT" text
+- Use the published domain (`https://welilereceipts.com`) for the internal link instead of preview URL — use `getPublicOrigin()` logic but hardcode the domain directly since this is a PDF (no `window` in generation context — actually `getPublicOrigin()` runs client-side so it works)
+- Add a clickable link annotation on the button rectangle pointing to the activation URL (invisible to the reader)
 
-**BODY (structured partner & investment info)**
+**4. Footer — replace signature with generation date**
+- Remove the signature area entirely (dashed lines + "Partner Signature" + "Date" labels, lines 223–234)
+- Replace with a simple line: `Generated on: [full date/time]` above the purple footer bar
 
-A clean labeled-field layout:
-
-| Field | Value |
-|---|---|
-| Partner Name | From form |
-| Contact Email | From form (or "N/A") |
-| WhatsApp | From form |
-| Phone | From form (or "N/A") |
-| Investment Amount | Formatted UGX |
-| Contribution Type | Monthly / Once-off |
-| Deduction Day | (if monthly) |
-| Expected Monthly Return | 15% calculation |
-
-Then the commitment paragraph, "How it Works" steps, activation link box, disclaimer, and signature area — kept largely the same but repositioned after the structured info block.
-
-### Changes Required
-
-**File: `src/lib/promissoryNotePdf.ts`**
-
-1. Update `PromissoryNoteData` interface — add `email`, `whatsappNumber`, `phoneNumber` fields
-2. Rewrite header section — logo left-aligned, company details stacked to the right of logo, HR line below
-3. Add structured "Partner Details" section with labeled rows for name, email, WhatsApp, phone
-4. Keep investment details box, how-it-works, activation link, disclaimer, signature, and footer sections (minor y-position adjustments)
-
-**File: `src/components/agent/PromissoryNoteDialog.tsx`**
-
-5. Pass `email`, `whatsappNumber`, and `phoneNumber` into `generatePromissoryNotePDF()` call
-
-### Company Details (hardcoded in PDF)
-- Address: "Plot 12, Kampala Road, Kampala, Uganda" (confirm with user if different)
-- Email: info@welile.com
-- Phone: +256 700 000 000 (placeholder — will use what's available)
-- Website: www.welile.com
+### Files Modified
+- `src/lib/promissoryNotePdf.ts` — all changes above
 
