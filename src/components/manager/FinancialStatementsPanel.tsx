@@ -122,6 +122,12 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="Other Platform Income" value={d.operatingActivities.otherServiceIncome} indent />
       <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
       <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
+      {d.operatingActivities.agentCommissionWithdrawals > 0 && (
+        <LineItem label="Agent Commission Withdrawals" value={d.operatingActivities.agentCommissionWithdrawals} negative indent />
+      )}
+      {d.operatingActivities.agentCommissionUsedForRent > 0 && (
+        <LineItem label="Agent Commission Used for Rent" value={d.operatingActivities.agentCommissionUsedForRent} negative indent />
+      )}
       <LineItem label="Payroll Paid" value={d.operatingActivities.payrollPaid} negative indent />
       <LineItem label="Agent Requisitions Paid" value={d.operatingActivities.agentRequisitionsPaid} negative indent />
       <LineItem label="Financial Agent Expenses Paid" value={d.operatingActivities.financialAgentExpensesPaid} negative indent />
@@ -134,17 +140,47 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
       <LineItem label="Rent Repayments Received" value={d.facilitationActivities.rentRepayments} indent />
+      {d.facilitationActivities.rentPrincipalCollected > 0 && (
+        <LineItem label="Rent Principal Collected" value={d.facilitationActivities.rentPrincipalCollected} indent />
+      )}
+      {d.facilitationActivities.agentRepayments > 0 && (
+        <LineItem label="Agent Repayments" value={d.facilitationActivities.agentRepayments} indent />
+      )}
       <LineItem label="Rent Deployed to Landlords" value={d.facilitationActivities.rentDeployments} negative indent />
+      {d.facilitationActivities.rentDisbursements > 0 && (
+        <LineItem label="Rent Disbursements" value={d.facilitationActivities.rentDisbursements} negative indent />
+      )}
       <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold />
 
       <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
-      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits and withdrawals by users</p>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits, withdrawals, and wallet movements</p>
       <LineItem label="User Deposits Received" value={d.custodialActivities.userDeposits} indent />
+      {d.custodialActivities.roiWalletCredits > 0 && (
+        <LineItem label="ROI Wallet Credits" value={d.custodialActivities.roiWalletCredits} indent />
+      )}
+      {d.custodialActivities.rentFloatFunding > 0 && (
+        <LineItem label="Rent Float Funding" value={d.custodialActivities.rentFloatFunding} indent />
+      )}
       <LineItem label="User Withdrawals Processed" value={d.custodialActivities.userWithdrawals} negative indent />
+      {d.custodialActivities.userTransfers > 0 && (
+        <LineItem label="Wallet Transfers" value={d.custodialActivities.userTransfers} negative indent />
+      )}
+      {d.custodialActivities.walletDeductions > 0 && (
+        <LineItem label="Wallet Deductions" value={d.custodialActivities.walletDeductions} negative indent />
+      )}
       <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
 
       <SectionHeader>Financing Activities</SectionHeader>
       <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
+      {d.financingActivities.partnerFunding > 0 && (
+        <LineItem label="Partner Funding" value={d.financingActivities.partnerFunding} indent />
+      )}
+      {d.financingActivities.shareCapital > 0 && (
+        <LineItem label="Share Capital" value={d.financingActivities.shareCapital} indent />
+      )}
+      {d.financingActivities.roiReinvestment > 0 && (
+        <LineItem label="ROI Reinvestment" value={d.financingActivities.roiReinvestment} indent />
+      )}
       <LineItem label="Supporter Capital Withdrawals" value={d.financingActivities.supporterCapitalWithdrawals} negative indent />
       <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold />
 
@@ -171,6 +207,9 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Platform Cash (Earned Revenue)" value={d.assets.platformCash} indent />
       <LineItem label="User Funds Held in Custody" value={d.assets.userFundsHeld} indent />
       <LineItem label="Rent Receivables (Funded)" value={d.assets.receivables} indent />
+      {d.assets.rentReceivablesCreated > 0 && (
+        <LineItem label="Rent Receivables Created" value={d.assets.rentReceivablesCreated} indent />
+      )}
       <LineItem label="Advance Access Fee Receivables" value={d.assets.advanceAccessFeeReceivables} indent />
       <LineItem label="Promissory Notes Receivable" value={d.assets.promissoryNotesReceivable} indent />
       <LineItem label="Total Assets" value={d.assets.totalAssets} bold />
