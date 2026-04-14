@@ -513,7 +513,7 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const pendingWithdrawals = sumBy(platformOut, ['wallet_withdrawal']) * 0.1;
       const accruedPlatformRewards = platformRewards * 0.1;
       const agentCommissionsPayable = agentCommissions * 0.05;
-      const totalObligations = userWalletCustody + pendingWithdrawals + accruedPlatformRewards + agentCommissionsPayable;
+      const totalObligations = userWalletCustody + pendingWithdrawals + accruedPlatformRewards + agentCommissionsPayable + deferredRevenue;
 
       const retainedOperatingSurplus = totalAssets - totalObligations;
 
