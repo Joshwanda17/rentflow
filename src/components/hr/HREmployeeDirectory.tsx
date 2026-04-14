@@ -407,6 +407,14 @@ export default function HREmployeeDirectory() {
           </div>
         </>
       )}
+
+      {editingEmployee && (
+        <EditEmployeeModal
+          open={!!editingEmployee}
+          onOpenChange={(v) => { if (!v) setEditingEmployee(null); }}
+          employee={editingEmployee}
+        />
+      )}
     </div>
   );
 }
