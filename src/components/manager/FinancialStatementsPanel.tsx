@@ -1,13 +1,13 @@
 import { useRef, useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Calendar } from 'lucide-react';
+import { FileText, TrendingUp, TrendingDown, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { exportToCSV } from '@/lib/exportUtils';
-import { useFinancialStatements, type StatementPeriod, type FinancialStatementsData } from '@/hooks/useFinancialStatements';
+import { useFinancialStatements, type StatementPeriod, type FinancialStatementsData, type ComparisonMode, type ComparisonMetrics, type DeltaValue } from '@/hooks/useFinancialStatements';
 import { Progress } from '@/components/ui/progress';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
