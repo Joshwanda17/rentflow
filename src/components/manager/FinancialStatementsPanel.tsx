@@ -87,8 +87,8 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
       <LineItem label="Realized Request Fees" value={d.revenueRecognition.realizedRequestFees} indent />
       <LineItem label="Total Realized Revenue" value={d.revenueRecognition.totalRealizedRevenue} bold />
       <div className="flex justify-between items-center text-xs pl-4 pr-2">
-        <span className="text-amber-600 dark:text-amber-400 font-medium">Deferred Revenue (Not Yet Collected)</span>
-        <span className="font-mono text-amber-600 dark:text-amber-400 font-medium">{formatUGX(d.revenueRecognition.deferredRevenue)}</span>
+        <span className="text-warning font-medium">Deferred Revenue (Not Yet Collected)</span>
+        <span className="font-mono text-warning font-medium">{formatUGX(d.revenueRecognition.deferredRevenue)}</span>
       </div>
       <div className="flex justify-between items-center text-xs pl-4 pr-2">
         <span className="text-muted-foreground">Recognition Rate</span>
@@ -405,7 +405,17 @@ export function FinancialStatementsPanel() {
       const d = data.incomeStatement;
       rows.push(['WELILE — Income Statement', '', period]);
       rows.push(['', '', '']);
-      rows.push(['REVENUE', '', '']);
+      rows.push(['REVENUE RECOGNITION', '', '']);
+      rows.push(['Expected Access Fees', '', d.revenueRecognition.expectedAccessFees]);
+      rows.push(['Expected Request Fees', '', d.revenueRecognition.expectedRequestFees]);
+      rows.push(['Total Expected Revenue', '', d.revenueRecognition.totalExpectedRevenue]);
+      rows.push(['Realized Access Fees', '', d.revenueRecognition.realizedAccessFees]);
+      rows.push(['Realized Request Fees', '', d.revenueRecognition.realizedRequestFees]);
+      rows.push(['Total Realized Revenue', '', d.revenueRecognition.totalRealizedRevenue]);
+      rows.push(['Deferred Revenue', '', d.revenueRecognition.deferredRevenue]);
+      rows.push(['Recognition Rate (%)', '', d.revenueRecognition.recognitionRate.toFixed(1)]);
+      rows.push(['', '', '']);
+      rows.push(['REALIZED REVENUE (LEDGER)', '', '']);
       rows.push(['Access Fees', '', d.revenue.accessFees]);
       rows.push(['Request Fees', '', d.revenue.requestFees]);
       rows.push(['Other Service Income', '', d.revenue.otherServiceIncome]);
