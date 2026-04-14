@@ -78,7 +78,24 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeStatement']; cm?: ComparisonMetrics | null }) {
   return (
     <div className="space-y-1">
-      <SectionHeader>Revenue</SectionHeader>
+      <SectionHeader>Revenue Recognition</SectionHeader>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Expected revenue from active rent requests vs. collected (realized) through ledger</p>
+      <LineItem label="Expected Access Fees" value={d.revenueRecognition.expectedAccessFees} indent />
+      <LineItem label="Expected Request Fees" value={d.revenueRecognition.expectedRequestFees} indent />
+      <LineItem label="Total Expected Revenue" value={d.revenueRecognition.totalExpectedRevenue} bold />
+      <LineItem label="Realized Access Fees" value={d.revenueRecognition.realizedAccessFees} indent />
+      <LineItem label="Realized Request Fees" value={d.revenueRecognition.realizedRequestFees} indent />
+      <LineItem label="Total Realized Revenue" value={d.revenueRecognition.totalRealizedRevenue} bold />
+      <div className="flex justify-between items-center text-xs pl-4 pr-2">
+        <span className="text-amber-600 dark:text-amber-400 font-medium">Deferred Revenue (Not Yet Collected)</span>
+        <span className="font-mono text-amber-600 dark:text-amber-400 font-medium">{formatUGX(d.revenueRecognition.deferredRevenue)}</span>
+      </div>
+      <div className="flex justify-between items-center text-xs pl-4 pr-2">
+        <span className="text-muted-foreground">Recognition Rate</span>
+        <span className="font-mono text-muted-foreground">{d.revenueRecognition.recognitionRate.toFixed(1)}%</span>
+      </div>
+
+      <SectionHeader>Realized Revenue (Ledger-Confirmed)</SectionHeader>
       <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent delta={cm?.accessFees} />
       <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent delta={cm?.requestFees} />
       <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent delta={cm?.otherServiceIncome} />
