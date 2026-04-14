@@ -75,11 +75,11 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h4 className="text-xs font-semibold text-primary uppercase tracking-wider mt-4 mb-2">{children}</h4>;
 }
 
-function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeStatement'] }) {
+function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeStatement']; cm?: ComparisonMetrics | null }) {
   return (
     <div className="space-y-1">
       <SectionHeader>Revenue</SectionHeader>
-      <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent />
+      <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent delta={cm?.accessFees} />
       <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent />
       <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent />
       <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent />
