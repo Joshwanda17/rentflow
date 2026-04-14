@@ -1902,9 +1902,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     onClick={() => handleApplyPendingTopUps(p.id)}
                                     disabled={applyingTopUps === p.id}
                                   >
-                                    {applyingTopUps === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                                    Apply {pendingTopUps[p.id].count} Pending
+                                    {applyingTopUps === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                                    Submit {pendingTopUps[p.id].count} for Verification
                                   </Button>
+                                )}
+                                {awaitingVerification[p.id] && (
+                                  <Badge variant="outline" className="text-[10px] px-2 py-1 border-blue-500/40 text-blue-600 bg-blue-500/5 gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    Awaiting Financial Ops
+                                  </Badge>
                                 )}
                                 {!readOnly && (
                                   <Button
