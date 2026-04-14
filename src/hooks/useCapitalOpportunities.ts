@@ -9,6 +9,15 @@ export interface PortfolioRecord {
   total_roi_earned: number;
   roi_percentage: number;
   status: string;
+  portfolio_code: string | null;
+  account_name: string | null;
+  maturity_date: string | null;
+  duration_months: number | null;
+  auto_reinvest: boolean | null;
+  roi_mode: string | null;
+  next_roi_date: string | null;
+  created_at: string | null;
+  funded_at: string | null; // mapped from created_at
 }
 
 export function useCapitalOpportunities() {
@@ -24,16 +33,16 @@ export function useCapitalOpportunities() {
       const [byInvestor, byAgent, summaryRes] = await Promise.all([
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned, roi_percentage, status')
+          .select('id, investment_amount, total_roi_earned, roi_percentage, status, portfolio_code, account_name, maturity_date, duration_months, auto_reinvest, roi_mode, next_roi_date, created_at')
           .eq('investor_id', user.id)
-          .in('status', ['active', 'pending', 'pending_approval'])
+          .in('status', ['active', 'pending', 'pending_approval', 'matured', 'withdrawn'])
           .limit(100),
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned, roi_percentage, status')
+          .select('id, investment_amount, total_roi_earned, roi_percentage, status, portfolio_code, account_name, maturity_date, duration_months, auto_reinvest, roi_mode, next_roi_date, created_at')
           .eq('agent_id', user.id)
           .is('investor_id', null)
-          .in('status', ['active', 'pending', 'pending_approval'])
+          .in('status', ['active', 'pending', 'pending_approval', 'matured', 'withdrawn'])
           .limit(100),
         supabase
           .from('opportunity_summaries')
@@ -53,7 +62,7 @@ export function useCapitalOpportunities() {
         if (seen.has(p.id)) return false;
         seen.add(p.id);
         return true;
-      }) as PortfolioRecord[];
+      }).map(p => ({ ...p, funded_at: p.created_at } as PortfolioRecord));
 
       setPortfolios(deduped);
 
