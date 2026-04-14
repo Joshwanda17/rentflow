@@ -51,6 +51,9 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [inlineTid, setInlineTid] = useState('');
+  const [inlineApproving, setInlineApproving] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
