@@ -311,17 +311,23 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     currentPrincipal: number;
     newPrincipal: number;
     roiPercentage: number;
+    nextRoiDate: string;
   } | null>(null);
 
   const openCompoundPreview = (portfolio: PortfolioRow) => {
     const roiAmount = Math.round(portfolio.investment_amount * portfolio.roi_percentage / 100);
     const newPrincipal = portfolio.investment_amount + roiAmount;
+    const currentDate = new Date(portfolio.next_roi_date || new Date());
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    const nextRoiDate = newDate.toISOString().split('T')[0];
     setCompoundPreview({
       portfolio,
       roiAmount,
       currentPrincipal: portfolio.investment_amount,
       newPrincipal,
       roiPercentage: portfolio.roi_percentage,
+      nextRoiDate,
     });
   };
 
@@ -335,10 +341,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Update principal only — date stays unchanged, advances on CFO approval
+      // Advance next_roi_date by +1 month on compound
+      const currentDate = new Date(portfolio.next_roi_date || new Date());
+      const newDate = new Date(currentDate);
+      newDate.setMonth(newDate.getMonth() + 1);
+      const newRoiDate = newDate.toISOString().split('T')[0];
+
       const { error: upErr } = await supabase
         .from('investor_portfolios')
-        .update({ investment_amount: newAmount })
+        .update({ investment_amount: newAmount, next_roi_date: newRoiDate })
         .eq('id', portfolio.id);
       if (upErr) throw upErr;
 
@@ -380,13 +391,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         action_type: 'roi_compounded',
         table_name: 'investor_portfolios',
         record_id: portfolio.id,
-        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: detailPartner.profile.id },
+        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: detailPartner.profile.id, new_roi_date: newRoiDate },
       });
 
       await supabase.from('notifications').insert({
         user_id: detailPartner.profile.id,
         title: 'Portfolio ROI Compounded',
-        message: `Your ROI of ${formatUGX(roiAmount)} has been compounded into your portfolio. New investment total: ${formatUGX(newAmount)}. Ref: ${refId}`,
+        message: `Your ROI of ${formatUGX(roiAmount)} has been compounded into your portfolio. New investment total: ${formatUGX(newAmount)}. Next payout: ${newRoiDate}. Ref: ${refId}`,
         type: 'portfolio_update',
         metadata: { portfolio_id: portfolio.id, roi_amount: roiAmount, reference: refId },
       });
@@ -2238,7 +2249,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Next Payout Date</span>
-                      <span className="text-muted-foreground italic">Unchanged (until CFO approves)</span>
+                      <span className="font-semibold text-blue-600">
+                        {compoundPreview.nextRoiDate ? new Date(compoundPreview.nextRoiDate + 'T00:00:00').toLocaleDateString('en-UG', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -2748,10 +2761,15 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Update principal only — date stays unchanged, advances on CFO approval
+      // Advance next_roi_date by +1 month on compound
+      const currentDate = new Date(p.nextPayoutDate || new Date());
+      const newDate = new Date(currentDate);
+      newDate.setMonth(newDate.getMonth() + 1);
+      const newRoiDate = newDate.toISOString().split('T')[0];
+
       const { error: upErr } = await supabase
         .from('investor_portfolios')
-        .update({ investment_amount: newAmount })
+        .update({ investment_amount: newAmount, next_roi_date: newRoiDate })
         .eq('id', p.portfolioId);
       if (upErr) throw upErr;
 
@@ -2793,13 +2811,13 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         action_type: 'roi_compounded',
         table_name: 'investor_portfolios',
         record_id: p.portfolioId,
-        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId, reason },
+        metadata: { roi_amount: roiAmount, new_principal: newAmount, reference: refId, partner_id: p.investorId, reason, new_roi_date: newRoiDate },
       });
 
       await supabase.from('notifications').insert({
         user_id: p.investorId,
         title: 'Portfolio ROI Compounded',
-        message: `Your ROI of ${formatUGX(roiAmount)} has been compounded into your portfolio. New investment total: ${formatUGX(newAmount)}. Ref: ${refId}`,
+        message: `Your ROI of ${formatUGX(roiAmount)} has been compounded into your portfolio. New investment total: ${formatUGX(newAmount)}. Next payout: ${newRoiDate}. Ref: ${refId}`,
         type: 'portfolio_update',
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId },
       });
