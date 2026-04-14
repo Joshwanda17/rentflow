@@ -391,28 +391,42 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenRequisition={() => { setMenuOpen(false); setRequisitionOpen(true); }}
         onAngelPoolInvest={() => { setMenuOpen(false); setAngelPoolInvestOpen(true); }}
         isFinancialAgent={isFinancialAgent}
-        onInviteFunder={() => {
+        onInviteFunder={async () => {
           setMenuOpen(false);
-          const funderLink = `${getPublicOrigin()}/auth?ref=${user.id}&role=funder`;
-          const shareText = `Join Welile as a funder and start earning! Sign up here: ${funderLink}`;
-          if (navigator.share) {
-            navigator.share({ title: 'Become a Welile Funder', text: shareText, url: funderLink }).catch(() => {});
-          } else {
-            navigator.clipboard.writeText(funderLink).then(() => {
-              import('sonner').then(({ toast }) => toast.success('Funder signup link copied!'));
-            });
+          try {
+            const { toast } = await import('sonner');
+            toast.info('Generating short link...');
+            const { createShortLink } = await import('@/lib/createShortLink');
+            const funderLink = await createShortLink(user.id, '/auth', { ref: user.id, role: 'funder' });
+            const shareText = `Join Welile as a funder and start earning! Sign up here: ${funderLink}`;
+            if (navigator.share) {
+              navigator.share({ title: 'Become a Welile Funder', text: shareText, url: funderLink }).catch(() => {});
+            } else {
+              await navigator.clipboard.writeText(funderLink);
+              toast.success('Funder signup link copied!');
+            }
+          } catch (err: any) {
+            const { toast } = await import('sonner');
+            toast.error(err.message || 'Failed to generate link');
           }
         }}
-        onInviteAngelInvestor={() => {
+        onInviteAngelInvestor={async () => {
           setMenuOpen(false);
-          const investorLink = `${getPublicOrigin()}/auth?ref=${user.id}&role=supporter`;
-          const shareText = `🦄 Join the Welile Angel Pool — invest in Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
-          if (navigator.share) {
-            navigator.share({ title: 'Invest in Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
-          } else {
-            navigator.clipboard.writeText(investorLink).then(() => {
-              import('sonner').then(({ toast }) => toast.success('Angel investor signup link copied!'));
-            });
+          try {
+            const { toast } = await import('sonner');
+            toast.info('Generating short link...');
+            const { createShortLink } = await import('@/lib/createShortLink');
+            const investorLink = await createShortLink(user.id, '/auth', { ref: user.id, role: 'supporter' });
+            const shareText = `🦄 Join the Welile Angel Pool — invest in Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
+            if (navigator.share) {
+              navigator.share({ title: 'Invest in Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
+            } else {
+              await navigator.clipboard.writeText(investorLink);
+              toast.success('Angel investor signup link copied!');
+            }
+          } catch (err: any) {
+            const { toast } = await import('sonner');
+            toast.error(err.message || 'Failed to generate link');
           }
         }}
         onShareTenantForm={async () => {
@@ -423,7 +437,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             const { supabase } = await import('@/integrations/supabase/client');
             const { data, error } = await supabase.functions.invoke('generate-tenant-form-token', {});
             if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to generate link');
-            const tenantFormLink = `${getPublicOrigin()}/register-tenant?agent=${user.id}&token=${data.token}`;
+            const { createShortLink } = await import('@/lib/createShortLink');
+            const tenantFormLink = await createShortLink(user.id, '/register-tenant', { agent: user.id, token: data.token });
             const shareText = `Register as a Welile tenant using this form: ${tenantFormLink}`;
             if (navigator.share) {
               navigator.share({ title: 'Tenant Registration', text: shareText, url: tenantFormLink }).catch(() => {});
@@ -444,7 +459,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             const { supabase } = await import('@/integrations/supabase/client');
             const { data, error } = await supabase.functions.invoke('generate-tenant-form-token', {});
             if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to generate link');
-            const partnerFormLink = `${getPublicOrigin()}/register-partner?agent=${user.id}&token=${data.token}`;
+            const { createShortLink } = await import('@/lib/createShortLink');
+            const partnerFormLink = await createShortLink(user.id, '/register-partner', { agent: user.id, token: data.token });
             const shareText = `🤝 Invest with Welile and earn 15% monthly ROI! Register here: ${partnerFormLink}`;
             if (navigator.share) {
               navigator.share({ title: 'Partner Registration', text: shareText, url: partnerFormLink }).catch(() => {});

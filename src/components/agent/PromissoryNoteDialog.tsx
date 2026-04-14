@@ -90,7 +90,15 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
     if (!createdNote) return;
     try {
       toast.info('Generating PDF...');
-      const activationLink = `${getPublicOrigin()}/activate?token=${createdNote.activation_token}`;
+      const { createShortLink } = await import('@/lib/createShortLink');
+      const userId = (await import('@/integrations/supabase/client')).supabase.auth.getUser().then(r => r.data.user?.id);
+      let activationLink = `${getPublicOrigin()}/activate?token=${createdNote.activation_token}`;
+      try {
+        const uid = await userId;
+        if (uid) {
+          activationLink = await createShortLink(uid, '/activate', { token: createdNote.activation_token });
+        }
+      } catch {}
       const pdfBlob = await generatePromissoryNotePDF({
         partnerName,
         amount: Number(amount),
@@ -124,7 +132,14 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
 
   const handleShareLink = async () => {
     if (!createdNote) return;
-    const activationLink = `${getPublicOrigin()}/activate?token=${createdNote.activation_token}`;
+    let activationLink = `${getPublicOrigin()}/activate?token=${createdNote.activation_token}`;
+    try {
+      const { createShortLink } = await import('@/lib/createShortLink');
+      const { data: { user: u } } = await (await import('@/integrations/supabase/client')).supabase.auth.getUser();
+      if (u) {
+        activationLink = await createShortLink(u.id, '/activate', { token: createdNote.activation_token });
+      }
+    } catch {}
     const shareText = `🤝 Hi ${partnerName}, activate your Welile investment account and start earning 15% ROI! ${activationLink}`;
     if (navigator.share) {
       navigator.share({ title: 'Welile Investment', text: shareText, url: activationLink }).catch(() => {});
