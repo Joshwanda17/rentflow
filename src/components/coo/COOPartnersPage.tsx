@@ -15,8 +15,9 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
-  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors
+  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors, Info
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -1664,6 +1665,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase whitespace-nowrap shrink-0', statusColor)}>
                                       {p.status}
                                     </span>
+                                    <TooltipProvider delayDuration={200}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-primary cursor-help shrink-0" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-[220px] text-[11px] leading-snug">
+                                          <p>Approved top-ups are picked up at the next ROI cycle by the merge engine. New approvals create an immediate ledger trail.</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   </div>
                                   {/* Inline name edit */}
                                   {editingNameId === p.id ? (
