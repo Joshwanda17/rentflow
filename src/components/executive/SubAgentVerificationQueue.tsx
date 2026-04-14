@@ -158,52 +158,53 @@ export function SubAgentVerificationQueue() {
 
       {showActions && (
         <div onClick={e => e.stopPropagation()}>
-        rejectingId === r.id ? (
-          <div className="space-y-2">
-            <Input
-              placeholder="Reason for rejection (min 10 chars)"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              maxLength={500}
-            />
+          {rejectingId === r.id ? (
+            <div className="space-y-2">
+              <Input
+                placeholder="Reason for rejection (min 10 chars)"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                maxLength={500}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleReject(r.id)}
+                  disabled={processingId === r.id}
+                  className="flex-1 gap-1"
+                >
+                  {processingId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                  Confirm Reject
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setRejectingId(null); setRejectionReason(''); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant="destructive"
-                onClick={() => handleReject(r.id)}
+                onClick={() => handleVerify(r.id)}
                 disabled={processingId === r.id}
                 className="flex-1 gap-1"
               >
-                {processingId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-                Confirm Reject
+                {processingId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                Verify ✅
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setRejectingId(null); setRejectionReason(''); }}>
-                Cancel
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRejectingId(r.id)}
+                className="flex-1 gap-1"
+              >
+                <XCircle className="h-3 w-3" />
+                Reject
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => handleVerify(r.id)}
-              disabled={processingId === r.id}
-              className="flex-1 gap-1"
-            >
-              {processingId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-              Verify ✅
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setRejectingId(r.id)}
-              className="flex-1 gap-1"
-            >
-              <XCircle className="h-3 w-3" />
-              Reject
-            </Button>
-          </div>
-        )
+          )}
+        </div>
       )}
     </div>
   );

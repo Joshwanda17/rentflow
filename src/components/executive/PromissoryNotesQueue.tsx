@@ -14,7 +14,6 @@ export function PromissoryNotesQueue() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedNote, setSelectedNote] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: notes = [], isLoading } = useQuery({
     queryKey: ['promissory-notes-queue'],
