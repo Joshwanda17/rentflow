@@ -721,7 +721,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setDetailLoading(false); }
   }
 
-  /* ─── Apply Pending Top-Ups ─── */
+  /* ─── Submit Pending Top-Ups for Financial Ops Verification ─── */
   async function handleApplyPendingTopUps(portfolioId: string) {
     setApplyingTopUps(portfolioId);
     try {
@@ -730,12 +730,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
-      toast.success(`${data.count} pending deposit(s) applied`, {
-        description: `${formatUGX(data.total_applied)} added to portfolio. New capital: ${formatUGX(data.new_investment_total)}`,
+      toast.success(`${data.count} deposit(s) submitted for verification`, {
+        description: `UGX ${Number(data.total_amount).toLocaleString()} sent to Financial Operations for approval.`,
       });
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
     } catch (e: any) {
-      toast.error('Failed to apply pending top-ups', { description: e.message });
+      toast.error('Failed to submit for verification', { description: e.message });
     } finally {
       setApplyingTopUps(null);
     }
