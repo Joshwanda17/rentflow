@@ -173,7 +173,7 @@ export function AgentOpsPipelineHub() {
     queryKey: ['pipeline-counts'],
     queryFn: async () => {
       const [tenants, subAgents, notes, landlordsData] = await Promise.all([
-        supabase.from('rent_requests').select('id', { count: 'exact', head: true }).not('status', 'in', '("funded","rejected","cancelled")'),
+        supabase.from('rent_requests').select('id', { count: 'exact', head: true }).eq('status', 'tenant_ops_approved'),
         supabase.from('agent_subagents').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('promissory_notes').select('id', { count: 'exact', head: true }).in('status', ['pending', 'activated']),
         supabase.from('rent_requests').select('landlord_id').not('status', 'in', '("funded","rejected","cancelled")').not('landlord_id', 'is', null),
@@ -211,7 +211,7 @@ export function AgentOpsPipelineHub() {
         </TabsList>
       </div>
 
-      <TabsContent value="tenants"><RentPipelineQueue stage="pending" /></TabsContent>
+      <TabsContent value="tenants"><RentPipelineQueue stage="tenant_ops_approved" /></TabsContent>
       <TabsContent value="sub-agents"><SubAgentVerificationQueue /></TabsContent>
       <TabsContent value="notes"><PromissoryNotesQueue /></TabsContent>
       <TabsContent value="landlords"><LandlordsPipeline /></TabsContent>
