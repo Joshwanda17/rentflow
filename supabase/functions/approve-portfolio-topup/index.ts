@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", user.id);
 
-    const allowedRoles = ["financial_ops", "cfo", "super_admin"];
+    const allowedRoles = ["operations", "cfo", "super_admin"];
     const hasRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     if (!hasRole) {
       return new Response(JSON.stringify({ error: "Only Financial Operations can approve portfolio top-ups" }), {
