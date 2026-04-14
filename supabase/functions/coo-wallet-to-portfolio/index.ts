@@ -126,35 +126,8 @@ Deno.serve(async (req) => {
       return jsonRes({ error: "Failed to record pending top-up." }, 500);
     }
 
-    // 3. Double-entry ledger via RPC (trigger handles wallet balance)
-    await supabase.rpc('create_ledger_transaction', {
-      entries: [
-        {
-          user_id: partnerId,
-          amount: topupAmount,
-          direction: "cash_out",
-          category: "partner_funding",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `Wallet deduction for ${accountLabel} — Tenant Partnership Operations`,
-          currency: 'UGX',
-          ledger_scope: "wallet",
-          transaction_date: new Date().toISOString(),
-        },
-        {
-          user_id: partnerId,
-          amount: topupAmount,
-          direction: "cash_in",
-          category: "partner_funding",
-          source_table: "investor_portfolios",
-          source_id: portfolio_id,
-          description: `Pending capital for ${accountLabel} — applied at maturity`,
-          currency: 'UGX',
-          ledger_scope: "platform",
-          transaction_date: new Date().toISOString(),
-        },
-      ],
-    });
+    // 3. NO ledger entries at submission — Financial Ops must approve first.
+    //    Money only moves from wallet when approve-wallet-operation processes this.
 
     // 4. Audit trail
     await supabase.from("audit_logs").insert({
