@@ -293,27 +293,20 @@ export function AgentVisitPaymentWizard({ open, onOpenChange, onSuccess, presele
       setCompleted(true);
       toast({ title: 'Payment recorded successfully!' });
 
-      // Send SMS in background
-      setSmsSending(true);
-      try {
-        await supabase.functions.invoke('send-collection-sms', {
-          body: {
-            tenant_name: selectedTenant.full_name,
-            tenant_phone: selectedTenant.phone,
-            agent_name: profile.full_name,
-            agent_phone: profile.phone,
-            amount: paidAmount,
-            payment_mode: paymentMode,
-            tracking_id: txnId,
-            date: format(new Date(), 'dd MMM yyyy'),
-            collection_id: collection?.id,
-          },
-        });
-      } catch {
-        console.warn('SMS sending failed silently');
-      } finally {
-        setSmsSending(false);
-      }
+      // Fire SMS via Inngest (fire-and-forget, retries handled by Inngest)
+      supabase.functions.invoke('inngest-send-sms', {
+        body: {
+          tenant_name: selectedTenant.full_name,
+          tenant_phone: selectedTenant.phone,
+          agent_name: profile.full_name,
+          agent_phone: profile.phone,
+          amount: paidAmount,
+          payment_mode: paymentMode,
+          tracking_id: txnId,
+          date: format(new Date(), 'dd MMM yyyy'),
+          collection_id: collection?.id,
+        },
+      }).catch(() => console.warn('Inngest SMS dispatch failed silently'));
 
       onSuccess?.();
     } catch (err: any) {
