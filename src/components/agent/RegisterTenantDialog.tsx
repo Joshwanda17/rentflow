@@ -39,6 +39,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [capturingLocation, setCapturingLocation] = useState(false);
+  const [nationalIdError, setNationalIdError] = useState('');
   
   // Tenant info
   const [tenantEmail, setTenantEmail] = useState('');
@@ -82,6 +83,21 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setLc1Village('');
     setGuarantorConsent(false);
     setSuccess(false);
+    setNationalIdError('');
+  };
+
+  const checkDuplicateNationalId = async (value: string) => {
+    setNationalIdError('');
+    const cleaned = value.trim().toUpperCase();
+    if (cleaned.length < 10) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .eq('national_id', cleaned)
+      .maybeSingle();
+    if (data) {
+      setNationalIdError(`This National ID is already registered to ${data.full_name}`);
+    }
   };
 
   const captureLocation = () => {
@@ -122,6 +138,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
     if (!tenantNationalId.trim()) {
       toast.error('Please provide tenant National ID number');
+      return;
+    }
+
+    if (nationalIdError) {
+      toast.error('This National ID is already registered. Please check.');
       return;
     }
 
@@ -332,11 +353,15 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     <Input
                       id="tenantNationalId"
                       value={tenantNationalId}
-                      onChange={(e) => setTenantNationalId(e.target.value.toUpperCase())}
+                      onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); }}
+                      onBlur={() => checkDuplicateNationalId(tenantNationalId)}
                       placeholder="CM12345678ABCD"
-                      className="h-9"
+                      className={`h-9 ${nationalIdError ? 'border-destructive' : ''}`}
                       required
                     />
+                    {nationalIdError && (
+                      <p className="text-[11px] text-destructive font-medium">{nationalIdError}</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
