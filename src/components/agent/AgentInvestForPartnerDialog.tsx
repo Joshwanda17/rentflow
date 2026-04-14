@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { createShortLink } from '@/lib/createShortLink';
 import { Loader2, HandCoins, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info, User, Phone, Upload, FileText, X, Image } from 'lucide-react';
 import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
 
@@ -46,6 +47,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [totalRentRequested, setTotalRentRequested] = useState(0);
   const [agentBalance, setAgentBalance] = useState(0);
   const [success, setSuccess] = useState<SuccessData | null>(null);
+  const [shortActivationLink, setShortActivationLink] = useState<string | null>(null);
 
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
@@ -61,6 +63,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setReceiptFile(null);
       setReceiptPreview(null);
       setSuccess(null);
+      setShortActivationLink(null);
       setShowConfirm(false);
     }
   }, [open]);
@@ -260,10 +263,25 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     }
   };
 
+  // Resolve short link when success is set
+  useEffect(() => {
+    if (!success?.activation_token) return;
+    (async () => {
+      try {
+        const { data: { user: u } } = await supabase.auth.getUser();
+        if (u) {
+          const short = await createShortLink(u.id, '/join', { t: success.activation_token! });
+          setShortActivationLink(short);
+        }
+      } catch {
+        setShortActivationLink(`${getPublicOrigin()}/join?t=${success.activation_token}`);
+      }
+    })();
+  }, [success?.activation_token]);
+
   const buildShareMessage = useCallback((s: SuccessData) => {
-    const activationLink = s.activation_token
-      ? `${getPublicOrigin()}/join?t=${s.activation_token}`
-      : null;
+    const activationLink = shortActivationLink
+      || (s.activation_token ? `${getPublicOrigin()}/join?t=${s.activation_token}` : null);
 
     let msg = `🎉 Your Welile Investment is Active!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n✅ Your portfolio is now active!\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
 
@@ -277,7 +295,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
     msg += `\n\nRef: ${s.reference_id}`;
     return msg;
-  }, []);
+  }, [shortActivationLink]);
 
   const handleCopyLink = useCallback(async () => {
     if (!success) return;
@@ -316,9 +334,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   // ── Success Screen ──
   if (success) {
     const hasToken = !!success.activation_token;
-    const activationLink = hasToken
-      ? `${getPublicOrigin()}/join?t=${success.activation_token}`
-      : null;
+    const activationLink = shortActivationLink
+      || (hasToken ? `${getPublicOrigin()}/join?t=${success.activation_token}` : null);
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
