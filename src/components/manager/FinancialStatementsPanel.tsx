@@ -21,6 +21,35 @@ const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'all', label: 'All Time' },
 ];
 
+const COMPARISON_MODES: { value: ComparisonMode; label: string; short: string }[] = [
+  { value: 'none', label: 'No Comparison', short: 'Off' },
+  { value: 'dod', label: 'Day over Day', short: 'DoD' },
+  { value: 'wow', label: 'Week over Week', short: 'WoW' },
+  { value: 'mom', label: 'Month over Month', short: 'MoM' },
+  { value: 'yoy', label: 'Year over Year', short: 'YoY' },
+];
+
+function DeltaBadge({ delta }: { delta: DeltaValue | undefined }) {
+  if (!delta || (delta.change === 0 && delta.changePercent === null)) return null;
+  const isPositive = delta.change > 0;
+  const isNegative = delta.change < 0;
+  const isNeutral = delta.change === 0;
+  const pct = delta.changePercent !== null ? `${delta.changePercent > 0 ? '+' : ''}${delta.changePercent.toFixed(1)}%` : '';
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-0.5 text-[10px] font-medium rounded-full px-1.5 py-0.5 ml-1',
+      isPositive && 'bg-success/10 text-success',
+      isNegative && 'bg-destructive/10 text-destructive',
+      isNeutral && 'bg-muted text-muted-foreground',
+    )}>
+      {isPositive && <ArrowUpRight className="h-2.5 w-2.5" />}
+      {isNegative && <ArrowDownRight className="h-2.5 w-2.5" />}
+      {isNeutral && <Minus className="h-2.5 w-2.5" />}
+      {pct || formatUGX(Math.abs(delta.change))}
+    </span>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────
