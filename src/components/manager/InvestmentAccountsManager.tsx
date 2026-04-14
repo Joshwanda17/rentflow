@@ -274,21 +274,17 @@ export function InvestmentAccountsManager() {
                         Top Up
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 text-xs gap-1.5 min-h-[36px] border-border/40"
-                      title="Download PDF"
-                      onClick={() => downloadPortfolioPdf({
-                        portfolioCode: p.portfolio_code, accountName: p.account_name,
-                        investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
-                        roiMode: 'monthly_payout', totalRoiEarned: 0,
-                        status: p.status, createdAt: p.created_at,
-                        durationMonths: 12, ownerName: p.investor_name || p.agent_name,
-                      })}
-                    >
-                      <FileText className="h-3.5 w-3.5" /> PDF
-                    </Button>
+                    {approvedTopUps[p.id]?.total > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 text-xs gap-1.5 min-h-[36px] border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                        title="Apply pending principal"
+                        onClick={() => { setMergeDialogPortfolioId(p.id); setMergeReason(''); }}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" /> Apply Top-up
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
