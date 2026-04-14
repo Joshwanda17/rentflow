@@ -9911,25 +9911,15 @@ export type Database = {
             }
             Returns: Json
           }
-      credit_agent_rent_commission:
-        | {
-            Args: {
-              p_event_reference_id?: string
-              p_rent_request_id: string
-              p_repayment_amount: number
-              p_tenant_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_event_reference_id?: string
-              p_rent_request_id: string
-              p_repayment_amount: number
-              p_tenant_id: string
-            }
-            Returns: Json
-          }
+      credit_agent_rent_commission: {
+        Args: {
+          p_event_reference_id?: string
+          p_rent_request_id: string
+          p_repayment_amount: number
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       credit_proxy_approval:
         | {
             Args: {

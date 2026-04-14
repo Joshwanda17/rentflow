@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
                 availableBalance -= repaymentApplied;
 
                 // ── Credit agent commission via RPC (single-writer — RPC owns commission) ──
-                if (depositRequest.agent_id && rentRequestId) {
+                if (rentRequestId) {
                   await supabaseAdmin.rpc("credit_agent_rent_commission", {
                     p_rent_request_id: rentRequestId,
                     p_repayment_amount: repaymentApplied,
@@ -334,7 +334,7 @@ Deno.serve(async (req) => {
                 });
 
                 // Credit agent commission via RPC (single-writer)
-                if (depositRequest.agent_id) {
+                if (activeSub.rent_request_id) {
                   await supabaseAdmin.rpc("credit_agent_rent_commission", {
                     p_rent_request_id: activeSub.rent_request_id,
                     p_repayment_amount: debtCleared,
@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
                 });
 
                 // Credit agent commission via RPC (single-writer)
-                if (depositRequest.agent_id) {
+                if (activeSub.rent_request_id) {
                   await supabaseAdmin.rpc("credit_agent_rent_commission", {
                     p_rent_request_id: activeSub.rent_request_id,
                     p_repayment_amount: prepaidAmount,
