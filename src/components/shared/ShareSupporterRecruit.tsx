@@ -4,10 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { UserPlus, Copy, Share2, Check } from 'lucide-react';
+import { UserPlus, Copy, Share2, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { useShortLink } from '@/hooks/useShortLink';
 
 export function ShareSupporterRecruit() {
   const [open, setOpen] = useState(false);
@@ -22,21 +21,16 @@ export function ShareSupporterRecruit() {
     staleTime: Infinity,
   });
 
-  // Build sanitized link — role is hardcoded, ref validated as UUID
-  const buildLink = (): string | null => {
-    if (!userId || !UUID_RE.test(userId)) return null;
-    const params = new URLSearchParams();
-    params.set('role', 'supporter');
-    params.set('ref', userId);
-    return `${window.location.origin}/auth?${params.toString()}`;
-  };
-
-  const shareUrl = buildLink();
+  const { shortUrl, isLoading } = useShortLink({
+    targetPath: '/auth',
+    targetParams: { role: 'supporter', ref: userId || '' },
+    enabled: open && !!userId,
+  });
 
   const handleCopy = async () => {
-    if (!shareUrl) return;
+    if (!shortUrl) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(shortUrl);
       setCopied(true);
       toast.success('Link copied!');
       setTimeout(() => setCopied(false), 2000);
@@ -46,32 +40,24 @@ export function ShareSupporterRecruit() {
   };
 
   const handleShare = async () => {
-    if (!shareUrl) return;
+    if (!shortUrl) return;
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Join as a Supporter',
           text: 'Sign up as a Supporter on Welile',
-          url: shareUrl,
+          url: shortUrl,
         });
-      } catch {
-        // user cancelled
-      }
+      } catch {}
     } else {
-      // Fallback: WhatsApp
-      const waUrl = `https://wa.me/?text=${encodeURIComponent(`Join as a Supporter on Welile: ${shareUrl}`)}`;
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(`Join as a Supporter on Welile: ${shortUrl}`)}`;
       window.open(waUrl, '_blank');
     }
   };
 
   return (
     <>
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5 text-xs"
-        onClick={() => setOpen(true)}
-      >
+      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setOpen(true)}>
         <UserPlus className="h-3.5 w-3.5" />
         Recruit Supporter
       </Button>
@@ -88,40 +74,27 @@ export function ShareSupporterRecruit() {
             </DialogDescription>
           </DialogHeader>
 
-          {shareUrl ? (
-            <div className="space-y-3">
-              <Input
-                readOnly
-                value={shareUrl}
-                className="text-xs font-mono bg-muted/50 select-all"
-                onFocus={(e) => e.target.select()}
-              />
-              <div className="flex gap-2">
-                <Button
-                  className="flex-1 gap-1.5"
-                  size="sm"
-                  onClick={handleCopy}
-                  variant={copied ? 'default' : 'outline'}
-                >
-                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? 'Copied' : 'Copy Link'}
-                </Button>
-                <Button
-                  className="flex-1 gap-1.5"
-                  size="sm"
-                  onClick={handleShare}
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                  Share
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground text-center leading-tight">
-                New users who sign up via this link will be registered as Supporters under your referral.
-              </p>
+          <div className="space-y-3">
+            <Input
+              readOnly
+              value={isLoading ? 'Generating...' : shortUrl}
+              className="text-xs font-mono bg-muted/50 select-all"
+              onFocus={(e) => e.target.select()}
+            />
+            <div className="flex gap-2">
+              <Button className="flex-1 gap-1.5" size="sm" onClick={handleCopy} disabled={isLoading} variant={copied ? 'default' : 'outline'}>
+                {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? 'Copied' : 'Copy Link'}
+              </Button>
+              <Button className="flex-1 gap-1.5" size="sm" onClick={handleShare} disabled={isLoading}>
+                <Share2 className="h-3.5 w-3.5" />
+                Share
+              </Button>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          )}
+            <p className="text-[10px] text-muted-foreground text-center leading-tight">
+              New users who sign up via this link will be registered as Supporters under your referral.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </>
