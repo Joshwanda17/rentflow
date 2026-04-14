@@ -413,21 +413,17 @@ export default function SupporterDashboard({
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             onReturnTap={() => {
-              const el = document.getElementById('my-portfolio-accounts');
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              setInvestmentsTab('accounts');
+              setShowInvestments(true);
             }}
             onDeployedTap={() => {
-              const el = document.getElementById('my-portfolio-accounts');
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              setInvestmentsTab('accounts');
+              setShowInvestments(true);
             }}
           />
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
 
-          {/* ═══ MY PORTFOLIO ACCOUNTS ═══ */}
-          <div id="my-portfolio-accounts">
-            <MyPortfolioAccounts />
-          </div>
 
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
@@ -584,6 +580,7 @@ export default function SupporterDashboard({
       />
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      <InvestmentAccountsDrawer open={showInvestments} onOpenChange={setShowInvestments} defaultTab={investmentsTab} />
       
       
     </div>
