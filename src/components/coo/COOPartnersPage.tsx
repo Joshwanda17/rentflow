@@ -1660,21 +1660,18 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                   {p.account_name && editingNameId !== p.id && (
                                     <p className="text-xs font-semibold text-foreground leading-tight truncate">{p.account_name}</p>
                                   )}
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className={cn('text-sm font-bold truncate', p.account_name ? 'text-muted-foreground text-xs' : '')}>{p.portfolio_code}</p>
-                                    <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase whitespace-nowrap shrink-0', statusColor)}>
-                                      {p.status}
-                                    </span>
-                                    <TooltipProvider delayDuration={200}>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-primary cursor-help shrink-0" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right" className="max-w-[220px] text-[11px] leading-snug">
-                                          <p>Approved top-ups are picked up at the next ROI cycle by the merge engine. New approvals create an immediate ledger trail.</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
+                                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className={cn('text-sm font-bold truncate', p.account_name ? 'text-muted-foreground text-xs' : '')}>{p.portfolio_code}</p>
+                                      <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-bold uppercase whitespace-nowrap shrink-0', statusColor)}>
+                                        {p.status}
+                                      </span>
+                                    </div>
+                                    {(pendingTopUps[p.id]?.total > 0 || awaitingVerification[p.id]?.total > 0) && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
+                                        ⏳ Awaiting Top-up {formatUGX((pendingTopUps[p.id]?.total || 0) + (awaitingVerification[p.id]?.total || 0))}
+                                      </span>
+                                    )}
                                   </div>
                                   {/* Inline name edit */}
                                   {editingNameId === p.id ? (
