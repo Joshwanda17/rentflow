@@ -258,117 +258,165 @@ export function InvestmentWithdrawButton() {
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Deployed capital summary */}
-            <div className="px-4 py-3 rounded-xl bg-primary/5 border border-primary/20 space-y-1">
-              <p className="text-xs text-muted-foreground font-semibold">Your Deployed Capital</p>
-              <p className="text-xl font-black text-foreground">{formatUGX(maxWithdrawable)}</p>
-              <p className="text-[10px] text-muted-foreground">
-                This is the total amount currently supporting tenants' rent.
-              </p>
-            </div>
-
-            {/* 90-day notice info */}
-            <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-amber-600" />
-                <p className="text-sm font-bold text-amber-700 dark:text-amber-400">90-Day Notice Period</p>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Because your capital is deployed to active tenant rent, a <span className="font-bold">90-day collection period</span> is 
-                required for agents to recover funds from tenants.
-              </p>
-            </div>
-
-            {/* Rewards pause warning */}
-            <div className="px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 space-y-2">
-              <div className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-destructive" />
-                <p className="text-sm font-bold text-destructive">Rewards Will Be Paused</p>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Your <span className="font-bold">monthly rewards stop immediately</span> on the withdrawn portion 
-                once this request is submitted.
-              </p>
-            </div>
-
-            {/* Amount input */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-foreground">Withdrawal Amount (UGX)</label>
-              <Input
-                type="number"
-                inputMode="numeric"
-                placeholder="e.g. 500000"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                className="text-lg font-bold h-12"
-              />
-              {amountNum > maxWithdrawable && (
-                <p className="text-xs text-destructive font-semibold">
-                  Exceeds your deployed capital of {formatUGX(maxWithdrawable)}
-                </p>
-              )}
-            </div>
-
-            {/* Quick amount chips */}
-            {quickChips.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                {quickChips.map(chip => (
-                  <Button
-                    key={chip.label}
-                    type="button"
-                    variant={amountNum === chip.value ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setAmount(String(chip.value))}
-                    className="text-xs rounded-full h-8 px-3"
-                  >
-                    {chip.label}
-                  </Button>
-                ))}
-              </div>
-            )}
-
-            {/* Reason */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-bold text-foreground">Reason (optional)</label>
-              <Textarea
-                placeholder="Why are you withdrawing?"
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-                className="text-sm min-h-[60px]"
-              />
-            </div>
-
-            {/* Processing date preview */}
-            {amountNum > 0 && amountNum <= maxWithdrawable && (
-              <div className="px-4 py-3 rounded-xl bg-muted/50 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground font-semibold">Payout Date</p>
-                  <CalendarCheck className="h-4 w-4 text-primary" />
+            {step === 'form' ? (
+              <>
+                {/* Deployed capital summary */}
+                <div className="px-4 py-3 rounded-xl bg-primary/5 border border-primary/20 space-y-1">
+                  <p className="text-xs text-muted-foreground font-semibold">Your Deployed Capital</p>
+                  <p className="text-xl font-black text-foreground">{formatUGX(maxWithdrawable)}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    This is the total amount currently supporting tenants' rent.
+                  </p>
                 </div>
-                <p className="text-sm font-black text-foreground">
-                  {format(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), 'MMMM d, yyyy')}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  You will receive {formatUGX(amountNum)} as a lump-sum on or after this date.
-                </p>
-              </div>
+
+                {/* 90-day notice info */}
+                <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-600" />
+                    <p className="text-sm font-bold text-amber-700 dark:text-amber-400">90-Day Notice Period</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Because your capital is deployed to active tenant rent, a <span className="font-bold">90-day collection period</span> is 
+                    required for agents to recover funds from tenants.
+                  </p>
+                </div>
+
+                {/* Rewards pause warning */}
+                <div className="px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4 text-destructive" />
+                    <p className="text-sm font-bold text-destructive">Rewards Will Be Paused</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your <span className="font-bold">monthly rewards stop immediately</span> on the withdrawn portion 
+                    once this request is submitted.
+                  </p>
+                </div>
+
+                {/* Amount input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-foreground">Withdrawal Amount (UGX)</label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="e.g. 500000"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    className="text-lg font-bold h-12"
+                  />
+                  {amountNum > maxWithdrawable && (
+                    <p className="text-xs text-destructive font-semibold">
+                      Exceeds your deployed capital of {formatUGX(maxWithdrawable)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Quick amount chips */}
+                {quickChips.length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {quickChips.map(chip => (
+                      <Button
+                        key={chip.label}
+                        type="button"
+                        variant={amountNum === chip.value ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setAmount(String(chip.value))}
+                        className="text-xs rounded-full h-8 px-3"
+                      >
+                        {chip.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Reason */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-foreground">Reason (optional)</label>
+                  <Textarea
+                    placeholder="Why are you withdrawing?"
+                    value={reason}
+                    onChange={e => setReason(e.target.value)}
+                    className="text-sm min-h-[60px]"
+                  />
+                </div>
+
+                <Button
+                  onClick={() => setStep('confirm')}
+                  disabled={amountNum <= 0 || amountNum > maxWithdrawable}
+                  className="w-full gap-2 rounded-xl font-bold h-11"
+                >
+                  Review Withdrawal
+                </Button>
+              </>
+            ) : (
+              /* ─── Confirmation preview step ─── */
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-4"
+              >
+                <div className="text-center py-2">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
+                    <AlertTriangle className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <p className="text-sm font-bold text-foreground">Confirm Your Withdrawal</p>
+                  <p className="text-xs text-muted-foreground mt-1">Please review the details below</p>
+                </div>
+
+                <div className="rounded-xl border border-border bg-muted/30 divide-y divide-border">
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-xs text-muted-foreground">Amount</span>
+                    <span className="text-base font-black text-foreground">{formatUGX(amountNum)}</span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-xs text-muted-foreground">Notice Period</span>
+                    <span className="text-sm font-bold text-foreground">90 days</span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-xs text-muted-foreground">Estimated Payout</span>
+                    <span className="text-sm font-bold text-foreground">
+                      {format(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), 'MMM d, yyyy')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-xs text-muted-foreground">Rewards Impact</span>
+                    <span className="text-xs font-bold text-destructive">Paused immediately</span>
+                  </div>
+                  {reason.trim() && (
+                    <div className="px-4 py-3">
+                      <span className="text-xs text-muted-foreground block mb-1">Reason</span>
+                      <span className="text-xs text-foreground">{reason.trim()}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-2 px-1">
+                  <Shield className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-muted-foreground">
+                    By confirming, you acknowledge the 90-day notice period and that rewards will 
+                    <strong> stop immediately</strong> on the withdrawn amount.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setStep('form')}
+                    className="flex-1 rounded-xl font-bold h-11"
+                    disabled={submitting}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="flex-1 gap-2 rounded-xl font-bold h-11 bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {submitting ? 'Submitting…' : 'Confirm Withdrawal'}
+                  </Button>
+                </div>
+              </motion.div>
             )}
-
-            <div className="flex items-start gap-2 px-1">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-[10px] text-muted-foreground">
-                By submitting, you acknowledge the 90-day notice period and that rewards will 
-                <strong> stop immediately</strong> on the withdrawn amount.
-              </p>
-            </div>
-
-            <Button
-              onClick={handleSubmit}
-              disabled={amountNum <= 0 || amountNum > maxWithdrawable || submitting}
-              className="w-full gap-2 rounded-xl font-bold h-11"
-            >
-              {submitting ? 'Submitting…' : 'Submit 90-Day Withdrawal Notice'}
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
