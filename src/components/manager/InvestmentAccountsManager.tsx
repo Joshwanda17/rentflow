@@ -2,15 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, FileText, Share2, RefreshCw } from 'lucide-react';
-import { downloadPortfolioPdf, sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
+import { Textarea } from '@/components/ui/textarea';
+import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, Share2, RefreshCw } from 'lucide-react';
+import { sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { FundInvestmentAccountDialog } from './FundInvestmentAccountDialog';
 import { RenewPortfolioDialog } from './RenewPortfolioDialog';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from '@/components/ui/dialog';
 
 interface PortfolioRow {
   id: string;
@@ -40,6 +45,10 @@ export function InvestmentAccountsManager() {
   const [renewPortfolio, setRenewPortfolio] = useState<PortfolioRow | null>(null);
   const [renewOpen, setRenewOpen] = useState(false);
   const [renewalCounts, setRenewalCounts] = useState<Record<string, number>>({});
+  const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
+  const [mergeReason, setMergeReason] = useState('');
+  const [mergingTopUp, setMergingTopUp] = useState(false);
 
   const fetchPortfolios = useCallback(async () => {
     setLoading(true);
@@ -89,10 +98,49 @@ export function InvestmentAccountsManager() {
       setRenewalCounts(counts);
     }
 
+    // Fetch approved top-ups
+    if (pIds.length > 0) {
+      const { data: pendingOps } = await supabase
+        .from('pending_wallet_operations')
+        .select('source_id, amount')
+        .in('source_id', pIds)
+        .eq('source_table', 'investor_portfolios')
+        .eq('operation_type', 'portfolio_topup')
+        .eq('status', 'approved');
+      const approved: Record<string, { count: number; total: number }> = {};
+      (pendingOps || []).forEach(op => {
+        const sid = op.source_id as string;
+        if (!approved[sid]) approved[sid] = { count: 0, total: 0 };
+        approved[sid].count += 1;
+        approved[sid].total += Number(op.amount);
+      });
+      setApprovedTopUps(approved);
+    }
+
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchPortfolios(); }, [fetchPortfolios]);
+
+  async function handleMergePendingTopUps() {
+    if (!mergeDialogPortfolioId || mergeReason.trim().length < 10) return;
+    setMergingTopUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('merge-pending-topups', {
+        body: { portfolio_id: mergeDialogPortfolioId, reason: mergeReason.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast({ title: `Merged ${formatUGX(data.merged_amount)} into principal`, description: `New capital: ${formatUGX(data.new_capital)}` });
+      setMergeDialogPortfolioId(null);
+      setMergeReason('');
+      fetchPortfolios();
+    } catch (e: any) {
+      toast({ title: 'Failed to merge top-ups', description: e.message, variant: 'destructive' });
+    } finally {
+      setMergingTopUp(false);
+    }
+  }
 
   const handleSave = async (portfolioId: string) => {
     const trimmed = editName.trim();
@@ -226,21 +274,17 @@ export function InvestmentAccountsManager() {
                         Top Up
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-9 text-xs gap-1.5 min-h-[36px] border-border/40"
-                      title="Download PDF"
-                      onClick={() => downloadPortfolioPdf({
-                        portfolioCode: p.portfolio_code, accountName: p.account_name,
-                        investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
-                        roiMode: 'monthly_payout', totalRoiEarned: 0,
-                        status: p.status, createdAt: p.created_at,
-                        durationMonths: 12, ownerName: p.investor_name || p.agent_name,
-                      })}
-                    >
-                      <FileText className="h-3.5 w-3.5" /> PDF
-                    </Button>
+                    {approvedTopUps[p.id]?.total > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 text-xs gap-1.5 min-h-[36px] border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                        title="Apply pending principal"
+                        onClick={() => { setMergeDialogPortfolioId(p.id); setMergeReason(''); }}
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" /> Apply Top-up
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -296,6 +340,48 @@ export function InvestmentAccountsManager() {
           }
         }}
       />
+
+      {/* Merge Pending Top-Ups Dialog */}
+      <Dialog open={!!mergeDialogPortfolioId} onOpenChange={(open) => { if (!open) { setMergeDialogPortfolioId(null); setMergeReason(''); } }}>
+        <DialogContent stable className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Apply Pending Principal</DialogTitle>
+            <DialogDescription className="text-xs">
+              Merge approved top-ups into the portfolio's active principal immediately.
+            </DialogDescription>
+          </DialogHeader>
+          {mergeDialogPortfolioId && approvedTopUps[mergeDialogPortfolioId] && (
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs">
+              <p className="font-semibold text-amber-700 dark:text-amber-400">
+                {approvedTopUps[mergeDialogPortfolioId].count} pending top-up{approvedTopUps[mergeDialogPortfolioId].count > 1 ? 's' : ''} totaling {formatUGX(approvedTopUps[mergeDialogPortfolioId].total)}
+              </p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Reason for manual merge (min 10 chars)</Label>
+            <Textarea
+              value={mergeReason}
+              onChange={e => setMergeReason(e.target.value)}
+              placeholder="e.g. Partner requested early activation of top-up funds..."
+              className="text-xs min-h-[70px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setMergeDialogPortfolioId(null); setMergeReason(''); }}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              disabled={mergingTopUp || mergeReason.trim().length < 10}
+              onClick={handleMergePendingTopUps}
+            >
+              {mergingTopUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
+              Apply Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

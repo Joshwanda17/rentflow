@@ -290,6 +290,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   // Top-ups approved and parked until next ROI cycle (status: approved)
   const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
+  // Merge dialog state
+  const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
+  const [mergeReason, setMergeReason] = useState('');
+  const [mergingTopUp, setMergingTopUp] = useState(false);
 
   // Portfolio name editing
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
@@ -747,6 +751,30 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.error('Failed to submit for verification', { description: e.message });
     } finally {
       setApplyingTopUps(null);
+    }
+  }
+
+  /* ─── Merge Approved Top-Ups Into Portfolio Principal ─── */
+  async function handleMergePendingTopUps() {
+    if (!mergeDialogPortfolioId || mergeReason.trim().length < 10) return;
+    setMergingTopUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('merge-pending-topups', {
+        body: { portfolio_id: mergeDialogPortfolioId, reason: mergeReason.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Merged ${formatUGX(data.merged_amount)} into principal`, {
+        description: `New capital: ${formatUGX(data.new_capital)}. ${data.ops_count} top-up(s) applied.`,
+      });
+      setMergeDialogPortfolioId(null);
+      setMergeReason('');
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      fetchData();
+    } catch (e: any) {
+      toast.error('Failed to merge top-ups', { description: e.message });
+    } finally {
+      setMergingTopUp(false);
     }
   }
 
@@ -1965,22 +1993,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     <Trash2 className="h-3.5 w-3.5" /> Delete
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-9 px-3 text-xs gap-1.5 min-h-[44px]"
-                                  onClick={() => downloadPortfolioPdf({
-                                    portfolioCode: p.portfolio_code, accountName: p.account_name,
-                                    investmentAmount: p.investment_amount, roiPercentage: p.roi_percentage,
-                                    roiMode: p.roi_mode, totalRoiEarned: p.total_roi_earned,
-                                    status: p.status, createdAt: p.created_at,
-                                    durationMonths: p.duration_months, payoutDay: p.payout_day,
-                                    nextRoiDate: p.next_roi_date, maturityDate: p.maturity_date,
-                                    ownerName: detailPartner?.profile.full_name,
-                                  })}
-                                >
-                                  <FileText className="h-3.5 w-3.5" /> PDF
-                                </Button>
+                                {!readOnly && approvedTopUps[p.id]?.total > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-500/10 gap-1.5 font-semibold min-h-[44px]"
+                                    onClick={() => { setMergeDialogPortfolioId(p.id); setMergeReason(''); }}
+                                  >
+                                    <ArrowRightLeft className="h-3.5 w-3.5" /> Apply Top-up
+                                  </Button>
+                                )}
                                 {!readOnly && p.status === 'active' && (
                                   <Button
                                     variant="ghost"
@@ -2630,6 +2652,48 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </Dialog>
       {/* Nearing Payouts Dialog */}
       <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} onActionComplete={fetchData} />
+
+      {/* Merge Pending Top-Ups Dialog */}
+      <Dialog open={!!mergeDialogPortfolioId} onOpenChange={(open) => { if (!open) { setMergeDialogPortfolioId(null); setMergeReason(''); } }}>
+        <DialogContent stable className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Apply Pending Principal</DialogTitle>
+            <DialogDescription className="text-xs">
+              Merge approved top-ups into the portfolio's active principal immediately instead of waiting for the next ROI cycle.
+            </DialogDescription>
+          </DialogHeader>
+          {mergeDialogPortfolioId && approvedTopUps[mergeDialogPortfolioId] && (
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs">
+              <p className="font-semibold text-amber-700 dark:text-amber-400">
+                {approvedTopUps[mergeDialogPortfolioId].count} pending top-up{approvedTopUps[mergeDialogPortfolioId].count > 1 ? 's' : ''} totaling {formatUGX(approvedTopUps[mergeDialogPortfolioId].total)}
+              </p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Reason for manual merge (min 10 chars)</Label>
+            <Textarea
+              value={mergeReason}
+              onChange={e => setMergeReason(e.target.value)}
+              placeholder="e.g. Partner requested early activation of top-up funds..."
+              className="text-xs min-h-[70px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setMergeDialogPortfolioId(null); setMergeReason(''); }}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              disabled={mergingTopUp || mergeReason.trim().length < 10}
+              onClick={handleMergePendingTopUps}
+            >
+              {mergingTopUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
+              Apply Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
