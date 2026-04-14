@@ -106,6 +106,9 @@ export function PromissoryNoteDialog({ open, onOpenChange }: PromissoryNoteDialo
         deductionDay: contributionType === 'monthly' ? Number(deductionDay) : undefined,
         activationLink,
         createdAt: createdNote.created_at,
+        email: email.trim() || undefined,
+        whatsappNumber: whatsappNumber.trim() || undefined,
+        phoneNumber: phoneNumber.trim() || undefined,
       });
 
       const file = new File([pdfBlob], `Welile_Note_${partnerName.replace(/\s+/g, '_')}.pdf`, { type: 'application/pdf' });
