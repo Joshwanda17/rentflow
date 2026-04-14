@@ -1,62 +1,63 @@
 
 
-## Plan: Fix Landlord Display and Add Button
+## Plan: Advance Payout Date on Compound & Update Confirmation UI
 
-### Problem 1: "No landlord linked"
-The houses shown in the screenshot (`Single Room in Wakiso`, `House near the Road`) genuinely have `landlord_id = NULL` in the database. They were never linked to a landlord during listing. The UI is correctly showing "No landlord linked" — this is a data issue, not a display bug.
+### Problem
+When compounding a partner's ROI, the `next_roi_date` stays stale. The confirmation dialog shows "Unchanged (until CFO approves)" — which is misleading since compounding doesn't require CFO approval. Partners appear overdue immediately after compounding.
 
-### Problem 2: "Add" button silently fails
-The `house_listings` table UPDATE policy only allows agents to update their own listings:
-```sql
--- Current: only the listing agent can update
-Agents can update own listings: auth.uid() = agent_id
-```
+### What Changes
 
-When an Operations or Executive user clicks "Add" to assign a landlord, the `AssignPersonDialog` runs:
+**1. Both compound handlers advance `next_roi_date` by +1 month**
+
+In `src/components/coo/COOPartnersPage.tsx`, update the two compound functions:
+
+- **`handlePortfolioCompound`** (line 328) — the portfolio detail view compound
+- **`handleCompound`** (line 2742) — the nearing-payout section compound
+
+Both currently do:
 ```typescript
-await supabase.from('house_listings')
-  .update({ landlord_id: person.id })
-  .eq('id', listingId);
+.update({ investment_amount: newAmount })
 ```
 
-This fails silently because RLS blocks the update for non-agent roles. There is no UPDATE policy for operations/executive roles.
+Change to:
+```typescript
+const currentDate = new Date(portfolio.next_roi_date || new Date());
+const newDate = new Date(currentDate);
+newDate.setMonth(newDate.getMonth() + 1);
 
-### Fix
-
-**Database migration** — Add an UPDATE policy for operations and executive roles on `house_listings`:
-
-```sql
-CREATE POLICY "Operations and executives can update house listings"
-ON public.house_listings
-FOR UPDATE
-TO authenticated
-USING (
-  has_role(auth.uid(), 'operations') OR
-  has_role(auth.uid(), 'manager') OR
-  has_role(auth.uid(), 'coo') OR
-  has_role(auth.uid(), 'ceo') OR
-  has_role(auth.uid(), 'cfo') OR
-  has_role(auth.uid(), 'super_admin') OR
-  has_role(auth.uid(), 'cto')
-)
-WITH CHECK (
-  has_role(auth.uid(), 'operations') OR
-  has_role(auth.uid(), 'manager') OR
-  has_role(auth.uid(), 'coo') OR
-  has_role(auth.uid(), 'ceo') OR
-  has_role(auth.uid(), 'cfo') OR
-  has_role(auth.uid(), 'super_admin') OR
-  has_role(auth.uid(), 'cto')
-);
+.update({ investment_amount: newAmount, next_roi_date: newDate.toISOString().split('T')[0] })
 ```
 
-This matches the existing SELECT policy for these roles, ensuring they can both view and update listings (assign landlords, agents, verify, etc.).
+This advances the payout date by exactly 1 month, matching the same logic used by CFO approval.
+
+**2. Confirmation dialog shows the new date**
+
+Update the compound preview dialog (line 2239–2242). Replace:
+```
+"Unchanged (until CFO approves)"
+```
+With the calculated new date:
+```
+"May 15, 2026" (formatted from current next_roi_date + 1 month)
+```
+
+Also update `compoundPreview` state to include `nextRoiDate` so the dialog can display it.
+
+**3. Update notifications and audit logs**
+
+Include the new payout date in the notification message and audit metadata so there's a clear trail.
 
 ### Files
 
 | File | Action |
 |------|--------|
-| Database migration | **Create** — add UPDATE RLS policy for operations/executive roles on `house_listings` |
+| `src/components/coo/COOPartnersPage.tsx` | **Edit** — advance `next_roi_date` in both compound handlers, update preview dialog text |
 
-No code changes needed — the `AssignPersonDialog` logic is correct, it's just being blocked by RLS.
+### Impact
+
+- **Partners**: No longer appear as "OVERDUE" immediately after compounding — their next payout date moves forward 1 month
+- **Operations/COO**: Confirmation dialog now shows the exact new payout date for transparency
+- **Audit trail**: New date is recorded in audit logs and notifications
+- **CFO workflow**: Unaffected — CFO approval still advances date on regular payouts as before
+- **Ledger**: Unchanged — same double-entry `roi_expense`/`roi_reinvestment` pattern
 
