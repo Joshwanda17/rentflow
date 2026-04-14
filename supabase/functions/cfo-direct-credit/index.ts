@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
       'roi_wallet_credit', 'roi_expense', 'agent_commission_earned',
       'system_balance_correction', 'wallet_transfer', 'wallet_deduction',
       'access_fee_collected', 'registration_fee_collected',
+      'marketing_expense', 'payroll_expense', 'general_admin_expense',
+      'research_development_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
     ];
     const walletCat = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'system_balance_correction';
     const platformCat = ALLOWED_CATEGORIES.includes(platform_category) ? platform_category : 'system_balance_correction';

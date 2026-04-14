@@ -60,8 +60,8 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     label: '📢 Marketing Expenses',
     description: 'Payments for marketing, advertising, and promotional activities',
     impact: 'expense',
-    walletCategory: 'system_balance_correction',
-    platformCategory: 'system_balance_correction',
+    walletCategory: 'marketing_expense',
+    platformCategory: 'marketing_expense',
     allowedOps: ['credit'],
     subCategories: [
       { id: 'marketing_materials', label: 'Marketing Materials' },
