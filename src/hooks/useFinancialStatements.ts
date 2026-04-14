@@ -415,7 +415,7 @@ export function useFinancialStatements() {
         incomeStatement: {
           period: formatPeriodLabel(activeFilters),
           revenue: { accessFees, requestFees, otherServiceIncome, advanceAccessFeesCollected, total: totalRevenue },
-          serviceDeliveryCosts: { platformRewards, agentCommissions, transactionExpenses, total: totalServiceCosts },
+          serviceDeliveryCosts: { platformRewards, agentCommissions, referralBonuses, agentBonuses, transactionExpenses, total: totalServiceCosts },
           operatingExpenses: {
             generalOperating, payrollExpenses, agentRequisitions, financialAgentExpenses,
             marketingExpenses, researchDevelopment,
