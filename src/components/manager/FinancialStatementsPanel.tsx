@@ -54,13 +54,16 @@ function DeltaBadge({ delta }: { delta: DeltaValue | undefined }) {
 // Sub-components
 // ─────────────────────────────────────────────────────────────
 
-function LineItem({ label, value, negative, bold, indent }: { label: string; value: number; negative?: boolean; bold?: boolean; indent?: boolean }) {
+function LineItem({ label, value, negative, bold, indent, delta }: { label: string; value: number; negative?: boolean; bold?: boolean; indent?: boolean; delta?: DeltaValue }) {
   const colored = negative
     ? value > 0 ? 'text-destructive' : 'text-muted-foreground'
     : value > 0 ? 'text-success' : value < 0 ? 'text-destructive' : 'text-muted-foreground';
   return (
-    <div className={cn('flex justify-between', indent && 'pl-4', bold ? 'font-semibold border-t border-border/50 pt-2 mt-1' : 'text-sm')}>
-      <span className={bold ? '' : 'text-muted-foreground'}>{label}</span>
+    <div className={cn('flex justify-between items-center', indent && 'pl-4', bold ? 'font-semibold border-t border-border/50 pt-2 mt-1' : 'text-sm')}>
+      <span className={cn(bold ? '' : 'text-muted-foreground', 'flex items-center')}>
+        {label}
+        {delta && <DeltaBadge delta={delta} />}
+      </span>
       <span className={cn('font-mono', colored)}>
         {negative && value > 0 ? `(${formatUGX(value)})` : formatUGX(value)}
       </span>
