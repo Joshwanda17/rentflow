@@ -1,19 +1,43 @@
 
 
-## Plan: Fix Cashout Agent Withdrawal Request Visibility
+## Plan: Fix Partner Wallet Card Interactivity
 
 ### Problem
-The cashout agent's query filters withdrawal requests by status `['pending', 'requested', 'manager_approved', 'cfo_approved']`, but the database has requests with statuses like `'approved'` and `'fin_ops_approved'` that are also actionable. The RLS policies already grant access — this is purely a filter mismatch.
+The entire `UnifiedWalletHeroCard` is wrapped in a single `<button>`, so tapping anywhere opens the wallet sheet. The three metric cards (Houses, Return/Mo, Deployed) are not individually interactive.
 
-### Current State
-- **5** pending, **1** manager_approved, **32** approved, **2** fin_ops_approved requests exist
-- The query misses `approved` and `fin_ops_approved`, so 34 actionable requests are hidden
+### Changes
 
-### Change
+**1. Refactor `UnifiedWalletHeroCard` (supporter role)**
 
-**Edit `src/components/agent/AgentCashPayoutsTab.tsx`** (line 48):
-- Expand the status filter to include all actionable statuses: `['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved']`
+- Change the outer wrapper from `<button>` to a `<div>` — the card itself should NOT be clickable.
+- Make only the **balance area** and the **"View Wallet" footer link** clickable (these open `FullScreenWalletSheet`).
+- Make the three supporter metric cards individually tappable via new callback props:
+  - **Houses** → navigates to "My Houses" section (scrolls to it or opens the collapsible)
+  - **Return/Mo** → opens `MyPortfolioAccounts` / investment accounts view
+  - **Deployed** → opens `MyPortfolioAccounts` + Angel Shares view
 
-### Files to edit
-- `src/components/agent/AgentCashPayoutsTab.tsx` — one-line status filter fix
+**2. Add callback props to `UnifiedWalletHeroCard`**
+
+```
+onOpenWallet?: () => void;       // balance tap + "View Wallet" tap
+onHousesTap?: () => void;        // Houses card
+onReturnTap?: () => void;        // Return/Mo card
+onDeployedTap?: () => void;      // Deployed card
+```
+
+Remove the internal `useState(showWallet)` and `FullScreenWalletSheet` render from the component — let the parent (`SupporterDashboard`) control wallet visibility (it already has `showWallet` state at line 97).
+
+**3. Update `SupporterDashboard`**
+
+Wire the new props:
+- `onOpenWallet` → `setShowWallet(true)`
+- `onHousesTap` → scroll to `#my-houses` section
+- `onReturnTap` → scroll to `MyPortfolioAccounts`
+- `onDeployedTap` → scroll to `MyPortfolioAccounts` + show Angel Shares tab
+
+Add `id` attributes to the relevant sections for scroll targeting.
+
+### Files Modified
+- `src/components/wallet/UnifiedWalletHeroCard.tsx`
+- `src/components/dashboards/SupporterDashboard.tsx`
 
