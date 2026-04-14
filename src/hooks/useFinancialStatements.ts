@@ -712,6 +712,26 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
             deferredRevenue,
             recognitionRate,
           },
+          arAging: {
+            current: arCurrent,
+            days31to60: arDays31to60,
+            days61to90: arDays61to90,
+            over90: arOver90,
+            total: arTotal,
+            badDebtProvision,
+          },
+          workingCapital: {
+            currentAssets,
+            currentLiabilities,
+            workingCapital: workingCapitalAmount,
+            currentRatio,
+          },
+          equityChanges: {
+            openingEquity,
+            netIncome: equityNetIncome,
+            otherChanges: 0,
+            closingEquity,
+          },
         },
         facilitatedVolume: {
           totalFacilitatedRentVolume,
