@@ -338,7 +338,10 @@ export default function HREmployeeDirectory() {
                     <TableCell onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}>
                       <div className="flex items-center gap-2.5">
                         <UserAvatar avatarUrl={emp.profile?.avatar_url} fullName={emp.profile?.full_name} size="sm" />
-                        <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">{emp.profile?.full_name || 'Unknown'}</span>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="font-medium text-sm truncate group-hover:text-primary transition-colors">{emp.profile?.full_name || 'Unknown'}</span>
+                          {emp.staffProfile?.employee_id && <EmployeeBadge employeeId={emp.staffProfile.employee_id} className="w-fit" />}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-xs text-muted-foreground font-mono" onClick={() => navigate(`/hr/profiles/${emp.user_id}`)}>
