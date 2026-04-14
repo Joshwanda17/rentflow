@@ -779,7 +779,10 @@ export function FinancialStatementsPanel() {
         addRow('Financial Agent Expenses', d.operatingExpenses.financialAgentExpenses, false, true, true);
         addRow('Marketing Expenses', d.operatingExpenses.marketingExpenses, false, true, true);
         addRow('Research & Development', d.operatingExpenses.researchDevelopment, false, true, true);
-        addRow('General Operating', d.operatingExpenses.generalOperating, false, true, true);
+        addRow('Tax Expense', d.operatingExpenses.taxExpense, false, true, true);
+        addRow('Interest Expense', d.operatingExpenses.interestExpense, false, true, true);
+        addRow('Equipment & Depreciation', d.operatingExpenses.equipmentExpense, false, true, true);
+        addRow('General & Admin', d.operatingExpenses.generalOperating, false, true, true);
         addRow('Total Operating Expenses', d.operatingExpenses.total, true, true);
         y += 3;
         pdf.setFontSize(11);
