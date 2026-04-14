@@ -139,19 +139,24 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
   const roiUrgent = roiDays !== null && roiDays <= 5;
 
   const handleRename = async () => {
-    if (!newName.trim() || !portfolio.id) return;
+    const trimmed = newName.trim();
+    if (!trimmed || !portfolio.id) return;
     setSaving(true);
-    const { error } = await supabase
-      .from('investor_portfolios')
-      .update({ account_name: newName.trim() })
-      .eq('id', portfolio.id);
-    setSaving(false);
-    if (error) {
-      toast.error('Failed to rename account');
-    } else {
-      toast.success('Account renamed');
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ account_name: trimmed } as any)
+        .eq('id', portfolio.id);
+      if (error) throw error;
+      // Update local state immediately so UI reflects the change
+      (portfolio as any).account_name = trimmed;
+      toast.success('Account renamed successfully');
       setIsRenaming(false);
-      onRenamed();
+      onRenamed(); // triggers list refetch
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to rename account');
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -19,7 +19,7 @@ interface PaymentConfirmationFormProps {
 export default function PaymentConfirmationForm({ dashboardType, onSuccess }: PaymentConfirmationFormProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
-  const [partner, setPartner] = useState<'mtn' | 'airtel' | ''>('');
+  const [partner, setPartner] = useState<'mtn' | 'airtel' | 'bank' | ''>('');
   const [transactionId, setTransactionId] = useState('');
   const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [transactionTime, setTransactionTime] = useState(format(new Date(), 'HH:mm'));
@@ -195,13 +195,14 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
             </div>
             <div className="space-y-2">
               <Label htmlFor="partner">Payment Partner *</Label>
-              <Select value={partner} onValueChange={(v) => setPartner(v as 'mtn' | 'airtel')}>
+              <Select value={partner} onValueChange={(v) => setPartner(v as 'mtn' | 'airtel' | 'bank')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mtn">MTN MoMo</SelectItem>
-                  <SelectItem value="airtel">Airtel Money</SelectItem>
+                  <SelectItem value="mtn">🟡 MTN MoMo</SelectItem>
+                  <SelectItem value="airtel">🔴 Airtel Money</SelectItem>
+                  <SelectItem value="bank">🏦 Bank Transfer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
