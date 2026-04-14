@@ -286,11 +286,31 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Pending Withdrawal Provisions" value={d.platformObligations.pendingWithdrawals} negative indent />
       <LineItem label="Accrued Platform Rewards" value={d.platformObligations.accruedPlatformRewards} negative indent />
       <LineItem label="Agent Commissions Payable" value={d.platformObligations.agentCommissionsPayable} negative indent />
+      {d.platformObligations.deferredRevenue > 0 && (
+        <LineItem label="Deferred Revenue (Unrecognized Fees)" value={d.platformObligations.deferredRevenue} negative indent />
+      )}
       <LineItem label="Total Obligations" value={d.platformObligations.totalObligations} negative bold />
 
       <SectionHeader>Platform Equity</SectionHeader>
       <LineItem label="Retained Operating Surplus" value={d.platformEquity.retainedOperatingSurplus} indent />
       <LineItem label="Total Equity" value={d.platformEquity.totalEquity} bold />
+
+      {/* Revenue Recognition Summary */}
+      {d.revenueRecognition.expectedRevenue > 0 && (
+        <div className="mt-3 p-3 rounded-lg bg-warning/5 border border-warning/20 space-y-1">
+          <p className="text-xs font-semibold text-warning uppercase tracking-wider">Revenue Recognition (ASC 606)</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <span className="text-muted-foreground">Expected Revenue</span>
+            <span className="font-mono text-right">{formatUGX(d.revenueRecognition.expectedRevenue)}</span>
+            <span className="text-muted-foreground">Realized Revenue</span>
+            <span className="font-mono text-right text-success">{formatUGX(d.revenueRecognition.realizedRevenue)}</span>
+            <span className="text-muted-foreground">Deferred Revenue</span>
+            <span className="font-mono text-right text-warning">{formatUGX(d.revenueRecognition.deferredRevenue)}</span>
+            <span className="text-muted-foreground">Recognition Rate</span>
+            <span className="font-mono text-right">{d.revenueRecognition.recognitionRate.toFixed(1)}%</span>
+          </div>
+        </div>
+      )}
 
       <p className={cn('text-xs text-center pt-2 mt-1', balanced ? 'text-success' : 'text-destructive')}>
         {balanced ? '✓ Balance sheet is balanced (Assets = Obligations + Equity)' : '⚠ Requires reconciliation'}
