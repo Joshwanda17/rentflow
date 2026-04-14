@@ -37,6 +37,9 @@ export interface IncomeStatementData {
     financialAgentExpenses: number;
     marketingExpenses: number;
     researchDevelopment: number;
+    taxExpense: number;
+    interestExpense: number;
+    equipmentExpense: number;
     operationalSubcategories: {
       salaries: number;
       transport: number;
