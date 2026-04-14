@@ -91,7 +91,7 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
       <LineItem label="Referral Bonuses" value={d.serviceDeliveryCosts.referralBonuses} negative indent />
       <LineItem label="Agent Bonuses" value={d.serviceDeliveryCosts.agentBonuses} negative indent />
       <LineItem label="Transaction Expenses" value={d.serviceDeliveryCosts.transactionExpenses} negative indent />
-      <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold />
+      <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold delta={cm?.totalServiceCosts} />
 
       <SectionHeader>Operating Expenses</SectionHeader>
       <LineItem label="Payroll & Staff Costs" value={d.operatingExpenses.payrollExpenses} negative indent />
@@ -124,7 +124,7 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
         </>
       )}
       <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
-      <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
+      <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold delta={cm?.totalOperatingExpenses} />
 
       {(d.adjustments.walletDeductions > 0 || d.adjustments.systemCorrections > 0 || d.adjustments.orphanReassignments > 0 || d.adjustments.orphanReversals > 0) && (
         <>
