@@ -193,15 +193,17 @@ export function CFOActionsLog() {
         action: ACTION_LABELS[a.action_type] || a.action_type,
         amount: meta.amount || '',
         target: meta.target_name || meta.target_user_name || meta.user_name || meta.agent_name || '',
+        performed_by: a.actor_name || '',
+        role: a.is_manager_acting_as_cfo ? 'Manager (acting as CFO)' : (a.actor_roles || []).join(', '),
         reason: meta.reason || meta.description || meta.category_label || '',
         record_id: a.record_id || '',
         table: a.table_name || '',
       };
     });
 
-    const header = 'Date,Action,Amount,Target,Reason,Record ID,Table\n';
+    const header = 'Date,Action,Amount,Target,Performed By,Role,Reason,Record ID,Table\n';
     const csv = header + rows.map(r =>
-      `"${r.date}","${r.action}","${r.amount}","${r.target}","${r.reason?.replace(/"/g, '""') || ''}","${r.record_id}","${r.table}"`
+      `"${r.date}","${r.action}","${r.amount}","${r.target}","${r.performed_by}","${r.role}","${r.reason?.replace(/"/g, '""') || ''}","${r.record_id}","${r.table}"`
     ).join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -295,11 +297,23 @@ export function CFOActionsLog() {
                         {categoryLabel ? `${categoryLabel} • ` : ''}{reason}
                       </p>
                     )}
-                    <div className="flex items-center gap-1 mt-1">
-                      <Clock className="h-2.5 w-2.5 text-muted-foreground" />
-                      <p className="text-[10px] text-muted-foreground">
-                        {format(new Date(action.created_at), 'MMM d, h:mm a')}
-                      </p>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(action.created_at), 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      {action.actor_name && (
+                        <span className="text-[10px] text-primary font-medium">
+                          by {action.actor_name}
+                        </span>
+                      )}
+                      {action.is_manager_acting_as_cfo && (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 border-orange-400 text-orange-600">
+                          Manager
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
