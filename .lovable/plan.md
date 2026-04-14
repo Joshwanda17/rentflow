@@ -1,33 +1,26 @@
 
 
-## Fix: Landlords Tab Badge Count Mismatch
+## Fix: Active Tab to Show All Tenants with Active Rent Requests
 
-### Root Cause (Two bugs)
+### Problem
+The "Active" tab in the Agent's tenant list only shows tenants whose rent requests are in `approved`, `funded`, `disbursed`, or `repaying` status. It excludes tenants with `pending` or `agent_verified` requests — these are still active (in-progress) rent requests that the agent should see.
 
-**Bug 1 — Wrong column names in data query (line 23)**
-The `LandlordsPipeline` component queries `landlords!inner(id, full_name, phone, address)` but the `landlords` table has `name` (not `full_name`) and `property_address` (not `address`). The Supabase query silently errors, returning no data → "No landlords in pipeline."
+### Solution
+Expand the `activeStatuses` set to include all non-terminal statuses. A rent request is "active" if it hasn't reached a final state (`completed`, `rejected`, `defaulted`).
 
-**Bug 2 — Badge counts rent requests, not landlords (line 179)**
-The landlords badge count query is an exact duplicate of the tenants query — it counts all non-funded/rejected/cancelled `rent_requests` (12). It should count **distinct landlord_ids** from those requests instead.
+### Changes — Single File
 
-### Fix
+**`src/components/agent/AgentTenantsSheet.tsx`**
 
-**File: `src/components/executive/AgentOpsPipelineHub.tsx`**
+Update the `activeStatuses` set in two locations (filter logic ~line 217 and stats ~line 262):
 
-1. **Line 23** — Fix the select columns:
-   - `full_name` → `name`
-   - `address` → `property_address`
+```
+// Before
+const activeStatuses = new Set(['approved', 'funded', 'disbursed', 'repaying']);
 
-2. **Line 35** — Fix the grouping reference:
-   - `ll?.full_name` → `ll?.name`
-   - `ll?.address` → `ll?.property_address`
+// After
+const activeStatuses = new Set(['pending', 'agent_verified', 'approved', 'funded', 'disbursed', 'repaying']);
+```
 
-3. **Line 179** — Fix the landlords badge count to count distinct landlords with active requests:
-   - Change from counting all `rent_requests` to selecting `landlord_id` from non-funded requests, then counting unique non-null landlord IDs
-   - This ensures the badge shows the number of unique landlords, not the number of requests
-
-### Impact
-- Badge will show the correct number of unique landlords with active pipeline requests
-- The landlords list will actually load and display data
-- Detail sheets will show correct landlord names and addresses
+This ensures any tenant with a rent request still in the pipeline appears under the "Active" tab, giving the agent full visibility of all in-progress tenants.
 
