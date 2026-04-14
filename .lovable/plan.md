@@ -1,26 +1,58 @@
 
 
-## Fix: "Mukhaye Lydia" Listing Verification Failure
+## Add National ID Requirement & Duplicate Detection for Tenants
 
-### Root Cause Analysis
-
-The listing "House near the Road" (ID: `174b68cc`) posted by agent Grace Paul Ochieng is failing to verify via the "Verify → CFO" button. The red "Verification Failed" banner shows the generic fallback message "Verification failed", meaning the actual error from the backend function is not being surfaced.
-
-**Likely failure reasons (in order of probability):**
-1. The logged-in user's role isn't being found by the edge function (role check at line 45-56)
-2. The Supabase SDK error object's `.context.json()` is failing silently, masking the real error
+### Overview
+Make the National ID number a required field during tenant registration, enforce that the name on the ID matches the registered name, and detect duplicate National IDs to prevent double-registration.
 
 ### Changes
 
-**File: `src/components/executive/LandlordOpsDashboard.tsx`**
-- Improve the `handleVerifyListing` error handling to also check `data?.error` (some SDK versions return error body in `data` for non-2xx)
-- Add a `console.error` log so the actual error is visible in browser console for debugging
+**1. Database: Add unique constraint on `national_id`**
+- Migration: `CREATE UNIQUE INDEX IF NOT EXISTS profiles_national_id_unique ON public.profiles (national_id) WHERE national_id IS NOT NULL AND national_id != ''`
+- This allows the DB to enforce uniqueness while permitting nulls for non-tenant profiles
 
-**File: `supabase/functions/credit-listing-bonus/index.ts`**
-- Add a `console.log` at function entry to confirm invocation
-- Add a `console.log` before the role check result to diagnose role failures
-- This will make future failures diagnosable via edge function logs
+**2. Edge Function: `supabase/functions/register-tenant/index.ts`**
+- Accept `national_id` from request body
+- Validate format (alphanumeric, 10-14 chars, uppercase)
+- Before creating the user, check `profiles` for an existing `national_id` match — if found, return an error: `"A tenant with this National ID already exists"`
+- Save `national_id` to the profile after user creation
 
-### Summary
-Two small changes: better client-side error surfacing and server-side logging. No logic changes to the verification flow itself — the function should work for users with the correct roles.
+**3. Frontend: `src/components/agent/RegisterTenantDialog.tsx`**
+- National ID field is already present and required — no changes needed
+- Add client-side duplicate check: after the agent enters the National ID and leaves the field (onBlur), query `profiles` to check if that ID already exists. Show an inline error immediately: "This National ID is already registered"
+- Validate that `tenantFullName` is not empty when `tenantNationalId` is provided (already enforced by `required`)
+
+**4. Frontend: `src/components/tenant/RentRequestForm.tsx`**
+- Add the same onBlur duplicate check for the National ID field
+- Show inline error if the ID is already taken by another user (excluding the current user's own profile)
+
+### Technical Details
+
+**Duplicate check query (client-side, onBlur):**
+```typescript
+const { data } = await supabase
+  .from('profiles')
+  .select('id, full_name')
+  .eq('national_id', value.trim().toUpperCase())
+  .neq('id', currentUserId) // exclude self
+  .maybeSingle();
+if (data) setNationalIdError(`This National ID is already registered to ${data.full_name}`);
+```
+
+**Edge function validation:**
+```typescript
+function validateNationalId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim().toUpperCase();
+  if (cleaned.length < 10 || cleaned.length > 14) return null;
+  if (!/^[A-Z0-9]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+```
+
+### Files Modified
+- `supabase/functions/register-tenant/index.ts` — add national_id validation & duplicate check
+- `src/components/agent/RegisterTenantDialog.tsx` — add onBlur duplicate detection with inline error
+- `src/components/tenant/RentRequestForm.tsx` — add onBlur duplicate detection with inline error
+- New migration — unique partial index on `profiles.national_id`
 
