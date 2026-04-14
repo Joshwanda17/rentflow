@@ -245,8 +245,7 @@ Deno.serve(async (req) => {
       const { data: execs } = await supabase
         .from("user_roles")
         .select("user_id")
-        .in("role", ["cfo", "coo"])
-        .eq("enabled", true);
+        .in("role", ["cfo", "coo"]);
       if (execs && execs.length > 0) {
         const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
         if (uniqueIds.length > 0) {
