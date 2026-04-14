@@ -1,33 +1,65 @@
 
 
-## Add Renew & Delete Actions to CFO Advance Management
+## Redesign Promissory Note PDF Layout
 
-### Problem
-The CFO Advance Management tab has select + delete functionality that applies globally, but the user wants:
-1. **Completed advances**: Select → **Renew** (re-issue the advance with same agent/terms)
-2. **All advances**: Select → **Delete** (already exists but needs to be more visible per-tab)
+### Current State
+The PDF currently uses a centered purple banner header with the logo centered, company name centered, and a large title. The body mixes commitment text with investment details in various colored boxes.
 
-### Plan
+### New Layout
 
-**File: `src/components/cfo/CFOAdvancesManager.tsx`**
+**HEADER (left-aligned, professional letterhead style)**
+```text
+┌──────────────────────────────────────────────┐
+│ [Logo] WELILE TECHNOLOGIES LIMITED            │
+│         Plot 12, Kampala Road, Kampala, Uganda│
+│         info@welile.com | +256 XXX XXX XXX   │
+│         www.welile.com                        │
+│──────────────────────────────────────────────│
+│         INVESTMENT COMMITMENT NOTE            │
+│                                    Date: ...  │
+```
 
-1. **Add "Renew" state and dialog** — when completed advances are selected, show a "Renew" button that opens IssueAdvanceSheet pre-filled with the selected advance's agent ID. On renewal, set the old advance status to `renewed` or keep as `completed`.
+- Logo (left, ~14mm) with company name bold to its right
+- Below company name: address line
+- Below address: email | phone contacts
+- Below contacts: website
+- Horizontal rule (purple line)
+- Centered title "INVESTMENT COMMITMENT NOTE"
+- Right-aligned date
 
-2. **Add a `renewDialogOpen` state** and a `renewAgentId` state. When the user selects completed advances and clicks "Renew", open IssueAdvanceSheet with `preselectedAgentId` set to the first selected advance's agent.
+**BODY (structured partner & investment info)**
 
-3. **Conditional action bar** — show context-aware buttons based on the current tab filter:
-   - On the **Completed** tab: show "🔄 Renew (N)" and "🗑 Delete (N)" buttons
-   - On other tabs: show "🗑 Delete (N)" button only
-   - Both only appear when `selectedIds.size > 0`
+A clean labeled-field layout:
 
-4. **Clear selection on tab change** — reset `selectedIds` when the filter tab changes.
+| Field | Value |
+|---|---|
+| Partner Name | From form |
+| Contact Email | From form (or "N/A") |
+| WhatsApp | From form |
+| Phone | From form (or "N/A") |
+| Investment Amount | Formatted UGX |
+| Contribution Type | Monthly / Once-off |
+| Deduction Day | (if monthly) |
+| Expected Monthly Return | 15% calculation |
 
-5. **Renew handler** — for bulk renew, open the IssueAdvanceSheet pre-filled with the first selected agent. For single renew, same behavior. The old completed advance stays as-is (historical record).
+Then the commitment paragraph, "How it Works" steps, activation link box, disclaimer, and signature area — kept largely the same but repositioned after the structured info block.
 
-### Technical Details
+### Changes Required
 
-- Reuse existing `IssueAdvanceSheet` with its `preselectedAgentId` prop
-- Move action buttons into a sticky action bar that appears when items are selected
-- Add `RefreshCw` icon import for the renew button
-- Reset selections on tab switch via `onValueChange` callback
+**File: `src/lib/promissoryNotePdf.ts`**
+
+1. Update `PromissoryNoteData` interface — add `email`, `whatsappNumber`, `phoneNumber` fields
+2. Rewrite header section — logo left-aligned, company details stacked to the right of logo, HR line below
+3. Add structured "Partner Details" section with labeled rows for name, email, WhatsApp, phone
+4. Keep investment details box, how-it-works, activation link, disclaimer, signature, and footer sections (minor y-position adjustments)
+
+**File: `src/components/agent/PromissoryNoteDialog.tsx`**
+
+5. Pass `email`, `whatsappNumber`, and `phoneNumber` into `generatePromissoryNotePDF()` call
+
+### Company Details (hardcoded in PDF)
+- Address: "Plot 12, Kampala Road, Kampala, Uganda" (confirm with user if different)
+- Email: info@welile.com
+- Phone: +256 700 000 000 (placeholder — will use what's available)
+- Website: www.welile.com
 
