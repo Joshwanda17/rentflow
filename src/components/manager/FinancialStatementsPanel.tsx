@@ -160,6 +160,12 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       {d.custodialActivities.roiWalletCredits > 0 && (
         <LineItem label="ROI Wallet Credits" value={d.custodialActivities.roiWalletCredits} indent />
       )}
+      {d.custodialActivities.walletCommissionCredits > 0 && (
+        <LineItem label="Commission & Bonus Credits" value={d.custodialActivities.walletCommissionCredits} indent />
+      )}
+      {d.custodialActivities.walletCorrectionCredits > 0 && (
+        <LineItem label="CFO Credits (Corrections)" value={d.custodialActivities.walletCorrectionCredits} indent />
+      )}
       {d.custodialActivities.rentFloatFunding > 0 && (
         <LineItem label="Rent Float Funding" value={d.custodialActivities.rentFloatFunding} indent />
       )}
@@ -169,6 +175,12 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       )}
       {d.custodialActivities.walletDeductions > 0 && (
         <LineItem label="Wallet Deductions" value={d.custodialActivities.walletDeductions} negative indent />
+      )}
+      {d.custodialActivities.agentFloatUsedForRent > 0 && (
+        <LineItem label="Agent Float Used for Rent" value={d.custodialActivities.agentFloatUsedForRent} negative indent />
+      )}
+      {d.custodialActivities.walletCorrectionDebits > 0 && (
+        <LineItem label="CFO Debits (Corrections)" value={d.custodialActivities.walletCorrectionDebits} negative indent />
       )}
       <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
 
