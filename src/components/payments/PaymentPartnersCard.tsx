@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CreditCard, Phone, Copy, CheckCircle2, Banknote, Building2 } from 'lucide-react';
+import { CreditCard, Phone, Copy, CheckCircle2, Banknote, Building2, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import PaymentConfirmationForm from './PaymentConfirmationForm';
