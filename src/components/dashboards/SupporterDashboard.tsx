@@ -405,6 +405,19 @@ export default function SupporterDashboard({
             houses={virtualHouses.length}
             returnPerMonth={_formatUGX(totalRoiEarned)}
             deployed={_formatUGX(totalRentContributed)}
+            onOpenWallet={() => setShowWallet(true)}
+            onHousesTap={() => {
+              const el = document.getElementById('my-houses');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            onReturnTap={() => {
+              const el = document.getElementById('my-portfolio-accounts');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            onDeployedTap={() => {
+              const el = document.getElementById('my-portfolio-accounts');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
           />
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
