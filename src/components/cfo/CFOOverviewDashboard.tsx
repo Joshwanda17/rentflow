@@ -46,6 +46,68 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     }
   }, [refetchControls]);
 
+  const handleExportCommissions = useCallback(async () => {
+    setExportingCommissions(true);
+    try {
+      // Fetch all commission records with agent names
+      const { data, error } = await supabase
+        .from('commission_accrual_ledger')
+        .select('id, agent_id, source_type, source_id, amount, status, earned_at, approved_at, paid_at, description, percentage, event_type, commission_role, repayment_amount, rent_request_id')
+        .order('earned_at', { ascending: false });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.info('No commission records found');
+        setExportingCommissions(false);
+        return;
+      }
+
+      // Get unique agent IDs and fetch names
+      const agentIds = [...new Set(data.map(r => r.agent_id).filter(Boolean))] as string[];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', agentIds);
+
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+      // Build CSV
+      const headers = ['Agent Name', 'Phone', 'Amount (UGX)', 'Status', 'Commission Role', 'Event Type', 'Source Type', 'Percentage (%)', 'Repayment Amount', 'Description', 'Earned At', 'Approved At', 'Paid At'];
+      const rows = data.map(r => {
+        const profile = profileMap.get(r.agent_id || '');
+        return [
+          profile?.full_name || 'Unknown',
+          profile?.phone || '',
+          r.amount,
+          r.status,
+          r.commission_role || '',
+          r.event_type || '',
+          r.source_type || '',
+          r.percentage || '',
+          r.repayment_amount || '',
+          (r.description || '').replace(/,/g, ';'),
+          r.earned_at ? new Date(r.earned_at).toLocaleDateString() : '',
+          r.approved_at ? new Date(r.approved_at).toLocaleDateString() : '',
+          r.paid_at ? new Date(r.paid_at).toLocaleDateString() : '',
+        ].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `agent_commission_report_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${data.length} commission records`);
+    } catch (e: any) {
+      toast.error(e.message || 'Export failed');
+    } finally {
+      setExportingCommissions(false);
+    }
+  }, []);
+
   // Build 7-tier priority groups for "Money We Have — Sources" (must be before early returns)
   const cashSourceGroups = useMemo(() => {
     const increases = platformCash?.increases ?? [];
