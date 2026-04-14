@@ -1,14 +1,17 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, UserCheck, FileText, Home, Phone, MapPin } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Users, UserCheck, FileText, Home, Phone, MapPin, Search } from 'lucide-react';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 
 function LandlordsPipeline() {
+  const [search, setSearch] = useState('');
   const { data: landlords = [], isLoading } = useQuery({
     queryKey: ['pipeline-landlords'],
     queryFn: async () => {
@@ -34,12 +37,27 @@ function LandlordsPipeline() {
     },
   });
 
+  const q = search.toLowerCase().trim();
+  const filtered = landlords.filter(ll =>
+    !q || ll.name.toLowerCase().includes(q) || ll.phone.includes(q) || ll.address.toLowerCase().includes(q)
+  );
+
   if (isLoading) return <div className="text-center py-8 text-muted-foreground text-sm">Loading landlords...</div>;
   if (landlords.length === 0) return <div className="text-center py-8 text-muted-foreground text-sm">No landlords in pipeline</div>;
 
   return (
-    <div className="space-y-2">
-      {landlords.map((ll, i) => (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Search by name, phone, or address..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-8 h-8 text-xs"
+        />
+      </div>
+      {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No matching landlords</p>}
+      {filtered.map((ll, i) => (
         <Card key={i} className="border">
           <CardContent className="p-3 space-y-1.5">
             <div className="flex items-start justify-between">

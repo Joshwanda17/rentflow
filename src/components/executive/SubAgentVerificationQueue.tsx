@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock } from 'lucide-react';
+import { UsersRound, CheckCircle, XCircle, Loader2, Phone, Calendar, Clock, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SubAgentRecord {
@@ -32,6 +32,7 @@ export function SubAgentVerificationQueue() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('pending');
+  const [search, setSearch] = useState('');
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['subagent-verification-queue'],
@@ -65,8 +66,12 @@ export function SubAgentVerificationQueue() {
     staleTime: 30000,
   });
 
-  const pending = (records || []).filter(r => r.status === 'pending');
-  const verified = (records || []).filter(r => r.status === 'verified');
+  const q = search.toLowerCase().trim();
+  const filtered = (records || []).filter(r =>
+    !q || r.sub_name.toLowerCase().includes(q) || r.parent_name.toLowerCase().includes(q) || r.sub_phone.includes(q) || r.parent_phone.includes(q)
+  );
+  const pending = filtered.filter(r => r.status === 'pending');
+  const verified = filtered.filter(r => r.status === 'verified');
 
   const handleVerify = async (id: string) => {
     if (!user?.id) return;
@@ -214,6 +219,15 @@ export function SubAgentVerificationQueue() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
+        <div className="relative mb-3">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or phone..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8 h-8 text-xs"
+          />
+        </div>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full grid grid-cols-2 mb-3">
             <TabsTrigger
