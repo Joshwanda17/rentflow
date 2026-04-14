@@ -6,11 +6,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
+import { useEmployeeAgreement } from '@/hooks/useEmployeeAgreement';
 import type { AppRole } from '@/hooks/useAuth';
+import { STAFF_ROLES } from '@/lib/roleConstants';
+import { EmployeeBadge } from '@/components/employee/EmployeeBadge';
 
 const TenantAgreementModal = lazy(() => import('@/components/tenant/agreement').then(m => ({ default: m.TenantAgreementModal })));
 const AgentAgreementModal = lazy(() => import('@/components/agent/agreement').then(m => ({ default: m.AgentAgreementModal })));
 const SupporterAgreementModal = lazy(() => import('@/components/supporter/agreement').then(m => ({ default: m.SupporterAgreementModal })));
+const EmployeeAgreementModal = lazy(() => import('@/components/employee/EmployeeAgreementModal'));
 
 function AgreementRow({ label, accepted, acceptedAt, onView, note }: { label: string; accepted: boolean; acceptedAt?: string | null; onView: () => void; note?: string }) {
   return (
