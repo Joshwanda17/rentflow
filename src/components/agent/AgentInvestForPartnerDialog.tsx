@@ -63,6 +63,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setReceiptFile(null);
       setReceiptPreview(null);
       setSuccess(null);
+      setShortActivationLink(null);
       setShowConfirm(false);
     }
   }, [open]);
