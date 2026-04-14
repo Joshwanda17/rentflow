@@ -217,7 +217,10 @@ export interface ComparisonMetrics {
   otherServiceIncome: DeltaValue;
   advanceAccessFeesCollected: DeltaValue;
   totalServiceCosts: DeltaValue;
+  grossProfit: DeltaValue;
   totalOperatingExpenses: DeltaValue;
+  operatingIncome: DeltaValue;
+  ebitda: DeltaValue;
   netOperatingIncome: DeltaValue;
   netOperatingCash: DeltaValue;
   netFacilitation: DeltaValue;
