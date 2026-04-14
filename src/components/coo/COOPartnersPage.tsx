@@ -691,9 +691,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
         const pending: Record<string, { count: number; total: number }> = {};
         const awaiting: Record<string, { count: number; total: number }> = {};
+        const approved: Record<string, { count: number; total: number }> = {};
         (pendingRes.data || []).forEach((op: any) => {
           const key = op.source_id;
-          if (op.status === 'awaiting_verification' || op.status === 'approved') {
+          if (op.status === 'approved') {
+            if (!approved[key]) approved[key] = { count: 0, total: 0 };
+            approved[key].count += 1;
+            approved[key].total += Number(op.amount);
+          } else if (op.status === 'awaiting_verification') {
             if (!awaiting[key]) awaiting[key] = { count: 0, total: 0 };
             awaiting[key].count += 1;
             awaiting[key].total += Number(op.amount);
@@ -705,6 +710,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         });
         setPendingTopUps(pending);
         setAwaitingVerification(awaiting);
+        setApprovedTopUps(approved);
       }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
