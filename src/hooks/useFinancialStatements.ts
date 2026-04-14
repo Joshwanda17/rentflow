@@ -242,44 +242,30 @@ export function useFinancialStatements() {
       };
 
       const [
-        platformInRes, platformOutRes,
-        walletInRes, walletOutRes,
-        bridgeInRes, bridgeOutRes,
+        platformIn, platformOut,
+        walletIn, walletOut,
+        bridgeIn, bridgeOut,
         walletsRes, rentRequestsRes, advancesRes,
-        prevPlatformRes, allTimePlatformRes, promissoryNotesRes,
+        prevPlatform, allTimePlatformRes, promissoryNotesRes,
       ] = await Promise.all([
-        buildScopedQuery('platform', 'cash_in'),
-        buildScopedQuery('platform', 'cash_out'),
-        buildScopedQuery('wallet', 'cash_in'),
-        buildScopedQuery('wallet', 'cash_out'),
-        buildScopedQuery('bridge', 'cash_in'),
-        buildScopedQuery('bridge', 'cash_out'),
+        fetchAllScoped('platform', 'cash_in'),
+        fetchAllScoped('platform', 'cash_out'),
+        fetchAllScoped('wallet', 'cash_in'),
+        fetchAllScoped('wallet', 'cash_out'),
+        fetchAllScoped('bridge', 'cash_in'),
+        fetchAllScoped('bridge', 'cash_out'),
         supabase.rpc('get_wallet_totals'),
-        supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at'),
+        supabase.from('rent_requests').select('id, rent_amount, access_fee, request_fee, status, tenant_id, agent_id, created_at').limit(10000),
         supabase.from('agent_advances').select('access_fee, access_fee_collected, access_fee_status, status').in('status', ['active', 'overdue']),
-        (() => {
-          if (!startDate) return Promise.resolve({ data: [], error: null });
-           let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
-           q = q.lt('transaction_date', startDate.toISOString());
-           q = q.eq('ledger_scope', 'platform');
-           q = q.in('classification', ['production', 'legacy_real']);
-          return q;
-        })(),
+        fetchAllPrevPlatform(),
         supabase.rpc('get_platform_cash_summary'),
         supabase.from('promissory_notes').select('amount, total_collected, status').in('status', ['pending', 'activated']),
       ]);
 
-      const platformIn = platformInRes.data || [];
-      const platformOut = platformOutRes.data || [];
-      const walletIn = walletInRes.data || [];
-      const walletOut = walletOutRes.data || [];
-      const bridgeIn = bridgeInRes.data || [];
-      const bridgeOut = bridgeOutRes.data || [];
       const walletTotalsData = walletsRes.data as any;
       const wallets = [{ balance: Number(walletTotalsData?.total_balance ?? 0) }];
       const rentRequests = rentRequestsRes.data || [];
       const activeAdvances = advancesRes.data || [];
-      const prevPlatform = prevPlatformRes.data || [];
       const allTimePlatformSummary = allTimePlatformRes.data as any;
       const promissoryNotes = promissoryNotesRes.data || [];
 
