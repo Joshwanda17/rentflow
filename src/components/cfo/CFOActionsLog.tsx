@@ -174,6 +174,7 @@ export function CFOActionsLog() {
     const label = ACTION_LABELS[a.action_type] || a.action_type;
     return (
       label.toLowerCase().includes(s) ||
+      a.actor_name?.toLowerCase().includes(s) ||
       meta.target_name?.toLowerCase().includes(s) ||
       meta.target_user_name?.toLowerCase().includes(s) ||
       meta.user_name?.toLowerCase().includes(s) ||
