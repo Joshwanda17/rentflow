@@ -65,7 +65,6 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Financial Agent Expenses" value={d.operatingExpenses.financialAgentExpenses} negative indent />
       <LineItem label="Marketing Expenses" value={d.operatingExpenses.marketingExpenses} negative indent />
       <LineItem label="Research & Development" value={d.operatingExpenses.researchDevelopment} negative indent />
-      {/* Operational Subcategories */}
       {(d.operatingExpenses.operationalSubcategories.salaries > 0 ||
         d.operatingExpenses.operationalSubcategories.transport > 0 ||
         d.operatingExpenses.operationalSubcategories.food > 0 ||
@@ -93,6 +92,17 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
       <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
 
+      {(d.adjustments.walletDeductions > 0 || d.adjustments.systemCorrections > 0 || d.adjustments.orphanReassignments > 0 || d.adjustments.orphanReversals > 0) && (
+        <>
+          <SectionHeader>Adjustments & Corrections</SectionHeader>
+          {d.adjustments.walletDeductions > 0 && <LineItem label="Wallet Deductions (Recoveries)" value={d.adjustments.walletDeductions} indent />}
+          {d.adjustments.systemCorrections > 0 && <LineItem label="System Balance Corrections" value={d.adjustments.systemCorrections} indent />}
+          {d.adjustments.orphanReassignments > 0 && <LineItem label="Orphan Reassignments" value={d.adjustments.orphanReassignments} indent />}
+          {d.adjustments.orphanReversals > 0 && <LineItem label="Orphan Reversals" value={d.adjustments.orphanReversals} negative indent />}
+          <LineItem label="Net Adjustments" value={d.adjustments.total} bold />
+        </>
+      )}
+
       <div className={cn(
         'flex justify-between text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
         d.netOperatingIncome >= 0 ? 'text-success' : 'text-destructive'
@@ -112,6 +122,12 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="Other Platform Income" value={d.operatingActivities.otherServiceIncome} indent />
       <LineItem label="Platform Rewards Paid" value={d.operatingActivities.platformRewardsPaid} negative indent />
       <LineItem label="Agent Commissions Paid" value={d.operatingActivities.agentCommissionsPaid} negative indent />
+      {d.operatingActivities.agentCommissionWithdrawals > 0 && (
+        <LineItem label="Agent Commission Withdrawals" value={d.operatingActivities.agentCommissionWithdrawals} negative indent />
+      )}
+      {d.operatingActivities.agentCommissionUsedForRent > 0 && (
+        <LineItem label="Agent Commission Used for Rent" value={d.operatingActivities.agentCommissionUsedForRent} negative indent />
+      )}
       <LineItem label="Payroll Paid" value={d.operatingActivities.payrollPaid} negative indent />
       <LineItem label="Agent Requisitions Paid" value={d.operatingActivities.agentRequisitionsPaid} negative indent />
       <LineItem label="Financial Agent Expenses Paid" value={d.operatingActivities.financialAgentExpensesPaid} negative indent />
@@ -124,17 +140,47 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
       <LineItem label="Rent Repayments Received" value={d.facilitationActivities.rentRepayments} indent />
+      {d.facilitationActivities.rentPrincipalCollected > 0 && (
+        <LineItem label="Rent Principal Collected" value={d.facilitationActivities.rentPrincipalCollected} indent />
+      )}
+      {d.facilitationActivities.agentRepayments > 0 && (
+        <LineItem label="Agent Repayments" value={d.facilitationActivities.agentRepayments} indent />
+      )}
       <LineItem label="Rent Deployed to Landlords" value={d.facilitationActivities.rentDeployments} negative indent />
+      {d.facilitationActivities.rentDisbursements > 0 && (
+        <LineItem label="Rent Disbursements" value={d.facilitationActivities.rentDisbursements} negative indent />
+      )}
       <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold />
 
       <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
-      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits and withdrawals by users</p>
+      <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits, withdrawals, and wallet movements</p>
       <LineItem label="User Deposits Received" value={d.custodialActivities.userDeposits} indent />
+      {d.custodialActivities.roiWalletCredits > 0 && (
+        <LineItem label="ROI Wallet Credits" value={d.custodialActivities.roiWalletCredits} indent />
+      )}
+      {d.custodialActivities.rentFloatFunding > 0 && (
+        <LineItem label="Rent Float Funding" value={d.custodialActivities.rentFloatFunding} indent />
+      )}
       <LineItem label="User Withdrawals Processed" value={d.custodialActivities.userWithdrawals} negative indent />
+      {d.custodialActivities.userTransfers > 0 && (
+        <LineItem label="Wallet Transfers" value={d.custodialActivities.userTransfers} negative indent />
+      )}
+      {d.custodialActivities.walletDeductions > 0 && (
+        <LineItem label="Wallet Deductions" value={d.custodialActivities.walletDeductions} negative indent />
+      )}
       <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
 
       <SectionHeader>Financing Activities</SectionHeader>
       <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
+      {d.financingActivities.partnerFunding > 0 && (
+        <LineItem label="Partner Funding" value={d.financingActivities.partnerFunding} indent />
+      )}
+      {d.financingActivities.shareCapital > 0 && (
+        <LineItem label="Share Capital" value={d.financingActivities.shareCapital} indent />
+      )}
+      {d.financingActivities.roiReinvestment > 0 && (
+        <LineItem label="ROI Reinvestment" value={d.financingActivities.roiReinvestment} indent />
+      )}
       <LineItem label="Supporter Capital Withdrawals" value={d.financingActivities.supporterCapitalWithdrawals} negative indent />
       <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold />
 
@@ -161,6 +207,9 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
       <LineItem label="Platform Cash (Earned Revenue)" value={d.assets.platformCash} indent />
       <LineItem label="User Funds Held in Custody" value={d.assets.userFundsHeld} indent />
       <LineItem label="Rent Receivables (Funded)" value={d.assets.receivables} indent />
+      {d.assets.rentReceivablesCreated > 0 && (
+        <LineItem label="Rent Receivables Created" value={d.assets.rentReceivablesCreated} indent />
+      )}
       <LineItem label="Advance Access Fee Receivables" value={d.assets.advanceAccessFeeReceivables} indent />
       <LineItem label="Promissory Notes Receivable" value={d.assets.promissoryNotesReceivable} indent />
       <LineItem label="Total Assets" value={d.assets.totalAssets} bold />
@@ -318,6 +367,13 @@ export function FinancialStatementsPanel() {
       if (d.operatingExpenses.operationalSubcategories.interests) rows.push(['  Interests', '', -d.operatingExpenses.operationalSubcategories.interests]);
       rows.push(['General Operating Expenses', '', -d.operatingExpenses.generalOperating]);
       rows.push(['Total Operating Expenses', '', -d.operatingExpenses.total]);
+      rows.push(['', '', '']);
+      rows.push(['ADJUSTMENTS & CORRECTIONS', '', '']);
+      if (d.adjustments.walletDeductions) rows.push(['Wallet Deductions (Recoveries)', '', d.adjustments.walletDeductions]);
+      if (d.adjustments.systemCorrections) rows.push(['System Balance Corrections', '', d.adjustments.systemCorrections]);
+      if (d.adjustments.orphanReassignments) rows.push(['Orphan Reassignments', '', d.adjustments.orphanReassignments]);
+      if (d.adjustments.orphanReversals) rows.push(['Orphan Reversals', '', -d.adjustments.orphanReversals]);
+      rows.push(['Net Adjustments', '', d.adjustments.total]);
       rows.push(['NET OPERATING INCOME', '', d.netOperatingIncome]);
     } else if (activeTab === 'cashflow') {
       const d = data.cashFlow;
@@ -328,6 +384,8 @@ export function FinancialStatementsPanel() {
       rows.push(['Other Platform Income', '', d.operatingActivities.otherServiceIncome]);
       rows.push(['Platform Rewards Paid', '', -d.operatingActivities.platformRewardsPaid]);
       rows.push(['Agent Commissions Paid', '', -d.operatingActivities.agentCommissionsPaid]);
+      if (d.operatingActivities.agentCommissionWithdrawals) rows.push(['Agent Commission Withdrawals', '', -d.operatingActivities.agentCommissionWithdrawals]);
+      if (d.operatingActivities.agentCommissionUsedForRent) rows.push(['Agent Commission Used for Rent', '', -d.operatingActivities.agentCommissionUsedForRent]);
       rows.push(['Payroll Paid', '', -d.operatingActivities.payrollPaid]);
       rows.push(['Agent Requisitions Paid', '', -d.operatingActivities.agentRequisitionsPaid]);
       rows.push(['Financial Agent Expenses Paid', '', -d.operatingActivities.financialAgentExpensesPaid]);
@@ -339,16 +397,26 @@ export function FinancialStatementsPanel() {
       rows.push(['', '', '']);
       rows.push(['RENT FACILITATION (PASS-THROUGH)', '', '']);
       rows.push(['Rent Repayments Received', '', d.facilitationActivities.rentRepayments]);
+      if (d.facilitationActivities.rentPrincipalCollected) rows.push(['Rent Principal Collected', '', d.facilitationActivities.rentPrincipalCollected]);
+      if (d.facilitationActivities.agentRepayments) rows.push(['Agent Repayments', '', d.facilitationActivities.agentRepayments]);
       rows.push(['Rent Deployed to Landlords', '', -d.facilitationActivities.rentDeployments]);
+      if (d.facilitationActivities.rentDisbursements) rows.push(['Rent Disbursements', '', -d.facilitationActivities.rentDisbursements]);
       rows.push(['Net Facilitation', '', d.facilitationActivities.netFacilitation]);
       rows.push(['', '', '']);
       rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
       rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
+      if (d.custodialActivities.roiWalletCredits) rows.push(['ROI Wallet Credits', '', d.custodialActivities.roiWalletCredits]);
+      if (d.custodialActivities.rentFloatFunding) rows.push(['Rent Float Funding', '', d.custodialActivities.rentFloatFunding]);
       rows.push(['User Withdrawals Processed', '', -d.custodialActivities.userWithdrawals]);
+      if (d.custodialActivities.userTransfers) rows.push(['Wallet Transfers', '', -d.custodialActivities.userTransfers]);
+      if (d.custodialActivities.walletDeductions) rows.push(['Wallet Deductions', '', -d.custodialActivities.walletDeductions]);
       rows.push(['Net Change in Custody', '', d.custodialActivities.netCustodial]);
       rows.push(['', '', '']);
       rows.push(['FINANCING ACTIVITIES', '', '']);
       rows.push(['Supporter Capital Inflows', '', d.financingActivities.supporterCapitalInflows]);
+      if (d.financingActivities.partnerFunding) rows.push(['Partner Funding', '', d.financingActivities.partnerFunding]);
+      if (d.financingActivities.shareCapital) rows.push(['Share Capital', '', d.financingActivities.shareCapital]);
+      if (d.financingActivities.roiReinvestment) rows.push(['ROI Reinvestment', '', d.financingActivities.roiReinvestment]);
       rows.push(['Supporter Capital Withdrawals', '', -d.financingActivities.supporterCapitalWithdrawals]);
       rows.push(['Net Financing Cash', '', d.financingActivities.netFinancing]);
       rows.push(['', '', '']);
@@ -363,6 +431,7 @@ export function FinancialStatementsPanel() {
       rows.push(['Platform Cash (Earned Revenue)', '', d.assets.platformCash]);
       rows.push(['User Funds Held in Custody', '', d.assets.userFundsHeld]);
       rows.push(['Rent Receivables (Funded)', '', d.assets.receivables]);
+      if (d.assets.rentReceivablesCreated) rows.push(['Rent Receivables Created', '', d.assets.rentReceivablesCreated]);
       rows.push(['Advance Access Fee Receivables', '', d.assets.advanceAccessFeeReceivables]);
       rows.push(['Promissory Notes Receivable', '', d.assets.promissoryNotesReceivable]);
       rows.push(['Total Assets', '', d.assets.totalAssets]);
