@@ -276,7 +276,7 @@ export function useFinancialStatements() {
       const legacyMarketingExpense = sumBy(walletOut, ['marketing_expense']) + sumBy(platformOut, ['marketing_expense']);
       const tenantDefaultCharges = sumBy(walletOut, ['tenant_default_charge']);
       const debtClearance = sumBy(walletOut, ['debt_clearance']);
-      const financialAgentExpenses = sumWithDirectionFallback(platformOut, platformIn, ['platform_expense_disbursement']);
+      // financialAgentExpenses already declared above
 
       // Subcategory expenses from system_balance_correction entries
       const sumByDescriptionMatch = (rows: any[], pattern: string) =>
