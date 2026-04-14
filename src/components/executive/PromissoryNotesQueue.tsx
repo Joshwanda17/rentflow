@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText, ArrowLeft } from 'lucide-react';
+import { Search, User, Phone, Calendar, TrendingUp, CheckCircle, Clock, AlertTriangle, XCircle, Mail, MessageCircle, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CompactAmount } from '@/components/ui/CompactAmount';
