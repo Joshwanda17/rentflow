@@ -106,12 +106,13 @@ export function InvestmentWithdrawButton() {
       });
 
       toast({
-        title: '📋 Withdrawal Request Submitted',
-        description: `Your request to withdraw ${formatUGX(amountNum)} has been submitted. Monthly rewards are now PAUSED. Payout after ${format(processDate, 'MMMM d, yyyy')}.`,
+        title: '⏳ Awaiting Approval',
+        description: `Your withdrawal of ${formatUGX(amountNum)} has been submitted and is awaiting approval. You'll be notified once reviewed.`,
       });
 
       setAmount('');
       setReason('');
+      setStep('form');
       setOpen(false);
     } catch (err: any) {
       console.error('[InvestmentWithdrawButton] Error:', err);
