@@ -187,7 +187,7 @@ export function CFOAdvancesManager() {
       </Card>
 
       {/* Filters */}
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
+      <Tabs value={filter} onValueChange={(v) => { setFilter(v as any); setSelectedIds(new Set()); }}>
         <TabsList>
           <TabsTrigger value="all">All ({advances.length})</TabsTrigger>
           <TabsTrigger value="active">Active ({advances.filter((a: any) => a.status === 'active').length})</TabsTrigger>
@@ -195,6 +195,35 @@ export function CFOAdvancesManager() {
           <TabsTrigger value="overdue">Overdue ({advances.filter((a: any) => a.status === 'overdue').length})</TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Sticky Selection Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-10 flex items-center gap-2 rounded-lg border bg-card p-3 shadow-sm">
+          <span className="text-sm font-medium text-muted-foreground">{selectedIds.size} selected</span>
+          <div className="ml-auto flex gap-2">
+            {filter === 'completed' && (
+              <Button
+                size="sm"
+                variant="soft"
+                className="gap-1"
+                onClick={() => {
+                  const firstId = Array.from(selectedIds)[0];
+                  const adv = advances.find((a: any) => a.id === firstId);
+                  if (adv) {
+                    setRenewAgentId(adv.agent_id);
+                    setRenewOpen(true);
+                  }
+                }}
+              >
+                <RefreshCw className="h-4 w-4" /> Renew ({selectedIds.size})
+              </Button>
+            )}
+            <Button variant="destructive" size="sm" className="gap-1" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4" /> Delete ({selectedIds.size})
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       {isLoading ? (
