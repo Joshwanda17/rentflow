@@ -287,6 +287,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
   // Top-ups awaiting Financial Ops verification (status: awaiting_verification)
   const [awaitingVerification, setAwaitingVerification] = useState<Record<string, { count: number; total: number }>>({});
+  // Top-ups approved and parked until next ROI cycle (status: approved)
+  const [approvedTopUps, setApprovedTopUps] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
 
   // Portfolio name editing
@@ -689,9 +691,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
         const pending: Record<string, { count: number; total: number }> = {};
         const awaiting: Record<string, { count: number; total: number }> = {};
+        const approved: Record<string, { count: number; total: number }> = {};
         (pendingRes.data || []).forEach((op: any) => {
           const key = op.source_id;
-          if (op.status === 'awaiting_verification' || op.status === 'approved') {
+          if (op.status === 'approved') {
+            if (!approved[key]) approved[key] = { count: 0, total: 0 };
+            approved[key].count += 1;
+            approved[key].total += Number(op.amount);
+          } else if (op.status === 'awaiting_verification') {
             if (!awaiting[key]) awaiting[key] = { count: 0, total: 0 };
             awaiting[key].count += 1;
             awaiting[key].total += Number(op.amount);
@@ -703,6 +710,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         });
         setPendingTopUps(pending);
         setAwaitingVerification(awaiting);
+        setApprovedTopUps(approved);
       }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
@@ -1667,6 +1675,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                         {p.status}
                                       </span>
                                     </div>
+                                    {approvedTopUps[p.id]?.total > 0 && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap shrink-0">
+                                        ✅ Approved Top-up {formatUGX(approvedTopUps[p.id].total)}
+                                      </span>
+                                    )}
                                     {(pendingTopUps[p.id]?.total > 0 || awaitingVerification[p.id]?.total > 0) && (
                                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap shrink-0">
                                         ⏳ Awaiting Top-up {formatUGX((pendingTopUps[p.id]?.total || 0) + (awaitingVerification[p.id]?.total || 0))}
@@ -1719,6 +1732,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                 <div className="flex items-center gap-1.5 mb-2.5">
                                   <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-blue-500/40 text-blue-600 bg-blue-500/5">
                                     🔍 {awaitingVerification[p.id].count} awaiting verification: {formatUGX(awaitingVerification[p.id].total)}
+                                  </Badge>
+                                </div>
+                              )}
+                              {approvedTopUps[p.id] && (
+                                <div className="flex items-center gap-1.5 mb-2.5">
+                                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-emerald-500/40 text-emerald-600 bg-emerald-500/5">
+                                    ✅ {approvedTopUps[p.id].count} approved top-up{approvedTopUps[p.id].count > 1 ? 's' : ''}: {formatUGX(approvedTopUps[p.id].total)} — applied at next ROI cycle
                                   </Badge>
                                 </div>
                               )}
