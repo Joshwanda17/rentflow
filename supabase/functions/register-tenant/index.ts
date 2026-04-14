@@ -23,6 +23,14 @@ function validatePhone(value: unknown): string | null {
   return cleaned;
 }
 
+function validateNationalId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim().toUpperCase();
+  if (cleaned.length < 10 || cleaned.length > 14) return null;
+  if (!/^[A-Z0-9]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
 function validateEmail(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const cleaned = value.trim().toLowerCase();
