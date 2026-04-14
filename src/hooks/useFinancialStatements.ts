@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
+import { startOfDay, endOfDay, subDays, subWeeks, subMonths, subYears, startOfMonth, startOfYear, differenceInDays } from 'date-fns';
 
 export type StatementPeriod = 'today' | '7days' | '30days' | 'month' | 'year' | 'all';
+export type ComparisonMode = 'none' | 'dod' | 'wow' | 'mom' | 'yoy';
 
 export interface StatementFilters {
   period: StatementPeriod;
@@ -147,6 +148,63 @@ export interface FacilitatedVolumeData {
   supporterCapitalDeployed: number;
 }
 
+export interface DeltaValue {
+  current: number;
+  previous: number;
+  change: number;
+  changePercent: number | null;
+}
+
+export interface ComparisonMetrics {
+  totalRevenue: DeltaValue;
+  accessFees: DeltaValue;
+  requestFees: DeltaValue;
+  otherServiceIncome: DeltaValue;
+  advanceAccessFeesCollected: DeltaValue;
+  totalServiceCosts: DeltaValue;
+  totalOperatingExpenses: DeltaValue;
+  netOperatingIncome: DeltaValue;
+  netOperatingCash: DeltaValue;
+  netFacilitation: DeltaValue;
+  netCustodial: DeltaValue;
+  netFinancing: DeltaValue;
+  netCashMovement: DeltaValue;
+  closingBalance: DeltaValue;
+  totalFacilitatedRentVolume: DeltaValue;
+  approvedRequests: DeltaValue;
+  activeTenants: DeltaValue;
+  activeAgents: DeltaValue;
+}
+
+function computeDelta(current: number, previous: number): DeltaValue {
+  const change = current - previous;
+  const changePercent = previous !== 0 ? (change / Math.abs(previous)) * 100 : null;
+  return { current, previous, change, changePercent };
+}
+
+export function buildComparisonMetrics(c: FinancialStatementsData, p: FinancialStatementsData): ComparisonMetrics {
+  return {
+    totalRevenue: computeDelta(c.incomeStatement.revenue.total, p.incomeStatement.revenue.total),
+    accessFees: computeDelta(c.incomeStatement.revenue.accessFees, p.incomeStatement.revenue.accessFees),
+    requestFees: computeDelta(c.incomeStatement.revenue.requestFees, p.incomeStatement.revenue.requestFees),
+    otherServiceIncome: computeDelta(c.incomeStatement.revenue.otherServiceIncome, p.incomeStatement.revenue.otherServiceIncome),
+    advanceAccessFeesCollected: computeDelta(c.incomeStatement.revenue.advanceAccessFeesCollected, p.incomeStatement.revenue.advanceAccessFeesCollected),
+    totalServiceCosts: computeDelta(c.incomeStatement.serviceDeliveryCosts.total, p.incomeStatement.serviceDeliveryCosts.total),
+    totalOperatingExpenses: computeDelta(c.incomeStatement.operatingExpenses.total, p.incomeStatement.operatingExpenses.total),
+    netOperatingIncome: computeDelta(c.incomeStatement.netOperatingIncome, p.incomeStatement.netOperatingIncome),
+    netOperatingCash: computeDelta(c.cashFlow.operatingActivities.netOperating, p.cashFlow.operatingActivities.netOperating),
+    netFacilitation: computeDelta(c.cashFlow.facilitationActivities.netFacilitation, p.cashFlow.facilitationActivities.netFacilitation),
+    netCustodial: computeDelta(c.cashFlow.custodialActivities.netCustodial, p.cashFlow.custodialActivities.netCustodial),
+    netFinancing: computeDelta(c.cashFlow.financingActivities.netFinancing, p.cashFlow.financingActivities.netFinancing),
+    netCashMovement: computeDelta(c.cashFlow.netCashMovement, p.cashFlow.netCashMovement),
+    closingBalance: computeDelta(c.cashFlow.closingBalance, p.cashFlow.closingBalance),
+    totalFacilitatedRentVolume: computeDelta(c.facilitatedVolume.totalFacilitatedRentVolume, p.facilitatedVolume.totalFacilitatedRentVolume),
+    approvedRequests: computeDelta(c.facilitatedVolume.approvedRequests, p.facilitatedVolume.approvedRequests),
+    activeTenants: computeDelta(c.facilitatedVolume.activeTenants, p.facilitatedVolume.activeTenants),
+    activeAgents: computeDelta(c.facilitatedVolume.activeAgents, p.facilitatedVolume.activeAgents),
+  };
+}
+
 export interface FinancialStatementsData {
   incomeStatement: IncomeStatementData;
   cashFlow: CashFlowData;
@@ -179,20 +237,8 @@ function formatPeriodLabel(filters: StatementFilters): string {
   return `${fmt(s)} — ${fmt(e)}`;
 }
 
-export function useFinancialStatements() {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<FinancialStatementsData | null>(null);
-  const [filters, setFilters] = useState<StatementFilters>({
-    period: '30days',
-    startDate: null,
-    endDate: null,
-  });
-
-  const generate = useCallback(async (overrideFilters?: StatementFilters) => {
-    const activeFilters = overrideFilters || filters;
-    setLoading(true);
-
-    try {
+// Standalone generation function (no React state) — used for comparison periods
+async function generateStatementsRaw(activeFilters: StatementFilters): Promise<FinancialStatementsData> {
       const { start, end } = getPeriodDates(activeFilters.period);
       const startDate = activeFilters.startDate || start;
       const endDate = activeFilters.endDate || end;
@@ -528,7 +574,76 @@ export function useFinancialStatements() {
         },
       };
 
+      return result;
+}
+
+function getPreviousPeriodDates(
+  currentStart: Date,
+  currentEnd: Date,
+  mode: ComparisonMode
+): { start: Date; end: Date } {
+  switch (mode) {
+    case 'dod': return { start: subDays(currentStart, 1), end: subDays(currentEnd, 1) };
+    case 'wow': return { start: subWeeks(currentStart, 1), end: subWeeks(currentEnd, 1) };
+    case 'mom': return { start: subMonths(currentStart, 1), end: subMonths(currentEnd, 1) };
+    case 'yoy': return { start: subYears(currentStart, 1), end: subYears(currentEnd, 1) };
+    default: {
+      const days = differenceInDays(currentEnd, currentStart);
+      return { start: subDays(currentStart, days + 1), end: subDays(currentStart, 1) };
+    }
+  }
+}
+
+function getResolvedDates(filters: StatementFilters): { start: Date | null; end: Date | null } {
+  if (filters.startDate && filters.endDate) return { start: filters.startDate, end: filters.endDate };
+  return getPeriodDates(filters.period);
+}
+
+export function useFinancialStatements() {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<FinancialStatementsData | null>(null);
+  const [previousData, setPreviousData] = useState<FinancialStatementsData | null>(null);
+  const [comparisonMode, setComparisonMode] = useState<ComparisonMode>('none');
+  const [loadingComparison, setLoadingComparison] = useState(false);
+  const [filters, setFilters] = useState<StatementFilters>({
+    period: '30days',
+    startDate: null,
+    endDate: null,
+  });
+
+  const generate = useCallback(async (overrideFilters?: StatementFilters, overrideComparison?: ComparisonMode) => {
+    const activeFilters = overrideFilters || filters;
+    const activeComparison = overrideComparison ?? comparisonMode;
+    setLoading(true);
+
+    try {
+      const result = await generateStatementsRaw(activeFilters);
       setData(result);
+
+      // Generate comparison period if needed
+      if (activeComparison !== 'none') {
+        const { start, end } = getResolvedDates(activeFilters);
+        if (start && end) {
+          setLoadingComparison(true);
+          try {
+            const prevDates = getPreviousPeriodDates(start, end, activeComparison);
+            const prevFilters: StatementFilters = {
+              period: 'all',
+              startDate: prevDates.start,
+              endDate: prevDates.end,
+            };
+            const prevResult = await generateStatementsRaw(prevFilters);
+            setPreviousData(prevResult);
+          } catch {
+            setPreviousData(null);
+          } finally {
+            setLoadingComparison(false);
+          }
+        }
+      } else {
+        setPreviousData(null);
+      }
+
       return result;
     } catch (err) {
       console.error('Financial statements generation failed:', err);
@@ -536,7 +651,7 @@ export function useFinancialStatements() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, comparisonMode]);
 
   const updatePeriod = useCallback((period: StatementPeriod) => {
     const newFilters: StatementFilters = { ...filters, period, startDate: null, endDate: null };
@@ -544,5 +659,18 @@ export function useFinancialStatements() {
     generate(newFilters);
   }, [filters, generate]);
 
-  return { data, loading, filters, generate, updatePeriod, setFilters };
+  const updateComparisonMode = useCallback((mode: ComparisonMode) => {
+    setComparisonMode(mode);
+    if (data) {
+      generate(undefined, mode);
+    }
+  }, [data, generate]);
+
+  const comparisonMetrics = data && previousData ? buildComparisonMetrics(data, previousData) : null;
+
+  return {
+    data, loading, filters, generate, updatePeriod, setFilters,
+    comparisonMode, updateComparisonMode,
+    previousData, comparisonMetrics, loadingComparison,
+  };
 }

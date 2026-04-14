@@ -1,13 +1,13 @@
 import { useRef, useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, ChevronDown, ChevronUp, Share2, Calendar } from 'lucide-react';
+import { FileText, TrendingUp, Wallet, BarChart3, Download, FileSpreadsheet, RefreshCw, Loader2, Calendar, ArrowUpRight, ArrowDownRight, Minus, GitCompareArrows } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { exportToCSV } from '@/lib/exportUtils';
-import { useFinancialStatements, type StatementPeriod, type FinancialStatementsData } from '@/hooks/useFinancialStatements';
+import { useFinancialStatements, type StatementPeriod, type FinancialStatementsData, type ComparisonMode, type ComparisonMetrics, type DeltaValue } from '@/hooks/useFinancialStatements';
 import { Progress } from '@/components/ui/progress';
 
 import { formatDynamic as formatUGX } from '@/lib/currencyFormat';
@@ -21,17 +21,49 @@ const PERIODS: { value: StatementPeriod; label: string }[] = [
   { value: 'all', label: 'All Time' },
 ];
 
+const COMPARISON_MODES: { value: ComparisonMode; label: string; short: string }[] = [
+  { value: 'none', label: 'No Comparison', short: 'Off' },
+  { value: 'dod', label: 'Day over Day', short: 'DoD' },
+  { value: 'wow', label: 'Week over Week', short: 'WoW' },
+  { value: 'mom', label: 'Month over Month', short: 'MoM' },
+  { value: 'yoy', label: 'Year over Year', short: 'YoY' },
+];
+
+function DeltaBadge({ delta }: { delta: DeltaValue | undefined }) {
+  if (!delta || (delta.change === 0 && delta.changePercent === null)) return null;
+  const isPositive = delta.change > 0;
+  const isNegative = delta.change < 0;
+  const isNeutral = delta.change === 0;
+  const pct = delta.changePercent !== null ? `${delta.changePercent > 0 ? '+' : ''}${delta.changePercent.toFixed(1)}%` : '';
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-0.5 text-[10px] font-medium rounded-full px-1.5 py-0.5 ml-1',
+      isPositive && 'bg-success/10 text-success',
+      isNegative && 'bg-destructive/10 text-destructive',
+      isNeutral && 'bg-muted text-muted-foreground',
+    )}>
+      {isPositive && <ArrowUpRight className="h-2.5 w-2.5" />}
+      {isNegative && <ArrowDownRight className="h-2.5 w-2.5" />}
+      {isNeutral && <Minus className="h-2.5 w-2.5" />}
+      {pct || formatUGX(Math.abs(delta.change))}
+    </span>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────
 
-function LineItem({ label, value, negative, bold, indent }: { label: string; value: number; negative?: boolean; bold?: boolean; indent?: boolean }) {
+function LineItem({ label, value, negative, bold, indent, delta }: { label: string; value: number; negative?: boolean; bold?: boolean; indent?: boolean; delta?: DeltaValue }) {
   const colored = negative
     ? value > 0 ? 'text-destructive' : 'text-muted-foreground'
     : value > 0 ? 'text-success' : value < 0 ? 'text-destructive' : 'text-muted-foreground';
   return (
-    <div className={cn('flex justify-between', indent && 'pl-4', bold ? 'font-semibold border-t border-border/50 pt-2 mt-1' : 'text-sm')}>
-      <span className={bold ? '' : 'text-muted-foreground'}>{label}</span>
+    <div className={cn('flex justify-between items-center', indent && 'pl-4', bold ? 'font-semibold border-t border-border/50 pt-2 mt-1' : 'text-sm')}>
+      <span className={cn(bold ? '' : 'text-muted-foreground', 'flex items-center')}>
+        {label}
+        {delta && <DeltaBadge delta={delta} />}
+      </span>
       <span className={cn('font-mono', colored)}>
         {negative && value > 0 ? `(${formatUGX(value)})` : formatUGX(value)}
       </span>
@@ -43,15 +75,15 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   return <h4 className="text-xs font-semibold text-primary uppercase tracking-wider mt-4 mb-2">{children}</h4>;
 }
 
-function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeStatement'] }) {
+function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeStatement']; cm?: ComparisonMetrics | null }) {
   return (
     <div className="space-y-1">
       <SectionHeader>Revenue</SectionHeader>
-      <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent />
-      <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent />
-      <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent />
-      <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent />
-      <LineItem label="Total Revenue" value={d.revenue.total} bold />
+      <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent delta={cm?.accessFees} />
+      <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent delta={cm?.requestFees} />
+      <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent delta={cm?.otherServiceIncome} />
+      <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent delta={cm?.advanceAccessFeesCollected} />
+      <LineItem label="Total Revenue" value={d.revenue.total} bold delta={cm?.totalRevenue} />
 
       <SectionHeader>Service Delivery Costs</SectionHeader>
       <LineItem label="Platform Rewards (Supporters)" value={d.serviceDeliveryCosts.platformRewards} negative indent />
@@ -59,7 +91,7 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       <LineItem label="Referral Bonuses" value={d.serviceDeliveryCosts.referralBonuses} negative indent />
       <LineItem label="Agent Bonuses" value={d.serviceDeliveryCosts.agentBonuses} negative indent />
       <LineItem label="Transaction Expenses" value={d.serviceDeliveryCosts.transactionExpenses} negative indent />
-      <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold />
+      <LineItem label="Total Service Costs" value={d.serviceDeliveryCosts.total} negative bold delta={cm?.totalServiceCosts} />
 
       <SectionHeader>Operating Expenses</SectionHeader>
       <LineItem label="Payroll & Staff Costs" value={d.operatingExpenses.payrollExpenses} negative indent />
@@ -92,7 +124,7 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
         </>
       )}
       <LineItem label="General Operating Expenses" value={d.operatingExpenses.generalOperating} negative indent />
-      <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold />
+      <LineItem label="Total Operating Expenses" value={d.operatingExpenses.total} negative bold delta={cm?.totalOperatingExpenses} />
 
       {(d.adjustments.walletDeductions > 0 || d.adjustments.systemCorrections > 0 || d.adjustments.orphanReassignments > 0 || d.adjustments.orphanReversals > 0) && (
         <>
@@ -106,17 +138,17 @@ function IncomeStatementSection({ d }: { d: FinancialStatementsData['incomeState
       )}
 
       <div className={cn(
-        'flex justify-between text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
+        'flex justify-between items-center text-base font-bold pt-3 border-t-2 border-primary/30 mt-2',
         d.netOperatingIncome >= 0 ? 'text-success' : 'text-destructive'
       )}>
-        <span>Net Operating Income</span>
+        <span className="flex items-center">Net Operating Income{cm && <DeltaBadge delta={cm.netOperatingIncome} />}</span>
         <span className="font-mono">{formatUGX(d.netOperatingIncome)}</span>
       </div>
     </div>
   );
 }
 
-function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
+function CashFlowSection({ d, cm }: { d: FinancialStatementsData['cashFlow']; cm?: ComparisonMetrics | null }) {
   return (
     <div className="space-y-1">
       <SectionHeader>Platform Operating Activities</SectionHeader>
@@ -137,7 +169,7 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       <LineItem label="R&D Expenses Paid" value={d.operatingActivities.rdPaid} negative indent />
       <LineItem label="Operational Expenses Paid" value={d.operatingActivities.operationalSubcatPaid} negative indent />
       <LineItem label="General Operating Expenses Paid" value={d.operatingActivities.withdrawalsPaid} negative indent />
-      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold />
+      <LineItem label="Net Platform Operating Cash" value={d.operatingActivities.netOperating} bold delta={cm?.netOperatingCash} />
 
       <SectionHeader>Rent Facilitation (Capital Pass-Through)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Tenant repayments received and rent deployed to landlords</p>
@@ -155,7 +187,7 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       {d.facilitationActivities.rentDisbursements > 0 && (
         <LineItem label="Rent Disbursements" value={d.facilitationActivities.rentDisbursements} negative indent />
       )}
-      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold />
+      <LineItem label="Net Facilitation" value={d.facilitationActivities.netFacilitation} bold delta={cm?.netFacilitation} />
 
       <SectionHeader>User Custody Flows (Not Platform Revenue)</SectionHeader>
       <p className="text-[10px] text-muted-foreground pl-4 -mt-1 mb-1">Funds held in trust — deposits, withdrawals, and wallet movements</p>
@@ -185,7 +217,7 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       {d.custodialActivities.walletCorrectionDebits > 0 && (
         <LineItem label="CFO Debits (Corrections)" value={d.custodialActivities.walletCorrectionDebits} negative indent />
       )}
-      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
+      <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold delta={cm?.netCustodial} />
 
       <SectionHeader>Financing Activities</SectionHeader>
       <LineItem label="Supporter Capital Inflows" value={d.financingActivities.supporterCapitalInflows} indent />
@@ -199,16 +231,16 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
         <LineItem label="ROI Reinvestment" value={d.financingActivities.roiReinvestment} indent />
       )}
       <LineItem label="Supporter Capital Withdrawals" value={d.financingActivities.supporterCapitalWithdrawals} negative indent />
-      <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold />
+      <LineItem label="Net Financing Cash" value={d.financingActivities.netFinancing} bold delta={cm?.netFinancing} />
 
       <div className="pt-3 mt-2 border-t-2 border-primary/30 space-y-1">
         <LineItem label="Opening Platform Balance" value={d.openingBalance} />
-        <div className={cn('flex justify-between text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
-          <span>Net Platform Cash Movement</span>
+        <div className={cn('flex justify-between items-center text-sm font-semibold', d.netCashMovement >= 0 ? 'text-success' : 'text-destructive')}>
+          <span className="flex items-center">Net Platform Cash Movement{cm && <DeltaBadge delta={cm.netCashMovement} />}</span>
           <span className="font-mono">{d.netCashMovement >= 0 ? '+' : ''}{formatUGX(d.netCashMovement)}</span>
         </div>
-        <div className="flex justify-between text-base font-bold">
-          <span>Closing Platform Balance</span>
+        <div className="flex justify-between items-center text-base font-bold">
+          <span className="flex items-center">Closing Platform Balance{cm && <DeltaBadge delta={cm.closingBalance} />}</span>
           <span className="font-mono text-primary">{formatUGX(d.closingBalance)}</span>
         </div>
       </div>
@@ -250,13 +282,14 @@ function BalanceSheetSection({ d }: { d: FinancialStatementsData['balanceSheet']
   );
 }
 
-function FacilitatedVolumeSection({ d }: { d: FinancialStatementsData['facilitatedVolume'] }) {
+function FacilitatedVolumeSection({ d, cm }: { d: FinancialStatementsData['facilitatedVolume']; cm?: ComparisonMetrics | null }) {
   const utilizationRate = d.supporterCapitalDeployed > 0 ? Math.min(100, (d.totalFacilitatedRentVolume / d.supporterCapitalDeployed) * 100) : 0;
   return (
     <div className="space-y-4">
       <div className="text-center py-3 rounded-xl bg-primary/5 border border-primary/20">
         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Facilitated Rent Volume</p>
         <p className="text-3xl font-bold font-mono text-primary">{formatUGX(d.totalFacilitatedRentVolume)}</p>
+        {cm && <DeltaBadge delta={cm.totalFacilitatedRentVolume} />}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -314,7 +347,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function FinancialStatementsPanel() {
-  const { data, loading, filters, generate, updatePeriod } = useFinancialStatements();
+  const { data, loading, filters, generate, updatePeriod, comparisonMode, updateComparisonMode, comparisonMetrics, loadingComparison } = useFinancialStatements();
   const [activeTab, setActiveTab] = useState<Tab>('income');
   const [sharing, setSharing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -698,6 +731,23 @@ export function FinancialStatementsPanel() {
         ))}
       </div>
 
+      {/* Comparison Mode Selector */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <GitCompareArrows className="h-4 w-4 text-muted-foreground shrink-0" />
+        {COMPARISON_MODES.map(m => (
+          <Button
+            key={m.value}
+            size="sm"
+            variant={comparisonMode === m.value ? 'default' : 'outline'}
+            className="text-xs h-7"
+            onClick={() => updateComparisonMode(m.value)}
+          >
+            {m.short}
+          </Button>
+        ))}
+        {loadingComparison && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+      </div>
+
       {/* Generate Button */}
       <Button
         onClick={handleGenerate}
@@ -742,14 +792,21 @@ export function FinancialStatementsPanel() {
             {/* Statement Title */}
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
               <h3 className="text-sm font-semibold">{getTabLabel()}</h3>
-              <Badge variant="outline" className="text-xs">{data.incomeStatement.period}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">{data.incomeStatement.period}</Badge>
+                {comparisonMode !== 'none' && comparisonMetrics && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    vs {COMPARISON_MODES.find(m => m.value === comparisonMode)?.label}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {/* Active Statement */}
-            {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} />}
-            {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} />}
+            {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} cm={comparisonMetrics} />}
+            {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} cm={comparisonMetrics} />}
             {activeTab === 'balance' && <BalanceSheetSection d={data.balanceSheet} />}
-            {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} />}
+            {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
 
             {/* Export Actions */}
             <div className="flex gap-2 mt-6 pt-4 border-t border-border">
