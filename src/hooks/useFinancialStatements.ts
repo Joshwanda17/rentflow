@@ -383,7 +383,7 @@ export function useFinancialStatements() {
       const cfWalletDeductions = sumBy(walletOut, ['wallet_deduction']);
       const roiWalletCredits = sumBy(walletIn, ['roi_wallet_credit', 'roi_payout']);
       const agentFloatUsedForRent = sumBy(walletOut, ['agent_float_used_for_rent']);
-      const walletCommissionCredits = sumBy(walletIn, ['agent_commission_earned', 'agent_commission', 'referral_bonus', 'agent_bonus']);
+      const walletCommissionCredits = sumBy(walletIn, ['agent_commission_earned', 'agent_commission', 'referral_bonus', 'agent_bonus', 'agent_investment_commission', 'account_merge']);
       const walletCorrectionCredits = sumBy(walletIn, ['system_balance_correction']);
       const walletCorrectionDebits = sumBy(walletOut, ['system_balance_correction']);
       const walletRentDisbursements = sumBy(walletOut, ['rent_disbursement']);
