@@ -315,40 +315,105 @@ export function DepositStatsPanel({ onOpenVerification }: DepositStatsPanelProps
                   {pendingDeposits.map((d) => (
                     <div
                       key={d.id}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border/40 bg-muted/30"
+                      className="p-3 rounded-lg border border-border/40 bg-muted/30 space-y-2"
                     >
-                      <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
-                        <User className="h-4 w-4 text-warning" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{d.depositor_name}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground truncate">
-                            {d.transaction_id || 'No ref'}
-                          </span>
-                          {d.provider && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
-                              {d.provider}
-                            </Badge>
-                          )}
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+                          <User className="h-4 w-4 text-warning" />
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          {format(new Date(d.created_at), 'MMM d, h:mm a')}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{d.depositor_name}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {d.transaction_id || 'No ref'}
+                            </span>
+                            {d.provider && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
+                                {d.provider}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            {format(new Date(d.created_at), 'MMM d, h:mm a')}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <p className="text-sm font-bold text-warning">
+                            {formatUGX(d.amount)}
+                          </p>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="soft"
+                              className="h-6 text-[10px] px-2"
+                              onClick={() => {
+                                if (verifyingId === d.id) {
+                                  setVerifyingId(null);
+                                  setInlineTid('');
+                                } else {
+                                  setVerifyingId(d.id);
+                                  setInlineTid(d.transaction_id || '');
+                                }
+                              }}
+                            >
+                              <ShieldCheck className="h-2.5 w-2.5 mr-0.5" /> Verify
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] px-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                              onClick={() => openRejectDialog(d)}
+                            >
+                              <Ban className="h-2.5 w-2.5 mr-0.5" /> Reject
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <p className="text-sm font-bold text-warning">
-                          {formatUGX(d.amount)}
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-[10px] px-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-                          onClick={() => openRejectDialog(d)}
-                        >
-                          <Ban className="h-2.5 w-2.5 mr-0.5" /> Reject
-                        </Button>
-                      </div>
+
+                      {/* Inline TID verification */}
+                      <AnimatePresence>
+                        {verifyingId === d.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5 space-y-2">
+                              <p className="text-[10px] font-medium text-muted-foreground">
+                                Verifying <span className="text-foreground font-semibold">{d.depositor_name}</span> — <span className="text-warning font-semibold">{formatUGX(d.amount)}</span>
+                              </p>
+                              <Input
+                                value={inlineTid}
+                                onChange={(e) => setInlineTid(e.target.value)}
+                                placeholder="Enter Transaction ID..."
+                                className="h-8 text-xs"
+                                autoFocus
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-[11px] flex-1"
+                                  disabled={!inlineTid.trim() || inlineApproving}
+                                  onClick={() => handleInlineApprove(d)}
+                                >
+                                  {inlineApproving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                                  Approve {formatUGX(d.amount)}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[11px]"
+                                  onClick={() => { setVerifyingId(null); setInlineTid(''); }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ))}
                 </div>
