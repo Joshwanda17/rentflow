@@ -356,14 +356,34 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
             <Button
               variant="outline"
               className="flex-1 h-10 gap-2 text-xs font-semibold"
-              onClick={handleShareWhatsApp}
+              onClick={handleShare}
             >
               <Share2 className="h-3.5 w-3.5" />
               Share
             </Button>
           </div>
 
-          {/* Action Buttons */}
+          {/* Auto-Reinvest Toggle */}
+          {isActive && (
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <RefreshCw className={`h-4 w-4 ${autoReinvestValue ? 'text-primary' : 'text-muted-foreground'}`} />
+                <div>
+                  <p className="text-xs font-bold">Auto-Reinvest</p>
+                  <p className="text-[10px] text-muted-foreground">Automatically compound your returns</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant={autoReinvestValue ? 'default' : 'outline'}
+                className="h-8 text-xs font-semibold min-w-[70px]"
+                onClick={handleToggleAutoReinvest}
+                disabled={togglingReinvest}
+              >
+                {togglingReinvest ? <Loader2 className="h-3 w-3 animate-spin" /> : autoReinvestValue ? 'On' : 'Off'}
+              </Button>
+            </div>
+          )}
           {isActive && (
             <div className="flex gap-3">
               <Button
