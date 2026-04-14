@@ -585,10 +585,16 @@ export function LandlordOpsDashboard() {
       const { data, error } = await supabase.functions.invoke('credit-listing-bonus', {
         body: { listing_id: listing.id },
       });
+      console.log('[handleVerifyListing] Response:', { data, error });
       if (error) {
         const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
         const msg = await extractFromErrorObject(error, 'Verification failed');
+        console.error('[handleVerifyListing] Edge function error:', msg, error);
         throw new Error(msg);
+      }
+      if (data?.error) {
+        console.error('[handleVerifyListing] Data error:', data.error);
+        throw new Error(data.error);
       }
       if (data?.already_paid) {
         toast({ title: '✅ Already Verified', description: 'This listing was already verified and bonus paid.' });
