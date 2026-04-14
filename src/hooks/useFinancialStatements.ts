@@ -577,6 +577,47 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
 
       const retainedOperatingSurplus = totalAssets - totalObligations;
 
+      // ── GAAP: AR Aging ──
+      const now = new Date();
+      const arCurrent = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince <= 30 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arDays31to60 = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince > 30 && daysSince <= 60 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arDays61to90 = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince > 60 && daysSince <= 90 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arOver90 = rentRequests
+        .filter(r => ['funded', 'disbursed', 'repaying'].includes(r.status))
+        .reduce((s, r) => {
+          const daysSince = Math.floor((now.getTime() - new Date(r.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          return daysSince > 90 ? s + Number(r.rent_amount || 0) : s;
+        }, 0);
+      const arTotal = arCurrent + arDays31to60 + arDays61to90 + arOver90;
+      // Bad debt provision: 0% current, 5% 31-60, 15% 61-90, 50% 90+
+      const badDebtProvision = arDays31to60 * 0.05 + arDays61to90 * 0.15 + arOver90 * 0.50;
+
+      // ── GAAP: Working Capital ──
+      const currentAssets = platformCash + userFundsHeld + outstandingRent + advanceAccessFeeReceivables;
+      const currentLiabilities = userWalletCustody + pendingWithdrawals + accruedPlatformRewards + agentCommissionsPayable + deferredRevenue;
+      const workingCapitalAmount = currentAssets - currentLiabilities;
+      const currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : 0;
+
+      // ── GAAP: Statement of Changes in Equity ──
+      const openingEquity = Math.max(0, openingBalance); // approximate
+      const equityNetIncome = netOperatingIncome;
+      const closingEquity = retainedOperatingSurplus;
+
       // ── FACILITATED VOLUME ──
       const approvedRequests = rentRequests.filter(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
       const pendingRequestsList = rentRequests.filter(r => r.status === 'pending');
