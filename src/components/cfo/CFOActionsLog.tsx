@@ -130,11 +130,39 @@ export function CFOActionsLog() {
     queryFn: async () => {
       const { data } = await supabase
         .from('audit_logs')
-        .select('id, action_type, created_at, metadata, table_name, record_id')
+        .select('id, action_type, created_at, metadata, table_name, record_id, user_id')
         .in('action_type', activeActions)
         .order('created_at', { ascending: false })
-        .limit(50);
-      return data || [];
+        .limit(100);
+
+      if (!data?.length) return [];
+
+      // Fetch actor names
+      const userIds = [...new Set(data.map((a: any) => a.user_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      // Fetch roles for each actor
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', userIds);
+
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p.full_name]));
+      const roleMap: Record<string, string[]> = {};
+      (roles || []).forEach((r: any) => {
+        if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+        roleMap[r.user_id].push(r.role);
+      });
+
+      return data.map((a: any) => ({
+        ...a,
+        actor_name: profileMap[a.user_id] || 'System',
+        actor_roles: roleMap[a.user_id] || [],
+        is_manager_acting_as_cfo: (roleMap[a.user_id] || []).includes('manager') && !(roleMap[a.user_id] || []).includes('cfo'),
+      }));
     },
     staleTime: 30_000,
   });
