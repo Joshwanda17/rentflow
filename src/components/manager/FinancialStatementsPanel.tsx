@@ -80,10 +80,10 @@ function IncomeStatementSection({ d, cm }: { d: FinancialStatementsData['incomeS
     <div className="space-y-1">
       <SectionHeader>Revenue</SectionHeader>
       <LineItem label="Tenant Access Fees" value={d.revenue.accessFees} indent delta={cm?.accessFees} />
-      <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent />
-      <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent />
-      <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent />
-      <LineItem label="Total Revenue" value={d.revenue.total} bold />
+      <LineItem label="Tenant Request Fees" value={d.revenue.requestFees} indent delta={cm?.requestFees} />
+      <LineItem label="Other Service Income" value={d.revenue.otherServiceIncome} indent delta={cm?.otherServiceIncome} />
+      <LineItem label="Advance Access Fees Collected" value={d.revenue.advanceAccessFeesCollected} indent delta={cm?.advanceAccessFeesCollected} />
+      <LineItem label="Total Revenue" value={d.revenue.total} bold delta={cm?.totalRevenue} />
 
       <SectionHeader>Service Delivery Costs</SectionHeader>
       <LineItem label="Platform Rewards (Supporters)" value={d.serviceDeliveryCosts.platformRewards} negative indent />
