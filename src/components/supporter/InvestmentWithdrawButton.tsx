@@ -247,7 +247,7 @@ export function InvestmentWithdrawButton() {
         Withdraw Capital
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setStep('form'); }}>
         <DialogContent className="max-w-sm" stable>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
