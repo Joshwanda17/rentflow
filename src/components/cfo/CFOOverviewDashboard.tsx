@@ -322,6 +322,17 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
       {/* ── CFO ACTIONS LOG ── */}
       <CFOActionsLog />
 
+      {/* ── EXPORT COMMISSION REPORT ── */}
+      <Button
+        variant="outline"
+        className="w-full gap-2 rounded-2xl h-12"
+        onClick={handleExportCommissions}
+        disabled={exportingCommissions}
+      >
+        {exportingCommissions ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+        {exportingCommissions ? 'Exporting...' : 'Download Agent Commission Report'}
+      </Button>
+
       {/* ── SOURCES OF CASH (replaces channel breakdown) ── */}
       <Card className="rounded-2xl">
         <CardContent className="p-4">
