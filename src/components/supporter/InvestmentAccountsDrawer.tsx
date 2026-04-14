@@ -207,7 +207,7 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     const displayName = portfolio.account_name || portfolio.portfolio_code || 'Investment Account';
     const monthlyROI = Math.round(amount * (roiPct / 100));
     const message = [
@@ -220,22 +220,16 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
       `🔄 Mode: ${portfolio.roi_mode === 'monthly_compounding' ? 'Compounding' : 'Monthly Payout'}`,
       `✅ Status: ${cfg.label}`,
       ``,
-      `Total Earned So Far: ${formatUGX(totalEarned)}`,
+      `💰 Total Earned So Far: ${formatUGX(totalEarned)}`,
       ``,
-      `_Welile Technologies Limited - Investment Portfolio_`,
+      `_Welile Technologies Limited_`,
+      `_Investment Portfolio Report_`,
     ].join('\n');
 
-    // Try native share first, fallback to WhatsApp
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Portfolio: ${displayName}`, text: message });
-      } catch {
-        // User cancelled or share failed — silent
-      }
-    } else {
-      const encoded = encodeURIComponent(message);
-      window.open(`https://wa.me/?text=${encoded}`, '_blank');
-    }
+    const encoded = encodeURIComponent(message);
+    // Open WhatsApp with prefilled message
+    window.open(`https://wa.me/?text=${encoded}`, '_blank', 'noopener');
+    toast.success('Opening WhatsApp with portfolio details');
   };
 
   const autoReinvestValue = localAutoReinvest ?? portfolio.auto_reinvest ?? false;
