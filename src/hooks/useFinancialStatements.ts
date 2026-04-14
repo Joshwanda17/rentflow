@@ -488,7 +488,7 @@ export function useFinancialStatements() {
             marketingPaid, rdPaid, operationalSubcatPaid, withdrawalsPaid, netOperating,
           },
           facilitationActivities: {
-            rentRepayments, rentPrincipalCollected, agentRepayments,
+            rentRepayments, rentPrincipalCollected, agentRepayments, advanceRepayments,
             rentDeployments, rentDisbursements, netFacilitation,
           },
           custodialActivities: {
