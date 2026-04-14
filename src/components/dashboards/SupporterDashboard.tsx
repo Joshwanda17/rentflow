@@ -423,7 +423,9 @@ export default function SupporterDashboard({
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
 
           {/* ═══ MY PORTFOLIO ACCOUNTS ═══ */}
-          <MyPortfolioAccounts />
+          <div id="my-portfolio-accounts">
+            <MyPortfolioAccounts />
+          </div>
 
           {/* ═══ QUICK ACTIONS — Pill Style ═══ */}
           <div className="flex gap-2">
@@ -467,7 +469,7 @@ export default function SupporterDashboard({
 
           {/* ═══ MY FUNDED HOUSES (collapsible) ═══ */}
           {virtualHouses.length > 0 && (
-            <div className="space-y-3">
+            <div id="my-houses" className="space-y-3 scroll-mt-4">
               <div className="flex items-center gap-2 px-1">
                 <div className="w-1 h-5 rounded-full bg-success" />
                 <h2 className="text-sm font-black text-foreground tracking-tight">My Houses</h2>
