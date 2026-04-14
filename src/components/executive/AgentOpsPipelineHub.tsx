@@ -20,7 +20,7 @@ function LandlordsPipeline() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, status, created_at, rent_amount, landlord_id, tenant_id, landlords!inner(id, full_name, phone, address)')
+        .select('id, status, created_at, rent_amount, landlord_id, tenant_id, landlords!inner(id, name, phone, property_address)')
         .not('status', 'in', '("funded","rejected","cancelled")')
         .order('created_at', { ascending: false })
         .limit(200);
@@ -32,7 +32,7 @@ function LandlordsPipeline() {
         const ll = r.landlords as any;
         const key = r.landlord_id;
         if (!grouped.has(key)) {
-          grouped.set(key, { name: ll?.full_name || 'Unknown', phone: ll?.phone || '', address: ll?.address || '', statuses: [], requests: [] });
+          grouped.set(key, { name: ll?.name || 'Unknown', phone: ll?.phone || '', address: ll?.property_address || '', statuses: [], requests: [] });
         }
         const entry = grouped.get(key)!;
         entry.statuses.push(r.status || 'pending');
@@ -172,17 +172,18 @@ export function AgentOpsPipelineHub() {
   const { data: counts } = useQuery({
     queryKey: ['pipeline-counts'],
     queryFn: async () => {
-      const [tenants, subAgents, notes, landlords] = await Promise.all([
+      const [tenants, subAgents, notes, landlordsData] = await Promise.all([
         supabase.from('rent_requests').select('id', { count: 'exact', head: true }).not('status', 'in', '("funded","rejected","cancelled")'),
         supabase.from('agent_subagents').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('promissory_notes').select('id', { count: 'exact', head: true }).in('status', ['pending', 'activated']),
-        supabase.from('rent_requests').select('id', { count: 'exact', head: true }).not('status', 'in', '("funded","rejected","cancelled")'),
+        supabase.from('rent_requests').select('landlord_id').not('status', 'in', '("funded","rejected","cancelled")').not('landlord_id', 'is', null),
       ]);
+      const uniqueLandlords = new Set(landlordsData.data?.map((r: any) => r.landlord_id)).size;
       return {
         tenants: tenants.count || 0,
         subAgents: subAgents.count || 0,
         notes: notes.count || 0,
-        landlords: landlords.count || 0,
+        landlords: uniqueLandlords,
       };
     },
   });
