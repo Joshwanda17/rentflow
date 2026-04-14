@@ -1,32 +1,26 @@
 
 
-## Promissory Note PDF Redesign
+## Fix: "Mukhaye Lydia" Listing Verification Failure
 
-### Changes (all in `src/lib/promissoryNotePdf.ts`)
+### Root Cause Analysis
 
-**1. Header — match reference image (image-220)**
-- Update address from "Plot 12" to "Plot 24, Kampala Road, Kampala, Uganda" to match the reference image
-- Format: `Email: info@welile.com | Phone: +256 700 000 000` (with labels, matching image)
-- Company name uses title case "Welile Technologies Limited" (not all-caps) per reference
+The listing "House near the Road" (ID: `174b68cc`) posted by agent Grace Paul Ochieng is failing to verify via the "Verify → CFO" button. The red "Verification Failed" banner shows the generic fallback message "Verification failed", meaning the actual error from the backend function is not being surfaced.
 
-**2. Investment Details — tabular format (image-219)**
-- Remove the green rounded-rect box entirely
-- Replace with a clean borderless table layout with column headers (bold, dark navy):
-  - Row separator: thin light-blue horizontal lines between rows
-  - No vertical borders
-  - Columns: label | value pairs rendered in a clean table grid
-- Add a new **"ROI Projection (Next 6 Months)"** section below investment details showing Month 1–6 with Opening, ROI Earned (green text with +), and Closing columns
+**Likely failure reasons (in order of probability):**
+1. The logged-in user's role isn't being found by the edge function (role check at line 45-56)
+2. The Supabase SDK error object's `.context.json()` is failing silently, masking the real error
 
-**3. Activate Account button**
-- Remove the visible link text entirely (lines 210–211)
-- Keep the purple button with just "ACTIVATE YOUR ACCOUNT" text
-- Use the published domain (`https://welilereceipts.com`) for the internal link instead of preview URL — use `getPublicOrigin()` logic but hardcode the domain directly since this is a PDF (no `window` in generation context — actually `getPublicOrigin()` runs client-side so it works)
-- Add a clickable link annotation on the button rectangle pointing to the activation URL (invisible to the reader)
+### Changes
 
-**4. Footer — replace signature with generation date**
-- Remove the signature area entirely (dashed lines + "Partner Signature" + "Date" labels, lines 223–234)
-- Replace with a simple line: `Generated on: [full date/time]` above the purple footer bar
+**File: `src/components/executive/LandlordOpsDashboard.tsx`**
+- Improve the `handleVerifyListing` error handling to also check `data?.error` (some SDK versions return error body in `data` for non-2xx)
+- Add a `console.error` log so the actual error is visible in browser console for debugging
 
-### Files Modified
-- `src/lib/promissoryNotePdf.ts` — all changes above
+**File: `supabase/functions/credit-listing-bonus/index.ts`**
+- Add a `console.log` at function entry to confirm invocation
+- Add a `console.log` before the role check result to diagnose role failures
+- This will make future failures diagnosable via edge function logs
+
+### Summary
+Two small changes: better client-side error surfacing and server-side logging. No logic changes to the verification flow itself — the function should work for users with the correct roles.
 
