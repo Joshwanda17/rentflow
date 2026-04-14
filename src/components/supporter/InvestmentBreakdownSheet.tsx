@@ -348,8 +348,8 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/8 text-[9px] font-semibold text-primary">
                             {entry.roi_percentage}% ROI
                           </span>
-                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
-                            {isCompounding ? 'Compound' : 'Simple'}
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground capitalize">
+                            {entry.roi_mode.replace(/_/g, ' ')}
                           </span>
                           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
                             {entry.duration_months}mo
