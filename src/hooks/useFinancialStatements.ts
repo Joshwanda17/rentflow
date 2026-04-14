@@ -441,13 +441,15 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const totalRevenue = accessFees + requestFees + otherServiceIncome + advanceAccessFeesCollected;
       const totalServiceCosts = platformRewards + agentCommissions + totalIncentiveCosts + transactionExpenses;
 
+      // ── GAAP: Gross Profit ──
+      const grossProfit = totalRevenue - totalServiceCosts;
+      const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
       // ── Revenue Recognition: Expected vs Realized vs Deferred ──
-      // Expected = fees from all active rent requests (approved, funded, disbursed, repaying)
       const activeRentRequests = rentRequests.filter(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status));
       const expectedAccessFees = activeRentRequests.reduce((s, r) => s + Number(r.access_fee || 0), 0);
       const expectedRequestFees = activeRentRequests.reduce((s, r) => s + Number(r.request_fee || 0), 0);
       const totalExpectedRevenue = expectedAccessFees + expectedRequestFees;
-      // Realized = what the ledger has actually collected
       const realizedAccessFees = accessFees + advanceAccessFeesCollected;
       const realizedRequestFees = requestFees;
       const totalRealizedRevenue = realizedAccessFees + realizedRequestFees;
@@ -457,12 +459,32 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       // ── Adjustments (non-revenue, non-expense items that affect net income) ──
       const walletDeductions = sumWithDirectionFallback(platformIn, walletOut, ['wallet_deduction']);
       const systemCorrections = sumWithDirectionFallback(platformIn, platformOut, ['system_balance_correction'])
-        - (marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests); // exclude already-mapped subcats
+        - (marketingExpenses + researchDevelopment + opSubSalaries + opSubTransport + opSubFood + opSubOfficeRent + opSubInternet + opSubAirtime + opSubStationery + opSubPropertyEquipment + opSubTaxes + opSubInterests);
       const orphanReassignments = sumBy(platformIn, ['orphan_reassignment']);
       const orphanReversals = sumBy(platformOut, ['orphan_reversal']);
       const adjustmentsTotal = walletDeductions + Math.max(0, systemCorrections) - orphanReversals + orphanReassignments;
 
-      const netOperatingIncome = totalRevenue - totalServiceCosts - operatingExpensesTotal + adjustmentsTotal;
+      // ── GAAP: Below-the-Line Items ──
+      // Interest: from operational subcategories
+      const interestExpense = opSubInterests;
+      const interestIncome = 0; // No interest income streams yet
+      // Tax: from operational subcategories
+      const taxProvision = opSubTaxes;
+      // D&A: Property & Equipment mapped as depreciation proxy; software dev as amortization
+      const depreciation = opSubPropertyEquipment;
+      const amortization = 0; // No software amortization tracked separately yet
+
+      // Operating Income = Gross Profit - OpEx (excluding interest, tax, D&A)
+      const opExExcludingITDA = operatingExpensesTotal - interestExpense - taxProvision - depreciation - amortization;
+      const operatingIncome = grossProfit - opExExcludingITDA + adjustmentsTotal;
+
+      // Net Income = Operating Income - Interest - Tax
+      const netOperatingIncome = operatingIncome - interestExpense + interestIncome - taxProvision;
+
+      // EBITDA = Operating Income + D&A (already excludes interest & tax)
+      const ebitda = operatingIncome + depreciation + amortization;
+      const ebitdaMargin = totalRevenue > 0 ? (ebitda / totalRevenue) * 100 : 0;
+      const operatingMargin = totalRevenue > 0 ? (operatingIncome / totalRevenue) * 100 : 0;
 
       // ══════════════════════════════════════════════════════════════
       // CASH FLOW — All categories tracked
