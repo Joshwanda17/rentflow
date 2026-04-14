@@ -157,6 +157,10 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!calc) return;
+    if (nationalIdError) {
+      toast({ title: 'Duplicate National ID', description: nationalIdError, variant: 'destructive' });
+      return;
+    }
     
     setLoading(true);
 
