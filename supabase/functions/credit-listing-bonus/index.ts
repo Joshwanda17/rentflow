@@ -14,6 +14,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log("[credit-listing-bonus] Function invoked");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -24,14 +25,17 @@ serve(async (req) => {
     });
     const { data: { user: caller }, error: userErr } = await anonClient.auth.getUser();
     if (userErr || !caller) {
+      console.error("[credit-listing-bonus] Auth failed:", userErr?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const managerId = caller.id;
+    console.log("[credit-listing-bonus] Caller:", managerId);
 
     const body = await req.json();
     const { listing_id, notes } = body;
+    console.log("[credit-listing-bonus] listing_id:", listing_id);
 
     if (!listing_id || typeof listing_id !== "string") {
       return new Response(JSON.stringify({ error: "listing_id is required" }), {
@@ -42,12 +46,14 @@ serve(async (req) => {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify Landlord Ops / manager role
-    const { data: roleCheck } = await adminClient
+    const { data: roleCheck, error: roleErr } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", managerId)
       .in("role", ["manager", "coo", "super_admin", "operations", "employee"])
       .maybeSingle();
+
+    console.log("[credit-listing-bonus] Role check result:", JSON.stringify(roleCheck), "error:", roleErr?.message);
 
     if (!roleCheck) {
       return new Response(JSON.stringify({ error: "Only internal staff can verify listings" }), {
