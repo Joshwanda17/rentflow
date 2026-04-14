@@ -348,8 +348,8 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/8 text-[9px] font-semibold text-primary">
                             {entry.roi_percentage}% ROI
                           </span>
-                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
-                            {isCompounding ? 'Compound' : 'Simple'}
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground capitalize">
+                            {entry.roi_mode.replace(/_/g, ' ')}
                           </span>
                           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
                             {entry.duration_months}mo
@@ -489,26 +489,6 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                 Withdraw
                               </Button>
                             </div>
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className={`w-full gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold ${
-                                isCompounding
-                                  ? 'border-amber-500/30 text-amber-600 hover:bg-amber-500/5'
-                                  : 'border-success/30 text-success hover:bg-success/5'
-                              }`}
-                              disabled={actionLoading === `toggle_roi_mode-${entry.id}`}
-                              onClick={() => {
-                                const newMode = isCompounding ? 'Simple' : 'Compounding';
-                                if (confirm(`Switch to ${newMode} mode?`)) {
-                                  handleAccountAction('toggle_roi_mode', entry.id, entry.account_name || entry.code);
-                                }
-                              }}
-                            >
-                              {isCompounding ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
-                              {actionLoading === `toggle_roi_mode-${entry.id}` ? 'Switching…' : isCompounding ? 'Switch to Simple' : 'Switch to Compound'}
-                            </Button>
 
                             <div className="grid grid-cols-2 gap-2">
                               <Button
