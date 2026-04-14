@@ -611,7 +611,16 @@ export function FinancialStatementsPanel() {
 
       if (activeTab === 'income') {
         const d = data.incomeStatement;
-        addSection('Revenue');
+        addSection('Revenue Recognition');
+        addRow('Expected Access Fees', d.revenueRecognition.expectedAccessFees, false, false, true);
+        addRow('Expected Request Fees', d.revenueRecognition.expectedRequestFees, false, false, true);
+        addRow('Total Expected Revenue', d.revenueRecognition.totalExpectedRevenue, true);
+        addRow('Realized Access Fees', d.revenueRecognition.realizedAccessFees, false, false, true);
+        addRow('Realized Request Fees', d.revenueRecognition.realizedRequestFees, false, false, true);
+        addRow('Total Realized Revenue', d.revenueRecognition.totalRealizedRevenue, true);
+        addRow('Deferred Revenue', d.revenueRecognition.deferredRevenue, true, false, true);
+        y += 3;
+        addSection('Realized Revenue (Ledger-Confirmed)');
         addRow('Tenant Access Fees', d.revenue.accessFees, false, false, true);
         addRow('Tenant Request Fees', d.revenue.requestFees, false, false, true);
         addRow('Other Service Income', d.revenue.otherServiceIncome, false, false, true);
