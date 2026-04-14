@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("user_id", user.id);
 
-    const allowedRoles = ["financial_ops", "cfo", "super_admin"];
+    const allowedRoles = ["operations", "cfo", "super_admin"];
     const hasRole = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     if (!hasRole) {
       return new Response(JSON.stringify({ error: "Only Financial Operations can approve portfolio top-ups" }), {
@@ -245,8 +245,7 @@ Deno.serve(async (req) => {
       const { data: execs } = await supabase
         .from("user_roles")
         .select("user_id")
-        .in("role", ["cfo", "coo"])
-        .eq("enabled", true);
+        .in("role", ["cfo", "coo"]);
       if (execs && execs.length > 0) {
         const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
         if (uniqueIds.length > 0) {
