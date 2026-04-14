@@ -98,10 +98,49 @@ export function InvestmentAccountsManager() {
       setRenewalCounts(counts);
     }
 
+    // Fetch approved top-ups
+    if (pIds.length > 0) {
+      const { data: pendingOps } = await supabase
+        .from('pending_wallet_operations')
+        .select('source_id, amount')
+        .in('source_id', pIds)
+        .eq('source_table', 'investor_portfolios')
+        .eq('operation_type', 'portfolio_topup')
+        .eq('status', 'approved');
+      const approved: Record<string, { count: number; total: number }> = {};
+      (pendingOps || []).forEach(op => {
+        const sid = op.source_id as string;
+        if (!approved[sid]) approved[sid] = { count: 0, total: 0 };
+        approved[sid].count += 1;
+        approved[sid].total += Number(op.amount);
+      });
+      setApprovedTopUps(approved);
+    }
+
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchPortfolios(); }, [fetchPortfolios]);
+
+  async function handleMergePendingTopUps() {
+    if (!mergeDialogPortfolioId || mergeReason.trim().length < 10) return;
+    setMergingTopUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('merge-pending-topups', {
+        body: { portfolio_id: mergeDialogPortfolioId, reason: mergeReason.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast({ title: `Merged ${formatUGX(data.merged_amount)} into principal`, description: `New capital: ${formatUGX(data.new_capital)}` });
+      setMergeDialogPortfolioId(null);
+      setMergeReason('');
+      fetchPortfolios();
+    } catch (e: any) {
+      toast({ title: 'Failed to merge top-ups', description: e.message, variant: 'destructive' });
+    } finally {
+      setMergingTopUp(false);
+    }
+  }
 
   const handleSave = async (portfolioId: string) => {
     const trimmed = editName.trim();
