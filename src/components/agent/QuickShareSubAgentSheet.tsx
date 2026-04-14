@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Link2 } from 'lucide-react';
+import { useShortLink } from '@/hooks/useShortLink';
+import { Copy, Check, Share2, Link2, Loader2 } from 'lucide-react';
 
 interface QuickShareSubAgentSheetProps {
   open: boolean;
@@ -17,10 +18,11 @@ export function QuickShareSubAgentSheet({ open, onOpenChange }: QuickShareSubAge
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
-  const getShareLink = () => {
-    if (!user) return '';
-    return `${window.location.origin}/auth?ref=${user.id}&become=agent`;
-  };
+  const { shortUrl, isLoading } = useShortLink({
+    targetPath: '/auth',
+    targetParams: { ref: user?.id || '', become: 'agent' },
+    enabled: open && !!user,
+  });
 
   const getWhatsAppMessage = () => {
     return `🚀 Join me on Welile as a Sub-Agent!
@@ -32,13 +34,13 @@ export function QuickShareSubAgentSheet({ open, onOpenChange }: QuickShareSubAge
 
 ✨ FREE to join — no fees!
 
-👉 Sign up here: ${getShareLink()}
+👉 Sign up here: ${shortUrl}
 
 Let's grow together! 🤝`;
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(getShareLink());
+    await navigator.clipboard.writeText(shortUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast({ title: 'Link copied!' });
@@ -54,7 +56,7 @@ Let's grow together! 🤝`;
         await navigator.share({
           title: 'Join Welile as a Sub-Agent',
           text: 'Earn money collecting rent. Free to join!',
-          url: getShareLink(),
+          url: shortUrl,
         });
       } catch { handleCopy(); }
     } else {
@@ -96,25 +98,26 @@ Let's grow together! 🤝`;
               <span>Your personal signup link</span>
             </div>
             <div className="flex gap-2">
-              <Input value={getShareLink()} readOnly className="h-10 text-xs font-mono" />
+              <Input value={isLoading ? 'Generating...' : shortUrl} readOnly className="h-10 text-xs font-mono" />
               <Button
                 variant={copied ? "default" : "outline"}
                 size="icon"
                 onClick={handleCopy}
+                disabled={isLoading}
                 className={`h-10 w-10 shrink-0 ${copied ? 'bg-success hover:bg-success/90' : ''}`}
               >
-                {copied ? <Check className="h-4 w-4 text-white" /> : <Copy className="h-4 w-4" />}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : copied ? <Check className="h-4 w-4 text-white" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
           </div>
 
           {/* Action buttons */}
           <div className="grid grid-cols-2 gap-2">
-            <Button onClick={handleWhatsApp} className="h-12 gap-2 bg-[hsl(142,70%,40%)] hover:bg-[hsl(142,70%,35%)] text-white font-semibold">
+            <Button onClick={handleWhatsApp} disabled={isLoading} className="h-12 gap-2 bg-[hsl(142,70%,40%)] hover:bg-[hsl(142,70%,35%)] text-white font-semibold">
               <Share2 className="h-4 w-4" />
               WhatsApp
             </Button>
-            <Button variant="outline" onClick={handleNativeShare} className="h-12 gap-2 font-semibold">
+            <Button variant="outline" onClick={handleNativeShare} disabled={isLoading} className="h-12 gap-2 font-semibold">
               <Share2 className="h-4 w-4" />
               Share
             </Button>

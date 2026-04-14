@@ -89,6 +89,7 @@ const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
 const RegisterTenantPublic = lazy(() => import('./pages/RegisterTenantPublic'));
 const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic'));
 const ActivatePartner = lazy(() => import('./pages/ActivatePartner'));
+const ResolveShortLink = lazy(() => import('./pages/ResolveShortLink'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
@@ -243,6 +244,7 @@ function AppRoutes() {
           <Route path="/" element={<Index />} />
           <Route path="/welcome" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/r/:code" element={<ResolveShortLink />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />

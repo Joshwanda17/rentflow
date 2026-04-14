@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useShortLink } from '@/hooks/useShortLink';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,15 +32,18 @@ export function ShareReferralLink() {
   const [showMilestones, setShowMilestones] = useState(false);
   const [shareMilestone, setShareMilestone] = useState<typeof MILESTONES[0] | null>(null);
 
+  const { shortUrl, isLoading: linkLoading } = useShortLink({
+    targetPath: '/auth',
+    targetParams: { ref: user?.id || '' },
+    enabled: !!user,
+  });
+
   useEffect(() => {
     // Referral DB calls stubbed for performance
     setLoading(false);
   }, [user]);
 
-  const getShareLink = () => {
-    if (!user) return '';
-    return `${window.location.origin}/auth?ref=${user.id}`;
-  };
+  const getShareLink = () => shortUrl;
 
   const getWhatsAppMessage = () => {
     return `👋 Hey! Join me on Welile!

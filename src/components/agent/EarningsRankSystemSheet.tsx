@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useShortLink } from '@/hooks/useShortLink';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -86,12 +87,13 @@ export function EarningsRankSystemSheet({ open, onOpenChange }: EarningsRankSyst
   });
   const [loading, setLoading] = useState(true);
 
-  // Share functionality
+  const { shortUrl: shareLink } = useShortLink({
+    targetPath: '/auth',
+    targetParams: { role: 'agent', ref: user?.id || '' },
+    enabled: open && !!user,
+  });
+
   const handleShare = async () => {
-    const shareLink = user 
-      ? `${window.location.origin}/auth?role=agent&ref=${user.id}`
-      : `${window.location.origin}/auth?role=agent`;
-    
     const shareMessage = `🚀 Join Welile as an Agent and start earning!
 
 💰 Earn UGX 500 per registration
