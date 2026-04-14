@@ -282,8 +282,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [walletToPortfolioReason, setWalletToPortfolioReason] = useState('');
   const [walletToPortfolioSaving, setWalletToPortfolioSaving] = useState(false);
 
-  // Pending top-ups per portfolio
+  // Pending top-ups per portfolio (status: pending)
   const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
+  // Top-ups awaiting Financial Ops verification (status: awaiting_verification)
+  const [awaitingVerification, setAwaitingVerification] = useState<Record<string, { count: number; total: number }>>({});
   const [applyingTopUps, setApplyingTopUps] = useState<string | null>(null);
 
   // Portfolio name editing
@@ -674,24 +676,32 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .in('portfolio_id', portfolioIds),
           supabase
             .from('pending_wallet_operations')
-            .select('source_id, amount')
+            .select('source_id, amount, status')
             .in('source_id', portfolioIds)
             .eq('source_table', 'investor_portfolios')
             .eq('operation_type', 'portfolio_topup')
-            .eq('status', 'pending'),
+            .in('status', ['pending', 'awaiting_verification']),
         ]);
         const counts: Record<string, number> = {};
         (renewalsRes.data || []).forEach(r => { counts[r.portfolio_id] = (counts[r.portfolio_id] || 0) + 1; });
         setRenewalCounts(counts);
 
         const pending: Record<string, { count: number; total: number }> = {};
+        const awaiting: Record<string, { count: number; total: number }> = {};
         (pendingRes.data || []).forEach((op: any) => {
           const key = op.source_id;
-          if (!pending[key]) pending[key] = { count: 0, total: 0 };
-          pending[key].count += 1;
-          pending[key].total += Number(op.amount);
+          if (op.status === 'awaiting_verification') {
+            if (!awaiting[key]) awaiting[key] = { count: 0, total: 0 };
+            awaiting[key].count += 1;
+            awaiting[key].total += Number(op.amount);
+          } else {
+            if (!pending[key]) pending[key] = { count: 0, total: 0 };
+            pending[key].count += 1;
+            pending[key].total += Number(op.amount);
+          }
         });
         setPendingTopUps(pending);
+        setAwaitingVerification(awaiting);
       }
 
       // For imported partners with no ledger entries, derive totals from portfolio records
