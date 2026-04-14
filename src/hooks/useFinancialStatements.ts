@@ -192,15 +192,53 @@ export function useFinancialStatements() {
       const startDate = activeFilters.startDate || start;
       const endDate = activeFilters.endDate || end;
 
-      // Helper: build scoped ledger query
-       const buildScopedQuery = (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
-        let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope, description');
-        if (startDate) q = q.gte('transaction_date', startDate.toISOString());
-        if (endDate) q = q.lte('transaction_date', endDate.toISOString());
-        q = q.eq('ledger_scope', scope);
-        q = q.in('classification', ['production', 'legacy_real']);
-        if (direction) q = q.eq('direction', direction);
-        return q;
+      // Helper: build scoped ledger query — fetches ALL rows via pagination
+      const fetchAllScoped = async (scope: 'platform' | 'wallet' | 'bridge', direction?: 'cash_in' | 'cash_out') => {
+        const pageSize = 5000;
+        let allRows: any[] = [];
+        let offset = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope, description');
+          if (startDate) q = q.gte('transaction_date', startDate.toISOString());
+          if (endDate) q = q.lte('transaction_date', endDate.toISOString());
+          q = q.eq('ledger_scope', scope);
+          q = q.in('classification', ['production', 'legacy_real']);
+          if (direction) q = q.eq('direction', direction);
+          q = q.range(offset, offset + pageSize - 1);
+          
+          const { data } = await q;
+          const rows = data || [];
+          allRows = allRows.concat(rows);
+          hasMore = rows.length === pageSize;
+          offset += pageSize;
+        }
+        return allRows;
+      };
+
+      // Helper for prev-period query
+      const fetchAllPrevPlatform = async () => {
+        if (!startDate) return [];
+        const pageSize = 5000;
+        let allRows: any[] = [];
+        let offset = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          let q = supabase.from('general_ledger').select('amount, direction, category, ledger_scope');
+          q = q.lt('transaction_date', startDate.toISOString());
+          q = q.eq('ledger_scope', 'platform');
+          q = q.in('classification', ['production', 'legacy_real']);
+          q = q.range(offset, offset + pageSize - 1);
+          
+          const { data } = await q;
+          const rows = data || [];
+          allRows = allRows.concat(rows);
+          hasMore = rows.length === pageSize;
+          offset += pageSize;
+        }
+        return allRows;
       };
 
       const [
