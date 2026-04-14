@@ -3684,5 +3684,5 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         ) : null}
       </DialogContent>
     </Dialog>
-
+  );
 }
