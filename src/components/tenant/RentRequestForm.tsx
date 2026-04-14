@@ -39,6 +39,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   // Tenant details
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [tenantFullName, setTenantFullName] = useState('');
+  const [nationalIdError, setNationalIdError] = useState('');
   
   // Tenant utility meters
   const [tenantWaterMeter, setTenantWaterMeter] = useState('');
@@ -98,6 +99,21 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       return prev.filter((_, i) => i !== index);
     });
   }, []);
+
+  const checkDuplicateNationalId = useCallback(async (value: string) => {
+    setNationalIdError('');
+    const cleaned = value.trim().toUpperCase();
+    if (cleaned.length < 10) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .eq('national_id', cleaned)
+      .neq('id', userId)
+      .maybeSingle();
+    if (data) {
+      setNationalIdError(`This National ID is already registered to ${data.full_name}`);
+    }
+  }, [userId]);
 
   const uploadHousePhotos = async (requestId: string): Promise<string[]> => {
     if (housePhotos.length === 0) return [];
@@ -479,9 +495,14 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
                 <Input 
                   placeholder="e.g., CM12345678ABCD"
                   value={tenantNationalId}
-                  onChange={(e) => setTenantNationalId(e.target.value.toUpperCase())}
+                  onChange={(e) => { setTenantNationalId(e.target.value.toUpperCase()); setNationalIdError(''); }}
+                  onBlur={() => checkDuplicateNationalId(tenantNationalId)}
+                  className={nationalIdError ? 'border-destructive' : ''}
                   required
                 />
+                {nationalIdError && (
+                  <p className="text-[11px] text-destructive font-medium">{nationalIdError}</p>
+                )}
               </div>
             </div>
             {/* Tenant Utility Meters */}
