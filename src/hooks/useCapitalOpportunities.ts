@@ -62,7 +62,7 @@ export function useCapitalOpportunities() {
         if (seen.has(p.id)) return false;
         seen.add(p.id);
         return true;
-      }) as PortfolioRecord[];
+      }).map(p => ({ ...p, funded_at: p.created_at } as PortfolioRecord));
 
       setPortfolios(deduped);
 
