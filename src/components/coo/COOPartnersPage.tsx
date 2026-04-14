@@ -1141,8 +1141,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
       if (result?.error) throw new Error(result.error);
 
-      toast.success(`${formatUGX(amt)} moved from wallet → ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
-        description: `New wallet balance: ${formatUGX(result.wallet_balance_after)}`,
+      toast.success(`${formatUGX(amt)} top-up submitted for ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
+        description: `⏳ Awaiting Financial Operations approval. No funds deducted yet.`,
       });
       setWalletToPortfolio(null);
       setWalletToPortfolioAmount('');

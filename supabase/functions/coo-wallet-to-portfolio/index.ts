@@ -139,9 +139,9 @@ Deno.serve(async (req) => {
         partner_id: partnerId,
         amount: topupAmount,
         current_capital: Number(portfolio.investment_amount),
-        wallet_balance_before: currentBalance,
-        wallet_balance_after: currentBalance - topupAmount,
+        wallet_balance_at_submission: currentBalance,
         reason: safeReason,
+        note: "No wallet deduction at submission — pending Financial Ops approval",
       },
     });
 
