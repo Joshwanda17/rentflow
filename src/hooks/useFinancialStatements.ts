@@ -134,6 +134,29 @@ export interface CashFlowData {
   closingBalance: number;
 }
 
+export interface ARAgingBucket {
+  current: number;    // 0-30 days
+  days31to60: number;
+  days61to90: number;
+  over90: number;
+  total: number;
+  badDebtProvision: number; // estimated allowance
+}
+
+export interface WorkingCapitalMetrics {
+  currentAssets: number;
+  currentLiabilities: number;
+  workingCapital: number;
+  currentRatio: number;
+}
+
+export interface EquityChanges {
+  openingEquity: number;
+  netIncome: number;
+  otherChanges: number;
+  closingEquity: number;
+}
+
 export interface BalanceSheetData {
   assets: {
     platformCash: number;
@@ -162,6 +185,9 @@ export interface BalanceSheetData {
     deferredRevenue: number;
     recognitionRate: number;
   };
+  arAging: ARAgingBucket;
+  workingCapital: WorkingCapitalMetrics;
+  equityChanges: EquityChanges;
 }
 
 export interface FacilitatedVolumeData {
