@@ -160,6 +160,12 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       {d.custodialActivities.roiWalletCredits > 0 && (
         <LineItem label="ROI Wallet Credits" value={d.custodialActivities.roiWalletCredits} indent />
       )}
+      {d.custodialActivities.walletCommissionCredits > 0 && (
+        <LineItem label="Commission & Bonus Credits" value={d.custodialActivities.walletCommissionCredits} indent />
+      )}
+      {d.custodialActivities.walletCorrectionCredits > 0 && (
+        <LineItem label="CFO Credits (Corrections)" value={d.custodialActivities.walletCorrectionCredits} indent />
+      )}
       {d.custodialActivities.rentFloatFunding > 0 && (
         <LineItem label="Rent Float Funding" value={d.custodialActivities.rentFloatFunding} indent />
       )}
@@ -169,6 +175,12 @@ function CashFlowSection({ d }: { d: FinancialStatementsData['cashFlow'] }) {
       )}
       {d.custodialActivities.walletDeductions > 0 && (
         <LineItem label="Wallet Deductions" value={d.custodialActivities.walletDeductions} negative indent />
+      )}
+      {d.custodialActivities.agentFloatUsedForRent > 0 && (
+        <LineItem label="Agent Float Used for Rent" value={d.custodialActivities.agentFloatUsedForRent} negative indent />
+      )}
+      {d.custodialActivities.walletCorrectionDebits > 0 && (
+        <LineItem label="CFO Debits (Corrections)" value={d.custodialActivities.walletCorrectionDebits} negative indent />
       )}
       <LineItem label="Net Change in Custody" value={d.custodialActivities.netCustodial} bold />
 
@@ -410,10 +422,14 @@ export function FinancialStatementsPanel() {
       rows.push(['CUSTODIAL ACTIVITIES (Not Platform Revenue)', '', '']);
       rows.push(['User Deposits Received', '', d.custodialActivities.userDeposits]);
       if (d.custodialActivities.roiWalletCredits) rows.push(['ROI Wallet Credits', '', d.custodialActivities.roiWalletCredits]);
+      if (d.custodialActivities.walletCommissionCredits) rows.push(['Commission & Bonus Credits', '', d.custodialActivities.walletCommissionCredits]);
+      if (d.custodialActivities.walletCorrectionCredits) rows.push(['CFO Credits (Corrections)', '', d.custodialActivities.walletCorrectionCredits]);
       if (d.custodialActivities.rentFloatFunding) rows.push(['Rent Float Funding', '', d.custodialActivities.rentFloatFunding]);
       rows.push(['User Withdrawals Processed', '', -d.custodialActivities.userWithdrawals]);
       if (d.custodialActivities.userTransfers) rows.push(['Wallet Transfers', '', -d.custodialActivities.userTransfers]);
       if (d.custodialActivities.walletDeductions) rows.push(['Wallet Deductions', '', -d.custodialActivities.walletDeductions]);
+      if (d.custodialActivities.agentFloatUsedForRent) rows.push(['Agent Float Used for Rent', '', -d.custodialActivities.agentFloatUsedForRent]);
+      if (d.custodialActivities.walletCorrectionDebits) rows.push(['CFO Debits (Corrections)', '', -d.custodialActivities.walletCorrectionDebits]);
       rows.push(['Net Change in Custody', '', d.custodialActivities.netCustodial]);
       rows.push(['', '', '']);
       rows.push(['FINANCING ACTIVITIES', '', '']);

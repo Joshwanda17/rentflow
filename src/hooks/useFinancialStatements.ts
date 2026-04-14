@@ -90,6 +90,10 @@ export interface CashFlowData {
     userTransfers: number;
     walletDeductions: number;
     roiWalletCredits: number;
+    agentFloatUsedForRent: number;
+    walletCommissionCredits: number;
+    walletCorrectionCredits: number;
+    walletCorrectionDebits: number;
     rentFloatFunding: number;
     netCustodial: number;
   };
@@ -376,10 +380,17 @@ export function useFinancialStatements() {
       const userTransfers = sumBy(walletOut, ['wallet_transfer']);
       const cfWalletDeductions = sumBy(walletOut, ['wallet_deduction']);
       const roiWalletCredits = sumBy(walletIn, ['roi_wallet_credit', 'roi_payout']);
+      const agentFloatUsedForRent = sumBy(walletOut, ['agent_float_used_for_rent']);
+      const walletCommissionCredits = sumBy(walletIn, ['agent_commission_earned', 'agent_commission', 'referral_bonus', 'agent_bonus']);
+      const walletCorrectionCredits = sumBy(walletIn, ['system_balance_correction']);
+      const walletCorrectionDebits = sumBy(walletOut, ['system_balance_correction']);
+      const walletRentDisbursements = sumBy(walletOut, ['rent_disbursement']);
+      const walletRoiExpense = sumBy(walletOut, ['roi_expense', 'roi_payout']);
       const rentFloatFunding = sumBy(walletIn, ['rent_float_funding', 'landlord_rent_payment', 'pool_capital_received', 'pool_rent_deployment_reversal', 'rent_obligation_reversal', 'coo_proxy_investment_reversal', 'proxy_investment_commission', 'platform_expense']);
+      const walletRepaymentInflows = sumBy(walletIn, ['agent_repayment', 'supporter_rent_fund', 'agent_proxy_investment', 'roi_reinvestment']);
       // Legacy investment/deployment outflows
-      const legacyInvestmentOutflows = sumBy(walletOut, ['agent_proxy_investment', 'coo_proxy_investment', 'supporter_rent_fund', 'wallet_to_investment', 'angel_pool_investment', 'rent_payment_for_tenant', 'rent_obligation', 'proxy_partner_withdrawal', 'rent_obligation_reversal_adjustment']);
-      const netCustodial = userDeposits + roiWalletCredits + rentFloatFunding - userWithdrawals - userTransfers - cfWalletDeductions - legacyInvestmentOutflows;
+      const legacyInvestmentOutflows = sumBy(walletOut, ['agent_proxy_investment', 'coo_proxy_investment', 'supporter_rent_fund', 'wallet_to_investment', 'angel_pool_investment', 'rent_payment_for_tenant', 'rent_obligation', 'proxy_partner_withdrawal', 'rent_obligation_reversal_adjustment', 'rent_float_funding', 'pending_portfolio_topup']);
+      const netCustodial = userDeposits + roiWalletCredits + walletCommissionCredits + walletCorrectionCredits + rentFloatFunding + walletRepaymentInflows - userWithdrawals - userTransfers - cfWalletDeductions - agentFloatUsedForRent - walletCorrectionDebits - walletRentDisbursements - walletRoiExpense - legacyInvestmentOutflows;
 
       // Financing (bridge scope)
       const supporterCapitalInflows = sumBy(bridgeIn, ['supporter_facilitation_capital', 'supporter_deposit', 'investment_deposit']);
@@ -387,9 +398,10 @@ export function useFinancialStatements() {
       const shareCapital = sumBy(bridgeIn, ['share_capital']);
       const roiReinvestment = sumBy(bridgeIn, ['roi_reinvestment']);
       const supporterCapitalWithdrawals = sumBy(bridgeOut, ['supporter_withdrawal', 'investment_withdrawal']);
-      const netFinancing = supporterCapitalInflows + partnerFunding + shareCapital + roiReinvestment - supporterCapitalWithdrawals;
+      const agentCommissionBridge = sumBy(bridgeOut, ['agent_commission']);
+      const netFinancing = supporterCapitalInflows + partnerFunding + shareCapital + roiReinvestment - supporterCapitalWithdrawals - agentCommissionBridge;
 
-      const netCashMovement = netOperating;
+      const netCashMovement = netOperating + netFacilitation + netCustodial + netFinancing;
       const openingBalance = prevPlatform.reduce(
         (s, r) => r.direction === 'cash_in' ? s + Number(r.amount) : s - Number(r.amount), 0
       );
@@ -479,7 +491,10 @@ export function useFinancialStatements() {
           },
           custodialActivities: {
             userDeposits, userWithdrawals, userTransfers,
-            walletDeductions: cfWalletDeductions, roiWalletCredits, rentFloatFunding, netCustodial,
+            walletDeductions: cfWalletDeductions, roiWalletCredits,
+            agentFloatUsedForRent, walletCommissionCredits,
+            walletCorrectionCredits, walletCorrectionDebits,
+            rentFloatFunding, netCustodial,
           },
           financingActivities: {
             supporterCapitalInflows, partnerFunding, shareCapital,
