@@ -791,14 +791,21 @@ export function FinancialStatementsPanel() {
             {/* Statement Title */}
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
               <h3 className="text-sm font-semibold">{getTabLabel()}</h3>
-              <Badge variant="outline" className="text-xs">{data.incomeStatement.period}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">{data.incomeStatement.period}</Badge>
+                {comparisonMode !== 'none' && comparisonMetrics && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    vs {COMPARISON_MODES.find(m => m.value === comparisonMode)?.label}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {/* Active Statement */}
-            {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} />}
-            {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} />}
+            {activeTab === 'income' && <IncomeStatementSection d={data.incomeStatement} cm={comparisonMetrics} />}
+            {activeTab === 'cashflow' && <CashFlowSection d={data.cashFlow} cm={comparisonMetrics} />}
             {activeTab === 'balance' && <BalanceSheetSection d={data.balanceSheet} />}
-            {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} />}
+            {activeTab === 'volume' && <FacilitatedVolumeSection d={data.facilitatedVolume} cm={comparisonMetrics} />}
 
             {/* Export Actions */}
             <div className="flex gap-2 mt-6 pt-4 border-t border-border">
