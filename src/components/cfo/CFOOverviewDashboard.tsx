@@ -364,6 +364,16 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           { label: 'Money Out', value: -(todayCashFlow?.cashOutToday ?? 0), icon: <ArrowUpRight className="h-4 w-4 text-destructive" /> },
         ]}
       />
+      {/* ── FLOATING PAY FAB (mobile only) ── */}
+      {onTabChange && (
+        <button
+          onClick={() => onTabChange('wallet-payout')}
+          className="fixed bottom-6 right-6 z-50 lg:hidden h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          aria-label="Send Money"
+        >
+          <Wallet className="h-6 w-6" />
+        </button>
+      )}
     </div>
   );
 }
@@ -382,15 +392,17 @@ function MetricCard({ icon, label, sublabel, value, detail, valueColor, onClick 
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-2xl border bg-card p-4 flex items-center gap-4 text-left active:scale-[0.98] transition-all hover:shadow-md"
+      className="w-full rounded-2xl border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-left active:scale-[0.98] transition-all hover:shadow-md"
     >
-      {icon}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold">{label}</p>
-        <p className="text-[11px] text-muted-foreground">{sublabel}</p>
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="shrink-0">{icon}</div>
+        <div className="min-w-0 flex-1 sm:flex-initial">
+          <p className="text-sm font-semibold">{label}</p>
+          <p className="text-[11px] text-muted-foreground leading-tight">{sublabel}</p>
+        </div>
       </div>
-      <div className="text-right shrink-0">
-        <p className={`text-lg font-bold font-mono tabular-nums ${valueColor || ''}`}>{value}</p>
+      <div className="text-left sm:text-right sm:ml-auto shrink-0 pl-[52px] sm:pl-0">
+        <p className={`text-base sm:text-lg font-bold font-mono tabular-nums ${valueColor || ''}`}>{value}</p>
         <p className="text-[10px] text-muted-foreground">{detail}</p>
       </div>
     </button>
