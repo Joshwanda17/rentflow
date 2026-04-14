@@ -2697,8 +2697,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     </div>
   );
 }
-  );
-}
 
 /* ─── Summary Card ─── */
 function SummaryCard({ icon, label, value, sub, accent }: {
