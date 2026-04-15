@@ -139,11 +139,12 @@ export function ProxyPartnerFunds() {
           .select('linked_party, status, reason')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
-        // Portfolios for approved partners
+        // Portfolios where THIS user is the proxy agent (not self-managed ones)
         supabase
           .from('investor_portfolios')
           .select('id, portfolio_code, account_name, investor_id')
-          .in('investor_id', approvedIds),
+          .eq('agent_id', user.id)
+          .neq('investor_id', user.id),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
