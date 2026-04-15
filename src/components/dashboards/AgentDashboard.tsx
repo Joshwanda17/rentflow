@@ -312,29 +312,32 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
            secondaryValue={formatUGX(realWithdrawableBalance)}
            onOpenWallet={() => setShowWallet(true)}
            quickActions={
-             <div className="flex items-center gap-2">
-               <button
-                 onClick={() => { hapticTap(); setShowQuickDeposit(true); }}
-                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all"
-               >
-                 <ArrowDownToLine className="h-3.5 w-3.5 text-white/70" />
-                 <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Deposit</span>
-               </button>
-               <button
-                 onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
-                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all"
-               >
-                 <ArrowUpFromLine className="h-3.5 w-3.5 text-white/70" />
-                 <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Withdraw</span>
-               </button>
-               <button
-                 onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
-                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all"
-               >
-                 <ArrowLeftRight className="h-3.5 w-3.5 text-white/70" />
-                 <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Transfer</span>
-               </button>
-             </div>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => { hapticTap(); setShowQuickDeposit(true); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <ArrowDownToLine className="h-4 w-4 text-white/80" />
+                  <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Deposit</span>
+                </button>
+                <button
+                  onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <ArrowUpFromLine className="h-4 w-4 text-white/80" />
+                  <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Withdraw</span>
+                </button>
+                <button
+                  onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <ArrowLeftRight className="h-4 w-4 text-white/80" />
+                  <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Transfer</span>
+                </button>
+              </div>
            }
          />
 
@@ -352,50 +355,66 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Today's Collections — who owes, at a glance */}
         <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
 
-        {/* Quick Actions — grouped for easy discovery */}
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-0.5">Daily Actions</p>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30' },
-              { icon: FileText, label: 'Add Tenant', onClick: () => setRentRequestOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 ring-1 ring-[#7C3BED]/30' },
-              { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30' },
-              { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30' },
-            ].map((action) => (
-              <button
-                key={action.label}
-                onClick={() => { hapticTap(); action.onClick(); }}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl border touch-manipulation active:scale-95 transition-transform",
-                  action.bg
-                )}
-              >
-                <action.icon className={cn("h-5 w-5", action.color)} />
-                <span className={cn("text-[10px] font-semibold", action.color)}>{action.label}</span>
-              </button>
-            ))}
+        {/* Quick Actions — large icons, big touch targets, icon-first for non-readers */}
+        <div className="space-y-3">
+          {/* Row 1: Core daily actions */}
+          <div>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
+              ⚡ Daily Actions
+            </p>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { icon: Banknote, label: 'Pay Rent', emoji: '💰', onClick: () => setTopUpTenantOpen(true), bg: 'bg-primary/12', iconBg: 'bg-primary', ring: 'ring-primary/20' },
+                { icon: FileText, label: 'New Tenant', emoji: '📝', onClick: () => setRentRequestOpen(true), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-3))]', ring: 'ring-[hsl(var(--chart-3))]/20' },
+                { icon: Users, label: 'My Tenants', emoji: '👥', onClick: () => setTenantsSheetOpen(true), bg: 'bg-secondary/80', iconBg: 'bg-[hsl(var(--chart-1))]', ring: 'ring-[hsl(var(--chart-1))]/20' },
+                { icon: Home, label: 'List House', emoji: '🏠', onClick: () => setListHouseOpen(true), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-2))]', ring: 'ring-[hsl(var(--chart-2))]/20' },
+              ].map((action) => (
+                <button
+                  key={action.label}
+                  onClick={() => { hapticTap(); action.onClick(); }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl ring-1 touch-manipulation active:scale-[0.93] transition-all min-h-[80px]",
+                    action.bg, action.ring
+                  )}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className={cn("p-2 rounded-xl text-white shadow-sm", action.iconBg)}>
+                    <action.icon className="h-5 w-5" strokeWidth={2.2} />
+                  </div>
+                  <span className="text-[11px] font-bold text-foreground leading-tight">{action.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-0.5 pt-1">Share & Grow</p>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { icon: Building2, label: 'Landlord', onClick: handleShareLandlordSignup, color: 'text-purple-600', bg: 'bg-purple-600/10 border-purple-600/30' },
-              { icon: Sparkles, label: 'Partners', onClick: () => navigate('/agent/partners'), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30' },
-              { icon: UserPlus, label: 'Invite', onClick: () => navigate('/referrals'), color: 'text-emerald-600', bg: 'bg-emerald-600/10 border-emerald-600/30' },
-              { icon: Menu, label: 'All Menu', onClick: handleOpenMenu, color: 'text-foreground/70', bg: 'bg-card border-border/40' },
-            ].map((action) => (
-              <button
-                key={action.label}
-                onClick={() => { hapticTap(); action.onClick(); }}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl border touch-manipulation active:scale-95 transition-transform",
-                  action.bg
-                )}
-              >
-                <action.icon className={cn("h-5 w-5", action.color)} />
-                <span className={cn("text-[10px] font-semibold", action.color)}>{action.label}</span>
-              </button>
-            ))}
+          {/* Row 2: Share & grow */}
+          <div>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
+              📤 Share & Grow
+            </p>
+            <div className="grid grid-cols-4 gap-2.5">
+              {[
+                { icon: Building2, label: 'Landlord', emoji: '🏘', onClick: handleShareLandlordSignup, bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-4))]', ring: 'ring-[hsl(var(--chart-4))]/20' },
+                { icon: Sparkles, label: 'Partners', emoji: '🤝', onClick: () => navigate('/agent/partners'), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-3))]', ring: 'ring-[hsl(var(--chart-3))]/20' },
+                { icon: UserPlus, label: 'Invite', emoji: '🎁', onClick: () => navigate('/referrals'), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-2))]', ring: 'ring-[hsl(var(--chart-2))]/20' },
+                { icon: Menu, label: 'All Menu', emoji: '☰', onClick: handleOpenMenu, bg: 'bg-card', iconBg: 'bg-muted-foreground/80', ring: 'ring-border/40' },
+              ].map((action) => (
+                <button
+                  key={action.label}
+                  onClick={() => { hapticTap(); action.onClick(); }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl ring-1 touch-manipulation active:scale-[0.93] transition-all min-h-[80px]",
+                    action.bg, action.ring
+                  )}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className={cn("p-2 rounded-xl text-white shadow-sm", action.iconBg)}>
+                    <action.icon className="h-5 w-5" strokeWidth={2.2} />
+                  </div>
+                  <span className="text-[11px] font-bold text-foreground leading-tight">{action.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -408,18 +427,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {isCashoutAgent && (
           <button
             onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 touch-manipulation active:opacity-80"
+            className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-warning/40 bg-warning/10 touch-manipulation active:scale-[0.97] transition-all min-h-[64px]"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <div className="p-2.5 rounded-lg bg-orange-500/20">
-              <Banknote className="h-5 w-5 text-orange-600" />
+            <div className="p-3 rounded-xl bg-warning/20">
+              <Banknote className="h-6 w-6 text-warning" />
             </div>
             <div className="flex-1 text-left">
-              <p className="font-bold text-sm text-orange-700 dark:text-orange-400">Cash Payouts</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="font-bold text-sm text-warning">Cash Payouts</p>
+              <p className="text-[11px] text-muted-foreground">
                 {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
               </p>
             </div>
-            <span className="text-lg text-orange-500">›</span>
+            <span className="text-xl text-warning">›</span>
           </button>
         )}
 
