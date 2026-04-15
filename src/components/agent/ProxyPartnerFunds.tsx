@@ -97,6 +97,8 @@ export function ProxyPartnerFunds() {
         setLoading(false);
         return;
       }
+      // Only show records that went through the full Partner Ops → COO → CFO pipeline
+      // These records have coo_approved_by stamped in metadata by the COO approval step
       const { data: pwoData, error: pwoError } = await supabase
         .from('pending_wallet_operations')
         .select('id, amount, linked_party, source_id, description, metadata, created_at')
@@ -104,6 +106,7 @@ export function ProxyPartnerFunds() {
         .in('category', ['roi_payout', 'supporter_platform_rewards'])
         .eq('status', 'approved')
         .in('reviewed_by', cfoIds)
+        .not('metadata->coo_approved_by', 'is', null)
         .order('created_at', { ascending: false });
 
       if (pwoError) throw pwoError;
