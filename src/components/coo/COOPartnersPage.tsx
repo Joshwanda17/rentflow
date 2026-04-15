@@ -2981,6 +2981,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     if (q) {
       list = list.filter(p =>
         p.name.toLowerCase().includes(q) ||
+        p.portfolioName.toLowerCase().includes(q) ||
         p.phone.toLowerCase().includes(q) ||
         p.email.toLowerCase().includes(q)
       );
@@ -3403,7 +3404,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     type="text"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search by name, phone, or email…"
+                    placeholder="Search by name, portfolio, phone…"
                     className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
                   />
                   {search && (
