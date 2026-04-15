@@ -201,7 +201,7 @@ export function ProxyPartnerFunds() {
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('id, linked_party, status, reason, metadata')
+          .select('id, linked_party, status, reason')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
       ]);
