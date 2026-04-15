@@ -145,6 +145,7 @@ export default function AgentPartners() {
 
         partnerList.push({
           id: pa.id,
+          userId: pa.beneficiary_id,
           name: profile.full_name || 'Unknown',
           phone: profile.phone || '',
           avatarUrl: profile.avatar_url,
