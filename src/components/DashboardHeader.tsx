@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check } from 'lucide-react';
+import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Coins, Check, GraduationCap } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
@@ -225,6 +225,18 @@ const DashboardHeader = memo(function DashboardHeader({
                         <Coins className="h-4 w-4" style={{ color: '#7214c9' }} />
                       </div>
                       Agent Commission Benefits
+                    </DropdownMenuItem>
+                  )}
+
+                  {currentRole === 'agent' && (
+                    <DropdownMenuItem
+                      onClick={() => navigate('/internship')}
+                      className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                    >
+                      <div className="p-1.5 rounded-lg" style={{ backgroundColor: 'rgba(114, 20, 201, 0.1)' }}>
+                        <GraduationCap className="h-4 w-4" style={{ color: '#7214c9' }} />
+                      </div>
+                      Internship Program
                     </DropdownMenuItem>
                   )}
 
