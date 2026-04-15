@@ -98,6 +98,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Tenant info (for non-account holders)
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
+  const [tenantNationalId, setTenantNationalId] = useState('');
   
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
@@ -199,6 +200,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setIncomeType(null);
     setTenantName('');
     setTenantPhone('');
+    setTenantNationalId('');
     setRentAmount('');
     setOutstandingBalance('');
     setDuration('30');
@@ -308,6 +310,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       return;
     }
 
+    // Validate National ID (10-14 alphanumeric characters)
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+      toast.error('National ID is required (10-14 alphanumeric characters)');
+      return;
+    }
+
     const isOutstanding = incomeType === 'outstanding';
 
     if (!landlordName.trim() || !landlordPhone.trim()) {
@@ -406,6 +415,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         body: {
           full_name: tenantName.trim(),
           phone: cleanTenantPhone,
+          national_id: tenantNationalId.trim().toUpperCase(),
         },
       });
 
@@ -799,6 +809,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       </div>
                     </div>
 
+                    <div className="space-y-1">
+                      <Label className="text-xs">National ID *</Label>
+                      <Input
+                        value={tenantNationalId}
+                        onChange={(e) => setTenantNationalId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
+                        placeholder="e.g. CM12345678901"
+                        className="h-10 font-mono uppercase"
+                        maxLength={14}
+                        required
+                      />
+                      {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
+                        <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
+                      )}
+                    </div>
+
                     {/* FIX #7: Currency formatting on outstanding balance input */}
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Outstanding Balance (UGX) *</Label>
@@ -1024,6 +1049,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
                     )}
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="tenantNationalId" className="text-xs">National ID *</Label>
+                  <Input
+                    id="tenantNationalId"
+                    value={tenantNationalId}
+                    onChange={(e) => setTenantNationalId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
+                    placeholder="e.g. CM12345678901"
+                    className="h-10 font-mono uppercase"
+                    maxLength={14}
+                    required
+                  />
+                  {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
+                    <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
+                  )}
                 </div>
               </div>
 

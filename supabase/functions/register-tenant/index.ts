@@ -238,9 +238,11 @@ Deno.serve(async (req) => {
 
 
     // Notify managers (fire-and-forget)
-    fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
+    const fnUrl = Deno.env.get("SUPABASE_URL");
+    const fnKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    fetch(`${fnUrl}/functions/v1/notify-managers`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${fnKey}` },
       body: JSON.stringify({ title: "👤 Tenant Registered", body: "Activity: new tenant", url: "/manager" }),
     }).catch(() => {});
 
