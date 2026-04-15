@@ -93,8 +93,6 @@ export function UnifiedWalletHeroCard({
           </p>
         </button>
 
-        {/* Quick Actions slot */}
-        {quickActions}
 
         {/* Supporter metric cards — individually tappable */}
         {role === 'supporter' && (
