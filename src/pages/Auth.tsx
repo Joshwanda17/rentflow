@@ -65,6 +65,20 @@ export default function Auth() {
   const { user, loading: authLoading, signIn: authSignIn } = useAuth();
   const [emailLoginLoading, setEmailLoginLoading] = useState(false);
 
+  // Internship funnel: auto-fill from query params and switch to signup
+  useEffect(() => {
+    const source = searchParams.get('source');
+    if (source === 'internship') {
+      setIsSignUp(true);
+      const nameParam = searchParams.get('name');
+      const phoneParam = searchParams.get('phone');
+      const emailParam = searchParams.get('email');
+      if (nameParam) setFullName(decodeURIComponent(nameParam));
+      if (phoneParam) setPhone(decodeURIComponent(phoneParam));
+      if (emailParam) setEmail(decodeURIComponent(emailParam));
+    }
+  }, []); // Run once on mount
+
   const hasValidRole = !!preSelectedRole && VALID_SIGNUP_ROLES.includes(preSelectedRole as any);
   const needsRoleSelection = isSignUp && !hasValidRole;
 
