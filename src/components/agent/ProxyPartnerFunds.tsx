@@ -397,10 +397,10 @@ export function ProxyPartnerFunds() {
   };
 
   const confirmCancel = async () => {
-    if (!cancelTarget || !user?.id) return;
+    if (!cancelTarget || !user?.id || cancelReason.trim().length < 10) return;
     setCancellingId(cancelTarget.withdrawalId);
     try {
-      // 1. Fetch the actual withdrawal amount from the database
+      // 1. Fetch the actual withdrawal amount
       const { data: withdrawalData } = await supabase
         .from('withdrawal_requests')
         .select('amount')
@@ -410,20 +410,23 @@ export function ProxyPartnerFunds() {
       const withdrawalAmount = withdrawalData?.amount || 0;
       if (!withdrawalAmount) throw new Error('Could not determine withdrawal amount');
 
-      // 2. Update withdrawal_requests status to 'cancelled'
+      // 2. Update withdrawal_requests status to 'cancelled' with reason
       const { error } = await supabase
         .from('withdrawal_requests')
-        .update({ status: 'cancelled' } as any)
+        .update({
+          status: 'cancelled',
+          reason: `[CANCELLED] ${cancelReason.trim()}`,
+        } as any)
         .eq('id', cancelTarget.withdrawalId);
       if (error) throw error;
 
-      // 3. Reverse the held-funds ledger entry (cash_in to restore ROI balance in agent wallet)
+      // 3. Reverse the held-funds ledger entry (cash_in to restore ROI balance)
       await supabase.from('general_ledger').insert({
         user_id: user.id,
         amount: withdrawalAmount,
         direction: 'cash_in',
         category: 'withdrawal_reversal',
-        description: `Proxy withdrawal cancelled by agent for ${cancelTarget.partnerName} – ROI returns restored`,
+        description: `Proxy withdrawal cancelled by agent for ${cancelTarget.partnerName} – ROI returns restored. Reason: ${cancelReason.trim()}`,
         currency: 'UGX',
         transaction_group_id: `wallet-withdraw-cancel-${cancelTarget.withdrawalId}`,
         source_table: 'withdrawal_requests',
@@ -441,11 +444,45 @@ export function ProxyPartnerFunds() {
           partner_name: cancelTarget.partnerName,
           cancelled_by: user.id,
           amount_restored: withdrawalAmount,
+          cancellation_reason: cancelReason.trim(),
         },
       } as any);
 
+      // 5. Notify COO and Partner Ops users
+      const { data: cooUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'coo');
+      const { data: partnerOpsUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'partner_ops');
+
+      const { data: agentProfile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+      const agentName = agentProfile?.full_name || 'Agent';
+
+      const notifyUserIds = new Set<string>();
+      (cooUsers || []).forEach(u => notifyUserIds.add(u.user_id));
+      (partnerOpsUsers || []).forEach(u => notifyUserIds.add(u.user_id));
+      // Remove self from notifications
+      notifyUserIds.delete(user.id);
+
+      if (notifyUserIds.size > 0) {
+        await supabase.from('notifications').insert(
+          [...notifyUserIds].map(uid => ({
+            user_id: uid,
+            title: 'Proxy Withdrawal Cancelled',
+            message: `${agentName} cancelled a proxy withdrawal of ${formatAmount(withdrawalAmount)} for partner ${cancelTarget.partnerName}. Reason: ${cancelReason.trim()}`,
+            type: 'warning',
+            metadata: {
+              action: 'proxy_withdrawal_cancelled',
+              withdrawal_id: cancelTarget.withdrawalId,
+              agent_id: user.id,
+              agent_name: agentName,
+              partner_name: cancelTarget.partnerName,
+              amount: withdrawalAmount,
+              reason: cancelReason.trim(),
+            },
+          }))
+        );
+      }
+
       toast.success('Withdrawal cancelled', {
-        description: `The ROI withdrawal for ${cancelTarget.partnerName} has been cancelled and ${formatAmount(withdrawalAmount)} restored to your wallet.`,
+        description: `The ROI withdrawal for ${cancelTarget.partnerName} has been cancelled and ${formatAmount(withdrawalAmount)} restored. COO & Partner Ops have been notified.`,
       });
       loadProxyFunds();
     } catch (err: any) {
@@ -454,6 +491,7 @@ export function ProxyPartnerFunds() {
       setCancellingId(null);
       setCancelConfirmOpen(false);
       setCancelTarget(null);
+      setCancelReason('');
     }
   };
 
