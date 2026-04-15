@@ -1,30 +1,44 @@
-
-
-## Plan: Add Internship Applications to Staff Panel
+## Plan: Add Quick Action Buttons to Agent Wallet Hero Card
 
 ### What changes
 
-1. **New sidebar item** in `executiveSidebarConfig.ts` under the `hr` section: "Internship Applications" with a `GraduationCap` icon and id `internships`
+**Single file edit: `src/components/agent/AgentWalletHeroCard.tsx**`
 
-2. **New component** `src/components/hr/HRInternshipApplications.tsx` — A table view showing all submissions from `internship_applications`:
-   - Columns: Full Name, Phone, Email, Motivation, Skills, Ready to Learn, Referral Code, Applied At
-   - Sorted by newest first
-   - Status badges (ready/exploring)
-   - Simple, clean table with search/filter
+Add a row of 3 quick action buttons between the "Withdrawable" line and the divider. Each button opens the existing flow component:
 
-3. **Wire into HR Dashboard** (`src/pages/hr/Dashboard.tsx`) — Add `case 'internships'` to the switch, rendering the new component
+- **Deposit** (ArrowDownToLine icon, emerald) — Opens `DepositFlow`
+- **Withdraw** (ArrowUpFromLine icon, amber) — Opens `WithdrawFlow`
+- **Transfer** (ArrowLeftRight icon, blue) — Opens `SendMoneyDialog`
 
-### Also visible to Manager/COO
+### Layout
 
-Add the same sidebar item under `manager` and `coo` sections in `executiveSidebarConfig.ts`, since the RLS read policy already grants access to `manager`, `super_admin`, `coo`, and `hr` roles.
+```text
+┌──────────────────────────────────┐
+│  Agent Wallet           ● Active │
+│  Total Balance                   │
+│  USh 1,250,000                   │
+│  Withdrawable: USh 350,000       │
+│                                  │
+│  ┌──────┐ ┌──────┐ ┌──────┐     │
+│  │Deposit│ │Withdraw│ │Transfer│  │  ← NEW ROW
+│  └──────┘ └──────┘ └──────┘     │
+│  ─────────────────────────────── │
+│  Tenants  │  Earned  │ Commission│
+│  ...                             │
+└──────────────────────────────────┘
+```
+
+### Technical details
+
+- Import `DepositFlow`, `WithdrawFlow`, `SendMoneyDialog` (all exist)
+- use relative icons instead of words
+- Add 3 boolean states: `showDeposit`, `showWithdraw`, `showTransfer`
+- Buttons styled as `bg-white/10 backdrop-blur-sm` rounded pills with small icons, matching the card's dark theme
+- `WithdrawFlow` receives `availableBalance={commissionBalance}` (only withdrawable portion)
+- All 3 dialog/sheet components rendered alongside existing `FullScreenWalletSheet`
 
 ### Files
 
-- **Edit**: `src/components/layout/executiveSidebarConfig.ts` — Add "Internship Applications" item to `hr`, `manager`, `coo` sections
-- **New**: `src/components/hr/HRInternshipApplications.tsx` — Table component
-- **Edit**: `src/pages/hr/Dashboard.tsx` — Add case for `internships`
-- **Edit**: `src/pages/COODashboard.tsx` (if it uses same pattern) — Add case
-- **Edit**: Manager dashboard — Add case
+- **Edit**: `src/components/agent/AgentWalletHeroCard.tsx`
 
-No database changes needed — table and RLS already exist.
-
+No new files, no database changes. All flows already exist and handle their own logic.
