@@ -398,6 +398,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </div>
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      <DepositFlow open={showQuickDeposit} onOpenChange={setShowQuickDeposit} />
+      <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={commissionBalance} />
+      <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
       
       <AgentMenuDrawer
         open={menuOpen}
