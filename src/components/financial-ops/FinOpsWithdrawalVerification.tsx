@@ -41,9 +41,12 @@ interface WithdrawalRequest {
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
 
+type ActiveTab = 'pending' | 'rejected';
+
 export function FinOpsWithdrawalVerification() {
   const { user } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<WithdrawalRequest[]>([]);
+  const [rejectedRequests, setRejectedRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -52,6 +55,7 @@ export function FinOpsWithdrawalVerification() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [reference, setReference] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
@@ -69,7 +73,8 @@ export function FinOpsWithdrawalVerification() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch pending
+      const { data: pendingData, error: pendingErr } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'fin_ops_approved'])
@@ -77,10 +82,26 @@ export function FinOpsWithdrawalVerification() {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (pendingErr) throw pendingErr;
 
-      const pendingWithProfiles = await fetchProfiles(data || []);
+      // Fetch rejected (last 90 days)
+      const { data: rejectedData, error: rejectedErr } = await supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .eq('status', 'rejected')
+        .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (rejectedErr) throw rejectedErr;
+
+      const [pendingWithProfiles, rejectedWithProfiles] = await Promise.all([
+        fetchProfiles(pendingData || []),
+        fetchProfiles(rejectedData || []),
+      ]);
+
       setPendingRequests(pendingWithProfiles);
+      setRejectedRequests(rejectedWithProfiles);
     } catch (e) {
       console.error('FinOps withdrawal fetch error:', e);
       toast.error('Failed to load withdrawal requests');
@@ -91,7 +112,7 @@ export function FinOpsWithdrawalVerification() {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // Single-step: Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
+  // Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
   const handleApprove = async () => {
     if (!user || !selected || reference.trim().length < 3 || !paymentMethod) return;
     setProcessing(selected.id);
@@ -108,6 +129,7 @@ export function FinOpsWithdrawalVerification() {
 
       toast.success('Withdrawal approved & completed!');
       setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
+      setRejectedRequests(prev => prev.filter(r => r.id !== selected.id));
       setApproveOpen(false);
       setSelected(null);
       setReference('');
@@ -136,6 +158,9 @@ export function FinOpsWithdrawalVerification() {
 
       toast.success('Withdrawal rejected');
       setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
+      // Add to rejected list
+      const rejectedItem = { ...selected, status: 'rejected' };
+      setRejectedRequests(prev => [rejectedItem, ...prev]);
       setRejectOpen(false);
       setRejectionReason('');
       setSelected(null);
@@ -160,7 +185,7 @@ export function FinOpsWithdrawalVerification() {
     return null;
   };
 
-  const renderRequestCard = (req: WithdrawalRequest) => {
+  const renderPendingCard = (req: WithdrawalRequest) => {
     const bankLabel = getPayoutLabel(req);
     const ageBadge = getAgeBadge(req.created_at);
     return (
@@ -244,6 +269,81 @@ export function FinOpsWithdrawalVerification() {
     );
   };
 
+  const renderRejectedCard = (req: WithdrawalRequest) => {
+    const bankLabel = getPayoutLabel(req);
+    const ageBadge = getAgeBadge(req.created_at);
+    return (
+      <div key={req.id} className="p-3 rounded-xl border border-destructive/30 bg-destructive/5 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <UserAvatar fullName={req.user?.full_name || ''} avatarUrl={req.user?.avatar_url} size="sm" />
+            <div>
+              <p className="text-sm font-bold">{req.user?.full_name}</p>
+              <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+            <Badge variant="destructive" size="sm">Rejected</Badge>
+          </div>
+        </div>
+
+        {(req.mobile_money_name || req.bank_account_name) && (
+          <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+            <span className="text-xs font-bold text-foreground">
+              Recipient: {req.mobile_money_name || req.bank_account_name}
+            </span>
+          </div>
+        )}
+
+        {req.mobile_money_number && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Smartphone className="h-3 w-3" />
+            <span className={`uppercase font-medium ${req.mobile_money_provider === 'mtn' ? 'text-yellow-600' : 'text-red-500'}`}>
+              {req.mobile_money_provider || 'MoMo'}
+            </span>
+            <span>•</span>
+            <span>{req.mobile_money_number}</span>
+          </div>
+        )}
+
+        {bankLabel && <p className="text-xs text-muted-foreground">{bankLabel}</p>}
+
+        {req.reason && (
+          <div className="px-2 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider mb-0.5">Rejection Reason</p>
+            <p className="text-xs text-foreground">{req.reason}</p>
+          </div>
+        )}
+
+        {(req as any).rejection_reason && !(req.reason) && (
+          <div className="px-2 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider mb-0.5">Rejection Reason</p>
+            <p className="text-xs text-foreground">{(req as any).rejection_reason}</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <p className="text-[10px] text-muted-foreground">
+              Requested {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+            </p>
+            {ageBadge}
+          </div>
+          <Button
+            size="sm"
+            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => { setSelected(req); setApproveOpen(true); }}
+            disabled={!!processing}
+          >
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Re-Approve & Complete
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <Card>
@@ -261,27 +361,64 @@ export function FinOpsWithdrawalVerification() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <ArrowDownToLine className="h-4 w-4 text-primary" />
-              Pending Withdrawals
-              {pendingRequests.length > 0 && (
-                <Badge variant="destructive" className="text-xs animate-pulse">
-                  {pendingRequests.length}
-                </Badge>
-              )}
+              Withdrawal Requests
             </CardTitle>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchRequests}>
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 bg-muted/50 p-1 rounded-xl mt-2">
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'pending'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Pending
+              {pendingRequests.length > 0 && (
+                <Badge variant="warning" size="sm" className="text-[10px] px-1.5">{pendingRequests.length}</Badge>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('rejected')}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'rejected'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Rejected
+              {rejectedRequests.length > 0 && (
+                <Badge variant="destructive" size="sm" className="text-[10px] px-1.5">{rejectedRequests.length}</Badge>
+              )}
+            </button>
+          </div>
         </CardHeader>
         <CardContent>
-          {pendingRequests.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              No pending wallet withdrawals
-            </p>
+          {activeTab === 'pending' ? (
+            pendingRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No pending wallet withdrawals
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {pendingRequests.map(req => renderPendingCard(req))}
+              </div>
+            )
           ) : (
-            <div className="space-y-2">
-              {pendingRequests.map(req => renderRequestCard(req))}
-            </div>
+            rejectedRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No rejected withdrawals in the last 90 days
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {rejectedRequests.map(req => renderRejectedCard(req))}
+              </div>
+            )
           )}
         </CardContent>
       </Card>
@@ -290,11 +427,19 @@ export function FinOpsWithdrawalVerification() {
       <AlertDialog open={approveOpen} onOpenChange={(open) => { setApproveOpen(open); if (!open) { setReference(''); setPaymentMethod(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve & Complete Withdrawal</AlertDialogTitle>
+            <AlertDialogTitle>
+              {selected?.status === 'rejected' ? 'Re-Approve & Complete Withdrawal' : 'Approve & Complete Withdrawal'}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 pt-1">
                 {selected && (
                   <>
+                    {selected.status === 'rejected' && (
+                      <div className="px-2.5 py-2 rounded-lg bg-warning/10 border border-warning/30">
+                        <p className="text-[10px] font-semibold text-warning uppercase tracking-wider mb-0.5">⚠️ Previously Rejected</p>
+                        <p className="text-xs text-foreground">This withdrawal was rejected and is being re-approved. Ensure the reason for rejection has been resolved.</p>
+                      </div>
+                    )}
                     <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Name</span>
@@ -372,7 +517,7 @@ export function FinOpsWithdrawalVerification() {
               disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              {processing ? 'Processing...' : 'Approve & Complete'}
+              {processing ? 'Processing...' : selected?.status === 'rejected' ? 'Re-Approve & Complete' : 'Approve & Complete'}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
