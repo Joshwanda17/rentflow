@@ -2,6 +2,7 @@ import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
+import { COOROIApprovals } from '@/components/coo/COOROIApprovals';
 import FinancialMetricsCards from '@/components/coo/FinancialMetricsCards';
 import FinancialTransactionsTable from '@/components/coo/FinancialTransactionsTable';
 import AgentCollectionsOverview from '@/components/coo/AgentCollectionsOverview';
@@ -164,6 +165,15 @@ export default function COODashboardPage() {
             {renderSectionHeader('Withdrawal Approvals', Banknote)}
             <COOWithdrawalApprovals />
             <COOPartnerWithdrawalApprovals />
+          </div>
+        );
+      case 'roi-approvals':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('ROI Return Approvals', TrendingUp)}
+            <p className="text-sm text-muted-foreground -mt-2">Approve partner ROI payouts before they go to CFO for disbursement.</p>
+            <COOROIApprovals />
           </div>
         );
       case 'partners':
