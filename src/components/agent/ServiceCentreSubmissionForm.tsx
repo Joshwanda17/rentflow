@@ -21,6 +21,7 @@ export function ServiceCentreSubmissionForm() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStep, setSubmitStep] = useState<'compressing' | 'uploading' | 'saving' | null>(null);
 
   const { data: profile } = useQuery({
     queryKey: ['agent-profile-for-sc', user?.id],
