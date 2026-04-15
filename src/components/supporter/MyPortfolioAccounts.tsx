@@ -120,7 +120,7 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onTopUp }: { port
             <div className="flex gap-3">
               <Button
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent('open-deposit'));
+                  onTopUp?.(portfolio);
                   onOpenChange(false);
                 }}
                 className="flex-1 h-11 font-semibold gap-2"
