@@ -12,7 +12,7 @@ import {
   CheckCircle, XCircle, Loader2, TrendingUp, User, Wallet,
   CheckCheck, RefreshCw,
 } from 'lucide-react';
-import { TreasuryImpactBanner } from '@/components/cfo/TreasuryImpactBanner';
+
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -216,7 +216,7 @@ export function COOROIApprovals() {
       <CardContent className="space-y-3">
         {selected.size > 0 && (
           <div className="space-y-3 rounded-xl border-2 border-primary/30 bg-primary/5 p-3">
-            <TreasuryImpactBanner payoutAmount={selectedTotal} />
+            
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold">
                 {selected.size} selected · {formatUGX(selectedTotal)}
