@@ -484,6 +484,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   setForm(f => ({ ...f, village: val, lc1_village: val }));
                   if (val.trim().length >= 3) fetchLc1ForVillage(val);
                 }}
+                className={attempted && !form.village.trim() ? 'border-destructive' : ''}
               />
             </div>
             <Button
