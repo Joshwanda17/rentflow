@@ -60,6 +60,7 @@ export function ProxyPartnerFunds() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string } | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
