@@ -180,6 +180,7 @@ export default function AgentPartners() {
     invited: partners.filter(p => !p.isProxy).length,
     proxy: partners.filter(p => p.isProxy).length,
     active: partners.filter(p => p.status === 'active').length,
+    pending: partners.filter(p => p.status === 'pending').length,
   }), [partners]);
 
   const handleSharePartnerForm = async () => {
@@ -236,9 +237,9 @@ export default function AgentPartners() {
           {/* KPI Cards */}
           <div className="grid grid-cols-3 gap-2.5">
             {[
-              { label: 'Invited', value: kpis.invited, icon: Heart, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-              { label: 'Proxy', value: kpis.proxy, icon: Zap, color: 'text-primary', bg: 'bg-primary/10' },
+              { label: 'Pending', value: kpis.pending, icon: Heart, color: 'text-warning', bg: 'bg-warning/10' },
               { label: 'Active', value: kpis.active, icon: Activity, color: 'text-success', bg: 'bg-success/10' },
+              { label: 'Proxy', value: kpis.proxy, icon: Zap, color: 'text-primary', bg: 'bg-primary/10' },
             ].map(kpi => (
               <div key={kpi.label} className="rounded-2xl border border-border/60 bg-card p-3.5 text-center space-y-1.5 shadow-sm">
                 <div className={cn("mx-auto w-9 h-9 rounded-xl flex items-center justify-center", kpi.bg)}>
