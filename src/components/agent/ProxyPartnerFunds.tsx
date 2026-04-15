@@ -87,7 +87,7 @@ export function ProxyPartnerFunds() {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'withdrawal_requests',
           filter: `user_id=eq.${user.id}`,
