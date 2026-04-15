@@ -38,6 +38,7 @@ interface TenantRentRequest {
   status: string | null;
   created_at: string;
   disbursed_at: string | null;
+  registration_type: string | null;
   landlord?: { name: string; property_address: string } | null;
 }
 
@@ -183,7 +184,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, landlord:landlords(name, property_address)')
+        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord:landlords(name, property_address)')
         .eq('tenant_id', tenantId)
         .in('status', ['approved', 'disbursed', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
@@ -718,6 +719,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       {owing > 0 && <span className="text-[10px] font-bold text-destructive font-mono">-{formatUGX(owing)}</span>}
+                                      {req.registration_type === 'outstanding_balance' && (
+                                        <Badge variant="warning" className="text-[9px] px-1.5 py-0">
+                                          Outstanding
+                                        </Badge>
+                                      )}
                                       <Badge className={`text-[10px] ${getStatusColor(req.status)}`}>{req.status}</Badge>
                                     </div>
                                   </div>

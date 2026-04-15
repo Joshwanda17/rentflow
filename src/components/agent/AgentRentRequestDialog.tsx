@@ -485,7 +485,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       hapticSuccess();
       setSuccess(true);
-      toast.success('Rent request posted successfully!');
+      toast.success(incomeType === 'outstanding' ? 'Tenant registered with outstanding balance!' : 'Rent request posted successfully!');
       onSuccess?.();
     } catch (error: any) {
       console.error('Submission error:', error);
@@ -537,10 +537,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
               >
                 <CheckCircle2 className="h-8 w-8 text-success" />
               </motion.div>
-              <h3 className="text-lg font-semibold">Request Posted!</h3>
+              <h3 className="text-lg font-semibold">
+                {incomeType === 'outstanding' ? 'Tenant Registered!' : 'Request Posted!'}
+              </h3>
               <p className="text-muted-foreground text-sm">
-                The rent request is now visible to supporters
+                {incomeType === 'outstanding'
+                  ? `Outstanding balance of ${formatUGX(amount)} has been recorded for ${tenantName}`
+                  : 'The rent request is now visible to supporters'}
               </p>
+              {incomeType === 'outstanding' && (
+                <div className="mx-auto mt-2 p-3 rounded-xl bg-warning/10 border border-warning/20 text-left space-y-1 max-w-xs">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Tenant</span>
+                    <span className="font-semibold">{tenantName}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Balance</span>
+                    <span className="font-bold text-warning">{formatUGX(amount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span className="font-semibold">{duration} days</span>
+                  </div>
+                </div>
+              )}
 
               {/* Activation Link Section */}
               {activationLink && (
