@@ -1,44 +1,34 @@
-## Plan: Add Quick Action Buttons to Agent Wallet Hero Card
 
-### What changes
 
-**Single file edit: `src/components/agent/AgentWalletHeroCard.tsx**`
+## Plan: Fix Outstanding Balance Tenant Registration Feedback
 
-Add a row of 3 quick action buttons between the "Withdrawable" line and the divider. Each button opens the existing flow component:
+### Problem
+When an agent registers a tenant with an existing outstanding balance, the submission completes but:
+1. The success screen says "Request Posted! The rent request is now visible to supporters" — misleading for outstanding balances which are debt registrations, not fundable rent requests
+2. No confirmation that the tenant account was actually created/linked
+3. No way to distinguish outstanding balance entries from regular rent requests in the "My Tenants" list
 
-- **Deposit** (ArrowDownToLine icon, emerald) — Opens `DepositFlow`
-- **Withdraw** (ArrowUpFromLine icon, amber) — Opens `WithdrawFlow`
-- **Transfer** (ArrowLeftRight icon, blue) — Opens `SendMoneyDialog`
+### Changes
 
-### Layout
+**File 1: `src/components/agent/AgentRentRequestDialog.tsx`**
+- Update the success screen to show different messaging when `incomeType === 'outstanding'`:
+  - Title: "Tenant Registered!" instead of "Request Posted!"
+  - Description: "Outstanding balance of UGX X has been recorded for [tenant name]" instead of supporter-related text
+  - Show tenant name, amount, and duration in a summary card
+  - Keep the activation link section as-is (still needed for new tenants)
+- Store `incomeType` in a ref or state that persists into the success screen (currently it's available since the form state isn't reset until dialog closes)
 
-```text
-┌──────────────────────────────────┐
-│  Agent Wallet           ● Active │
-│  Total Balance                   │
-│  USh 1,250,000                   │
-│  Withdrawable: USh 350,000       │
-│                                  │
-│  ┌──────┐ ┌──────┐ ┌──────┐     │
-│  │Deposit│ │Withdraw│ │Transfer│  │  ← NEW ROW
-│  └──────┘ └──────┘ └──────┘     │
-│  ─────────────────────────────── │
-│  Tenants  │  Earned  │ Commission│
-│  ...                             │
-└──────────────────────────────────┘
-```
+**File 2: `src/components/agent/AgentTenantsSheet.tsx`**
+- When displaying tenant rent requests in the expanded view, add a badge/indicator for entries where `registration_type === 'outstanding_balance'`
+- Fetch `registration_type` in the rent request select query
+- Show a distinct "Outstanding Balance" badge (amber) vs regular rent requests
 
 ### Technical details
-
-- Import `DepositFlow`, `WithdrawFlow`, `SendMoneyDialog` (all exist)
-- use relative icons instead of words
-- Add 3 boolean states: `showDeposit`, `showWithdraw`, `showTransfer`
-- Buttons styled as `bg-white/10 backdrop-blur-sm` rounded pills with small icons, matching the card's dark theme
-- `WithdrawFlow` receives `availableBalance={commissionBalance}` (only withdrawable portion)
-- All 3 dialog/sheet components rendered alongside existing `FullScreenWalletSheet`
+- No database changes needed — `registration_type` column already exists on `rent_requests`
+- Success screen conditionally renders based on `incomeType` state which is preserved until dialog close
+- Badge in tenant list uses existing `Badge` component with amber styling
 
 ### Files
+- **Edit**: `src/components/agent/AgentRentRequestDialog.tsx` — Conditional success screen for outstanding flow
+- **Edit**: `src/components/agent/AgentTenantsSheet.tsx` — Add outstanding balance badge to tenant request list
 
-- **Edit**: `src/components/agent/AgentWalletHeroCard.tsx`
-
-No new files, no database changes. All flows already exist and handle their own logic.
