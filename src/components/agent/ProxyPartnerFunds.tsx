@@ -45,6 +45,16 @@ interface PortfolioInfo {
   investor_id: string;
 }
 
+const ACTIVE_PROXY_WITHDRAWAL_STATUSES = [
+  'pending',
+  'requested',
+  'manager_approved',
+  'cfo_approved',
+  'approved',
+  'fin_ops_approved',
+  'processing',
+] as const;
+
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
@@ -206,7 +216,7 @@ export function ProxyPartnerFunds() {
           .from('withdrawal_requests')
           .select('id, linked_party, status, reason')
           .eq('user_id', user.id)
-          .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
+          .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES]),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -512,7 +522,7 @@ export function ProxyPartnerFunds() {
     const status = partnerWithdrawalStatus[key];
     if (!status) return null;
 
-    if (status === 'pending') {
+    if (status === 'pending' || status === 'requested') {
       return (
         <Badge variant="warning" size="sm" className="gap-1">
           <Clock className="h-3 w-3" />
@@ -520,7 +530,7 @@ export function ProxyPartnerFunds() {
         </Badge>
       );
     }
-    if (status === 'approved' || status === 'processing' || status === 'manager_approved') {
+    if (status === 'manager_approved' || status === 'cfo_approved' || status === 'approved' || status === 'fin_ops_approved' || status === 'processing') {
       return (
         <Badge variant="success" size="sm" className="gap-1">
           <CheckCircle2 className="h-3 w-3" />
@@ -562,6 +572,8 @@ export function ProxyPartnerFunds() {
         const hasPending = !!partnerWithdrawalStatus[statusKey];
         const statusBadge = getStatusBadge(partner);
         const cardKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+        const currentStatus = partnerWithdrawalStatus[statusKey];
+        const canCancel = currentStatus ? ACTIVE_PROXY_WITHDRAWAL_STATUSES.includes(currentStatus as typeof ACTIVE_PROXY_WITHDRAWAL_STATUSES[number]) : false;
 
         return (
           <Card key={cardKey} className="border-border/50 shadow-sm">
@@ -605,7 +617,7 @@ export function ProxyPartnerFunds() {
                 </div>
               </div>
 
-              {hasPending && partnerWithdrawalStatus[statusKey] === 'pending' ? (
+              {hasPending && canCancel ? (
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -613,7 +625,7 @@ export function ProxyPartnerFunds() {
                     disabled
                   >
                     <Clock className="h-3.5 w-3.5" />
-                    Withdrawal Pending
+                    {currentStatus === 'pending' || currentStatus === 'requested' ? 'Withdrawal Pending' : 'Withdrawal In Progress'}
                   </Button>
                   <Button
                     size="sm"
