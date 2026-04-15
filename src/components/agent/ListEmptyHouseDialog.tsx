@@ -101,27 +101,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAttempted(true);
+
+    // Auto-sync lc1_village from village
+    const syncedForm = { ...form, lc1_village: form.village.trim() };
+
     if (!monthlyRent || monthlyRent < 10000) {
       toast.error('Monthly rent must be at least UGX 10,000');
       return;
     }
-    if (!form.region || !form.address) {
-      toast.error('Region and address are required');
+    if (!syncedForm.region) {
+      toast.error('Please select a region');
       return;
     }
-    if (!form.village.trim()) {
-      toast.error('Village/Zone is required to verify LC1 Chairperson');
+    if (!syncedForm.address.trim()) {
+      toast.error('Address is required');
       return;
     }
-    if (!form.lc1_name || !form.lc1_phone) {
-      toast.error('LC1 Chairperson details are required');
+    if (!syncedForm.village.trim()) {
+      toast.error('Village/Zone is required');
       return;
     }
-    // Validate LC1 village matches property village
-    if (form.lc1_village.toLowerCase() !== form.village.toLowerCase()) {
-      toast.error('LC1 Chairperson village must match property village');
+    if (!syncedForm.lc1_name.trim()) {
+      toast.error('LC1 Chairperson name is required');
       return;
     }
+    if (!syncedForm.lc1_phone.trim()) {
+      toast.error('LC1 Chairperson phone is required');
+      return;
+    }
+
+    // Update form with synced lc1_village
+    setForm(syncedForm);
 
     setSubmitting(true);
     try {
