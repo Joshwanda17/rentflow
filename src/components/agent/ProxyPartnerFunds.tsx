@@ -392,6 +392,7 @@ export function ProxyPartnerFunds() {
     const withdrawalId = partnerWithdrawalIds[key];
     if (!withdrawalId) return;
     setCancelTarget({ key, withdrawalId, partnerName: partner.partnerName });
+    setCancelReason('');
     setCancelConfirmOpen(true);
   };
 
