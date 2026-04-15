@@ -156,6 +156,9 @@ export function AgentWalletHeroCard({
       </div>
 
       {showWallet && <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />}
+      <DepositFlow open={showDeposit} onOpenChange={setShowDeposit} />
+      <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={commissionBalance} />
+      <SendMoneyDialog open={showTransfer} onOpenChange={setShowTransfer} />
     </>
   );
 }
