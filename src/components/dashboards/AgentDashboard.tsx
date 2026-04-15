@@ -427,18 +427,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {isCashoutAgent && (
           <button
             onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-orange-500/40 bg-orange-500/10 touch-manipulation active:opacity-80"
+            className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-warning/40 bg-warning/10 touch-manipulation active:scale-[0.97] transition-all min-h-[64px]"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <div className="p-2.5 rounded-lg bg-orange-500/20">
-              <Banknote className="h-5 w-5 text-orange-600" />
+            <div className="p-3 rounded-xl bg-warning/20">
+              <Banknote className="h-6 w-6 text-warning" />
             </div>
             <div className="flex-1 text-left">
-              <p className="font-bold text-sm text-orange-700 dark:text-orange-400">Cash Payouts</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="font-bold text-sm text-warning">Cash Payouts</p>
+              <p className="text-[11px] text-muted-foreground">
                 {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
               </p>
             </div>
-            <span className="text-lg text-orange-500">›</span>
+            <span className="text-xl text-warning">›</span>
           </button>
         )}
 
