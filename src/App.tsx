@@ -50,6 +50,7 @@ const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 const Wishlist = lazy(() => import("./pages/Wishlist"));
 const AgentAnalytics = lazy(() => import("./pages/AgentAnalytics"));
+const AgentPartners = lazy(() => import("./pages/AgentPartners"));
 const FlashSales = lazy(() => import("./pages/FlashSales"));
 const Marketplace = lazy(() => import("./pages/Marketplace"));
 const Categories = lazy(() => import("./pages/Categories"));
