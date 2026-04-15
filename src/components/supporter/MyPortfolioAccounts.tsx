@@ -9,6 +9,10 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useMyAngelShares } from '@/hooks/useMyAngelShares';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useWallet } from '@/hooks/useWallet';
+import { FundAccountDialog } from './FundAccountDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; dot: string }> = {
   active: { label: 'Active', variant: 'default', dot: 'bg-success animate-pulse' },
