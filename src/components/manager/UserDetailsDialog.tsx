@@ -61,7 +61,7 @@ import UserEcosystemSection from './user-details/UserEcosystemSection';
 import AddBalanceDialog from './AddBalanceDialog';
 import FundEditHistory from './FundEditHistory';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'super_admin' | 'employee' | 'operations' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'super_admin' | 'employee' | 'operations' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'hr';
 
 const OPERATIONS_DEPARTMENTS = ['Agent', 'Tenant', 'Landlord', 'Partner'] as const;
 
