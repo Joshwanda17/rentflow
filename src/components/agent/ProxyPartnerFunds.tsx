@@ -56,7 +56,10 @@ export function ProxyPartnerFunds() {
   const [prefillReason, setPrefillReason] = useState('');
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
-
+  const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string } | null>(null);
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
