@@ -79,16 +79,20 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     setPendingWithdrawals(counts.withdrawals);
   }, [user]);
 
-  // Check if user has proxy partner entries (is agent for other investors' portfolios)
+  // Check if user has proxy partner entries explicitly approved by a CFO
   useEffect(() => {
     const checkProxy = async () => {
       if (!user?.id) return;
+      const { getCfoUserIds } = await import('@/lib/cfoUserIds');
+      const cfoIds = await getCfoUserIds();
+      if (cfoIds.length === 0) { setHasProxyPartners(false); return; }
       const { count } = await supabase
         .from('pending_wallet_operations')
         .select('id', { count: 'exact', head: true })
         .eq('target_wallet_user_id', user.id)
         .in('category', ['roi_payout', 'supporter_platform_rewards'])
         .eq('status', 'approved')
+        .in('reviewed_by', cfoIds)
         .not('transaction_group_id', 'is', null);
       setHasProxyPartners((count || 0) > 0);
     };

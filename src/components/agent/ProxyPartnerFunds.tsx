@@ -85,14 +85,25 @@ export function ProxyPartnerFunds() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      // Step 1: Get CFO-approved ROI payouts directed to this proxy agent's wallet
-      // This is the SOLE source of truth — only CFO-approved entries appear
+      // Step 1: Get ROI payouts explicitly approved by a CFO-role user
+      const { getCfoUserIds } = await import('@/lib/cfoUserIds');
+      const cfoIds = await getCfoUserIds();
+      if (cfoIds.length === 0) {
+        setApprovedOps([]);
+        setProfiles({});
+        setCompletedWithdrawals([]);
+        setPortfolios([]);
+        setPartnerWithdrawalStatus({});
+        setLoading(false);
+        return;
+      }
       const { data: pwoData, error: pwoError } = await supabase
         .from('pending_wallet_operations')
         .select('id, amount, linked_party, source_id, description, metadata, created_at')
         .eq('target_wallet_user_id', user.id)
         .in('category', ['roi_payout', 'supporter_platform_rewards'])
         .eq('status', 'approved')
+        .in('reviewed_by', cfoIds)
         .order('created_at', { ascending: false });
 
       if (pwoError) throw pwoError;
