@@ -114,8 +114,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     type Inc = typeof increases[number];
 
     const PRIORITY_MAP: Record<string, number> = {
-      partner_funding: 1,
-      share_capital: 2, angel_pool_investment: 2, angel_pool_commission: 2,
+      share_capital: 1, angel_pool_investment: 1, angel_pool_commission: 1,
+      partner_funding: 2,
       rent_principal_collected: 3, access_fee_collected: 3, registration_fee_collected: 3,
       salary_advance_repayment: 4,
       system_balance_correction: 6, orphan_reassignment: 6, orphan_reversal: 6,
@@ -123,8 +123,8 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
     };
 
     const GROUP_META: Record<number, { label: string; emoji: string }> = {
-      1: { label: 'Partner Funding', emoji: '🤝' },
-      2: { label: 'Shareholders Capital', emoji: '🏦' },
+      1: { label: 'Shareholders Capital (Angel Pool)', emoji: '🏦' },
+      2: { label: 'Supporter Partner Funding', emoji: '🤝' },
       3: { label: 'Rent Collections & Fees', emoji: '🏠' },
       4: { label: 'Salary Advance Repayments', emoji: '💼' },
       5: { label: 'Other Sources', emoji: '📦' },
