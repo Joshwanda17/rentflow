@@ -50,6 +50,7 @@ export default function AgentPartners() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabFilter>('invited');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Dialog states
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
