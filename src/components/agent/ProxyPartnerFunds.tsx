@@ -162,8 +162,8 @@ export function ProxyPartnerFunds() {
         return;
       }
 
-      // Step 3: Fetch profiles, completed withdrawals, active withdrawals, and portfolios in parallel
-      const [profileRes, completedRes, activeWithdrawalRes, portfolioRes] = await Promise.all([
+      // Step 4: Fetch profiles, completed withdrawals, active withdrawals in parallel
+      const [profileRes, completedRes, activeWithdrawalRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -181,13 +181,6 @@ export function ProxyPartnerFunds() {
           .select('linked_party, status, reason, metadata')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
-        // Portfolios where THIS user is the proxy agent
-        uniquePortfolioIds.length > 0
-          ? supabase
-              .from('investor_portfolios')
-              .select('id, portfolio_code, account_name, investor_id')
-              .in('id', uniquePortfolioIds)
-          : Promise.resolve({ data: [] }),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -196,7 +189,6 @@ export function ProxyPartnerFunds() {
       });
       setProfiles(profileMap);
       setCompletedWithdrawals((completedRes.data || []).filter(w => uniquePartnerIds.includes(w.linked_party)));
-      setPortfolios((portfolioRes.data || []) as PortfolioInfo[]);
 
       // Build active withdrawal status map
       const statusMap: Record<string, string> = {};
